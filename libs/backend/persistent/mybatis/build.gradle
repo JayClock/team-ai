@@ -1,0 +1,15 @@
+// Configuration is inherited from parent build.gradle
+
+dependencies {
+  implementation project(':domain')
+  implementation 'org.springframework.boot:spring-boot-starter'
+  implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
+  implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.2'
+  implementation 'org.flywaydb:flyway-core:9.16.3'
+
+  testImplementation 'org.springframework.boot:spring-boot-starter-test'
+  testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.2'
+  testImplementation 'com.h2database:h2:2.1.214'
+}
+
+// Test configuration and publishing are inherited from parent build.gradle

@@ -1,0 +1,6 @@
+{
+  "name": "mybatis",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/backend/persistent/mybatis/src",
+  "tags": []
+}

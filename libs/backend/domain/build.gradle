@@ -1,42 +1,9 @@
-plugins {
-	id 'java'
-	id 'org.springframework.boot' version '3.5.4' apply false
-	id 'io.spring.dependency-management' version '1.1.7'
-	id 'maven-publish'
-}
-
-group = 'com.example'
-version = '0.0.1-SNAPSHOT'
-
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
-}
-
-repositories {
-	mavenCentral()
-}
+// Configuration is inherited from parent build.gradle
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter'
+  implementation 'org.springframework.boot:spring-boot-starter'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
-}
-
-dependencyManagement {
-	imports {
-		mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES
-	}
-}
-publishing {
-	publications {
-		mavenJava(MavenPublication) {
-			artifact jar
-		}
-	}
-}
+// Test configuration and publishing are inherited from parent build.gradle
