@@ -1,0 +1,10 @@
+{
+  "name": "@team-ai/team-ai-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@team-ai/team-ai"
+    ]
+  }
+}
