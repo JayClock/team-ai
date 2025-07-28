@@ -8,6 +8,9 @@
     },
     {
       "path": "./apps/team-ai"
+    },
+    {
+      "path": "./libs/frontend/features/brainstorming"
     }
   ]
 }
