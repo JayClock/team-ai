@@ -1,0 +1,6 @@
+{
+  "name": "domain",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/backend/domain/src",
+  "tags": []
+}

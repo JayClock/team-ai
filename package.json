@@ -25,6 +25,7 @@
     "@nx/playwright": "21.3.7",
     "@nx/react": "21.3.7",
     "@nx/workspace": "21.3.7",
+    "@nxrocks/nx-spring-boot": "^11.0.1",
     "@playwright/test": "^1.36.0",
     "@swc-node/register": "~1.9.1",
     "@swc/cli": "~0.6.0",
