@@ -4,7 +4,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
-import org.springframework.context.annotation.Import;
 import teamai.ddd.mappers.UsersMapper;
 import teamai.ddd.model.User;
 
@@ -13,7 +12,6 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @MybatisTest
-@Import(FlywayConfig.class)
 public class ModelMapperTest {
   @Inject
   private UsersMapper usersMapper;

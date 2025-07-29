@@ -1,16 +1,41 @@
-// Configuration is inherited from parent build.gradle
-
-dependencies {
-  implementation project(':domain')
-  implementation 'org.springframework.boot:spring-boot-starter'
-  implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
-  implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.2'
-  implementation 'org.flywaydb:flyway-core:9.16.3'
-
-  testImplementation 'org.springframework.boot:spring-boot-starter-test'
-  testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.2'
-  testImplementation 'com.h2database:h2:2.1.214'
-  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+plugins {
+    id 'java'
+    id 'io.spring.dependency-management' version '1.1.0'
 }
 
-// Test configuration and publishing are inherited from parent build.gradle
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom 'org.springframework.boot:spring-boot-dependencies:3.1.0'
+    }
+}
+
+dependencies {
+    implementation project(':domain')
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.2'
+    implementation 'org.flywaydb:flyway-core:9.16.3'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.2'
+    testImplementation 'com.h2database:h2:2.1.214'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

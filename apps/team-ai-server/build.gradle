@@ -1,0 +1,88 @@
+plugins {
+	id 'java'
+  id 'org.springframework.boot' version '3.1.0'
+  id 'io.spring.dependency-management' version '1.1.0'
+	id 'maven-publish'
+}
+
+// Configure all projects (root and subprojects)
+allprojects {
+    group = 'com.example'
+    version = '0.0.1-SNAPSHOT'
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
+
+// Configure subprojects
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'maven-publish'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES
+        }
+    }
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                artifact jar
+            }
+        }
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform()
+    }
+}
+
+// Root project specific configuration
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+dependencies {
+	// Backend module dependencies (now as project dependencies)
+	implementation project(':domain')
+	implementation project(':api')
+	implementation project(':persistent:mybatis')
+
+	// Spring Boot dependencies
+	implementation 'org.springframework.boot:spring-boot-starter'
+	implementation 'org.springframework.boot:spring-boot-starter-hateoas'
+	implementation 'org.springframework.boot:spring-boot-starter-jersey:3.1.0'
+	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.2'
+	implementation 'com.h2database:h2'
+	implementation 'org.flywaydb:flyway-core'
+
+	// Test dependencies
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+springBoot {
+	buildInfo()
+}
+publishing {
+	publications {
+		mavenJava(MavenPublication) {
+			artifact bootJar
+		}
+	}
+}

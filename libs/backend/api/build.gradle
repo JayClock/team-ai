@@ -1,17 +1,42 @@
-// Configuration is inherited from parent build.gradle
-
-dependencies {
-	implementation project(':domain')
-  implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
-  implementation 'jakarta.ws.rs:jakarta.ws.rs-api:3.1.0'
-  implementation 'org.springframework.hateoas:spring-hateoas'
-  implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.2'
-  implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
-
-  testImplementation 'org.springframework.boot:spring-boot-starter-hateoas'
-  testImplementation 'org.springframework.boot:spring-boot-starter-jersey'
-  testImplementation 'org.springframework.boot:spring-boot-starter-test'
-  testImplementation 'io.rest-assured:rest-assured:5.3.0'
+plugins {
+    id 'java'
+    id 'io.spring.dependency-management' version '1.1.0'
 }
 
-// Test configuration and publishing are inherited from parent build.gradle
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom 'org.springframework.boot:spring-boot-dependencies:3.1.0'
+    }
+}
+
+dependencies {
+    implementation project(':domain')
+    implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
+    implementation 'jakarta.ws.rs:jakarta.ws.rs-api:3.1.0'
+    implementation 'org.springframework.hateoas:spring-hateoas'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-hateoas'
+    testImplementation 'org.springframework.boot:spring-boot-starter-jersey'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.rest-assured:rest-assured:5.3.0'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

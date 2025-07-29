@@ -1,0 +1,22 @@
+spring:
+  main:
+    banner-mode: "off"
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:platform;MODE=MySQL
+    username: sa
+    password: sa
+  flyway:
+    clean-disabled: false
+    locations: classpath:db.migration
+  jersey:
+    application-path: /api
+  h2:
+    console:
+      enabled: true
+mybatis:
+  mapper-locations: classpath:mybatis.mappers/**/*.xml
+  config-location: classpath:mybatis-config.xml
+logging:
+  level:
+    root: info

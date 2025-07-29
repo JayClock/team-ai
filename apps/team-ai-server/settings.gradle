@@ -1,0 +1,11 @@
+rootProject.name = 'team-ai-server'
+
+// Include backend modules directly
+include 'domain'
+include 'api'
+include 'persistent:mybatis'
+
+// Set project directories to point to backend modules
+project(':domain').projectDir = file('../../libs/backend/domain')
+project(':api').projectDir = file('../../libs/backend/api')
+project(':persistent:mybatis').projectDir = file('../../libs/backend/persistent/mybatis')

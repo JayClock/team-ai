@@ -8,7 +8,7 @@ import teamai.ddd.model.User;
 import java.util.Optional;
 
 @Component
-public class Users implements teamai.ddd.model.Users{
+public class Users implements teamai.ddd.model.Users {
   private final UsersMapper mapper;
 
   @Inject
