@@ -1,7 +1,9 @@
 rootProject.name = 'backend'
 
+include 'api'
 include 'domain'
 include 'persistent:mybatis'
 
+project(':api').projectDir = file('api')
 project(':domain').projectDir = file('domain')
 project(':persistent:mybatis').projectDir = file('persistent/mybatis')
