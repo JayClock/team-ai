@@ -12,11 +12,16 @@
   </resultMap>
 
   <select id="findUserById" resultMap="user">
-    SELECT id,
-           name,
-           email
-    FROM users
-    WHERE id = #{id}
+    SELECT ID,
+           NAME,
+           EMAIL
+    FROM USERS
+    WHERE ID = #{id}
     LIMIT 1
   </select>
+
+  <insert id="insertUser" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id" parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    insert into USERS (NAME, EMAIL)
+    VALUES (#{description.name}, #{description.email})
+  </insert>
 </mapper>

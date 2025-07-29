@@ -4,8 +4,10 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
-import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
+import reengineering.ddd.mybatis.support.IdHolder;
+import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
+import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
 
 import java.util.Random;
 
@@ -35,5 +37,13 @@ public class ModelMapperTest {
     assertEquals(user.getIdentity(), userId);
     assertEquals("john.smith@email.com", user.getDescription().email());
     assertEquals("John Smith", user.getDescription().name());
+  }
+
+  @Test
+  public void should_insert_user() {
+    IdHolder idHolder = new IdHolder();
+    usersMapper.insertUser(idHolder,new UserDescription("John Smith", "john.smith@email.com"));
+    User user = usersMapper.findUserById(idHolder.id());
+    assertEquals(user.getIdentity(), idHolder.id());
   }
 }
