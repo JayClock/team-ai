@@ -1,4 +1,4 @@
-package reengineering.ddd.api;
+package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.core.UriBuilder;
 import jakarta.ws.rs.core.UriInfo;

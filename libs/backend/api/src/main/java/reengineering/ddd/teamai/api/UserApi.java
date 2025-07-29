@@ -1,10 +1,10 @@
-package reengineering.ddd.api;
+package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.UriInfo;
-import reengineering.ddd.api.representation.UserModel;
-import reengineering.ddd.model.User;
+import reengineering.ddd.teamai.api.representation.UserModel;
+import reengineering.ddd.teamai.model.User;
 
 public class UserApi {
   private final User user;

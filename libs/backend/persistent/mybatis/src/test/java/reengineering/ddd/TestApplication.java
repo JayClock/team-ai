@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-@ComponentScan({"teamai.ddd.mybatis.mappers", "teamai.ddd.mybatis.support", "teamai.ddd.mybatis.associations"})
+@ComponentScan({"reengineering.ddd.teamai.mybatis", "reengineering.ddd.mybatis.support"})
 public class TestApplication {
   public static void main(String[] args) {
     SpringApplication.run(TestApplication.class, args);

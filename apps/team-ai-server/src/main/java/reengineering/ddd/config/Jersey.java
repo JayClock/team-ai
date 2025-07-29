@@ -4,7 +4,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.hateoas.config.EnableHypermediaSupport;
-import teamai.ddd.api.UsersApi;
+import reengineering.ddd.teamai.api.UsersApi;
 
 import java.util.Map;
 

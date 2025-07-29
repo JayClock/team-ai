@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.context.annotation.Import;
-import reengineering.ddd.associations.Users;
-import reengineering.ddd.model.User;
+import reengineering.ddd.teamai.model.User;
+import reengineering.ddd.teamai.mybatis.associations.Users;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

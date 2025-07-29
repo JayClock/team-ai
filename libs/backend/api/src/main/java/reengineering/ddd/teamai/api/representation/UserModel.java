@@ -1,13 +1,13 @@
-package reengineering.ddd.api.representation;
+package reengineering.ddd.teamai.api.representation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.ws.rs.core.UriInfo;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
-import reengineering.ddd.api.ApiTemplates;
-import reengineering.ddd.description.UserDescription;
-import reengineering.ddd.model.User;
+import reengineering.ddd.teamai.api.ApiTemplates;
+import reengineering.ddd.teamai.description.UserDescription;
+import reengineering.ddd.teamai.model.User;
 
 public class UserModel extends RepresentationModel<UserModel> {
   @JsonProperty

@@ -4,8 +4,8 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
-import reengineering.ddd.mappers.UsersMapper;
-import reengineering.ddd.model.User;
+import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
+import reengineering.ddd.teamai.model.User;
 
 import java.util.Random;
 

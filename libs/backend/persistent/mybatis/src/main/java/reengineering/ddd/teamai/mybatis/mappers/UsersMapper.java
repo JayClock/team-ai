@@ -1,8 +1,8 @@
-package reengineering.ddd.mappers;
+package reengineering.ddd.teamai.mybatis.mappers;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import reengineering.ddd.model.User;
+import reengineering.ddd.teamai.model.User;
 
 @Mapper
 public interface UsersMapper {

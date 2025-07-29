@@ -1,7 +1,7 @@
-package reengineering.ddd.model;
+package reengineering.ddd.teamai.model;
 
 import reengineering.ddd.archtype.Entity;
-import reengineering.ddd.description.UserDescription;
+import reengineering.ddd.teamai.description.UserDescription;
 
 public class User implements Entity<String, UserDescription> {
     private String identity;

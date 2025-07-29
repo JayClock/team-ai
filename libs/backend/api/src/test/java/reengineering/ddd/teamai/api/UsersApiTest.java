@@ -1,11 +1,11 @@
-package reengineering.ddd.api;
+package reengineering.ddd.teamai.api;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.hateoas.MediaTypes;
-import reengineering.ddd.description.UserDescription;
-import reengineering.ddd.model.User;
-import reengineering.ddd.model.Users;
+import reengineering.ddd.teamai.description.UserDescription;
+import reengineering.ddd.teamai.model.User;
+import reengineering.ddd.teamai.model.Users;
 
 import java.util.Optional;
 

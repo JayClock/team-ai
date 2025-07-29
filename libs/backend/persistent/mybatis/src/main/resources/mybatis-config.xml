@@ -2,5 +2,5 @@
         PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-config.dtd">
 <configuration>
-    <objectFactory type="reengineering.ddd.support.InjectableObjectFactory"/>
+    <objectFactory type="reengineering.ddd.mybatis.support.InjectableObjectFactory"/>
 </configuration>

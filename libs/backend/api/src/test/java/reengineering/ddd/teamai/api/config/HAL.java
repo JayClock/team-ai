@@ -1,4 +1,4 @@
-package reengineering.ddd.api.config;
+package reengineering.ddd.teamai.api.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;

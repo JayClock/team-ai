@@ -1,10 +1,10 @@
-package reengineering.ddd.api;
+package reengineering.ddd.teamai.api;
 
 import io.restassured.RestAssured;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import reengineering.ddd.api.config.TestApplication;
+import reengineering.ddd.teamai.api.config.TestApplication;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 

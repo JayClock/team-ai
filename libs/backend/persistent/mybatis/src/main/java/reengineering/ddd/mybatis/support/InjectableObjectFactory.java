@@ -1,4 +1,4 @@
-package reengineering.ddd.support;
+package reengineering.ddd.mybatis.support;
 
 import org.apache.ibatis.reflection.factory.DefaultObjectFactory;
 import org.springframework.beans.BeansException;

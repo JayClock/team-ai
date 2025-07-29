@@ -1,9 +1,9 @@
-package reengineering.ddd.api;
+package reengineering.ddd.teamai.api;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
-import reengineering.ddd.model.Users;
+import reengineering.ddd.teamai.model.Users;
 
 @Path("/users")
 public class UsersApi {

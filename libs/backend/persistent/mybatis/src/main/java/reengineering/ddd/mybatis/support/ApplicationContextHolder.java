@@ -1,4 +1,4 @@
-package reengineering.ddd.support;
+package reengineering.ddd.mybatis.support;
 
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;

@@ -1,4 +1,4 @@
-package reengineering.ddd.model;
+package reengineering.ddd.teamai.model;
 
 import java.util.Optional;
 

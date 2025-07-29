@@ -1,14 +1,14 @@
-package reengineering.ddd.associations;
+package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
 import org.springframework.stereotype.Component;
-import reengineering.ddd.mappers.UsersMapper;
-import reengineering.ddd.model.User;
+import reengineering.ddd.teamai.model.User;
+import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
 
 import java.util.Optional;
 
 @Component
-public class Users implements reengineering.ddd.model.Users {
+public class Users implements reengineering.ddd.teamai.model.Users {
   private final UsersMapper mapper;
 
   @Inject
