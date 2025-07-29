@@ -1,0 +1,3 @@
+rootProject.name = 'mybatis'
+include 'domain'
+project(':domain').projectDir = file('../../domain')

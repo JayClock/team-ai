@@ -1,0 +1,3 @@
+rootProject.name = 'api'
+include 'domain'
+project(':domain').projectDir = file('../domain')
