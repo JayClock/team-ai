@@ -2,6 +2,8 @@ package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
 import org.springframework.stereotype.Component;
+import reengineering.ddd.mybatis.support.IdHolder;
+import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
 
@@ -19,5 +21,12 @@ public class Users implements reengineering.ddd.teamai.model.Users {
   @Override
   public Optional<User> findById(String id) {
     return Optional.ofNullable(mapper.findUserById(id));
+  }
+
+  @Override
+  public User createUser(UserDescription description) {
+    IdHolder idHolder = new IdHolder();
+    mapper.insertUser(idHolder, description);
+    return mapper.findUserById(idHolder.id());
   }
 }
