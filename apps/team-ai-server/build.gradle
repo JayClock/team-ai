@@ -65,11 +65,13 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-hateoas'
 	implementation 'org.springframework.boot:spring-boot-starter-jersey'
 	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.4'
-	implementation 'com.h2database:h2'
+	implementation 'org.postgresql:postgresql'
 	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
 
 	// Test dependencies
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'com.h2database:h2' // Keep H2 for testing
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

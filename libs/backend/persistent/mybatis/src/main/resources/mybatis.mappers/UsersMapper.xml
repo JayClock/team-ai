@@ -17,20 +17,20 @@
   </resultMap>
 
   <select id="findUserById" resultMap="user">
-    SELECT u.ID,
-           u.NAME,
-           u.EMAIL,
-           a.ID as account_id,
-           a.PROVIDER,
-           a.PROVIDER_ID
-    FROM USERS u
-           LEFT JOIN ACCOUNTS a ON u.ID = a.USER_ID
-    WHERE u.ID = #{id}
+    SELECT u.id,
+           u.name,
+           u.email,
+           a.id as account_id,
+           a.provider,
+           a.provider_id
+    FROM users u
+           LEFT JOIN accounts a ON u.id = a.user_id
+    WHERE u.id = CAST(#{id} AS BIGINT)
   </select>
 
   <insert id="insertUser" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
-    insert into USERS (NAME, EMAIL)
+    insert into users (name, email)
     VALUES (#{description.name}, #{description.email})
   </insert>
 </mapper>
