@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.AccountsMapper">
+  <resultMap id="account" type="reengineering.ddd.teamai.model.Account">
+    <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.AccountDescription">
+      <constructor>
+        <arg column="provider" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="provider_id" jdbcType="VARCHAR" javaType="String"/>
+      </constructor>
+    </association>
+  </resultMap>
+
+  <select id="findAccountByUserAndId" resultMap="account">
+    SELECT account.ID,
+           account.PROVIDER,
+           account.PROVIDER_ID
+    FROM ACCOUNTS account
+    WHERE account.USER_ID = #{user_id}
+      AND account.ID = #{id}
+  </select>
+
+  <insert id="insertAccount" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id" parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO ACCOUNTS (PROVIDER, PROVIDER_ID, USER_ID)
+    VALUES (#{description.provider}, #{description.ProviderId}, #{user_id})
+  </insert>
+</mapper>

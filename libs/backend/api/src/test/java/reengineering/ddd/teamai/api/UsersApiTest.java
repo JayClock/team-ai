@@ -12,6 +12,7 @@ import java.util.Optional;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class UsersApiTest extends ApiTest {
@@ -26,8 +27,9 @@ public class UsersApiTest extends ApiTest {
 
   @Test
   public void should_return_user_if_user_exists() {
+    User.Accounts accounts = mock(User.Accounts.class);
     User user = new User("john.smith",
-      new UserDescription("John Smith", "john.smith@email.com"));
+      new UserDescription("John Smith", "john.smith@email.com"), accounts);
     when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
 
     given().accept(MediaTypes.HAL_JSON.toString())

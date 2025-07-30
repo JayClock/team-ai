@@ -9,18 +9,27 @@
         <arg column="email" jdbcType="VARCHAR" javaType="String"/>
       </constructor>
     </association>
+    <association property="accounts" javaType="reengineering.ddd.teamai.mybatis.associations.UserAccounts">
+      <result column="id" property="userId" javaType="String"/>
+      <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.AccountsMapper.account"
+                  ofType="reengineering.ddd.teamai.model.Account"/>
+    </association>
   </resultMap>
 
   <select id="findUserById" resultMap="user">
-    SELECT ID,
-           NAME,
-           EMAIL
-    FROM USERS
-    WHERE ID = #{id}
-    LIMIT 1
+    SELECT u.ID,
+           u.NAME,
+           u.EMAIL,
+           a.ID as account_id,
+           a.PROVIDER,
+           a.PROVIDER_ID
+    FROM USERS u
+           LEFT JOIN ACCOUNTS a ON u.ID = a.USER_ID
+    WHERE u.ID = #{id}
   </select>
 
-  <insert id="insertUser" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id" parameterType="reengineering.ddd.mybatis.support.IdHolder">
+  <insert id="insertUser" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
     insert into USERS (NAME, EMAIL)
     VALUES (#{description.name}, #{description.email})
   </insert>
