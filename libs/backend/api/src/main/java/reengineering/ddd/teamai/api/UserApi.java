@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.UriInfo;
 import reengineering.ddd.teamai.api.representation.UserModel;
@@ -16,5 +17,10 @@ public class UserApi {
   @GET
   public UserModel get(@Context UriInfo uriInfo) {
     return new UserModel(user, uriInfo);
+  }
+
+  @Path("accounts")
+  public AccountsApi accounts() {
+    return new AccountsApi(user);
   }
 }

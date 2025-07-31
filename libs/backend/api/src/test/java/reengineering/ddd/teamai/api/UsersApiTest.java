@@ -39,6 +39,7 @@ public class UsersApiTest extends ApiTest {
       .body("id", is(user.getIdentity()))
       .body("name", is(user.getDescription().name()))
       .body("email", is(user.getDescription().email()))
-      .body("_links.self.href", is("/api/users/" + user.getIdentity()));
+      .body("_links.self.href", is("/api/users/" + user.getIdentity()))
+      .body("_links.accounts.href", is("/api/users/" + user.getIdentity() + "/accounts"));
   }
 }
