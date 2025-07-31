@@ -11,6 +11,9 @@
     },
     {
       "path": "./libs/frontend/features"
+    },
+    {
+      "path": "./libs/frontend/persistent"
     }
   ]
 }
