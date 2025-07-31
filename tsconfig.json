@@ -4,9 +4,6 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/team-ai-e2e"
-    },
-    {
       "path": "./apps/team-ai"
     },
     {

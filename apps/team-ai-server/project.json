@@ -1,5 +1,5 @@
 {
-  "name": "teamai",
+  "name": "@server/main",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/team-ai-server/src",
   "tags": []
