@@ -1,8 +1,8 @@
 package reengineering.ddd.teamai.api;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.hateoas.MediaTypes;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
@@ -28,8 +28,9 @@ public class UsersApiTest extends ApiTest {
   @Test
   public void should_return_user_if_user_exists() {
     User.Accounts accounts = mock(User.Accounts.class);
+    User.Conversations conversations = mock(User.Conversations.class);
     User user = new User("john.smith",
-      new UserDescription("John Smith", "john.smith@email.com"), accounts);
+      new UserDescription("John Smith", "john.smith@email.com"), accounts, conversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
 
     given().accept(MediaTypes.HAL_JSON.toString())

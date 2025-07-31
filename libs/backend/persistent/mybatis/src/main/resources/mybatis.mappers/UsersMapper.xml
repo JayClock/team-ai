@@ -14,6 +14,9 @@
       <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.AccountsMapper.account"
                   ofType="reengineering.ddd.teamai.model.Account"/>
     </association>
+    <association property="conversations" javaType="reengineering.ddd.teamai.mybatis.associations.UserConversations">
+      <result column="id" property="userId" javaType="String"/>
+    </association>
   </resultMap>
 
   <select id="findUserById" resultMap="user">
