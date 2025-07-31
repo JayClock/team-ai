@@ -23,4 +23,9 @@ public class UserApi {
   public UserAccountsApi accounts() {
     return new UserAccountsApi(user);
   }
+
+  @Path("conversations")
+  public UserConversationsApi conversations() {
+    return new UserConversationsApi(user);
+  }
 }
