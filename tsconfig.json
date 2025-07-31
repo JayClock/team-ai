@@ -4,13 +4,13 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/team-ai"
-    },
-    {
       "path": "./libs/frontend/features/brainstorming"
     },
     {
       "path": "./libs/frontend/domain"
+    },
+    {
+      "path": "./apps/web"
     }
   ]
 }
