@@ -3,6 +3,12 @@
   "include": [],
   "references": [
     {
+      "path": "../persistent"
+    },
+    {
+      "path": "../domain"
+    },
+    {
       "path": "./tsconfig.lib.json"
     },
     {

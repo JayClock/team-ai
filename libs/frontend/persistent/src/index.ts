@@ -1,1 +1,1 @@
-export * from './lib/persistent.js';
+export * from './lib/associations/index.js';
