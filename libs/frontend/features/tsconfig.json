@@ -3,9 +3,6 @@
   "include": [],
   "references": [
     {
-      "path": "../persistent"
-    },
-    {
       "path": "../domain"
     },
     {
