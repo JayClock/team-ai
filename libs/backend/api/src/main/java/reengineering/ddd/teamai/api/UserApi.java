@@ -20,7 +20,7 @@ public class UserApi {
   }
 
   @Path("accounts")
-  public AccountsApi accounts() {
-    return new AccountsApi(user);
+  public UserAccountsApi accounts() {
+    return new UserAccountsApi(user);
   }
 }

@@ -8,10 +8,10 @@ import reengineering.ddd.teamai.model.User;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class AccountsApi {
+public class UserAccountsApi {
   private final User user;
 
-  public AccountsApi(User user) {
+  public UserAccountsApi(User user) {
     this.user = user;
   }
 

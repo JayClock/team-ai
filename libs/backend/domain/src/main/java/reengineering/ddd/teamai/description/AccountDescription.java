@@ -1,4 +1,4 @@
 package reengineering.ddd.teamai.description;
 
-public record AccountDescription(String provider, String ProviderId) {
+public record AccountDescription(String provider, String providerId) {
 }
