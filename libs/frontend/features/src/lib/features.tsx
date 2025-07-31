@@ -1,7 +1,6 @@
-'use client';
+'use client'
 import { Welcome } from '@ant-design/x';
-
-export function Brainstorming() {
+export function WebFeatures() {
   return (
     <Welcome
       icon="https://mdn.alipayobjects.com/huamei_iwk9zp/afts/img/A*s5sNRo5LjfQAAAAAAAAAAAAADgCCAQ/fmt.webp"
@@ -11,4 +10,4 @@ export function Brainstorming() {
   );
 }
 
-export default Brainstorming;
+export default WebFeatures;

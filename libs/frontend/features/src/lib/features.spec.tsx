@@ -1,10 +1,10 @@
 import { render } from '@testing-library/react';
 
-import Brainstorming from './brainstorming';
+import WebFeatures from './features';
 
-describe('Brainstorming', () => {
+describe('WebFeatures', () => {
   it('should render successfully', () => {
-    const { baseElement } = render(<Brainstorming />);
+    const { baseElement } = render(<WebFeatures />);
     expect(baseElement).toBeTruthy();
   });
 });

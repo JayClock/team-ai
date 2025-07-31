@@ -1,5 +1,5 @@
-import { Brainstorming } from '@team-ai/brainstorming';
+import { WebFeatures } from '@web/features';
 
 export default function Index() {
-  return <Brainstorming></Brainstorming>;
+  return <WebFeatures/>;
 }

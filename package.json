@@ -71,6 +71,7 @@
   "workspaces": [
     "apps/*",
     "libs/frontend/features/*",
-    "libs/frontend/*"
+    "libs/frontend/*",
+    "libs/*"
   ]
 }
