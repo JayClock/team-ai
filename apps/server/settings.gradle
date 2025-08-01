@@ -1,4 +1,4 @@
-rootProject.name = 'team-ai-server'
+rootProject.name = 'server'
 
 // Include backend modules directly
 include 'domain'
