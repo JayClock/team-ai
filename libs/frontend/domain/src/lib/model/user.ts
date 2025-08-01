@@ -1,7 +1,7 @@
 import { UserDescription } from '../description/index.js';
-import { BaseDescription, Entity, Links } from '../archtype/index.js';
+import { HalLinksDescription, Entity, HalLinks } from '../archtype/index.js';
 
-interface UserLinks extends Links {
+interface UserLinks extends HalLinks {
   self: {
     href: string;
   };
@@ -16,7 +16,7 @@ interface UserLinks extends Links {
 export class User implements Entity<string, UserDescription> {
   constructor(
     private identity: string,
-    private description: UserDescription & BaseDescription
+    private description: UserDescription & HalLinksDescription
   ) {}
 
   getIdentity(): string {

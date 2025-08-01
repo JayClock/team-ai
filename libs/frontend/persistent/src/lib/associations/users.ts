@@ -1,7 +1,7 @@
-import { Links, User, Users as IUsers } from '@web/domain';
+import { HalLinksDescription, User, Users as IUsers } from '@web/domain';
 import { api } from '../../api.js';
 
-interface UserBackend extends Links {
+interface UserBackend extends HalLinksDescription {
   id: string;
   name: string;
   email: string;

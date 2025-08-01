@@ -1,8 +1,7 @@
-import { Links } from './links.js';
+import { HalLinks } from './hal-links.js';
 
 export interface Entity<Identity, Description> {
   getIdentity(): Identity;
   getDescription(): Description;
-
-  getLinks(): Links;
+  getLinks(): HalLinks;
 }

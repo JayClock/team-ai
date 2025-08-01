@@ -1,3 +1,3 @@
 export * from './entity.js';
-export * from './base-description.js';
-export * from './links.js';
+export * from './hal-links-description.js';
+export * from './hal-links.js';
