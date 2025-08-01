@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.api;
 
+import jakarta.ws.rs.core.MediaType;
+import org.apache.http.HttpHeaders;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -16,6 +18,7 @@ import java.util.Optional;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -49,5 +52,19 @@ public class UserConversationsApiTest extends ApiTest {
       .body("_embedded.conversations.size()", is(1))
       .body("_embedded.conversations[0].id", is(conversation.getIdentity()))
       .body("_embedded.conversations[0].title", is(conversation.getDescription().title()));
+  }
+
+  @Test
+  public void should_create_new_conversation() {
+    ConversationDescription description = new ConversationDescription("New Conversation");
+    Conversation newConversation = new Conversation("2", description);
+    when(user.add(any(ConversationDescription.class))).thenReturn(newConversation);
+
+    given().accept(MediaTypes.HAL_JSON.toString())
+      .contentType(MediaType.APPLICATION_JSON)
+      .body("{\"title\":\"New Conversation\"}")
+      .when().post("/users/" + user.getIdentity() + "/conversations")
+      .then().statusCode(201)
+      .header(HttpHeaders.LOCATION, is(uri("/api/users/" + user.getIdentity() + "/conversations/" + newConversation.getIdentity())));
   }
 }
