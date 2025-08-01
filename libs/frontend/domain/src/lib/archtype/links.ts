@@ -1,7 +1,7 @@
 export interface Links {
-  _links: {
-    [key: string]: {
-      href: string;
-    };
-  };
+  [key: string]: Link;
+}
+
+export interface Link {
+  href: string;
 }
