@@ -8,7 +8,7 @@ import reengineering.ddd.teamai.model.Account;
 
 @Mapper
 public interface AccountsMapper {
-  Account findAccountByUserAndId(@Param("user_id") String userId, @Param("id") String id);
+  Account findAccountByUserAndId(@Param("user_id") int userId, @Param("id") int id);
 
-  int insertAccount(@Param("holder") IdHolder id, @Param("user_id") String userId, @Param("description") AccountDescription description);
+  int insertAccount(@Param("holder") IdHolder id, @Param("user_id") int userId, @Param("description") AccountDescription description);
 }

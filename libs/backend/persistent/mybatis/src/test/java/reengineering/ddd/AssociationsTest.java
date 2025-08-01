@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @MybatisTest
 @Import(FlywayConfig.class)
 @ExtendWith(TestDataSetup.class)
-public class AssociationsTest {
+public class AssociationsTest extends BaseTestContainersTest {
   @Inject
   private Users users;
 

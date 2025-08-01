@@ -20,7 +20,7 @@ public class Users implements reengineering.ddd.teamai.model.Users {
 
   @Override
   public Optional<User> findById(String id) {
-    return Optional.ofNullable(mapper.findUserById(id));
+    return Optional.ofNullable(mapper.findUserById(Integer.parseInt(id)));
   }
 
   @Override

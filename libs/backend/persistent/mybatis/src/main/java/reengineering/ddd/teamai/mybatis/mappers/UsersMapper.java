@@ -9,7 +9,7 @@ import reengineering.ddd.teamai.model.User;
 @Mapper
 public interface
 UsersMapper {
-  User findUserById(@Param("id") String id);
+  User findUserById(@Param("id") int id);
 
   int insertUser(@Param("holder") IdHolder id, @Param("description") UserDescription userDescription);
 }

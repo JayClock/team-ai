@@ -11,7 +11,7 @@ import reengineering.ddd.teamai.mybatis.mappers.ConversationsMapper;
 import java.util.List;
 
 public class UserConversations extends EntityList<String, Conversation> implements User.Conversations {
-  private String userId;
+  private int userId;
 
   @Inject
   private ConversationsMapper mapper;
@@ -23,7 +23,7 @@ public class UserConversations extends EntityList<String, Conversation> implemen
 
   @Override
   protected Conversation findEntity(String id) {
-    return mapper.findConversationByUserAndId(userId, id);
+    return mapper.findConversationByUserAndId(userId, Integer.parseInt(id));
   }
 
   @Override
@@ -35,6 +35,6 @@ public class UserConversations extends EntityList<String, Conversation> implemen
   public Conversation add(ConversationDescription description) {
     IdHolder idHolder = new IdHolder();
     mapper.insertConversation(idHolder, userId, description);
-    return findEntity(idHolder.id());
+    return findEntity(String.valueOf(idHolder.id()));
   }
 }

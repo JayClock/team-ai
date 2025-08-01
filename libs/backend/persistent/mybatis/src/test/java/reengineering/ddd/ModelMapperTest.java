@@ -20,7 +20,7 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @MybatisTest
-public class ModelMapperTest {
+public class ModelMapperTest extends BaseTestContainersTest {
   @Inject
   private UsersMapper usersMapper;
   @Inject
@@ -30,26 +30,26 @@ public class ModelMapperTest {
   @Inject
   private TestDataMapper testData;
 
-  private final String userId = id();
-  private final String accountId = id();
-  private final String conversationId = id();
+  private final int userId = id();
+  private final int accountId = id();
+  private final int conversationId = id();
 
-  private static String id() {
-    return String.valueOf(new Random().nextInt(100000));
+  private static int id() {
+    return new Random().nextInt(100000);
   }
 
   @BeforeEach
   public void before() {
-    testData.insertUser(userId, "John Smith", "john.smith@email.com");
-    testData.insertAccount(accountId, "provider", "providerId", userId);
-    testData.insertConversation(conversationId, "title", userId);
+    testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
+    testData.insertAccount(accountId, "provider", "providerId" + accountId, userId);
+    testData.insertConversation(conversationId, "title" + conversationId, userId);
   }
 
   @Test
   public void should_find_user_by_id() {
     User user = usersMapper.findUserById(userId);
-    assertEquals(user.getIdentity(), userId);
-    assertEquals("john.smith@email.com", user.getDescription().email());
+    assertEquals(user.getIdentity(), String.valueOf(userId));
+    assertEquals("john.smith+" + userId + "@email.com", user.getDescription().email());
     assertEquals("John Smith", user.getDescription().name());
   }
 
@@ -61,9 +61,8 @@ public class ModelMapperTest {
 
   @Test
   public void should_find_account_by_user_and_id() {
-    User user = usersMapper.findUserById(userId);
-    Account account = accountsMapper.findAccountByUserAndId(user.getIdentity(), accountId);
-    assertEquals(accountId, account.getIdentity());
+    Account account = accountsMapper.findAccountByUserAndId(userId, accountId);
+    assertEquals(String.valueOf(accountId), account.getIdentity());
   }
 
   @Test
@@ -74,9 +73,8 @@ public class ModelMapperTest {
 
   @Test
   void should_find_conversation_by_user_and_id() {
-    User user = usersMapper.findUserById(userId);
-    Conversation conversation = conversationsMapper.findConversationByUserAndId(user.getIdentity(), conversationId);
-    assertEquals(conversationId, conversation.getIdentity());
+    Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
+    assertEquals(String.valueOf(conversationId), conversation.getIdentity());
   }
 
   @Test
@@ -92,7 +90,7 @@ public class ModelMapperTest {
     IdHolder idHolder = new IdHolder();
     accountsMapper.insertAccount(idHolder, userId, new AccountDescription("provider", "providerId2"));
     Account account = accountsMapper.findAccountByUserAndId(userId, idHolder.id());
-    assertEquals(account.getIdentity(), idHolder.id());
+    assertEquals(account.getIdentity(), String.valueOf(idHolder.id()));
   }
 
   @Test
@@ -100,6 +98,6 @@ public class ModelMapperTest {
     IdHolder idHolder = new IdHolder();
     conversationsMapper.insertConversation(idHolder, userId, new ConversationDescription("title"));
     Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, idHolder.id());
-    assertEquals(conversation.getIdentity(), idHolder.id());
+    assertEquals(conversation.getIdentity(), String.valueOf(idHolder.id()));
   }
 }

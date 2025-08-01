@@ -1,9 +1,9 @@
 package reengineering.ddd.mybatis.support;
 
 public class IdHolder {
-    private Long id;
+  private int id;
 
-    public String id() {
-        return id.toString();
-    }
+  public int id() {
+    return id;
+  }
 }

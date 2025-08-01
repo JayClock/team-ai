@@ -9,7 +9,7 @@ import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.mappers.AccountsMapper;
 
 public class UserAccounts extends EntityList<String, Account> implements User.Accounts {
-  private String userId;
+  private int userId;
 
   @Inject
   AccountsMapper mapper;

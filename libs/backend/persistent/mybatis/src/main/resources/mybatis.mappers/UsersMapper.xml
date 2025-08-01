@@ -10,12 +10,12 @@
       </constructor>
     </association>
     <association property="accounts" javaType="reengineering.ddd.teamai.mybatis.associations.UserAccounts">
-      <result column="id" property="userId" javaType="String"/>
+      <result column="id" property="userId" javaType="int"/>
       <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.AccountsMapper.account"
                   ofType="reengineering.ddd.teamai.model.Account"/>
     </association>
     <association property="conversations" javaType="reengineering.ddd.teamai.mybatis.associations.UserConversations">
-      <result column="id" property="userId" javaType="String"/>
+      <result column="id" property="userId" javaType="int"/>
     </association>
   </resultMap>
 
@@ -28,7 +28,7 @@
            a.provider_id
     FROM users u
            LEFT JOIN accounts a ON u.id = a.user_id
-    WHERE u.id = CAST(#{id} AS BIGINT)
+    WHERE u.id = #{id}
   </select>
 
   <insert id="insertUser" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"

@@ -10,11 +10,11 @@ import java.util.List;
 
 @Mapper
 public interface ConversationsMapper {
-  Conversation findConversationByUserAndId(@Param("user_id") String userId, @Param("id") String id);
+  Conversation findConversationByUserAndId(@Param("user_id") int userId, @Param("id") int id);
 
-  List<Conversation> findConversationsByUserId(@Param("user_id") String userId, @Param("from") int from, @Param("size") int size);
+  List<Conversation> findConversationsByUserId(@Param("user_id") int userId, @Param("from") int from, @Param("size") int size);
 
-  int insertConversation(@Param("holder") IdHolder Id, @Param("user_id") String userId, @Param("description") ConversationDescription description);
+  int insertConversation(@Param("holder") IdHolder Id, @Param("user_id") int userId, @Param("description") ConversationDescription description);
 
-  int countConversationByUser(@Param("user_id") String userId);
+  int countConversationByUser(@Param("user_id") int userId);
 }
