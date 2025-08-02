@@ -30,4 +30,13 @@
     insert into messages (conversation_id, role, content)
     values (#{conversation_id}, #{description.role}, #{description.content})
   </insert>
+
+  <select id="subMessagesByConversation" resultMap="message">
+    select id,
+           role,
+           content
+    from messages
+    where conversation_id = #{conversation_id}
+    limit #{size} offset #{from}
+  </select>
 </mapper>

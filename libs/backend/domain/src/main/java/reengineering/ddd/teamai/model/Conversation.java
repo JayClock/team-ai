@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.model;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
+import reengineering.ddd.teamai.description.MessageDescription;
 
 public class Conversation implements Entity<String, ConversationDescription> {
   private String identity;
@@ -32,6 +33,11 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return messages;
   }
 
+  public Message add(MessageDescription description) {
+    return messages.add(description);
+  }
+
   public interface Messages extends HasMany<String, Message> {
+    Message add(MessageDescription description);
   }
 }
