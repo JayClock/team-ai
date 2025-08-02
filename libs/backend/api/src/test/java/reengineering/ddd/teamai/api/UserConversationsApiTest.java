@@ -36,7 +36,7 @@ public class UserConversationsApiTest extends ApiTest {
   public void beforeEach() {
     user = new User("JayClock", new UserDescription("JayClock", "JayClock@email"), mock(User.Accounts.class), mock(User.Conversations.class));
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
-    conversation = new Conversation("1", new ConversationDescription("title"));
+    conversation = new Conversation("1", new ConversationDescription("title"), mock(Conversation.Messages.class));
   }
 
   @Test
@@ -57,7 +57,7 @@ public class UserConversationsApiTest extends ApiTest {
   @Test
   public void should_create_new_conversation() {
     ConversationDescription description = new ConversationDescription("New Conversation");
-    Conversation newConversation = new Conversation("2", description);
+    Conversation newConversation = new Conversation("2", description, mock(Conversation.Messages.class));
     when(user.add(any(ConversationDescription.class))).thenReturn(newConversation);
 
     given().accept(MediaTypes.HAL_JSON.toString())
