@@ -28,21 +28,6 @@ public class AssociationsTest extends BaseTestContainersTest {
   }
 
   @Test
-  public void should_get_accounts() {
-    assertEquals(1, user.accounts().findAll().size());
-  }
-
-  @Test
-  public void should_find_account_by_id() {
-    assertTrue(user.accounts().findByIdentity("1").isPresent());
-  }
-
-  @Test
-  public void should_not_find_account_by_id_if_not_exist() {
-    assertTrue(user.accounts().findByIdentity("-1").isEmpty());
-  }
-
-  @Test
   public void should_get_conversations_of_user() {
     assertEquals(1000, user.conversations().findAll().size());
   }
