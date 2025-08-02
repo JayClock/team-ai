@@ -23,7 +23,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class UserConversationsApiTest extends ApiTest {
+public class ConversationsApiTest extends ApiTest {
   @MockitoBean
   private Users users;
   private User user;
@@ -51,7 +51,8 @@ public class UserConversationsApiTest extends ApiTest {
       .body("_links.next.href", is("/api/users/" + user.getIdentity() + "/conversations?page=1"))
       .body("_embedded.conversations.size()", is(1))
       .body("_embedded.conversations[0].id", is(conversation.getIdentity()))
-      .body("_embedded.conversations[0].title", is(conversation.getDescription().title()));
+      .body("_embedded.conversations[0].title", is(conversation.getDescription().title()))
+      .body("_embedded.conversations[0]._links.self.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()));
   }
 
   @Test

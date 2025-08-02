@@ -17,6 +17,6 @@ public class ApiTemplates {
   }
 
   public static UriBuilder conversation(UriInfo uriInfo) {
-    return conversations(uriInfo).path(UserConversationsApi.class, "findById");
+    return conversations(uriInfo).path(ConversationsApi.class, "findById");
   }
 }

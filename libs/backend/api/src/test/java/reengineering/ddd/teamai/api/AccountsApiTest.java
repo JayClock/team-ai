@@ -18,7 +18,7 @@ import static org.hamcrest.core.Is.is;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class UserAccountsApiTest extends ApiTest {
+public class AccountsApiTest extends ApiTest {
     @MockitoBean
     private Users users;
     private User user;

@@ -20,12 +20,12 @@ public class UserApi {
   }
 
   @Path("accounts")
-  public UserAccountsApi accounts() {
-    return new UserAccountsApi(user);
+  public AccountsApi accounts() {
+    return new AccountsApi(user);
   }
 
   @Path("conversations")
-  public UserConversationsApi conversations() {
-    return new UserConversationsApi(user);
+  public ConversationsApi conversations() {
+    return new ConversationsApi(user);
   }
 }

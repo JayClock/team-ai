@@ -11,24 +11,24 @@ import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.User;
 
-public class UserConversationsApi {
+public class ConversationsApi {
   private final User user;
 
-  public UserConversationsApi(User user) {
+  public ConversationsApi(User user) {
     this.user = user;
   }
 
   @GET
   @Path("{conversation-id}")
   public ConversationModel findById(@PathParam("conversation-id") String id, @Context UriInfo uriInfo) {
-    return user.conversations().findByIdentity(id).map(ConversationModel::new)
+    return user.conversations().findByIdentity(id).map(conversation -> new ConversationModel(user, conversation, uriInfo))
       .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
   }
 
   @GET
   public CollectionModel<ConversationModel> findAll(@Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
     return new Pagination<>(user.conversations().findAll(), 40).page(page,
-      ConversationModel::new,
+      conversation -> new ConversationModel(user, conversation, uriInfo),
       p -> ApiTemplates.conversations(uriInfo).queryParam("page", p).build(user.getIdentity()));
   }
 
