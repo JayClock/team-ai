@@ -2,6 +2,7 @@ package reengineering.ddd;
 
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import reengineering.ddd.mybatis.support.IdHolder;
@@ -25,14 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @MybatisTest
 public class ModelMapperTest extends BaseTestContainersTest {
   @Inject
-  private UsersMapper usersMapper;
-  @Inject
-  private AccountsMapper accountsMapper;
-  @Inject
-  private ConversationsMapper conversationsMapper;
-  @Inject
-  private MessagesMapper messagesMapper;
-  @Inject
   private TestDataMapper testData;
 
   private final int userId = id();
@@ -52,79 +45,103 @@ public class ModelMapperTest extends BaseTestContainersTest {
     testData.insertMessage(messageId, conversationId, "role", "content");
   }
 
-  @Test
-  public void should_find_user_by_id() {
-    User user = usersMapper.findUserById(userId);
-    assertEquals(user.getIdentity(), String.valueOf(userId));
-    assertEquals("john.smith+" + userId + "@email.com", user.getDescription().email());
-    assertEquals("John Smith", user.getDescription().name());
+  @Nested
+  class UsersMapperTest {
+    @Inject
+    private UsersMapper usersMapper;
+
+    @Test
+    public void should_find_user_by_id() {
+      User user = usersMapper.findUserById(userId);
+      assertEquals(user.getIdentity(), String.valueOf(userId));
+      assertEquals("john.smith+" + userId + "@email.com", user.getDescription().email());
+      assertEquals("John Smith", user.getDescription().name());
+    }
+
+    @Test
+    public void should_assign_accounts_association_of_user() {
+      User user = usersMapper.findUserById(userId);
+      assertEquals(1, user.accounts().findAll().size());
+    }
+
+    @Test
+    public void should_assign_conversations_association_of_user() {
+      User user = usersMapper.findUserById(userId);
+      assertEquals(1, user.accounts().findAll().size());
+    }
+
+    @Test
+    public void should_add_user_to_database() {
+      IdHolder idHolder = new IdHolder();
+      usersMapper.insertUser(idHolder, new UserDescription("JayClock", "JayClock@email.com"));
+      User user = usersMapper.findUserById(idHolder.id());
+      assertEquals("JayClock", user.getDescription().name());
+    }
   }
 
-  @Test
-  public void should_assign_accounts_association() {
-    User user = usersMapper.findUserById(userId);
-    assertEquals(1, user.accounts().findAll().size());
+  @Nested
+  class AccountsMapperTest {
+    @Inject
+    private AccountsMapper accountsMapper;
+
+    @Test
+    public void should_find_account_by_user_and_id() {
+      Account account = accountsMapper.findAccountByUserAndId(userId, accountId);
+      assertEquals(String.valueOf(accountId), account.getIdentity());
+    }
+
+    @Test
+    public void should_add_account_to_database() {
+      IdHolder idHolder = new IdHolder();
+      accountsMapper.insertAccount(idHolder, userId, new AccountDescription("provider", "providerId2"));
+      Account account = accountsMapper.findAccountByUserAndId(userId, idHolder.id());
+      assertEquals(account.getIdentity(), String.valueOf(idHolder.id()));
+    }
   }
 
-  @Test
-  public void should_find_account_by_user_and_id() {
-    Account account = accountsMapper.findAccountByUserAndId(userId, accountId);
-    assertEquals(String.valueOf(accountId), account.getIdentity());
+  @Nested
+  class ConversationsMapperTest {
+    @Inject
+    private ConversationsMapper conversationsMapper;
+
+    @Test
+    void should_find_conversation_by_user_and_id() {
+      Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
+      assertEquals(String.valueOf(conversationId), conversation.getIdentity());
+    }
+
+    @Test
+    void should_assign_messages_association_of_conversation() {
+      Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
+      assertEquals(1, conversation.getMessages().findAll().size());
+    }
+
+    @Test
+    public void should_add_conversation_to_database() {
+      IdHolder idHolder = new IdHolder();
+      conversationsMapper.insertConversation(idHolder, userId, new ConversationDescription("title"));
+      Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, idHolder.id());
+      assertEquals(conversation.getIdentity(), String.valueOf(idHolder.id()));
+    }
   }
 
-  @Test
-  void should_assign_conversation_association_of_user() {
-    User user = usersMapper.findUserById(userId);
-    assertEquals(1, user.accounts().findAll().size());
-  }
+  @Nested
+  class MessagesMapperTest {
+    @Inject
+    private MessagesMapper messagesMapper;
 
-  @Test
-  void should_find_conversation_by_user_and_id() {
-    Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
-    assertEquals(String.valueOf(conversationId), conversation.getIdentity());
-  }
+    @Test
+    public void should_find_message_by_conversation_and_id() {
+      Message message = messagesMapper.findMessageByConversationAndId(conversationId, messageId);
+      assertEquals(String.valueOf(messageId), message.getIdentity());
+    }
 
-  @Test
-  void should_assign_messages_association_of_conversation() {
-    Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
-    assertEquals(1, conversation.getMessages().findAll().size());
-  }
-
-  @Test
-  void should_find_single_message_by_user_and_id() {
-    Message message = messagesMapper.findMessageByConversationAndId(conversationId, messageId);
-    assertEquals(String.valueOf(messageId), message.getIdentity());
-  }
-
-  @Test
-  public void should_add_user_to_database() {
-    IdHolder idHolder = new IdHolder();
-    usersMapper.insertUser(idHolder, new UserDescription("JayClock", "JayClock@email.com"));
-    User user = usersMapper.findUserById(idHolder.id());
-    assertEquals("JayClock", user.getDescription().name());
-  }
-
-  @Test
-  public void should_add_account_to_database() {
-    IdHolder idHolder = new IdHolder();
-    accountsMapper.insertAccount(idHolder, userId, new AccountDescription("provider", "providerId2"));
-    Account account = accountsMapper.findAccountByUserAndId(userId, idHolder.id());
-    assertEquals(account.getIdentity(), String.valueOf(idHolder.id()));
-  }
-
-  @Test
-  public void should_add_conversation_to_database() {
-    IdHolder idHolder = new IdHolder();
-    conversationsMapper.insertConversation(idHolder, userId, new ConversationDescription("title"));
-    Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, idHolder.id());
-    assertEquals(conversation.getIdentity(), String.valueOf(idHolder.id()));
-  }
-
-  @Test
-  public void should_add_message_to_database() {
-    IdHolder idHolder = new IdHolder();
-    messagesMapper.insertMessage(idHolder, conversationId, new MessageDescription("role", "description"));
-    Message message = messagesMapper.findMessageByConversationAndId(conversationId, idHolder.id());
-    assertEquals(message.getIdentity(), String.valueOf(idHolder.id()));
+    @Test
+    public void should_add_message_to_database() {
+      IdHolder idHolder = new IdHolder();
+      messagesMapper.insertMessage(idHolder, conversationId, new MessageDescription("role", "description"));
+      Message message = messagesMapper.findMessageByConversationAndId(conversationId, idHolder.id());
+      assertEquals(message.getIdentity(), String.valueOf(idHolder.id()));
+    }
   }
 }
