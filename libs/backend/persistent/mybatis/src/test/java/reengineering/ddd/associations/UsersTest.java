@@ -1,9 +1,11 @@
-package reengineering.ddd;
+package reengineering.ddd.associations;
 
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import reengineering.ddd.BaseTestContainersTest;
+import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 

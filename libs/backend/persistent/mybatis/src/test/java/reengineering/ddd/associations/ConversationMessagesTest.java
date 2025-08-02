@@ -1,9 +1,10 @@
-package reengineering.ddd;
+package reengineering.ddd.associations;
 
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import reengineering.ddd.BaseTestContainersTest;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.description.UserDescription;
@@ -15,7 +16,7 @@ import reengineering.ddd.teamai.mybatis.associations.Users;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @MybatisTest
-public class ConversationMessageTest extends BaseTestContainersTest {
+public class ConversationMessagesTest extends BaseTestContainersTest {
   @Inject
   private Users users;
 
