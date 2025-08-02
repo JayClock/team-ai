@@ -7,12 +7,15 @@ import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
+import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.Conversation;
+import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.mappers.AccountsMapper;
 import reengineering.ddd.teamai.mybatis.mappers.ConversationsMapper;
+import reengineering.ddd.teamai.mybatis.mappers.MessagesMapper;
 import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
 
 import java.util.Random;
@@ -28,11 +31,14 @@ public class ModelMapperTest extends BaseTestContainersTest {
   @Inject
   private ConversationsMapper conversationsMapper;
   @Inject
+  private MessagesMapper messagesMapper;
+  @Inject
   private TestDataMapper testData;
 
   private final int userId = id();
   private final int accountId = id();
   private final int conversationId = id();
+  private final int messageId = id();
 
   private static int id() {
     return new Random().nextInt(100000);
@@ -43,6 +49,7 @@ public class ModelMapperTest extends BaseTestContainersTest {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
     testData.insertAccount(accountId, "provider", "providerId" + accountId, userId);
     testData.insertConversation(conversationId, "title" + conversationId, userId);
+    testData.insertMessage(messageId, conversationId, "role", "content");
   }
 
   @Test
@@ -66,7 +73,7 @@ public class ModelMapperTest extends BaseTestContainersTest {
   }
 
   @Test
-  void should_assign_conversation_association() {
+  void should_assign_conversation_association_of_user() {
     User user = usersMapper.findUserById(userId);
     assertEquals(1, user.accounts().findAll().size());
   }
@@ -75,6 +82,18 @@ public class ModelMapperTest extends BaseTestContainersTest {
   void should_find_conversation_by_user_and_id() {
     Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
     assertEquals(String.valueOf(conversationId), conversation.getIdentity());
+  }
+
+  @Test
+  void should_assign_messages_association_of_conversation() {
+    Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
+    assertEquals(1, conversation.getMessages().findAll().size());
+  }
+
+  @Test
+  void should_find_single_message_by_user_and_id() {
+    Message message = messagesMapper.findMessageByConversationAndId(conversationId, messageId);
+    assertEquals(String.valueOf(messageId), message.getIdentity());
   }
 
   @Test
@@ -99,5 +118,13 @@ public class ModelMapperTest extends BaseTestContainersTest {
     conversationsMapper.insertConversation(idHolder, userId, new ConversationDescription("title"));
     Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, idHolder.id());
     assertEquals(conversation.getIdentity(), String.valueOf(idHolder.id()));
+  }
+
+  @Test
+  public void should_add_message_to_database() {
+    IdHolder idHolder = new IdHolder();
+    messagesMapper.insertMessage(idHolder, conversationId, new MessageDescription("role", "description"));
+    Message message = messagesMapper.findMessageByConversationAndId(conversationId, idHolder.id());
+    assertEquals(message.getIdentity(), String.valueOf(idHolder.id()));
   }
 }

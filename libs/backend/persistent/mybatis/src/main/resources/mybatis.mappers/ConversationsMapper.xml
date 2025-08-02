@@ -8,6 +8,9 @@
         <arg column="title" jdbcType="VARCHAR" javaType="String"/>
       </constructor>
     </association>
+    <association property="messages" javaType="reengineering.ddd.teamai.mybatis.associations.ConversationMessages">
+      <result column="id" property="conversationId" javaType="int"/>
+    </association>
   </resultMap>
 
   <select id="findConversationByUserAndId" resultMap="conversation">
