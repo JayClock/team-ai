@@ -9,11 +9,11 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
-public class Security {
+public class SecurityConfig {
   private final OAuth2UserService oAuth2UserService;
 
   @Inject
-  public Security(OAuth2UserService oAuth2UserService) {
+  public SecurityConfig(OAuth2UserService oAuth2UserService) {
     this.oAuth2UserService = oAuth2UserService;
   }
 
