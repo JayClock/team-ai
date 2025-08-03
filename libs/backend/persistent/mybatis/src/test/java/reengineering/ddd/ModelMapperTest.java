@@ -77,6 +77,14 @@ public class ModelMapperTest extends BaseTestContainersTest {
       User user = usersMapper.findUserById(idHolder.id());
       assertEquals("JayClock", user.getDescription().name());
     }
+
+    @Test
+    public void should_update_name_if_email_exist() {
+      IdHolder idHolder = new IdHolder();
+      usersMapper.insertUser(idHolder, new UserDescription("John Smith", "JayClock@email.com"));
+      User user = usersMapper.findUserById(idHolder.id());
+      assertEquals("John Smith", user.getDescription().name());
+    }
   }
 
   @Nested

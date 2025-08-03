@@ -34,6 +34,8 @@
   <insert id="insertUser" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
     insert into users (name, email)
-    values (#{description.name}, #{description.email}) on conflict (email) do nothing
+    values (#{description.name}, #{description.email})
+    on conflict (email) do update set name = excluded.name
+    returning id
   </insert>
 </mapper>
