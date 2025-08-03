@@ -9,9 +9,18 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": [
+      "node",
+      "dom"
+    ],
+    "lib": [
+      "dom",
+      "es2022"
+    ]
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "references": [
     {
       "path": "../domain/tsconfig.lib.json"
