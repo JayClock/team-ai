@@ -1,8 +1,8 @@
 import {
   HalLinksDescription,
   User,
-  Users as IUsers,
   UserLinks,
+  Users as IUsers,
 } from '@web/domain';
 import { api } from '../../api.js';
 import { UserConversations } from './user-conversations.js';
@@ -26,4 +26,6 @@ export class Users implements IUsers {
       new UserConversations(res.data._links as UserLinks)
     );
   }
+
+  async subCollect(): Promise<void> {}
 }
