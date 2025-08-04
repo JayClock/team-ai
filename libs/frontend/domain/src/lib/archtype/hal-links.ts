@@ -4,4 +4,6 @@ export interface HalLinks {
 
 export interface HalLink {
   href: string;
+  type?: string;
+  title?: string;
 }
