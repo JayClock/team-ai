@@ -1,9 +1,9 @@
-'use client'
+'use client';
 import { Chat } from '@web/features';
-import { Users } from '@web/persistent';
+import { container, Users } from '@web/persistent';
 import { useQuery } from '@tanstack/react-query';
 
-const users = new Users();
+const users = container.get(Users);
 
 export default function Index() {
   const { data, isPending } = useQuery({

@@ -23,8 +23,18 @@ export class User implements Entity<string, UserDescription> {
   addConversation(description: ConversationDescription): Promise<Conversation> {
     return this.conversations.addConversation(description);
   }
+
+  getConversations(): Many<Conversation> {
+    return this.conversations;
+  }
 }
 
-export interface UserConversations {
+export interface Many<E> {
+  items: E[];
+
+  fetchFirst(): Promise<Many<E>>;
+}
+
+export interface UserConversations extends Many<Conversation> {
   addConversation(description: ConversationDescription): Promise<Conversation>;
 }

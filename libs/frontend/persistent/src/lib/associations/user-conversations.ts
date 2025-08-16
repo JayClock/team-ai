@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import {
   Conversation,
   ConversationDescription,
@@ -32,7 +33,7 @@ export class UserConversations implements IUserConversations {
     });
   }
 
-  async fetchData(link: HalLink): Promise<void> {
+  async fetchData(link: HalLink): Promise<UserConversations> {
     const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
       link.href
     );
@@ -42,6 +43,7 @@ export class UserConversations implements IUserConversations {
           title: conversationResponse.title,
         })
     );
+    return this;
   }
 
   fetchFirst() {

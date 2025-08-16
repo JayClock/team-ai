@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { User, Users as IUsers } from '@web/domain';
 import { UserConversations } from './user-conversations.js';
 import { UserLinks, UserResponse } from '../responses/user-response.js';
@@ -15,7 +16,7 @@ export class Users implements IUsers {
   ) => UserConversations;
 
   async findById(id: string): Promise<User> {
-    const res = await this.axios.get<UserResponse>(`/users/${id}`);
+    const res = await this.axios.get<UserResponse>(`/api/users/${id}`);
     return new User(
       res.data.id,
       {
