@@ -1,15 +1,13 @@
 import {
   Conversation,
   ConversationDescription,
-  HalLink,
-  HalLinksDescription,
-  PagedResponse,
   UserConversations as IUserConversations,
-  UserLinks,
 } from '@web/domain';
 import { api } from '../../api.js';
+import { HalLink, HalLinks } from '../archtype/hal-links.js';
+import { PagedResponse } from '../archtype/paged-response.js';
 
-interface ConversationResponse extends HalLinksDescription {
+interface ConversationResponse {
   id: string;
   title: string;
 }
@@ -17,7 +15,7 @@ interface ConversationResponse extends HalLinksDescription {
 export class UserConversations implements IUserConversations {
   public items: Conversation[] = [];
 
-  constructor(private userLinks: UserLinks) {}
+  constructor(private userLinks: HalLinks) {}
 
   async addConversation(
     description: ConversationDescription
@@ -28,7 +26,6 @@ export class UserConversations implements IUserConversations {
     );
     return new Conversation(data.id, {
       title: data.title,
-      _links: data._links,
     });
   }
 
@@ -40,7 +37,6 @@ export class UserConversations implements IUserConversations {
       (conversationResponse) =>
         new Conversation(conversationResponse.id, {
           title: conversationResponse.title,
-          _links: conversationResponse._links,
         })
     );
   }

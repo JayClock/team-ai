@@ -1,14 +1,14 @@
 import {
   ConversationDescription,
-  UserDescription, UserLinks
+  UserDescription,
 } from '../description/index.js';
-import { Entity, HalLinksDescription } from '../archtype/index.js';
+import { Entity } from '../archtype/index.js';
 import { Conversation } from './conversation.js';
 
 export class User implements Entity<string, UserDescription> {
   constructor(
     private identity: string,
-    private description: UserDescription & HalLinksDescription,
+    private description: UserDescription,
     private conversations: UserConversations
   ) {}
 
@@ -18,10 +18,6 @@ export class User implements Entity<string, UserDescription> {
 
   getDescription(): UserDescription {
     return this.description;
-  }
-
-  getLinks(): UserLinks {
-    return this.description._links as UserLinks;
   }
 
   addConversation(description: ConversationDescription): Promise<Conversation> {
