@@ -4,19 +4,19 @@ import {
   ConversationDescription,
   UserConversations as IUserConversations,
 } from '@web/domain';
-import { HalLink } from '../archtype/hal-links.js';
+import type { HalLink, HalLinks } from '../archtype/hal-links.js';
 import { PagedResponse } from '../archtype/paged-response.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
-import type { UserLinks } from '../responses/user-response.js';
 import { inject, injectable } from 'inversify';
 import { Axios } from 'axios';
 
 @injectable()
 export class UserConversations implements IUserConversations {
   public items: Conversation[] = [];
+  private embeddedKey = 'conversations';
 
   constructor(
-    private rootLinks: UserLinks,
+    private rootLinks: HalLinks,
     @inject(Axios)
     private readonly axios: Axios
   ) {}
@@ -37,7 +37,7 @@ export class UserConversations implements IUserConversations {
     const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
       link.href
     );
-    this.items = data._embedded['conversations'].map(
+    this.items = data._embedded[this.embeddedKey].map(
       (conversationResponse) =>
         new Conversation(conversationResponse.id, {
           title: conversationResponse.title,
@@ -46,7 +46,7 @@ export class UserConversations implements IUserConversations {
     return this;
   }
 
-  fetchFirst() {
-    return this.fetchData(this.rootLinks.conversations);
+  fetchFirst(): Promise<UserConversations> {
+    return this.fetchData(this.rootLinks[this.embeddedKey]);
   }
 }
