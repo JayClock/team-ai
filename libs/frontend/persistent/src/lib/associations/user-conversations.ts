@@ -3,21 +3,27 @@ import {
   ConversationDescription,
   UserConversations as IUserConversations,
 } from '@web/domain';
-import { api } from '../../api.js';
 import { HalLink } from '../archtype/hal-links.js';
 import { PagedResponse } from '../archtype/paged-response.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
-import { UserLinks } from '../responses/user-response.js';
+import type { UserLinks } from '../responses/user-response.js';
+import { inject, injectable } from 'inversify';
+import { Axios } from 'axios';
 
+@injectable()
 export class UserConversations implements IUserConversations {
   public items: Conversation[] = [];
 
-  constructor(private rootLinks: UserLinks) {}
+  constructor(
+    private rootLinks: UserLinks,
+    @inject(Axios)
+    private readonly axios: Axios
+  ) {}
 
   async addConversation(
     description: ConversationDescription
   ): Promise<Conversation> {
-    const { data } = await api.post<ConversationResponse>(
+    const { data } = await this.axios.post<ConversationResponse>(
       this.rootLinks['create-conversation'].href,
       description
     );
@@ -27,7 +33,7 @@ export class UserConversations implements IUserConversations {
   }
 
   async fetchData(link: HalLink): Promise<void> {
-    const { data } = await api.get<PagedResponse<ConversationResponse>>(
+    const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
       link.href
     );
     this.items = data._embedded['conversations'].map(

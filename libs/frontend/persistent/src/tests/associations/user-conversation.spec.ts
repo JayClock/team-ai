@@ -1,27 +1,29 @@
 import { Conversation, ConversationDescription } from '@web/domain';
 import { UserConversations } from '../../lib/associations/index.js';
-import { api } from '../../api.js';
-import { expect } from 'vitest';
+import { expect, Mocked } from 'vitest';
 import { UserLinks } from '../../lib/responses/user-response.js';
-
-vi.mock('../../api.js', () => ({
-  api: {
-    post: vi.fn(),
-    get: vi.fn(),
-  },
-}));
+import { container } from '../../lib/container.js';
+import { Axios } from 'axios';
+import { Factory } from 'inversify';
 
 describe('UserConversations', () => {
   let userConversations: UserConversations;
   let mockUserLinks: UserLinks;
+  const mockAxios = {
+    post: vi.fn(),
+    get: vi.fn(),
+  } as unknown as Mocked<Axios>;
 
   beforeEach(() => {
     mockUserLinks = {
       conversations: { href: '/api/users/1/conversations' },
       'create-conversation': { href: '/api/users/1/conversations' },
     } as UserLinks;
-    userConversations = new UserConversations(mockUserLinks);
-    vi.clearAllMocks();
+    container.rebindSync(Axios).toConstantValue(mockAxios);
+    const factory = container.get<Factory<UserConversations>>(
+      'Factory<UserConversations>'
+    );
+    userConversations = factory(mockUserLinks);
   });
 
   it('should add conversation successfully', async () => {
@@ -32,12 +34,12 @@ describe('UserConversations', () => {
         _links: { self: { href: '/api/conversations/123' } },
       },
     };
-    vi.mocked(api.post).mockResolvedValue(mockResponse);
+    vi.mocked(mockAxios.post).mockResolvedValue(mockResponse);
 
     const description: ConversationDescription = { title: 'Test Conversation' };
     const result = await userConversations.addConversation(description);
 
-    expect(api.post).toHaveBeenCalledWith(
+    expect(mockAxios.post).toHaveBeenCalledWith(
       '/api/users/1/conversations',
       description
     );
@@ -59,7 +61,7 @@ describe('UserConversations', () => {
         },
       },
     };
-    vi.mocked(api.get).mockResolvedValue(mockResponse);
+    vi.mocked(mockAxios.get).mockResolvedValue(mockResponse);
     await userConversations.fetchFirst();
     expect(userConversations.items.length).toBe(1);
     expect(userConversations.items[0]).toBeInstanceOf(Conversation);
