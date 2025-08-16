@@ -18,6 +18,10 @@
   "dependencies": {
     "@web/domain": "*",
     "axios": "^1.11.0",
+    "install": "^0.13.0",
+    "inversify": "^7.8.1",
+    "npm": "^11.5.2",
+    "reflect-metadata": "^0.2.2",
     "tslib": "^2.3.0"
   }
 }

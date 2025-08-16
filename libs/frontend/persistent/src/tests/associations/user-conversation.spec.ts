@@ -1,7 +1,8 @@
-import { Conversation, ConversationDescription, UserLinks } from '@web/domain';
+import { Conversation, ConversationDescription } from '@web/domain';
 import { UserConversations } from '../../lib/associations/index.js';
 import { api } from '../../api.js';
 import { expect } from 'vitest';
+import { UserLinks } from '../../lib/responses/user-response.js';
 
 vi.mock('../../api.js', () => ({
   api: {

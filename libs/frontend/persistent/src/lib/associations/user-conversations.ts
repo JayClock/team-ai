@@ -6,8 +6,8 @@ import {
 import { api } from '../../api.js';
 import { HalLink } from '../archtype/hal-links.js';
 import { PagedResponse } from '../archtype/paged-response.js';
-import { UserLinks } from '../responses/user-response.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
+import { UserLinks } from '../responses/user-response.js';
 
 export class UserConversations implements IUserConversations {
   public items: Conversation[] = [];
