@@ -4,24 +4,21 @@ import {
   UserConversations as IUserConversations,
 } from '@web/domain';
 import { api } from '../../api.js';
-import { HalLink, HalLinks } from '../archtype/hal-links.js';
+import { HalLink } from '../archtype/hal-links.js';
 import { PagedResponse } from '../archtype/paged-response.js';
-
-interface ConversationResponse {
-  id: string;
-  title: string;
-}
+import { UserLinks } from '../responses/user-response.js';
+import { ConversationResponse } from '../responses/conversation-response.js';
 
 export class UserConversations implements IUserConversations {
   public items: Conversation[] = [];
 
-  constructor(private userLinks: HalLinks) {}
+  constructor(private rootLinks: UserLinks) {}
 
   async addConversation(
     description: ConversationDescription
   ): Promise<Conversation> {
     const { data } = await api.post<ConversationResponse>(
-      this.userLinks['create-conversation'].href,
+      this.rootLinks['create-conversation'].href,
       description
     );
     return new Conversation(data.id, {
@@ -42,6 +39,6 @@ export class UserConversations implements IUserConversations {
   }
 
   fetchFirst() {
-    return this.fetchData(this.userLinks.conversations);
+    return this.fetchData(this.rootLinks.conversations);
   }
 }
