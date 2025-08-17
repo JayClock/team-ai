@@ -52,7 +52,8 @@ public class ConversationsApiTest extends ApiTest {
       .body("_embedded.conversations.size()", is(1))
       .body("_embedded.conversations[0].id", is(conversation.getIdentity()))
       .body("_embedded.conversations[0].title", is(conversation.getDescription().title()))
-      .body("_embedded.conversations[0]._links.self.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()));
+      .body("_embedded.conversations[0]._links.self.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
+      .body("_embedded.conversations[0]._links.messages.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"));
   }
 
   @Test

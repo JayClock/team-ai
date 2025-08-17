@@ -1,7 +1,10 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.*;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.ConversationModel;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -15,11 +18,9 @@ public class ConversationsApi {
     this.user = user;
   }
 
-  @GET
   @Path("{conversation-id}")
-  public ConversationModel findById(@PathParam("conversation-id") String id, @Context UriInfo uriInfo) {
-    UriBuilder builder = uriInfo.getAbsolutePathBuilder();
-    return user.conversations().findByIdentity(id).map(conversation -> new ConversationModel(conversation, builder))
+  public ConversationApi findById(@PathParam("conversation-id") String id) {
+    return user.conversations().findByIdentity(id).map(ConversationApi::new)
       .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
   }
 
@@ -37,3 +38,4 @@ public class ConversationsApi {
     return Response.created(uriInfo.getAbsolutePathBuilder().path(conversation.getIdentity()).build()).build();
   }
 }
+
