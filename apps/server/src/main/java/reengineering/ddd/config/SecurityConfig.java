@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -31,7 +32,8 @@ public class SecurityConfig {
   }
 
   @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+  @Profile("!dev")
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
       .authorizeHttpRequests(authz -> authz
         .requestMatchers("/", "/public/**").permitAll()
@@ -51,7 +53,17 @@ public class SecurityConfig {
       .exceptionHandling(handling -> handling
         .authenticationEntryPoint(apiAuthenticationEntryPoint())
       );
-    ;
+    return http.build();
+  }
+
+  @Bean
+  @Profile("dev")
+  public SecurityFilterChain devSecurityFilterChain(HttpSecurity http) throws Exception {
+    http
+      .authorizeHttpRequests(authz -> authz
+        .anyRequest().permitAll()
+      )
+      .csrf(AbstractHttpConfigurer::disable);
     return http.build();
   }
 
