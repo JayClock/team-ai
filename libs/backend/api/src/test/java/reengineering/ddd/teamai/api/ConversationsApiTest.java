@@ -64,7 +64,7 @@ public class ConversationsApiTest extends ApiTest {
 
     given().accept(MediaTypes.HAL_JSON.toString())
       .contentType(MediaType.APPLICATION_JSON)
-      .body("{\"title\":\"New Conversation\"}")
+      .body(description)
       .when().post("/users/" + user.getIdentity() + "/conversations")
       .then().statusCode(201)
       .header(HttpHeaders.LOCATION, is(uri("/api/users/" + user.getIdentity() + "/conversations/" + newConversation.getIdentity())));
