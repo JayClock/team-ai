@@ -1,5 +1,6 @@
 import { ConversationDescription } from '../description/index.js';
-import { Entity } from '../archtype/index.js';
+import { Entity, Many } from '../archtype/index.js';
+import { Message } from './message.js';
 
 export class Conversation implements Entity<string, ConversationDescription> {
   constructor(
@@ -14,4 +15,8 @@ export class Conversation implements Entity<string, ConversationDescription> {
   getDescription(): ConversationDescription {
     return this.description;
   }
+}
+
+export interface ConversationMessages extends Many<Message> {
+  sendMessage(): Promise<void>;
 }

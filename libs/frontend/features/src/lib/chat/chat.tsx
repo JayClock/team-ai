@@ -1,10 +1,13 @@
 import { User } from '@web/domain';
-import { Conversations, ConversationsProps } from '@ant-design/x';
-import { GetProp, Spin, theme } from 'antd';
+import { Conversation, Conversations, ConversationsProps } from '@ant-design/x';
+import { Flex, GetProp, Spin, theme } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { ConversationMessages } from './components/conversation-messages';
 
 export function Chat(props: { user: User }) {
+  const [conversation, setConversation] = useState<Conversation>();
+
   const { token } = theme.useToken();
 
   const style = {
@@ -30,15 +33,28 @@ export function Chat(props: { user: User }) {
     }, [data?.items]);
 
   return (
-    <div className="flex">
-      <div className="flex flex-col">
+    <Flex gap="small">
+      <Flex vertical>
         <div>Chat {props.user.getDescription().name}</div>
         {isPending ? (
           <Spin />
         ) : (
-          <Conversations items={conversationItems} style={style} />
+          <Conversations
+            items={conversationItems}
+            style={style}
+            onActiveChange={(value) => {
+              setConversation(
+                conversationItems.find((item) => item.key === value)
+              );
+            }}
+          />
         )}
-      </div>
-    </div>
+      </Flex>
+      {conversation ? (
+        <ConversationMessages conversation={conversation} />
+      ) : (
+        <div />
+      )}
+    </Flex>
   );
 }

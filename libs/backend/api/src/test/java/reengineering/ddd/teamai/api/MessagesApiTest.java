@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -28,6 +29,8 @@ public class MessagesApiTest extends ApiTest {
   private static final Logger log = LoggerFactory.getLogger(MessagesApiTest.class);
   @MockitoBean
   private Users users;
+  @MockitoBean
+  private DeepSeekChatModel deepSeekChatModel;
 
   private User user;
   private Conversation conversation;
@@ -56,5 +59,18 @@ public class MessagesApiTest extends ApiTest {
       .body("role", is(message.getDescription().role()))
       .body("content", is(message.getDescription().content()))
       .body("_links.ai-response.href", is(uri("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages" + "?since=" + message.getIdentity())));
+  }
+
+  @Test
+  public void should_generate_stream_response() {
+    MessageDescription description = new MessageDescription("user", "Hello AI");
+    Message message = new Message("1", description);
+    when(conversation.getMessages().findByIdentity(message.getIdentity())).thenReturn(Optional.of(message));
+
+    given()
+      .queryParam("since", 1)
+      .accept("text/event-stream")
+      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
+      .then().statusCode(204);
   }
 }

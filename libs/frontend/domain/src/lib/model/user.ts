@@ -2,7 +2,7 @@ import {
   ConversationDescription,
   UserDescription,
 } from '../description/index.js';
-import { Entity } from '../archtype/index.js';
+import { Entity, Many } from '../archtype/index.js';
 import { Conversation } from './conversation.js';
 
 export class User implements Entity<string, UserDescription> {
@@ -27,12 +27,6 @@ export class User implements Entity<string, UserDescription> {
   getConversations(): Many<Conversation> {
     return this.conversations;
   }
-}
-
-export interface Many<E> {
-  items: E[];
-
-  fetchFirst(): Promise<Many<E>>;
 }
 
 export interface UserConversations extends Many<Conversation> {
