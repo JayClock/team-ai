@@ -7,7 +7,6 @@ import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.server.core.Relation;
 import reengineering.ddd.teamai.api.ConversationApi;
-import reengineering.ddd.teamai.api.ConversationsApi;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.model.Conversation;
 
@@ -22,6 +21,6 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
     this.id = conversation.getIdentity();
     this.description = conversation.getDescription();
     add(Link.of(builder.clone().build(conversation.getIdentity()).getPath(), "self"));
-    add(Link.of(builder.clone().path(ConversationApi.class, "messages").build(conversation.getIdentity()).getPath(), "messages"));
+    add(Link.of(builder.clone().path(ConversationApi.class, "messages").build(conversation.getIdentity()).getPath(), "save-message"));
   }
 }

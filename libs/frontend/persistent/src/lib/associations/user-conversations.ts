@@ -9,6 +9,7 @@ import { PagedResponse } from '../archtype/paged-response.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
 import { inject, injectable } from 'inversify';
 import { Axios } from 'axios';
+import { ConversationMessages } from './conversation-messages.js';
 
 @injectable()
 export class UserConversations implements IUserConversations {
@@ -18,7 +19,11 @@ export class UserConversations implements IUserConversations {
   constructor(
     private rootLinks: HalLinks,
     @inject(Axios)
-    private readonly axios: Axios
+    private readonly axios: Axios,
+    @inject('Factory<ConversationMessages>')
+    private conversationMessagesFactory: (
+      links: HalLinks
+    ) => ConversationMessages
   ) {}
 
   async addConversation(
@@ -28,9 +33,13 @@ export class UserConversations implements IUserConversations {
       this.rootLinks['create-conversation'].href,
       description
     );
-    return new Conversation(data.id, {
-      title: data.title,
-    });
+    return new Conversation(
+      data.id,
+      {
+        title: data.title,
+      },
+      this.conversationMessagesFactory(data._links)
+    );
   }
 
   async fetchData(link: HalLink): Promise<UserConversations> {
@@ -39,9 +48,13 @@ export class UserConversations implements IUserConversations {
     );
     this.items = data._embedded[this.embeddedKey].map(
       (conversationResponse) =>
-        new Conversation(conversationResponse.id, {
-          title: conversationResponse.title,
-        })
+        new Conversation(
+          conversationResponse.id,
+          {
+            title: conversationResponse.title,
+          },
+          this.conversationMessagesFactory(conversationResponse._links)
+        )
     );
     return this;
   }

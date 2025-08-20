@@ -1,7 +1,8 @@
 import { HalLinks } from '../archtype/hal-links.js';
 
-export interface ConversationResponse {
+export interface MessageResponse {
   id: string;
-  title: string;
+  role: 'user' | 'assistant';
+  content: string;
   _links: HalLinks;
 }
