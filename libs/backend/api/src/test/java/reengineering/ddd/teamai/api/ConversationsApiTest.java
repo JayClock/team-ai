@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.api;
 
+import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.MediaType;
 import org.apache.http.HttpHeaders;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,7 +54,11 @@ public class ConversationsApiTest extends ApiTest {
       .body("_embedded.conversations[0].id", is(conversation.getIdentity()))
       .body("_embedded.conversations[0].title", is(conversation.getDescription().title()))
       .body("_embedded.conversations[0]._links.self.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
-      .body("_embedded.conversations[0]._links.save-message.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"));
+      .body("_embedded.conversations[0]._links.messages.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
+      .body("_embedded.conversations[0]._links.messages.type", is(HttpMethod.GET))
+      .body("_embedded.conversations[0]._links.save-message.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
+      .body("_embedded.conversations[0]._links.save-message.type", is(HttpMethod.POST));
+
   }
 
   @Test

@@ -29,7 +29,7 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return description;
   }
 
-  public HasMany<String, Message> getMessages() {
+  public HasMany<String, Message> messages() {
     return messages;
   }
 

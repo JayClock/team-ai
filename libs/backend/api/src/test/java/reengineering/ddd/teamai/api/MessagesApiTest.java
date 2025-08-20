@@ -4,11 +4,13 @@ import jakarta.ws.rs.core.MediaType;
 import org.apache.http.HttpHeaders;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import reengineering.ddd.archtype.Many;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.description.UserDescription;
@@ -32,6 +34,9 @@ public class MessagesApiTest extends ApiTest {
   @MockitoBean
   private DeepSeekChatModel deepSeekChatModel;
 
+  @Mock
+  private Many<Message> messages;
+
   private User user;
   private Conversation conversation;
 
@@ -41,6 +46,25 @@ public class MessagesApiTest extends ApiTest {
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     conversation = new Conversation("1", new ConversationDescription("title"), mock(Conversation.Messages.class));
     when(user.conversations().findByIdentity(conversation.getIdentity())).thenReturn(Optional.ofNullable(conversation));
+  }
+
+  @Test
+  public void should_return_all_messages_of_conversation_as_pages() {
+    MessageDescription description = new MessageDescription("user", "content");
+    Message message = new Message("1", description);
+    when(conversation.messages().findAll()).thenReturn(messages);
+    when(messages.size()).thenReturn(400);
+    when(messages.subCollection(0, 40)).thenReturn(new EntityList<>(message));
+    given()
+      .accept(MediaTypes.HAL_JSON.toString())
+      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
+      .then().statusCode(200)
+      .body("_links.self.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages?page=0"))
+      .body("_links.next.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages?page=1"))
+      .body("_embedded.messages[0].id", is(message.getIdentity()))
+      .body("_embedded.messages[0].role", is(message.getDescription().role()))
+      .body("_embedded.messages[0].content", is(message.getDescription().content()));
+    ;
   }
 
   @Test
@@ -54,23 +78,6 @@ public class MessagesApiTest extends ApiTest {
       .body(description)
       .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
       .then().statusCode(201)
-      .header(HttpHeaders.LOCATION, is(uri("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/" + message.getIdentity())))
-      .body("id", is(message.getIdentity()))
-      .body("role", is(message.getDescription().role()))
-      .body("content", is(message.getDescription().content()))
-      .body("_links.ai-response.href", is(uri("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages" + "?since=" + message.getIdentity())));
-  }
-
-  @Test
-  public void should_generate_stream_response() {
-    MessageDescription description = new MessageDescription("user", "Hello AI");
-    Message message = new Message("1", description);
-    when(conversation.getMessages().findByIdentity(message.getIdentity())).thenReturn(Optional.of(message));
-
-    given()
-      .queryParam("since", 1)
-      .accept("text/event-stream")
-      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
-      .then().statusCode(204);
+      .header(HttpHeaders.LOCATION, is(uri("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/" + message.getIdentity())));
   }
 }
