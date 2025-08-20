@@ -4,6 +4,7 @@ import {
 } from '../description/index.js';
 import { Entity, Many } from '../archtype/index.js';
 import { Message } from './message.js';
+import * as console from 'node:console';
 
 export class Conversation implements Entity<string, ConversationDescription> {
   constructor(

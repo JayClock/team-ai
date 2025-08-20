@@ -1,12 +1,13 @@
 import { User } from '@web/domain';
-import { Conversation, Conversations, ConversationsProps } from '@ant-design/x';
+import { Conversations, ConversationsProps } from '@ant-design/x';
 import { Flex, GetProp, Spin, theme } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { ConversationMessages } from './components/conversation-messages';
 
 export function Chat(props: { user: User }) {
-  const [conversation, setConversation] = useState<Conversation>();
+  const { user } = props;
+  const [activeConversationId, setActiveConversationId] = useState<string>();
 
   const { token } = theme.useToken();
 
@@ -16,21 +17,27 @@ export function Chat(props: { user: User }) {
     borderRadius: token.borderRadius,
   };
 
-  const { data, isPending } = useQuery({
-    queryKey: ['userConversations'],
-    queryFn: () => props.user.getConversations().fetchFirst(),
+  const { data: conversations, isPending } = useQuery({
+    queryKey: ['userConversations', user.getIdentity()],
+    queryFn: () => user.getConversations().fetchFirst(),
   });
+
+  const activeConversation = useMemo(() => {
+    return conversations?.items.find(
+      (c) => c.getIdentity() === activeConversationId
+    );
+  }, [conversations, activeConversationId]);
 
   const conversationItems: GetProp<ConversationsProps, 'items'> =
     useMemo(() => {
-      if (!data?.items) {
+      if (!conversations?.items) {
         return [];
       }
-      return data.items.map((conversation) => ({
+      return conversations.items.map((conversation) => ({
         key: conversation.getIdentity(),
         label: conversation.getDescription().title,
       }));
-    }, [data?.items]);
+    }, [conversations?.items]);
 
   return (
     <Flex gap="small">
@@ -42,18 +49,12 @@ export function Chat(props: { user: User }) {
           <Conversations
             items={conversationItems}
             style={style}
-            onActiveChange={(value) => {
-              setConversation(
-                conversationItems.find((item) => item.key === value)
-              );
-            }}
+            onActiveChange={setActiveConversationId}
           />
         )}
       </Flex>
-      {conversation ? (
-        <ConversationMessages conversation={conversation} />
-      ) : (
-        <div />
+      {activeConversation && (
+        <ConversationMessages conversation={activeConversation} />
       )}
     </Flex>
   );

@@ -1,13 +1,9 @@
-import {
-  Bubble,
-  Conversation,
-  Sender,
-  useXAgent,
-  useXChat,
-} from '@ant-design/x';
+import { Bubble, Sender, useXAgent, useXChat } from '@ant-design/x';
 import { Flex, GetProp } from 'antd';
 import { RobotOutlined, UserOutlined } from '@ant-design/icons';
 import { useState } from 'react';
+import { Conversation } from '@web/domain';
+import { useQuery } from '@tanstack/react-query';
 
 const roles: GetProp<typeof Bubble.List, 'roles'> = {
   ai: {
@@ -21,6 +17,12 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
 };
 
 export const ConversationMessages = (props: { conversation: Conversation }) => {
+  const { conversation } = props;
+  const { data: conversationMessages, isPending } = useQuery({
+    queryKey: ['conversation-messages', conversation.getIdentity()],
+    queryFn: () => conversation.getMessages().fetchFirst(),
+  });
+
   const [content, setContent] = useState('');
   const [agent] = useXAgent<string, { message: string }, string>({
     request: async ({ message }, { onSuccess, onUpdate }) => {

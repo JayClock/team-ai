@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, Mocked } from 'vitest';
+import { beforeEach, describe, expect, Mocked } from 'vitest';
 import { ConversationMessages } from '../../lib/associations/index.js';
 import { Axios } from 'axios';
 import { container } from '../../lib/container.js';
@@ -17,7 +17,7 @@ const mockLinks: HalLinks = {
 
 describe('ConversationMessages', () => {
   let conversationMessages: ConversationMessages;
-  beforeAll(() => {
+  beforeEach(() => {
     container.rebindSync(Axios).toConstantValue(mockAxios);
     const factory = container.get<Factory<ConversationMessages>>(
       'Factory<ConversationMessages>'
