@@ -23,21 +23,21 @@ export function Chat(props: { user: User }) {
   });
 
   const activeConversation = useMemo(() => {
-    return conversations?.items.find(
+    return conversations?.items().find(
       (c) => c.getIdentity() === activeConversationId
     );
   }, [conversations, activeConversationId]);
 
   const conversationItems: GetProp<ConversationsProps, 'items'> =
     useMemo(() => {
-      if (!conversations?.items) {
+      if (!conversations?.items()) {
         return [];
       }
-      return conversations.items.map((conversation) => ({
+      return conversations.items().map((conversation) => ({
         key: conversation.getIdentity(),
         label: conversation.getDescription().title,
       }));
-    }, [conversations?.items]);
+    }, [conversations]);
 
   return (
     <Flex gap="small">

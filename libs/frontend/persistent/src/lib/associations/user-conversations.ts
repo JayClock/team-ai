@@ -13,7 +13,8 @@ import { ConversationMessages } from './conversation-messages.js';
 
 @injectable()
 export class UserConversations implements IUserConversations {
-  public items: Conversation[] = [];
+  #items: Conversation[] = [];
+  public items = () => this.#items;
   private embeddedKey = 'conversations';
 
   constructor(
@@ -46,7 +47,7 @@ export class UserConversations implements IUserConversations {
     const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
       link.href
     );
-    this.items = data._embedded[this.embeddedKey].map(
+    this.#items = data._embedded[this.embeddedKey].map(
       (conversationResponse) =>
         new Conversation(
           conversationResponse.id,

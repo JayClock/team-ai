@@ -11,7 +11,8 @@ import { PagedResponse } from '../archtype/paged-response.js';
 
 @injectable()
 export class ConversationMessages implements IConversationMessages {
-  items: Message[] = [];
+  #items: Message[] = [];
+  items = () => this.#items;
 
   constructor(
     private rootLinks: HalLinks,
@@ -37,7 +38,7 @@ export class ConversationMessages implements IConversationMessages {
       url: link.href,
       method: link.type,
     });
-    this.items = data._embedded.messsages.map(
+    this.#items = data._embedded.messsages.map(
       (item: MessageResponse) =>
         new Message(item.id, {
           role: item.role,

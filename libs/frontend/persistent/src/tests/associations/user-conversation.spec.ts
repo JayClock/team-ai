@@ -63,7 +63,7 @@ describe('UserConversations', () => {
     };
     vi.mocked(mockAxios.get).mockResolvedValue(mockResponse);
     await userConversations.fetchFirst();
-    expect(userConversations.items.length).toBe(1);
-    expect(userConversations.items[0]).toBeInstanceOf(Conversation);
+    expect(userConversations.items().length).toBe(1);
+    expect(userConversations.items()[0]).toBeInstanceOf(Conversation);
   });
 });

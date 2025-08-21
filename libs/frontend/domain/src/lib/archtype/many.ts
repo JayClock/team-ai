@@ -1,5 +1,5 @@
 export interface Many<E> {
-  items: E[];
+  items: () => E[];
 
   fetchFirst(): Promise<Many<E>>;
 }
