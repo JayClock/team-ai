@@ -15,7 +15,6 @@ import { ConversationMessages } from './conversation-messages.js';
 export class UserConversations implements IUserConversations {
   #items: Conversation[] = [];
   public items = () => this.#items;
-  private embeddedKey = 'conversations';
 
   constructor(
     private rootLinks: HalLinks,
@@ -43,11 +42,11 @@ export class UserConversations implements IUserConversations {
     );
   }
 
-  async fetchData(link: HalLink): Promise<UserConversations> {
+  async fetchData(link: HalLink): Promise<void> {
     const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
       link.href
     );
-    this.#items = data._embedded[this.embeddedKey].map(
+    this.#items = data._embedded['conversations'].map(
       (conversationResponse) =>
         new Conversation(
           conversationResponse.id,
@@ -57,10 +56,9 @@ export class UserConversations implements IUserConversations {
           this.conversationMessagesFactory(conversationResponse._links)
         )
     );
-    return this;
   }
 
-  fetchFirst(): Promise<UserConversations> {
-    return this.fetchData(this.rootLinks[this.embeddedKey]);
+  async fetchFirst(): Promise<void> {
+    this.fetchData(this.rootLinks['conversations']);
   }
 }

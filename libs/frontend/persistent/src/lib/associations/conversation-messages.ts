@@ -32,7 +32,7 @@ export class ConversationMessages implements IConversationMessages {
     });
   }
 
-  async fetchFirst(): Promise<ConversationMessages> {
+  async fetchFirst(): Promise<void> {
     const link = this.rootLinks['messages'];
     const { data } = await this.axios.request<PagedResponse<MessageResponse>>({
       url: link.href,
@@ -45,6 +45,5 @@ export class ConversationMessages implements IConversationMessages {
           content: item.content,
         })
     );
-    return this;
   }
 }
