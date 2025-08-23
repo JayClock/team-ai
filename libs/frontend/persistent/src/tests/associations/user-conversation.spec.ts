@@ -65,5 +65,7 @@ describe('UserConversations', () => {
     await userConversations.fetchFirst();
     expect(userConversations.items().length).toBe(1);
     expect(userConversations.items()[0]).toBeInstanceOf(Conversation);
+    expect(userConversations.hasPrev()).toEqual(false);
+    expect(userConversations.hasNext()).toEqual(false);
   });
 });

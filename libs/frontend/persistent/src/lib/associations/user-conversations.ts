@@ -5,7 +5,7 @@ import {
   UserConversations as IUserConversations,
 } from '@web/domain';
 import type { HalLink, HalLinks } from '../archtype/hal-links.js';
-import { PagedResponse } from '../archtype/paged-response.js';
+import { PagedResponse, PageLinks } from '../archtype/paged-response.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
 import { inject, injectable } from 'inversify';
 import { Axios } from 'axios';
@@ -14,6 +14,7 @@ import { ConversationMessages } from './conversation-messages.js';
 @injectable()
 export class UserConversations implements IUserConversations {
   #items: Conversation[] = [];
+  #links: PageLinks | null = null;
   public items = () => this.#items;
 
   constructor(
@@ -56,6 +57,15 @@ export class UserConversations implements IUserConversations {
           this.conversationMessagesFactory(conversationResponse._links)
         )
     );
+    this.#links = data._links;
+  }
+
+  hasPrev(): boolean {
+    return !!this.#links?.prev;
+  }
+
+  hasNext(): boolean {
+    return !!this.#links?.next;
   }
 
   async fetchFirst(): Promise<void> {

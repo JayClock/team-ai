@@ -7,11 +7,12 @@ import {
 import type { HalLinks } from '../archtype/hal-links.js';
 import { Axios } from 'axios';
 import { MessageResponse } from '../responses/message-response.js';
-import { PagedResponse } from '../archtype/paged-response.js';
+import { PagedResponse, PageLinks } from '../archtype/paged-response.js';
 
 @injectable()
 export class ConversationMessages implements IConversationMessages {
   #items: Message[] = [];
+  #links: PageLinks | null = null;
   items = () => this.#items;
 
   constructor(
@@ -30,6 +31,14 @@ export class ConversationMessages implements IConversationMessages {
       role: data.role,
       content: data.content,
     });
+  }
+
+  hasPrev(): boolean {
+    return !!this.#links?.prev;
+  }
+
+  hasNext(): boolean {
+    return !!this.#links?.next;
   }
 
   async fetchFirst(): Promise<void> {
