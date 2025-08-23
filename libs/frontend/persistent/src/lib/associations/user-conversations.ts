@@ -3,6 +3,7 @@ import {
   Conversation,
   ConversationDescription,
   UserConversations as IUserConversations,
+  Pagination,
 } from '@web/domain';
 import type { HalLink, HalLinks } from '../archtype/hal-links.js';
 import { PagedResponse, PageLinks } from '../archtype/paged-response.js';
@@ -15,7 +16,9 @@ import { ConversationMessages } from './conversation-messages.js';
 export class UserConversations implements IUserConversations {
   #items: Conversation[] = [];
   #links: PageLinks | null = null;
+  #pagination: Pagination = { total: 0, page: 0, pageSize: 0 };
   public items = () => this.#items;
+  public pagination = () => this.#pagination;
 
   constructor(
     private rootLinks: HalLinks,
@@ -57,6 +60,11 @@ export class UserConversations implements IUserConversations {
           this.conversationMessagesFactory(conversationResponse._links)
         )
     );
+    this.#pagination = {
+      page: data.page.number,
+      pageSize: data.page.size,
+      total: data.page.totalElements,
+    };
     this.#links = data._links;
   }
 
@@ -69,6 +77,6 @@ export class UserConversations implements IUserConversations {
   }
 
   async fetchFirst(): Promise<void> {
-    this.fetchData(this.rootLinks['conversations']);
+    await this.fetchData(this.rootLinks['conversations']);
   }
 }

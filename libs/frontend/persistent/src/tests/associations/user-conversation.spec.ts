@@ -59,6 +59,12 @@ describe('UserConversations', () => {
             },
           ],
         },
+        page: {
+          number: 1,
+          size: 100,
+          totalElements: 200,
+          totalPages: 2,
+        },
       },
     };
     vi.mocked(mockAxios.get).mockResolvedValue(mockResponse);
@@ -67,5 +73,10 @@ describe('UserConversations', () => {
     expect(userConversations.items()[0]).toBeInstanceOf(Conversation);
     expect(userConversations.hasPrev()).toEqual(false);
     expect(userConversations.hasNext()).toEqual(false);
+    expect(userConversations.pagination()).toEqual({
+      page: 1,
+      pageSize: 100,
+      total: 200,
+    });
   });
 });

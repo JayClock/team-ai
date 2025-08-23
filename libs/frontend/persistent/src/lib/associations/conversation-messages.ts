@@ -3,6 +3,7 @@ import {
   ConversationMessages as IConversationMessages,
   Message,
   MessageDescription,
+  Pagination,
 } from '@web/domain';
 import type { HalLinks } from '../archtype/hal-links.js';
 import { Axios } from 'axios';
@@ -13,7 +14,9 @@ import { PagedResponse, PageLinks } from '../archtype/paged-response.js';
 export class ConversationMessages implements IConversationMessages {
   #items: Message[] = [];
   #links: PageLinks | null = null;
+  #pagination: Pagination = { total: 0, page: 0, pageSize: 0 };
   items = () => this.#items;
+  pagination = () => this.#pagination;
 
   constructor(
     private rootLinks: HalLinks,
@@ -54,5 +57,10 @@ export class ConversationMessages implements IConversationMessages {
           content: item.content,
         })
     );
+    this.#pagination = {
+      page: data.page.number,
+      pageSize: data.page.size,
+      total: data.page.totalElements,
+    };
   }
 }
