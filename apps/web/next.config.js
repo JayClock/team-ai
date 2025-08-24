@@ -18,16 +18,6 @@ const nextConfig = {
       },
     ];
   },
-  experimental: {
-    swcPlugins: [
-      [
-        '@preact-signals/safe-react/swc',
-        {
-          mode: 'auto',
-        },
-      ],
-    ],
-  },
 };
 
 const plugins = [

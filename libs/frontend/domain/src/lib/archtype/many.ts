@@ -9,4 +9,5 @@ export interface Many<E> {
   hasPrev: () => boolean;
   hasNext: () => boolean;
   fetchFirst(): Promise<void>;
+  fetchNext(): Promise<void>;
 }

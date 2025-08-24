@@ -79,4 +79,11 @@ export class UserConversations implements IUserConversations {
   async fetchFirst(): Promise<void> {
     await this.fetchData(this.rootLinks['conversations']);
   }
+
+  async fetchNext(): Promise<void> {
+    if (this.hasNext()) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.fetchData(this.#links!.next);
+    }
+  }
 }

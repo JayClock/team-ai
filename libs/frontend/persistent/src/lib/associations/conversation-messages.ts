@@ -5,7 +5,7 @@ import {
   MessageDescription,
   Pagination,
 } from '@web/domain';
-import type { HalLinks } from '../archtype/hal-links.js';
+import type { HalLink, HalLinks } from '../archtype/hal-links.js';
 import { Axios } from 'axios';
 import { MessageResponse } from '../responses/message-response.js';
 import { PagedResponse, PageLinks } from '../archtype/paged-response.js';
@@ -44,8 +44,7 @@ export class ConversationMessages implements IConversationMessages {
     return !!this.#links?.next;
   }
 
-  async fetchFirst(): Promise<void> {
-    const link = this.rootLinks['messages'];
+  private async fetchData(link: HalLink): Promise<void> {
     const { data } = await this.axios.request<PagedResponse<MessageResponse>>({
       url: link.href,
       method: link.type,
@@ -62,5 +61,16 @@ export class ConversationMessages implements IConversationMessages {
       pageSize: data.page.size,
       total: data.page.totalElements,
     };
+  }
+
+  async fetchFirst(): Promise<void> {
+    await this.fetchData(this.rootLinks['messages']);
+  }
+
+  async fetchNext(): Promise<void> {
+    if (this.hasNext()) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.fetchData(this.#links!.next);
+    }
   }
 }

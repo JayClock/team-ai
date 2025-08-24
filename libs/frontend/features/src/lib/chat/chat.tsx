@@ -1,14 +1,16 @@
-import { User } from '@web/domain';
+import { Conversation, User } from '@web/domain';
 import { Conversations, ConversationsProps } from '@ant-design/x';
-import { Flex, GetProp, Spin, theme } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { Divider, Flex, GetProp, Spin, theme } from 'antd';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { ConversationMessages } from './components/conversation-messages';
-import { useComputed, useSignal } from '@preact-signals/safe-react';
+import { useMemo, useState } from 'react';
+import InfiniteScroll from 'react-infinite-scroll-component';
+import { RedoOutlined } from '@ant-design/icons';
 
 export function Chat(props: { user: User }) {
   const { user } = props;
   const conversations = user.getConversations();
-  const activeConversationId = useSignal('');
+  const [activeConversationId, setConversationId] = useState('');
 
   const { token } = theme.useToken();
 
@@ -18,46 +20,73 @@ export function Chat(props: { user: User }) {
     borderRadius: token.borderRadius,
   };
 
-  const { data, isPending } = useQuery({
+  const { data, hasNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['userConversations', user.getIdentity()],
-    queryFn: async () => {
-      await conversations.fetchFirst();
-      return conversations.items();
+    queryFn: async ({ pageParam }) => {
+      await pageParam();
+      return {
+        items: conversations.items(),
+        hasNext: conversations.hasNext(),
+      };
     },
-    initialData: [],
+    initialPageParam: async () => await conversations.fetchFirst(),
+    getNextPageParam: (lastpage) => {
+      if (lastpage.hasNext) {
+        return async () => await conversations.fetchNext();
+      }
+      return undefined;
+    },
   });
 
-  const activeConversation = useComputed(() =>
-    data.find((c) => c.getIdentity() === activeConversationId.value)
+  const list = useMemo(() => {
+    let res: Conversation[] = [];
+    data?.pages.forEach(({ items }) => {
+      res = [...res, ...items];
+    });
+    return res;
+  }, [data]);
+
+  const activeConversation = useMemo(
+    () => list.find((c) => c.getIdentity() === activeConversationId),
+    [list, activeConversationId]
   );
 
-  const conversationItems = useComputed<GetProp<ConversationsProps, 'items'>>(
-    () => {
-      return data.map((conversation) => ({
-        key: conversation.getIdentity(),
-        label: conversation.getDescription().title,
-      }));
-    }
-  );
+  const conversationItems = useMemo<
+    GetProp<ConversationsProps, 'items'>
+  >(() => {
+    return list.map((conversation) => ({
+      key: conversation.getIdentity(),
+      label: conversation.getDescription().title,
+    }));
+  }, [list]);
 
   return (
     <Flex gap="small">
       <Flex vertical>
-        <div>
-          Chat {props.user.getDescription().name} {activeConversationId.value}
+        <div>Chat {props.user.getDescription().name} </div>
+        <div id="scrollableDiv">
+          <InfiniteScroll
+            dataLength={conversationItems.length}
+            next={fetchNextPage}
+            hasMore={hasNextPage}
+            loader={
+              <div style={{ textAlign: 'center' }}>
+                <Spin indicator={<RedoOutlined spin />} size="small" />
+              </div>
+            }
+            style={{ overflow: 'hidden' }}
+            scrollableTarget="scrollableDiv"
+          >
+            <Conversations
+              items={conversationItems}
+              onActiveChange={setConversationId}
+              style={style}
+            ></Conversations>
+          </InfiniteScroll>
         </div>
-        {isPending ? (
-          <Spin />
-        ) : (
-          <Conversations
-            items={conversationItems.value}
-            style={style}
-            onActiveChange={(id) => (activeConversationId.value = id)}
-          />
-        )}
       </Flex>
-      {activeConversation.value && (
-        <ConversationMessages conversation={activeConversation.value} />
+      {activeConversation && (
+        <ConversationMessages conversation={activeConversation} />
       )}
     </Flex>
   );

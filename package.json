@@ -5,10 +5,10 @@
   "scripts": {},
   "private": true,
   "dependencies": {
-    "@preact-signals/safe-react": "^0.9.0",
     "next": "~15.2.4",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "react-infinite-scroll-component": "^6.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.14.5",
