@@ -18,6 +18,9 @@ spring:
     baseline-on-migrate: true
   jersey:
     application-path: /api
+  ai:
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY}
 mybatis:
   mapper-locations: classpath:mybatis.mappers/**/*.xml
   config-location: classpath:mybatis-config.xml
