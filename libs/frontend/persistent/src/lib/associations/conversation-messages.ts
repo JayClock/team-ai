@@ -4,7 +4,7 @@ import {
   Message,
   MessageDescription,
 } from '@web/domain';
-import type { HalLink, HalLinks } from '../archtype/hal-links.js';
+import type { HalLinks } from '../archtype/hal-links.js';
 import { Axios } from 'axios';
 import { MessageResponse } from '../responses/message-response.js';
 import { PagedResponse } from '../archtype/paged-response.js';
@@ -17,7 +17,7 @@ export class ConversationMessages
 {
   constructor(
     private rootLinks: HalLinks,
-    @inject(Axios) private axios: Axios
+    @inject(Axios) protected readonly axios: Axios // Changed from private to protected
   ) {
     super();
   }
@@ -35,24 +35,17 @@ export class ConversationMessages
     });
   }
 
-  async fetchData(link: HalLink): Promise<void> {
-    const { data } = await this.axios.request<PagedResponse<MessageResponse>>({
-      url: link.href,
-      method: link.type,
-    });
-    this._items = data._embedded['messages'].map(
+  protected _mapResponseData(data: PagedResponse<MessageResponse>): Message[] {
+    if (!data._embedded || !data._embedded['messages']) {
+      return [];
+    }
+    return data._embedded['messages'].map(
       (item: MessageResponse) =>
         new Message(item.id, {
           role: item.role,
           content: item.content,
         })
     );
-    this._pagination = {
-      page: data.page.number,
-      pageSize: data.page.size,
-      total: data.page.totalElements,
-    };
-    this._pageLinks = data._links;
   }
 
   async fetchFirst(): Promise<void> {

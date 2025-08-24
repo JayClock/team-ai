@@ -4,7 +4,7 @@ import {
   ConversationDescription,
   UserConversations as IUserConversations,
 } from '@web/domain';
-import type { HalLink, HalLinks } from '../archtype/hal-links.js';
+import type { HalLinks } from '../archtype/hal-links.js';
 import { PagedResponse } from '../archtype/paged-response.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
 import { inject, injectable } from 'inversify';
@@ -20,7 +20,7 @@ export class UserConversations
   constructor(
     private rootLinks: HalLinks,
     @inject(Axios)
-    private readonly axios: Axios,
+    protected readonly axios: Axios, // Changed from private to protected
     @inject('Factory<ConversationMessages>')
     private conversationMessagesFactory: (
       links: HalLinks
@@ -45,11 +45,13 @@ export class UserConversations
     );
   }
 
-  async fetchData(link: HalLink): Promise<void> {
-    const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
-      link.href
-    );
-    this._items = data._embedded['conversations'].map(
+  protected _mapResponseData(
+    data: PagedResponse<ConversationResponse>
+  ): Conversation[] {
+    if (!data._embedded || !data._embedded['conversations']) {
+      return [];
+    }
+    return data._embedded['conversations'].map(
       (conversationResponse) =>
         new Conversation(
           conversationResponse.id,
@@ -59,12 +61,6 @@ export class UserConversations
           this.conversationMessagesFactory(conversationResponse._links)
         )
     );
-    this._pagination = {
-      page: data.page.number,
-      pageSize: data.page.size,
-      total: data.page.totalElements,
-    };
-    this._pageLinks = data._links;
   }
 
   async fetchFirst(): Promise<void> {
