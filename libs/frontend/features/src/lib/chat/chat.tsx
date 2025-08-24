@@ -1,6 +1,6 @@
 import { Conversation, User } from '@web/domain';
 import { Conversations, ConversationsProps } from '@ant-design/x';
-import { Divider, Flex, GetProp, Spin, theme } from 'antd';
+import { Flex, GetProp, Spin, theme } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { ConversationMessages } from './components/conversation-messages';
 import { useMemo, useState } from 'react';

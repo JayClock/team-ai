@@ -3,23 +3,20 @@ import {
   Conversation,
   ConversationDescription,
   UserConversations as IUserConversations,
-  Pagination,
 } from '@web/domain';
 import type { HalLink, HalLinks } from '../archtype/hal-links.js';
-import { PagedResponse, PageLinks } from '../archtype/paged-response.js';
+import { PagedResponse } from '../archtype/paged-response.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
 import { inject, injectable } from 'inversify';
 import { Axios } from 'axios';
 import { ConversationMessages } from './conversation-messages.js';
+import { EntityList } from '../archtype/entity-list.js';
 
 @injectable()
-export class UserConversations implements IUserConversations {
-  #items: Conversation[] = [];
-  #links: PageLinks | null = null;
-  #pagination: Pagination = { total: 0, page: 0, pageSize: 0 };
-  public items = () => this.#items;
-  public pagination = () => this.#pagination;
-
+export class UserConversations
+  extends EntityList<Conversation>
+  implements IUserConversations
+{
   constructor(
     private rootLinks: HalLinks,
     @inject(Axios)
@@ -28,7 +25,9 @@ export class UserConversations implements IUserConversations {
     private conversationMessagesFactory: (
       links: HalLinks
     ) => ConversationMessages
-  ) {}
+  ) {
+    super();
+  }
 
   async addConversation(
     description: ConversationDescription
@@ -50,7 +49,7 @@ export class UserConversations implements IUserConversations {
     const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
       link.href
     );
-    this.#items = data._embedded['conversations'].map(
+    this._items = data._embedded['conversations'].map(
       (conversationResponse) =>
         new Conversation(
           conversationResponse.id,
@@ -60,30 +59,15 @@ export class UserConversations implements IUserConversations {
           this.conversationMessagesFactory(conversationResponse._links)
         )
     );
-    this.#pagination = {
+    this._pagination = {
       page: data.page.number,
       pageSize: data.page.size,
       total: data.page.totalElements,
     };
-    this.#links = data._links;
-  }
-
-  hasPrev(): boolean {
-    return !!this.#links?.prev;
-  }
-
-  hasNext(): boolean {
-    return !!this.#links?.next;
+    this._pageLinks = data._links;
   }
 
   async fetchFirst(): Promise<void> {
     await this.fetchData(this.rootLinks['conversations']);
-  }
-
-  async fetchNext(): Promise<void> {
-    if (this.hasNext()) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.fetchData(this.#links!.next);
-    }
   }
 }
