@@ -16,6 +16,12 @@ java {
 repositories {
   mavenLocal()
   mavenCentral()
+  maven { url 'https://repo.spring.io/milestone' }
+  maven { url 'https://repo.spring.io/snapshot' }
+  maven {
+    name = 'Central Portal Snapshots'
+    url = 'https://central.sonatype.com/repository/maven-snapshots/'
+  }
 }
 
 dependencyManagement {
@@ -33,7 +39,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.postgresql:postgresql'
-    implementation 'org.springframework.ai:spring-ai-deepseek'
+    implementation 'org.springframework.ai:spring-ai-starter-model-deepseek'
     implementation 'org.springframework.ai:spring-ai-spring-boot-testcontainers'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

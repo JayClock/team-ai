@@ -31,6 +31,8 @@ dependencies {
   implementation 'org.springframework.hateoas:spring-hateoas'
   implementation 'com.fasterxml.jackson.core:jackson-annotations'
   implementation 'com.fasterxml.jackson.core:jackson-databind'
+  implementation 'io.projectreactor:reactor-core'
+
 
   testImplementation 'org.springframework.boot:spring-boot-starter-hateoas'
   testImplementation 'org.springframework.boot:spring-boot-starter-jersey'

@@ -5,12 +5,10 @@ import java.util.List;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
-import org.springframework.context.ApplicationContext;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 import reengineering.ddd.mybatis.database.EntityList;
-import reengineering.ddd.mybatis.support.ApplicationContextHolder;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
@@ -22,6 +20,8 @@ public class ConversationMessages extends EntityList<String, Message> implements
 
   @Inject
   private MessagesMapper mapper;
+  @Inject
+  private DeepSeekChatModel deepSeekChatModel;
 
   @Override
   protected List<Message> findEntities(int from, int to) {
@@ -47,8 +47,6 @@ public class ConversationMessages extends EntityList<String, Message> implements
 
   @Override
   public Flux<String> sendMessage(MessageDescription description) {
-    ApplicationContext context = ApplicationContextHolder.getApplicationContext();
-    DeepSeekChatModel deepSeekChatModel = context.getBean(DeepSeekChatModel.class);
     return deepSeekChatModel.stream(new Prompt(new UserMessage(description.content())))
         .map(message -> message.getResult().getOutput().getText());
   }
