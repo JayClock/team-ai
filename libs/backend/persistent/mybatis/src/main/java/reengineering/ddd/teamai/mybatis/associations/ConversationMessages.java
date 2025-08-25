@@ -39,15 +39,15 @@ public class ConversationMessages extends EntityList<String, Message> implements
   }
 
   @Override
-  public Message add(MessageDescription description) {
+  public Message saveMessage(MessageDescription description) {
     IdHolder idHolder = new IdHolder();
     mapper.insertMessage(idHolder, conversationId, description);
     return findEntity(String.valueOf(idHolder.id()));
   }
 
   @Override
-  public Flux<String> sendMessage(MessageDescription description) {
-    return deepSeekChatModel.stream(new Prompt(new UserMessage(description.content())))
-        .map(message -> message.getResult().getOutput().getText());
+  public Flux<String> sendMessage(String message) {
+    return deepSeekChatModel.stream(new Prompt(new UserMessage(message)))
+        .map(response -> response.getResult().getOutput().getText());
   }
 }

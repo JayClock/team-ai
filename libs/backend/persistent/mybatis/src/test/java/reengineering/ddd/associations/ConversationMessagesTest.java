@@ -45,7 +45,7 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
 
     for (var i = 0; i < messageCount; i++) {
       var description = new MessageDescription("role", "content");
-      conversation.add(description);
+      conversation.saveMessage(description);
     }
   }
 
@@ -77,12 +77,11 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
 
   @Test
   public void should_send_message_and_receive_response() {
-    MessageDescription description = new MessageDescription("user", "Hello");
     String aiResponse = "AI response content";
     ChatResponse chatResponse = new ChatResponse(List.of(
         new Generation(new AssistantMessage(aiResponse))));
     when(deepSeekChatModel.stream(any(Prompt.class))).thenReturn(Flux.just(chatResponse));
-    Flux<String> result = conversation.sendMessage(description);
+    Flux<String> result = conversation.sendMessage("hello");
     StepVerifier.create(result)
         .expectNext(aiResponse)
         .verifyComplete();

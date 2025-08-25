@@ -5,6 +5,7 @@ import java.util.Optional;
 import static org.hamcrest.Matchers.is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mock;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -12,8 +13,8 @@ import org.springframework.hateoas.MediaTypes;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static io.restassured.RestAssured.given;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
-import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
@@ -65,15 +66,17 @@ public class MessagesApiTest extends ApiTest {
   }
 
   @Test
-  public void should_send_message_and_receive_streaming_response() {
+  public void should_create_new_message() {
     MessageDescription description = new MessageDescription("user", "content");
-    // todo 似乎应该请求真实的 api 端口，但是会耗费金额，就算了吧
-    when(conversation.sendMessage(description)).thenReturn(Flux.just("response1", "response2", "response3"));
+    Message message = new Message("1", description);
+    when(conversation.saveMessage(any(MessageDescription.class))).thenReturn(message);
     given()
-        .accept(MediaType.SERVER_SENT_EVENTS)
+        .accept(MediaTypes.HAL_JSON_VALUE)
         .contentType(MediaType.APPLICATION_JSON)
         .body(description)
         .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
-        .then().statusCode(204);
+        .then().statusCode(201)
+        .header(HttpHeaders.LOCATION, is(uri("/api/users/" + user.getIdentity() + "/conversations/"
+            + conversation.getIdentity() + "/messages/" + message.getIdentity())));
   }
 }
