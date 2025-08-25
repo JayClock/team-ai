@@ -1,10 +1,14 @@
 package reengineering.ddd;
 
-import jakarta.inject.Inject;
+import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+
+import jakarta.inject.Inject;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -18,10 +22,6 @@ import reengineering.ddd.teamai.mybatis.mappers.AccountsMapper;
 import reengineering.ddd.teamai.mybatis.mappers.ConversationsMapper;
 import reengineering.ddd.teamai.mybatis.mappers.MessagesMapper;
 import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
-
-import java.util.Random;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @MybatisTest
 public class ModelMapperTest extends BaseTestContainersTest {
@@ -121,7 +121,7 @@ public class ModelMapperTest extends BaseTestContainersTest {
     @Test
     void should_assign_messages_association_of_conversation() {
       Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
-      assertEquals(1, conversation.getMessages().findAll().size());
+      assertEquals(1, conversation.messages().findAll().size());
     }
 
     @Test

@@ -25,8 +25,7 @@ dependencyManagement {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    implementation 'io.projectreactor:reactor-core'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

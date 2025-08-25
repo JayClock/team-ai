@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.model;
 
+import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -37,7 +38,13 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return messages.add(description);
   }
 
+  public Flux<String> sendMessage(MessageDescription description) {
+    return messages.sendMessage(description);
+  }
+
   public interface Messages extends HasMany<String, Message> {
     Message add(MessageDescription description);
+
+    Flux<String> sendMessage(MessageDescription description);
   }
 }

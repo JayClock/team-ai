@@ -26,17 +26,21 @@ dependencyManagement {
 
 dependencies {
     implementation project(':domain')
+    implementation platform("org.springframework.ai:spring-ai-bom:1.0.1")
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.4'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.postgresql:postgresql'
+    implementation 'org.springframework.ai:spring-ai-deepseek'
+    implementation 'org.springframework.ai:spring-ai-spring-boot-testcontainers'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.4'
     testImplementation 'org.testcontainers:postgresql:1.19.3'
     testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
+    testImplementation 'io.projectreactor:reactor-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

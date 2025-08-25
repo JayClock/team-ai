@@ -26,15 +26,11 @@ dependencyManagement {
 
 dependencies {
   implementation project(':domain')
-  implementation platform("org.springframework.ai:spring-ai-bom:1.0.1")
   implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
   implementation 'jakarta.ws.rs:jakarta.ws.rs-api:3.1.0'
   implementation 'org.springframework.hateoas:spring-hateoas'
   implementation 'com.fasterxml.jackson.core:jackson-annotations'
   implementation 'com.fasterxml.jackson.core:jackson-databind'
-  implementation 'org.springframework.ai:spring-ai-deepseek'
-  implementation 'org.springframework.ai:spring-ai-spring-boot-testcontainers'
-
 
   testImplementation 'org.springframework.boot:spring-boot-starter-hateoas'
   testImplementation 'org.springframework.boot:spring-boot-starter-jersey'

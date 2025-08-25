@@ -1,9 +1,23 @@
 package reengineering.ddd.associations;
 
-import jakarta.inject.Inject;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.deepseek.DeepSeekChatModel;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import jakarta.inject.Inject;
+import reactor.core.publisher.Flux;
+import reactor.test.StepVerifier;
 import reengineering.ddd.BaseTestContainersTest;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
@@ -13,12 +27,12 @@ import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 @MybatisTest
 public class ConversationMessagesTest extends BaseTestContainersTest {
   @Inject
   private Users users;
+  @MockitoBean
+  private DeepSeekChatModel deepSeekChatModel;
 
   Conversation conversation;
 
@@ -37,27 +51,40 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
 
   @Test
   public void should_get_messages_association_of_conversation() {
-    assertEquals(messageCount, conversation.getMessages().findAll().size());
+    assertEquals(messageCount, conversation.messages().findAll().size());
   }
 
   @Test
   public void should_sub_messages_association_of_conversation() {
-    assertEquals(40, conversation.getMessages().findAll().subCollection(0, 40).size());
+    assertEquals(40, conversation.messages().findAll().subCollection(0, 40).size());
   }
 
   @Test
   public void should_find_single_message_of_conversation() {
-    String identity = conversation.getMessages().findAll().iterator().next().getIdentity();
-    Message message = conversation.getMessages().findByIdentity(identity).get();
+    String identity = conversation.messages().findAll().iterator().next().getIdentity();
+    Message message = conversation.messages().findByIdentity(identity).get();
     assertEquals(identity, message.getIdentity());
   }
 
   @Test
   public void should_iterate_messages_of_conversation() {
     int count = 0;
-    for (var message : conversation.getMessages().findAll()) {
+    for (var message : conversation.messages().findAll()) {
       count++;
     }
     assertEquals(messageCount, count);
+  }
+
+  @Test
+  public void should_send_message_and_receive_response() {
+    MessageDescription description = new MessageDescription("user", "Hello");
+    String aiResponse = "AI response content";
+    ChatResponse chatResponse = new ChatResponse(List.of(
+        new Generation(new AssistantMessage(aiResponse))));
+    when(deepSeekChatModel.stream(any(Prompt.class))).thenReturn(Flux.just(chatResponse));
+    Flux<String> result = conversation.sendMessage(description);
+    StepVerifier.create(result)
+        .expectNext(aiResponse)
+        .verifyComplete();
   }
 }
