@@ -1,18 +1,18 @@
 import { Bubble, Sender, useXAgent, useXChat, XStream } from '@ant-design/x';
 import { Flex, GetProp } from 'antd';
 import { RobotOutlined, UserOutlined } from '@ant-design/icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Conversation } from '@web/domain';
 import { useQuery } from '@tanstack/react-query';
-import { SSEFields } from '@ant-design/x/es/x-stream';
+import { BubbleDataType } from '@ant-design/x/es/bubble/BubbleList';
 
 const roles: GetProp<typeof Bubble.List, 'roles'> = {
-  ai: {
+  assistant: {
     placement: 'start',
     avatar: { icon: <RobotOutlined />, style: { background: '#fde3cf' } },
     typing: { step: 2, interval: 50 },
   },
-  local: {
+  user: {
     placement: 'end',
     avatar: { icon: <UserOutlined />, style: { background: '#87d068' } },
   },
@@ -20,35 +20,48 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
 
 export const ConversationMessages = (props: { conversation: Conversation }) => {
   const { conversation } = props;
-  const { data: conversationMessages, isPending } = useQuery({
+  const conversationMessages = conversation.getMessages();
+  const { data: serverMessages, isPending } = useQuery({
     queryKey: ['conversation-messages', conversation.getIdentity()],
-    queryFn: () => conversation.getMessages().fetchFirst(),
+    queryFn: async () => {
+      await conversationMessages.fetchFirst();
+      return conversationMessages.items();
+    },
   });
 
   const [content, setContent] = useState('');
   const [agent] = useXAgent<string, { message: string }, string>({
     request: async ({ message }, { onSuccess, onUpdate }) => {
-      const chunks: Partial<Record<SSEFields, string>>[] = [];
+      let fullMessage = '';
       const stream = await conversation.sendMessage(message);
       for await (const chunk of XStream({ readableStream: stream })) {
-        chunks.push(chunk);
-        onUpdate(chunks.map((item) => item.data?.trim()).join(''));
+        const newText = chunk.data?.trim() || '';
+        fullMessage += newText;
+        onUpdate(fullMessage);
       }
-      onSuccess([chunks.map((item) => item.data?.trim()).join('')]);
+      onSuccess([fullMessage]);
     },
   });
   const { onRequest, messages } = useXChat({ agent });
 
+  const allMessages = useMemo<BubbleDataType[]>(() => {
+    const historicalMessages =
+      serverMessages?.map((item) => ({
+        key: item.getIdentity(),
+        role: item.getDescription().role,
+        content: item.getDescription().content,
+      })) ?? [];
+    const currentMessages = messages.map(({ message, status, id }) => ({
+      key: id,
+      role: status === 'local' ? 'user' : 'assistant',
+      content: message,
+    }));
+    return [...historicalMessages, ...currentMessages];
+  }, [serverMessages, messages]);
+
   return (
     <Flex vertical gap="middle" flex={1} justify="space-between">
-      <Bubble.List
-        roles={roles}
-        items={messages.map(({ message, status, id }) => ({
-          key: id,
-          role: status === 'local' ? 'local' : 'ai',
-          content: message,
-        }))}
-      />
+      <Bubble.List roles={roles} items={allMessages} />
       <Sender
         className="w-full"
         loading={agent.isRequesting()}
