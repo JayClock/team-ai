@@ -13,6 +13,10 @@ const mockLinks: HalLinks = {
     href: 'save-href',
     type: 'POST',
   },
+  'send-message': {
+    href: 'send-href',
+    type: 'GET',
+  },
 };
 
 describe('ConversationMessages', () => {
@@ -38,5 +42,50 @@ describe('ConversationMessages', () => {
     expect(message.getIdentity()).toBe(mockResponse.id);
     expect(message.getDescription().role).toBe(mockResponse.role);
     expect(message.getDescription().content).toBe(mockResponse.content);
+  });
+
+  it('should send message and return stream', async () => {
+    const mockMessage = 'Hello, World!';
+    const mockStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('some message'));
+        controller.close();
+      },
+    });
+    global.fetch = vi.fn().mockResolvedValue({
+      body: mockStream,
+    } as Response);
+    const stream = await conversationMessages.sendMessage(mockMessage);
+    expect(global.fetch).toHaveBeenCalledWith(
+      `send-href?message=${encodeURIComponent(mockMessage)}`,
+      {
+        headers: {
+          Accept: 'text/event-stream',
+        },
+      }
+    );
+    expect(stream).toBe(mockStream);
+  });
+
+  it('should throw error if send message fails', async () => {
+    const mockMessage = 'Hello, World!';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+    } as Response);
+    await expect(conversationMessages.sendMessage(mockMessage)).rejects.toThrow(
+      'HTTP error! status: 500'
+    );
+  });
+
+  it('should throw error if response body is null', async () => {
+    const mockMessage = 'Hello, World!';
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: null,
+    } as Response);
+    await expect(conversationMessages.sendMessage(mockMessage)).rejects.toThrow(
+      'Response body is null'
+    );
   });
 });

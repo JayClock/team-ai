@@ -35,7 +35,9 @@ export class ConversationMessages
     });
   }
 
-  async sendMessage(message: string): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
+  async sendMessage(
+    message: string
+  ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
     const link = this.rootLinks['send-message'];
     const response = await fetch(
       `${link.href}?message=${encodeURIComponent(message)}`,
@@ -45,7 +47,13 @@ export class ConversationMessages
         },
       }
     );
-    return response.body!;
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    if (!response.body) {
+      throw new Error('Response body is null');
+    }
+    return response.body;
   }
 
   protected _mapResponseData(data: PagedResponse<MessageResponse>): Message[] {
