@@ -46,8 +46,8 @@ public class ConversationMessages extends EntityList<String, Message> implements
   }
 
   @Override
-  public Flux<String> sendMessage(String message) {
-    return deepSeekChatModel.stream(new Prompt(new UserMessage(message)))
+  public Flux<String> sendMessage(MessageDescription description) {
+    return deepSeekChatModel.stream(new Prompt(new UserMessage(description.content())))
         .map(response -> response.getResult().getOutput().getText());
   }
 }

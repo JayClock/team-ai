@@ -25,23 +25,13 @@ public class MessagesApi {
     this.conversation = conversation;
   }
 
-  // @POST
-  // @Consumes(MediaType.APPLICATION_JSON)
-  // public Response saveMessage(MessageDescription description, @Context UriInfo
-  // uriInfo) {
-  // Message message = conversation.saveMessage(description);
-  // return Response.created(
-  // uriInfo.getAbsolutePathBuilder().path(message.getIdentity()).build())
-  // .build();
-  // }
-
   @POST
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void sendMessage(
       MessageDescription description,
       @Context SseEventSink sseEventSink,
       @Context Sse sse) {
-    this.conversation.sendMessage(description.content()).subscribe(
+    this.conversation.sendMessage(description).subscribe(
         text -> {
           OutboundSseEvent event = sse.newEventBuilder()
               .data(text)

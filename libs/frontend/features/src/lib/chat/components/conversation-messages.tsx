@@ -10,6 +10,7 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
   ai: {
     placement: 'start',
     avatar: { icon: <RobotOutlined />, style: { background: '#fde3cf' } },
+    typing: { step: 2, interval: 50 },
   },
   local: {
     placement: 'end',
@@ -31,9 +32,9 @@ export const ConversationMessages = (props: { conversation: Conversation }) => {
       const stream = await conversation.sendMessage(message);
       for await (const chunk of XStream({ readableStream: stream })) {
         chunks.push(chunk);
-        onUpdate(chunks.map((item) => item.data).join(''));
+        onUpdate(chunks.map((item) => item.data?.trim()).join(''));
       }
-      onSuccess([chunks.map((item) => item.data).join('')]);
+      onSuccess([chunks.map((item) => item.data?.trim()).join('')]);
     },
   });
   const { onRequest, messages } = useXChat({ agent });

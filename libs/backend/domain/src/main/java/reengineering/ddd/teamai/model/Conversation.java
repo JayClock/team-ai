@@ -38,13 +38,13 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return messages.saveMessage(description);
   }
 
-  public Flux<String> sendMessage(String message) {
-    return messages.sendMessage(message);
+  public Flux<String> sendMessage(MessageDescription description) {
+    return messages.sendMessage(description);
   }
 
   public interface Messages extends HasMany<String, Message> {
     Message saveMessage(MessageDescription description);
 
-    Flux<String> sendMessage(String message);
+    Flux<String> sendMessage(MessageDescription description);
   }
 }

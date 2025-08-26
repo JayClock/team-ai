@@ -81,7 +81,7 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
     ChatResponse chatResponse = new ChatResponse(List.of(
         new Generation(new AssistantMessage(aiResponse))));
     when(deepSeekChatModel.stream(any(Prompt.class))).thenReturn(Flux.just(chatResponse));
-    Flux<String> result = conversation.sendMessage("hello");
+    Flux<String> result = conversation.sendMessage(new MessageDescription("user", "content"));
     StepVerifier.create(result)
         .expectNext(aiResponse)
         .verifyComplete();

@@ -67,7 +67,7 @@ public class MessagesApiTest extends ApiTest {
   @Test
   public void should_send_message_and_receive_streaming_response() {
     MessageDescription description = new MessageDescription("user", "content");
-    when(conversation.sendMessage(description.content())).thenReturn(Flux.just("data"));
+    when(conversation.sendMessage(description)).thenReturn(Flux.just("data"));
     given()
         .accept(MediaType.SERVER_SENT_EVENTS)
         .contentType(MediaType.APPLICATION_JSON)
