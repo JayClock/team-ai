@@ -34,19 +34,19 @@ export class ConversationMessages
       content: data.content,
     });
   }
-
   async sendMessage(
     message: string
   ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
     const link = this.rootLinks['send-message'];
-    const response = await fetch(
-      `${link.href}?message=${encodeURIComponent(message)}`,
-      {
-        headers: {
-          Accept: 'text/event-stream',
-        },
-      }
-    );
+    const response = await fetch(link.href, {
+      method: 'POST',
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'user', content: message }),
+    });
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -55,7 +55,6 @@ export class ConversationMessages
     }
     return response.body;
   }
-
   protected _mapResponseData(data: PagedResponse<MessageResponse>): Message[] {
     if (!data._embedded || !data._embedded['messages']) {
       return [];

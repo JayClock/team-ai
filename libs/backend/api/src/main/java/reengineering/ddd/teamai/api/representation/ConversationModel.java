@@ -27,8 +27,6 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
     add(Link.of(builder.clone().path(ConversationApi.class, "messages").build(conversation.getIdentity()).getPath(),
         "messages").withType(HttpMethod.GET));
     add(Link.of(builder.clone().path(ConversationApi.class, "messages").build(conversation.getIdentity()).getPath(),
-        "save-message").withType(HttpMethod.POST));
-    add(Link.of(builder.clone().path(ConversationApi.class, "sendMessage").build(conversation.getIdentity()).getPath(),
-        "send-message").withType(HttpMethod.GET));
+        "send-message").withType(HttpMethod.POST));
   }
 }

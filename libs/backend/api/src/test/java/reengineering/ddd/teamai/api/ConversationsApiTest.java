@@ -17,7 +17,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static io.restassured.RestAssured.given;
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.MediaType;
-import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.UserDescription;
@@ -82,22 +81,5 @@ public class ConversationsApiTest extends ApiTest {
         .then().statusCode(201)
         .header(HttpHeaders.LOCATION,
             is(uri("/api/users/" + user.getIdentity() + "/conversations/" + newConversation.getIdentity())));
-  }
-
-  @Test
-  public void should_send_message_and_receive_streaming_response() {
-    String testMessage = "Hello";
-    String expectedResponse1 = "response1";
-    String expectedResponse2 = "response2";
-    String expectedResponse3 = "response3";
-    when(user.conversations().findByIdentity(conversation.getIdentity())).thenReturn(Optional.of(conversation));
-    when(conversation.sendMessage(any()))
-        .thenReturn(Flux.just(expectedResponse1, expectedResponse2, expectedResponse3));
-
-    given()
-        .accept(MediaType.SERVER_SENT_EVENTS)
-        .queryParam("message", testMessage)
-        .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/chat")
-        .then().statusCode(200);
   }
 }

@@ -1,9 +1,10 @@
-import { Bubble, Sender, useXAgent, useXChat } from '@ant-design/x';
+import { Bubble, Sender, useXAgent, useXChat, XStream } from '@ant-design/x';
 import { Flex, GetProp } from 'antd';
 import { RobotOutlined, UserOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { Conversation } from '@web/domain';
 import { useQuery } from '@tanstack/react-query';
+import { SSEFields } from '@ant-design/x/es/x-stream';
 
 const roles: GetProp<typeof Bubble.List, 'roles'> = {
   ai: {
@@ -26,17 +27,13 @@ export const ConversationMessages = (props: { conversation: Conversation }) => {
   const [content, setContent] = useState('');
   const [agent] = useXAgent<string, { message: string }, string>({
     request: async ({ message }, { onSuccess, onUpdate }) => {
-      const fullContent = `Streaming output instead of Bubble typing effect. You typed: ${message}`;
-      let currentContent = '';
-
-      const id = setInterval(() => {
-        currentContent = fullContent.slice(0, currentContent.length + 2);
-        onUpdate(currentContent);
-        if (currentContent === fullContent) {
-          clearInterval(id);
-          onSuccess([fullContent]);
-        }
-      }, 100);
+      const chunks: Partial<Record<SSEFields, string>>[] = [];
+      const stream = await conversation.sendMessage(message);
+      for await (const chunk of XStream({ readableStream: stream })) {
+        chunks.push(chunk);
+        onUpdate(chunks.map((item) => item.data).join(''));
+      }
+      onSuccess([chunks.map((item) => item.data).join('')]);
     },
   });
   const { onRequest, messages } = useXChat({ agent });

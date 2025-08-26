@@ -5,7 +5,6 @@ import java.util.Optional;
 import static org.hamcrest.Matchers.is;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.any;
 import org.mockito.Mock;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -13,8 +12,8 @@ import org.springframework.hateoas.MediaTypes;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static io.restassured.RestAssured.given;
-import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
+import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
@@ -66,17 +65,14 @@ public class MessagesApiTest extends ApiTest {
   }
 
   @Test
-  public void should_create_new_message() {
+  public void should_send_message_and_receive_streaming_response() {
     MessageDescription description = new MessageDescription("user", "content");
-    Message message = new Message("1", description);
-    when(conversation.saveMessage(any(MessageDescription.class))).thenReturn(message);
+    when(conversation.sendMessage(description.content())).thenReturn(Flux.just("data"));
     given()
-        .accept(MediaTypes.HAL_JSON_VALUE)
+        .accept(MediaType.SERVER_SENT_EVENTS)
         .contentType(MediaType.APPLICATION_JSON)
         .body(description)
         .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
-        .then().statusCode(201)
-        .header(HttpHeaders.LOCATION, is(uri("/api/users/" + user.getIdentity() + "/conversations/"
-            + conversation.getIdentity() + "/messages/" + message.getIdentity())));
+        .then().statusCode(200);
   }
 }
