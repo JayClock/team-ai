@@ -1,7 +1,5 @@
 package reengineering.ddd.teamai.api;
 
-import java.util.UUID;
-
 import org.springframework.web.bind.annotation.RequestParam;
 
 import jakarta.ws.rs.GET;
@@ -41,6 +39,7 @@ public class ConversationApi {
   @Path("chat")
   @GET
   @Produces(MediaType.SERVER_SENT_EVENTS)
+  @SuppressWarnings("ConvertToTryWithResources")
   public void sendMessage(
       @RequestParam("message") String message,
       @Context SseEventSink sseEventSink,
@@ -48,11 +47,16 @@ public class ConversationApi {
     this.conversation.sendMessage(message).subscribe(
         text -> {
           OutboundSseEvent event = sse.newEventBuilder()
-              .id(UUID.randomUUID().toString())
-              .name("message")
               .data(text)
               .build();
+
           sseEventSink.send(event);
+        },
+        error -> {
+          sseEventSink.close();
+        },
+        () -> {
+          sseEventSink.close();
         });
   }
 }

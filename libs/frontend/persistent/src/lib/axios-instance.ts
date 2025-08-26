@@ -5,11 +5,6 @@ export const axiosInstance = axios.create({
   timeout: 5000,
 });
 
-axiosInstance.interceptors.request.use((config) => {
-  config.headers['Accept'] = 'application/hal+json';
-  return config;
-});
-
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {

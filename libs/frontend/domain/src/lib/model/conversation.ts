@@ -27,8 +27,12 @@ export class Conversation implements Entity<string, ConversationDescription> {
   saveMessage(description: MessageDescription): Promise<Message> {
     return this.messages.saveMessage(description);
   }
+  sendMessage(message: string): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
+    return this.messages.sendMessage(message);
+  }
 }
 
 export interface ConversationMessages extends Many<Message> {
   saveMessage(description: MessageDescription): Promise<Message>;
+  sendMessage(message: string): Promise<ReadableStream<Uint8Array<ArrayBuffer>>>;
 }
