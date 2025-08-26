@@ -8,6 +8,7 @@ import org.springframework.ai.deepseek.DeepSeekChatModel;
 
 import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reengineering.ddd.mybatis.database.EntityList;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.MessageDescription;
@@ -47,7 +48,16 @@ public class ConversationMessages extends EntityList<String, Message> implements
 
   @Override
   public Flux<String> sendMessage(MessageDescription description) {
-    return deepSeekChatModel.stream(new Prompt(new UserMessage(description.content())))
-        .map(response -> response.getResult().getOutput().getText());
+    return Mono.fromCallable(() -> saveMessage(description))
+        .flatMapMany(savedMessage -> {
+          StringBuilder aiResponsBuilder = new StringBuilder();
+          return deepSeekChatModel.stream(new Prompt(new UserMessage(description.content())))
+              .map(response -> response.getResult().getOutput().getText())
+              .doOnNext(text -> aiResponsBuilder.append(text))
+              .doOnComplete(() -> {
+                String fullAiResponse = aiResponsBuilder.toString();
+                saveMessage(new MessageDescription("assistant", fullAiResponse));
+              });
+        });
   }
 }

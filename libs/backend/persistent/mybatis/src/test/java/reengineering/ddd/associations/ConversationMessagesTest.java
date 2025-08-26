@@ -81,9 +81,21 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
     ChatResponse chatResponse = new ChatResponse(List.of(
         new Generation(new AssistantMessage(aiResponse))));
     when(deepSeekChatModel.stream(any(Prompt.class))).thenReturn(Flux.just(chatResponse));
+
     Flux<String> result = conversation.sendMessage(new MessageDescription("user", "content"));
+
     StepVerifier.create(result)
         .expectNext(aiResponse)
         .verifyComplete();
+
+    Message userMessage = conversation.messages().findAll().subCollection(100, 101).stream().toList().stream()
+        .findFirst().get();
+    assertEquals(userMessage.getDescription().role(), "user");
+    assertEquals(userMessage.getDescription().content(), "content");
+
+    Message assistantMessage = conversation.messages().findAll().subCollection(101, 102).stream().toList().stream()
+        .findFirst().get();
+    assertEquals(assistantMessage.getDescription().role(), "assistant");
+    assertEquals(assistantMessage.getDescription().content(), "AI response content");
   }
 }
