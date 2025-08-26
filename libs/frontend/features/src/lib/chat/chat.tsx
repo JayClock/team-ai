@@ -86,7 +86,10 @@ export function Chat(props: { user: User }) {
         </div>
       </Flex>
       {activeConversation && (
-        <ConversationMessages conversation={activeConversation} />
+        <ConversationMessages
+          key={activeConversation.getIdentity()}
+          conversation={activeConversation}
+        />
       )}
     </Flex>
   );

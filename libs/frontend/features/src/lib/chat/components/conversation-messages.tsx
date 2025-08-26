@@ -23,8 +23,8 @@ export const ConversationMessages = (props: { conversation: Conversation }) => {
   const conversationMessages = conversation.getMessages();
   const { data: serverMessages, isPending } = useQuery({
     queryKey: ['conversation-messages', conversation.getIdentity()],
-    queryFn: async () => {
-      await conversationMessages.fetchFirst();
+    queryFn: async ({ signal }) => {
+      await conversationMessages.fetchFirst(signal);
       return conversationMessages.items();
     },
   });

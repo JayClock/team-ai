@@ -63,7 +63,7 @@ export class UserConversations
     );
   }
 
-  async fetchFirst(): Promise<void> {
-    await this.fetchData(this.rootLinks['conversations']);
+  async fetchFirst(signal: AbortSignal): Promise<void> {
+    await this.fetchData(this.rootLinks['conversations'], signal);
   }
 }

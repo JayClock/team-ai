@@ -8,6 +8,6 @@ export interface Many<E> {
   pagination: () => Pagination;
   hasPrev: () => boolean;
   hasNext: () => boolean;
-  fetchFirst(): Promise<void>;
-  fetchNext(): Promise<void>;
+  fetchFirst(signal: AbortSignal): Promise<void>;
+  fetchNext(signal: AbortSignal): Promise<void>;
 }

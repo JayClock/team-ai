@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { PageLinks } from './paged-response.js';
 import { Pagination } from '@web/domain';
 import type { HalLink } from './hal-links.js';
@@ -14,8 +15,8 @@ export abstract class EntityList<E> {
 
   protected abstract _mapResponseData(data: any): E[];
 
-  async fetchData(link: HalLink): Promise<void> {
-    const { data } = await this.axios.get<any>(link.href);
+  async fetchData(link: HalLink, signal: AbortSignal): Promise<void> {
+    const { data } = await this.axios.get<any>(link.href, { signal });
 
     if (data.page) {
       this._pagination = {
@@ -28,7 +29,7 @@ export abstract class EntityList<E> {
     this._items = this._mapResponseData(data);
   }
 
-  abstract fetchFirst(): Promise<void>;
+  abstract fetchFirst(signal: AbortSignal): Promise<void>;
 
   hasPrev(): boolean {
     return !!this._pageLinks?.prev;
@@ -38,17 +39,17 @@ export abstract class EntityList<E> {
     return !!this._pageLinks?.next;
   }
 
-  async fetchPrev(): Promise<void> {
+  async fetchPrev(signal: AbortSignal): Promise<void> {
     if (this.hasPrev()) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.fetchData(this._pageLinks!.prev);
+      await this.fetchData(this._pageLinks!.prev, signal);
     }
   }
 
-  async fetchNext(): Promise<void> {
+  async fetchNext(signal: AbortSignal): Promise<void> {
     if (this.hasNext()) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.fetchData(this._pageLinks!.next);
+      await this.fetchData(this._pageLinks!.next, signal);
     }
   }
 }

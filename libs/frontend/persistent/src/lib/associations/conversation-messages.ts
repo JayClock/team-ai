@@ -34,6 +34,7 @@ export class ConversationMessages
       content: data.content,
     });
   }
+
   async sendMessage(
     message: string
   ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
@@ -55,6 +56,7 @@ export class ConversationMessages
     }
     return response.body;
   }
+
   protected _mapResponseData(data: PagedResponse<MessageResponse>): Message[] {
     if (!data._embedded || !data._embedded['messages']) {
       return [];
@@ -68,7 +70,7 @@ export class ConversationMessages
     );
   }
 
-  async fetchFirst(): Promise<void> {
-    await this.fetchData(this.rootLinks['messages']);
+  async fetchFirst(signal: AbortSignal): Promise<void> {
+    await this.fetchData(this.rootLinks['messages'], signal);
   }
 }
