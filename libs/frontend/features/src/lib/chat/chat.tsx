@@ -63,8 +63,8 @@ export function Chat(props: { user: User }) {
   }, [list]);
 
   return (
-    <Flex gap="small">
-      <Flex vertical>
+    <div className="flex gap-4 h-full">
+      <div className="flex flex-col">
         <div>Chat {props.user.getDescription().name} </div>
         <div id="scrollableDiv">
           <InfiniteScroll
@@ -86,13 +86,13 @@ export function Chat(props: { user: User }) {
             ></Conversations>
           </InfiniteScroll>
         </div>
-      </Flex>
+      </div>
       {activeConversation && (
         <ConversationMessages
           key={activeConversation.getIdentity()}
           conversation={activeConversation}
         />
       )}
-    </Flex>
+    </div>
   );
 }

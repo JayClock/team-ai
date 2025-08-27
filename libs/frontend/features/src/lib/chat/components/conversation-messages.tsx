@@ -59,8 +59,8 @@ export const ConversationMessages = (props: { conversation: Conversation }) => {
   }, [serverMessages, messages]);
 
   return (
-    <Flex vertical gap="middle" flex={1} justify="space-between">
-      <Bubble.List roles={roles} items={allMessages} />
+    <div className="flex flex-col gap-8 flex-1 justify-between h-full">
+      <Bubble.List className='flex-1' roles={roles} items={allMessages} />
       <Sender
         className="w-full"
         loading={agent.isRequesting()}
@@ -71,6 +71,6 @@ export const ConversationMessages = (props: { conversation: Conversation }) => {
           setContent('');
         }}
       />
-    </Flex>
+    </div>
   );
 };
