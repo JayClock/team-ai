@@ -1,11 +1,10 @@
-'use client';
+import { useQuery } from '@tanstack/react-query';
 import { Chat } from '@web/features';
 import { container, Users } from '@web/persistent';
-import { useQuery } from '@tanstack/react-query';
 
 const users = container.get(Users);
 
-export default function Index() {
+export default function NxWelcome() {
   const { data, isPending } = useQuery({
     queryKey: ['key'],
     queryFn: () => users.findById('1'),

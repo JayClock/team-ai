@@ -10,9 +10,5 @@
       "default": "./src/index.ts"
     },
     "./package.json": "./package.json"
-  },
-  "dependencies": {
-    "@ant-design/x": "^1.6.0",
-    "antd": "^5.26.7"
   }
 }

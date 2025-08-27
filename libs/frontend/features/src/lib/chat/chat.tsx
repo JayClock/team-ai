@@ -22,17 +22,19 @@ export function Chat(props: { user: User }) {
 
   const { data, hasNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['userConversations', user.getIdentity()],
-    queryFn: async ({ pageParam }) => {
-      await pageParam();
+    queryFn: async ({ pageParam, signal }) => {
+      await pageParam(signal);
       return {
         items: conversations.items(),
         hasNext: conversations.hasNext(),
       };
     },
-    initialPageParam: async () => await conversations.fetchFirst(),
+    initialPageParam: async (signal: AbortSignal) =>
+      await conversations.fetchFirst(signal),
     getNextPageParam: (lastpage) => {
       if (lastpage.hasNext) {
-        return async () => await conversations.fetchNext();
+        return async (signal: AbortSignal) =>
+          await conversations.fetchNext(signal);
       }
       return undefined;
     },

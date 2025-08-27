@@ -7,13 +7,13 @@
       "path": "./libs/frontend/domain"
     },
     {
-      "path": "./apps/web"
-    },
-    {
       "path": "./libs/frontend/features"
     },
     {
       "path": "./libs/frontend/persistent"
+    },
+    {
+      "path": "./apps/web"
     }
   ]
 }
