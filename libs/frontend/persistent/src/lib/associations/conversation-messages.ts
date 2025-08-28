@@ -39,16 +39,14 @@ export class ConversationMessages implements IConversationMessages {
   }
 
   async findAll(options?: { signal?: AbortSignal }): Promise<Many<Message>> {
-    const link = this.rootLinks['messages'];
-    return this.fetchAndMap({ url: link.href, signal: options?.signal });
+    return this.fetchAndMap({ signal: options?.signal });
   }
 
   private async fetchAndMap(options: {
-    url: string;
+    url?: string;
     signal?: AbortSignal;
   }): Promise<Many<Message>> {
-    const { url, signal } = options;
-
+    const { url = this.rootLinks['messages'].href, signal } = options;
     const { data } = await this.axios.get<PagedResponse<MessageResponse>>(url, {
       signal,
     });

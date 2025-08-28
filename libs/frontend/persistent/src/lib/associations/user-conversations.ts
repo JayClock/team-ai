@@ -43,16 +43,14 @@ export class UserConversations implements IUserConversations {
   async findAll(options?: {
     signal?: AbortSignal;
   }): Promise<Many<Conversation>> {
-    const link = this.rootLinks['conversations'];
-    return this.fetchAndMap({ url: `${link.href}`, signal: options?.signal });
+    return this.fetchAndMap({ signal: options?.signal });
   }
 
   private async fetchAndMap(options: {
-    url: string;
+    url?: string;
     signal?: AbortSignal;
   }): Promise<Many<Conversation>> {
-    const { url, signal } = options;
-
+    const { url = this.rootLinks['conversations'].href, signal } = options;
     const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
       url,
       { signal }

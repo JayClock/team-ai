@@ -98,6 +98,7 @@ describe('ConversationMessages', () => {
     };
     vi.mocked(mockAxios.get).mockResolvedValue(mockResponse);
     const res = await conversationMessages.findAll();
+    expect(mockAxios.get).toHaveBeenCalledWith(mockLinks.messages.href, {});
     expect(res.items().length).toBe(1);
     expect(res.items()[0]).toBeInstanceOf(Message);
     expect(res.hasPrev()).toEqual(false);

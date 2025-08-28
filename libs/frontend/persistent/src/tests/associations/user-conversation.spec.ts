@@ -72,6 +72,10 @@ describe('UserConversations', () => {
     };
     vi.mocked(mockAxios.get).mockResolvedValue(mockResponse);
     const res = await userConversations.findAll();
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      mockUserLinks.conversations.href,
+      {}
+    );
     expect(res.items().length).toBe(1);
     expect(res.items()[0]).toBeInstanceOf(Conversation);
     expect(res.hasPrev()).toEqual(false);
