@@ -1,5 +1,5 @@
 import { Many } from './many.js';
 
-export interface HasManyPaged<E> {
+export interface HasMany<E> {
   findAll(options?: { signal?: AbortSignal }): Promise<Many<E>>;
 }

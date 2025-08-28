@@ -3,7 +3,6 @@ import {
   Conversation,
   ConversationDescription,
   UserConversations as IUserConversations,
-  Many,
 } from '@web/domain';
 import type { HalLinks } from '../archtype/hal-links.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
@@ -11,18 +10,24 @@ import { inject, injectable } from 'inversify';
 import { Axios } from 'axios';
 import { ConversationMessages } from './conversation-messages.js';
 import { PagedResponse } from '../archtype/paged-response.js';
+import { EntityList } from '../archtype/entity-list.js';
 
 @injectable()
-export class UserConversations implements IUserConversations {
+export class UserConversations
+  extends EntityList<Conversation>
+  implements IUserConversations
+{
   constructor(
     private rootLinks: HalLinks,
     @inject(Axios)
-    protected readonly axios: Axios, // Changed from private to protected
+    private axios: Axios,
     @inject('Factory<ConversationMessages>')
     private conversationMessagesFactory: (
       links: HalLinks
     ) => ConversationMessages
-  ) {}
+  ) {
+    super();
+  }
 
   async addConversation(
     description: ConversationDescription
@@ -40,51 +45,25 @@ export class UserConversations implements IUserConversations {
     );
   }
 
-  async findAll(options?: {
-    signal?: AbortSignal;
-  }): Promise<Many<Conversation>> {
-    return this.fetchAndMap({ signal: options?.signal });
-  }
-
-  private async fetchAndMap(options: {
+  async fetchEntities(options: {
     url?: string;
     signal?: AbortSignal;
-  }): Promise<Many<Conversation>> {
+  }): Promise<PagedResponse<unknown>> {
     const { url = this.rootLinks['conversations'].href, signal } = options;
     const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
       url,
       { signal }
     );
-    return {
-      items: () => {
-        return data._embedded['conversations'].map(
-          (conversationResponse) =>
-            new Conversation(
-              conversationResponse.id,
-              {
-                title: conversationResponse.title,
-              },
-              this.conversationMessagesFactory(conversationResponse._links)
-            )
-        );
-      },
-      hasPrev: () => !!data._links.prev,
-      hasNext: () => !!data._links.next,
-      fetchPrev: (options) =>
-        this.fetchAndMap({
-          url: data._links.prev.href,
-          signal: options?.signal,
-        }),
-      fetchNext: (options) =>
-        this.fetchAndMap({
-          url: data._links.next.href,
-          signal: options?.signal,
-        }),
-      pagination: () => ({
-        page: data.page.number,
-        pageSize: data.page.size,
-        total: data.page.totalElements,
-      }),
-    };
+    this._items = data._embedded['conversations'].map(
+      (conversationResponse) =>
+        new Conversation(
+          conversationResponse.id,
+          {
+            title: conversationResponse.title,
+          },
+          this.conversationMessagesFactory(conversationResponse._links)
+        )
+    );
+    return data;
   }
 }

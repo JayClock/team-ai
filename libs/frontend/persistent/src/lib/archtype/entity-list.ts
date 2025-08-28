@@ -1,55 +1,54 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { PageLinks } from './paged-response.js';
-import { Pagination } from '@web/domain';
-import type { HalLink } from './hal-links.js';
-import type { Axios } from 'axios';
+import { Many, HasMany, Pagination } from '@web/domain';
+import { HalLinks } from './hal-links.js';
+import { PagedResponse } from './paged-response.js';
 
-export abstract class EntityList<E> {
+export abstract class EntityList<E> implements Many<E>, HasMany<E> {
   protected _items: E[] = [];
-  protected _pageLinks: PageLinks | null = null;
-  protected _pagination: Pagination = { total: 0, page: 0, pageSize: 0 };
-  protected abstract axios: Axios;
+  protected _pagination: Pagination = { page: 0, pageSize: 0, total: 0 };
+  protected _pageLinks: HalLinks = {};
 
-  public items = () => this._items;
-  public pagination = () => this._pagination;
+  items = () => this._items;
+  pagination = () => this._pagination;
+  hasPrev = () => !!this._pageLinks.prev;
+  hasNext = () => !!this._pageLinks.next;
 
-  protected abstract _mapResponseData(data: any): E[];
-
-  async fetchData(link: HalLink, signal: AbortSignal): Promise<void> {
-    const { data } = await this.axios.get<any>(link.href, { signal });
-
-    if (data.page) {
-      this._pagination = {
-        page: data.page.number,
-        pageSize: data.page.size,
-        total: data.page.totalElements,
-      };
-    }
-    this._pageLinks = data._links || null;
-    this._items = this._mapResponseData(data);
+  fetchPrev(options?: { signal?: AbortSignal }): Promise<Many<E>> {
+    return this.findAll({
+      url: this._pageLinks.pref.href,
+      signal: options?.signal,
+    });
   }
 
-  abstract fetchFirst(signal: AbortSignal): Promise<void>;
-
-  hasPrev(): boolean {
-    return !!this._pageLinks?.prev;
+  fetchNext(options?: { signal?: AbortSignal }): Promise<Many<E>> {
+    return this.findAll({
+      url: this._pageLinks.next.href,
+      signal: options?.signal,
+    });
   }
 
-  hasNext(): boolean {
-    return !!this._pageLinks?.next;
+  async findAll(options?: {
+    url?: string;
+    signal?: AbortSignal;
+  }): Promise<Many<E>> {
+    const data = await this.fetchEntities(options ?? {});
+    this._pageLinks = data._links;
+    this._pagination = {
+      page: data.page.number,
+      pageSize: data.page.size,
+      total: data.page.totalElements,
+    };
+    return {
+      items: this.items,
+      hasPrev: this.hasPrev,
+      hasNext: this.hasNext,
+      fetchPrev: this.fetchPrev,
+      fetchNext: this.fetchNext,
+      pagination: this.pagination,
+    };
   }
 
-  async fetchPrev(signal: AbortSignal): Promise<void> {
-    if (this.hasPrev()) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.fetchData(this._pageLinks!.prev, signal);
-    }
-  }
-
-  async fetchNext(signal: AbortSignal): Promise<void> {
-    if (this.hasNext()) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.fetchData(this._pageLinks!.next, signal);
-    }
-  }
+  abstract fetchEntities(options: {
+    url?: string;
+    signal?: AbortSignal;
+  }): Promise<PagedResponse<unknown>>;
 }

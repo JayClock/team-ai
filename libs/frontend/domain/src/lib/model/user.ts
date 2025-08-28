@@ -4,7 +4,7 @@ import {
 } from '../description/index.js';
 import { Entity } from '../archtype/index.js';
 import { Conversation } from './conversation.js';
-import { HasManyPaged } from '../archtype/has-many.js';
+import { HasMany } from '../archtype/has-many.js';
 
 export class User implements Entity<string, UserDescription> {
   constructor(
@@ -25,11 +25,11 @@ export class User implements Entity<string, UserDescription> {
     return this.conversations.addConversation(description);
   }
 
-  getConversations(): HasManyPaged<Conversation> {
+  getConversations(): HasMany<Conversation> {
     return this.conversations;
   }
 }
 
-export interface UserConversations extends HasManyPaged<Conversation> {
+export interface UserConversations extends HasMany<Conversation> {
   addConversation(description: ConversationDescription): Promise<Conversation>;
 }
