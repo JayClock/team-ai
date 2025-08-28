@@ -4,7 +4,7 @@ import {
 } from '../description/index.js';
 import { Entity } from '../archtype/index.js';
 import { Message } from './message.js';
-import { HasMany } from '../archtype/has-many.js';
+import { HasManyPaged } from '../archtype/has-many.js';
 
 export class Conversation implements Entity<string, ConversationDescription> {
   constructor(
@@ -21,7 +21,7 @@ export class Conversation implements Entity<string, ConversationDescription> {
     return this.description;
   }
 
-  getMessages(): HasMany<Message> {
+  getMessages(): HasManyPaged<Message> {
     return this.messages;
   }
 
@@ -35,7 +35,7 @@ export class Conversation implements Entity<string, ConversationDescription> {
   }
 }
 
-export interface ConversationMessages extends HasMany<Message> {
+export interface ConversationMessages extends HasManyPaged<Message> {
   sendMessage(
     message: string
   ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>>;

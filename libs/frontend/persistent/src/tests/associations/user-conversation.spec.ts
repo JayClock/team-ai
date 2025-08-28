@@ -47,7 +47,7 @@ describe('UserConversations', () => {
     expect(result.getDescription().title).toBe('Test Conversation');
   });
 
-  it('should findAll conversations successfully', async () => {
+  it('should find paged conversations successfully', async () => {
     const mockResponse = {
       data: {
         _embedded: {
@@ -71,7 +71,7 @@ describe('UserConversations', () => {
       },
     };
     vi.mocked(mockAxios.get).mockResolvedValue(mockResponse);
-    const res = await userConversations.findAll({ page: 0 });
+    const res = await userConversations.findAll();
     expect(res.items().length).toBe(1);
     expect(res.items()[0]).toBeInstanceOf(Conversation);
     expect(res.hasPrev()).toEqual(false);

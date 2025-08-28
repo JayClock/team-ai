@@ -26,7 +26,7 @@ export function Chat(props: { user: User }) {
       return await pageParam(signal);
     },
     initialPageParam: async (signal: AbortSignal) =>
-      await conversations.findAll({ page: 0, signal }),
+      await conversations.findAll({ signal }),
     getNextPageParam: (lastpage) => {
       if (lastpage.hasNext()) {
         return (signal: AbortSignal) => lastpage.fetchNext({ signal });

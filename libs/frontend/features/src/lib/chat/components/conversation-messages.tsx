@@ -23,7 +23,7 @@ export const ConversationMessages = (props: { conversation: Conversation }) => {
   const { data: serverMessages } = useQuery({
     queryKey: ['conversation-messages', conversation.getIdentity()],
     queryFn: async ({ signal }) => {
-      return conversationMessages.findAll({ page: 0, signal });
+      return conversationMessages.findAll({ signal });
     },
   });
 

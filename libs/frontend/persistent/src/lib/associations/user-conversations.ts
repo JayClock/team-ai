@@ -40,13 +40,11 @@ export class UserConversations implements IUserConversations {
     );
   }
 
-  async findAll(options: {
-    page: number;
+  async findAll(options?: {
     signal?: AbortSignal;
   }): Promise<Many<Conversation>> {
-    const { page, signal } = options;
     const link = this.rootLinks['conversations'];
-    return this.fetchAndMap({ url: `${link.href}?page=${page}`, signal });
+    return this.fetchAndMap({ url: `${link.href}`, signal: options?.signal });
   }
 
   private async fetchAndMap(options: {

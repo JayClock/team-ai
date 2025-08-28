@@ -38,13 +38,9 @@ export class ConversationMessages implements IConversationMessages {
     return response.body;
   }
 
-  async findAll(options: {
-    page: number;
-    signal?: AbortSignal;
-  }): Promise<Many<Message>> {
-    const { page, signal } = options;
+  async findAll(options?: { signal?: AbortSignal }): Promise<Many<Message>> {
     const link = this.rootLinks['messages'];
-    return this.fetchAndMap({ url: `${link.href}?page=${page}`, signal });
+    return this.fetchAndMap({ url: link.href, signal: options?.signal });
   }
 
   private async fetchAndMap(options: {
