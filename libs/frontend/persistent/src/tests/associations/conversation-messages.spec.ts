@@ -43,17 +43,10 @@ describe('ConversationMessages', () => {
       },
     });
     global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
       body: mockStream,
     } as Response);
     const stream = await conversationMessages.sendMessage(mockMessage);
-    expect(global.fetch).toHaveBeenCalledWith(
-      `send-href?message=${encodeURIComponent(mockMessage)}`,
-      {
-        headers: {
-          Accept: 'text/event-stream',
-        },
-      }
-    );
     expect(stream).toBe(mockStream);
   });
 

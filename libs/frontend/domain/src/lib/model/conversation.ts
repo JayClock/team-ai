@@ -1,7 +1,4 @@
-import {
-  ConversationDescription,
-  MessageDescription,
-} from '../description/index.js';
+import { ConversationDescription } from '../description/index.js';
 import { Entity } from '../archtype/index.js';
 import { Message } from './message.js';
 import { HasManyPaged } from '../archtype/has-many.js';
@@ -25,9 +22,6 @@ export class Conversation implements Entity<string, ConversationDescription> {
     return this.messages;
   }
 
-  saveMessage(description: MessageDescription): Promise<Message> {
-    return this.messages.saveMessage(description);
-  }
   sendMessage(
     message: string
   ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
