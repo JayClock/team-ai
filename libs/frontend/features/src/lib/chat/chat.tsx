@@ -1,6 +1,6 @@
 import { Conversation, User } from '@web/domain';
 import { Conversations, ConversationsProps } from '@ant-design/x';
-import { Flex, GetProp, Spin, theme } from 'antd';
+import { GetProp, Spin, theme } from 'antd';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { ConversationMessages } from './components/conversation-messages';
 import { useMemo, useState } from 'react';
@@ -23,18 +23,13 @@ export function Chat(props: { user: User }) {
   const { data, hasNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: ['userConversations', user.getIdentity()],
     queryFn: async ({ pageParam, signal }) => {
-      await pageParam(signal);
-      return {
-        items: conversations.items(),
-        hasNext: conversations.hasNext(),
-      };
+      return await pageParam(signal);
     },
     initialPageParam: async (signal: AbortSignal) =>
-      await conversations.fetchFirst(signal),
+      await conversations.findAll({ page: 0, signal }),
     getNextPageParam: (lastpage) => {
-      if (lastpage.hasNext) {
-        return async (signal: AbortSignal) =>
-          await conversations.fetchNext(signal);
+      if (lastpage.hasNext()) {
+        return (signal: AbortSignal) => lastpage.fetchNext({ signal });
       }
       return undefined;
     },
@@ -43,7 +38,7 @@ export function Chat(props: { user: User }) {
   const list = useMemo(() => {
     let res: Conversation[] = [];
     data?.pages.forEach(({ items }) => {
-      res = [...res, ...items];
+      res = [...res, ...items()];
     });
     return res;
   }, [data]);

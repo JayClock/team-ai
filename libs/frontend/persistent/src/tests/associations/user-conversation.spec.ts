@@ -47,7 +47,7 @@ describe('UserConversations', () => {
     expect(result.getDescription().title).toBe('Test Conversation');
   });
 
-  it('should fetch first page of conversations successfully', async () => {
+  it('should findAll conversations successfully', async () => {
     const mockResponse = {
       data: {
         _embedded: {
@@ -65,15 +65,18 @@ describe('UserConversations', () => {
           totalElements: 200,
           totalPages: 2,
         },
+        _links: {
+          next: { href: 'next-href' },
+        },
       },
     };
     vi.mocked(mockAxios.get).mockResolvedValue(mockResponse);
-    await userConversations.fetchFirst();
-    expect(userConversations.items().length).toBe(1);
-    expect(userConversations.items()[0]).toBeInstanceOf(Conversation);
-    expect(userConversations.hasPrev()).toEqual(false);
-    expect(userConversations.hasNext()).toEqual(false);
-    expect(userConversations.pagination()).toEqual({
+    const res = await userConversations.findAll({ page: 0 });
+    expect(res.items().length).toBe(1);
+    expect(res.items()[0]).toBeInstanceOf(Conversation);
+    expect(res.hasPrev()).toEqual(false);
+    expect(res.hasNext()).toEqual(true);
+    expect(res.pagination()).toEqual({
       page: 1,
       pageSize: 100,
       total: 200,

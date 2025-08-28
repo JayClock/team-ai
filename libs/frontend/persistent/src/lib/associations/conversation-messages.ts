@@ -1,39 +1,20 @@
 import { inject, injectable } from 'inversify';
 import {
   ConversationMessages as IConversationMessages,
+  Many,
   Message,
-  MessageDescription,
 } from '@web/domain';
 import type { HalLinks } from '../archtype/hal-links.js';
 import { Axios } from 'axios';
 import { MessageResponse } from '../responses/message-response.js';
 import { PagedResponse } from '../archtype/paged-response.js';
-import { EntityList } from '../archtype/entity-list.js';
 
 @injectable()
-export class ConversationMessages
-  extends EntityList<Message>
-  implements IConversationMessages
-{
+export class ConversationMessages implements IConversationMessages {
   constructor(
     private rootLinks: HalLinks,
-    @inject(Axios) protected readonly axios: Axios // Changed from private to protected
-  ) {
-    super();
-  }
-
-  async saveMessage(description: MessageDescription): Promise<Message> {
-    const link = this.rootLinks['save-message'];
-    const { data } = await this.axios.request<MessageResponse>({
-      url: link.href,
-      method: link.type,
-      data: description,
-    });
-    return new Message(data.id, {
-      role: data.role,
-      content: data.content,
-    });
-  }
+    @inject(Axios) protected readonly axios: Axios
+  ) {}
 
   async sendMessage(
     message: string
@@ -57,20 +38,51 @@ export class ConversationMessages
     return response.body;
   }
 
-  protected _mapResponseData(data: PagedResponse<MessageResponse>): Message[] {
-    if (!data._embedded || !data._embedded['messages']) {
-      return [];
-    }
-    return data._embedded['messages'].map(
-      (item: MessageResponse) =>
-        new Message(item.id, {
-          role: item.role,
-          content: item.content,
-        })
-    );
+  async findAll(options: {
+    page: number;
+    signal?: AbortSignal;
+  }): Promise<Many<Message>> {
+    const { page, signal } = options;
+    const link = this.rootLinks['messages'];
+    return this.fetchAndMap({ url: `${link.href}?page=${page}`, signal });
   }
 
-  async fetchFirst(signal: AbortSignal): Promise<void> {
-    await this.fetchData(this.rootLinks['messages'], signal);
+  private async fetchAndMap(options: {
+    url: string;
+    signal?: AbortSignal;
+  }): Promise<Many<Message>> {
+    const { url, signal } = options;
+
+    const { data } = await this.axios.get<PagedResponse<MessageResponse>>(url, {
+      signal,
+    });
+    return {
+      items: () => {
+        return data._embedded['messages'].map(
+          (item: MessageResponse) =>
+            new Message(item.id, {
+              role: item.role,
+              content: item.content,
+            })
+        );
+      },
+      hasPrev: () => !!data._links.prev,
+      hasNext: () => !!data._links.next,
+      fetchPrev: (options) =>
+        this.fetchAndMap({
+          url: data._links.prev.href,
+          signal: options?.signal,
+        }),
+      fetchNext: (options) =>
+        this.fetchAndMap({
+          url: data._links.next.href,
+          signal: options?.signal,
+        }),
+      pagination: () => ({
+        page: data.page.number,
+        pageSize: data.page.size,
+        total: data.page.totalElements,
+      }),
+    };
   }
 }

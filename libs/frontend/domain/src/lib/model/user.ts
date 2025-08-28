@@ -2,8 +2,9 @@ import {
   ConversationDescription,
   UserDescription,
 } from '../description/index.js';
-import { Entity, Many } from '../archtype/index.js';
+import { Entity } from '../archtype/index.js';
 import { Conversation } from './conversation.js';
+import { HasMany } from '../archtype/has-many.js';
 
 export class User implements Entity<string, UserDescription> {
   constructor(
@@ -24,11 +25,11 @@ export class User implements Entity<string, UserDescription> {
     return this.conversations.addConversation(description);
   }
 
-  getConversations(): Many<Conversation> {
+  getConversations(): HasMany<Conversation> {
     return this.conversations;
   }
 }
 
-export interface UserConversations extends Many<Conversation> {
+export interface UserConversations extends HasMany<Conversation> {
   addConversation(description: ConversationDescription): Promise<Conversation>;
 }

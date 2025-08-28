@@ -1,5 +1,5 @@
 import { Bubble, Sender, useXAgent, useXChat, XStream } from '@ant-design/x';
-import { Flex, GetProp } from 'antd';
+import { GetProp } from 'antd';
 import { RobotOutlined, UserOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
 import { Conversation } from '@web/domain';
@@ -20,11 +20,10 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
 export const ConversationMessages = (props: { conversation: Conversation }) => {
   const { conversation } = props;
   const conversationMessages = conversation.getMessages();
-  const { data: serverMessages, isPending } = useQuery({
+  const { data: serverMessages } = useQuery({
     queryKey: ['conversation-messages', conversation.getIdentity()],
     queryFn: async ({ signal }) => {
-      await conversationMessages.fetchFirst(signal);
-      return conversationMessages.items();
+      return conversationMessages.findAll({ page: 0, signal });
     },
   });
 
@@ -45,7 +44,7 @@ export const ConversationMessages = (props: { conversation: Conversation }) => {
 
   const allMessages = useMemo<BubbleDataType[]>(() => {
     const historicalMessages =
-      serverMessages?.map((item) => ({
+      serverMessages?.items().map((item) => ({
         key: item.getIdentity(),
         role: item.getDescription().role,
         content: item.getDescription().content,
@@ -60,7 +59,7 @@ export const ConversationMessages = (props: { conversation: Conversation }) => {
 
   return (
     <div className="flex flex-col gap-8 flex-1 justify-between h-full">
-      <Bubble.List className='flex-1' roles={roles} items={allMessages} />
+      <Bubble.List className="flex-1" roles={roles} items={allMessages} />
       <Sender
         className="w-full"
         loading={agent.isRequesting()}

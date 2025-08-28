@@ -3,20 +3,17 @@ import {
   Conversation,
   ConversationDescription,
   UserConversations as IUserConversations,
+  Many,
 } from '@web/domain';
 import type { HalLinks } from '../archtype/hal-links.js';
-import { PagedResponse } from '../archtype/paged-response.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
 import { inject, injectable } from 'inversify';
 import { Axios } from 'axios';
 import { ConversationMessages } from './conversation-messages.js';
-import { EntityList } from '../archtype/entity-list.js';
+import { PagedResponse } from '../archtype/paged-response.js';
 
 @injectable()
-export class UserConversations
-  extends EntityList<Conversation>
-  implements IUserConversations
-{
+export class UserConversations implements IUserConversations {
   constructor(
     private rootLinks: HalLinks,
     @inject(Axios)
@@ -25,9 +22,7 @@ export class UserConversations
     private conversationMessagesFactory: (
       links: HalLinks
     ) => ConversationMessages
-  ) {
-    super();
-  }
+  ) {}
 
   async addConversation(
     description: ConversationDescription
@@ -45,25 +40,55 @@ export class UserConversations
     );
   }
 
-  protected _mapResponseData(
-    data: PagedResponse<ConversationResponse>
-  ): Conversation[] {
-    if (!data._embedded || !data._embedded['conversations']) {
-      return [];
-    }
-    return data._embedded['conversations'].map(
-      (conversationResponse) =>
-        new Conversation(
-          conversationResponse.id,
-          {
-            title: conversationResponse.title,
-          },
-          this.conversationMessagesFactory(conversationResponse._links)
-        )
-    );
+  async findAll(options: {
+    page: number;
+    signal?: AbortSignal;
+  }): Promise<Many<Conversation>> {
+    const { page, signal } = options;
+    const link = this.rootLinks['conversations'];
+    return this.fetchAndMap({ url: `${link.href}?page=${page}`, signal });
   }
 
-  async fetchFirst(signal: AbortSignal): Promise<void> {
-    await this.fetchData(this.rootLinks['conversations'], signal);
+  private async fetchAndMap(options: {
+    url: string;
+    signal?: AbortSignal;
+  }): Promise<Many<Conversation>> {
+    const { url, signal } = options;
+
+    const { data } = await this.axios.get<PagedResponse<ConversationResponse>>(
+      url,
+      { signal }
+    );
+    return {
+      items: () => {
+        return data._embedded['conversations'].map(
+          (conversationResponse) =>
+            new Conversation(
+              conversationResponse.id,
+              {
+                title: conversationResponse.title,
+              },
+              this.conversationMessagesFactory(conversationResponse._links)
+            )
+        );
+      },
+      hasPrev: () => !!data._links.prev,
+      hasNext: () => !!data._links.next,
+      fetchPrev: (options) =>
+        this.fetchAndMap({
+          url: data._links.prev.href,
+          signal: options?.signal,
+        }),
+      fetchNext: (options) =>
+        this.fetchAndMap({
+          url: data._links.next.href,
+          signal: options?.signal,
+        }),
+      pagination: () => ({
+        page: data.page.number,
+        pageSize: data.page.size,
+        total: data.page.totalElements,
+      }),
+    };
   }
 }

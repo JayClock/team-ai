@@ -2,8 +2,9 @@ import {
   ConversationDescription,
   MessageDescription,
 } from '../description/index.js';
-import { Entity, Many } from '../archtype/index.js';
+import { Entity } from '../archtype/index.js';
 import { Message } from './message.js';
+import { HasMany } from '../archtype/has-many.js';
 
 export class Conversation implements Entity<string, ConversationDescription> {
   constructor(
@@ -20,19 +21,22 @@ export class Conversation implements Entity<string, ConversationDescription> {
     return this.description;
   }
 
-  getMessages(): Many<Message> {
+  getMessages(): HasMany<Message> {
     return this.messages;
   }
 
   saveMessage(description: MessageDescription): Promise<Message> {
     return this.messages.saveMessage(description);
   }
-  sendMessage(message: string): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
+  sendMessage(
+    message: string
+  ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
     return this.messages.sendMessage(message);
   }
 }
 
-export interface ConversationMessages extends Many<Message> {
-  saveMessage(description: MessageDescription): Promise<Message>;
-  sendMessage(message: string): Promise<ReadableStream<Uint8Array<ArrayBuffer>>>;
+export interface ConversationMessages extends HasMany<Message> {
+  sendMessage(
+    message: string
+  ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>>;
 }
