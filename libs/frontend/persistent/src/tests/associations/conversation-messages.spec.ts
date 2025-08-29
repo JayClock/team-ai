@@ -1,33 +1,29 @@
 import { beforeEach, describe, expect, Mocked } from 'vitest';
 import { ConversationMessages } from '../../lib/associations/index.js';
-import { Axios } from 'axios';
 import { container } from '../../lib/container.js';
 import { HalLinks } from '../../lib/archtype/hal-links.js';
 import { Factory } from 'inversify';
 import { Message } from '@web/domain';
+import { server } from '../setup-tests.js';
+import { http, HttpResponse } from 'msw';
 
-const mockAxios = {
-  request: vi.fn(),
-  get: vi.fn(),
-} as unknown as Mocked<Axios>;
 const mockLinks: HalLinks = {
   'save-message': {
-    href: 'save-href',
+    href: 'http://save-message',
     type: 'POST',
   },
   'send-message': {
-    href: 'send-href',
+    href: 'http://send-message',
     type: 'GET',
   },
   messages: {
-    href: 'messages-href',
+    href: 'http://messages',
   },
 };
 
 describe('ConversationMessages', () => {
   let conversationMessages: ConversationMessages;
   beforeEach(() => {
-    container.rebindSync(Axios).toConstantValue(mockAxios);
     const factory = container.get<Factory<ConversationMessages>>(
       'Factory<ConversationMessages>'
     );
@@ -74,31 +70,32 @@ describe('ConversationMessages', () => {
 
   it('should find paged messages successfully', async () => {
     const mockResponse = {
-      data: {
-        _embedded: {
-          messages: [
-            {
-              id: '123',
-              role: 'role',
-              content: 'content',
-              _links: { self: { href: 'self-href' } },
-            },
-          ],
-        },
-        page: {
-          number: 1,
-          size: 100,
-          totalElements: 200,
-          totalPages: 2,
-        },
-        _links: {
-          next: { href: 'next-href' },
-        },
+      _embedded: {
+        messages: [
+          {
+            id: '123',
+            role: 'role',
+            content: 'content',
+            _links: { self: { href: 'self-href' } },
+          },
+        ],
+      },
+      page: {
+        number: 1,
+        size: 100,
+        totalElements: 200,
+        totalPages: 2,
+      },
+      _links: {
+        next: { href: 'next-href' },
       },
     };
-    vi.mocked(mockAxios.get).mockResolvedValue(mockResponse);
+    server.use(
+      http.get(mockLinks['messages'].href, () => {
+        return HttpResponse.json(mockResponse);
+      })
+    );
     const res = await conversationMessages.findAll();
-    expect(mockAxios.get).toHaveBeenCalledWith(mockLinks.messages.href, {});
     expect(res.items().length).toBe(1);
     expect(res.items()[0]).toBeInstanceOf(Message);
     expect(res.hasPrev()).toEqual(false);
