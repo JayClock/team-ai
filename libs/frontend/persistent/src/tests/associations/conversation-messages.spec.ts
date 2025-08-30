@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, Mocked } from 'vitest';
+import { beforeEach, describe, expect } from 'vitest';
 import { ConversationMessages } from '../../lib/associations/index.js';
 import { container } from '../../lib/container.js';
 import { HalLinks } from '../../lib/archtype/hal-links.js';
@@ -32,40 +32,58 @@ describe('ConversationMessages', () => {
 
   it('should send message and return stream', async () => {
     const mockMessage = 'Hello, World!';
+    const encoder = new TextEncoder();
     const mockStream = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(new TextEncoder().encode('some message'));
+        controller.enqueue(encoder.encode('Hello, '));
+        controller.enqueue(encoder.encode('world!'));
         controller.close();
       },
     });
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      body: mockStream,
-    } as Response);
+    server.use(
+      http.post(mockLinks['send-message'].href, () => {
+        return new HttpResponse(mockStream, {
+          headers: {
+            'Content-Type': 'text/event-stream',
+          },
+        });
+      })
+    );
     const stream = await conversationMessages.sendMessage(mockMessage);
-    expect(stream).toBe(mockStream);
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let result = '';
+    const chunk1 = await reader.read();
+    result += decoder.decode(chunk1.value, { stream: true });
+    const chunk2 = await reader.read();
+    result += decoder.decode(chunk2.value, { stream: true });
+    const endOfStream = await reader.read();
+    expect(result).toEqual('Hello, world!');
+    expect(endOfStream.done).toEqual(true);
   });
 
   it('should throw error if send message fails', async () => {
-    const mockMessage = 'Hello, World!';
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-    } as Response);
-    await expect(conversationMessages.sendMessage(mockMessage)).rejects.toThrow(
-      'HTTP error! status: 500'
+    server.use(
+      http.post(mockLinks['send-message'].href, () => {
+        return new HttpResponse(null, {
+          status: 500,
+        });
+      })
     );
+    await expect(
+      conversationMessages.sendMessage('test error')
+    ).rejects.toThrow('HTTP error! status: 500');
   });
 
   it('should throw error if response body is null', async () => {
-    const mockMessage = 'Hello, World!';
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      body: null,
-    } as Response);
-    await expect(conversationMessages.sendMessage(mockMessage)).rejects.toThrow(
-      'Response body is null'
+    server.use(
+      http.post(mockLinks['send-message'].href, () => {
+        return new HttpResponse(null, { status: 200 });
+      })
     );
+    await expect(
+      conversationMessages.sendMessage('test null body')
+    ).rejects.toThrow('Response body is null');
   });
 
   it('should find paged messages successfully', async () => {
