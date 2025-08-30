@@ -28,6 +28,12 @@ export const UserConversations = (props: {
     activeConversation && onConversationChange(activeConversation);
   }, [activeConversation, onConversationChange]);
 
+  useEffect(() => {
+    if (conversationItems.length !== 0 && !activeConversationId) {
+      setActiveConversationId(conversationItems[0].key);
+    }
+  }, [conversationItems, activeConversationId]);
+
   return (
     <div id="scrollableDiv">
       <InfiniteScroll
@@ -43,6 +49,7 @@ export const UserConversations = (props: {
         scrollableTarget="scrollableDiv"
       >
         <Conversations
+          activeKey={activeConversationId}
           items={conversationItems}
           onActiveChange={setActiveConversationId}
           style={style}

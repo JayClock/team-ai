@@ -1,1 +1,1 @@
-export * from './lib/chat/chat';
+export * from './lib/chat/Chat';

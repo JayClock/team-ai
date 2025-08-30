@@ -20,7 +20,9 @@
     "axios": "^1.11.0",
     "inversify": "^7.8.1",
     "reflect-metadata": "^0.2.2",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "vitest": "^3.0.0",
+    "msw": "2.10.5"
   },
   "devDependencies": {
     "msw": "^2.10.5"
