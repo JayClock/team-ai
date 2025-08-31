@@ -1,12 +1,8 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
-import java.util.List;
-
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.deepseek.DeepSeekChatModel;
-
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import org.springframework.ai.chat.client.ChatClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reengineering.ddd.mybatis.database.EntityList;
@@ -16,13 +12,16 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.mybatis.mappers.MessagesMapper;
 
+import java.util.List;
+
 public class ConversationMessages extends EntityList<String, Message> implements Conversation.Messages {
   private int conversationId;
 
   @Inject
   private MessagesMapper mapper;
   @Inject
-  private DeepSeekChatModel deepSeekChatModel;
+  @Named("deepSeekChatClient")
+  public ChatClient deepSeekChatClient;
 
   @Override
   protected List<Message> findEntities(int from, int to) {
@@ -49,15 +48,14 @@ public class ConversationMessages extends EntityList<String, Message> implements
   @Override
   public Flux<String> sendMessage(MessageDescription description) {
     return Mono.fromCallable(() -> saveMessage(description))
-        .flatMapMany(savedMessage -> {
-          StringBuilder aiResponsBuilder = new StringBuilder();
-          return deepSeekChatModel.stream(new Prompt(new UserMessage(description.content())))
-              .map(response -> response.getResult().getOutput().getText())
-              .doOnNext(text -> aiResponsBuilder.append(text))
-              .doOnComplete(() -> {
-                String fullAiResponse = aiResponsBuilder.toString();
-                saveMessage(new MessageDescription("assistant", fullAiResponse));
-              });
-        });
+      .flatMapMany(savedMessage -> {
+        StringBuilder aiResponseBuilder = new StringBuilder();
+        return this.deepSeekChatClient.prompt().user(description.content()).stream().content()
+          .doOnNext(aiResponseBuilder::append)
+          .doOnComplete(() -> {
+            String fullAiResponse = aiResponseBuilder.toString();
+            saveMessage(new MessageDescription("assistant", fullAiResponse));
+          });
+      });
   }
 }

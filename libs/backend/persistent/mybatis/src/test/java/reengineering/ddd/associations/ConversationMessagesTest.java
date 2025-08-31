@@ -1,21 +1,15 @@
 package reengineering.ddd.associations;
 
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 import reengineering.ddd.BaseTestContainersTest;
@@ -27,12 +21,16 @@ import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 @MybatisTest
 public class ConversationMessagesTest extends BaseTestContainersTest {
   @Inject
   private Users users;
-  @MockitoBean
-  private DeepSeekChatModel deepSeekChatModel;
+  @MockitoBean(name = "deepSeekChatClient")
+  private ChatClient deepSeekChatClient;
 
   Conversation conversation;
 
@@ -78,24 +76,32 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
   @Test
   public void should_send_message_and_receive_response() {
     String aiResponse = "AI response content";
-    ChatResponse chatResponse = new ChatResponse(List.of(
-        new Generation(new AssistantMessage(aiResponse))));
-    when(deepSeekChatModel.stream(any(Prompt.class))).thenReturn(Flux.just(chatResponse));
+
+    ChatClient.ChatClientRequestSpec mockPrompt = mock(ChatClient.ChatClientRequestSpec.class);
+    when(deepSeekChatClient.prompt()).thenReturn(mockPrompt);
+
+    ChatClient.ChatClientRequestSpec mockUser = mock(ChatClient.ChatClientRequestSpec.class);
+    when(mockPrompt.user("content")).thenReturn(mockUser);
+
+    ChatClient.StreamResponseSpec mockStream = mock(ChatClient.StreamResponseSpec.class);
+    when(mockUser.stream()).thenReturn(mockStream);
+
+    when(mockStream.content()).thenReturn(Flux.just(aiResponse));
 
     Flux<String> result = conversation.sendMessage(new MessageDescription("user", "content"));
 
     StepVerifier.create(result)
-        .expectNext(aiResponse)
-        .verifyComplete();
+      .expectNext(aiResponse)
+      .verifyComplete();
 
     Message userMessage = conversation.messages().findAll().subCollection(100, 101).stream().toList().stream()
-        .findFirst().get();
-    assertEquals(userMessage.getDescription().role(), "user");
-    assertEquals(userMessage.getDescription().content(), "content");
+      .findFirst().get();
+    assertEquals("user", userMessage.getDescription().role());
+    assertEquals("content", userMessage.getDescription().content());
 
     Message assistantMessage = conversation.messages().findAll().subCollection(101, 102).stream().toList().stream()
-        .findFirst().get();
-    assertEquals(assistantMessage.getDescription().role(), "assistant");
-    assertEquals(assistantMessage.getDescription().content(), "AI response content");
+      .findFirst().get();
+    assertEquals("assistant", assistantMessage.getDescription().role());
+    assertEquals("AI response content", assistantMessage.getDescription().content());
   }
 }
