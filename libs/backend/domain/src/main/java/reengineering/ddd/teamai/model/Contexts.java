@@ -1,7 +1,8 @@
 package reengineering.ddd.teamai.model;
 
-import reengineering.ddd.archtype.HasMany;
+import java.util.List;
 
 
-public interface Contexts extends HasMany<String, Context> {
+public interface Contexts {
+  List<Context> findAll();
 }

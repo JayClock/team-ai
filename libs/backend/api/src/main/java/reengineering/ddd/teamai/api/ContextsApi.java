@@ -17,6 +17,7 @@ public class ContextsApi {
   @GET
   public CollectionModel<ContextModel> findAll() {
     List<ContextModel> list = contexts.findAll().stream().map(ContextModel::new).toList();
+    System.out.println(list);
     return CollectionModel.of(list);
   }
 }
