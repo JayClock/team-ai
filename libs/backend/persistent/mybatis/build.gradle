@@ -41,6 +41,8 @@ dependencies {
     implementation 'org.postgresql:postgresql'
     implementation 'org.springframework.ai:spring-ai-starter-model-deepseek'
     implementation 'org.springframework.ai:spring-ai-spring-boot-testcontainers'
+    implementation 'com.vladsch.flexmark:flexmark-all:0.64.8'
+    implementation 'com.vladsch.flexmark:flexmark-ext-yaml-front-matter:0.64.8'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.4'

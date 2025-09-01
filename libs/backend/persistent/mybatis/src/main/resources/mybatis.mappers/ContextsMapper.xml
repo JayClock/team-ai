@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ContextsMapper">
+  <resultMap id="context" type="reengineering.ddd.teamai.model.Context">
+    <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.ContextDescription">
+      <constructor>
+        <arg column="title" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="content" jdbcType="VARCHAR" javaType="String"/>
+      </constructor>
+    </association>
+  </resultMap>
+
+  <select id="findContexts" resultMap="context">
+    SELECT context.id,
+           context.title,
+           context.content
+    FROM contexts context
+  </select>
+</mapper>
