@@ -10,7 +10,7 @@ export const useUserConversations = (
 ) => {
   const { data, hasNextPage, fetchNextPage, isPending, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: ['userConversations', user.getIdentity()],
+      queryKey: [],
       queryFn: async ({ pageParam, signal }) => {
         return await pageParam(signal);
       },
@@ -22,6 +22,7 @@ export const useUserConversations = (
         }
         return undefined;
       },
+      staleTime: 0,
     });
 
   const list = useMemo(() => {

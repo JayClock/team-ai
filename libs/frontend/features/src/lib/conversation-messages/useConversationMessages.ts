@@ -6,7 +6,7 @@ import { Conversation } from '@web/domain';
 
 export const useConversationMessages = (conversation: Conversation) => {
   const { data: serverMessages, isLoading: isLoadingHistory } = useQuery({
-    queryKey: [],
+    queryKey: ['conversation-messages', conversation.getIdentity()],
     queryFn: async ({ signal }) => {
       return conversation.getMessages().findAll({ signal });
     },
