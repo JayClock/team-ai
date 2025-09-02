@@ -9,20 +9,10 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "forceConsistentCasingInFileNames": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "types": [
-      "node",
-      "dom"
-    ],
-    "lib": [
-      "dom",
-      "es2022"
-    ]
+    "types": ["node", "dom"],
+    "lib": ["dom", "es2022"]
   },
-  "include": [
-    "src/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "references": [
     {
       "path": "../domain/tsconfig.lib.json"

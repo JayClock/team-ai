@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { User, Users as IUsers } from '@web/domain';
 import { UserConversations } from './user-conversations.js';
 import { UserLinks, UserResponse } from '../responses/user-response.js';
@@ -7,13 +6,11 @@ import { Axios } from 'axios';
 
 @injectable()
 export class Users implements IUsers {
-  @inject(Axios)
-  private readonly axios!: Axios;
-
-  @inject('Factory<UserConversations>')
-  private readonly userConversationsFactory!: (
-    links: UserLinks
-  ) => UserConversations;
+  constructor(
+    @inject(Axios) private axios: Axios,
+    @inject('Factory<UserConversations>')
+    private userConversationsFactory: (links: UserLinks) => UserConversations
+  ) {}
 
   async findById(id: string): Promise<User> {
     const res = await this.axios.get<UserResponse>(`/api/users/${id}`);

@@ -11,9 +11,7 @@
       "@nx/react/typings/image.d.ts",
       "vite/client"
     ],
-    "rootDir": "src",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "rootDir": "src"
   },
   "exclude": [
     "out-tsc",
