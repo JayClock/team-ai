@@ -1,9 +1,9 @@
 import { beforeAll, describe, expect, Mocked } from 'vitest';
-import { Users } from '../../lib/associations/index.js';
 import { container } from '../../lib/container.js';
 import { Axios } from 'axios';
-import { User } from '@web/domain';
+import { ENTRANCES, User } from '@web/domain';
 import { Factory } from 'inversify';
+import { Users } from '../../lib/associations/index.js';
 
 describe('Users', () => {
   let users: Users;
@@ -18,7 +18,7 @@ describe('Users', () => {
       .toFactory(() => {
         return () => ({});
       });
-    users = container.get(Users);
+    users = container.get(ENTRANCES.USERS);
   });
 
   it('should find user by id', async () => {

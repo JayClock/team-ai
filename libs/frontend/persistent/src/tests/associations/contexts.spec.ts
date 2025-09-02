@@ -1,12 +1,12 @@
 import { describe, expect } from 'vitest';
 import { container } from '../../lib/container.js';
-import { Contexts } from '../../lib/associations/index.js';
 import { server } from '../setup-tests.js';
 import { http, HttpResponse } from 'msw';
-import { Context } from '@web/domain';
+import { Context, ENTRANCES } from '@web/domain';
+import { Contexts } from '../../lib/associations/index.js';
 
 describe('Contexts', () => {
-  const contexts = container.get(Contexts);
+  const contexts: Contexts = container.get(ENTRANCES.CONTEXTS);
 
   it('should find contexts successfully', async () => {
     const url = 'http://contexts';

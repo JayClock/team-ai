@@ -10,12 +10,13 @@ import { axiosInstance } from './axios-instance.js';
 import { Axios } from 'axios';
 import { HalLinks } from './archtype/hal-links.js';
 import { Contexts } from './associations/contexts.js';
+import { ENTRANCES } from '@web/domain';
 
 export const container = new Container();
 
 container.bind(Axios).toConstantValue(axiosInstance);
-container.bind(Users).toSelf().inSingletonScope();
-container.bind(Contexts).toSelf().inSingletonScope();
+container.bind(ENTRANCES.USERS).to(Users).inSingletonScope();
+container.bind(ENTRANCES.CONTEXTS).to(Contexts).inSingletonScope();
 container
   .bind<Factory<UserConversations>>('Factory<UserConversations>')
   .toFactory((context) => {

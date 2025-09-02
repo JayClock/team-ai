@@ -1,10 +1,11 @@
 import { Chat, EpicBreakdown } from '@web/features';
 import AppLayout from './AppLayout';
 import { Route, Routes } from 'react-router-dom';
-import { container, Users } from '@web/persistent';
+import { container } from '@web/persistent';
 import { useQuery } from '@tanstack/react-query';
+import { ENTRANCES, Users } from '@web/domain';
 
-const users = container.get(Users);
+const users: Users = container.get(ENTRANCES.USERS);
 
 export default function App() {
   const { data: user, isPending } = useQuery({
