@@ -22,7 +22,10 @@ export default function App() {
     <AppLayout>
       <Routes>
         <Route path="/" element={<Chat user={user} />}></Route>
-        <Route path="/epic-breakdown" element={<EpicBreakdown />}></Route>
+        <Route
+          path="/epic-breakdown"
+          element={<EpicBreakdown user={user} />}
+        ></Route>
       </Routes>
     </AppLayout>
   );
