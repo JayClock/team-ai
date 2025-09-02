@@ -1,16 +1,21 @@
 import 'reflect-metadata';
 
 import { Container, Factory } from 'inversify';
-import { UserConversations, Users } from './associations/index.js';
+import {
+  ConversationMessages,
+  UserConversations,
+  Users,
+} from './associations/index.js';
 import { axiosInstance } from './axios-instance.js';
 import { Axios } from 'axios';
 import { HalLinks } from './archtype/hal-links.js';
-import { ConversationMessages } from './associations/index.js';
+import { Contexts } from './associations/contexts.js';
 
 export const container = new Container();
 
 container.bind(Axios).toConstantValue(axiosInstance);
 container.bind(Users).toSelf().inSingletonScope();
+container.bind(Contexts).toSelf().inSingletonScope();
 container
   .bind<Factory<UserConversations>>('Factory<UserConversations>')
   .toFactory((context) => {

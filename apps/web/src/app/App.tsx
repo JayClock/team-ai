@@ -1,4 +1,4 @@
-import { Chat } from '@web/features';
+import { Chat, EpicBreakdown } from '@web/features';
 import AppLayout from './AppLayout';
 import { Route, Routes } from 'react-router-dom';
 import { container, Users } from '@web/persistent';
@@ -21,6 +21,7 @@ export default function App() {
     <AppLayout>
       <Routes>
         <Route path="/" element={<Chat user={user} />}></Route>
+        <Route path="/epic-breakdown" element={<EpicBreakdown />}></Route>
       </Routes>
     </AppLayout>
   );

@@ -1,10 +1,11 @@
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode } from 'react';
 import {
   PieChartOutlined,
   ScissorOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { Avatar, Layout, Menu, MenuProps } from 'antd';
+import { useSignal } from '@preact/signals-react';
 
 const { Header, Content, Sider } = Layout;
 
@@ -31,7 +32,7 @@ const items: MenuItem[] = [
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSignal(false);
   return (
     <Layout>
       <Header className="flex items-center">
@@ -40,8 +41,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <Layout style={{ minHeight: '100vh' }}>
         <Sider
           collapsible
-          collapsed={collapsed}
-          onCollapse={(value) => setCollapsed(value)}
+          collapsed={collapsed.value}
+          onCollapse={(value) => (collapsed.value = value)}
         >
           <Menu theme="dark" mode="inline" items={items} />
         </Sider>

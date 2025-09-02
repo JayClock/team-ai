@@ -1,4 +1,4 @@
-import { HalLink, HalLinks } from './hal-links.js';
+import { HalLinks } from './hal-links.js';
 import { HalEmbedded } from './hal-embedded.js';
 
 export interface PageInfo {

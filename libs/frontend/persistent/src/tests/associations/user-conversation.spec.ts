@@ -1,21 +1,21 @@
 import { Conversation, ConversationDescription } from '@web/domain';
 import { UserConversations } from '../../lib/associations/index.js';
 import { expect } from 'vitest';
-import { UserLinks } from '../../lib/responses/user-response.js';
 import { container } from '../../lib/container.js';
 import { Factory } from 'inversify';
 import { http, HttpResponse } from 'msw';
 import { server } from '../setup-tests.js';
+import { HalLinks } from '../../lib/archtype/hal-links.js';
 
 describe('UserConversations', () => {
   let userConversations: UserConversations;
-  let mockUserLinks: UserLinks;
+  let mockUserLinks: HalLinks;
 
   beforeAll(() => {
     mockUserLinks = {
       conversations: { href: 'http://conversations' },
       'create-conversation': { href: 'http://create-conversation' },
-    } as UserLinks;
+    } as HalLinks;
     const factory = container.get<Factory<UserConversations>>(
       'Factory<UserConversations>'
     );

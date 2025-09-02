@@ -1,15 +1,16 @@
 import { User, Users as IUsers } from '@web/domain';
 import { UserConversations } from './user-conversations.js';
-import { UserLinks, UserResponse } from '../responses/user-response.js';
+import { UserResponse } from '../responses/user-response.js';
 import { inject, injectable } from 'inversify';
 import { Axios } from 'axios';
+import { HalLinks } from '../archtype/hal-links.js';
 
 @injectable()
 export class Users implements IUsers {
   constructor(
     @inject(Axios) private axios: Axios,
     @inject('Factory<UserConversations>')
-    private userConversationsFactory: (links: UserLinks) => UserConversations
+    private userConversationsFactory: (links: HalLinks) => UserConversations
   ) {}
 
   async findById(id: string): Promise<User> {
