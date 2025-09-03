@@ -26,13 +26,11 @@ public class UserApi {
 
   @Path("accounts")
   public AccountsApi accounts() {
-    AccountsApi accountsApi = new AccountsApi(user);
-    return resourceContext.initResource(accountsApi);
+    return new AccountsApi(user);
   }
 
   @Path("conversations")
   public ConversationsApi conversations() {
-    ConversationsApi conversationsApi = new ConversationsApi(user);
-    return resourceContext.initResource(conversationsApi);
+    return new ConversationsApi(user);
   }
 }

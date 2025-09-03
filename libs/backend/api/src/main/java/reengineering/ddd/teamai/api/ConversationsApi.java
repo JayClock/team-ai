@@ -1,7 +1,6 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -13,8 +12,6 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.User;
 
 public class ConversationsApi {
-  @Context
-  private ResourceContext resourceContext;
   private final User user;
 
   public ConversationsApi(User user) {
@@ -23,10 +20,7 @@ public class ConversationsApi {
 
   @Path("{conversation-id}")
   public ConversationApi findById(@PathParam("conversation-id") String id) {
-    return user.conversations().findByIdentity(id).map(conversation -> {
-        ConversationApi conversationApi = new ConversationApi(conversation);
-        return resourceContext.initResource(conversationApi);
-      })
+    return user.conversations().findByIdentity(id).map(ConversationApi::new)
       .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
   }
 

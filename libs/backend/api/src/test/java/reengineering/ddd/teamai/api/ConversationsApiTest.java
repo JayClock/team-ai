@@ -59,12 +59,9 @@ public class ConversationsApiTest extends ApiTest {
         .body("_embedded.conversations[0]._links.messages.href",
             is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
         .body("_embedded.conversations[0]._links.messages.type", is(HttpMethod.GET))
-        .body("_embedded.conversations[0]._links.save-message.href",
-            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
-        .body("_embedded.conversations[0]._links.save-message.type", is(HttpMethod.POST))
         .body("_embedded.conversations[0]._links.send-message.href",
-            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/chat"))
-        .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.GET));
+            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
+        .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST));
 
   }
 

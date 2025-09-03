@@ -31,16 +31,16 @@ export class UserConversations
   async addConversation(
     description: ConversationDescription
   ): Promise<Conversation> {
-    const { data } = await this.axios.post<ConversationResponse>(
+    const res = await this.axios.post<ConversationResponse>(
       this.rootLinks['create-conversation'].href,
       description
     );
     return new Conversation(
-      data.id,
+      res.data.id,
       {
-        title: data.title,
+        title: res.data.title,
       },
-      this.conversationMessagesFactory(data._links)
+      this.conversationMessagesFactory(res.data._links)
     );
   }
 

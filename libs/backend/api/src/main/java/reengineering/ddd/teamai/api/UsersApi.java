@@ -21,9 +21,6 @@ public class UsersApi {
 
   @Path("{id}")
   public UserApi findById(@PathParam("id") String id) {
-    return users.findById(id).map(user -> {
-      UserApi userApi = new UserApi(user);
-      return resourceContext.initResource(userApi);
-    }).orElse(null);
+    return users.findById(id).map(UserApi::new).orElse(null);
   }
 }
