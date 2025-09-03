@@ -14,7 +14,7 @@ const mockLinks: HalLinks = {
   },
   'send-message': {
     href: 'http://send-message',
-    type: 'GET',
+    type: 'POST',
   },
   messages: {
     href: 'http://messages',
@@ -60,30 +60,6 @@ describe('ConversationMessages', () => {
     const endOfStream = await reader.read();
     expect(result).toEqual('Hello, world!');
     expect(endOfStream.done).toEqual(true);
-  });
-
-  it('should throw error if send message fails', async () => {
-    server.use(
-      http.post(mockLinks['send-message'].href, () => {
-        return new HttpResponse(null, {
-          status: 500,
-        });
-      })
-    );
-    await expect(
-      conversationMessages.sendMessage('test error')
-    ).rejects.toThrow('HTTP error! status: 500');
-  });
-
-  it('should throw error if response body is null', async () => {
-    server.use(
-      http.post(mockLinks['send-message'].href, () => {
-        return new HttpResponse(null, { status: 200 });
-      })
-    );
-    await expect(
-      conversationMessages.sendMessage('test null body')
-    ).rejects.toThrow('Response body is null');
   });
 
   it('should find paged messages successfully', async () => {

@@ -25,22 +25,24 @@ export class ConversationMessages
     message: string
   ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
     const link = this.rootLinks['send-message'];
-    const response = await fetch(link.href, {
-      method: 'POST',
-      headers: {
-        Accept: 'text/event-stream',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ role: 'user', content: message }),
+    const { data } = await this.axios.request({
+      url: link.href,
+      method: link.type,
+      responseType: 'stream',
+      data: { role: 'user', content: message },
+      adapter: 'fetch',
     });
+    return data;
+  }
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    if (!response.body) {
-      throw new Error('Response body is null');
-    }
-    return response.body;
+  async chatToBreakdownEpic() {
+    const link = this.rootLinks['chat-to-breakdown-epic'];
+    await this.axios.request({
+      url: link.href,
+      method: link.type,
+      responseType: 'stream',
+      headers: {},
+    });
   }
 
   override async fetchEntities(options: {
