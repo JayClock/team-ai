@@ -161,5 +161,13 @@ public class ModelMapperTest extends BaseTestContainersTest {
       List<Context> contexts = contextsMapper.findContexts();
       assertEquals(1, contexts.size());
     }
+
+    @Test
+    void should_find_context_by_id() {
+      Context context = contextsMapper.findContextById(contextId);
+      assertEquals(String.valueOf(contextId), context.getIdentity());
+      assertEquals("title", context.getDescription().title());
+      assertEquals("content", context.getDescription().content());
+    }
   }
 }

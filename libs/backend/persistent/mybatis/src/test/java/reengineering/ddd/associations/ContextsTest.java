@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import reengineering.ddd.BaseTestContainersTest;
 import reengineering.ddd.TestDataMapper;
+import reengineering.ddd.teamai.model.Context;
 import reengineering.ddd.teamai.model.Contexts;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,5 +26,14 @@ public class ContextsTest extends BaseTestContainersTest {
   @Test
   public void shouldFindContexts() {
     assertEquals(1, contexts.findAll().size());
+  }
+
+  @Test
+  public void shouldFindContextsById() {
+    Context context = contexts.findById("1").get();
+
+    assertEquals("1", context.getIdentity());
+    assertEquals("title", context.getDescription().title());
+    assertEquals("content", context.getDescription().content());
   }
 }

@@ -17,4 +17,12 @@
            context.content
     FROM contexts context
   </select>
+
+  <select id="findContextById" resultMap="context">
+      SELECT context.id,
+             context.title,
+             context.content
+      FROM contexts context
+      WHERE context.id = #{id}
+  </select>
 </mapper>
