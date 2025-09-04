@@ -83,7 +83,8 @@ public class ConversationsApiTest extends ApiTest {
       .when().post("/users/" + user.getIdentity() + "/conversations")
       .then().statusCode(201)
       .header(HttpHeaders.LOCATION,
-        is(uri("/api/users/" + user.getIdentity() + "/conversations/" + newConversation.getIdentity())));
+        is(uri("/api/users/" + user.getIdentity() + "/conversations/" + newConversation.getIdentity())))
+      .body("id", is(newConversation.getIdentity()));
   }
 
   @Test

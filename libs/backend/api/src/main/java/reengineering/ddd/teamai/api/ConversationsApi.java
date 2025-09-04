@@ -35,7 +35,8 @@ public class ConversationsApi {
   @Consumes(MediaType.APPLICATION_JSON)
   public Response create(ConversationDescription description, @Context UriInfo uriInfo) {
     Conversation conversation = user.add(description);
-    return Response.created(uriInfo.getAbsolutePathBuilder().path(conversation.getIdentity()).build()).build();
+    ConversationModel conversationModel = new ConversationModel(conversation, uriInfo.getAbsolutePathBuilder().path(conversation.getIdentity()));
+    return Response.created(uriInfo.getAbsolutePathBuilder().path(conversation.getIdentity()).build()).entity(conversationModel).build();
   }
 }
 
