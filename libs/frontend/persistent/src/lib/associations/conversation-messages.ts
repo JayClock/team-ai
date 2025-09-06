@@ -35,14 +35,20 @@ export class ConversationMessages
     return data;
   }
 
-  async chatToBreakdownEpic() {
+  async chatToBreakdownEpic(
+    contextId: string,
+    userInput: string
+  ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
     const link = this.rootLinks['chat-to-breakdown-epic'];
-    await this.axios.request({
-      url: link.href,
+    const response = await fetch(link.href, {
       method: link.type,
-      responseType: 'stream',
-      headers: {},
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ contextId, userInput }),
     });
+    return response.body;
   }
 
   override async fetchEntities(options: {

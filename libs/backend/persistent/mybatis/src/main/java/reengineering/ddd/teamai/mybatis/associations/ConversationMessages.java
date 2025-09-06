@@ -126,7 +126,8 @@ public class ConversationMessages extends EntityList<String, Message> implements
     <Call out cross-functional concerns separately, but only if relevant, and in particular if I provided you with any context that relates to cross-functional concerns>
 
     ========
-    {format}
+    You will respond with only a valid JSON array of work package objects. Each work package object will have the following schema :{format}。
+    All JSON value use the same language of "user_input"
     """;
 
   record WorkPackage(String title, String summary) {

@@ -27,10 +27,22 @@ export class Conversation implements Entity<string, ConversationDescription> {
   ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
     return this.messages.sendMessage(message);
   }
+
+  chatToBreakdownEpic(
+    contextId: string,
+    userInput: string
+  ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
+    return this.messages.chatToBreakdownEpic(contextId, userInput);
+  }
 }
 
 export interface ConversationMessages extends HasMany<Message> {
   sendMessage(
     message: string
+  ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>>;
+
+  chatToBreakdownEpic(
+    contextId: string,
+    userInput: string
   ): Promise<ReadableStream<Uint8Array<ArrayBuffer>>>;
 }
