@@ -2,29 +2,37 @@ import { Chat, EpicBreakdown } from '@web/features';
 import AppLayout from './AppLayout';
 import { Route, Routes } from 'react-router-dom';
 import { container } from '@web/persistent';
-import { useQuery } from '@tanstack/react-query';
-import { ENTRANCES, Users } from '@web/domain';
+import { ENTRANCES, User, Users } from '@web/domain';
+import { effect, signal } from '@preact/signals-react';
+import { finalize, from, tap } from 'rxjs';
 
 const users: Users = container.get(ENTRANCES.USERS);
 
+const user = signal<User>();
+const isLoading = signal(false);
+
+effect(() => {
+  isLoading.value = true;
+  const subscription = from(users.findById('1'))
+    .pipe(
+      tap((res) => (user.value = res)),
+      finalize(() => (isLoading.value = false))
+    )
+    .subscribe();
+  return () => subscription.unsubscribe();
+});
+
 export default function App() {
-  const { data: user, isPending } = useQuery({
-    queryKey: ['key'],
-    queryFn: () => users.findById('1'),
-  });
-  if (isPending) {
-    return 'loading';
-  }
-  if (!user) {
+  if (!user.value) {
     return <div>No user data available</div>;
   }
   return (
     <AppLayout>
       <Routes>
-        <Route path="/" element={<Chat user={user} />}></Route>
+        <Route path="/" element={<Chat user={user.value} />}></Route>
         <Route
           path="/epic-breakdown"
-          element={<EpicBreakdown user={user} />}
+          element={<EpicBreakdown user={user.value} />}
         ></Route>
       </Routes>
     </AppLayout>
