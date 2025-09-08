@@ -4,10 +4,12 @@ import TextArea from 'antd/es/input/TextArea';
 import { useQuery } from '@tanstack/react-query';
 import { container } from '@web/persistent';
 import { Contexts, ENTRANCES, User } from '@web/domain';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { XStream } from '@ant-design/x';
 import { parse } from 'best-effort-json-parser';
 import { marked } from 'marked';
+import { useSignal } from '@preact/signals-react';
+import { CopyOutlined } from '@ant-design/icons';
 
 const contexts: Contexts = container.get(ENTRANCES.CONTEXTS);
 
@@ -18,9 +20,10 @@ interface WorkPackage {
 
 export function EpicBreakdown(props: { user: User }) {
   const { user } = props;
-  const [contextId, setContextId] = useState('');
-  const [userInput, setUserInput] = useState('');
-  const [workspaces, setWorkspaces] = useState([]);
+  const contextId = useSignal('');
+  const userInput = useSignal('');
+  const workspaces = useSignal([]);
+  const isLoading = useSignal(false);
   const { data } = useQuery({
     queryKey: ['contexts'],
     queryFn: async () => await contexts.findAll(),
@@ -37,28 +40,32 @@ export function EpicBreakdown(props: { user: User }) {
   }, [data]);
 
   const createConversation = async () => {
+    isLoading.value = true;
     const conversation = await user.addConversation({
       title: 'new conversation',
     });
     let fullContent = '';
-    const stream = await conversation.chatToBreakdownEpic(contextId, userInput);
+    const stream = await conversation.chatToBreakdownEpic(
+      contextId.value,
+      userInput.value
+    );
     for await (const chunk of XStream({ readableStream: stream })) {
       const newText = chunk.data?.trim() || '';
       fullContent += newText;
-      let output = parse(fullContent);
-      setWorkspaces(output);
+      workspaces.value = parse(fullContent);
     }
+    isLoading.value = false;
   };
   return (
     <Flex style={{ width: '100%', minHeight: '100vh' }}>
       <Flex vertical gap="middle" style={{ width: 200, padding: 16 }}>
         <Flex vertical gap="small">
-          <Text>User Input</Text>
+          <Text>Epic 用户故事输入</Text>
           <TextArea
             rows={20}
-            value={userInput}
+            value={userInput.value}
             onChange={(e) =>
-              setUserInput((e.target as HTMLTextAreaElement).value)
+              (userInput.value = (e.target as HTMLTextAreaElement).value)
             }
             style={{ resize: 'vertical', minHeight: 200 }}
           ></TextArea>
@@ -67,16 +74,21 @@ export function EpicBreakdown(props: { user: User }) {
           <Select
             placeholder={'请选择上下文'}
             options={options}
-            onChange={(value) => setContextId(value)}
+            onChange={(value) => (contextId.value = value)}
           ></Select>
-          <Button type="primary" onClick={() => createConversation()}>
-            Generate
+          <Button
+            loading={isLoading.value}
+            disabled={isLoading.value}
+            type="primary"
+            onClick={() => createConversation()}
+          >
+            进行故事分解
           </Button>
         </Flex>
       </Flex>
       <div className="flex-1 p-4 overflow-auto">
         <Row gutter={[16, 16]} style={{ width: '100%' }}>
-          {workspaces.map((workPackage: WorkPackage, index: number) => (
+          {workspaces.value.map((workPackage: WorkPackage, index: number) => (
             <Col xs={24} sm={12} md={12} lg={8} xl={8} key={index}>
               <Card title={workPackage.title} style={{ height: '100%' }}>
                 <div
@@ -90,6 +102,9 @@ export function EpicBreakdown(props: { user: User }) {
                   }}
                   className="markdown-content"
                 />
+                <Button>
+                  <CopyOutlined />
+                </Button>
               </Card>
             </Col>
           ))}

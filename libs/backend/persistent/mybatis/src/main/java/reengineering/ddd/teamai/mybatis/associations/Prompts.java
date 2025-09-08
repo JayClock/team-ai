@@ -6,7 +6,6 @@ import com.vladsch.flexmark.parser.Parser;
 import com.vladsch.flexmark.util.ast.Node;
 import com.vladsch.flexmark.util.ast.TextCollectingVisitor;
 import com.vladsch.flexmark.util.data.MutableDataSet;
-import jakarta.annotation.PostConstruct;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
@@ -16,9 +15,6 @@ import reengineering.ddd.teamai.model.Prompt;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 @Component
@@ -28,7 +24,6 @@ public class Prompts implements reengineering.ddd.teamai.model.Prompts {
 
   private final Map<String, Prompt> prompts = new HashMap<>();
 
-  @PostConstruct
   public void initialize() throws IOException {
     prompts.clear();
 
