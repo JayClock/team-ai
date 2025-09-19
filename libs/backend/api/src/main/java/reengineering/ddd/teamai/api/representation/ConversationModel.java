@@ -22,9 +22,9 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
     this.id = conversation.getIdentity();
     this.description = conversation.getDescription();
     add(Link.of(builder.clone().build(conversation.getIdentity()).getPath(), "self").withType(HttpMethod.GET));
-    add(Link.of(builder.clone().path(ConversationApi.class, "messages").build(conversation.getIdentity()).getPath(),
+    add(Link.of(builder.clone().path(ConversationApi.class, "findAll").build(conversation.getIdentity()).getPath(),
       "messages").withType(HttpMethod.GET));
-    add(Link.of(builder.clone().path(ConversationApi.class, "messages").build(conversation.getIdentity()).getPath(),
+    add(Link.of(builder.clone().path(ConversationApi.class, "chat").build(conversation.getIdentity()).getPath(),
       "send-message").withType(HttpMethod.POST));
     add(Link.of(builder.clone().path(ConversationApi.class, "chatToBreakdownEpic")
         .build(conversation.getIdentity()).getPath(), "chat-to-breakdown-epic")
