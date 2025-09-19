@@ -63,7 +63,7 @@ public class ConversationsApiTest extends ApiTest {
         is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
       .body("_embedded.conversations[0]._links.messages.type", is(HttpMethod.GET))
       .body("_embedded.conversations[0]._links.send-message.href",
-        is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
+        is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages:chat"))
       .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST))
       .body("_embedded.conversations[0]._links.chat-to-breakdown-epic.href",
         is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/chat-to-breakdown-epic"))
