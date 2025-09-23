@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.hateoas.mediatype.MessageResolver;
 import org.springframework.hateoas.mediatype.hal.CurieProvider;
 import org.springframework.hateoas.mediatype.hal.Jackson2HalModule;
+import org.springframework.hateoas.mediatype.hal.forms.Jackson2HalFormsModule;
 import org.springframework.hateoas.server.LinkRelationProvider;
 
 @Configuration
@@ -25,6 +26,7 @@ public class HAL implements InitializingBean {
   @Override
   public void afterPropertiesSet() {
     mapper.registerModule(new Jackson2HalModule());
+    mapper.registerModule(new Jackson2HalFormsModule());
     mapper.setHandlerInstantiator(new Jackson2HalModule.HalHandlerInstantiator(provider, CurieProvider.NONE, resolver));
   }
 }
