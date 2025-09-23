@@ -13,17 +13,20 @@ import reengineering.ddd.teamai.api.representation.MessageModel;
 import reengineering.ddd.teamai.description.EpicDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
+import reengineering.ddd.teamai.model.User;
 
 public class ConversationApi {
+  private final User user;
   private final Conversation conversation;
 
-  public ConversationApi(Conversation conversation) {
+  public ConversationApi(User user, Conversation conversation) {
+    this.user = user;
     this.conversation = conversation;
   }
 
   @GET
   public ConversationModel get(@Context UriInfo uriInfo) {
-    return new ConversationModel(conversation, uriInfo.getAbsolutePathBuilder());
+    return new ConversationModel(user, conversation, uriInfo);
   }
 
   @GET

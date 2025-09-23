@@ -20,23 +20,23 @@ public class ConversationsApi {
 
   @Path("{conversation-id}")
   public ConversationApi findById(@PathParam("conversation-id") String id) {
-    return user.conversations().findByIdentity(id).map(ConversationApi::new)
+    return user.conversations().findByIdentity(id).map(conversation -> new ConversationApi(user, conversation))
       .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
   }
 
   @GET
   public CollectionModel<ConversationModel> findAll(@Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
     return new Pagination<>(user.conversations().findAll(), 40).page(page,
-      conversation -> new ConversationModel(conversation, uriInfo.getAbsolutePathBuilder().path(ConversationsApi.class, "findById")),
-      p -> uriInfo.getAbsolutePathBuilder().queryParam("page", p).build(user.getIdentity()));
+      conversation -> new ConversationModel(user, conversation, uriInfo),
+      p -> ApiTemplates.conversations(uriInfo).queryParam("page", p).build(user.getIdentity()));
   }
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   public Response create(ConversationDescription description, @Context UriInfo uriInfo) {
     Conversation conversation = user.add(description);
-    ConversationModel conversationModel = new ConversationModel(conversation, uriInfo.getAbsolutePathBuilder().path(conversation.getIdentity()));
-    return Response.created(uriInfo.getAbsolutePathBuilder().path(conversation.getIdentity()).build()).entity(conversationModel).build();
+    ConversationModel conversationModel = new ConversationModel(user, conversation, uriInfo);
+    return Response.created(ApiTemplates.conversation(uriInfo).build(user.getIdentity(), conversation.getIdentity())).entity(conversationModel).build();
   }
 }
 
