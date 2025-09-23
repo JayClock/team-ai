@@ -9,10 +9,10 @@ import reengineering.ddd.teamai.api.UsersApi;
 
 import java.util.Map;
 
-import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL;
+import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL_FORMS;
 
 @Configuration
-@EnableHypermediaSupport(type = HAL)
+@EnableHypermediaSupport(type = HAL_FORMS)
 public class Jersey extends ResourceConfig {
   public Jersey() {
     setProperties(Map.of(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, true));
