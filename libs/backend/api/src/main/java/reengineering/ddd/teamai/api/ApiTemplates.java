@@ -8,6 +8,10 @@ public class ApiTemplates {
     return uriInfo.getBaseUriBuilder().path(UsersApi.class).path(UsersApi.class, "findById");
   }
 
+  public static UriBuilder accounts(UriInfo uriInfo) {
+    return user(uriInfo).path(UserApi.class, "accounts");
+  }
+
   public static UriBuilder conversations(UriInfo uriInfo) {
     return user(uriInfo).path(UserApi.class, "conversations");
   }

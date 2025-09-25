@@ -10,6 +10,7 @@ import reengineering.ddd.teamai.model.Users;
 import java.util.Optional;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -33,7 +34,7 @@ public class UsersApiTest extends ApiTest {
       new UserDescription("John Smith", "john.smith@email.com"), accounts, conversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
 
-    given().accept(MediaTypes.HAL_JSON.toString())
+    given().accept(MediaTypes.HAL_FORMS_JSON_VALUE)
       .when().get("/users/" + user.getIdentity())
       .then().statusCode(200)
       .body("id", is(user.getIdentity()))
@@ -43,6 +44,8 @@ public class UsersApiTest extends ApiTest {
       .body("_links.accounts.href", is("/api/users/" + user.getIdentity() + "/accounts"))
       .body("_links.conversations.href", is("/api/users/" + user.getIdentity() + "/conversations"))
       .body("_links.create-conversation.href", is("/api/users/" + user.getIdentity() + "/conversations"))
-      .body("_links.create-conversation.type", is("POST"));
+      .body("_links.create-conversation.type", is("POST"))
+      .body("_templates.default.method", is("POST"))
+      .body("_templates.default.properties", hasSize(1));
   }
 }
