@@ -24,7 +24,7 @@ public class UserModel extends RepresentationModel<UserModel> {
     this.description = user.getDescription();
     add(Link.of(ApiTemplates.user(uriInfo).build(user.getIdentity()).getPath(), "self"));
     add(Link.of(ApiTemplates.user(uriInfo).path(UserApi.class, "accounts").build(user.getIdentity()).getPath(), "accounts"));
-    add(Link.of(ApiTemplates.user(uriInfo).path(UserApi.class, "conversations").build(user.getIdentity()).getPath(), "conversations"));
-    add(Link.of(ApiTemplates.user(uriInfo).path(UserApi.class, "conversations").build(user.getIdentity()).getPath(), "create-conversation").withType(HttpMethod.POST));
+    add(Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath(), "conversations"));
+    add(Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath(), "create-conversation").withType(HttpMethod.POST));
   }
 }

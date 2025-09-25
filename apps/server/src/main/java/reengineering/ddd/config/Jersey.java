@@ -5,15 +5,14 @@ import org.glassfish.jersey.server.ServerProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.hateoas.config.EnableHypermediaSupport;
 import reengineering.ddd.teamai.api.ContextsApi;
-import reengineering.ddd.teamai.api.ConversationApi;
 import reengineering.ddd.teamai.api.UsersApi;
 
 import java.util.Map;
 
-import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL;
+import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL_FORMS;
 
 @Configuration
-@EnableHypermediaSupport(type = HAL)
+@EnableHypermediaSupport(type = HAL_FORMS)
 public class Jersey extends ResourceConfig {
   public Jersey() {
     setProperties(Map.of(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, true));
