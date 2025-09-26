@@ -21,6 +21,6 @@ public class ApiTemplates {
   }
 
   public static UriBuilder messages(UriInfo uriInfo) {
-    return conversation(uriInfo).path(ConversationApi.class, "findAll");
+    return conversation(uriInfo).path(ConversationApi.class, "messages");
   }
 }

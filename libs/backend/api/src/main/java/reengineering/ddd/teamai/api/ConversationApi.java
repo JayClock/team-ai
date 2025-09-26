@@ -29,13 +29,9 @@ public class ConversationApi {
     return new ConversationModel(user, conversation, uriInfo);
   }
 
-  @GET
   @Path("messages")
-  public CollectionModel<MessageModel> findAll(@Context UriInfo uriInfo,
-                                               @DefaultValue("0") @QueryParam("page") int page) {
-    return new Pagination<>(conversation.messages().findAll(), 40).page(page,
-      MessageModel::new,
-      p -> uriInfo.getAbsolutePathBuilder().queryParam("page", p).build(conversation.getIdentity()));
+  public MessagesApi messages() {
+    return new MessagesApi(user, conversation);
   }
 
   @POST
