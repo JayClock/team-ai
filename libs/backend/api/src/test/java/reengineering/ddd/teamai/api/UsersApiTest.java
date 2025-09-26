@@ -44,8 +44,9 @@ public class UsersApiTest extends ApiTest {
       .body("_links.accounts.href", is("/api/users/" + user.getIdentity() + "/accounts"))
       .body("_links.conversations.href", is("/api/users/" + user.getIdentity() + "/conversations"))
       .body("_links.create-conversation.href", is("/api/users/" + user.getIdentity() + "/conversations"))
-      .body("_links.create-conversation.type", is("POST"))
-      .body("_templates.default.method", is("POST"))
-      .body("_templates.default.properties", hasSize(1));
+      .body("_templates.default.method", is("PUT"))
+      .body("_templates.default.properties", hasSize(2))
+      .body("_templates.create-conversation.method", is("POST"))
+      .body("_templates.create-conversation.properties", hasSize(1));
   }
 }
