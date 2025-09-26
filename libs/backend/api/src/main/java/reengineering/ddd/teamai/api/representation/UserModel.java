@@ -8,7 +8,7 @@ import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
-import reengineering.ddd.teamai.description.ConversationDescription;
+import reengineering.ddd.teamai.api.ConversationsApi;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
 
@@ -33,10 +33,9 @@ public class UserModel extends RepresentationModel<UserModel> {
     add(Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath()).withRel("accounts"));
     add(Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath()).withRel("conversations"));
 
-    Link conversationsRel = Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath()).withRel("create-conversation");
-    add(Affordances.of(conversationsRel)
+    add(Affordances.of(Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath()).withRel("create-conversation"))
       .afford(HttpMethod.POST)
-      .withInput(ConversationDescription.class)
+      .withInput(ConversationsApi.CreateConversationRequestBody.class)
       .withName("create-conversation")
       .toLink());
   }
