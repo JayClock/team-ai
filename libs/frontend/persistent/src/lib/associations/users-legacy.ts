@@ -1,21 +1,21 @@
-import { User, Users as IUsers } from '@web/domain';
-import { UserConversations } from './user-conversations.js';
+import { UserLegacy, UsersLegacy as IUsers } from '@web/domain';
+import { UserConversationsLegacy } from './user-conversations-legacy.js';
 import { UserResponse } from '../responses/user-response.js';
 import { inject, injectable } from 'inversify';
 import { Axios } from 'axios';
 import { HalLinks } from '../archtype/hal-links.js';
 
 @injectable()
-export class Users implements IUsers {
+export class UsersLegacy implements IUsers {
   constructor(
     @inject(Axios) private axios: Axios,
-    @inject('Factory<UserConversations>')
-    private userConversationsFactory: (links: HalLinks) => UserConversations
+    @inject('Factory<UserConversationsLegacy>')
+    private userConversationsFactory: (links: HalLinks) => UserConversationsLegacy
   ) {}
 
-  async findById(id: string): Promise<User> {
+  async findById(id: string): Promise<UserLegacy> {
     const res = await this.axios.get<UserResponse>(`/api/users/${id}`);
-    return new User(
+    return new UserLegacy(
       res.data.id,
       {
         name: res.data.name,

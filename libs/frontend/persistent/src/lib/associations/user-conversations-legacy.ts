@@ -1,7 +1,7 @@
 import {
-  Conversation,
+  ConversationLegacy,
   ConversationDescription,
-  UserConversations as IUserConversations,
+  UserConversationsLegacy as IUserConversations,
 } from '@web/domain';
 import type { HalLinks } from '../archtype/hal-links.js';
 import { ConversationResponse } from '../responses/conversation-response.js';
@@ -12,8 +12,8 @@ import { PagedResponse } from '../archtype/paged-response.js';
 import { EntityList } from '../archtype/entity-list.js';
 
 @injectable()
-export class UserConversations
-  extends EntityList<Conversation>
+export class UserConversationsLegacy
+  extends EntityList<ConversationLegacy>
   implements IUserConversations
 {
   constructor(
@@ -30,12 +30,12 @@ export class UserConversations
 
   async addConversation(
     description: ConversationDescription
-  ): Promise<Conversation> {
+  ): Promise<ConversationLegacy> {
     const res = await this.axios.post<ConversationResponse>(
       this.rootLinks['create-conversation'].href,
       description
     );
-    return new Conversation(
+    return new ConversationLegacy(
       res.data.id,
       {
         title: res.data.title,
@@ -55,7 +55,7 @@ export class UserConversations
     );
     this._items = data._embedded['conversations'].map(
       (conversationResponse) =>
-        new Conversation(
+        new ConversationLegacy(
           conversationResponse.id,
           {
             title: conversationResponse.title,

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Chat } from '@web/features';
-import { container, Users } from '@web/persistent';
+import { container, UsersLegacy } from '@web/persistent';
 
-const users = container.get(Users);
+const users = container.get(UsersLegacy);
 
 export default function NxWelcome() {
   const { data, isPending } = useQuery({

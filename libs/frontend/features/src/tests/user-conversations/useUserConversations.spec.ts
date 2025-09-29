@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, Mocked, vi } from 'vitest';
-import { User } from '@web/domain';
+import { UserLegacy } from '@web/domain';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useUserConversations } from '../../lib/user-conversations/useUserConversations';
 import { wrapper } from '../Wrapper';
@@ -29,7 +29,7 @@ const user = {
     findAll: vi.fn().mockResolvedValue(mockPage1),
   }),
   getIdentity: () => '1',
-} as unknown as Mocked<User>;
+} as unknown as Mocked<UserLegacy>;
 
 describe('useUserConversations', () => {
   beforeEach(() => {

@@ -3,8 +3,8 @@ import 'reflect-metadata';
 import { Container, Factory } from 'inversify';
 import {
   ConversationMessages,
-  UserConversations,
-  Users,
+  UserConversationsLegacy,
+  UsersLegacy,
 } from './associations/index.js';
 import { axiosInstance } from './axios-instance.js';
 import { Axios } from 'axios';
@@ -15,13 +15,13 @@ import { ENTRANCES } from '@web/domain';
 export const container = new Container();
 
 container.bind(Axios).toConstantValue(axiosInstance);
-container.bind(ENTRANCES.USERS).to(Users).inSingletonScope();
+container.bind(ENTRANCES.USERS).to(UsersLegacy).inSingletonScope();
 container.bind(ENTRANCES.CONTEXTS).to(Contexts).inSingletonScope();
 container
-  .bind<Factory<UserConversations>>('Factory<UserConversations>')
+  .bind<Factory<UserConversationsLegacy>>('Factory<UserConversationsLegacy>')
   .toFactory((context) => {
     return (links: HalLinks) => {
-      return new UserConversations(
+      return new UserConversationsLegacy(
         links,
         context.get(Axios),
         context.get('Factory<ConversationMessages>')

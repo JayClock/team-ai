@@ -1,17 +1,17 @@
 import { beforeEach, describe } from 'vitest';
 import {
   HalLinksDescription,
-  User,
-  UserConversations,
+  UserLegacy,
+  UserConversationsLegacy,
   UserDescription,
 } from '../index.js';
 
-class MockUserConversations implements UserConversations {
+class MockUserConversations implements UserConversationsLegacy {
   addConversation = vi.fn();
 }
 
 describe('User', () => {
-  let user: User;
+  let user: UserLegacy;
   let mockUserDescription: UserDescription & HalLinksDescription;
   let mockUserConversations: MockUserConversations;
 
@@ -22,13 +22,13 @@ describe('User', () => {
       _links: {},
     };
     mockUserConversations = new MockUserConversations();
-    user = new User('1', mockUserDescription, mockUserConversations);
+    user = new UserLegacy('1', mockUserDescription, mockUserConversations);
   });
 
   it('should add conversation', async () => {
-    await user.addConversation({ title: 'New Conversation' });
+    await user.addConversation({ title: 'New ConversationLegacy' });
     expect(mockUserConversations.addConversation).toHaveBeenCalledWith({
-      title: 'New Conversation',
+      title: 'New ConversationLegacy',
     });
   });
 });

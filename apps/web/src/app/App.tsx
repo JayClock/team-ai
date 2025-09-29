@@ -2,13 +2,13 @@ import { Chat, EpicBreakdown } from '@web/features';
 import AppLayout from './AppLayout';
 import { Route, Routes } from 'react-router-dom';
 import { container } from '@web/persistent';
-import { ENTRANCES, User, Users } from '@web/domain';
+import { ENTRANCES, UserLegacy, UsersLegacy } from '@web/domain';
 import { effect, signal } from '@preact/signals-react';
 import { finalize, from, tap } from 'rxjs';
 
-const users: Users = container.get(ENTRANCES.USERS);
+const users: UsersLegacy = container.get(ENTRANCES.USERS);
 
-const user = signal<User>();
+const user = signal<UserLegacy>();
 const isLoading = signal(false);
 
 effect(() => {

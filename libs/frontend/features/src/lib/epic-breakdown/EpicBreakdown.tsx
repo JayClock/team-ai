@@ -3,7 +3,7 @@ import Text from 'antd/es/typography/Text';
 import TextArea from 'antd/es/input/TextArea';
 import { useQuery } from '@tanstack/react-query';
 import { container } from '@web/persistent';
-import { Contexts, ENTRANCES, User } from '@web/domain';
+import { Contexts, ENTRANCES, UserLegacy } from '@web/domain';
 import { useMemo } from 'react';
 import { XStream } from '@ant-design/x';
 import { parse } from 'best-effort-json-parser';
@@ -18,7 +18,7 @@ interface WorkPackage {
   summary: string;
 }
 
-export function EpicBreakdown(props: { user: User }) {
+export function EpicBreakdown(props: { user: UserLegacy }) {
   const { user } = props;
   const contextId = useSignal('');
   const userInput = useSignal('');

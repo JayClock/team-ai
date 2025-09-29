@@ -1,11 +1,11 @@
-import { Conversation, User } from '@web/domain';
+import { ConversationLegacy, UserLegacy } from '@web/domain';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { GetProp } from 'antd';
 import { ConversationsProps } from '@ant-design/x';
 
 export const useUserConversations = (
-  user: User,
+  user: UserLegacy,
   activeConversationId: string
 ) => {
   const { data, hasNextPage, fetchNextPage, isPending, isFetchingNextPage } =
@@ -26,7 +26,7 @@ export const useUserConversations = (
     });
 
   const list = useMemo(() => {
-    let res: Conversation[] = [];
+    let res: ConversationLegacy[] = [];
     data?.pages.forEach(({ items }) => {
       res = [...res, ...items()];
     });

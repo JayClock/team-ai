@@ -3,7 +3,7 @@ import { Entity } from '../archtype/index.js';
 import { Message } from './message.js';
 import { HasMany } from '../archtype/has-many.js';
 
-export class Conversation implements Entity<string, ConversationDescription> {
+export class ConversationLegacy implements Entity<string, ConversationDescription> {
   constructor(
     private identity: string,
     private description: ConversationDescription,

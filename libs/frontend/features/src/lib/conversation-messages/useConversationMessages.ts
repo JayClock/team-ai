@@ -2,9 +2,9 @@ import { useXAgent, useXChat, XStream } from '@ant-design/x';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { BubbleDataType } from '@ant-design/x/es/bubble/BubbleList';
-import { Conversation } from '@web/domain';
+import { ConversationLegacy } from '@web/domain';
 
-export const useConversationMessages = (conversation: Conversation) => {
+export const useConversationMessages = (conversation: ConversationLegacy) => {
   const { data: serverMessages, isLoading: isLoadingHistory } = useQuery({
     queryKey: ['conversation-messages', conversation.getIdentity()],
     queryFn: async ({ signal }) => {

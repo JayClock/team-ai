@@ -1,5 +1,5 @@
-import { Conversation, ConversationDescription } from '@web/domain';
-import { UserConversations } from '../../lib/associations/index.js';
+import { ConversationLegacy, ConversationDescription } from '@web/domain';
+import { UserConversationsLegacy } from '../../lib/associations/index.js';
 import { expect } from 'vitest';
 import { container } from '../../lib/container.js';
 import { Factory } from 'inversify';
@@ -8,7 +8,7 @@ import { server } from '../setup-tests.js';
 import { HalLinks } from '../../lib/archtype/hal-links.js';
 
 describe('UserConversations', () => {
-  let userConversations: UserConversations;
+  let userConversations: UserConversationsLegacy;
   let mockUserLinks: HalLinks;
 
   beforeAll(() => {
@@ -16,8 +16,8 @@ describe('UserConversations', () => {
       conversations: { href: 'http://conversations' },
       'create-conversation': { href: 'http://create-conversation' },
     } as HalLinks;
-    const factory = container.get<Factory<UserConversations>>(
-      'Factory<UserConversations>'
+    const factory = container.get<Factory<UserConversationsLegacy>>(
+      'Factory<UserConversationsLegacy>'
     );
     userConversations = factory(mockUserLinks);
   });
@@ -25,7 +25,7 @@ describe('UserConversations', () => {
   it('should add conversation successfully', async () => {
     const mockResponse = {
       id: '123',
-      title: 'Test Conversation',
+      title: 'Test ConversationLegacy',
       _links: { self: { href: '/api/conversations/123' } },
     };
 
@@ -35,10 +35,10 @@ describe('UserConversations', () => {
       })
     );
 
-    const description: ConversationDescription = { title: 'Test Conversation' };
+    const description: ConversationDescription = { title: 'Test ConversationLegacy' };
     const result = await userConversations.addConversation(description);
     expect(result.getIdentity()).toBe('123');
-    expect(result.getDescription().title).toBe('Test Conversation');
+    expect(result.getDescription().title).toBe('Test ConversationLegacy');
   });
 
   it('should find paged conversations successfully', async () => {
@@ -47,7 +47,7 @@ describe('UserConversations', () => {
         conversations: [
           {
             id: '123',
-            title: 'Test Conversation',
+            title: 'Test ConversationLegacy',
             _links: { self: { href: '/api/conversations/123' } },
           },
         ],
@@ -71,7 +71,7 @@ describe('UserConversations', () => {
 
     const res = await userConversations.findAll();
     expect(res.items().length).toBe(1);
-    expect(res.items()[0]).toBeInstanceOf(Conversation);
+    expect(res.items()[0]).toBeInstanceOf(ConversationLegacy);
     expect(res.hasPrev()).toEqual(false);
     expect(res.hasNext()).toEqual(true);
     expect(res.pagination()).toEqual({

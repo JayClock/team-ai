@@ -1,12 +1,12 @@
-import { Conversation, User } from '@web/domain';
+import { ConversationLegacy, UserLegacy } from '@web/domain';
 import { UserConversations } from '../user-conversations/UserConversations';
 import { useState } from 'react';
 import { Card, Divider, Flex } from 'antd';
 import { ConversationMessages } from '../conversation-messages/ConversationMessages';
 
-export function Chat(props: { user: User }) {
-  const [activeConversation, setActiveConversation] = useState<Conversation>();
-  const onConversationChange = (conversation: Conversation) => {
+export function Chat(props: { user: UserLegacy }) {
+  const [activeConversation, setActiveConversation] = useState<ConversationLegacy>();
+  const onConversationChange = (conversation: ConversationLegacy) => {
     setActiveConversation(conversation);
   };
   return (

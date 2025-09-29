@@ -1,4 +1,4 @@
-import { Conversation, User } from '@web/domain';
+import { ConversationLegacy, UserLegacy } from '@web/domain';
 import { useUserConversations } from './useUserConversations';
 import { useEffect, useState } from 'react';
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -7,8 +7,8 @@ import { RedoOutlined } from '@ant-design/icons';
 import { Conversations } from '@ant-design/x';
 
 export const UserConversations = (props: {
-  user: User;
-  onConversationChange: (conversation: Conversation) => void;
+  user: UserLegacy;
+  onConversationChange: (conversation: ConversationLegacy) => void;
 }) => {
   const { user, onConversationChange } = props;
 

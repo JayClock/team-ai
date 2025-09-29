@@ -1,7 +1,7 @@
 import { Bubble, Sender } from '@ant-design/x';
 import { GetProp, Spin } from 'antd';
 import { RobotOutlined, UserOutlined } from '@ant-design/icons';
-import { Conversation } from '@web/domain';
+import { ConversationLegacy } from '@web/domain';
 import { useConversationMessages } from './useConversationMessages';
 import { useState } from 'react';
 
@@ -16,7 +16,7 @@ const roles: GetProp<typeof Bubble.List, 'roles'> = {
   },
 };
 
-export const ConversationMessages = (props: { conversation: Conversation }) => {
+export const ConversationMessages = (props: { conversation: ConversationLegacy }) => {
   const { conversation } = props;
   const [content, setContent] = useState('');
   const { messages, sendMessage, agent, isLoadingHistory } =
