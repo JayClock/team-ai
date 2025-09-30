@@ -6,10 +6,20 @@ export interface ClientOptions {
 }
 
 export class Client {
+  private resources = new Map<string, Resource<any>>();
+
   constructor(private options: ClientOptions) {}
 
   go<TSchema extends BaseSchema>(uri: string): Resource<TSchema> {
-    return new Resource<TSchema>(this, `${this.options.baseURL}/${uri}`);
+    const resource = new Resource<TSchema>(
+      this,
+      `${this.options.baseURL}/${uri}`
+    );
+    if (this.resources.has(uri)) {
+      return this.resources.get(uri)!;
+    }
+    this.resources.set(uri, resource);
+    return resource;
   }
 
   fetch(

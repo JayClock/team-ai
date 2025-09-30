@@ -15,8 +15,14 @@ describe('Resource', () => {
     expect(relation.refs).toEqual(['rel']);
   });
 
-  it('should call client fetch when get relation', async () => {
-    await resource.get();
-    expect(mockClient.fetch).toHaveBeenCalledWith(resource.uri, undefined);
+  it('should return a state when invoke get method', async () => {
+    const mockBody = {};
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(mockBody))
+    );
+    const state = await resource.get();
+    expect(state.client).toBe(mockClient);
+    expect(state.uri).toBe('uri');
+    expect(state.data).toEqual(mockBody);
   });
 });
