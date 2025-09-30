@@ -1,40 +1,14 @@
-import { Chat, EpicBreakdown } from '@web/features';
-import AppLayout from './AppLayout';
-import { Route, Routes } from 'react-router-dom';
-import { container } from '@web/persistent';
-import { ENTRANCES, UserLegacy, UsersLegacy } from '@web/domain';
-import { effect, signal } from '@preact/signals-react';
-import { finalize, from, tap } from 'rxjs';
+import { Client } from 'resource';
 
-const users: UsersLegacy = container.get(ENTRANCES.USERS);
+type UserSchema = {
+  description: { name: string };
+  relations: { self: UserSchema };
+};
 
-const user = signal<UserLegacy>();
-const isLoading = signal(false);
-
-effect(() => {
-  isLoading.value = true;
-  const subscription = from(users.findById('1'))
-    .pipe(
-      tap((res) => (user.value = res)),
-      finalize(() => (isLoading.value = false))
-    )
-    .subscribe();
-  return () => subscription.unsubscribe();
-});
+const client = new Client({ baseURL: 'http://localhost:4200/api' });
+// const res = await client.go<UserSchema>('users/1').get();
+const state = await client.go<UserSchema>('users/1').get();
 
 export default function App() {
-  if (!user.value) {
-    return <div>No user data available</div>;
-  }
-  return (
-    <AppLayout>
-      <Routes>
-        <Route path="/" element={<Chat user={user.value} />}></Route>
-        <Route
-          path="/epic-breakdown"
-          element={<EpicBreakdown user={user.value} />}
-        ></Route>
-      </Routes>
-    </AppLayout>
-  );
+  return <div></div>;
 }
