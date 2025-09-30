@@ -2,6 +2,7 @@ import { Client } from './client.js';
 import { BaseSchema } from './base-schema.js';
 import { Relation } from './relation.js';
 import { State } from './state.js';
+import { HalResource } from 'hal-types';
 
 export class Resource<TSchema extends BaseSchema> {
   constructor(readonly client: Client, readonly uri: string) {}
@@ -17,7 +18,7 @@ export class Resource<TSchema extends BaseSchema> {
     return new State<TSchema>({
       client: this.client,
       uri: this.uri,
-      data: (await response.json()) as TSchema['description'],
+      data: (await response.json()) as HalResource,
     });
   }
 

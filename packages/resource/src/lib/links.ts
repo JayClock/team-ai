@@ -4,7 +4,7 @@ export interface Link extends HalLink {
   rel: string;
 }
 
-export class Links {
+export class Links<T extends Record<string, any>> {
   private store = new Map<string, Link[]>();
 
   add(links: Link[]) {
@@ -17,9 +17,9 @@ export class Links {
     }
   }
 
-  get(rel: string): Link | undefined {
-    if (this.store.has(rel)) {
-      return this.store.get('rel')![0];
+  get(rel: keyof T): Link | undefined {
+    if (this.store.has(rel as string)) {
+      return this.store.get(rel as string)![0];
     }
     return undefined;
   }
