@@ -12,12 +12,12 @@ export class Resource<TSchema extends BaseSchema> {
     return new Relation(this.client, [rel as string]);
   }
 
-  async get(): Promise<State> {
+  async get(): Promise<State<TSchema>> {
     const response = await this.fetch({ method: 'GET' });
-    return new State({
+    return new State<TSchema>({
       client: this.client,
       uri: this.uri,
-      data: await response.json(),
+      data: (await response.json()) as TSchema['description'],
     });
   }
 

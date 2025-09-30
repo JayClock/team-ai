@@ -1,4 +1,5 @@
 import { Client } from './client.js';
+import { BaseSchema } from './base-schema.js';
 
 type StateInit<T> = {
   uri: string;
@@ -6,12 +7,12 @@ type StateInit<T> = {
   data: T;
 };
 
-export class State<T = any> {
+export class State<TSchema extends BaseSchema> {
   readonly uri: string;
   readonly client: Client;
-  readonly data: T;
+  readonly data: TSchema['description'];
 
-  constructor(private init: StateInit<T>) {
+  constructor(private init: StateInit<TSchema['description']>) {
     this.uri = this.init.uri;
     this.client = this.init.client;
     this.data = this.init.data;
