@@ -13,6 +13,7 @@ describe('Resource', () => {
     expect(relation).toBeInstanceOf(Relation);
     expect(relation.client).toBe(mockClient);
     expect(relation.refs).toEqual(['rel']);
+    expect(relation.rootUri).toEqual(resource.uri)
   });
 
   it('should return a state when invoke get method', async () => {

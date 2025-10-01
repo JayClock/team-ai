@@ -10,7 +10,7 @@ export class Resource<TSchema extends BaseSchema> {
   follow<K extends keyof TSchema['relations']>(
     rel: K
   ): Relation<TSchema['relations'][K]> {
-    return new Relation(this.client, [rel as string]);
+    return new Relation(this.client, this.uri, [rel as string]);
   }
 
   async get(): Promise<State<TSchema>> {
