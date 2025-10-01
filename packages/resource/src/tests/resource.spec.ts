@@ -12,7 +12,7 @@ describe('Resource', () => {
     const relation = resource.follow('rel');
     expect(relation).toBeInstanceOf(Relation);
     expect(relation.client).toBe(mockClient);
-    expect(relation.refs).toEqual(['rel']);
+    expect(relation.rels).toEqual(['rel']);
     expect(relation.rootUri).toEqual(resource.uri)
   });
 
