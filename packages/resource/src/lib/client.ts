@@ -11,10 +11,7 @@ export class Client {
   constructor(private options: ClientOptions) {}
 
   go<TSchema extends BaseSchema>(uri: string): Resource<TSchema> {
-    const resource = new Resource<TSchema>(
-      this,
-      `${this.options.baseURL}/${uri}`
-    );
+    const resource = new Resource<TSchema>(this, uri);
     if (this.resources.has(uri)) {
       return this.resources.get(uri)!;
     }
@@ -26,6 +23,6 @@ export class Client {
     input: string | URL | globalThis.Request,
     init?: RequestInit
   ): Promise<Response> {
-    return fetch(input, init);
+    return fetch(`${this.options.baseURL}${input}`, init);
   }
 }
