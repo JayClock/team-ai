@@ -20,12 +20,21 @@ export class Relation<TSchema extends BaseSchema> {
   }
 
   async get(): Promise<State<TSchema>> {
+    return (await this._resolve(this.rels)) as State<TSchema>;
+  }
+
+  // private async _getPenultimateState(): Promise<State<any>> {
+  //   const pathToPenultimate = this.rels.slice(0, -1);
+  //   return this._resolve(pathToPenultimate);
+  // }
+
+  private async _resolve(rels: string[]): Promise<State<any>> {
     const initialResource = this.client.go(this.rootUri);
     let currentState = await initialResource.get();
-    for (const ref of this.rels) {
-      const nextResource = currentState.follow(ref);
+    for (const rel of rels) {
+      const nextResource = currentState.follow(rel);
       currentState = await nextResource.get();
     }
-    return currentState as State<TSchema>;
+    return currentState;
   }
 }

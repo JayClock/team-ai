@@ -10,7 +10,7 @@ type StateInit = {
   data: HalResource;
 };
 
-export class State<TSchema extends BaseSchema> {
+export class State<TSchema extends BaseSchema = BaseSchema> {
   readonly uri: string;
   readonly client: Client;
   readonly data: TSchema['description'];
