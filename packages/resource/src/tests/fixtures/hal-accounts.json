@@ -1,0 +1,16 @@
+{
+  "_embedded": {
+    "accounts": [
+      {
+        "id": "1",
+        "provider": "github",
+        "providerId": "35857909",
+        "_links": {
+          "self": {
+            "href": "/api/users/1/accounts/1"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "id": "1",
+  "name": "JayClock",
+  "email": "z891853602@gmail.com",
+  "_links": {
+    "self": {
+      "href": "/api/users/1"
+    },
+    "accounts": {
+      "href": "/api/users/1/accounts"
+    },
+    "conversations": {
+      "href": "/api/users/1/conversations"
+    },
+    "create-conversation": {
+      "href": "/api/users/1/conversations"
+    }
+  },
+  "_templates": {
+    "default": {
+      "method": "PUT",
+      "properties": [
+        {
+          "name": "email",
+          "readOnly": true,
+          "type": "text"
+        },
+        {
+          "name": "name",
+          "readOnly": true,
+          "type": "text"
+        }
+      ]
+    },
+    "create-conversation": {
+      "method": "POST",
+      "properties": [
+        {
+          "name": "title",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "target": "/api/users/1/conversations"
+    }
+  }
+}
