@@ -2,13 +2,14 @@ import { describe, expect } from 'vitest';
 import { Client, State } from '../lib/index.js';
 import { HalResource } from 'hal-types';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
+import { User } from './fixtures/interface.js';
 
 const mockClient = {
   go: vi.fn()
 } as unknown as Client;
 
 describe('State', () => {
-  const state = new State({
+  const state = new State<User>({
     client: mockClient,
     uri: '/api/users/1',
     data: mockUser as HalResource
@@ -43,5 +44,17 @@ describe('State', () => {
     expect(state.getTemplate('self', 'PUT')).toEqual(
       mockUser._templates?.['default']
     );
+  });
+
+  it('should get single embedded state with link rel', () => {
+    const embeddedState = state.getEmbedded('latest-conversation');
+    expect(embeddedState?.uri).toEqual('/api/conversations/conv-456');
+  });
+
+  it('should get multi embedded state with link rel', () => {
+    const embeddedStateList = state.getEmbedded('accounts');
+    expect(embeddedStateList?.length).toEqual(2);
+    expect(embeddedStateList?.at(0)?.uri).toEqual('/api/users/1/accounts/1');
+    expect(embeddedStateList?.at(1)?.uri).toEqual('/api/users/1/accounts/2');
   });
 });

@@ -1,7 +1,7 @@
 import { Client } from './client.js';
-import { BaseSchema } from './base-schema.js';
+import { BaseSchema, Collection } from './base-schema.js';
 import { Links } from './links.js';
-import { HalFormsTemplate, HalResource } from 'hal-types';
+import { HalFormsTemplate, HalLink, HalResource } from 'hal-types';
 import { Resource } from './resource.js';
 
 type StateInit = {
@@ -9,6 +9,15 @@ type StateInit = {
   client: Client;
   data: HalResource;
 };
+
+type EmbeddedStateType<
+  T extends BaseSchema,
+  K extends keyof T['relations']
+> = T['relations'][K] extends Collection<infer U extends BaseSchema>
+  ? State<U>[]
+  : T['relations'][K] extends BaseSchema
+  ? State<T['relations'][K]>
+  : never;
 
 export class State<TSchema extends BaseSchema = BaseSchema> {
   readonly uri: string;
@@ -32,6 +41,35 @@ export class State<TSchema extends BaseSchema = BaseSchema> {
       return this.client.go(link.href);
     }
     throw new Error(`rel ${rel as string} is not exited`);
+  }
+
+  getEmbedded<K extends keyof TSchema['relations']>(
+    rel: K
+  ): EmbeddedStateType<TSchema, K> | undefined {
+    const { _embedded } = this.init.data;
+    if (!_embedded) {
+      return undefined;
+    }
+    const embeddedData = _embedded[rel as string];
+    if (!embeddedData) {
+      return undefined;
+    }
+    if (Array.isArray(embeddedData)) {
+      return embeddedData.map(
+        (data) =>
+          new State({
+            client: this.client,
+            uri: (data._links!.self as HalLink).href,
+            data: data,
+          })
+      ) as EmbeddedStateType<TSchema, K>;
+    } else {
+      return new State({
+        client: this.client,
+        uri: this.links.get(rel as string)!.href,
+        data: embeddedData,
+      }) as EmbeddedStateType<TSchema, K>;
+    }
   }
 
   getTemplate<K extends keyof TSchema['relations']>(

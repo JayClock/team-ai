@@ -14,6 +14,46 @@
     },
     "create-conversation": {
       "href": "/api/users/1/conversations"
+    },
+    "latest-conversation": {
+      "href": "/api/conversations/conv-456"
+    }
+  },
+  "_embedded": {
+    "accounts": [
+      {
+        "id": "1",
+        "provider": "github",
+        "providerId": "35857909",
+        "_links": {
+          "self": {
+            "href": "/api/users/1/accounts/1"
+          }
+        }
+      },
+      {
+        "id": "2",
+        "provider": "google",
+        "providerId": "55877909",
+        "_links": {
+          "self": {
+            "href": "/api/users/1/accounts/2"
+          }
+        }
+      }
+    ],
+    "latest-conversation": {
+      "id": "conv-456",
+      "title": "Recent chat about HATEOAS",
+      "lastUpdated": "2025-10-02T10:59:00Z",
+      "_links": {
+        "self": {
+          "href": "/api/conversations/conv-456"
+        },
+        "user": {
+          "href": "/api/users/1"
+        }
+      }
     }
   },
   "_templates": {
