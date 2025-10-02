@@ -1,7 +1,7 @@
 import { Client } from './client.js';
 import { BaseSchema } from './base-schema.js';
 import { Links } from './links.js';
-import { HalResource } from 'hal-types';
+import { HalFormsTemplate, HalResource } from 'hal-types';
 import { Resource } from './resource.js';
 
 type StateInit = {
@@ -32,6 +32,24 @@ export class State<TSchema extends BaseSchema = BaseSchema> {
       return this.client.go(link.href);
     }
     throw new Error(`rel ${rel as string} is not exited`);
+  }
+
+  getTemplate(rel: string, method: string): HalFormsTemplate | void {
+    const link = this.links.get(rel as string);
+    const { _templates } = this.init.data;
+    if (!link || !_templates) {
+      return;
+    }
+
+    if (rel === 'self' && _templates.default.method === method) {
+      return _templates.default;
+    }
+
+    for (const template of Object.values(_templates)) {
+      if (template.target === link.href && template.method === method) {
+        return template;
+      }
+    }
   }
 
   private createLinks(): Links<TSchema['relations']> {

@@ -23,6 +23,34 @@ const mockData: HalResource = {
       href: '/api/users/1/conversations',
     },
   },
+  _templates: {
+    postCreateConversationRequestBody: {
+      method: 'POST',
+      properties: [
+        {
+          name: 'title',
+          required: true,
+          type: 'text',
+        },
+      ],
+      target: '/api/users/1/conversations',
+    },
+    default: {
+      method: 'PUT',
+      properties: [
+        {
+          name: 'email',
+          readOnly: true,
+          type: 'text',
+        },
+        {
+          name: 'name',
+          readOnly: true,
+          type: 'text',
+        },
+      ],
+    },
+  },
 };
 
 describe('State', () => {
@@ -52,5 +80,12 @@ describe('State', () => {
     expect(() => state.follow('not existed')).toThrow(
       `rel not existed is not exited`
     );
+  });
+
+  it('should find template with rel and method', () => {
+    expect(state.getTemplate('create-conversation', 'POST')).toEqual(
+      mockData._templates?.postCreateConversationRequestBody
+    );
+    expect(state.getTemplate('self', 'PUT')).toEqual(mockData._templates?.default);
   });
 });
