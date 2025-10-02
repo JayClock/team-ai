@@ -34,7 +34,10 @@ export class State<TSchema extends BaseSchema = BaseSchema> {
     throw new Error(`rel ${rel as string} is not exited`);
   }
 
-  getTemplate(rel: string, method: string): HalFormsTemplate | void {
+  getTemplate<K extends keyof TSchema['relations']>(
+    rel: K,
+    method: string
+  ): HalFormsTemplate | void {
     const link = this.links.get(rel as string);
     const { _templates } = this.init.data;
     if (!link || !_templates) {

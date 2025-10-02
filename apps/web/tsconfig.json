@@ -3,13 +3,13 @@
   "include": [],
   "references": [
     {
-      "path": "../../libs/frontend/domain"
-    },
-    {
       "path": "../../libs/frontend/persistent"
     },
     {
       "path": "../../libs/frontend/features"
+    },
+    {
+      "path": "../../packages/resource"
     },
     {
       "path": "./tsconfig.app.json"

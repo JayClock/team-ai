@@ -35,13 +35,13 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../libs/frontend/domain/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/frontend/persistent/tsconfig.lib.json"
     },
     {
       "path": "../../libs/frontend/features/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/resource/tsconfig.lib.json"
     }
   ]
 }
