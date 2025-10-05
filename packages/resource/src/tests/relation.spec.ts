@@ -1,5 +1,5 @@
 import { describe, expect, vi } from 'vitest';
-import { Client, Relation, Resource, State } from '../lib/index.js';
+import { Client, Relation, Resource, BaseState } from '../lib/index.js';
 
 const mockClient = {
   go: vi.fn(),
@@ -15,7 +15,7 @@ describe('Relation', () => {
   });
 
   it('should follow all relations sequentially to get the final state', async () => {
-    const mockFinalState = { data: 'final user data' as unknown as State<any> };
+    const mockFinalState = { data: 'final user data' as unknown as BaseState<any> };
     const mockUser1Resource = {
       get: vi.fn().mockResolvedValue(mockFinalState),
     };

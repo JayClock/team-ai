@@ -1,5 +1,5 @@
 import { describe, expect } from 'vitest';
-import { Client, Relation, State } from '../lib/index.js';
+import { Client, Relation, BaseState } from '../lib/index.js';
 import { HalResource } from 'hal-types';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
 import { User } from './fixtures/interface.js';
@@ -8,8 +8,8 @@ const mockClient = {
   go: vi.fn()
 } as unknown as Client;
 
-describe('State', () => {
-  const state = new State<User>({
+describe('BaseState', () => {
+  const state = new BaseState<User>({
     client: mockClient,
     uri: '/api/users/1',
     data: mockUser as HalResource

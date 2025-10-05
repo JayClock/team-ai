@@ -3,6 +3,7 @@ import { BaseSchema, Collection } from '../base-schema.js';
 import { Links } from '../links.js';
 import { HalFormsTemplate, HalLink, HalResource } from 'hal-types';
 import { Relation } from '../relation.js';
+import { State } from './interface.js';
 
 type StateInit = {
   uri: string;
@@ -14,12 +15,14 @@ type EmbeddedStateType<
   T extends BaseSchema,
   K extends keyof T['relations']
 > = T['relations'][K] extends Collection<infer U extends BaseSchema>
-  ? State<U>[]
+  ? BaseState<U>[]
   : T['relations'][K] extends BaseSchema
-  ? State<T['relations'][K]>
+  ? BaseState<T['relations'][K]>
   : never;
 
-export class State<TSchema extends BaseSchema = BaseSchema> {
+export class BaseState<TSchema extends BaseSchema = BaseSchema>
+  implements State<TSchema>
+{
   readonly uri: string;
   readonly client: Client;
   readonly data: TSchema['description'];
@@ -57,14 +60,14 @@ export class State<TSchema extends BaseSchema = BaseSchema> {
     if (Array.isArray(embeddedData)) {
       return embeddedData.map(
         (data) =>
-          new State({
+          new BaseState({
             client: this.client,
             uri: (data._links!.self as HalLink).href,
             data: data,
           })
       ) as EmbeddedStateType<TSchema, K>;
     } else {
-      return new State({
+      return new BaseState({
         client: this.client,
         uri: this.links.get(rel as string)!.href,
         data: embeddedData,
