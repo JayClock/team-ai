@@ -1,8 +1,8 @@
-import { Client } from './client.js';
-import { BaseSchema, Collection } from './base-schema.js';
-import { Links } from './links.js';
+import { Client } from '../client.js';
+import { BaseSchema, Collection } from '../base-schema.js';
+import { Links } from '../links.js';
 import { HalFormsTemplate, HalLink, HalResource } from 'hal-types';
-import { Resource } from './resource.js';
+import { Relation } from '../relation.js';
 
 type StateInit = {
   uri: string;
@@ -35,10 +35,10 @@ export class State<TSchema extends BaseSchema = BaseSchema> {
 
   follow<K extends keyof TSchema['relations']>(
     rel: K
-  ): Resource<TSchema['relations'][K]> {
+  ): Relation<TSchema['relations'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return this.client.go(link.href);
+      return new Relation(this.client, this.uri, [link.rel]);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }

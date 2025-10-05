@@ -1,6 +1,6 @@
 import { BaseSchema } from './base-schema.js';
 import { Client } from './client.js';
-import { State } from './state.js';
+import { State } from './state/state.js';
 
 export class Relation<TSchema extends BaseSchema> {
   constructor(

@@ -1,7 +1,7 @@
 import { Client } from './client.js';
 import { BaseSchema } from './base-schema.js';
 import { Relation } from './relation.js';
-import { State } from './state.js';
+import { State } from './state/state.js';
 import { HalResource } from 'hal-types';
 
 export class Resource<TSchema extends BaseSchema> {
