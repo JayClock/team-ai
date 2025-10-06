@@ -12,4 +12,6 @@ export type State<TSchema extends BaseSchema = BaseSchema> = {
   follow<K extends keyof TSchema['relations']>(
     rel: K
   ): Relation<TSchema['relations'][K]>;
+
+  hasLink<K extends keyof TSchema['relations']>(rel: K): boolean;
 };
