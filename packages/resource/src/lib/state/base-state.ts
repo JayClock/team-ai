@@ -9,6 +9,7 @@ type StateInit<TSchema extends BaseSchema> = {
   client: Client;
   data: TSchema['description'];
   links: Links<TSchema['relations']>;
+  collection?: State[];
 };
 
 export class BaseState<TSchema extends BaseSchema = BaseSchema>
@@ -17,6 +18,7 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
   readonly uri: string;
   readonly client: Client;
   readonly data: TSchema['description'];
+  readonly collection: State[];
   private readonly links: Links<TSchema['relations']>;
 
   constructor(init: StateInit<TSchema>) {
@@ -24,6 +26,7 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
     this.client = init.client;
     this.data = init.data;
     this.links = init.links;
+    this.collection = init.collection || [];
   }
 
   hasLink<K extends keyof TSchema['relations']>(rel: K): boolean {

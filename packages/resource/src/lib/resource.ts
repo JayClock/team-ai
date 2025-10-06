@@ -2,7 +2,7 @@ import { Client } from './client.js';
 import { BaseSchema } from './base-schema.js';
 import { Relation } from './relation.js';
 import { BaseState } from './state/base-state.js';
-import { HalState } from './state/hal.js';
+import { HalStateFactory } from './state/hal.js';
 
 export class Resource<TSchema extends BaseSchema> {
   constructor(readonly client: Client, readonly uri: string) {}
@@ -15,7 +15,11 @@ export class Resource<TSchema extends BaseSchema> {
 
   async get(): Promise<BaseState<TSchema>> {
     const response = await this.fetch({ method: 'GET' });
-    return new HalState(this.client, this.uri, response.json);
+    return HalStateFactory(
+      this.client,
+      this.uri,
+      response.json
+    ) as BaseState<TSchema>;
   }
 
   private fetch(init?: RequestInit): Promise<Response> {
