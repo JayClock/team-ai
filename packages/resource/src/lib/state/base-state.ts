@@ -1,6 +1,6 @@
 import { Client } from '../client.js';
 import { BaseSchema } from '../base-schema.js';
-import { Links } from '../links.js';
+import { Link, Links } from '../links.js';
 import { Form, State } from './interface.js';
 import { Resource } from '../resource.js';
 
@@ -59,7 +59,11 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
     );
   }
 
-  getEmbedded<K extends keyof TSchema['relations']>(rel: K): State | State[] {
-    return this.embedded[rel as string] ?? [];
+  getEmbedded(rel: string): State | State[] {
+    return this.embedded[rel];
+  }
+
+  getLink(rel: string): Link | undefined {
+    return this.links.get(rel);
   }
 }

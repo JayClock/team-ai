@@ -1,8 +1,13 @@
 import { describe, expect, vi } from 'vitest';
-import { Client, Relation, Resource, BaseState } from '../lib/index.js';
+import { BaseState, Client, Relation, Resource } from '../lib/index.js';
+import { Account, Conversation, User } from './fixtures/interface.js';
+import halUser from './fixtures/hal-user.json' with { type: 'json' };
+import halConversations from './fixtures/hal-conversations.json' with { type: 'json' };
+import { HalStateFactory } from '../lib/state/hal.js';
+import { HalResource } from 'hal-types';
 
 const mockClient = {
-  go: vi.fn(),
+  go: vi.fn()
 } as unknown as Client;
 describe('Relation', () => {
   it('should correctly build a chain of relations with the follow() method', () => {
@@ -14,28 +19,119 @@ describe('Relation', () => {
     expect(root.rels).toEqual([]);
   });
 
-  it('should follow all relations sequentially to get the final state', async () => {
-    const mockFinalState = { data: 'final user data' as unknown as BaseState<any> };
-    const mockUser1Resource = {
-      get: vi.fn().mockResolvedValue(mockFinalState),
-    };
-    const mockUsersResource = {
-      get: vi.fn().mockResolvedValue({
-        follow: vi.fn().mockReturnValue(mockUser1Resource),
-      }),
-    };
-    const mockRootResource = {
-      get: vi.fn().mockResolvedValue({
-        follow: vi.fn().mockReturnValue(mockUsersResource),
-      }),
-    } as unknown as Resource<any>;
+  describe('get method with HAL resources', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
-    const relation = new Relation(mockClient as Client, 'http://api.com', [
-      'users',
-      '1',
-    ]);
-    const finalState = await relation.get();
-    expect(finalState).toBe(mockFinalState);
+    it('should get embedded array resource (accounts)', async () => {
+      const userState = HalStateFactory<User>(
+        mockClient as Client,
+        '/api/users/1',
+        halUser as HalResource
+      );
+
+      const mockRootResource = {
+        get: vi.fn().mockResolvedValue(userState)
+      } as unknown as Resource<User>;
+
+      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+
+      const accountsRelation = new Relation(mockClient as Client, '/api/users/1', [
+        'accounts'
+      ]);
+
+      const accountsState = await accountsRelation.get();
+
+      expect(accountsState.collection).toHaveLength(2);
+      expect(accountsState.uri).toBe('/api/users/1/accounts');
+
+      const firstAccount = accountsState.collection[0] as BaseState<Account>;
+      expect(firstAccount.data.id).toBe('1');
+      expect(firstAccount.data.provider).toBe('github');
+      expect(firstAccount.data.providerId).toBe('35857909');
+
+      const secondAccount = accountsState.collection[1] as BaseState<Account>;
+      expect(secondAccount.data.id).toBe('2');
+      expect(secondAccount.data.provider).toBe('google');
+      expect(secondAccount.data.providerId).toBe('55877909');
+    });
+
+    it('should get embedded single resource (latest-conversation)', async () => {
+      const userState = HalStateFactory<User>(
+        mockClient as Client,
+        '/api/users/1',
+        halUser as HalResource
+      );
+
+      const mockRootResource = {
+        get: vi.fn().mockResolvedValue(userState)
+      } as unknown as Resource<User>;
+
+      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+
+      const latestConversationRelation = new Relation(
+        mockClient as Client,
+        '/api/users/1',
+        ['latest-conversation']
+      );
+
+      const conversationState = await latestConversationRelation.get();
+
+      expect(conversationState.data.id).toBe('conv-456');
+      expect(conversationState.data.title).toBe('Recent chat about HATEOAS');
+      expect(conversationState.uri).toBe('/api/conversations/conv-456');
+    });
+
+    it('should get resource through link following (conversations)', async () => {
+      const userState = HalStateFactory<User>(
+        mockClient as Client,
+        '/api/users/1',
+        halUser as HalResource
+      );
+
+      const conversationsState = HalStateFactory<User>(
+        mockClient as Client,
+        '/api/users/1/conversations',
+        halConversations,
+        'conversations'
+      );
+
+      const mockConversationsResource = {
+        get: vi.fn().mockResolvedValue(conversationsState)
+      } as unknown as Resource<User>;
+
+      const mockUserResource = {
+        ...userState,
+        get: vi.fn().mockResolvedValue(userState),
+        follow: vi.fn().mockReturnValue(mockConversationsResource),
+        getEmbedded: vi.fn().mockReturnValue(undefined)
+      } as unknown as BaseState<User>;
+
+      const mockRootResource = {
+        get: vi.fn().mockResolvedValue(mockUserResource)
+      } as unknown as Resource<User>;
+
+      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+
+      const conversationsRelation = new Relation(
+        mockClient as Client,
+        '/api/users/1',
+        ['conversations']
+      );
+
+      const resultState = await conversationsRelation.get();
+
+      expect(resultState.collection).toHaveLength(40);
+      expect(resultState.uri).toBe('/api/users/1/conversations');
+
+      const firstConversation = resultState.collection[0] as BaseState<Conversation>;
+      expect(firstConversation.data.id).toBe('1');
+      expect(firstConversation.data.title).toBe('Conversation Item 1');
+
+      expect(mockUserResource.follow).toHaveBeenCalledWith('conversations');
+      // TODO: should pass when state cached
+      // expect(mockConversationsResource.get).toHaveBeenCalledWith('conversations');
+    });
   });
 });

@@ -2,6 +2,7 @@ import { BaseSchema } from './base-schema.js';
 import { Client } from './client.js';
 import { BaseState } from './state/base-state.js';
 import { State } from './state/interface.js';
+import { Links } from './links.js';
 
 export class Relation<TSchema extends BaseSchema> {
   constructor(
@@ -21,15 +22,36 @@ export class Relation<TSchema extends BaseSchema> {
   }
 
   async get(): Promise<State<TSchema>> {
-    return await this._resolve(this.rels);
+    const penultimateState =
+      (await this._getPenultimateState()) as BaseState<any>;
+    const lastRel = this.rels.at(-1)!;
+    const embedded = penultimateState.getEmbedded(lastRel);
+    if (Array.isArray(embedded)) {
+      return new BaseState({
+        client: this.client,
+        data: {},
+        collection: embedded,
+        uri: penultimateState.getLink(lastRel)!.href,
+        links: new Links(),
+      });
+    }
+    if (embedded) {
+      return embedded as State<any>;
+    }
+    return await penultimateState.follow(lastRel).get();
   }
 
-  private async _resolve(rels: string[]): Promise<BaseState<any>> {
+  private async _getPenultimateState(): Promise<State<any>> {
+    const pathToPenultimate = this.rels.slice(0, -1);
+    return this._resolve(pathToPenultimate);
+  }
+
+  private async _resolve(rels: string[]): Promise<State<any>> {
     const initialResource = this.client.go(this.rootUri);
-    let currentState = (await initialResource.get()) as BaseState<any>;
+    let currentState = await initialResource.get();
     for (const rel of rels) {
       const nextResource = currentState.follow(rel);
-      currentState = (await nextResource.get(rel)) as BaseState<any>;
+      currentState = await nextResource.get(rel);
     }
     return currentState;
   }

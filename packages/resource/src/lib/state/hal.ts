@@ -12,7 +12,7 @@ export function HalStateFactory<TSchema extends BaseSchema>(
   collectionRel?: string
 ): State<TSchema> {
   const { _links, _embedded, _templates, ...prueData } = halResource;
-  const embedded = parseHalEmbedded(client, _links, _embedded);
+  const embedded = parseHalEmbedded(client, _embedded);
   return new BaseState<TSchema>({
     client,
     uri,
@@ -49,7 +49,6 @@ function createForms(
 
 function parseHalEmbedded(
   client: Client,
-  links: HalResource['_links'] = {},
   embedded: HalResource['_embedded'] = {}
 ): Record<string, State | State[]> {
   const res: Record<string, State | State[]> = {};
@@ -61,7 +60,7 @@ function parseHalEmbedded(
     } else {
       res[rel] = HalStateFactory(
         client,
-        (links.self as HalLink).href,
+        (resource._links!.self as HalLink).href,
         resource
       );
     }
