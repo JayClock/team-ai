@@ -1,15 +1,16 @@
 import { describe, expect } from 'vitest';
-import { Client } from '../lib/index.js';
+import { BaseState, Client } from '../lib/index.js';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
 import { HalResource } from 'hal-types';
 import { HalStateFactory } from '../lib/state/hal.js';
+import { State } from '../lib/state/interface.js';
 
 const mockClient = {
   go: vi.fn()
 } as unknown as Client;
 
 describe('HalState', () => {
-  const state = HalStateFactory(mockClient, '/api/users/1', mockUser as HalResource);
+  const state = HalStateFactory(mockClient, '/api/users/1', mockUser as HalResource) as BaseState;
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -40,5 +41,13 @@ describe('HalState', () => {
 
   it('should create forms with existed templates', () => {
     expect(state.getForm('conversations', 'POST')?.uri).toEqual(mockUser._templates['create-conversation'].target);
+  });
+
+  it('should get single state in embedded', () => {
+    expect(state.getEmbedded('latest-conversation')).toBeInstanceOf(BaseState);
+  });
+
+  it('should get multi state in embedded', () => {
+    expect((state.getEmbedded('accounts') as State[]).length).toEqual(mockUser._embedded.accounts.length);
   });
 });

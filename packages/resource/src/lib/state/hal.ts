@@ -12,15 +12,15 @@ export function HalStateFactory<TSchema extends BaseSchema>(
   collectionRel?: string
 ): State<TSchema> {
   const { _links, _embedded, _templates, ...prueData } = halResource;
+  const embedded = parseHalEmbedded(client, _links, _embedded);
   return new BaseState<TSchema>({
     client,
     uri,
     data: prueData,
     links: createLinks(_links),
-    collection: collectionRel
-      ? createCollections(client, _embedded, collectionRel)
-      : [],
+    collection: collectionRel ? (embedded[collectionRel] as State[]) ?? [] : [],
     forms: createForms(_links, _templates),
+    embedded: embedded,
   });
 }
 
@@ -35,24 +35,6 @@ function createLinks<TLinks extends Record<string, any>>(
   return links;
 }
 
-function createCollections<TSchema extends BaseSchema>(
-  client: Client,
-  embedded: HalResource['_embedded'],
-  collectionRel: string
-) {
-  if (!embedded) {
-    return [];
-  }
-  const embeddedData = embedded[collectionRel as string] as HalResource[];
-  return embeddedData.map((data) => {
-    return HalStateFactory<TSchema>(
-      client,
-      (data._links!.self as HalLink).href,
-      data
-    );
-  });
-}
-
 function createForms(
   links: HalResource['_links'] = {},
   templates: HalResource['_templates'] = {}
@@ -63,4 +45,26 @@ function createForms(
     uri: template.target ?? (links.self as HalLink).href,
     contentType: template.contentType ?? 'application/json',
   }));
+}
+
+function parseHalEmbedded(
+  client: Client,
+  links: HalResource['_links'] = {},
+  embedded: HalResource['_embedded'] = {}
+): Record<string, State | State[]> {
+  const res: Record<string, State | State[]> = {};
+  for (const [rel, resource] of Object.entries(embedded)) {
+    if (Array.isArray(resource)) {
+      res[rel] = resource.map((data) =>
+        HalStateFactory(client, (data._links!.self as HalLink).href, data)
+      );
+    } else {
+      res[rel] = HalStateFactory(
+        client,
+        (links.self as HalLink).href,
+        resource
+      );
+    }
+  }
+  return res;
 }

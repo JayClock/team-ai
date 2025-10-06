@@ -11,6 +11,7 @@ type StateInit<TSchema extends BaseSchema> = {
   links: Links<TSchema['relations']>;
   collection?: State[];
   forms?: Form[];
+  embedded?: Record<string, State | State[]>;
 };
 
 export class BaseState<TSchema extends BaseSchema = BaseSchema>
@@ -22,6 +23,7 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
   readonly collection: State[];
   private readonly links: Links<TSchema['relations']>;
   private readonly forms: Form[];
+  private readonly embedded: Record<string, State | State[]>;
 
   constructor(init: StateInit<TSchema>) {
     this.uri = init.uri;
@@ -30,6 +32,7 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
     this.links = init.links;
     this.collection = init.collection || [];
     this.forms = init.forms || [];
+    this.embedded = init.embedded || {};
   }
 
   hasLink<K extends keyof TSchema['relations']>(rel: K): boolean {
@@ -54,5 +57,9 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
     return this.forms.find(
       (form) => form.uri === link.href && form.method === method
     );
+  }
+
+  getEmbedded<K extends keyof TSchema['relations']>(rel: K): State | State[] {
+    return this.embedded[rel as string] ?? [];
   }
 }
