@@ -1,8 +1,8 @@
 import { Client } from '../client.js';
 import { BaseSchema } from '../base-schema.js';
 import { Links } from '../links.js';
-import { Relation } from '../relation.js';
 import { State } from './interface.js';
+import { Resource } from '../resource.js';
 
 type StateInit<TSchema extends BaseSchema> = {
   uri: string;
@@ -35,10 +35,10 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
 
   follow<K extends keyof TSchema['relations']>(
     rel: K
-  ): Relation<TSchema['relations'][K]> {
-    if (this.hasLink(rel)) {
-      const link = this.links.get(rel as string);
-      return new Relation(this.client, this.uri, [link!.rel]);
+  ): Resource<TSchema['relations'][K]> {
+    const link = this.links.get(rel as string);
+    if (link) {
+      return this.client.go(link.href);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }

@@ -1,5 +1,5 @@
 import { describe, expect } from 'vitest';
-import { Client, Relation } from '../lib/index.js';
+import { Client } from '../lib/index.js';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
 import { HalResource } from 'hal-types';
 import { HalStateFactory } from '../lib/state/hal.js';
@@ -20,9 +20,10 @@ describe('HalState', () => {
   });
 
   it('should get follow resource with existed link', () => {
-    for (const [rel] of Object.entries(mockUser._links ?? [])) {
-      const relation = state.follow(rel as any);
-      expect(relation).toBeInstanceOf(Relation);
+    for (const [rel, links] of Object.entries(mockUser._links ?? [])) {
+      const linkList = Array.isArray(links) ? links : [links];
+      state.follow(rel);
+      expect(mockClient.go).toHaveBeenCalledWith(linkList[0].href);
     }
   });
 

@@ -1,6 +1,6 @@
 import { BaseSchema } from '../base-schema.js';
 import { Client } from '../client.js';
-import { Relation } from '../relation.js';
+import { Resource } from '../resource.js';
 
 export type State<TSchema extends BaseSchema = BaseSchema> = {
   uri: string;
@@ -11,7 +11,7 @@ export type State<TSchema extends BaseSchema = BaseSchema> = {
 
   follow<K extends keyof TSchema['relations']>(
     rel: K
-  ): Relation<TSchema['relations'][K]>;
+  ): Resource<TSchema['relations'][K]>;
 
   hasLink<K extends keyof TSchema['relations']>(rel: K): boolean;
 };
