@@ -1,7 +1,7 @@
 import { Client } from '../client.js';
 import { BaseSchema } from '../base-schema.js';
 import { Links } from '../links.js';
-import { State } from './interface.js';
+import { Form, State } from './interface.js';
 import { Resource } from '../resource.js';
 
 type StateInit<TSchema extends BaseSchema> = {
@@ -10,6 +10,7 @@ type StateInit<TSchema extends BaseSchema> = {
   data: TSchema['description'];
   links: Links<TSchema['relations']>;
   collection?: State[];
+  forms?: Form[];
 };
 
 export class BaseState<TSchema extends BaseSchema = BaseSchema>
@@ -19,7 +20,8 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
   readonly client: Client;
   readonly data: TSchema['description'];
   readonly collection: State[];
-  readonly links: Links<TSchema['relations']>;
+  private readonly links: Links<TSchema['relations']>;
+  private readonly forms: Form[];
 
   constructor(init: StateInit<TSchema>) {
     this.uri = init.uri;
@@ -27,6 +29,7 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
     this.data = init.data;
     this.links = init.links;
     this.collection = init.collection || [];
+    this.forms = init.forms || [];
   }
 
   hasLink<K extends keyof TSchema['relations']>(rel: K): boolean {
@@ -41,5 +44,15 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
       return this.client.go(link.href);
     }
     throw new Error(`rel ${rel as string} is not exited`);
+  }
+
+  getForm<K extends keyof TSchema['relations']>(rel: K, method: string) {
+    const link = this.links.get(rel as string);
+    if (!link) {
+      return undefined;
+    }
+    return this.forms.find(
+      (form) => form.uri === link.href && form.method === method
+    );
   }
 }

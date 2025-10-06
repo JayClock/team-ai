@@ -29,7 +29,7 @@ export class Relation<TSchema extends BaseSchema> {
     let currentState = (await initialResource.get()) as BaseState<any>;
     for (const rel of rels) {
       const nextResource = currentState.follow(rel);
-      currentState = await nextResource.get();
+      currentState = (await nextResource.get(rel)) as BaseState<any>;
     }
     return currentState;
   }

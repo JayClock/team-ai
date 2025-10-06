@@ -37,4 +37,8 @@ describe('HalState', () => {
     const state = HalStateFactory(mockClient, '/api/users/1', mockUser as HalResource, 'accounts');
     expect(state.collection.length).toEqual(mockUser._embedded.accounts.length);
   });
+
+  it('should create forms with existed templates', () => {
+    expect(state.getForm('conversations', 'POST')?.uri).toEqual(mockUser._templates['create-conversation'].target);
+  });
 });

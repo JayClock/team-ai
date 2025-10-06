@@ -1,16 +1,18 @@
 import { BaseState } from './base-state.js';
+import { BaseSchema } from '../base-schema.js';
 import { Client } from '../client.js';
 import { HalLink, HalResource } from 'hal-types';
 import { Links } from '../links.js';
+import { Form, State } from './interface.js';
 
-export function HalStateFactory(
+export function HalStateFactory<TSchema extends BaseSchema>(
   client: Client,
   uri: string,
   halResource: HalResource,
   collectionRel?: string
-): BaseState {
+): State<TSchema> {
   const { _links, _embedded, _templates, ...prueData } = halResource;
-  return new BaseState({
+  return new BaseState<TSchema>({
     client,
     uri,
     data: prueData,
@@ -18,6 +20,7 @@ export function HalStateFactory(
     collection: collectionRel
       ? createCollections(client, _embedded, collectionRel)
       : [],
+    forms: createForms(_links, _templates),
   });
 }
 
@@ -32,7 +35,7 @@ function createLinks<TLinks extends Record<string, any>>(
   return links;
 }
 
-function createCollections(
+function createCollections<TSchema extends BaseSchema>(
   client: Client,
   embedded: HalResource['_embedded'],
   collectionRel: string
@@ -42,6 +45,22 @@ function createCollections(
   }
   const embeddedData = embedded[collectionRel as string] as HalResource[];
   return embeddedData.map((data) => {
-    return HalStateFactory(client, (data._links!.self as HalLink).href, data);
+    return HalStateFactory<TSchema>(
+      client,
+      (data._links!.self as HalLink).href,
+      data
+    );
   });
+}
+
+function createForms(
+  links: HalResource['_links'] = {},
+  templates: HalResource['_templates'] = {}
+): Form[] {
+  return Object.values(templates).map((template) => ({
+    title: template.title,
+    method: template.method,
+    uri: template.target ?? (links.self as HalLink).href,
+    contentType: template.contentType ?? 'application/json',
+  }));
 }
