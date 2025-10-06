@@ -50,7 +50,9 @@ export class Relation<TSchema extends BaseSchema> {
     const initialResource = this.client.go(this.rootUri);
     let currentState = await initialResource.get();
     for (const rel of rels) {
-      const nextResource = currentState.follow(rel);
+      const nextResource = this.client.go(
+        currentState.links.get(rel as string)!.href
+      );
       currentState = await nextResource.get(rel);
     }
     return currentState;

@@ -20,11 +20,10 @@ describe('HalState', () => {
     });
   });
 
-  it('should get follow resource with existed link', () => {
-    for (const [rel, links] of Object.entries(mockUser._links ?? [])) {
-      const linkList = Array.isArray(links) ? links : [links];
-      state.follow(rel);
-      expect(mockClient.go).toHaveBeenCalledWith(linkList[0].href);
+  it('should get follow relation with existed link', () => {
+    for (const [rel] of Object.entries(mockUser._links ?? [])) {
+      const relation = state.follow(rel);
+      expect(relation.rels).toEqual([rel]);
     }
   });
 

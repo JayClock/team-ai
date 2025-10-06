@@ -1,7 +1,7 @@
 import { BaseSchema } from '../base-schema.js';
 import { Client } from '../client.js';
-import { Resource } from '../resource.js';
 import { Links } from '../links.js';
+import { Relation } from '../relation.js';
 
 export type State<TSchema extends BaseSchema = BaseSchema> = {
   uri: string;
@@ -16,7 +16,7 @@ export type State<TSchema extends BaseSchema = BaseSchema> = {
 
   follow<K extends keyof TSchema['relations']>(
     rel: K
-  ): Resource<TSchema['relations'][K]>;
+  ): Relation<TSchema['relations'][K]>;
 
   getForm<K extends keyof TSchema['relations']>(
     rel: K,
