@@ -19,7 +19,7 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
   readonly client: Client;
   readonly data: TSchema['description'];
   readonly collection: State[];
-  private readonly links: Links<TSchema['relations']>;
+  readonly links: Links<TSchema['relations']>;
 
   constructor(init: StateInit<TSchema>) {
     this.uri = init.uri;
