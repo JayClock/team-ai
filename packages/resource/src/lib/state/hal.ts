@@ -17,14 +17,14 @@ export function HalStateFactory<TSchema extends BaseSchema>(
     client,
     uri,
     data: prueData,
-    links: createLinks(_links),
+    links: parseHalLinks(_links),
     collection: collectionRel ? (embedded[collectionRel] as State[]) ?? [] : [],
-    forms: createForms(_links, _templates),
+    forms: parseHalTemplates(_links, _templates),
     embedded: embedded,
   });
 }
 
-function createLinks<TLinks extends Record<string, any>>(
+function parseHalLinks<TLinks extends Record<string, any>>(
   halLinks: HalResource['_links']
 ): Links<TLinks> {
   const links = new Links<TLinks>();
@@ -35,7 +35,7 @@ function createLinks<TLinks extends Record<string, any>>(
   return links;
 }
 
-function createForms(
+function parseHalTemplates(
   links: HalResource['_links'] = {},
   templates: HalResource['_templates'] = {}
 ): Form[] {

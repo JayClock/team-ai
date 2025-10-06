@@ -21,7 +21,7 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
   readonly client: Client;
   readonly data: TSchema['description'];
   readonly collection: State[];
-  private readonly links: Links<TSchema['relations']>;
+  readonly links: Links<TSchema['relations']>;
   private readonly forms: Form[];
   private readonly embedded: Record<string, State | State[]>;
 
@@ -33,10 +33,6 @@ export class BaseState<TSchema extends BaseSchema = BaseSchema>
     this.collection = init.collection || [];
     this.forms = init.forms || [];
     this.embedded = init.embedded || {};
-  }
-
-  hasLink<K extends keyof TSchema['relations']>(rel: K): boolean {
-    return !!this.links.get(rel as string);
   }
 
   follow<K extends keyof TSchema['relations']>(
