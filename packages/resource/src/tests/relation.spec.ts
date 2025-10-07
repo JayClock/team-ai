@@ -112,7 +112,15 @@ describe('Relation', () => {
         get: vi.fn().mockResolvedValue(mockUserResource)
       } as unknown as Resource<User>;
 
-      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+      vi.spyOn(mockClient, 'go').mockImplementation((uri: string) => {
+        if (uri === userState.uri) {
+          return mockRootResource;
+        }
+        if (uri === conversationsState.uri) {
+          return mockConversationsResource;
+        }
+        throw new Error();
+      });
 
       const conversationsRelation = new Relation(
         mockClient as Client,
@@ -129,9 +137,6 @@ describe('Relation', () => {
       expect(firstConversation.data.id).toBe('1');
       expect(firstConversation.data.title).toBe('Conversation Item 1');
 
-      expect(mockUserResource.follow).toHaveBeenCalledWith('conversations');
-      // TODO: should pass when state cached
-      // expect(mockConversationsResource.get).toHaveBeenCalledWith('conversations');
     });
   });
 });

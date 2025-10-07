@@ -38,7 +38,10 @@ export class Relation<TSchema extends BaseSchema> {
     if (embedded) {
       return embedded as State<any>;
     }
-    return await penultimateState.follow(lastRel).get();
+    const resource = this.client.go(
+      penultimateState.links.get(lastRel as string)!.href
+    );
+    return (await resource.get(lastRel)) as State<TSchema>;
   }
 
   private async _getPenultimateState(): Promise<State<any>> {
