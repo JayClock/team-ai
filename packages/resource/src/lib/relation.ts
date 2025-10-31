@@ -2,7 +2,7 @@ import { BaseSchema } from './base-schema.js';
 import { Client } from './client.js';
 import { BaseState } from './state/base-state.js';
 import { State } from './state/interface.js';
-import { Links } from './links.js';
+import { Link, Links } from './links.js';
 import { HalStateFactory } from './state/hal.js';
 import { HalResource } from 'hal-types';
 
@@ -23,18 +23,25 @@ export class Relation<TSchema extends BaseSchema> {
     );
   }
 
-  async get(): Promise<State<TSchema>> {
+  async invoke(): Promise<State<TSchema>> {
     const penultimateState =
       (await this.getPenultimateState()) as BaseState<any>;
     const lastRel = this.rels.at(-1)!;
     const link = penultimateState.links.get(lastRel)!;
-    const embedded = penultimateState.getEmbedded(lastRel);
+    return this.get(penultimateState, link);
+  }
+
+  private async get(
+    penultimateState: BaseState<any>,
+    link: Link
+  ): Promise<State<TSchema>> {
+    const embedded = penultimateState.getEmbedded(link.rel);
     if (Array.isArray(embedded)) {
       return new BaseState({
         client: this.client,
         data: {},
         collection: embedded,
-        uri: penultimateState.getLink(lastRel)!.href,
+        uri: link.href,
         links: new Links(),
       });
     }
