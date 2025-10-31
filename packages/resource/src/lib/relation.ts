@@ -28,7 +28,12 @@ export class Relation<TSchema extends BaseSchema> {
       (await this.getPenultimateState()) as BaseState<any>;
     const lastRel = this.rels.at(-1)!;
     const link = penultimateState.links.get(lastRel)!;
-    return this.get(penultimateState, link);
+    switch (link.type) {
+      case 'GET':
+        return this.get(penultimateState, link);
+      default:
+        throw new Error(`Unimplemented method type ${link.type}`);
+    }
   }
 
   private async get(

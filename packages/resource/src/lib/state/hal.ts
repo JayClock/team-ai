@@ -30,7 +30,9 @@ function parseHalLinks<TLinks extends Record<string, any>>(
   const links = new Links<TLinks>();
   for (const [key, value] of Object.entries(halLinks ?? [])) {
     const linkList = Array.isArray(value) ? value : [value];
-    links.add(linkList.map((item) => ({ ...item, rel: key })));
+    links.add(
+      linkList.map((item) => ({ ...item, rel: key, type: item.type ?? 'GET' }))
+    );
   }
   return links;
 }
