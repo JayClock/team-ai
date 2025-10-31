@@ -38,7 +38,7 @@ export class Relation<TSchema extends BaseSchema> {
     if (embedded) {
       return embedded as State<any>;
     }
-    const resource = this.client.go(
+    const resource = this.client.root(
       penultimateState.links.get(lastRel as string)!.href
     );
     return (await resource.get(lastRel)) as State<TSchema>;
@@ -50,10 +50,10 @@ export class Relation<TSchema extends BaseSchema> {
   }
 
   private async _resolve(rels: string[]): Promise<State<any>> {
-    const initialResource = this.client.go(this.rootUri);
+    const initialResource = this.client.root(this.rootUri);
     let currentState = await initialResource.get();
     for (const rel of rels) {
-      const nextResource = this.client.go(
+      const nextResource = this.client.root(
         currentState.links.get(rel as string)!.href
       );
       currentState = await nextResource.get(rel);

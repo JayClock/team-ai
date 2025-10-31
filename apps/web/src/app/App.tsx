@@ -7,7 +7,7 @@ type UserSchema = {
 
 const client = new Client({ baseURL: 'http://localhost:4200' });
 const state = await client
-  .go<UserSchema>('/api/users/1')
+  .root<UserSchema>('/api/users/1')
   .follow('conversations')
   .get();
 console.log(state);

@@ -10,7 +10,7 @@ export class Client {
 
   constructor(private options: ClientOptions) {}
 
-  go<TSchema extends BaseSchema>(uri: string): Resource<TSchema> {
+  root<TSchema extends BaseSchema>(uri: string): Resource<TSchema> {
     const resource = new Resource<TSchema>(this, uri);
     if (this.resources.has(uri)) {
       return this.resources.get(uri)!;

@@ -7,7 +7,7 @@ import { HalStateFactory } from '../lib/state/hal.js';
 import { HalResource } from 'hal-types';
 
 const mockClient = {
-  go: vi.fn()
+  root: vi.fn()
 } as unknown as Client;
 describe('Relation', () => {
   it('should correctly build a chain of relations with the follow() method', () => {
@@ -35,7 +35,7 @@ describe('Relation', () => {
         get: vi.fn().mockResolvedValue(userState)
       } as unknown as Resource<User>;
 
-      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+      vi.spyOn(mockClient, 'root').mockReturnValue(mockRootResource);
 
       const accountsRelation = new Relation(mockClient as Client, '/api/users/1', [
         'accounts'
@@ -68,7 +68,7 @@ describe('Relation', () => {
         get: vi.fn().mockResolvedValue(userState)
       } as unknown as Resource<User>;
 
-      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+      vi.spyOn(mockClient, 'root').mockReturnValue(mockRootResource);
 
       const latestConversationRelation = new Relation(
         mockClient as Client,
@@ -112,7 +112,7 @@ describe('Relation', () => {
         get: vi.fn().mockResolvedValue(mockUserResource)
       } as unknown as Resource<User>;
 
-      vi.spyOn(mockClient, 'go').mockImplementation((uri: string) => {
+      vi.spyOn(mockClient, 'root').mockImplementation((uri: string) => {
         if (uri === userState.uri) {
           return mockRootResource;
         }
