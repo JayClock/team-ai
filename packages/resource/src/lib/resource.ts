@@ -14,17 +14,12 @@ export class Resource<TSchema extends BaseSchema> {
     return new Relation(this.client, this.uri, [rel as string]);
   }
 
-  async get(collectionRel?: string): Promise<State<TSchema>> {
-    const response = await this.fetch({ method: 'GET' });
+  async get(): Promise<State<TSchema>> {
+    const response = await this.client.fetch(this.uri);
     return HalStateFactory<TSchema>(
       this.client,
       this.uri,
-      (await response.json()) as HalResource,
-      collectionRel
+      (await response.json()) as HalResource
     );
-  }
-
-  private fetch(init?: RequestInit): Promise<Response> {
-    return this.client.fetch(this.uri, init);
   }
 }

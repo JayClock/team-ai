@@ -7,7 +7,8 @@ import { HalStateFactory } from '../lib/state/hal.js';
 import { HalResource } from 'hal-types';
 
 const mockClient = {
-  root: vi.fn()
+  root: vi.fn(),
+  fetch: vi.fn()
 } as unknown as Client;
 describe('Relation', () => {
   it('should correctly build a chain of relations with the follow() method', () => {
@@ -121,6 +122,12 @@ describe('Relation', () => {
         }
         throw new Error();
       });
+
+      const mockResponse = {
+        json: vi.fn().mockResolvedValue(halConversations)
+      } as unknown as Response;
+
+      vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
       const conversationsRelation = new Relation(
         mockClient as Client,

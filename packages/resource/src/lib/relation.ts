@@ -3,6 +3,8 @@ import { Client } from './client.js';
 import { BaseState } from './state/base-state.js';
 import { State } from './state/interface.js';
 import { Links } from './links.js';
+import { HalStateFactory } from './state/hal.js';
+import { HalResource } from 'hal-types';
 
 export class Relation<TSchema extends BaseSchema> {
   constructor(
@@ -23,8 +25,9 @@ export class Relation<TSchema extends BaseSchema> {
 
   async get(): Promise<State<TSchema>> {
     const penultimateState =
-      (await this._getPenultimateState()) as BaseState<any>;
+      (await this.getPenultimateState()) as BaseState<any>;
     const lastRel = this.rels.at(-1)!;
+    const link = penultimateState.links.get(lastRel)!;
     const embedded = penultimateState.getEmbedded(lastRel);
     if (Array.isArray(embedded)) {
       return new BaseState({
@@ -38,25 +41,28 @@ export class Relation<TSchema extends BaseSchema> {
     if (embedded) {
       return embedded as State<any>;
     }
-    const resource = this.client.root(
-      penultimateState.links.get(lastRel as string)!.href
+    const response = await this.client.fetch(link.rel);
+    return HalStateFactory<TSchema>(
+      this.client,
+      link.href,
+      (await response.json()) as HalResource,
+      link.rel
     );
-    return (await resource.get(lastRel)) as State<TSchema>;
   }
 
-  private async _getPenultimateState(): Promise<State<any>> {
+  private async getPenultimateState(): Promise<State<any>> {
     const pathToPenultimate = this.rels.slice(0, -1);
-    return this._resolve(pathToPenultimate);
+    return this.resolve(pathToPenultimate);
   }
 
-  private async _resolve(rels: string[]): Promise<State<any>> {
+  private async resolve(rels: string[]): Promise<State<any>> {
     const initialResource = this.client.root(this.rootUri);
     let currentState = await initialResource.get();
     for (const rel of rels) {
       const nextResource = this.client.root(
         currentState.links.get(rel as string)!.href
       );
-      currentState = await nextResource.get(rel);
+      currentState = await nextResource.get();
     }
     return currentState;
   }
