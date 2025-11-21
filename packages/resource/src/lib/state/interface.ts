@@ -6,11 +6,14 @@ import { Collection } from '../archtype/collection.js';
 
 type ExtractCollectionElement<T> = T extends Collection<infer U> ? U : never;
 
-type IsCollectionType<T> = ExtractCollectionElement<T> extends never ? false : true;
+type IsCollectionType<T> = ExtractCollectionElement<T> extends never
+  ? false
+  : true;
 
-export type StateCollection<TEntity extends Entity> = IsCollectionType<TEntity> extends true
-  ? State<ExtractCollectionElement<TEntity>>[]
-  : State[];
+export type StateCollection<TEntity extends Entity> =
+  IsCollectionType<TEntity> extends true
+    ? State<ExtractCollectionElement<TEntity>>[]
+    : State[];
 
 export type State<TEntity extends Entity = Entity> = {
   uri: string;
@@ -31,6 +34,8 @@ export type State<TEntity extends Entity = Entity> = {
     rel: K,
     method: string
   ): Form | undefined;
+
+  clone(): State<TEntity>;
 };
 
 export type ResourceState<TEntity extends Entity = Entity> = Omit<

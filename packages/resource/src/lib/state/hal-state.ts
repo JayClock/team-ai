@@ -25,14 +25,14 @@ export class HalState<TEntity extends Entity = Entity>
   private readonly forms: Form[];
   private readonly embedded: Record<string, State | State[]>;
 
-  constructor(init: StateInit<TEntity>) {
-    this.uri = init.uri;
-    this.client = init.client;
-    this.data = init.data;
-    this.links = init.links;
-    this.collection = (init.collection || []) as StateCollection<TEntity>;
-    this.forms = init.forms || [];
-    this.embedded = init.embedded || {};
+  constructor(private init: StateInit<TEntity>) {
+    this.uri = this.init.uri;
+    this.client = this.init.client;
+    this.data = this.init.data;
+    this.links = this.init.links;
+    this.collection = (this.init.collection || []) as StateCollection<TEntity>;
+    this.forms = this.init.forms || [];
+    this.embedded = this.init.embedded || {};
   }
 
   follow<K extends keyof TEntity['relations']>(
@@ -61,5 +61,9 @@ export class HalState<TEntity extends Entity = Entity>
 
   getLink(rel: string): Link | undefined {
     return this.links.get(rel);
+  }
+
+  clone(): State<TEntity> {
+    return new HalState(this.init);
   }
 }

@@ -49,4 +49,11 @@ describe('HalState', () => {
   it('should get multi state in embedded', () => {
     expect((state.getEmbedded('accounts') as State[]).length).toEqual(mockUser._embedded.accounts.length);
   });
+  it('should clone state', () => {
+    const cloned = state.clone();
+    expect(cloned).toBeInstanceOf(HalState);
+    expect(cloned).not.toBe(state);
+    expect(cloned.uri).toEqual(state.uri);
+    expect(cloned.data).toEqual(state.data);
+  });
 });
