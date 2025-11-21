@@ -1,4 +1,4 @@
-import { BaseState } from './base-state.js';
+import { HalState } from './hal-state.js';
 import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { HalLink, HalResource } from 'hal-types';
@@ -14,7 +14,7 @@ export function HalStateFactory<TEntity extends Entity>(
 ): State<TEntity> {
   const { _links, _embedded, _templates, ...prueData } = halResource;
   const embedded = parseHalEmbedded(client, _embedded);
-  return new BaseState<TEntity>({
+  return new HalState<TEntity>({
     client,
     uri,
     data: prueData,

@@ -1,5 +1,5 @@
 import { describe, expect } from 'vitest';
-import { BaseState, Client } from '../lib/index.js';
+import { HalState, Client } from '../lib/index.js';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
 import { HalResource } from 'hal-types';
 import { HalStateFactory } from '../lib/state/hal.js';
@@ -10,7 +10,7 @@ const mockClient = {
 } as unknown as Client;
 
 describe('HalState', () => {
-  const state = HalStateFactory(mockClient, '/api/users/1', mockUser as HalResource) as BaseState;
+  const state = HalStateFactory(mockClient, '/api/users/1', mockUser as HalResource) as HalState;
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -43,7 +43,7 @@ describe('HalState', () => {
   });
 
   it('should get single state in embedded', () => {
-    expect(state.getEmbedded('latest-conversation')).toBeInstanceOf(BaseState);
+    expect(state.getEmbedded('latest-conversation')).toBeInstanceOf(HalState);
   });
 
   it('should get multi state in embedded', () => {

@@ -1,7 +1,7 @@
 import { Entity } from './archtype/entity.js';
 import { Client } from './client.js';
-import { BaseState } from './state/base-state.js';
-import { State } from './state/interface.js';
+import { HalState } from './state/hal-state.js';
+import { ResourceState, State } from './state/interface.js';
 import { Link, Links } from './links.js';
 import { HalStateFactory } from './state/hal.js';
 import { HalResource } from 'hal-types';
@@ -24,9 +24,9 @@ export class Relation<TEntity extends Entity> {
     );
   }
 
-  async invoke(): Promise<State<TEntity>> {
+  async invoke(): Promise<ResourceState<TEntity>> {
     const penultimateState =
-      (await this.getPenultimateState()) as BaseState<SafeAny>;
+      (await this.getPenultimateState()) as HalState<SafeAny>;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lastRel = this.rels.at(-1)!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -40,12 +40,12 @@ export class Relation<TEntity extends Entity> {
   }
 
   private async get(
-    penultimateState: BaseState<SafeAny>,
+    penultimateState: HalState<SafeAny>,
     link: Link
   ): Promise<State<TEntity>> {
     const embedded = penultimateState.getEmbedded(link.rel);
     if (Array.isArray(embedded)) {
-      return new BaseState({
+      return new HalState({
         client: this.client,
         data: {},
         collection: embedded,
@@ -72,13 +72,13 @@ export class Relation<TEntity extends Entity> {
 
   private async resolve(rels: string[]): Promise<State<SafeAny>> {
     const initialResource = this.client.root(this.rootUri);
-    let currentState = await initialResource.get();
+    let currentState = (await initialResource.get()) as State<SafeAny>;
     for (const rel of rels) {
       const nextResource = this.client.root(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         currentState.links.get(rel as string)!.href
       );
-      currentState = await nextResource.get();
+      currentState = (await nextResource.get()) as State<SafeAny>;
     }
     return currentState;
   }

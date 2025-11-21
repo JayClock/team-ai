@@ -33,6 +33,17 @@ export type State<TEntity extends Entity = Entity> = {
   ): Form | undefined;
 };
 
+export type ResourceState<TEntity extends Entity = Entity> = Omit<
+  State<TEntity>,
+  'data' | 'collection'
+> &
+  (keyof TEntity['description'] extends never
+    ? unknown
+    : { data: TEntity['description'] }) &
+  (IsCollectionType<TEntity> extends true
+    ? { collection: StateCollection<TEntity> }
+    : unknown);
+
 export type Form = {
   /**
    * What url to post the form to.

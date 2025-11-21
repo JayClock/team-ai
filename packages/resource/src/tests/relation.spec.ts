@@ -1,10 +1,11 @@
 import { describe, expect, vi } from 'vitest';
-import { BaseState, Client, Relation, Resource } from '../lib/index.js';
+import { HalState, Client, Relation, Resource } from '../lib/index.js';
 import { Account, Conversation, User } from './fixtures/interface.js';
 import halUser from './fixtures/hal-user.json' with { type: 'json' };
 import halConversations from './fixtures/hal-conversations.json' with { type: 'json' };
 import { HalStateFactory } from '../lib/state/hal.js';
 import { HalResource } from 'hal-types';
+import { Collection } from '../lib/archtype/collection.js';
 
 const mockClient = {
   root: vi.fn(),
@@ -38,7 +39,7 @@ describe('Relation', () => {
 
       vi.spyOn(mockClient, 'root').mockReturnValue(mockRootResource);
 
-      const accountsRelation = new Relation(mockClient as Client, '/api/users/1', [
+      const accountsRelation = new Relation<Collection<Account>>(mockClient as Client, '/api/users/1', [
         'accounts'
       ]);
 
@@ -47,12 +48,12 @@ describe('Relation', () => {
       expect(accountsState.collection).toHaveLength(2);
       expect(accountsState.uri).toBe('/api/users/1/accounts');
 
-      const firstAccount = accountsState.collection[0] as BaseState<Account>;
+      const firstAccount = accountsState.collection[0] as HalState<Account>;
       expect(firstAccount.data.id).toBe('1');
       expect(firstAccount.data.provider).toBe('github');
       expect(firstAccount.data.providerId).toBe('35857909');
 
-      const secondAccount = accountsState.collection[1] as BaseState<Account>;
+      const secondAccount = accountsState.collection[1] as HalState<Account>;
       expect(secondAccount.data.id).toBe('2');
       expect(secondAccount.data.provider).toBe('google');
       expect(secondAccount.data.providerId).toBe('55877909');
@@ -107,7 +108,7 @@ describe('Relation', () => {
         get: vi.fn().mockResolvedValue(userState),
         follow: vi.fn().mockReturnValue(mockConversationsResource),
         getEmbedded: vi.fn().mockReturnValue(undefined)
-      } as unknown as BaseState<User>;
+      } as unknown as HalState<User>;
 
       const mockRootResource = {
         get: vi.fn().mockResolvedValue(mockUserResource)
@@ -129,7 +130,7 @@ describe('Relation', () => {
 
       vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-      const conversationsRelation = new Relation(
+      const conversationsRelation = new Relation<Collection<Conversation>>(
         mockClient as Client,
         '/api/users/1',
         ['conversations']
@@ -140,7 +141,7 @@ describe('Relation', () => {
       expect(resultState.collection).toHaveLength(40);
       expect(resultState.uri).toBe('/api/users/1/conversations');
 
-      const firstConversation = resultState.collection[0] as BaseState<Conversation>;
+      const firstConversation = resultState.collection[0] as HalState<Conversation>;
       expect(firstConversation.data.id).toBe('1');
       expect(firstConversation.data.title).toBe('Conversation Item 1');
 

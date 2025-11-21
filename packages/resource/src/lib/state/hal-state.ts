@@ -14,7 +14,7 @@ type StateInit<TEntity extends Entity> = {
   embedded?: Record<string, State | State[]>;
 };
 
-export class BaseState<TEntity extends Entity = Entity>
+export class HalState<TEntity extends Entity = Entity>
   implements State<TEntity>
 {
   readonly uri: string;
