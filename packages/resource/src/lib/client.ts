@@ -1,4 +1,5 @@
 import { Entity } from './archtype/entity.js';
+import { SafeAny } from './archtype/safe-any.js';
 import { Resource } from './resource.js';
 
 export interface ClientOptions {
@@ -6,8 +7,7 @@ export interface ClientOptions {
 }
 
 export class Client {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private resources = new Map<string, Resource<any>>();
+  private resources = new Map<string, Resource<SafeAny>>();
 
   constructor(private options: ClientOptions) {}
 

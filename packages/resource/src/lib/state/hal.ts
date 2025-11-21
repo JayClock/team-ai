@@ -4,6 +4,7 @@ import { Client } from '../client.js';
 import { HalLink, HalResource } from 'hal-types';
 import { Links } from '../links.js';
 import { Form, State } from './interface.js';
+import { SafeAny } from '../archtype/safe-any.js';
 
 export function HalStateFactory<TEntity extends Entity>(
   client: Client,
@@ -24,7 +25,7 @@ export function HalStateFactory<TEntity extends Entity>(
   });
 }
 
-function parseHalLinks<TLinks extends Record<string, any>>(
+function parseHalLinks<TLinks extends Record<string, SafeAny>>(
   halLinks: HalResource['_links']
 ): Links<TLinks> {
   const links = new Links<TLinks>();
@@ -57,11 +58,13 @@ function parseHalEmbedded(
   for (const [rel, resource] of Object.entries(embedded)) {
     if (Array.isArray(resource)) {
       res[rel] = resource.map((data) =>
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         HalStateFactory(client, (data._links!.self as HalLink).href, data)
       );
     } else {
       res[rel] = HalStateFactory(
         client,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         (resource._links!.self as HalLink).href,
         resource
       );

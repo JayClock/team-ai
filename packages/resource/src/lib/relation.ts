@@ -5,6 +5,7 @@ import { State } from './state/interface.js';
 import { Link, Links } from './links.js';
 import { HalStateFactory } from './state/hal.js';
 import { HalResource } from 'hal-types';
+import { SafeAny } from './archtype/safe-any.js';
 
 export class Relation<TEntity extends Entity> {
   constructor(
@@ -25,8 +26,10 @@ export class Relation<TEntity extends Entity> {
 
   async invoke(): Promise<State<TEntity>> {
     const penultimateState =
-      (await this.getPenultimateState()) as BaseState<any>;
+      (await this.getPenultimateState()) as BaseState<SafeAny>;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lastRel = this.rels.at(-1)!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const link = penultimateState.links.get(lastRel)!;
     switch (link.type) {
       case 'GET':
@@ -37,7 +40,7 @@ export class Relation<TEntity extends Entity> {
   }
 
   private async get(
-    penultimateState: BaseState<any>,
+    penultimateState: BaseState<SafeAny>,
     link: Link
   ): Promise<State<TEntity>> {
     const embedded = penultimateState.getEmbedded(link.rel);
@@ -51,7 +54,7 @@ export class Relation<TEntity extends Entity> {
       });
     }
     if (embedded) {
-      return embedded as State<any>;
+      return embedded as State<SafeAny>;
     }
     const response = await this.client.fetch(link.rel);
     return HalStateFactory<TEntity>(
@@ -62,16 +65,17 @@ export class Relation<TEntity extends Entity> {
     );
   }
 
-  private async getPenultimateState(): Promise<State<any>> {
+  private async getPenultimateState(): Promise<State<SafeAny>> {
     const pathToPenultimate = this.rels.slice(0, -1);
     return this.resolve(pathToPenultimate);
   }
 
-  private async resolve(rels: string[]): Promise<State<any>> {
+  private async resolve(rels: string[]): Promise<State<SafeAny>> {
     const initialResource = this.client.root(this.rootUri);
     let currentState = await initialResource.get();
     for (const rel of rels) {
       const nextResource = this.client.root(
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         currentState.links.get(rel as string)!.href
       );
       currentState = await nextResource.get();

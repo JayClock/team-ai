@@ -1,19 +1,19 @@
-import { Entity } from "./entity.js";
+import { Entity } from './entity.js';
 
-export interface Collection<TEntity extends Entity> {
-  description: {
+export type Collection<TEntity extends Entity> = Entity<
+  {
     page: {
       size: number;
       totalElements: number;
       totalPages: number;
       number: number;
     };
-  };
-  relations: {
+  },
+  {
     first: Collection<TEntity>;
     prev: Collection<TEntity>;
     self: Collection<TEntity>;
     next: Collection<TEntity>;
     last: Collection<TEntity>;
-  };
-}
+  }
+>;
