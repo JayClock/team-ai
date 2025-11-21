@@ -1,24 +1,24 @@
-import { BaseSchema } from '../base-schema.js';
+import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { Links } from '../links.js';
 import { Relation } from '../relation.js';
 
-export type State<TSchema extends BaseSchema = BaseSchema> = {
+export type State<TEntity extends Entity = Entity> = {
   uri: string;
 
-  data: TSchema['description'];
+  data: TEntity['description'];
 
   client: Client;
 
   collection: State[];
 
-  links: Links<TSchema['relations']>;
+  links: Links<TEntity['relations']>;
 
-  follow<K extends keyof TSchema['relations']>(
+  follow<K extends keyof TEntity['relations']>(
     rel: K
-  ): Relation<TSchema['relations'][K]>;
+  ): Relation<TEntity['relations'][K]>;
 
-  getForm<K extends keyof TSchema['relations']>(
+  getForm<K extends keyof TEntity['relations']>(
     rel: K,
     method: string
   ): Form | undefined;

@@ -1,4 +1,4 @@
-import { BaseSchema } from './base-schema.js';
+import { Entity } from './archtype/entity.js';
 import { Resource } from './resource.js';
 
 export interface ClientOptions {
@@ -6,13 +6,15 @@ export interface ClientOptions {
 }
 
 export class Client {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private resources = new Map<string, Resource<any>>();
 
   constructor(private options: ClientOptions) {}
 
-  root<TSchema extends BaseSchema>(uri: string): Resource<TSchema> {
-    const resource = new Resource<TSchema>(this, uri);
+  root<TEntity extends Entity>(uri: string): Resource<TEntity> {
+    const resource = new Resource<TEntity>(this, uri);
     if (this.resources.has(uri)) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return this.resources.get(uri)!;
     }
     this.resources.set(uri, resource);

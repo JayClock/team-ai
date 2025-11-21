@@ -1,4 +1,4 @@
-import { BaseSchema } from './base-schema.js';
+import { Entity } from './archtype/entity.js';
 import { Client } from './client.js';
 import { BaseState } from './state/base-state.js';
 import { State } from './state/interface.js';
@@ -6,16 +6,16 @@ import { Link, Links } from './links.js';
 import { HalStateFactory } from './state/hal.js';
 import { HalResource } from 'hal-types';
 
-export class Relation<TSchema extends BaseSchema> {
+export class Relation<TEntity extends Entity> {
   constructor(
     readonly client: Client,
     readonly rootUri: string,
     readonly rels: string[]
   ) {}
 
-  follow<K extends keyof TSchema['relations']>(
+  follow<K extends keyof TEntity['relations']>(
     rel: K
-  ): Relation<TSchema['relations'][K]> {
+  ): Relation<TEntity['relations'][K]> {
     return new Relation(
       this.client,
       this.rootUri,
@@ -23,7 +23,7 @@ export class Relation<TSchema extends BaseSchema> {
     );
   }
 
-  async invoke(): Promise<State<TSchema>> {
+  async invoke(): Promise<State<TEntity>> {
     const penultimateState =
       (await this.getPenultimateState()) as BaseState<any>;
     const lastRel = this.rels.at(-1)!;
@@ -39,7 +39,7 @@ export class Relation<TSchema extends BaseSchema> {
   private async get(
     penultimateState: BaseState<any>,
     link: Link
-  ): Promise<State<TSchema>> {
+  ): Promise<State<TEntity>> {
     const embedded = penultimateState.getEmbedded(link.rel);
     if (Array.isArray(embedded)) {
       return new BaseState({
@@ -54,7 +54,7 @@ export class Relation<TSchema extends BaseSchema> {
       return embedded as State<any>;
     }
     const response = await this.client.fetch(link.rel);
-    return HalStateFactory<TSchema>(
+    return HalStateFactory<TEntity>(
       this.client,
       link.href,
       (await response.json()) as HalResource,

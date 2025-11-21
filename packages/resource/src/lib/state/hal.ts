@@ -1,19 +1,19 @@
 import { BaseState } from './base-state.js';
-import { BaseSchema } from '../base-schema.js';
+import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { HalLink, HalResource } from 'hal-types';
 import { Links } from '../links.js';
 import { Form, State } from './interface.js';
 
-export function HalStateFactory<TSchema extends BaseSchema>(
+export function HalStateFactory<TEntity extends Entity>(
   client: Client,
   uri: string,
   halResource: HalResource,
   collectionRel?: string
-): State<TSchema> {
+): State<TEntity> {
   const { _links, _embedded, _templates, ...prueData } = halResource;
   const embedded = parseHalEmbedded(client, _embedded);
-  return new BaseState<TSchema>({
+  return new BaseState<TEntity>({
     client,
     uri,
     data: prueData,

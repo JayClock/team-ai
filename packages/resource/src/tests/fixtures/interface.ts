@@ -1,6 +1,7 @@
-import { BaseSchema, Collection } from '../../lib/base-schema.js';
+import { Collection } from 'src/lib/archtype/collection.js';
+import { Entity } from '../../lib/archtype/entity.js';
 
-export interface User extends BaseSchema {
+export interface User extends Entity {
   description: { id: string; name: string; email: string };
   relations: {
     self: User;
@@ -11,12 +12,12 @@ export interface User extends BaseSchema {
   };
 }
 
-export interface Account extends BaseSchema {
+export interface Account extends Entity {
   description: { id: string; provider: string; providerId: string };
   relations: { self: Account };
 }
 
-export interface Conversation extends BaseSchema {
+export interface Conversation extends Entity {
   description: { id: string; title: string };
   relations: { self: Conversation };
 }
