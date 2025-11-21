@@ -1,7 +1,7 @@
 import { Client } from '../client.js';
 import { Entity } from '../archtype/entity.js';
 import { Link, Links } from '../links.js';
-import { Form, State } from './interface.js';
+import { Form, State, StateCollection } from './interface.js';
 import { Relation } from '../relation.js';
 
 type StateInit<TEntity extends Entity> = {
@@ -20,7 +20,7 @@ export class BaseState<TEntity extends Entity = Entity>
   readonly uri: string;
   readonly client: Client;
   readonly data: TEntity['description'];
-  readonly collection: State[];
+  readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['relations']>;
   private readonly forms: Form[];
   private readonly embedded: Record<string, State | State[]>;
@@ -30,7 +30,7 @@ export class BaseState<TEntity extends Entity = Entity>
     this.client = init.client;
     this.data = init.data;
     this.links = init.links;
-    this.collection = init.collection || [];
+    this.collection = (init.collection || []) as StateCollection<TEntity>;
     this.forms = init.forms || [];
     this.embedded = init.embedded || {};
   }

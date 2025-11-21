@@ -2,6 +2,15 @@ import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { Links } from '../links.js';
 import { Relation } from '../relation.js';
+import { Collection } from '../archtype/collection.js';
+
+type ExtractCollectionElement<T> = T extends Collection<infer U> ? U : never;
+
+type IsCollectionType<T> = ExtractCollectionElement<T> extends never ? false : true;
+
+export type StateCollection<TEntity extends Entity> = IsCollectionType<TEntity> extends true
+  ? State<ExtractCollectionElement<TEntity>>[]
+  : State[];
 
 export type State<TEntity extends Entity = Entity> = {
   uri: string;
@@ -10,7 +19,7 @@ export type State<TEntity extends Entity = Entity> = {
 
   client: Client;
 
-  collection: State[];
+  collection: StateCollection<TEntity>;
 
   links: Links<TEntity['relations']>;
 

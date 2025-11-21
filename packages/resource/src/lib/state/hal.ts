@@ -3,7 +3,7 @@ import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { HalLink, HalResource } from 'hal-types';
 import { Links } from '../links.js';
-import { Form, State } from './interface.js';
+import { Form, State, StateCollection } from './interface.js';
 import { SafeAny } from '../archtype/safe-any.js';
 
 export function HalStateFactory<TEntity extends Entity>(
@@ -19,7 +19,7 @@ export function HalStateFactory<TEntity extends Entity>(
     uri,
     data: prueData,
     links: parseHalLinks(_links),
-    collection: collectionRel ? (embedded[collectionRel] as State[]) ?? [] : [],
+    collection: collectionRel ? (embedded[collectionRel] as StateCollection<TEntity>) ?? [] : [],
     forms: parseHalTemplates(_links, _templates),
     embedded: embedded,
   });

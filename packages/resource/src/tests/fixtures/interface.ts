@@ -17,7 +17,7 @@ export type Account = Entity<
   { self: Account }
 >;
 
-export type Conversation = Entity<
-  { id: string; title: string },
-  { self: Conversation }
->;
+export interface Conversation extends Entity {
+  description: { id: string; title: string };
+  relations: { self: Conversation };
+}
