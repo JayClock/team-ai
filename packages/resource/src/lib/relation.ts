@@ -1,7 +1,8 @@
 import { Entity } from './archtype/entity.js';
 import { Client } from './client.js';
 import { HalState } from './state/hal-state.js';
-import { ResourceState, State } from './state/interface.js';
+import { State } from './state/state.js';
+import { ResourceState } from './state/resource-state.js';
 import { Link, Links } from './links.js';
 import { HalStateFactory } from './state/hal.js';
 import { HalResource } from 'hal-types';

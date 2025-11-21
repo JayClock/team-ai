@@ -1,7 +1,9 @@
 import { Client } from '../client.js';
 import { Entity } from '../archtype/entity.js';
 import { Link, Links } from '../links.js';
-import { Form, State, StateCollection } from './interface.js';
+import { State } from './state.js';
+import { StateCollection } from './state-collection.js';
+import { Form } from '../form/form.js';
 import { Relation } from '../relation.js';
 
 type StateInit<TEntity extends Entity> = {

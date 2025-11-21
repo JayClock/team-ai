@@ -3,7 +3,7 @@ import { HalState, Client } from '../lib/index.js';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
 import { HalResource } from 'hal-types';
 import { HalStateFactory } from '../lib/state/hal.js';
-import { State } from '../lib/state/interface.js';
+import { State } from '../lib/state/state.js';
 
 const mockClient = {
   go: vi.fn()

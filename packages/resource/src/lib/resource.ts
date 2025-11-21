@@ -3,7 +3,7 @@ import { Entity } from './archtype/entity.js';
 import { Relation } from './relation.js';
 import { HalStateFactory } from './state/hal.js';
 import { HalResource } from 'hal-types';
-import { ResourceState } from './state/interface.js';
+import { ResourceState } from './state/resource-state.js';
 
 export class Resource<TEntity extends Entity> {
   constructor(readonly client: Client, readonly uri: string) {}
