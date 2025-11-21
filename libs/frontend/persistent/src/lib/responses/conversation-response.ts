@@ -1,7 +1,0 @@
-import { HalLinks } from '../archtype/hal-links.js';
-
-export interface ConversationResponse {
-  id: string;
-  title: string;
-  _links: HalLinks;
-}

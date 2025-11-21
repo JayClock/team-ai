@@ -4,15 +4,6 @@
   "files": [],
   "references": [
     {
-      "path": "./libs/frontend/domain"
-    },
-    {
-      "path": "./libs/frontend/features"
-    },
-    {
-      "path": "./libs/frontend/persistent"
-    },
-    {
       "path": "./apps/web"
     },
     {
