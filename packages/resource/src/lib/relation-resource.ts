@@ -61,6 +61,20 @@ export class RelationResource<TEntity extends Entity>
     return this.createHalStateFromResponse(response, link);
   }
 
+  async put<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
+    const { link } = await this.getLastStateAndLink();
+
+    const response = await this.client.fetch(link.href, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    return this.createHalStateFromResponse(response, link);
+  }
+
   private async createHalStateFromResponse(
     response: Response,
     link: { href: string; rel: string }
@@ -89,10 +103,10 @@ export class RelationResource<TEntity extends Entity>
   }
 
   private async resolve(rels: string[]): Promise<State<SafeAny>> {
-    const initialResource = this.client.root(this.rootUri);
+    const initialResource = this.client.go(this.rootUri);
     let currentState = (await initialResource.get()) as State<SafeAny>;
     for (const rel of rels) {
-      const nextResource = this.client.root(
+      const nextResource = this.client.go(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         currentState.links.get(rel as string)!.href
       );

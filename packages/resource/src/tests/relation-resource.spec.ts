@@ -8,7 +8,7 @@ import { HalResource } from 'hal-types';
 import { Collection } from '../lib/archtype/collection.js';
 
 const mockClient = {
-  root: vi.fn(),
+  go: vi.fn(),
   fetch: vi.fn()
 } as unknown as Client;
 describe('RelationResource', () => {
@@ -28,7 +28,7 @@ describe('RelationResource', () => {
         get: vi.fn().mockResolvedValue(userState)
       } as unknown as RootResource<User>;
 
-      vi.spyOn(mockClient, 'root').mockReturnValue(mockRootResource);
+      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
 
       const accountsRelation = new RelationResource<Collection<Account>>(mockClient as Client, '/api/users/1', [
         'accounts'
@@ -61,7 +61,7 @@ describe('RelationResource', () => {
         get: vi.fn().mockResolvedValue(userState)
       } as unknown as RootResource<User>;
 
-      vi.spyOn(mockClient, 'root').mockReturnValue(mockRootResource);
+      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
 
       const latestConversationRelation = new RelationResource(
         mockClient as Client,
@@ -105,7 +105,7 @@ describe('RelationResource', () => {
         get: vi.fn().mockResolvedValue(mockUserResource)
       } as unknown as RootResource<User>;
 
-      vi.spyOn(mockClient, 'root').mockImplementation((uri: string) => {
+      vi.spyOn(mockClient, 'go').mockImplementation((uri: string) => {
         if (uri === userState.uri) {
           return mockRootResource;
         }
@@ -155,7 +155,7 @@ describe('RelationResource', () => {
         get: vi.fn().mockResolvedValue(userState)
       } as unknown as RootResource<User>;
 
-      vi.spyOn(mockClient, 'root').mockReturnValue(mockRootResource);
+      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
 
       const accountsRelation = new RelationResource<Collection<Account>>(mockClient as Client, '/api/users/1', [
         'accounts'

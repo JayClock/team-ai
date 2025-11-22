@@ -11,7 +11,7 @@ export class Client {
 
   constructor(private options: ClientOptions) {}
 
-  root<TEntity extends Entity>(uri: string): RootResource<TEntity> {
+  go<TEntity extends Entity>(uri: string): RootResource<TEntity> {
     const resource = new RootResource<TEntity>(this, uri);
     if (this.resources.has(uri)) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

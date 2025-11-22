@@ -23,4 +23,4 @@ export type Conversation = Entity<
   { self: Conversation }
 >;
 
-new Client({ baseURL: '' }).root<User>('');
+new Client({ baseURL: '' }).go<User>('');
