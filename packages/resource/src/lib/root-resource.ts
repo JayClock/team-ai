@@ -7,7 +7,7 @@ import { ResourceState } from './state/resource-state.js';
 import { Resource } from './archtype/resource-like.js';
 
 export class RootResource<TEntity extends Entity> implements Resource<TEntity> {
-  constructor(readonly client: Client, readonly uri: string) {}
+  constructor(private readonly client: Client, private readonly uri: string) {}
 
   follow<K extends keyof TEntity['relations']>(
     rel: K

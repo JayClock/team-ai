@@ -11,9 +11,9 @@ import { Resource } from './archtype/resource-like.js';
 
 export class RelationResource<TEntity extends Entity> implements Resource<TEntity> {
   constructor(
-    readonly client: Client,
-    readonly rootUri: string,
-    readonly rels: string[]
+    private readonly client: Client,
+    private readonly rootUri: string,
+    private readonly rels: string[]
   ) {}
 
   follow<K extends keyof TEntity['relations']>(

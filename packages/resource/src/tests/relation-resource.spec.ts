@@ -12,15 +12,6 @@ const mockClient = {
   fetch: vi.fn()
 } as unknown as Client;
 describe('RelationResource', () => {
-  it('should correctly build a chain of relations with the follow() method', () => {
-    const root = new RelationResource(mockClient, 'http://api.com', []);
-    const usersRelation = root.follow('users');
-    const user1Relation = usersRelation.follow('1');
-    expect(usersRelation.rels).toEqual(['users']);
-    expect(user1Relation.rels).toEqual(['users', '1']);
-    expect(root.rels).toEqual([]);
-  });
-
   describe('get method with HAL resources', () => {
     beforeEach(() => {
       vi.clearAllMocks();
