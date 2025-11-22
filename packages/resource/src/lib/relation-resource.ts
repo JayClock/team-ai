@@ -9,7 +9,9 @@ import { SafeAny } from './archtype/safe-any.js';
 import { ResourceState } from './state/resource-state.js';
 import { Resource } from './archtype/resource-like.js';
 
-export class RelationResource<TEntity extends Entity> implements Resource<TEntity> {
+export class RelationResource<TEntity extends Entity>
+  implements Resource<TEntity>
+{
   constructor(
     private readonly client: Client,
     private readonly rootUri: string,
@@ -27,12 +29,7 @@ export class RelationResource<TEntity extends Entity> implements Resource<TEntit
   }
 
   async get(): Promise<ResourceState<TEntity>> {
-    const penultimateState =
-      (await this.getPenultimateState()) as HalState<SafeAny>;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const lastRel = this.rels.at(-1)!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const link = penultimateState.links.get(lastRel)!;
+    const { penultimateState, link } = await this.getLastStateAndLink();
     const embedded = penultimateState.getEmbedded(link.rel);
     if (Array.isArray(embedded)) {
       return new HalState({
@@ -47,21 +44,11 @@ export class RelationResource<TEntity extends Entity> implements Resource<TEntit
       return embedded as unknown as ResourceState<TEntity>;
     }
     const response = await this.client.fetch(link.rel);
-    return HalStateFactory<TEntity>(
-      this.client,
-      link.href,
-      (await response.json()) as HalResource,
-      link.rel
-    );
+    return this.createHalStateFromResponse(response, link);
   }
 
   async post<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
-    const penultimateState =
-      (await this.getPenultimateState()) as HalState<SafeAny>;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const lastRel = this.rels.at(-1)!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const link = penultimateState.links.get(lastRel)!;
+    const { link } = await this.getLastStateAndLink();
 
     const response = await this.client.fetch(link.href, {
       method: 'POST',
@@ -71,12 +58,29 @@ export class RelationResource<TEntity extends Entity> implements Resource<TEntit
       body: JSON.stringify(data),
     });
 
+    return this.createHalStateFromResponse(response, link);
+  }
+
+  private async createHalStateFromResponse(
+    response: Response,
+    link: { href: string; rel: string }
+  ) {
     return HalStateFactory<TEntity>(
       this.client,
       link.href,
       (await response.json()) as HalResource,
       link.rel
     );
+  }
+
+  private async getLastStateAndLink() {
+    const penultimateState =
+      (await this.getPenultimateState()) as HalState<SafeAny>;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const lastRel = this.rels.at(-1)!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const link = penultimateState.links.get(lastRel)!;
+    return { penultimateState, link };
   }
 
   private async getPenultimateState(): Promise<State<SafeAny>> {
