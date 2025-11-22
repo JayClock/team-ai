@@ -43,22 +43,12 @@ export class RelationResource<TEntity extends Entity>
     if (embedded) {
       return embedded as unknown as ResourceState<TEntity>;
     }
-    const response = await this.client.fetch(link.rel);
-    return this.createHalStateFromResponse(response, link);
+    return this.client.go<TEntity>(link.href).get(link.rel);
   }
 
   async post<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
     const { link } = await this.getLastStateAndLink();
-
-    const response = await this.client.fetch(link.href, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    return this.createHalStateFromResponse(response, link);
+    return this.client.go<TEntity>(link.href).post(data);
   }
 
   async put<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {

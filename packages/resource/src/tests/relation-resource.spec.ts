@@ -151,8 +151,19 @@ describe('RelationResource', () => {
         halUser as HalResource
       );
 
+      const mockResponseData = { id: '3', provider: 'twitter', providerId: '123456' };
+      const postData = { provider: 'twitter', providerId: '123456' };
+
+
       const mockRootResource = {
-        get: vi.fn().mockResolvedValue(userState)
+        get: vi.fn().mockResolvedValue(userState),
+        post: vi.fn().mockResolvedValue(
+          HalStateFactory<Account>(
+            mockClient as Client,
+            '/api/users/1/accounts',
+            mockResponseData as HalResource
+          )
+        )
       } as unknown as RootResource<User>;
 
       vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
@@ -161,24 +172,9 @@ describe('RelationResource', () => {
         'accounts'
       ]);
 
-      const mockResponseData = { id: '3', provider: 'twitter', providerId: '123456' };
-      const postData = { provider: 'twitter', providerId: '123456' };
-
-      const mockResponse = {
-        json: vi.fn().mockResolvedValue(mockResponseData)
-      } as unknown as Response;
-
-      vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
-
       const resultState = await accountsRelation.post(postData);
 
-      expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1/accounts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData),
-      });
+      expect(mockRootResource.post).toHaveBeenCalledWith(postData);
       expect(resultState.data).toEqual(mockResponseData);
       expect(resultState.uri).toBe('/api/users/1/accounts');
     });
