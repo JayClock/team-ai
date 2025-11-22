@@ -2,11 +2,11 @@ import { Entity } from './archtype/entity.js';
 import { Client } from './client.js';
 import { HalState } from './state/hal-state.js';
 import { State } from './state/state.js';
-import { ResourceState } from './state/resource-state.js';
-import { Link, Links } from './links.js';
+import { Links } from './links.js';
 import { HalStateFactory } from './state/hal.js';
 import { HalResource } from 'hal-types';
 import { SafeAny } from './archtype/safe-any.js';
+import { ResourceState } from './state/resource-state.js';
 
 export class Relation<TEntity extends Entity> {
   constructor(
@@ -25,25 +25,13 @@ export class Relation<TEntity extends Entity> {
     );
   }
 
-  async invoke(): Promise<ResourceState<TEntity>> {
+  async get(): Promise<ResourceState<TEntity>> {
     const penultimateState =
       (await this.getPenultimateState()) as HalState<SafeAny>;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lastRel = this.rels.at(-1)!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const link = penultimateState.links.get(lastRel)!;
-    switch (link.type) {
-      case 'GET':
-        return this.get(penultimateState, link);
-      default:
-        throw new Error(`Unimplemented method type ${link.type}`);
-    }
-  }
-
-  private async get(
-    penultimateState: HalState<SafeAny>,
-    link: Link
-  ): Promise<State<TEntity>> {
     const embedded = penultimateState.getEmbedded(link.rel);
     if (Array.isArray(embedded)) {
       return new HalState({
@@ -52,10 +40,10 @@ export class Relation<TEntity extends Entity> {
         collection: embedded,
         uri: link.href,
         links: new Links(),
-      });
+      }) as unknown as ResourceState<TEntity>;
     }
     if (embedded) {
-      return embedded as State<SafeAny>;
+      return embedded as unknown as ResourceState<TEntity>;
     }
     const response = await this.client.fetch(link.rel);
     return HalStateFactory<TEntity>(

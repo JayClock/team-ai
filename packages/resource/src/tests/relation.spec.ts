@@ -43,7 +43,7 @@ describe('Relation', () => {
         'accounts'
       ]);
 
-      const accountsState = await accountsRelation.invoke();
+      const accountsState = await accountsRelation.get();
 
       expect(accountsState.collection).toHaveLength(2);
       expect(accountsState.uri).toBe('/api/users/1/accounts');
@@ -78,7 +78,7 @@ describe('Relation', () => {
         ['latest-conversation']
       );
 
-      const conversationState = await latestConversationRelation.invoke();
+      const conversationState = await latestConversationRelation.get();
 
       expect(conversationState.data.id).toBe('conv-456');
       expect(conversationState.data.title).toBe('Recent chat about HATEOAS');
@@ -136,7 +136,7 @@ describe('Relation', () => {
         ['conversations']
       );
 
-      const resultState = await conversationsRelation.invoke();
+      const resultState = await conversationsRelation.get();
 
       expect(resultState.collection).toHaveLength(40);
       expect(resultState.uri).toBe('/api/users/1/conversations');

@@ -9,7 +9,7 @@ const client = new Client({ baseURL: 'http://localhost:4200' });
 const state = await client
   .root<UserSchema>('/api/users/1')
   .follow('conversations')
-  .invoke();
+  .get();
 console.log(state);
 
 export default function App() {
