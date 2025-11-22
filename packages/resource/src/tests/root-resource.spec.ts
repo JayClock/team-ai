@@ -38,4 +38,25 @@ describe('RootResource', () => {
     expect(state.uri).toBe('uri');
     expect(state.data).toEqual(mockBody);
   });
+
+  it('should return a state when invoke put method', async () => {
+    const mockBody = { id: '1', name: 'Updated Item' };
+    const putData = { name: 'Updated Item' };
+
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(mockBody))
+    );
+
+    const state = await resource.put(putData);
+
+    expect(mockClient.fetch).toHaveBeenCalledWith('uri', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(putData),
+    });
+    expect(state.uri).toBe('uri');
+    expect(state.data).toEqual(mockBody);
+  });
 });

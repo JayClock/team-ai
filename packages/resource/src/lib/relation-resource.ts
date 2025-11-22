@@ -3,8 +3,7 @@ import { Client } from './client.js';
 import { HalState } from './state/hal-state.js';
 import { State } from './state/state.js';
 import { Links } from './links.js';
-import { HalStateFactory } from './state/hal.js';
-import { HalResource } from 'hal-types';
+
 import { SafeAny } from './archtype/safe-any.js';
 import { ResourceState } from './state/resource-state.js';
 import { Resource } from './archtype/resource-like.js';
@@ -53,28 +52,7 @@ export class RelationResource<TEntity extends Entity>
 
   async put<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
     const { link } = await this.getLastStateAndLink();
-
-    const response = await this.client.fetch(link.href, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    return this.createHalStateFromResponse(response, link);
-  }
-
-  private async createHalStateFromResponse(
-    response: Response,
-    link: { href: string; rel: string }
-  ) {
-    return HalStateFactory<TEntity>(
-      this.client,
-      link.href,
-      (await response.json()) as HalResource,
-      link.rel
-    );
+    return this.client.go<TEntity>(link.href).put(data);
   }
 
   private async getLastStateAndLink() {
