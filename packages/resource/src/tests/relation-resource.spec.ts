@@ -262,4 +262,86 @@ describe('RelationResource', () => {
       expect(resultState.uri).toBe('/api/users/1/accounts/1');
     });
   });
+
+  describe('delete method', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it('should delete resource and return a state', async () => {
+      const userState = HalStateFactory<User>(
+        mockClient as Client,
+        '/api/users/1',
+        halUser as HalResource
+      );
+
+      // Create accounts state with proper links
+      const accountsHalResource = {
+        _links: {
+          self: { href: '/api/users/1/accounts' },
+          '1': { href: '/api/users/1/accounts/1' }  // Add the specific account link
+        },
+        _embedded: {
+          accounts: []
+        }
+      } as HalResource;
+
+      const accountsState = HalStateFactory<Collection<Account>>(
+        mockClient as Client,
+        '/api/users/1/accounts',
+        accountsHalResource,
+        'accounts'
+      );
+
+      const mockResponseData = { id: '1', deleted: true };
+
+      const mockAccountResource = {
+        delete: vi.fn().mockResolvedValue(
+          HalStateFactory<Account>(
+            mockClient as Client,
+            '/api/users/1/accounts/1',
+            mockResponseData as HalResource
+          )
+        )
+      } as unknown as RootResource<Account>;
+
+      const mockAccountsResource = {
+        get: vi.fn().mockResolvedValue(accountsState),
+        links: accountsState.links
+      } as unknown as RootResource<Collection<Account>>;
+
+      const mockUserResource = {
+        ...userState,
+        get: vi.fn().mockResolvedValue(userState),
+        links: userState.links
+      } as unknown as HalState<User>;
+
+      const mockRootResource = {
+        get: vi.fn().mockResolvedValue(mockUserResource)
+      } as unknown as RootResource<User>;
+
+      vi.spyOn(mockClient, 'go').mockImplementation((uri: string) => {
+        if (uri === '/api/users/1') {
+          return mockRootResource;
+        }
+        if (uri === '/api/users/1/accounts') {
+          return mockAccountsResource;
+        }
+        if (uri === '/api/users/1/accounts/1') {
+          return mockAccountResource;
+        }
+        throw new Error(`Unexpected URI: ${uri}`);
+      });
+
+      const accountRelation = new RelationResource<Account>(mockClient as Client, '/api/users/1', [
+        'accounts', '1'
+      ]);
+
+      const resultState = await accountRelation.delete();
+
+      expect(mockAccountResource.delete).toHaveBeenCalled();
+      expect(resultState.data).toEqual(mockResponseData);
+      expect(resultState.uri).toBe('/api/users/1/accounts/1');
+    });
+  });
 });

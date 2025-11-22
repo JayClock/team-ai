@@ -56,4 +56,16 @@ export class RootResource<TEntity extends Entity> implements Resource<TEntity> {
       (await response.json()) as HalResource
     );
   }
+
+  async delete(): Promise<ResourceState<TEntity>> {
+    const response = await this.client.fetch(this.uri, {
+      method: 'DELETE',
+    });
+
+    return HalStateFactory<TEntity>(
+      this.client,
+      this.uri,
+      (await response.json()) as HalResource
+    );
+  }
 }

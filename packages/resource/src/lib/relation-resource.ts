@@ -55,6 +55,11 @@ export class RelationResource<TEntity extends Entity>
     return this.client.go<TEntity>(link.href).put(data);
   }
 
+  async delete(): Promise<ResourceState<TEntity>> {
+    const { link } = await this.getLastStateAndLink();
+    return this.client.go<TEntity>(link.href).delete();
+  }
+
   private async getLastStateAndLink() {
     const penultimateState =
       (await this.getPenultimateState()) as HalState<SafeAny>;

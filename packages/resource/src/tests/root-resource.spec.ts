@@ -59,4 +59,20 @@ describe('RootResource', () => {
     expect(state.uri).toBe('uri');
     expect(state.data).toEqual(mockBody);
   });
+
+  it('should return a state when invoke delete method', async () => {
+    const mockBody = { id: '1', deleted: true };
+
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(mockBody))
+    );
+
+    const state = await resource.delete();
+
+    expect(mockClient.fetch).toHaveBeenCalledWith('uri', {
+      method: 'DELETE',
+    });
+    expect(state.uri).toBe('uri');
+    expect(state.data).toEqual(mockBody);
+  });
 });
