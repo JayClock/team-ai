@@ -55,6 +55,30 @@ export class RelationResource<TEntity extends Entity> implements Resource<TEntit
     );
   }
 
+  async post<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
+    const penultimateState =
+      (await this.getPenultimateState()) as HalState<SafeAny>;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const lastRel = this.rels.at(-1)!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const link = penultimateState.links.get(lastRel)!;
+
+    const response = await this.client.fetch(link.href, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    return HalStateFactory<TEntity>(
+      this.client,
+      link.href,
+      (await response.json()) as HalResource,
+      link.rel
+    );
+  }
+
   private async getPenultimateState(): Promise<State<SafeAny>> {
     const pathToPenultimate = this.rels.slice(0, -1);
     return this.resolve(pathToPenultimate);

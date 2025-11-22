@@ -17,4 +17,25 @@ describe('RootResource', () => {
     expect(state.uri).toBe('uri');
     expect(state.data).toEqual(mockBody);
   });
+
+  it('should return a state when invoke post method', async () => {
+    const mockBody = { id: '1', name: 'Test' };
+    const postData = { title: 'New Item' };
+
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(mockBody))
+    );
+
+    const state = await resource.post(postData);
+
+    expect(mockClient.fetch).toHaveBeenCalledWith('uri', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(postData),
+    });
+    expect(state.uri).toBe('uri');
+    expect(state.data).toEqual(mockBody);
+  });
 });
