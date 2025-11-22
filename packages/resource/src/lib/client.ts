@@ -1,18 +1,18 @@
 import { Entity } from './archtype/entity.js';
 import { SafeAny } from './archtype/safe-any.js';
-import { Resource } from './resource.js';
+import { RootResource } from './root-resource.js';
 
 export interface ClientOptions {
   baseURL: string;
 }
 
 export class Client {
-  private resources = new Map<string, Resource<SafeAny>>();
+  private resources = new Map<string, RootResource<SafeAny>>();
 
   constructor(private options: ClientOptions) {}
 
-  root<TEntity extends Entity>(uri: string): Resource<TEntity> {
-    const resource = new Resource<TEntity>(this, uri);
+  root<TEntity extends Entity>(uri: string): RootResource<TEntity> {
+    const resource = new RootResource<TEntity>(this, uri);
     if (this.resources.has(uri)) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return this.resources.get(uri)!;

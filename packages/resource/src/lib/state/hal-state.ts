@@ -4,7 +4,7 @@ import { Link, Links } from '../links.js';
 import { State } from './state.js';
 import { StateCollection } from './state-collection.js';
 import { Form } from '../form/form.js';
-import { Relation } from '../relation.js';
+import { RelationResource } from '../relation-resource.js';
 
 type StateInit<TEntity extends Entity> = {
   uri: string;
@@ -39,10 +39,10 @@ export class HalState<TEntity extends Entity = Entity>
 
   follow<K extends keyof TEntity['relations']>(
     rel: K
-  ): Relation<TEntity['relations'][K]> {
+  ): RelationResource<TEntity['relations'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new Relation(this.client, this.uri, [rel as string]);
+      return new RelationResource(this.client, this.uri, [rel as string]);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }

@@ -1,16 +1,16 @@
 import { describe, expect } from 'vitest';
-import { Client, Relation, Resource } from '../lib/index.js';
+import { Client, RelationResource, RootResource } from '../lib/index.js';
 
 const mockClient = {
   fetch: vi.fn(),
 } as unknown as Client;
 
-describe('Resource', () => {
-  const resource = new Resource(mockClient, 'uri');
+describe('RootResource', () => {
+  const resource = new RootResource(mockClient, 'uri');
 
   it('should return new relation when follow', () => {
     const relation = resource.follow('rel');
-    expect(relation).toBeInstanceOf(Relation);
+    expect(relation).toBeInstanceOf(RelationResource);
     expect(relation.client).toBe(mockClient);
     expect(relation.rels).toEqual(['rel']);
     expect(relation.rootUri).toEqual(resource.uri)

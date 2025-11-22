@@ -1,5 +1,5 @@
 import { describe, expect, vi } from 'vitest';
-import { HalState, Client, Relation, Resource } from '../lib/index.js';
+import { HalState, Client, RelationResource, RootResource } from '../lib/index.js';
 import { Account, Conversation, User } from './fixtures/interface.js';
 import halUser from './fixtures/hal-user.json' with { type: 'json' };
 import halConversations from './fixtures/hal-conversations.json' with { type: 'json' };
@@ -11,9 +11,9 @@ const mockClient = {
   root: vi.fn(),
   fetch: vi.fn()
 } as unknown as Client;
-describe('Relation', () => {
+describe('RelationResource', () => {
   it('should correctly build a chain of relations with the follow() method', () => {
-    const root = new Relation(mockClient, 'http://api.com', []);
+    const root = new RelationResource(mockClient, 'http://api.com', []);
     const usersRelation = root.follow('users');
     const user1Relation = usersRelation.follow('1');
     expect(usersRelation.rels).toEqual(['users']);
@@ -35,11 +35,11 @@ describe('Relation', () => {
 
       const mockRootResource = {
         get: vi.fn().mockResolvedValue(userState)
-      } as unknown as Resource<User>;
+      } as unknown as RootResource<User>;
 
       vi.spyOn(mockClient, 'root').mockReturnValue(mockRootResource);
 
-      const accountsRelation = new Relation<Collection<Account>>(mockClient as Client, '/api/users/1', [
+      const accountsRelation = new RelationResource<Collection<Account>>(mockClient as Client, '/api/users/1', [
         'accounts'
       ]);
 
@@ -68,11 +68,11 @@ describe('Relation', () => {
 
       const mockRootResource = {
         get: vi.fn().mockResolvedValue(userState)
-      } as unknown as Resource<User>;
+      } as unknown as RootResource<User>;
 
       vi.spyOn(mockClient, 'root').mockReturnValue(mockRootResource);
 
-      const latestConversationRelation = new Relation(
+      const latestConversationRelation = new RelationResource(
         mockClient as Client,
         '/api/users/1',
         ['latest-conversation']
@@ -101,7 +101,7 @@ describe('Relation', () => {
 
       const mockConversationsResource = {
         get: vi.fn().mockResolvedValue(conversationsState)
-      } as unknown as Resource<User>;
+      } as unknown as RootResource<User>;
 
       const mockUserResource = {
         ...userState,
@@ -112,7 +112,7 @@ describe('Relation', () => {
 
       const mockRootResource = {
         get: vi.fn().mockResolvedValue(mockUserResource)
-      } as unknown as Resource<User>;
+      } as unknown as RootResource<User>;
 
       vi.spyOn(mockClient, 'root').mockImplementation((uri: string) => {
         if (uri === userState.uri) {
@@ -130,7 +130,7 @@ describe('Relation', () => {
 
       vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-      const conversationsRelation = new Relation<Collection<Conversation>>(
+      const conversationsRelation = new RelationResource<Collection<Conversation>>(
         mockClient as Client,
         '/api/users/1',
         ['conversations']

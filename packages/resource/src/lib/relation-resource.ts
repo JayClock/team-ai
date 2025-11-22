@@ -7,8 +7,9 @@ import { HalStateFactory } from './state/hal.js';
 import { HalResource } from 'hal-types';
 import { SafeAny } from './archtype/safe-any.js';
 import { ResourceState } from './state/resource-state.js';
+import { Resource } from './archtype/resource-like.js';
 
-export class Relation<TEntity extends Entity> {
+export class RelationResource<TEntity extends Entity> implements Resource<TEntity> {
   constructor(
     readonly client: Client,
     readonly rootUri: string,
@@ -17,8 +18,8 @@ export class Relation<TEntity extends Entity> {
 
   follow<K extends keyof TEntity['relations']>(
     rel: K
-  ): Relation<TEntity['relations'][K]> {
-    return new Relation(
+  ): RelationResource<TEntity['relations'][K]> {
+    return new RelationResource(
       this.client,
       this.rootUri,
       this.rels.concat(rel as string)
