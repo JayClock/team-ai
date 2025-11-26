@@ -19,7 +19,7 @@ export class RelationResource<TEntity extends Entity>
 
   follow<K extends keyof TEntity['relations']>(
     rel: K
-  ): RelationResource<TEntity['relations'][K]> {
+  ): Resource<TEntity['relations'][K]> {
     return new RelationResource(
       this.client,
       this.rootUri,
@@ -42,7 +42,7 @@ export class RelationResource<TEntity extends Entity>
     if (embedded) {
       return embedded as unknown as ResourceState<TEntity>;
     }
-    return this.client.go<TEntity>(link.href).get(link.rel);
+    return this.client.go<TEntity>(link.href).get();
   }
 
   async post<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {

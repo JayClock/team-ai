@@ -11,17 +11,16 @@ export class RootResource<TEntity extends Entity> implements Resource<TEntity> {
 
   follow<K extends keyof TEntity['relations']>(
     rel: K
-  ): RelationResource<TEntity['relations'][K]> {
+  ): Resource<TEntity['relations'][K]> {
     return new RelationResource(this.client, this.uri, [rel as string]);
   }
 
-  async get(collectionRel?: string): Promise<ResourceState<TEntity>> {
+  async get(): Promise<ResourceState<TEntity>> {
     const response = await this.client.fetch(this.uri);
     return HalStateFactory<TEntity>(
       this.client,
       this.uri,
-      (await response.json()) as HalResource,
-      collectionRel
+      (await response.json()) as HalResource
     );
   }
 

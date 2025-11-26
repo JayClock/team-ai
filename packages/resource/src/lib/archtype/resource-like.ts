@@ -1,4 +1,3 @@
-import { RelationResource } from '../relation-resource.js';
 import { Entity } from './entity.js';
 import { ResourceState } from '../state/resource-state.js';
 
@@ -9,5 +8,5 @@ export interface Resource<TEntity extends Entity> {
   delete(): Promise<ResourceState<TEntity>>;
   follow<K extends keyof TEntity['relations']>(
     rel: K
-  ): RelationResource<TEntity['relations'][K]>;
+  ): Resource<TEntity['relations'][K]>;
 }
