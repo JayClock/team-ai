@@ -1,19 +1,13 @@
-import { inject, injectable } from 'inversify';
-import { TYPES } from '../archtype/injection-types.js';
-
-import type { Config } from '../archtype/config.js';
+import { injectable } from 'inversify';
+import { fetch } from 'next/dist/compiled/@edge-runtime/primitives/index.js';
 
 @injectable()
 export class Fetcher {
-  constructor(
-    @inject(TYPES.Config)
-    private readonly config: Config
-  ) {}
-
-  fetch(
-    input: string | URL | globalThis.Request,
-    init?: RequestInit
-  ): Promise<Response> {
-    return fetch(`${this.config.baseURL}${input}`, init);
+  /**
+   * A wrapper for MDN fetch()
+   */
+  fetch(resource: string | Request, init?: RequestInit): Promise<Response> {
+    const request = new Request(resource, init);
+    return fetch(request);
   }
 }
