@@ -20,6 +20,8 @@
   ],
   "dependencies": {
     "hal-types": "^2.0.0",
+    "inversify": "^7.10.4",
+    "reflect-metadata": "^0.2.2",
     "tslib": "^2.3.0"
   }
 }

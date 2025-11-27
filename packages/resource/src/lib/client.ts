@@ -2,15 +2,18 @@ import { Entity } from './archtype/entity.js';
 import { Resource } from './archtype/resource-like.js';
 import { SafeAny } from './archtype/safe-any.js';
 import { RootResource } from './root-resource.js';
+import { inject, injectable } from 'inversify';
+import { TYPES } from './archtype/injection-types.js';
+import type { Config } from './archtype/config.js';
 
-export interface ClientOptions {
-  baseURL: string;
-}
-
+@injectable()
 export class Client {
   private resources = new Map<string, Resource<SafeAny>>();
 
-  constructor(private options: ClientOptions) {}
+  constructor(
+    @inject(TYPES.Config)
+    private options: Config
+  ) {}
 
   go<TEntity extends Entity>(uri: string): Resource<TEntity> {
     const resource: Resource<TEntity> = new RootResource<TEntity>(this, uri);
