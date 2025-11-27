@@ -1,12 +1,12 @@
-import { Entity } from './archtype/entity.js';
-import { Client } from './client.js';
-import { HalState } from './state/hal-state.js';
-import { State } from './state/state.js';
-import { Links } from './links.js';
+import { Entity } from '../archtype/entity.js';
+import { Client } from '../client.js';
+import { HalState } from '../state/hal-state.js';
+import { State } from '../state/state.js';
+import { Links } from '../links.js';
 
-import { SafeAny } from './archtype/safe-any.js';
-import { ResourceState } from './state/resource-state.js';
-import { Resource } from './archtype/resource-like.js';
+import { SafeAny } from '../archtype/safe-any.js';
+import { ResourceState } from '../state/resource-state.js';
+import { Resource } from '../archtype/resource-like.js';
 
 export class RelationResource<TEntity extends Entity>
   implements Resource<TEntity>

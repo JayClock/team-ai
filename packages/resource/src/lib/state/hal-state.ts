@@ -4,7 +4,7 @@ import { Link, Links } from '../links.js';
 import { State } from './state.js';
 import { StateCollection } from './state-collection.js';
 import { Form } from '../form/form.js';
-import { RelationResource } from '../relation-resource.js';
+import { RelationResource } from '../resource/relation-resource.js';
 
 type StateInit<TEntity extends Entity> = {
   uri: string;

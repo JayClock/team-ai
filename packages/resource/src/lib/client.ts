@@ -1,7 +1,7 @@
 import { Entity } from './archtype/entity.js';
 import { Resource } from './archtype/resource-like.js';
 import { SafeAny } from './archtype/safe-any.js';
-import { RootResource } from './root-resource.js';
+import { RootResource } from './resource/root-resource.js';
 import { inject, injectable } from 'inversify';
 import { TYPES } from './archtype/injection-types.js';
 import type { Config } from './archtype/config.js';

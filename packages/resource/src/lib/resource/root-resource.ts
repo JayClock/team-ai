@@ -1,10 +1,10 @@
-import { Client } from './client.js';
-import { Entity } from './archtype/entity.js';
+import { Client } from '../client.js';
+import { Entity } from '../archtype/entity.js';
 import { RelationResource } from './relation-resource.js';
-import { HalStateFactory } from './state/hal.js';
+import { HalStateFactory } from '../state/hal.js';
 import { HalResource } from 'hal-types';
-import { ResourceState } from './state/resource-state.js';
-import { Resource } from './archtype/resource-like.js';
+import { ResourceState } from '../state/resource-state.js';
+import { Resource } from '../archtype/resource-like.js';
 
 export class RootResource<TEntity extends Entity> implements Resource<TEntity> {
   constructor(private readonly client: Client, private readonly uri: string) {}

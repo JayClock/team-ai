@@ -1,6 +1,6 @@
 import { Entity } from '../archtype/entity.js';
 import { Links } from '../links.js';
-import { RelationResource } from '../relation-resource.js';
+import { RelationResource } from '../resource/relation-resource.js';
 import { Form } from '../form/form.js';
 import { StateCollection } from './state-collection.js';
 

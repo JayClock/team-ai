@@ -1,6 +1,6 @@
 import { Collection } from 'src/lib/archtype/collection.js';
 import { Entity } from '../../lib/archtype/entity.js';
-import { Client } from 'src/lib/client.js';
+import { createClient } from '../../lib/create-client.js';
 
 export type User = Entity<
   { id: string; name: string; email: string },
@@ -23,4 +23,4 @@ export type Conversation = Entity<
   { self: Conversation }
 >;
 
-new Client({ baseURL: '' }).go<User>('');
+createClient({ baseURL: '' }).go<User>('');
