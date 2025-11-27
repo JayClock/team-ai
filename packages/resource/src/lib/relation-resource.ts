@@ -17,9 +17,9 @@ export class RelationResource<TEntity extends Entity>
     private readonly rels: string[]
   ) {}
 
-  follow<K extends keyof TEntity['relations']>(
+  follow<K extends keyof TEntity['links']>(
     rel: K
-  ): Resource<TEntity['relations'][K]> {
+  ): Resource<TEntity['links'][K]> {
     return new RelationResource(
       this.client,
       this.rootUri,

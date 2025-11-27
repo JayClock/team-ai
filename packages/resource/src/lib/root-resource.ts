@@ -9,9 +9,9 @@ import { Resource } from './archtype/resource-like.js';
 export class RootResource<TEntity extends Entity> implements Resource<TEntity> {
   constructor(private readonly client: Client, private readonly uri: string) {}
 
-  follow<K extends keyof TEntity['relations']>(
+  follow<K extends keyof TEntity['links']>(
     rel: K
-  ): Resource<TEntity['relations'][K]> {
+  ): Resource<TEntity['links'][K]> {
     return new RelationResource(this.client, this.uri, [rel as string]);
   }
 

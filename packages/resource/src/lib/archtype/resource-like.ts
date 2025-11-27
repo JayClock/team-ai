@@ -6,7 +6,7 @@ export interface Resource<TEntity extends Entity> {
   post<TData = unknown>(data: TData): Promise<ResourceState<TEntity>>;
   put<TData = unknown>(data: TData): Promise<ResourceState<TEntity>>;
   delete(): Promise<ResourceState<TEntity>>;
-  follow<K extends keyof TEntity['relations']>(
+  follow<K extends keyof TEntity['links']>(
     rel: K
-  ): Resource<TEntity['relations'][K]>;
+  ): Resource<TEntity['links'][K]>;
 }

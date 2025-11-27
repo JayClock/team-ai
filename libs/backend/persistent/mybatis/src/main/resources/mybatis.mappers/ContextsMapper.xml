@@ -3,7 +3,7 @@
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ContextsMapper">
   <resultMap id="context" type="reengineering.ddd.teamai.model.Context">
     <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
-    <association property="description" javaType="reengineering.ddd.teamai.description.ContextDescription">
+    <association property="data" javaType="reengineering.ddd.teamai.data.ContextDescription">
       <constructor>
         <arg column="title" jdbcType="VARCHAR" javaType="String"/>
         <arg column="content" jdbcType="VARCHAR" javaType="String"/>

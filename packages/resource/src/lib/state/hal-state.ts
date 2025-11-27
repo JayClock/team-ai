@@ -9,8 +9,8 @@ import { RelationResource } from '../relation-resource.js';
 type StateInit<TEntity extends Entity> = {
   uri: string;
   client: Client;
-  data: TEntity['description'];
-  links: Links<TEntity['relations']>;
+  data: TEntity['data'];
+  links: Links<TEntity['links']>;
   collection?: State[];
   forms?: Form[];
   embedded?: Record<string, State | State[]>;
@@ -21,9 +21,9 @@ export class HalState<TEntity extends Entity = Entity>
 {
   readonly uri: string;
   readonly client: Client;
-  readonly data: TEntity['description'];
+  readonly data: TEntity['data'];
   readonly collection: StateCollection<TEntity>;
-  readonly links: Links<TEntity['relations']>;
+  readonly links: Links<TEntity['links']>;
   private readonly forms: Form[];
   private readonly embedded: Record<string, State | State[]>;
 
@@ -37,9 +37,9 @@ export class HalState<TEntity extends Entity = Entity>
     this.embedded = this.init.embedded || {};
   }
 
-  follow<K extends keyof TEntity['relations']>(
+  follow<K extends keyof TEntity['links']>(
     rel: K
-  ): RelationResource<TEntity['relations'][K]> {
+  ): RelationResource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
       return new RelationResource(this.client, this.uri, [rel as string]);
@@ -47,7 +47,7 @@ export class HalState<TEntity extends Entity = Entity>
     throw new Error(`rel ${rel as string} is not exited`);
   }
 
-  getForm<K extends keyof TEntity['relations']>(rel: K, method: string) {
+  getForm<K extends keyof TEntity['links']>(rel: K, method: string) {
     const link = this.links.get(rel as string);
     if (!link) {
       return undefined;

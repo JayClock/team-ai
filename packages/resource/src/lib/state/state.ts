@@ -7,17 +7,17 @@ import { StateCollection } from './state-collection.js';
 export type State<TEntity extends Entity = Entity> = {
   uri: string;
 
-  data: TEntity['description'];
+  data: TEntity['data'];
 
   collection: StateCollection<TEntity>;
 
-  links: Links<TEntity['relations']>;
+  links: Links<TEntity['links']>;
 
-  follow<K extends keyof TEntity['relations']>(
+  follow<K extends keyof TEntity['links']>(
     rel: K
-  ): RelationResource<TEntity['relations'][K]>;
+  ): RelationResource<TEntity['links'][K]>;
 
-  getForm<K extends keyof TEntity['relations']>(
+  getForm<K extends keyof TEntity['links']>(
     rel: K,
     method: string
   ): Form | undefined;

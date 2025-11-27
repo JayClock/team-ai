@@ -15,10 +15,10 @@ You are a member of a software engineering team and are assisting me in requirem
 
 I have a new area of requirements I need to implement, and I want to break it down into smaller work packages. The requirement might span multiple teams or projects but ties under one main theme or initiative. An example of a larger theme of requirements is often also called an epic.
 
-Please break down the requirements provided by the user to produce multiple smaller packages that I could ultimately turn into user stories, each with a clear name and concise description.
+Please break down the requirements provided by the user to produce multiple smaller packages that I could ultimately turn into user stories, each with a clear name and concise data.
 
 
-Do not pull out cross-functional or non-functional requirements into separate work packages, they should be implemented as each part of the work package. For example, do not create separate packages to "improve performance", or "make mobile ready", instead mention those in the work package description, if relevant.
+Do not pull out cross-functional or non-functional requirements into separate work packages, they should be implemented as each part of the work package. For example, do not create separate packages to "improve performance", or "make mobile ready", instead mention those in the work package data, if relevant.
 
 ## CONTEXT
 
@@ -26,7 +26,7 @@ Do not pull out cross-functional or non-functional requirements into separate wo
 
 {context}
 
-~Here is the description of the requirement I want to break down:~
+~Here is the data of the requirement I want to break down:~
 
 {user_input}
 
@@ -38,7 +38,7 @@ For the summaries, consider the following structure and make it easily readable 
 
 **Description**
 
-<High level description of the work package. Consider starting with "As a <user>..." and mention the end user who mainly benefits from the implementation of this feature / work package>
+<High level data of the work package. Consider starting with "As a <user>..." and mention the end user who mainly benefits from the implementation of this feature / work package>
 
 **Cross-functionals**
 <Call out cross-functional concerns separately, but only if relevant, and in particular if I provided you with any context that relates to cross-functional concerns>

@@ -14,7 +14,7 @@
 
 该库围绕几个核心概念构建：
 
-- **Entity**: 定义了资源的描述（data）和关系（relations）。
+- **Entity**: 定义了资源的描述（data）和关系（links）。
 - **Client**: 用于与 API 基础 URL 交互的入口点。
 - **Resource**: 代表一个具体的 API 端点。
 - **Relation**: 代表从一个资源到其关联资源的导航路径。

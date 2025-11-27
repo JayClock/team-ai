@@ -4,7 +4,7 @@ title: "Epic Discussion"
 categories: ["analysis"]
 
 help_prompt_description: "Helps you discuss and analyse the details of an epic - usage scenarios, domain and validations, and ultimately breaking it down into a list of user stories."
-help_user_input: "Provide a high-level description of your epic. You can also add domain context if needed."
+help_user_input: "Provide a high-level data of your epic. You can also add domain context if needed."
 help_sample_input: "I want sales managers to be able to plan activities to contact their customers. They should be able to plan dates and times for contacts, and document the activities."
 ---
 
@@ -15,12 +15,12 @@ I am a software requirements and business analyst, you are my assistant with ric
 
 I will provide you with the high level requirements we need to analyse in this format:
     Product application: \"<Application name and features>\" 
-    User feature requirements: \"<User requirement description>\"
+    User feature requirements: \"<User requirement data>\"
 
 Guide me through conducting a requirements analysis in the following steps. After each step, stop and ask me if you have understood my task correctly, or if I want to add something to that step. Let me know that you will continue with the next step once I have given my feedback. If I say "nothing to add", or "OK", or "OK continue" or something similar, continue on to the next step.
 
 ## Step 1
-You generate a complete and structured breakdown of the user feature based on the description, including user stories, feature details, and example user usage scenarios
+You generate a complete and structured breakdown of the user feature based on the data, including user stories, feature details, and example user usage scenarios
 
 ## Step 2
 You continue the analysis and list core domain objects and attributes, data verification rules, business logic processing rules, Ul display methods and interaction rules 

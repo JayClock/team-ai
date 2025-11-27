@@ -7,12 +7,12 @@ export type ResourceState<TEntity extends Entity = Entity> = Omit<
   State<TEntity>,
   'data' | 'collection' | 'links' | 'follow' | 'getForm'
 > &
-  (keyof TEntity['description'] extends never
+  (keyof TEntity['data'] extends never
     ? unknown
-    : { data: TEntity['description'] }) &
+    : { data: TEntity['data'] }) &
   (IsCollectionType<TEntity> extends true
     ? { collection: StateCollection<TEntity> }
     : unknown) &
-  (keyof TEntity['relations'] extends never
+  (keyof TEntity['links'] extends never
     ? unknown
     : Pick<State<TEntity>, 'links' | 'follow' | 'getForm'>);
