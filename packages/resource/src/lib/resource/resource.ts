@@ -8,11 +8,8 @@ import { HalResource } from 'hal-types';
 
 import { SafeAny } from '../archtype/safe-any.js';
 import { ResourceState } from '../state/resource-state.js';
-import { Resource } from '../archtype/resource-like.js';
 
-export class RelationResource<TEntity extends Entity>
-  implements Resource<TEntity>
-{
+export class Resource<TEntity extends Entity> {
   constructor(
     private readonly client: Client,
     private readonly rootUri: string,
@@ -22,7 +19,7 @@ export class RelationResource<TEntity extends Entity>
   follow<K extends keyof TEntity['links']>(
     rel: K
   ): Resource<TEntity['links'][K]> {
-    return new RelationResource(
+    return new Resource(
       this.client,
       this.rootUri,
       this.rels.concat(rel as string)
@@ -40,7 +37,7 @@ export class RelationResource<TEntity extends Entity>
       );
     }
 
-    // 有关系路径时的处理（RelationResource 的原始行为）
+    // 有关系路径时的处理（Resource 的原始行为）
     const { penultimateState, link } = await this.getLastStateAndLink();
     const embedded = penultimateState.getEmbedded(link.rel);
     if (Array.isArray(embedded)) {
@@ -76,7 +73,7 @@ export class RelationResource<TEntity extends Entity>
       );
     }
 
-    // 有关系路径时的处理（RelationResource 的原始行为）
+    // 有关系路径时的处理（Resource 的原始行为）
     const { link } = await this.getLastStateAndLink();
     return this.client.go<TEntity>(link.href).post(data);
   }
@@ -99,7 +96,7 @@ export class RelationResource<TEntity extends Entity>
       );
     }
 
-    // 有关系路径时的处理（RelationResource 的原始行为）
+    // 有关系路径时的处理（Resource 的原始行为）
     const { link } = await this.getLastStateAndLink();
     return this.client.go<TEntity>(link.href).put(data);
   }
@@ -118,7 +115,7 @@ export class RelationResource<TEntity extends Entity>
       );
     }
 
-    // 有关系路径时的处理（RelationResource 的原始行为）
+    // 有关系路径时的处理（Resource 的原始行为）
     const { link } = await this.getLastStateAndLink();
     return this.client.go<TEntity>(link.href).delete();
   }

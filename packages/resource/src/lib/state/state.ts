@@ -1,6 +1,6 @@
 import { Entity } from '../archtype/entity.js';
 import { Links } from '../links.js';
-import { RelationResource } from '../resource/relation-resource.js';
+import { Resource } from '../resource/resource.js';
 import { Form } from '../form/form.js';
 import { StateCollection } from './state-collection.js';
 
@@ -15,7 +15,7 @@ export type State<TEntity extends Entity = Entity> = {
 
   follow<K extends keyof TEntity['links']>(
     rel: K
-  ): RelationResource<TEntity['links'][K]>;
+  ): Resource<TEntity['links'][K]>;
 
   getForm<K extends keyof TEntity['links']>(
     rel: K,

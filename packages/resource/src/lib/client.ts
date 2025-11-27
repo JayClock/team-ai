@@ -1,6 +1,5 @@
 import { Entity } from './archtype/entity.js';
-import { Resource } from './archtype/resource-like.js';
-import { RelationResource } from './resource/relation-resource.js';
+import { Resource } from './resource/resource.js';
 import { inject, injectable } from 'inversify';
 import { TYPES } from './archtype/injection-types.js';
 import type { Config } from './archtype/config.js';
@@ -13,7 +12,7 @@ export class Client {
   ) {}
 
   go<TEntity extends Entity>(uri: string): Resource<TEntity> {
-    return new RelationResource<TEntity>(this, uri);
+    return new Resource<TEntity>(this, uri);
   }
 
   fetch(
