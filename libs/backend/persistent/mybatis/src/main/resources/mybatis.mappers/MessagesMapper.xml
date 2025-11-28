@@ -3,7 +3,7 @@
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.MessagesMapper">
   <resultMap id="message" type="reengineering.ddd.teamai.model.Message">
     <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
-    <association property="data" javaType="reengineering.ddd.teamai.data.MessageDescription">
+    <association property="description" javaType="reengineering.ddd.teamai.description.MessageDescription">
       <constructor>
         <arg column="role" jdbcType="VARCHAR" javaType="String"/>
         <arg column="content" jdbcType="VARCHAR" javaType="String"/>
@@ -28,7 +28,7 @@
   <insert id="insertMessage" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
     insert into messages (conversation_id, role, content)
-    values (#{conversation_id}, #{data.role}, #{data.content})
+    values (#{conversation_id}, #{description.role}, #{description.content})
   </insert>
 
   <select id="subMessagesByConversation" resultMap="message">

@@ -3,7 +3,7 @@
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.AccountsMapper">
   <resultMap id="account" type="reengineering.ddd.teamai.model.Account">
     <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
-    <association property="data" javaType="reengineering.ddd.teamai.data.AccountDescription">
+    <association property="description" javaType="reengineering.ddd.teamai.description.AccountDescription">
       <constructor>
         <arg column="provider" jdbcType="VARCHAR" javaType="String"/>
         <arg column="provider_id" jdbcType="VARCHAR" javaType="String"/>
@@ -22,7 +22,7 @@
 
   <insert id="insertAccount" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id" parameterType="reengineering.ddd.mybatis.support.IdHolder">
       INSERT INTO accounts (provider, provider_id, user_id)
-      VALUES (#{data.provider}, #{data.providerId}, #{user_id})
+      VALUES (#{description.provider}, #{description.providerId}, #{user_id})
       on conflict (provider, provider_id) do nothing
       returning id
   </insert>

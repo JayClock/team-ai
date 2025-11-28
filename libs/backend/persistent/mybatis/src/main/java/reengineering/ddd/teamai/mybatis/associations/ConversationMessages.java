@@ -9,8 +9,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reengineering.ddd.mybatis.database.EntityList;
 import reengineering.ddd.mybatis.support.IdHolder;
-import reengineering.ddd.teamai.data.EpicDescription;
-import reengineering.ddd.teamai.data.MessageDescription;
+import reengineering.ddd.teamai.description.EpicDescription;
+import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Context;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
@@ -46,31 +46,31 @@ public class ConversationMessages extends EntityList<String, Message> implements
   }
 
   @Override
-  public Message saveMessage(MessageDescription data) {
+  public Message saveMessage(MessageDescription description) {
     IdHolder idHolder = new IdHolder();
-    mapper.insertMessage(idHolder, conversationId, data);
+    mapper.insertMessage(idHolder, conversationId, description);
     return findEntity(String.valueOf(idHolder.id()));
   }
 
   @Override
-  public Flux<String> epicBreakdown(EpicDescription data) {
+  public Flux<String> epicBreakdown(EpicDescription description) {
     var converter = new BeanOutputConverter<>(new ParameterizedTypeReference<List<WorkPackage>>() {
     });
-    Context context = contextsMapper.findContextById(Integer.parseInt(data.contextId()));
+    Context context = contextsMapper.findContextById(Integer.parseInt(description.contextId()));
     return this.deepSeekChatClient.prompt()
       .user(u -> u.text(epicBreakdownPrompt)
         .param("context", context.getDescription().content())
-        .param("user_input", data.userInput())
+        .param("user_input", description.userInput())
         .param("format", converter.getFormat()))
       .stream().content();
   }
 
   @Override
-  public Flux<String> sendMessage(MessageDescription data) {
-    return Mono.fromCallable(() -> saveMessage(data))
+  public Flux<String> sendMessage(MessageDescription description) {
+    return Mono.fromCallable(() -> saveMessage(description))
       .flatMapMany(savedMessage -> {
         StringBuilder aiResponseBuilder = new StringBuilder();
-        return this.deepSeekChatClient.prompt().user(data.content()).stream().content()
+        return this.deepSeekChatClient.prompt().user(description.content()).stream().content()
           .doOnNext(aiResponseBuilder::append)
           .doOnComplete(() -> {
             String fullAiResponse = aiResponseBuilder.toString();
@@ -97,10 +97,10 @@ public class ConversationMessages extends EntityList<String, Message> implements
 
     I have a new area of requirements I need to implement, and I want to break it down into smaller work packages. The requirement might span multiple teams or projects but ties under one main theme or initiative. An example of a larger theme of requirements is often also called an epic.
 
-    Please break down the requirements provided by the user to produce multiple smaller packages that I could ultimately turn into user stories, each with a clear name and concise data.
+    Please break down the requirements provided by the user to produce multiple smaller packages that I could ultimately turn into user stories, each with a clear name and concise description.
 
 
-    Do not pull out cross-functional or non-functional requirements into separate work packages, they should be implemented as each part of the work package. For example, do not create separate packages to "improve performance", or "make mobile ready", instead mention those in the work package data, if relevant.
+    Do not pull out cross-functional or non-functional requirements into separate work packages, they should be implemented as each part of the work package. For example, do not create separate packages to "improve performance", or "make mobile ready", instead mention those in the work package description, if relevant.
 
     ## CONTEXT
 
@@ -108,7 +108,7 @@ public class ConversationMessages extends EntityList<String, Message> implements
 
     {context}
 
-    ~Here is the data of the requirement I want to break down:~
+    ~Here is the description of the requirement I want to break down:~
 
     {user_input}
 
@@ -120,7 +120,7 @@ public class ConversationMessages extends EntityList<String, Message> implements
 
     **Description**
 
-    <High level data of the work package. Consider starting with "As a <user>..." and mention the end user who mainly benefits from the implementation of this feature / work package>
+    <High level description of the work package. Consider starting with "As a <user>..." and mention the end user who mainly benefits from the implementation of this feature / work package>
 
     **Cross-functionals**
     <Call out cross-functional concerns separately, but only if relevant, and in particular if I provided you with any context that relates to cross-functional concerns>
