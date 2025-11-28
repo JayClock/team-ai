@@ -12,32 +12,26 @@ import { ResourceState } from '../state/resource-state.js';
 export class Resource<TEntity extends Entity> {
   constructor(
     private readonly client: Client,
-    private readonly rootUri: string,
-    private readonly rels: string[] = []
+    private readonly uri: string,
+    private readonly rels: string[]
   ) {}
 
   follow<K extends keyof TEntity['links']>(
     rel: K
   ): Resource<TEntity['links'][K]> {
-    return new Resource(
-      this.client,
-      this.rootUri,
-      this.rels.concat(rel as string)
-    );
+    return new Resource(this.client, this.uri, this.rels.concat(rel as string));
   }
 
   async get(): Promise<ResourceState<TEntity>> {
-    // 如果没有关系路径，直接操作 URI（RootResource 的行为）
-    if (this.rels.length === 0) {
-      const response = await this.client.fetch(this.rootUri);
+    if (this.isRootResource()) {
+      const response = await this.client.fetch(this.uri);
       return HalStateFactory<TEntity>(
         this.client,
-        this.rootUri,
+        this.uri,
         (await response.json()) as HalResource
       );
     }
 
-    // 有关系路径时的处理（Resource 的原始行为）
     const { penultimateState, link } = await this.getLastStateAndLink();
     const embedded = penultimateState.getEmbedded(link.rel);
     if (Array.isArray(embedded)) {
@@ -56,9 +50,8 @@ export class Resource<TEntity extends Entity> {
   }
 
   async post<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
-    // 如果没有关系路径，直接操作 URI（RootResource 的行为）
-    if (this.rels.length === 0) {
-      const response = await this.client.fetch(this.rootUri, {
+    if (this.isRootResource()) {
+      const response = await this.client.fetch(this.uri, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,20 +61,18 @@ export class Resource<TEntity extends Entity> {
 
       return HalStateFactory<TEntity>(
         this.client,
-        this.rootUri,
+        this.uri,
         (await response.json()) as HalResource
       );
     }
 
-    // 有关系路径时的处理（Resource 的原始行为）
     const { link } = await this.getLastStateAndLink();
     return this.client.go<TEntity>(link.href).post(data);
   }
 
   async put<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
-    // 如果没有关系路径，直接操作 URI（RootResource 的行为）
-    if (this.rels.length === 0) {
-      const response = await this.client.fetch(this.rootUri, {
+    if (this.isRootResource()) {
+      const response = await this.client.fetch(this.uri, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -91,33 +82,34 @@ export class Resource<TEntity extends Entity> {
 
       return HalStateFactory<TEntity>(
         this.client,
-        this.rootUri,
+        this.uri,
         (await response.json()) as HalResource
       );
     }
 
-    // 有关系路径时的处理（Resource 的原始行为）
     const { link } = await this.getLastStateAndLink();
     return this.client.go<TEntity>(link.href).put(data);
   }
 
   async delete(): Promise<ResourceState<TEntity>> {
-    // 如果没有关系路径，直接操作 URI（RootResource 的行为）
-    if (this.rels.length === 0) {
-      const response = await this.client.fetch(this.rootUri, {
+    if (this.isRootResource()) {
+      const response = await this.client.fetch(this.uri, {
         method: 'DELETE',
       });
 
       return HalStateFactory<TEntity>(
         this.client,
-        this.rootUri,
+        this.uri,
         (await response.json()) as HalResource
       );
     }
 
-    // 有关系路径时的处理（Resource 的原始行为）
     const { link } = await this.getLastStateAndLink();
     return this.client.go<TEntity>(link.href).delete();
+  }
+
+  private isRootResource() {
+    return this.rels.length === 0;
   }
 
   private async getLastStateAndLink() {
@@ -136,7 +128,7 @@ export class Resource<TEntity extends Entity> {
   }
 
   private async resolve(rels: string[]): Promise<State<SafeAny>> {
-    const initialResource = this.client.go(this.rootUri);
+    const initialResource = this.client.go(this.uri);
     let currentState = (await initialResource.get()) as State<SafeAny>;
     for (const rel of rels) {
       const nextResource = this.client.go(
