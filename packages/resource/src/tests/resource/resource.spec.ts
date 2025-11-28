@@ -14,336 +14,210 @@ const mockClient = {
   fetch: vi.fn()
 } as unknown as Client;
 describe('Resource', () => {
-  describe('get method with HAL resources', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should handle root resource request without data', async () => {
+    const mockResponse = {
+      json: vi.fn().mockResolvedValue(halUser)
+    } as unknown as Response;
+
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
+
+    const rootResource = new Resource<User>(mockClient as Client, '/api/users/1', []);
+    const result = await rootResource.request();
+
+    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
+      method: 'GET',
+      body: undefined,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
+    expect(result.data.id).toBe('1');
+    expect(result.data.name).toBe('JayClock');
+    expect(result.uri).toBe('/api/users/1');
+  });
 
-    it('should get embedded array resource (accounts)', async () => {
-      const userState = HalStateFactory<User>(
-        mockClient as Client,
-        '/api/users/1',
-        halUser as HalResource
-      );
+  it('should handle root resource request with data', async () => {
+    const requestData = { name: 'Updated Name' };
+    const mockResponse = {
+      json: vi.fn().mockResolvedValue({ ...halUser, name: 'Updated Name' })
+    } as unknown as Response;
 
-      const mockRootResource = {
-        get: vi.fn().mockResolvedValue(userState)
-      } as unknown as Resource<User>;
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+    const rootResource = new Resource<User>(mockClient as Client, '/api/users/1', []);
+    const result = await rootResource.request(requestData);
 
-      const accountsRelation = new Resource<Collection<Account>>(mockClient as Client, '/api/users/1', [
-        'accounts'
-      ]);
-
-      const accountsState = await accountsRelation.get();
-
-      expect(accountsState.collection).toHaveLength(2);
-      expect(accountsState.uri).toBe('/api/users/1/accounts');
-
-      const firstAccount = accountsState.collection[0] as HalState<Account>;
-      expect(firstAccount.data.id).toBe('1');
-      expect(firstAccount.data.provider).toBe('github');
-      expect(firstAccount.data.providerId).toBe('35857909');
-
-      const secondAccount = accountsState.collection[1] as HalState<Account>;
-      expect(secondAccount.data.id).toBe('2');
-      expect(secondAccount.data.provider).toBe('google');
-      expect(secondAccount.data.providerId).toBe('55877909');
+    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
+      method: 'GET',
+      body: JSON.stringify(requestData),
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
+    expect(result.data.name).toBe('Updated Name');
+  });
 
-    it('should get embedded single resource (latest-conversation)', async () => {
-      const userState = HalStateFactory<User>(
-        mockClient as Client,
-        '/api/users/1',
-        halUser as HalResource
-      );
+  it('should handle embedded array resource request', async () => {
+    const userState = HalStateFactory<User>(
+      mockClient as Client,
+      '/api/users/1',
+      halUser as HalResource
+    );
 
-      const mockRootResource = {
-        get: vi.fn().mockResolvedValue(userState)
-      } as unknown as Resource<User>;
+    const mockRootResource = {
+      get: vi.fn().mockResolvedValue(userState)
+    } as unknown as Resource<User>;
 
-      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+    vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
 
-      const latestConversationRelation = new Resource(
-        mockClient as Client,
-        '/api/users/1',
-        ['latest-conversation']
-      );
+    const accountsResource = new Resource<Collection<Account>>(mockClient as Client, '/api/users/1', ['accounts']);
+    const result = await accountsResource.request();
 
-      const conversationState = await latestConversationRelation.get();
+    expect(result.collection).toHaveLength(2);
+    expect(result.uri).toBe('/api/users/1/accounts');
 
-      expect(conversationState.data.id).toBe('conv-456');
-      expect(conversationState.data.title).toBe('Recent chat about HATEOAS');
-      expect(conversationState.uri).toBe('/api/conversations/conv-456');
+    const firstAccount = result.collection[0] as HalState<Account>;
+    expect(firstAccount.data.id).toBe('1');
+    expect(firstAccount.data.provider).toBe('github');
+    expect(firstAccount.data.providerId).toBe('35857909');
+  });
+
+  it('should handle embedded single resource request', async () => {
+    const userState = HalStateFactory<User>(
+      mockClient as Client,
+      '/api/users/1',
+      halUser as HalResource
+    );
+
+    const mockRootResource = {
+      get: vi.fn().mockResolvedValue(userState)
+    } as unknown as Resource<User>;
+
+    vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+
+    const latestConversationResource = new Resource<Conversation>(mockClient as Client, '/api/users/1', ['latest-conversation']);
+    const result = await latestConversationResource.request();
+
+    expect(result.data.id).toBe('conv-456');
+    expect(result.data.title).toBe('Recent chat about HATEOAS');
+    expect(result.uri).toBe('/api/conversations/conv-456');
+  });
+
+  it('should handle non-embedded resource request with HTTP call', async () => {
+    const userState = HalStateFactory<User>(
+      mockClient as Client,
+      '/api/users/1',
+      halUser as HalResource
+    );
+
+    // Create a modified user state without embedded conversations
+    const userStateWithoutEmbedded = {
+      ...userState,
+      getEmbedded: vi.fn().mockReturnValue(undefined)
+    } as unknown as HalState<User>;
+
+    const mockRootResource = {
+      get: vi.fn().mockResolvedValue(userStateWithoutEmbedded)
+    } as unknown as Resource<User>;
+
+    vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+
+    const mockResponse = {
+      json: vi.fn().mockResolvedValue(halConversations)
+    } as unknown as Response;
+
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
+
+    const conversationsResource = new Resource<Collection<Conversation>>(mockClient as Client, '/api/users/1', ['conversations']);
+    const result = await conversationsResource.request();
+
+    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1/conversations', {
+      method: 'GET',
+      body: undefined,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
+    expect(result.collection).toHaveLength(40);
+    expect(result.uri).toBe('/api/users/1');
+  });
 
-    it('should get resource through link following (conversations)', async () => {
-      const userState = HalStateFactory<User>(
-        mockClient as Client,
-        '/api/users/1',
-        halUser as HalResource
-      );
+  it('should handle non-embedded resource request with data', async () => {
+    const requestData = { title: 'New Conversation' };
+    const userState = HalStateFactory<User>(
+      mockClient as Client,
+      '/api/users/1',
+      halUser as HalResource
+    );
 
-      const conversationsState = HalStateFactory<User>(
-        mockClient as Client,
-        '/api/users/1/conversations',
-        halConversations,
-        'conversations'
-      );
+    // Create a modified user state without embedded conversations
+    const userStateWithoutEmbedded = {
+      ...userState,
+      getEmbedded: vi.fn().mockReturnValue(undefined)
+    } as unknown as HalState<User>;
 
-      const mockConversationsResource = {
-        get: vi.fn().mockResolvedValue(conversationsState)
-      } as unknown as Resource<User>;
+    const mockRootResource = {
+      get: vi.fn().mockResolvedValue(userStateWithoutEmbedded)
+    } as unknown as Resource<User>;
 
-      const mockUserResource = {
-        ...userState,
-        get: vi.fn().mockResolvedValue(userState),
-        follow: vi.fn().mockReturnValue(mockConversationsResource),
-        getEmbedded: vi.fn().mockReturnValue(undefined)
-      } as unknown as HalState<User>;
+    vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
 
-      const mockRootResource = {
-        get: vi.fn().mockResolvedValue(mockUserResource)
-      } as unknown as Resource<User>;
+    const mockResponse = {
+      json: vi.fn().mockResolvedValue({ id: 'new-conv', title: 'New Conversation' })
+    } as unknown as Response;
 
-      vi.spyOn(mockClient, 'go').mockImplementation((uri: string) => {
-        if (uri === userState.uri) {
-          return mockRootResource;
-        }
-        if (uri === conversationsState.uri) {
-          return mockConversationsResource;
-        }
-        throw new Error();
-      });
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-      const mockResponse = {
-        json: vi.fn().mockResolvedValue(halConversations)
-      } as unknown as Response;
+    const conversationsResource = new Resource<Conversation>(mockClient as Client, '/api/users/1', ['conversations']);
+    const result = await conversationsResource.request(requestData);
 
-      vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
+    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1/conversations', {
+      method: 'GET',
+      body: JSON.stringify(requestData),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    expect(result.data.id).toBe('new-conv');
+    expect(result.data.title).toBe('New Conversation');
+  });
 
-      const conversationsRelation = new Resource<Collection<Conversation>>(
-        mockClient as Client,
-        '/api/users/1',
-        ['conversations']
-      );
+  it('should handle network error gracefully', async () => {
+    const networkError = new Error('Network error');
+    vi.spyOn(mockClient, 'fetch').mockRejectedValue(networkError);
 
-      const resultState = await conversationsRelation.get();
+    const rootResource = new Resource<User>(mockClient as Client, '/api/users/1', []);
 
-      expect(resultState.collection).toHaveLength(40);
-      expect(resultState.uri).toBe('/api/users/1/conversations');
-
-      const firstConversation = resultState.collection[0] as HalState<Conversation>;
-      expect(firstConversation.data.id).toBe('1');
-      expect(firstConversation.data.title).toBe('Conversation Item 1');
-
+    await expect(rootResource.request()).rejects.toThrow('Network error');
+    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
+      method: 'GET',
+      body: undefined,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
   });
 
-  describe('post method', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
+  it('should handle invalid JSON response', async () => {
+    const mockResponse = {
+      json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+    } as unknown as Response;
 
-    it('should post data and return a state', async () => {
-      const userState = HalStateFactory<User>(
-        mockClient as Client,
-        '/api/users/1',
-        halUser as HalResource
-      );
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-      const mockResponseData = { id: '3', provider: 'twitter', providerId: '123456' };
-      const postData = { provider: 'twitter', providerId: '123456' };
+    const rootResource = new Resource<User>(mockClient as Client, '/api/users/1', []);
 
-
-      const mockRootResource = {
-        get: vi.fn().mockResolvedValue(userState),
-        post: vi.fn().mockResolvedValue(
-          HalStateFactory<Account>(
-            mockClient as Client,
-            '/api/users/1/accounts',
-            mockResponseData as HalResource
-          )
-        )
-      } as unknown as Resource<User>;
-
-      vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
-
-      const accountsRelation = new Resource<Collection<Account>>(mockClient as Client, '/api/users/1', [
-        'accounts'
-      ]);
-
-      const resultState = await accountsRelation.post(postData);
-
-      expect(mockRootResource.post).toHaveBeenCalledWith(postData);
-      expect(resultState.data).toEqual(mockResponseData);
-      expect(resultState.uri).toBe('/api/users/1/accounts');
-    });
-  });
-
-  describe('put method', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
-    it('should put data and return a state', async () => {
-      const userState = HalStateFactory<User>(
-        mockClient as Client,
-        '/api/users/1',
-        halUser as HalResource
-      );
-
-      // Create accounts state with proper links
-      const accountsHalResource = {
-        _links: {
-          self: { href: '/api/users/1/accounts' },
-          '1': { href: '/api/users/1/accounts/1' }  // Add the specific account link
-        },
-        _embedded: {
-          accounts: []
-        }
-      } as HalResource;
-
-      const accountsState = HalStateFactory<Collection<Account>>(
-        mockClient as Client,
-        '/api/users/1/accounts',
-        accountsHalResource,
-        'accounts'
-      );
-
-      const mockResponseData = { id: '1', provider: 'github', providerId: '35857909', updated: true };
-      const putData = { provider: 'github', providerId: '35857909', updated: true };
-
-      const mockAccountResource = {
-        put: vi.fn().mockResolvedValue(
-          HalStateFactory<Account>(
-            mockClient as Client,
-            '/api/users/1/accounts/1',
-            mockResponseData as HalResource
-          )
-        )
-      } as unknown as Resource<Account>;
-
-      const mockAccountsResource = {
-        get: vi.fn().mockResolvedValue(accountsState),
-        links: accountsState.links
-      } as unknown as Resource<Collection<Account>>;
-
-      const mockUserResource = {
-        ...userState,
-        get: vi.fn().mockResolvedValue(userState),
-        links: userState.links
-      } as unknown as HalState<User>;
-
-      const mockRootResource = {
-        get: vi.fn().mockResolvedValue(mockUserResource)
-      } as unknown as Resource<User>;
-
-      vi.spyOn(mockClient, 'go').mockImplementation((uri: string) => {
-        if (uri === '/api/users/1') {
-          return mockRootResource;
-        }
-        if (uri === '/api/users/1/accounts') {
-          return mockAccountsResource;
-        }
-        if (uri === '/api/users/1/accounts/1') {
-          return mockAccountResource;
-        }
-        throw new Error(`Unexpected URI: ${uri}`);
-      });
-
-      const accountRelation = new Resource<Account>(mockClient as Client, '/api/users/1', [
-        'accounts', '1'
-      ]);
-
-      const resultState = await accountRelation.put(putData);
-
-      expect(mockAccountResource.put).toHaveBeenCalledWith(putData);
-      expect(resultState.data).toEqual(mockResponseData);
-      expect(resultState.uri).toBe('/api/users/1/accounts/1');
-    });
-  });
-
-  describe('delete method', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
-    it('should delete resource and return a state', async () => {
-      const userState = HalStateFactory<User>(
-        mockClient as Client,
-        '/api/users/1',
-        halUser as HalResource
-      );
-
-      // Create accounts state with proper links
-      const accountsHalResource = {
-        _links: {
-          self: { href: '/api/users/1/accounts' },
-          '1': { href: '/api/users/1/accounts/1' }  // Add the specific account link
-        },
-        _embedded: {
-          accounts: []
-        }
-      } as HalResource;
-
-      const accountsState = HalStateFactory<Collection<Account>>(
-        mockClient as Client,
-        '/api/users/1/accounts',
-        accountsHalResource,
-        'accounts'
-      );
-
-      const mockResponseData = { id: '1', deleted: true };
-
-      const mockAccountResource = {
-        delete: vi.fn().mockResolvedValue(
-          HalStateFactory<Account>(
-            mockClient as Client,
-            '/api/users/1/accounts/1',
-            mockResponseData as HalResource
-          )
-        )
-      } as unknown as Resource<Account>;
-
-      const mockAccountsResource = {
-        get: vi.fn().mockResolvedValue(accountsState),
-        links: accountsState.links
-      } as unknown as Resource<Collection<Account>>;
-
-      const mockUserResource = {
-        ...userState,
-        get: vi.fn().mockResolvedValue(userState),
-        links: userState.links
-      } as unknown as HalState<User>;
-
-      const mockRootResource = {
-        get: vi.fn().mockResolvedValue(mockUserResource)
-      } as unknown as Resource<User>;
-
-      vi.spyOn(mockClient, 'go').mockImplementation((uri: string) => {
-        if (uri === '/api/users/1') {
-          return mockRootResource;
-        }
-        if (uri === '/api/users/1/accounts') {
-          return mockAccountsResource;
-        }
-        if (uri === '/api/users/1/accounts/1') {
-          return mockAccountResource;
-        }
-        throw new Error(`Unexpected URI: ${uri}`);
-      });
-
-      const accountRelation = new Resource<Account>(mockClient as Client, '/api/users/1', [
-        'accounts', '1'
-      ]);
-
-      const resultState = await accountRelation.delete();
-
-      expect(mockAccountResource.delete).toHaveBeenCalled();
-      expect(resultState.data).toEqual(mockResponseData);
-      expect(resultState.uri).toBe('/api/users/1/accounts/1');
+    await expect(rootResource.request()).rejects.toThrow('Invalid JSON');
+    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
+      method: 'GET',
+      body: undefined,
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
   });
 });

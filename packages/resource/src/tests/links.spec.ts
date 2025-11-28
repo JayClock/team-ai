@@ -1,5 +1,5 @@
 import { describe, expect } from 'vitest';
-import { Link, Links } from '../lib/index.js';
+import { Link, Links } from '../lib/links.js';
 
 describe('Links', () => {
   const links = new Links();
