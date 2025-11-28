@@ -2,7 +2,7 @@ import { describe, expect } from 'vitest';
 import { Link, Links } from '../lib/links.js';
 
 describe('Links', () => {
-  const links = new Links();
+  const links = new Links<Record<string, Link>>();
 
   it('should get single stored link', () => {
     const link: Link = { rel: 'rel', href: 'href' };

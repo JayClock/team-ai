@@ -69,7 +69,7 @@ describe('Resource', () => {
     );
 
     const mockRootResource = {
-      get: vi.fn().mockResolvedValue(userState)
+      request: vi.fn().mockResolvedValue(userState)
     } as unknown as Resource<User>;
 
     vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
@@ -94,7 +94,7 @@ describe('Resource', () => {
     );
 
     const mockRootResource = {
-      get: vi.fn().mockResolvedValue(userState)
+      request: vi.fn().mockResolvedValue(userState)
     } as unknown as Resource<User>;
 
     vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
@@ -121,7 +121,7 @@ describe('Resource', () => {
     } as unknown as HalState<User>;
 
     const mockRootResource = {
-      get: vi.fn().mockResolvedValue(userStateWithoutEmbedded)
+      request: vi.fn().mockResolvedValue(userStateWithoutEmbedded)
     } as unknown as Resource<User>;
 
     vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
@@ -161,7 +161,7 @@ describe('Resource', () => {
     } as unknown as HalState<User>;
 
     const mockRootResource = {
-      get: vi.fn().mockResolvedValue(userStateWithoutEmbedded)
+      request: vi.fn().mockResolvedValue(userStateWithoutEmbedded)
     } as unknown as Resource<User>;
 
     vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);

@@ -71,67 +71,8 @@ export class Resource<TEntity extends Entity> {
     );
   }
 
-  async get(): Promise<ResourceState<TEntity>> {
-    if (this.isRootResource()) {
-      return await this.request();
-    }
-
-    const { penultimateState, link } = await this.getLastStateAndLink();
-    const embedded = penultimateState.getEmbedded(link.rel);
-    if (Array.isArray(embedded)) {
-      return new HalState({
-        client: this.client,
-        data: {},
-        collection: embedded,
-        uri: link.href,
-        links: new Links(),
-      }) as unknown as ResourceState<TEntity>;
-    }
-    if (embedded) {
-      return embedded as unknown as ResourceState<TEntity>;
-    }
-    return this.client.go<TEntity>(link.href).get();
-  }
-
-  async post<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
-    if (this.isRootResource()) {
-      return await this.request();
-    }
-
-    const { link } = await this.getLastStateAndLink();
-    return this.client.go<TEntity>(link.href).post(data);
-  }
-
-  async put<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
-    if (this.isRootResource()) {
-      return await this.request();
-    }
-
-    const { link } = await this.getLastStateAndLink();
-    return this.client.go<TEntity>(link.href).put(data);
-  }
-
-  async delete(): Promise<ResourceState<TEntity>> {
-    if (this.isRootResource()) {
-      return await this.request();
-    }
-
-    const { link } = await this.getLastStateAndLink();
-    return this.client.go<TEntity>(link.href).delete();
-  }
-
   private isRootResource() {
     return this.rels.length === 0;
-  }
-
-  private async getLastStateAndLink() {
-    const penultimateState =
-      (await this.getPenultimateState()) as HalState<SafeAny>;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const lastRel = this.rels.at(-1)!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const link = penultimateState.links.get(lastRel)!;
-    return { penultimateState, link };
   }
 
   private async getPenultimateState(): Promise<State<SafeAny>> {
@@ -141,13 +82,13 @@ export class Resource<TEntity extends Entity> {
 
   private async resolve(rels: string[]): Promise<State<SafeAny>> {
     const initialResource = this.client.go(this.uri);
-    let currentState = (await initialResource.get()) as State<SafeAny>;
+    let currentState = (await initialResource.request()) as State<SafeAny>;
     for (const rel of rels) {
       const nextResource = this.client.go(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         currentState.links.get(rel as string)!.href
       );
-      currentState = (await nextResource.get()) as State<SafeAny>;
+      currentState = (await nextResource.request()) as State<SafeAny>;
     }
     return currentState;
   }
