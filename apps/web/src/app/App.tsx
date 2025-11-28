@@ -1,17 +1,13 @@
-import { Client } from 'resource';
+import { createClient, Entity } from 'resource';
 
-type UserSchema = {
-  description: { name: string };
-  relations: { self: UserSchema };
-};
-
-const client = new Client({ baseURL: 'http://localhost:4200' });
+type UserSchema = Entity<{ name: string }, { self: UserSchema }>;
+const client = createClient({ baseURL: 'http://localhost:4200' });
 const state = await client
-  .root<UserSchema>('/api/users/1')
-  .follow('conversations')
-  .get();
+  .go<UserSchema>('/api/users/1')
+  .follow('self')
+  .request();
 console.log(state);
 
 export default function App() {
-  return <div></div>;
+  return <div>123</div>;
 }
