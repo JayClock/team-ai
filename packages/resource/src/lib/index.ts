@@ -1,4 +1,3 @@
-export * from './client.js';
-export * from './resource/resource.js';
-export * from './state/hal-state.js';
-export * from './links.js';
+export * from './create-client.js';
+export * from './archtype/entity.js';
+export * from './archtype/collection.js';

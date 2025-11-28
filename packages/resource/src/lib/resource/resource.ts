@@ -2,7 +2,7 @@ import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { HalState } from '../state/hal-state.js';
 import { State } from '../state/state.js';
-import { Links } from '../links.js';
+import { Link, Links } from '../links.js';
 import { HalStateFactory } from '../state/hal.js';
 import { HalResource } from 'hal-types';
 
@@ -22,14 +22,58 @@ export class Resource<TEntity extends Entity> {
     return new Resource(this.client, this.uri, this.rels.concat(rel as string));
   }
 
+  async request(
+    data?: Record<string, SafeAny>
+  ): Promise<ResourceState<TEntity>> {
+    let link!: Link;
+
+    if (this.isRootResource()) {
+      link = {
+        rel: '',
+        href: this.uri,
+        type: 'GET',
+      };
+    } else {
+      const penultimateState =
+        (await this.getPenultimateState()) as HalState<SafeAny>;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const lastRel = this.rels.at(-1)!;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      link = penultimateState.links.get(lastRel)!;
+
+      const embedded = penultimateState.getEmbedded(link.rel);
+      if (Array.isArray(embedded)) {
+        return new HalState({
+          client: this.client,
+          data: {},
+          collection: embedded,
+          uri: link.href,
+          links: new Links(),
+        }) as unknown as ResourceState<TEntity>;
+      }
+      if (embedded) {
+        return embedded as unknown as ResourceState<TEntity>;
+      }
+    }
+
+    const response = await this.client.fetch(link.href, {
+      method: link.type,
+      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return HalStateFactory<TEntity>(
+      this.client,
+      this.uri,
+      (await response.json()) as HalResource,
+      link.rel
+    );
+  }
+
   async get(): Promise<ResourceState<TEntity>> {
     if (this.isRootResource()) {
-      const response = await this.client.fetch(this.uri);
-      return HalStateFactory<TEntity>(
-        this.client,
-        this.uri,
-        (await response.json()) as HalResource
-      );
+      return await this.request();
     }
 
     const { penultimateState, link } = await this.getLastStateAndLink();
@@ -51,19 +95,7 @@ export class Resource<TEntity extends Entity> {
 
   async post<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
     if (this.isRootResource()) {
-      const response = await this.client.fetch(this.uri, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      return HalStateFactory<TEntity>(
-        this.client,
-        this.uri,
-        (await response.json()) as HalResource
-      );
+      return await this.request();
     }
 
     const { link } = await this.getLastStateAndLink();
@@ -72,19 +104,7 @@ export class Resource<TEntity extends Entity> {
 
   async put<TData = unknown>(data: TData): Promise<ResourceState<TEntity>> {
     if (this.isRootResource()) {
-      const response = await this.client.fetch(this.uri, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      return HalStateFactory<TEntity>(
-        this.client,
-        this.uri,
-        (await response.json()) as HalResource
-      );
+      return await this.request();
     }
 
     const { link } = await this.getLastStateAndLink();
@@ -93,15 +113,7 @@ export class Resource<TEntity extends Entity> {
 
   async delete(): Promise<ResourceState<TEntity>> {
     if (this.isRootResource()) {
-      const response = await this.client.fetch(this.uri, {
-        method: 'DELETE',
-      });
-
-      return HalStateFactory<TEntity>(
-        this.client,
-        this.uri,
-        (await response.json()) as HalResource
-      );
+      return await this.request();
     }
 
     const { link } = await this.getLastStateAndLink();

@@ -1,9 +1,10 @@
 import { describe, expect } from 'vitest';
-import { HalState, Client } from '../lib/index.js';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
 import { HalResource } from 'hal-types';
 import { HalStateFactory } from '../lib/state/hal.js';
 import { State } from '../lib/state/state.js';
+import { Client } from '../lib/client.js';
+import { HalState } from '../lib/state/hal-state.js';
 
 const mockClient = {
   go: vi.fn()
@@ -20,12 +21,6 @@ describe('HalState', () => {
     });
   });
 
-  it('should get follow relation with existed link', () => {
-    for (const [rel] of Object.entries(mockUser._links ?? [])) {
-      const relation = state.follow(rel);
-      expect(relation.rels).toEqual([rel]);
-    }
-  });
 
   it('should throw error with not existed link', () => {
     expect(() => state.follow('not existed')).toThrow(

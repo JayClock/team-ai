@@ -1,11 +1,13 @@
 import { describe, expect, vi } from 'vitest';
-import { HalState, Client, Resource } from '../../lib/index.js';
 import { Account, Conversation, User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
 import { HalStateFactory } from '../../lib/state/hal.js';
 import { HalResource } from 'hal-types';
-import { Collection } from '../../lib/archtype/collection.js';
+import { Client } from '../../lib/client.js';
+import { Resource } from '../../lib/resource/resource.js';
+import { Collection } from '../../lib/index.js';
+import { HalState } from '../../lib/state/hal-state.js';
 
 const mockClient = {
   go: vi.fn(),
