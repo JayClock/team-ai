@@ -41,7 +41,7 @@ describe('Client', () => {
     const uri = '/users/1';
     const resource = client.go<Entity>(uri);
 
-    expect(Resource).toHaveBeenCalledWith(client, uri, []);
+    expect(Resource).toHaveBeenCalledWith(client, uri);
     expect(resource).toBeDefined();
   });
 

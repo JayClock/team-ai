@@ -2,24 +2,32 @@ import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { HalState } from '../state/hal-state.js';
 import { State } from '../state/state.js';
-import { Link, Links } from '../links.js';
+import { Link, Links, LinkVariables } from '../links.js';
 import { HalStateFactory } from '../state/hal.js';
 import { HalResource } from 'hal-types';
 
 import { SafeAny } from '../archtype/safe-any.js';
 import { ResourceState } from '../state/resource-state.js';
+import { parseTemplate } from 'url-template';
 
 export class Resource<TEntity extends Entity> {
   constructor(
     private readonly client: Client,
     private readonly uri: string,
-    private readonly rels: string[]
+    private readonly rels: string[] = [],
+    private readonly map: Map<string, LinkVariables> = new Map()
   ) {}
 
   follow<K extends keyof TEntity['links']>(
-    rel: K
+    rel: K,
+    variables: LinkVariables = {}
   ): Resource<TEntity['links'][K]> {
-    return new Resource(this.client, this.uri, this.rels.concat(rel as string));
+    return new Resource(
+      this.client,
+      this.uri,
+      this.rels.concat(rel as string),
+      this.map.set(rel as string, variables)
+    );
   }
 
   async request(
@@ -56,7 +64,7 @@ export class Resource<TEntity extends Entity> {
       }
     }
 
-    const response = await this.client.fetch(link.href, {
+    const response = await this.client.fetch(this.expandLink(link), {
       method: link.type,
       body: JSON.stringify(data),
       headers: {
@@ -84,12 +92,18 @@ export class Resource<TEntity extends Entity> {
     const initialResource = this.client.go(this.uri);
     let currentState = (await initialResource.request()) as State<SafeAny>;
     for (const rel of rels) {
-      const nextResource = this.client.go(
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        currentState.links.get(rel as string)!.href
-      );
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const link = currentState.links.get(rel as string)!;
+      const nextResource = this.client.go(this.expandLink(link));
       currentState = (await nextResource.request()) as State<SafeAny>;
     }
     return currentState;
+  }
+
+  private expandLink(link: Link) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const context = this.map.get(link.rel)!;
+    this.map.delete(link.rel);
+    return parseTemplate(link.href).expand(context);
   }
 }

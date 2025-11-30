@@ -15,7 +15,7 @@ export class Client {
   ) {}
 
   go<TEntity extends Entity>(uri: string): Resource<TEntity> {
-    return new Resource<TEntity>(this, uri, []);
+    return new Resource<TEntity>(this, uri);
   }
 
   fetch(

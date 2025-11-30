@@ -10,10 +10,12 @@
       "href": "/api/users/1/accounts"
     },
     "conversations": {
-      "href": "/api/users/1/conversations"
+      "href": "/api/users/1/conversations{?page,pageSize}",
+      "templated": true
     },
     "create-conversation": {
-      "href": "/api/users/1/conversations"
+      "href": "/api/users/1/conversations",
+      "type": "POST"
     },
     "latest-conversation": {
       "href": "/api/conversations/conv-456"

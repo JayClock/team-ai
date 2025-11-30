@@ -1,6 +1,6 @@
 import { Client } from '../client.js';
 import { Entity } from '../archtype/entity.js';
-import { Link, Links } from '../links.js';
+import { Link, Links, LinkVariables } from '../links.js';
 import { State } from './state.js';
 import { StateCollection } from './state-collection.js';
 import { Form } from '../form/form.js';
@@ -38,22 +38,28 @@ export class HalState<TEntity extends Entity = Entity>
   }
 
   follow<K extends keyof TEntity['links']>(
-    rel: K
+    rel: K,
+    variables: LinkVariables = {}
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new Resource(this.client, this.uri, [rel as string]);
+      return new Resource(
+        this.client,
+        this.uri,
+        [rel as string],
+        new Map([[rel as string, variables]])
+      );
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
 
-  getForm<K extends keyof TEntity['links']>(rel: K, method: string) {
+  getForm<K extends keyof TEntity['links']>(rel: K) {
     const link = this.links.get(rel as string);
     if (!link) {
       return undefined;
     }
     return this.forms.find(
-      (form) => form.uri === link.href && form.method === method
+      (form) => form.uri === link.href && form.method === link.type
     );
   }
 
