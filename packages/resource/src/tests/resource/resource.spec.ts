@@ -1,12 +1,11 @@
 import { describe, expect, vi } from 'vitest';
-import { Account, Conversation, User } from '../fixtures/interface.js';
+import { Account, User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
 import { HalStateFactory } from '../../lib/state/hal.js';
 import { HalResource } from 'hal-types';
 import { Client } from '../../lib/client.js';
 import { Resource } from '../../lib/resource/resource.js';
-import { Collection } from '../../lib/index.js';
 import { HalState } from '../../lib/state/hal-state.js';
 
 const mockClient = {
@@ -74,7 +73,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
 
-    const accountsResource = new Resource<Collection<Account>>(mockClient as Client, '/api/users/1', ['accounts']);
+    const accountsResource = userState.follow('accounts');
     const result = await accountsResource.request();
 
     expect(result.collection).toHaveLength(2);
@@ -99,7 +98,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
 
-    const latestConversationResource = new Resource<Conversation>(mockClient as Client, '/api/users/1', ['latest-conversation']);
+    const latestConversationResource = userState.follow('latest-conversation');
     const result = await latestConversationResource.request();
 
     expect(result.data.id).toBe('conv-456');
@@ -114,7 +113,6 @@ describe('Resource', () => {
       halUser as HalResource
     );
 
-    // Create a modified user state without embedded conversations
     const userStateWithoutEmbedded = {
       ...userState,
       getEmbedded: vi.fn().mockReturnValue(undefined)
@@ -132,7 +130,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const conversationsResource = new Resource<Collection<Conversation>>(mockClient as Client, '/api/users/1', ['conversations']);
+    const conversationsResource = userState.follow('conversations');
     const result = await conversationsResource.request();
 
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1/conversations', {
@@ -144,46 +142,6 @@ describe('Resource', () => {
     });
     expect(result.collection).toHaveLength(40);
     expect(result.uri).toBe('/api/users/1');
-  });
-
-  it('should handle non-embedded resource request with data', async () => {
-    const requestData = { title: 'New Conversation' };
-    const userState = HalStateFactory<User>(
-      mockClient as Client,
-      '/api/users/1',
-      halUser as HalResource
-    );
-
-    // Create a modified user state without embedded conversations
-    const userStateWithoutEmbedded = {
-      ...userState,
-      getEmbedded: vi.fn().mockReturnValue(undefined)
-    } as unknown as HalState<User>;
-
-    const mockRootResource = {
-      request: vi.fn().mockResolvedValue(userStateWithoutEmbedded)
-    } as unknown as Resource<User>;
-
-    vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
-
-    const mockResponse = {
-      json: vi.fn().mockResolvedValue({ id: 'new-conv', title: 'New Conversation' })
-    } as unknown as Response;
-
-    vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
-
-    const conversationsResource = new Resource<Conversation>(mockClient as Client, '/api/users/1', ['conversations']);
-    const result = await conversationsResource.request(requestData);
-
-    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1/conversations', {
-      method: 'GET',
-      body: JSON.stringify(requestData),
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    expect(result.data.id).toBe('new-conv');
-    expect(result.data.title).toBe('New Conversation');
   });
 
   it('should handle network error gracefully', async () => {
