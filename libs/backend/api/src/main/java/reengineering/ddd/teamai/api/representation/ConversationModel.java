@@ -28,8 +28,5 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
       "messages").withType(HttpMethod.GET));
     add(Link.of(ApiTemplates.conversation(uriInfo).path(ConversationApi.class, "chat").build(user.getIdentity(), conversation.getIdentity()).getPath(),
       "send-message").withType(HttpMethod.POST));
-    add(Link.of(ApiTemplates.conversation(uriInfo).path(ConversationApi.class, "chatToBreakdownEpic")
-        .build(user.getIdentity(), conversation.getIdentity()).getPath(), "chat-to-breakdown-epic")
-      .withType(HttpMethod.POST));
   }
 }

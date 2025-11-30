@@ -1,22 +1,27 @@
 package reengineering.ddd;
 
-import jakarta.inject.Inject;
+import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+
+import jakarta.inject.Inject;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.description.UserDescription;
-import reengineering.ddd.teamai.model.*;
-import reengineering.ddd.teamai.mybatis.mappers.*;
-
-import java.util.List;
-import java.util.Random;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import reengineering.ddd.teamai.model.Account;
+import reengineering.ddd.teamai.model.Conversation;
+import reengineering.ddd.teamai.model.Message;
+import reengineering.ddd.teamai.model.User;
+import reengineering.ddd.teamai.mybatis.mappers.AccountsMapper;
+import reengineering.ddd.teamai.mybatis.mappers.ConversationsMapper;
+import reengineering.ddd.teamai.mybatis.mappers.MessagesMapper;
+import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
 
 @MybatisTest
 public class ModelMapperTest extends BaseTestContainersTest {
@@ -27,7 +32,6 @@ public class ModelMapperTest extends BaseTestContainersTest {
   private final int accountId = id();
   private final int conversationId = id();
   private final int messageId = id();
-  private final int contextId = id();
 
   private static int id() {
     return new Random().nextInt(100000);
@@ -39,7 +43,6 @@ public class ModelMapperTest extends BaseTestContainersTest {
     testData.insertAccount(accountId, "provider", "providerId" + accountId, userId);
     testData.insertConversation(conversationId, "title" + conversationId, userId);
     testData.insertMessage(messageId, conversationId, "role", "content");
-    testData.insertContext(contextId, "title", "content");
   }
 
   @Nested
@@ -147,27 +150,6 @@ public class ModelMapperTest extends BaseTestContainersTest {
       messagesMapper.insertMessage(idHolder, conversationId, new MessageDescription("role", "description"));
       Message message = messagesMapper.findMessageByConversationAndId(conversationId, idHolder.id());
       assertEquals(message.getIdentity(), String.valueOf(idHolder.id()));
-    }
-  }
-
-  @Nested
-  class ContextsMapperTest {
-    @Inject
-    private ContextsMapper contextsMapper;
-
-
-    @Test
-    public void should_find_contexts() {
-      List<Context> contexts = contextsMapper.findContexts();
-      assertEquals(1, contexts.size());
-    }
-
-    @Test
-    void should_find_context_by_id() {
-      Context context = contextsMapper.findContextById(contextId);
-      assertEquals(String.valueOf(contextId), context.getIdentity());
-      assertEquals("title", context.getDescription().title());
-      assertEquals("content", context.getDescription().content());
     }
   }
 }

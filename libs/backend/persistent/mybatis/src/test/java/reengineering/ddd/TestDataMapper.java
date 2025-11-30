@@ -17,7 +17,4 @@ public interface TestDataMapper {
 
   @Insert("INSERT INTO messages(id,conversation_id,role,content) VALUES ( #{id} ,#{conversation_id} ,#{role} ,#{content} )")
   void insertMessage(@Param("id") int id, @Param("conversation_id") int conversationId, @Param("role") String role, @Param("content") String content);
-
-  @Insert("INSERT INTO contexts(id,title,content) VALUES (#{id} ,#{title} ,#{content} )")
-  void insertContext(@Param("id") int id, @Param("title") String title, @Param("content") String content);
 }

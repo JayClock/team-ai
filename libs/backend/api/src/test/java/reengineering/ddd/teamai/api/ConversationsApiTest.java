@@ -8,10 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.teamai.description.ConversationDescription;
-import reengineering.ddd.teamai.description.EpicDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.User;
@@ -64,11 +62,7 @@ public class ConversationsApiTest extends ApiTest {
       .body("_embedded.conversations[0]._links.messages.type", is(HttpMethod.GET))
       .body("_embedded.conversations[0]._links.send-message.href",
         is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages:chat"))
-      .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST))
-      .body("_embedded.conversations[0]._links.chat-to-breakdown-epic.href",
-        is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/chat-to-breakdown-epic"))
-      .body("_embedded.conversations[0]._links.chat-to-breakdown-epic.type", is(HttpMethod.POST));
-
+      .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST));
   }
 
   @Test
@@ -87,15 +81,4 @@ public class ConversationsApiTest extends ApiTest {
       .body("id", is(newConversation.getIdentity()));
   }
 
-  @Test
-  public void should_breakdown_epic_and_receive_streaming_response() {
-    EpicDescription description = new EpicDescription("contextId", "userInput");
-    when(conversation.epicBreakdown(description)).thenReturn(Flux.just("data"));
-    given()
-      .accept(MediaType.SERVER_SENT_EVENTS)
-      .contentType(MediaType.APPLICATION_JSON)
-      .body(description)
-      .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/chat-to-breakdown-epic")
-      .then().statusCode(200);
-  }
 }

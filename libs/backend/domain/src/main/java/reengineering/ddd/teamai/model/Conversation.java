@@ -4,7 +4,6 @@ import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
-import reengineering.ddd.teamai.description.EpicDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 
 public class Conversation implements Entity<String, ConversationDescription> {
@@ -43,14 +42,9 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return messages.sendMessage(description);
   }
 
-  public Flux<String> epicBreakdown(EpicDescription description) {
-    return messages.epicBreakdown(description);
-  }
 
   public interface Messages extends HasMany<String, Message> {
     Message saveMessage(MessageDescription description);
-
-    Flux<String> epicBreakdown(EpicDescription description);
 
     Flux<String> sendMessage(MessageDescription description);
   }

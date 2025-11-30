@@ -4,8 +4,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
-import org.springframework.ai.deepseek.DeepSeekChatModel;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.BaseTestContainersTest;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.UserDescription;
@@ -21,9 +19,7 @@ public class UserConversationsTest extends BaseTestContainersTest {
   @Inject
   private Users users;
   private User user;
-  @MockitoBean
-  private DeepSeekChatModel deepSeekChatModel;
-  private int conversationCount = 100;
+  private final int conversationCount = 100;
 
   @BeforeEach
   public void setUp() {

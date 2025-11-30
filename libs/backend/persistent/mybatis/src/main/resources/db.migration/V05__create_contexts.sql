@@ -1,8 +1,0 @@
-CREATE TABLE contexts
-(
-  id         BIGSERIAL PRIMARY KEY,
-  title      VARCHAR(255),
-  content    TEXT,
-  created_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP
-)
