@@ -36,5 +36,6 @@
     insert into users (name, email)
     values (#{description.name}, #{description.email})
     on conflict (email) do update set name = excluded.name
+    returning id
   </insert>
 </mapper>

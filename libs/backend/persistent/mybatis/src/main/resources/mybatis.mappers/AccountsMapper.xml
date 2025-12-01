@@ -24,5 +24,6 @@
       INSERT INTO accounts (provider, provider_id, user_id)
       VALUES (#{description.provider}, #{description.providerId}, #{user_id})
       on conflict (provider, provider_id) do nothing
+      returning id
   </insert>
 </mapper>

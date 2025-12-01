@@ -16,10 +16,6 @@ public class UserConversations extends EntityList<String, Conversation> implemen
   @Inject
   private ConversationsMapper mapper;
 
-  public void setUserId(int userId) {
-    this.userId = userId;
-  }
-
   @Override
   protected List<Conversation> findEntities(int from, int to) {
     return mapper.findConversationsByUserId(userId, from, to - from);

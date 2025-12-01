@@ -14,9 +14,6 @@ public class UserAccounts extends EntityList<String, Account> implements User.Ac
   @Inject
   AccountsMapper mapper;
 
-  public void setUserId(int userId) {
-    this.userId = userId;
-  }
 
   @Override
   public Account add(AccountDescription description) {
