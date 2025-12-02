@@ -1,3 +1,4 @@
+import { Field } from './field.js';
 
 export type Form = {
   /**
@@ -21,4 +22,9 @@ export type Form = {
    * The contentType to use for the form submission
    */
   contentType: string;
+
+  /**
+   * Returns the list of fields associated to an action
+   */
+  fields: Field[];
 };
