@@ -19,15 +19,16 @@ export class Resource<TEntity extends Entity> {
   ) {}
 
   follow<K extends keyof TEntity['links']>(
-    rel: K,
-    variables: LinkVariables = {}
+    rel: K
   ): Resource<TEntity['links'][K]> {
-    return new Resource(
-      this.client,
-      this.uri,
-      this.rels.concat(rel as string),
-      this.map.set(rel as string, variables)
-    );
+    return new Resource(this.client, this.uri, this.rels.concat(rel as string));
+  }
+
+  withTemplateParameters(parameters: LinkVariables) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const lastRel = this.rels.at(-1)!;
+    this.map.set(lastRel, parameters);
+    return this;
   }
 
   async request(
