@@ -10,6 +10,8 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { ResourceState } from '../state/resource-state.js';
 import { parseTemplate } from 'url-template';
 
+const ROOT_REL = Symbol.for('ROOT_REL').toString();
+
 export class Resource<TEntity extends Entity> {
   constructor(
     private readonly client: Client,
@@ -26,7 +28,7 @@ export class Resource<TEntity extends Entity> {
 
   withTemplateParameters(parameters: LinkVariables) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const lastRel = this.rels.at(-1)!;
+    const lastRel = this.isRootResource() ? ROOT_REL : this.rels.at(-1)!;
     this.map.set(lastRel, parameters);
     return this;
   }
@@ -38,7 +40,7 @@ export class Resource<TEntity extends Entity> {
 
     if (this.isRootResource()) {
       link = {
-        rel: '',
+        rel: ROOT_REL,
         href: this.uri,
         type: 'GET',
       };

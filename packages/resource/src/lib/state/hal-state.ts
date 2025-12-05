@@ -42,7 +42,7 @@ export class HalState<TEntity extends Entity = Entity>
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new Resource(this.client, this.uri, [rel as string], new Map());
+      return new Resource(this.client, this.uri, [rel as string]);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
