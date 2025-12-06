@@ -68,8 +68,8 @@ export class Resource<TEntity extends Entity> {
       }
     }
 
-    const uri = this.expandLink(link);
-    const response = await this.client.fetch(uri, {
+    const expandedLink = this.expandLink(link);
+    const response = await this.client.fetch(expandedLink.href, {
       method: link.type,
       body: JSON.stringify(data),
       headers: {
@@ -78,9 +78,9 @@ export class Resource<TEntity extends Entity> {
     });
     return HalStateFactory<TEntity>(
       this.client,
-      uri,
+      expandedLink.href,
       (await response.json()) as HalResource,
-      link.rel
+      expandedLink.rel
     );
   }
 
@@ -99,19 +99,16 @@ export class Resource<TEntity extends Entity> {
     for (const rel of rels) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const link = currentState.links.get(rel as string)!;
-      const nextResource = this.client.go({
-        ...link,
-        href: this.expandLink(link),
-      });
+      const nextResource = this.client.go(this.expandLink(link));
       currentState = (await nextResource.request()) as State<SafeAny>;
     }
     return currentState;
   }
 
-  private expandLink(link: Link) {
+  private expandLink(link: Link): Link {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const context = this.map.get(link.rel)!;
     this.map.delete(link.rel);
-    return parseTemplate(link.href).expand(context);
+    return { ...link, href: parseTemplate(link.href).expand(context) };
   }
 }
