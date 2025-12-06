@@ -10,25 +10,30 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { ResourceState } from '../state/resource-state.js';
 import { parseTemplate } from 'url-template';
 
-const ROOT_REL = Symbol.for('ROOT_REL').toString();
-
 export class Resource<TEntity extends Entity> {
   constructor(
     private readonly client: Client,
-    private readonly uri: string,
+    private readonly link: Link,
     private readonly rels: string[] = [],
     private readonly map: Map<string, LinkVariables> = new Map()
-  ) {}
+  ) {
+    this.link.rel = this.link.rel ?? 'ROOT_REL';
+    this.link.type = 'GET';
+  }
 
   follow<K extends keyof TEntity['links']>(
     rel: K
   ): Resource<TEntity['links'][K]> {
-    return new Resource(this.client, this.uri, this.rels.concat(rel as string));
+    return new Resource(
+      this.client,
+      this.link,
+      this.rels.concat(rel as string)
+    );
   }
 
   withTemplateParameters(parameters: LinkVariables) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const lastRel = this.isRootResource() ? ROOT_REL : this.rels.at(-1)!;
+    const lastRel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;
     this.map.set(lastRel, parameters);
     return this;
   }
@@ -39,11 +44,7 @@ export class Resource<TEntity extends Entity> {
     let link!: Link;
 
     if (this.isRootResource()) {
-      link = {
-        rel: ROOT_REL,
-        href: this.uri,
-        type: 'GET',
-      };
+      link = this.link;
     } else {
       const penultimateState =
         (await this.getPenultimateState()) as HalState<SafeAny>;
@@ -67,7 +68,8 @@ export class Resource<TEntity extends Entity> {
       }
     }
 
-    const response = await this.client.fetch(this.expandLink(link), {
+    const uri = this.expandLink(link);
+    const response = await this.client.fetch(uri, {
       method: link.type,
       body: JSON.stringify(data),
       headers: {
@@ -76,7 +78,7 @@ export class Resource<TEntity extends Entity> {
     });
     return HalStateFactory<TEntity>(
       this.client,
-      this.uri,
+      uri,
       (await response.json()) as HalResource,
       link.rel
     );
@@ -92,12 +94,15 @@ export class Resource<TEntity extends Entity> {
   }
 
   private async resolve(rels: string[]): Promise<State<SafeAny>> {
-    const initialResource = this.client.go(this.uri);
+    const initialResource = this.client.go(this.link);
     let currentState = (await initialResource.request()) as State<SafeAny>;
     for (const rel of rels) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const link = currentState.links.get(rel as string)!;
-      const nextResource = this.client.go(this.expandLink(link));
+      const nextResource = this.client.go({
+        ...link,
+        href: this.expandLink(link),
+      });
       currentState = (await nextResource.request()) as State<SafeAny>;
     }
     return currentState;

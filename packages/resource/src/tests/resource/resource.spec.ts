@@ -24,7 +24,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient as Client, '/api/users/1', []);
+    const rootResource = new Resource<User>(mockClient as Client, { rel: '', href: '/api/users/1' }, []);
     const result = await rootResource.request();
 
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
@@ -47,7 +47,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient as Client, '/api/users/1', []);
+    const rootResource = new Resource<User>(mockClient as Client, { rel: '', href: '/api/users/1' }, []);
     const result = await rootResource.request(requestData);
 
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
@@ -141,14 +141,14 @@ describe('Resource', () => {
       }
     });
     expect(result.collection).toHaveLength(40);
-    expect(result.uri).toBe('/api/users/1');
+    expect(result.uri).toBe('/api/users/1/conversations?page=1&pageSize=10');
   });
 
   it('should handle network error gracefully', async () => {
     const networkError = new Error('Network error');
     vi.spyOn(mockClient, 'fetch').mockRejectedValue(networkError);
 
-    const rootResource = new Resource<User>(mockClient as Client, '/api/users/1', []);
+    const rootResource = new Resource<User>(mockClient as Client, { rel: '', href: '/api/users/1' }, []);
 
     await expect(rootResource.request()).rejects.toThrow('Network error');
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
@@ -167,7 +167,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient as Client, '/api/users/1', []);
+    const rootResource = new Resource<User>(mockClient as Client, { rel: '', href: '/api/users/1' }, []);
 
     await expect(rootResource.request()).rejects.toThrow('Invalid JSON');
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {

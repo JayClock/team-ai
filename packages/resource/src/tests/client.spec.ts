@@ -4,6 +4,7 @@ import { Fetcher } from '../lib/http/fetcher.js';
 import { Config } from '../lib/archtype/config.js';
 import { Entity } from '../lib/index.js';
 import { Resource } from '../lib/resource/resource.js';
+import { Link } from '../lib/links.js';
 
 vi.mock('../lib/resource/resource.js', () => ({
   Resource: vi.fn().mockImplementation((client, uri, rels) => ({
@@ -38,10 +39,10 @@ describe('Client', () => {
   });
 
   it('should create a Resource when calling go method', () => {
-    const uri = '/users/1';
-    const resource = client.go<Entity>(uri);
+    const link: Link = { rel: '', href: '/users/1' };
+    const resource = client.go<Entity>(link);
 
-    expect(Resource).toHaveBeenCalledWith(client, uri);
+    expect(Resource).toHaveBeenCalledWith(client, link);
     expect(resource).toBeDefined();
   });
 
