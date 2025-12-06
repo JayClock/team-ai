@@ -2,7 +2,7 @@ import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { HalState } from '../state/hal-state.js';
 import { State } from '../state/state.js';
-import { Link, Links, LinkVariables } from '../links.js';
+import { Link, Links } from '../links.js';
 import { HalStateFactory } from '../state/hal.js';
 import { HalResource } from 'hal-types';
 
@@ -10,12 +10,17 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { ResourceState } from '../state/resource-state.js';
 import { parseTemplate } from 'url-template';
 
+export interface RequestOptions {
+  query?: Record<string, SafeAny>;
+  body?: Record<string, SafeAny>;
+}
+
 export class Resource<TEntity extends Entity> {
   constructor(
     private readonly client: Client,
     private readonly link: Link,
     private readonly rels: string[] = [],
-    private readonly map: Map<string, LinkVariables> = new Map()
+    private readonly optionsMap: Map<string, RequestOptions> = new Map()
   ) {
     this.link.rel = this.link.rel ?? 'ROOT_REL';
     this.link.type = 'GET';
@@ -31,10 +36,10 @@ export class Resource<TEntity extends Entity> {
     );
   }
 
-  withTemplateParameters(parameters: LinkVariables) {
+  withRequestOptions(options: RequestOptions) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lastRel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;
-    this.map.set(lastRel, parameters);
+    this.optionsMap.set(lastRel, options);
     return this;
   }
 
@@ -106,9 +111,7 @@ export class Resource<TEntity extends Entity> {
   }
 
   private expandLink(link: Link): Link {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const context = this.map.get(link.rel)!;
-    this.map.delete(link.rel);
-    return { ...link, href: parseTemplate(link.href).expand(context) };
+    const context = this.optionsMap.get(link.rel) ?? {};
+    return { ...link, href: parseTemplate(link.href).expand(context.query ?? {}) };
   }
 }

@@ -130,7 +130,12 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const conversationsResource = userState.follow('conversations').withTemplateParameters({ page: 1, pageSize: 10 });
+    const conversationsResource = userState.follow('conversations').withRequestOptions({
+      query: {
+        page: 1,
+        pageSize: 10
+      }
+    });
     const result = await conversationsResource.request();
 
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1/conversations?page=1&pageSize=10', {
