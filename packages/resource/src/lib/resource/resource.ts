@@ -43,9 +43,7 @@ export class Resource<TEntity extends Entity> {
     return this;
   }
 
-  async request(
-    data?: Record<string, SafeAny>
-  ): Promise<ResourceState<TEntity>> {
+  async request(): Promise<ResourceState<TEntity>> {
     let link!: Link;
 
     if (this.isRootResource()) {
@@ -73,19 +71,20 @@ export class Resource<TEntity extends Entity> {
       }
     }
 
-    const expandedLink = this.expandLink(link);
-    const response = await this.client.fetch(expandedLink.href, {
+    const context = this.getRequestOption(link);
+    const uri = parseTemplate(link.href).expand(context.query ?? {});
+    const response = await this.client.fetch(uri, {
       method: link.type,
-      body: JSON.stringify(data),
+      body: JSON.stringify(context.body),
       headers: {
         'Content-Type': 'application/json',
       },
     });
     return HalStateFactory<TEntity>(
       this.client,
-      expandedLink.href,
+      uri,
       (await response.json()) as HalResource,
-      expandedLink.rel
+      link.rel
     );
   }
 
@@ -104,14 +103,14 @@ export class Resource<TEntity extends Entity> {
     for (const rel of rels) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const link = currentState.links.get(rel as string)!;
-      const nextResource = this.client.go(this.expandLink(link));
+      const context = this.getRequestOption(link);
+      const nextResource = this.client.go(link).withRequestOptions(context);
       currentState = (await nextResource.request()) as State<SafeAny>;
     }
     return currentState;
   }
 
-  private expandLink(link: Link): Link {
-    const context = this.optionsMap.get(link.rel) ?? {};
-    return { ...link, href: parseTemplate(link.href).expand(context.query ?? {}) };
+  private getRequestOption(link: Link) {
+    return this.optionsMap.get(link.rel) ?? {};
   }
 }

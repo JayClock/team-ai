@@ -47,8 +47,11 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient as Client, { rel: '', href: '/api/users/1' }, []);
-    const result = await rootResource.request(requestData);
+    const rootResource = new Resource<User>(mockClient as Client, {
+      rel: '',
+      href: '/api/users/1'
+    }, []).withRequestOptions({ body: requestData });
+    const result = await rootResource.request();
 
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
       method: 'GET',
