@@ -1,42 +1,45 @@
 import { describe, expect, vi } from 'vitest';
 import { Account, User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
+import halAccounts from '../fixtures/hal-accounts.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
 import { HalStateFactory } from '../../lib/state/hal.js';
 import { HalResource } from 'hal-types';
 import { Client } from '../../lib/client.js';
 import { Resource } from '../../lib/resource/resource.js';
 import { HalState } from '../../lib/state/hal-state.js';
+import { Collection } from '../../lib/index.js';
 
 const mockClient = {
   go: vi.fn(),
   fetch: vi.fn()
 } as unknown as Client;
+
 describe('Resource', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should handle root resource request without data', async () => {
+  it('should handle root resource request with embedded', async () => {
     const mockResponse = {
-      json: vi.fn().mockResolvedValue(halUser)
+      json: vi.fn().mockResolvedValue(halAccounts)
     } as unknown as Response;
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient as Client, { rel: '', href: '/api/users/1' }, []);
+    const rootResource = new Resource<Collection<Account>>(mockClient, {
+      rel: 'accounts',
+      href: '/api/users/1/accounts'
+    });
     const result = await rootResource.request();
 
-    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
+    expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1/accounts', {
       method: 'GET',
-      body: undefined,
       headers: {
         'Content-Type': 'application/json'
       }
     });
-    expect(result.data.id).toBe('1');
-    expect(result.data.name).toBe('JayClock');
-    expect(result.uri).toBe('/api/users/1');
+    expect(result.collection.length).toEqual(halAccounts._embedded.accounts.length);
   });
 
   it('should handle root resource request with data', async () => {
@@ -47,7 +50,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient as Client, {
+    const rootResource = new Resource<User>(mockClient, {
       rel: '',
       href: '/api/users/1'
     }, []).withRequestOptions({ body: requestData });
@@ -65,7 +68,7 @@ describe('Resource', () => {
 
   it('should handle embedded array resource request', async () => {
     const userState = HalStateFactory<User>(
-      mockClient as Client,
+      mockClient,
       '/api/users/1',
       halUser as HalResource
     );
@@ -90,7 +93,7 @@ describe('Resource', () => {
 
   it('should handle embedded single resource request', async () => {
     const userState = HalStateFactory<User>(
-      mockClient as Client,
+      mockClient,
       '/api/users/1',
       halUser as HalResource
     );
@@ -111,7 +114,7 @@ describe('Resource', () => {
 
   it('should handle non-embedded resource request with HTTP call', async () => {
     const userState = HalStateFactory<User>(
-      mockClient as Client,
+      mockClient,
       '/api/users/1',
       halUser as HalResource
     );
@@ -156,7 +159,7 @@ describe('Resource', () => {
     const networkError = new Error('Network error');
     vi.spyOn(mockClient, 'fetch').mockRejectedValue(networkError);
 
-    const rootResource = new Resource<User>(mockClient as Client, { rel: '', href: '/api/users/1' }, []);
+    const rootResource = new Resource<User>(mockClient, { rel: '', href: '/api/users/1' }, []);
 
     await expect(rootResource.request()).rejects.toThrow('Network error');
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
@@ -175,7 +178,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient as Client, { rel: '', href: '/api/users/1' }, []);
+    const rootResource = new Resource<User>(mockClient, { rel: '', href: '/api/users/1' }, []);
 
     await expect(rootResource.request()).rejects.toThrow('Invalid JSON');
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
