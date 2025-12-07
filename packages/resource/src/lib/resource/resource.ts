@@ -3,7 +3,6 @@ import { Client } from '../client.js';
 import { HalState } from '../state/hal-state.js';
 import { State } from '../state/state.js';
 import { Link, Links } from '../links.js';
-import { HalStateFactory } from '../state/hal.js';
 import { HalResource } from 'hal-types';
 
 import { SafeAny } from '../archtype/safe-any.js';
@@ -80,7 +79,7 @@ export class Resource<TEntity extends Entity> {
         'Content-Type': 'application/json',
       },
     });
-    return HalStateFactory<TEntity>(
+    return HalState.createHalState<TEntity>(
       this.client,
       uri,
       (await response.json()) as HalResource,

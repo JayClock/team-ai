@@ -1,7 +1,6 @@
 import { describe, expect } from 'vitest';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
 import { HalResource } from 'hal-types';
-import { HalStateFactory } from '../lib/state/hal.js';
 import { State } from '../lib/state/state.js';
 import { Client } from '../lib/client.js';
 import { HalState } from '../lib/state/hal-state.js';
@@ -13,7 +12,7 @@ const mockClient = {
 } as unknown as Client;
 
 describe('HalState', () => {
-  const state = HalStateFactory(mockClient, '/api/users/1', mockUser as HalResource) as HalState<User>;
+  const state = HalState.createHalState(mockClient, '/api/users/1', mockUser as HalResource) as HalState<User>;
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -31,7 +30,7 @@ describe('HalState', () => {
   });
 
   it('should create collection with existed embedded', () => {
-    const state = HalStateFactory(mockClient, '/api/users/1', mockUser as HalResource, 'accounts');
+    const state = HalState.createHalState(mockClient, '/api/users/1', mockUser as HalResource, 'accounts');
     expect(state.collection.length).toEqual(mockUser._embedded.accounts.length);
   });
 

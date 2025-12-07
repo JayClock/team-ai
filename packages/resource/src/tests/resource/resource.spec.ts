@@ -3,7 +3,6 @@ import { Account, User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import halAccounts from '../fixtures/hal-accounts.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
-import { HalStateFactory } from '../../lib/state/hal.js';
 import { HalResource } from 'hal-types';
 import { Client } from '../../lib/client.js';
 import { Resource } from '../../lib/resource/resource.js';
@@ -67,7 +66,7 @@ describe('Resource', () => {
   });
 
   it('should handle embedded array resource request', async () => {
-    const userState = HalStateFactory<User>(
+    const userState = HalState.createHalState<User>(
       mockClient,
       '/api/users/1',
       halUser as HalResource
@@ -92,7 +91,7 @@ describe('Resource', () => {
   });
 
   it('should handle embedded single resource request', async () => {
-    const userState = HalStateFactory<User>(
+    const userState = HalState.createHalState<User>(
       mockClient,
       '/api/users/1',
       halUser as HalResource
@@ -113,7 +112,7 @@ describe('Resource', () => {
   });
 
   it('should handle non-embedded resource request with HTTP call', async () => {
-    const userState = HalStateFactory<User>(
+    const userState = HalState.createHalState<User>(
       mockClient,
       '/api/users/1',
       halUser as HalResource
