@@ -22,16 +22,17 @@ export function HalStateFactory<TEntity extends Entity>(
   collectionRel?: string
 ): State<TEntity> {
   const { _links, _embedded, _templates, ...prueData } = halResource;
+  const links = parseHalLinks(_links);
   const embedded = parseHalEmbedded(client, _embedded);
   return new HalState<TEntity>({
     client,
     uri,
     data: prueData,
-    links: parseHalLinks(_links),
+    links,
     collection: collectionRel
       ? (embedded[collectionRel] as StateCollection<TEntity>) ?? []
       : [],
-    forms: parseHalTemplates(_links, _templates),
+    forms: parseHalTemplates(links, _templates),
     embedded: embedded,
   });
 }
@@ -50,13 +51,14 @@ function parseHalLinks<TLinks extends Record<string, SafeAny>>(
 }
 
 function parseHalTemplates(
-  links: HalResource['_links'] = {},
+  links: Links<SafeAny>,
   templates: HalResource['_templates'] = {}
 ): Form[] {
   return Object.values(templates).map((template) => ({
     title: template.title,
     method: template.method,
-    uri: template.target ?? (links.self as HalLink).href,
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    uri: template.target ?? (links.get('self')! as HalLink).href,
     contentType: template.contentType ?? 'application/json',
     fields:
       template.properties?.map((property) => parseHalField(property)) || [],
