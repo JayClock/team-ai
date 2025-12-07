@@ -1,5 +1,5 @@
 import { Entity } from '../archtype/entity.js';
-import { Links } from '../links.js';
+import { Link, Links } from '../links.js';
 import { Form } from '../form/form.js';
 import { StateCollection } from './state-collection.js';
 import { Resource } from '../resource/resource.js';
@@ -16,6 +16,8 @@ export type State<TEntity extends Entity = Entity> = {
   follow<K extends keyof TEntity['links']>(
     rel: K
   ): Resource<TEntity['links'][K]>;
+
+  getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined;
 
   getForm<K extends keyof TEntity['links']>(rel: K): Form | undefined;
 

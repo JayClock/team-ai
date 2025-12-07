@@ -19,5 +19,5 @@ export type Account = Entity<
 
 export type Conversation = Entity<
   { id: string; title: string },
-  { self: Conversation }
+  { self: Conversation; user: User }
 >;

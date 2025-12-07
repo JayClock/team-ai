@@ -4,6 +4,10 @@ import { RequestOptions, Resource } from './resource.js';
 import { State } from '../state/state.js';
 import { HalState } from '../state/hal-state.js';
 import { Client } from '../client.js';
+import { parseTemplate } from 'url-template';
+import { Link } from '../links.js';
+import { HalResource } from 'hal-types';
+import { SafeAny } from '../archtype/safe-any.js';
 
 export class StateResource<TEntity extends Entity>
   implements Resource<TEntity>
@@ -26,11 +30,35 @@ export class StateResource<TEntity extends Entity>
   }
 
   async request(): Promise<ResourceState<TEntity>> {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const link = this.state.links.get(this.rels[0])!;
-    const embedded = (this.state as HalState).getEmbedded(link.rel);
+    if (this.rels.length === 0) {
+      throw new Error('No relations to follow');
+    }
+
+    const result = await this.resolveRelationsRecursively(this.state, this.rels);
+    return result as unknown as ResourceState<TEntity>;
+  }
+
+  private async resolveRelationsRecursively(
+    currentState: State<SafeAny>,
+    remainingRels: string[]
+  ): Promise<State<SafeAny>> {
+    // Base case: no more relations to process
+    if (remainingRels.length === 0) {
+      return currentState;
+    }
+
+    const [currentRel, ...nextRels] = remainingRels;
+    const link = currentState.getLink(currentRel);
+
+    if (!link) {
+      throw new Error(`Relation ${currentRel} not found`);
+    }
+
+    const embedded = (currentState as HalState).getEmbedded(link.rel);
+    let nextState: State<SafeAny>;
+
     if (Array.isArray(embedded)) {
-      return HalState.create(
+      nextState = HalState.create(
         this.client,
         link.href,
         {
@@ -39,9 +67,30 @@ export class StateResource<TEntity extends Entity>
           },
         },
         link.rel
-      ) as unknown as ResourceState<TEntity>;
+      ) as unknown as State<any>;
+    } else if (embedded) {
+      nextState = HalState.create(this.client, link.href, embedded);
+    } else {
+      // If no embedded data is available, make an HTTP request
+      const context = this.getRequestOption(link);
+      const uri = parseTemplate(link.href).expand(context.query ?? {});
+      const response = await this.client.fetch(uri, {
+        method: link.type,
+        body: JSON.stringify(context.body),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      nextState = HalState.create<SafeAny>(
+        this.client,
+        uri,
+        (await response.json()) as HalResource,
+        link.rel
+      );
     }
-    return HalState.create(this.client, link.href, embedded);
+
+    return this.resolveRelationsRecursively(nextState, nextRels);
   }
 
   withRequestOptions(options: RequestOptions): Resource<TEntity> {
@@ -49,5 +98,9 @@ export class StateResource<TEntity extends Entity>
     const lastRel = this.rels.at(-1)!;
     this.optionsMap.set(lastRel, options);
     return this;
+  }
+
+  private getRequestOption(link: Link) {
+    return this.optionsMap.get(link.rel) ?? {};
   }
 }
