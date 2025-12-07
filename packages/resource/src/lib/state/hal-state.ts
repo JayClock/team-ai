@@ -15,14 +15,11 @@ import {
 import { Field } from '../form/field.js';
 import { SafeAny } from '../archtype/safe-any.js';
 
-type StateInit<TEntity extends Entity> = {
+type StateInit = {
   uri: string;
   client: Client;
-  data: TEntity['data'];
-  links: Links<TEntity['links']>;
-  collection?: State[];
-  forms?: Form[];
-  embedded?: Record<string, State | State[]>;
+  halResource: HalResource;
+  rel?: string;
 };
 
 export class HalState<TEntity extends Entity = Entity>
@@ -34,16 +31,25 @@ export class HalState<TEntity extends Entity = Entity>
   readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
   private readonly forms: Form[];
-  private readonly embedded: Record<string, State | State[]>;
+  private readonly embedded: Record<string, HalResource | HalResource[]>;
 
-  constructor(private init: StateInit<TEntity>) {
-    this.uri = this.init.uri;
-    this.client = this.init.client;
-    this.data = this.init.data;
-    this.links = this.init.links;
-    this.collection = (this.init.collection || []) as StateCollection<TEntity>;
-    this.forms = this.init.forms || [];
-    this.embedded = this.init.embedded || {};
+  private constructor(private init: StateInit) {
+    this.uri = init.uri;
+    this.client = init.client;
+    const { _links, _embedded, _templates, ...pureData } = init.halResource;
+    this.data = pureData;
+    this.links = this.parseHalLinks(_links);
+    this.embedded = _embedded ?? {};
+    this.forms = this.parseHalTemplates(this.links, _templates);
+    this.collection = init.rel
+      ? (this.embedded[init.rel] ?? []).map((embedded: HalResource) =>
+          HalState.create(
+            this.client,
+            (embedded._links?.self as HalLink).href,
+            embedded
+          )
+        )
+      : [];
   }
 
   follow<K extends keyof TEntity['links']>(
@@ -66,7 +72,7 @@ export class HalState<TEntity extends Entity = Entity>
     );
   }
 
-  getEmbedded(rel: string): State | State[] {
+  getEmbedded(rel: string): HalResource | HalResource[] {
     return this.embedded[rel];
   }
 
@@ -81,39 +87,35 @@ export class HalState<TEntity extends Entity = Entity>
   /**
    * 创建 HalState 实例的工厂方法
    */
-  static createHalState<TEntity extends Entity>(
+  static create<TEntity extends Entity>(
     client: Client,
     uri: string,
     halResource: HalResource,
-    collectionRel?: string
+    rel?: string
   ): State<TEntity> {
-    const { _links, _embedded, _templates, ...pureData } = halResource;
-    const links = HalState.parseHalLinks(_links);
-    const embedded = HalState.parseHalEmbedded(client, _embedded);
     return new HalState<TEntity>({
       client,
       uri,
-      data: pureData,
-      links,
-      collection: collectionRel
-        ? (embedded[collectionRel] as StateCollection<TEntity>) ?? []
-        : [],
-      forms: HalState.parseHalTemplates(links, _templates),
-      embedded: embedded,
+      halResource,
+      rel,
     });
   }
 
   /**
    * 解析 HAL 链接
    */
-  private static parseHalLinks<TLinks extends Record<string, SafeAny>>(
+  private parseHalLinks<TLinks extends Record<string, SafeAny>>(
     halLinks: HalResource['_links']
   ): Links<TLinks> {
     const links = new Links<TLinks>();
     for (const [key, value] of Object.entries(halLinks ?? [])) {
       const linkList = Array.isArray(value) ? value : [value];
       links.add(
-        linkList.map((item) => ({ ...item, rel: key, type: item.type ?? 'GET' }))
+        linkList.map((item) => ({
+          ...item,
+          rel: key,
+          type: item.type ?? 'GET',
+        }))
       );
     }
     return links;
@@ -122,7 +124,7 @@ export class HalState<TEntity extends Entity = Entity>
   /**
    * 解析 HAL 模板
    */
-  private static parseHalTemplates(
+  private parseHalTemplates(
     links: Links<SafeAny>,
     templates: HalResource['_templates'] = {}
   ): Form[] {
@@ -133,40 +135,15 @@ export class HalState<TEntity extends Entity = Entity>
       uri: template.target ?? (links.get('self')! as HalLink).href,
       contentType: template.contentType ?? 'application/json',
       fields:
-        template.properties?.map((property) => HalState.parseHalField(property)) || [],
+        template.properties?.map((property) => this.parseHalField(property)) ||
+        [],
     }));
-  }
-
-  /**
-   * 解析 HAL 嵌入资源
-   */
-  private static parseHalEmbedded(
-    client: Client,
-    embedded: HalResource['_embedded'] = {}
-  ): Record<string, State | State[]> {
-    const res: Record<string, State | State[]> = {};
-    for (const [rel, resource] of Object.entries(embedded)) {
-      if (Array.isArray(resource)) {
-        res[rel] = resource.map((data) =>
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          HalState.createHalState(client, (data._links!.self as HalLink).href, data)
-        );
-      } else {
-        res[rel] = HalState.createHalState(
-          client,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          (resource._links!.self as HalLink).href,
-          resource
-        );
-      }
-    }
-    return res;
   }
 
   /**
    * 解析 HAL 表单字段
    */
-  private static parseHalField(halField: HalFormsProperty): Field {
+  private parseHalField(halField: HalFormsProperty): Field {
     switch (halField.type) {
       case undefined:
       case 'text':
@@ -182,12 +159,13 @@ export class HalState<TEntity extends Entity = Entity>
             required: halField.required || false,
             readOnly: halField.readOnly || false,
             multiple: halField.options.multiple as SafeAny,
-            value: (halField.options.selectedValues || halField.value) as SafeAny,
+            value: (halField.options.selectedValues ||
+              halField.value) as SafeAny,
           };
 
           const labelField = halField.options.promptField || 'prompt';
           const valueField = halField.options.valueField || 'value';
-          if (HalState.isInlineOptions(halField.options)) {
+          if (this.isInlineOptions(halField.options)) {
             const options: Record<string, string> = {};
 
             for (const entry of halField.options.inline) {
@@ -327,7 +305,7 @@ export class HalState<TEntity extends Entity = Entity>
   /**
    * 检查选项是否为内联选项
    */
-  private static isInlineOptions(
+  private isInlineOptions(
     options: HalFormsSimpleProperty['options']
   ): options is HalFormsOptionsInline {
     return (options as SafeAny).inline !== undefined;

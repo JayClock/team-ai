@@ -12,7 +12,7 @@ const mockClient = {
 } as unknown as Client;
 
 describe('HalState', () => {
-  const state = HalState.createHalState(mockClient, '/api/users/1', mockUser as HalResource) as HalState<User>;
+  const state = HalState.create(mockClient, '/api/users/1', mockUser as HalResource) as HalState<User>;
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -30,16 +30,12 @@ describe('HalState', () => {
   });
 
   it('should create collection with existed embedded', () => {
-    const state = HalState.createHalState(mockClient, '/api/users/1', mockUser as HalResource, 'accounts');
+    const state = HalState.create(mockClient, '/api/users/1', mockUser as HalResource, 'accounts');
     expect(state.collection.length).toEqual(mockUser._embedded.accounts.length);
   });
 
   it('should create forms with existed templates', () => {
     expect(state.getForm('create-conversation')?.uri).toEqual(mockUser._templates['create-conversation'].target);
-  });
-
-  it('should get single state in embedded', () => {
-    expect(state.getEmbedded('latest-conversation')).toBeInstanceOf(HalState);
   });
 
   it('should get multi state in embedded', () => {

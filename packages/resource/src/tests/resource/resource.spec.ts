@@ -66,7 +66,7 @@ describe('Resource', () => {
   });
 
   it('should handle embedded array resource request', async () => {
-    const userState = HalState.createHalState<User>(
+    const userState = HalState.create<User>(
       mockClient,
       '/api/users/1',
       halUser as HalResource
@@ -91,7 +91,7 @@ describe('Resource', () => {
   });
 
   it('should handle embedded single resource request', async () => {
-    const userState = HalState.createHalState<User>(
+    const userState = HalState.create<User>(
       mockClient,
       '/api/users/1',
       halUser as HalResource
@@ -112,7 +112,7 @@ describe('Resource', () => {
   });
 
   it('should handle non-embedded resource request with HTTP call', async () => {
-    const userState = HalState.createHalState<User>(
+    const userState = HalState.create<User>(
       mockClient,
       '/api/users/1',
       halUser as HalResource

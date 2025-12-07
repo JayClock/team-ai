@@ -2,7 +2,7 @@ import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
 import { HalState } from '../state/hal-state.js';
 import { State } from '../state/state.js';
-import { Link, Links } from '../links.js';
+import { Link } from '../links.js';
 import { HalResource } from 'hal-types';
 
 import { SafeAny } from '../archtype/safe-any.js';
@@ -57,16 +57,19 @@ export class Resource<TEntity extends Entity> {
 
       const embedded = penultimateState.getEmbedded(link.rel);
       if (Array.isArray(embedded)) {
-        return new HalState({
-          client: this.client,
-          data: {},
-          collection: embedded,
-          uri: link.href,
-          links: new Links(),
-        }) as unknown as ResourceState<TEntity>;
+        return HalState.create(
+          this.client,
+          link.href,
+          {
+            _embedded: {
+              [link.rel]: embedded,
+            },
+          },
+          link.rel
+        ) as unknown as ResourceState<TEntity>;
       }
       if (embedded) {
-        return embedded as unknown as ResourceState<TEntity>;
+        return HalState.create(this.client, link.href, embedded);
       }
     }
 
@@ -79,7 +82,7 @@ export class Resource<TEntity extends Entity> {
         'Content-Type': 'application/json',
       },
     });
-    return HalState.createHalState<TEntity>(
+    return HalState.create<TEntity>(
       this.client,
       uri,
       (await response.json()) as HalResource,
