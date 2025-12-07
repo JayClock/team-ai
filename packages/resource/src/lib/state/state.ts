@@ -1,8 +1,8 @@
 import { Entity } from '../archtype/entity.js';
 import { Links } from '../links.js';
-import { Resource } from '../resource/resource.js';
 import { Form } from '../form/form.js';
 import { StateCollection } from './state-collection.js';
+import { Resource } from '../resource/resource.js';
 
 export type State<TEntity extends Entity = Entity> = {
   uri: string;

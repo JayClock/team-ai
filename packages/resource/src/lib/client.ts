@@ -1,10 +1,11 @@
 import { Entity } from './archtype/entity.js';
-import { Resource } from './resource/resource.js';
+import { LinkResource } from './resource/link-resource.js';
 import { inject, injectable } from 'inversify';
 import { TYPES } from './archtype/injection-types.js';
 import type { Config } from './archtype/config.js';
 import { Fetcher } from './http/fetcher.js';
 import { Link } from './links.js';
+import { Resource } from './resource/resource.js';
 
 @injectable()
 export class Client {
@@ -16,7 +17,7 @@ export class Client {
   ) {}
 
   go<TEntity extends Entity>(link: Link): Resource<TEntity> {
-    return new Resource<TEntity>(this, link);
+    return new LinkResource<TEntity>(this, link);
   }
 
   fetch(

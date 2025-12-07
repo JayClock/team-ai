@@ -5,9 +5,10 @@ import halAccounts from '../fixtures/hal-accounts.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
 import { HalResource } from 'hal-types';
 import { Client } from '../../lib/client.js';
-import { Resource } from '../../lib/resource/resource.js';
+import { LinkResource } from '../../lib/resource/link-resource.js';
 import { HalState } from '../../lib/state/hal-state.js';
 import { Collection } from '../../lib/index.js';
+import { Resource } from '../../lib/resource/resource.js';
 
 const mockClient = {
   go: vi.fn(),
@@ -26,7 +27,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<Collection<Account>>(mockClient, {
+    const rootResource = new LinkResource<Collection<Account>>(mockClient, {
       rel: 'accounts',
       href: '/api/users/1/accounts'
     });
@@ -49,7 +50,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient, {
+    const rootResource = new LinkResource<User>(mockClient, {
       rel: '',
       href: '/api/users/1'
     }, []).withRequestOptions({ body: requestData });
@@ -158,7 +159,7 @@ describe('Resource', () => {
     const networkError = new Error('Network error');
     vi.spyOn(mockClient, 'fetch').mockRejectedValue(networkError);
 
-    const rootResource = new Resource<User>(mockClient, { rel: '', href: '/api/users/1' }, []);
+    const rootResource = new LinkResource<User>(mockClient, { rel: '', href: '/api/users/1' }, []);
 
     await expect(rootResource.request()).rejects.toThrow('Network error');
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {
@@ -177,7 +178,7 @@ describe('Resource', () => {
 
     vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    const rootResource = new Resource<User>(mockClient, { rel: '', href: '/api/users/1' }, []);
+    const rootResource = new LinkResource<User>(mockClient, { rel: '', href: '/api/users/1' }, []);
 
     await expect(rootResource.request()).rejects.toThrow('Invalid JSON');
     expect(mockClient.fetch).toHaveBeenCalledWith('/api/users/1', {

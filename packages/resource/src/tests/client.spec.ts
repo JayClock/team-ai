@@ -3,11 +3,11 @@ import { Client } from '../lib/client.js';
 import { Fetcher } from '../lib/http/fetcher.js';
 import { Config } from '../lib/archtype/config.js';
 import { Entity } from '../lib/index.js';
-import { Resource } from '../lib/resource/resource.js';
+import { LinkResource } from '../lib/resource/link-resource.js';
 import { Link } from '../lib/links.js';
 
-vi.mock('../lib/resource/resource.js', () => ({
-  Resource: vi.fn().mockImplementation((client, uri, rels) => ({
+vi.mock('../lib/resource/link-resource.js', () => ({
+  LinkResource: vi.fn().mockImplementation((client, uri, rels) => ({
     client,
     uri,
     rels,
@@ -38,11 +38,11 @@ describe('Client', () => {
     expect(client).toBeDefined();
   });
 
-  it('should create a Resource when calling go method', () => {
+  it('should create a LinkResource when calling go method', () => {
     const link: Link = { rel: '', href: '/users/1' };
     const resource = client.go<Entity>(link);
 
-    expect(Resource).toHaveBeenCalledWith(client, link);
+    expect(LinkResource).toHaveBeenCalledWith(client, link);
     expect(resource).toBeDefined();
   });
 

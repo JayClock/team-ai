@@ -1,0 +1,114 @@
+import { Entity } from '../archtype/entity.js';
+import { Client } from '../client.js';
+import { HalState } from '../state/hal-state.js';
+import { State } from '../state/state.js';
+import { Link } from '../links.js';
+import { HalResource } from 'hal-types';
+
+import { SafeAny } from '../archtype/safe-any.js';
+import { ResourceState } from '../state/resource-state.js';
+import { parseTemplate } from 'url-template';
+import { RequestOptions, Resource } from './resource.js';
+
+export class LinkResource<TEntity extends Entity> implements Resource<TEntity> {
+  constructor(
+    private readonly client: Client,
+    private readonly link: Link,
+    private readonly rels: string[] = [],
+    private readonly optionsMap: Map<string, RequestOptions> = new Map()
+  ) {
+    this.link.rel = this.link.rel ?? 'ROOT_REL';
+    this.link.type = 'GET';
+  }
+
+  follow<K extends keyof TEntity['links']>(
+    rel: K
+  ): Resource<TEntity['links'][K]> {
+    return new LinkResource(
+      this.client,
+      this.link,
+      this.rels.concat(rel as string)
+    );
+  }
+
+  withRequestOptions(options: RequestOptions): Resource<TEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const lastRel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;
+    this.optionsMap.set(lastRel, options);
+    return this;
+  }
+
+  async request(): Promise<ResourceState<TEntity>> {
+    let link!: Link;
+
+    if (this.isRootResource()) {
+      link = this.link;
+    } else {
+      const penultimateState =
+        (await this.getPenultimateState()) as HalState<SafeAny>;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const lastRel = this.rels.at(-1)!;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      link = penultimateState.links.get(lastRel)!;
+
+      const embedded = penultimateState.getEmbedded(link.rel);
+      if (Array.isArray(embedded)) {
+        return HalState.create(
+          this.client,
+          link.href,
+          {
+            _embedded: {
+              [link.rel]: embedded,
+            },
+          },
+          link.rel
+        ) as unknown as ResourceState<TEntity>;
+      }
+      if (embedded) {
+        return HalState.create(this.client, link.href, embedded);
+      }
+    }
+
+    const context = this.getRequestOption(link);
+    const uri = parseTemplate(link.href).expand(context.query ?? {});
+    const response = await this.client.fetch(uri, {
+      method: link.type,
+      body: JSON.stringify(context.body),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return HalState.create<TEntity>(
+      this.client,
+      uri,
+      (await response.json()) as HalResource,
+      link.rel
+    );
+  }
+
+  private isRootResource() {
+    return this.rels.length === 0;
+  }
+
+  private async getPenultimateState(): Promise<State<SafeAny>> {
+    const pathToPenultimate = this.rels.slice(0, -1);
+    return this.resolve(pathToPenultimate);
+  }
+
+  private async resolve(rels: string[]): Promise<State<SafeAny>> {
+    const initialResource = this.client.go(this.link);
+    let currentState = (await initialResource.request()) as State<SafeAny>;
+    for (const rel of rels) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const link = currentState.links.get(rel as string)!;
+      const context = this.getRequestOption(link);
+      const nextResource = this.client.go(link).withRequestOptions(context);
+      currentState = (await nextResource.request()) as State<SafeAny>;
+    }
+    return currentState;
+  }
+
+  private getRequestOption(link: Link) {
+    return this.optionsMap.get(link.rel) ?? {};
+  }
+}

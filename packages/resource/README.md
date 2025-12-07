@@ -16,7 +16,7 @@
 
 - **Entity**: 定义了资源的描述（data）和关系（links）。
 - **Client**: 用于与 API 基础 URL 交互的入口点。
-- **Resource**: 代表一个具体的 API 端点。
+- **LinkResource**: 代表一个具体的 API 端点。
 - **Relation**: 代表从一个资源到其关联资源的导航路径。
 - **State**: 包含资源数据、链接、集合和操作方法。
 
@@ -64,7 +64,7 @@ const client = new Client({ baseURL: 'https://api.example.com' });
 
 ```typescript
 async function fetchUser(userId: string) {
-  // 创建一个指向特定用户资源的 Resource 对象
+  // 创建一个指向特定用户资源的 LinkResource 对象
   const userResource = client.root<User>(`/api/users/${userId}`);
 
   // 获取资源的状态（包含数据、链接等）
