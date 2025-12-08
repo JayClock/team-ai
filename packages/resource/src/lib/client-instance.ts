@@ -3,10 +3,10 @@ import { LinkResource } from './resource/link-resource.js';
 import { inject, injectable } from 'inversify';
 import { TYPES } from './archtype/injection-types.js';
 import type { Config } from './archtype/config.js';
-import { Link } from './links.js';
 import { Resource } from './resource/resource.js';
 import axios from 'axios';
 import { Client } from './create-client.js';
+import { Link } from './links/link.js';
 
 @injectable()
 export class ClientInstance implements Client {

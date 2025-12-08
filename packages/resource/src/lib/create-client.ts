@@ -4,8 +4,8 @@ import { TYPES } from './archtype/injection-types.js';
 import { Config } from './archtype/config.js';
 import { Fetcher } from './http/fetcher.js';
 import { Entity } from './archtype/entity.js';
-import { Link } from './links.js';
 import { Resource } from './resource/resource.js';
+import { Link } from './links/link.js';
 
 export interface Client {
   go<TEntity extends Entity>(link: Link): Resource<TEntity>;

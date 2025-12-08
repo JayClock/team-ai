@@ -1,5 +1,6 @@
 import { describe, expect } from 'vitest';
-import { Link, Links } from '../lib/links.js';
+import { Links } from '../lib/links/links.js';
+import { Link } from '../lib/links/link.js';
 
 describe('Links', () => {
   const links = new Links<Record<string, Link>>();

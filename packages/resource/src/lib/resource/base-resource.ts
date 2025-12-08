@@ -1,4 +1,3 @@
-import { Link } from '../links.js';
 import { parseTemplate } from 'url-template';
 import { HalState } from '../state/hal-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
@@ -8,6 +7,7 @@ import { Axios } from 'axios';
 import queryString from 'query-string';
 import { Form } from '../form/form.js';
 import { z } from 'zod';
+import { Link } from '../links/link.js';
 
 export class BaseResource {
   constructor(

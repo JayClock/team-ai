@@ -1,10 +1,5 @@
-import { HalLink } from 'hal-types';
-import { SafeAny } from './archtype/safe-any.js';
-import { Template } from 'url-template';
-
-export interface Link extends HalLink {
-  rel: string;
-}
+import { SafeAny } from '../archtype/safe-any.js';
+import { Link } from './link.js';
 
 export class Links<T extends Record<string, SafeAny>> {
   private store = new Map<string, Link[]>();
@@ -28,5 +23,3 @@ export class Links<T extends Record<string, SafeAny>> {
     return undefined;
   }
 }
-
-export type LinkVariables = Parameters<Template['expand']>[0];

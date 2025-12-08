@@ -1,10 +1,10 @@
 import { Entity } from '../archtype/entity.js';
-import { Link } from '../links.js';
 import { ResourceState } from '../state/resource-state.js';
 import { RequestOptions, Resource } from './resource.js';
 import { StateResource } from './state-resource.js';
 import { BaseResource } from './base-resource.js';
 import { Axios } from 'axios';
+import { Link } from '../links/link.js';
 
 export class LinkResource<TEntity extends Entity>
   extends BaseResource

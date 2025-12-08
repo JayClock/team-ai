@@ -1,5 +1,5 @@
 import { Entity } from '../archtype/entity.js';
-import { Link, Links } from '../links.js';
+import { Links } from '../links/links.js';
 import { State } from './state.js';
 import { StateCollection } from './state-collection.js';
 import { Form } from '../form/form.js';
@@ -15,6 +15,7 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { Resource } from '../resource/resource.js';
 import { StateResource } from '../resource/state-resource.js';
 import { Axios } from 'axios';
+import { Link } from '../links/link.js';
 
 type StateInit = {
   uri: string;
