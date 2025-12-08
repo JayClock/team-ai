@@ -4,7 +4,6 @@ import { Link, Links } from '../links.js';
 import { State } from './state.js';
 import { StateCollection } from './state-collection.js';
 import { Form } from '../form/form.js';
-import { LinkResource } from '../resource/link-resource.js';
 import {
   HalFormsOptionsInline,
   HalFormsProperty,
@@ -15,6 +14,7 @@ import {
 import { Field } from '../form/field.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { Resource } from '../resource/resource.js';
+import { StateResource } from '../resource/state-resource.js';
 
 type StateInit = {
   uri: string;
@@ -58,7 +58,7 @@ export class HalState<TEntity extends Entity = Entity>
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new LinkResource(this.client, link, [rel as string]);
+      return new StateResource(this.client, this, [link.rel]);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
@@ -77,7 +77,7 @@ export class HalState<TEntity extends Entity = Entity>
     return this.embedded[rel];
   }
 
-  getLink(rel: string): Link | undefined {
+  getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined {
     return this.links.get(rel);
   }
 

@@ -25,7 +25,8 @@ export class StateResource<TEntity extends Entity>
     return new StateResource(
       this.client,
       this.state,
-      this.rels.concat(rel as string)
+      this.rels.concat(rel as string),
+      this.optionsMap
     );
   }
 
@@ -34,7 +35,10 @@ export class StateResource<TEntity extends Entity>
       throw new Error('No relations to follow');
     }
 
-    const result = await this.resolveRelationsRecursively(this.state, this.rels);
+    const result = await this.resolveRelationsRecursively(
+      this.state,
+      this.rels
+    );
     return result as unknown as ResourceState<TEntity>;
   }
 

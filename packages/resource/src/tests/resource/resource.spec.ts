@@ -8,7 +8,7 @@ import { Client } from '../../lib/client.js';
 import { LinkResource } from '../../lib/resource/link-resource.js';
 import { HalState } from '../../lib/state/hal-state.js';
 import { Collection } from '../../lib/index.js';
-import { Resource } from '../../lib/resource/resource.js';
+import { Resource } from '../../lib/index.js';
 
 const mockClient = {
   go: vi.fn(),
@@ -67,17 +67,14 @@ describe('Resource', () => {
   });
 
   it('should handle embedded array resource request', async () => {
-    const userState = HalState.create<User>(
-      mockClient,
-      '/api/users/1',
-      halUser as HalResource
-    );
 
-    const mockRootResource = {
-      request: vi.fn().mockResolvedValue(userState)
-    } as unknown as Resource<User>;
+    const mockResponse = {
+      json: vi.fn().mockResolvedValue(halUser)
+    } as unknown as Response;
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
+
+    const userState = new LinkResource(mockClient, { rel: '', href: '/api/users/1' });
 
     const accountsResource = userState.follow('accounts');
     const result = await accountsResource.request();
@@ -92,17 +89,13 @@ describe('Resource', () => {
   });
 
   it('should handle embedded single resource request', async () => {
-    const userState = HalState.create<User>(
-      mockClient,
-      '/api/users/1',
-      halUser as HalResource
-    );
+    const mockResponse = {
+      json: vi.fn().mockResolvedValue(halUser)
+    } as unknown as Response;
 
-    const mockRootResource = {
-      request: vi.fn().mockResolvedValue(userState)
-    } as unknown as Resource<User>;
+    vi.spyOn(mockClient, 'fetch').mockResolvedValue(mockResponse);
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(mockRootResource);
+    const userState = new LinkResource(mockClient, { rel: '', href: '/api/users/1' });
 
     const latestConversationResource = userState.follow('latest-conversation');
     const result = await latestConversationResource.request();
