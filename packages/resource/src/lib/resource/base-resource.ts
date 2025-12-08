@@ -5,6 +5,7 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { HalResource } from 'hal-types';
 import { RequestOptions } from './resource.js';
 import { Axios } from 'axios';
+import queryString from 'query-string';
 
 export class BaseResource {
   constructor(
@@ -13,13 +14,21 @@ export class BaseResource {
   ) {}
 
   protected async httpRequest(link: Link) {
-    const context = this.getRequestOption(link);
-    const url = parseTemplate(link.href).expand(context.query ?? {});
+    const { query, body } = this.getRequestOption(link);
+    let url;
+    if (link.templated) {
+      url = parseTemplate(link.href).expand(query ?? {});
+    } else {
+      url = queryString.stringifyUrl({
+        url: link.href,
+        query,
+      });
+    }
 
     const response = await this.axios.request({
       url: url,
       method: link.type,
-      data: context.body,
+      data: body,
       headers: {
         'Content-Type': 'application/json',
       },

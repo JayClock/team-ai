@@ -24,12 +24,12 @@ describe('Resource', () => {
     const rootResource = new LinkResource<Collection<Account>>(mockAxios, {
       rel: 'accounts',
       href: '/api/users/1/accounts'
-    }).withRequestOptions({ body: { page: 1 } });
+    }).withRequestOptions({ query: { page: 1 }, body: { page: 1 } });
 
     const result = await rootResource.request();
 
     expect(mockAxios.request).toHaveBeenCalledWith({
-      url: '/api/users/1/accounts',
+      url: '/api/users/1/accounts?page=1',
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
