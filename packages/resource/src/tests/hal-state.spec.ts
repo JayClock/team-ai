@@ -2,17 +2,17 @@ import { describe, expect } from 'vitest';
 import mockUser from './fixtures/hal-user.json' with { type: 'json' };
 import { HalResource } from 'hal-types';
 import { State } from '../lib/state/state.js';
-import { Client } from '../lib/client.js';
 import { HalState } from '../lib/state/hal-state.js';
 import { User } from './fixtures/interface.js';
 import { SafeAny } from '../lib/archtype/safe-any.js';
+import { Axios } from 'axios';
 
-const mockClient = {
+const mockAxios = {
   go: vi.fn()
-} as unknown as Client;
+} as unknown as Axios;
 
 describe('HalState', () => {
-  const state = HalState.create(mockClient, '/api/users/1', mockUser as HalResource) as HalState<User>;
+  const state = HalState.create(mockAxios, '/api/users/1', mockUser as HalResource) as HalState<User>;
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -30,7 +30,7 @@ describe('HalState', () => {
   });
 
   it('should create collection with existed embedded', () => {
-    const state = HalState.create(mockClient, '/api/users/1', mockUser as HalResource, 'accounts');
+    const state = HalState.create(mockAxios, '/api/users/1', mockUser as HalResource, 'accounts');
     expect(state.collection.length).toEqual(mockUser._embedded.accounts.length);
   });
 

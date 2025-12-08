@@ -6,6 +6,7 @@ import type { Config } from './archtype/config.js';
 import { Fetcher } from './http/fetcher.js';
 import { Link } from './links.js';
 import { Resource } from './resource/resource.js';
+import axios from 'axios';
 
 @injectable()
 export class Client {
@@ -17,7 +18,8 @@ export class Client {
   ) {}
 
   go<TEntity extends Entity>(link: Link): Resource<TEntity> {
-    return new LinkResource<TEntity>(this, link);
+    const instance = axios.create({ baseURL: this.options.baseURL });
+    return new LinkResource<TEntity>(instance, link);
   }
 
   fetch(

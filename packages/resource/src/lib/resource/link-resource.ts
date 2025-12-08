@@ -1,22 +1,22 @@
 import { Entity } from '../archtype/entity.js';
-import { Client } from '../client.js';
 import { Link } from '../links.js';
 import { ResourceState } from '../state/resource-state.js';
 import { RequestOptions, Resource } from './resource.js';
 import { StateResource } from './state-resource.js';
 import { BaseResource } from './base-resource.js';
+import { Axios } from 'axios';
 
 export class LinkResource<TEntity extends Entity>
   extends BaseResource
   implements Resource<TEntity>
 {
   constructor(
-    client: Client,
+    axios: Axios,
     private readonly link: Link,
     private readonly rels: string[] = [],
     optionsMap: Map<string, RequestOptions> = new Map()
   ) {
-    super(client, optionsMap);
+    super(axios, optionsMap);
     this.link.rel = this.link.rel ?? 'ROOT_REL';
     this.link.type = 'GET';
   }
@@ -25,7 +25,7 @@ export class LinkResource<TEntity extends Entity>
     rel: K
   ): Resource<TEntity['links'][K]> {
     return new LinkResource(
-      this.client,
+      this.axios,
       this.link,
       this.rels.concat(rel as string),
       this.optionsMap
@@ -45,7 +45,7 @@ export class LinkResource<TEntity extends Entity>
       return state as unknown as ResourceState<TEntity>;
     }
     const stateResource = new StateResource<TEntity>(
-      this.client,
+      this.axios,
       state,
       this.rels,
       this.optionsMap

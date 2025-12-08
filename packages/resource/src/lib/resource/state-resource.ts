@@ -3,28 +3,28 @@ import { ResourceState } from '../state/resource-state.js';
 import { RequestOptions, Resource } from './resource.js';
 import { State } from '../state/state.js';
 import { HalState } from '../state/hal-state.js';
-import { Client } from '../client.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
+import { Axios } from 'axios';
 
 export class StateResource<TEntity extends Entity>
   extends BaseResource
   implements Resource<TEntity>
 {
   constructor(
-    client: Client,
+    axios: Axios,
     private state: State,
     private rels: string[] = [],
     optionsMap: Map<string, RequestOptions> = new Map()
   ) {
-    super(client, optionsMap);
+    super(axios, optionsMap);
   }
 
   follow<K extends keyof TEntity['links']>(
     rel: K
   ): Resource<TEntity['links'][K]> {
     return new StateResource(
-      this.client,
+      this.axios,
       this.state,
       this.rels.concat(rel as string),
       this.optionsMap
@@ -64,7 +64,7 @@ export class StateResource<TEntity extends Entity>
 
     if (Array.isArray(embedded)) {
       nextState = HalState.create(
-        this.client,
+        this.axios,
         link.href,
         {
           _embedded: {
@@ -74,7 +74,7 @@ export class StateResource<TEntity extends Entity>
         link.rel
       ) as unknown as State<any>;
     } else if (embedded) {
-      nextState = HalState.create(this.client, link.href, embedded);
+      nextState = HalState.create(this.axios, link.href, embedded);
     } else {
       // If no embedded data is available, make an HTTP request
       nextState = await this.httpRequest(link);
