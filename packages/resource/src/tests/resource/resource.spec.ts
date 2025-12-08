@@ -97,4 +97,60 @@ describe('Resource', () => {
     expect(result.collection).toHaveLength(40);
     expect(result.uri).toBe('/api/users/1/conversations?page=1&pageSize=10');
   });
+
+  it('should get result with multi follow relation', async () => {
+    const userState = HalState.create<User>(
+      mockAxios,
+      '/api/users/1',
+      halUser as HalResource
+    );
+
+    vi.spyOn(mockAxios, 'request').mockResolvedValue({ data: halConversations });
+
+    await userState
+      .follow('conversations')
+      .withRequestOptions({
+        query: {
+          page: 1,
+          pageSize: 10
+        }, body: {
+          page: 1,
+          pageSize: 10
+        }
+      })
+      .follow('next')
+      .withRequestOptions({
+        query: {
+          page: 2,
+          pageSize: 20
+        }, body: {
+          page: 2,
+          pageSize: 20
+        }
+      })
+      .request();
+    expect(mockAxios.request).toHaveBeenCalledTimes(2);
+    expect(mockAxios.request).toHaveBeenNthCalledWith(1, {
+      url: '/api/users/1/conversations?page=1&pageSize=10',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      data: {
+        page: 1,
+        pageSize: 10
+      }
+    });
+    expect(mockAxios.request).toHaveBeenNthCalledWith(2, {
+      url: '/api/users/1/conversations?page=2&pageSize=20',
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      data: {
+        page: 2,
+        pageSize: 20
+      }
+    });
+  });
 });
