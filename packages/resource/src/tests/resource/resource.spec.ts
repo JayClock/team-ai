@@ -153,4 +153,13 @@ describe('Resource', () => {
       }
     });
   });
+
+  it('should verify request body with hal template', async () => {
+    const userState = HalState.create<User>(
+      mockAxios,
+      '/api/users/1',
+      halUser as HalResource
+    );
+    await expect(userState.follow('create-conversation').withRequestOptions({ body: { title: 123 } }).request()).rejects.toThrow('Invalid');
+  });
 });

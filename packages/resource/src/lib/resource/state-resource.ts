@@ -77,7 +77,7 @@ export class StateResource<TEntity extends Entity>
       nextState = HalState.create(this.axios, link.href, embedded);
     } else {
       // If no embedded data is available, make an HTTP request
-      nextState = await this.httpRequest(link);
+      nextState = await this.httpRequest(link, currentState.getForm(link.rel));
     }
 
     return this.resolveRelationsRecursively(nextState, nextRels);

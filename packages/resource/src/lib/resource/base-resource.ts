@@ -6,6 +6,8 @@ import { HalResource } from 'hal-types';
 import { RequestOptions } from './resource.js';
 import { Axios } from 'axios';
 import queryString from 'query-string';
+import { Form } from '../form/form.js';
+import { z } from 'zod';
 
 export class BaseResource {
   constructor(
@@ -13,7 +15,7 @@ export class BaseResource {
     protected readonly optionsMap: Map<string, RequestOptions> = new Map()
   ) {}
 
-  protected async httpRequest(link: Link) {
+  protected async httpRequest(link: Link, form?: Form) {
     const { query, body } = this.getRequestOption(link);
     let url;
     if (link.templated) {
@@ -23,6 +25,10 @@ export class BaseResource {
         url: link.href,
         query,
       });
+    }
+
+    if (form) {
+      this.verifyFormData(form, body);
     }
 
     const response = await this.axios.request({
@@ -40,6 +46,40 @@ export class BaseResource {
       (await response.data) as HalResource,
       link.rel
     );
+  }
+
+  private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {
+    const shape: Record<string, SafeAny> = {};
+
+    for (const field of form.fields) {
+      let shapeElement: z.ZodType;
+
+      switch (field.type) {
+        case 'text':
+          shapeElement = z.string();
+          break;
+        case 'url':
+          shapeElement = z.url();
+          break;
+        default:
+          shapeElement = z.string();
+      }
+
+      if (field.readOnly) {
+        shapeElement = shapeElement.readonly();
+      }
+      if (!field.required) {
+        shapeElement = shapeElement.optional();
+      }
+      shape[field.name] = shapeElement;
+    }
+
+    try {
+      const schema = z.object(shape);
+      schema.parse(body);
+    } catch {
+      throw new Error('Invalid');
+    }
   }
 
   private getRequestOption(link: Link) {
