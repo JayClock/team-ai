@@ -1,20 +1,22 @@
 import { Entity } from '../archtype/entity.js';
 import { Client } from '../client.js';
-import { HalState } from '../state/hal-state.js';
 import { Link } from '../links.js';
-import { HalResource } from 'hal-types';
 import { ResourceState } from '../state/resource-state.js';
-import { parseTemplate } from 'url-template';
 import { RequestOptions, Resource } from './resource.js';
 import { StateResource } from './state-resource.js';
+import { BaseResource } from './base-resource.js';
 
-export class LinkResource<TEntity extends Entity> implements Resource<TEntity> {
+export class LinkResource<TEntity extends Entity>
+  extends BaseResource
+  implements Resource<TEntity>
+{
   constructor(
-    private readonly client: Client,
+    client: Client,
     private readonly link: Link,
     private readonly rels: string[] = [],
-    private readonly optionsMap: Map<string, RequestOptions> = new Map()
+    optionsMap: Map<string, RequestOptions> = new Map()
   ) {
+    super(client, optionsMap);
     this.link.rel = this.link.rel ?? 'ROOT_REL';
     this.link.type = 'GET';
   }
@@ -25,7 +27,8 @@ export class LinkResource<TEntity extends Entity> implements Resource<TEntity> {
     return new LinkResource(
       this.client,
       this.link,
-      this.rels.concat(rel as string)
+      this.rels.concat(rel as string),
+      this.optionsMap
     );
   }
 
@@ -37,23 +40,9 @@ export class LinkResource<TEntity extends Entity> implements Resource<TEntity> {
   }
 
   async request(): Promise<ResourceState<TEntity>> {
-    const context = this.getRequestOption(this.link);
-    const uri = parseTemplate(this.link.href).expand(context.query ?? {});
-    const response = await this.client.fetch(uri, {
-      method: this.link.type,
-      body: JSON.stringify(context.body),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    const state = HalState.create<TEntity>(
-      this.client,
-      uri,
-      (await response.json()) as HalResource,
-      this.link.rel
-    );
+    const state = await this.httpRequest(this.link);
     if (this.isRootResource()) {
-      return state;
+      return state as unknown as ResourceState<TEntity>;
     }
     const stateResource = new StateResource<TEntity>(
       this.client,
@@ -66,9 +55,5 @@ export class LinkResource<TEntity extends Entity> implements Resource<TEntity> {
 
   private isRootResource() {
     return this.rels.length === 0;
-  }
-
-  private getRequestOption(link: Link) {
-    return this.optionsMap.get(link.rel) ?? {};
   }
 }

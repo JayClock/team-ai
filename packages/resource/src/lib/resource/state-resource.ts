@@ -4,20 +4,21 @@ import { RequestOptions, Resource } from './resource.js';
 import { State } from '../state/state.js';
 import { HalState } from '../state/hal-state.js';
 import { Client } from '../client.js';
-import { parseTemplate } from 'url-template';
-import { Link } from '../links.js';
-import { HalResource } from 'hal-types';
 import { SafeAny } from '../archtype/safe-any.js';
+import { BaseResource } from './base-resource.js';
 
 export class StateResource<TEntity extends Entity>
+  extends BaseResource
   implements Resource<TEntity>
 {
   constructor(
-    private readonly client: Client,
-    private readonly state: State,
-    private readonly rels: string[] = [],
-    private readonly optionsMap: Map<string, RequestOptions> = new Map()
-  ) {}
+    client: Client,
+    private state: State,
+    private rels: string[] = [],
+    optionsMap: Map<string, RequestOptions> = new Map()
+  ) {
+    super(client, optionsMap);
+  }
 
   follow<K extends keyof TEntity['links']>(
     rel: K
@@ -76,22 +77,7 @@ export class StateResource<TEntity extends Entity>
       nextState = HalState.create(this.client, link.href, embedded);
     } else {
       // If no embedded data is available, make an HTTP request
-      const context = this.getRequestOption(link);
-      const uri = parseTemplate(link.href).expand(context.query ?? {});
-      const response = await this.client.fetch(uri, {
-        method: link.type,
-        body: JSON.stringify(context.body),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      nextState = HalState.create<SafeAny>(
-        this.client,
-        uri,
-        (await response.json()) as HalResource,
-        link.rel
-      );
+      nextState = await this.httpRequest(link);
     }
 
     return this.resolveRelationsRecursively(nextState, nextRels);
@@ -102,9 +88,5 @@ export class StateResource<TEntity extends Entity>
     const lastRel = this.rels.at(-1)!;
     this.optionsMap.set(lastRel, options);
     return this;
-  }
-
-  private getRequestOption(link: Link) {
-    return this.optionsMap.get(link.rel) ?? {};
   }
 }
