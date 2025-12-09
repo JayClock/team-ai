@@ -11,7 +11,7 @@ import { ClientInstance } from '../../lib/client-instance.js';
 import { Link } from '../../lib/links/link.js';
 
 const mockFetcher = {
-  fetch: vi.fn()
+  fetchOrThrow: vi.fn()
 };
 
 const mockClient = {
@@ -29,7 +29,7 @@ describe('Resource', () => {
       json: vi.fn().mockResolvedValue(halAccounts)
     } as unknown as Response;
 
-    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
 
     const link = {
       rel: 'accounts',
@@ -42,7 +42,7 @@ describe('Resource', () => {
 
     const result = await rootResource.request();
 
-    expect(mockClient.fetcher.fetch).toHaveBeenCalledWith(link, options);
+    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(link, options);
     expect(result.collection.length).toEqual(halAccounts._embedded.accounts.length);
     expect(result.uri).toEqual('/api/users/1/accounts?page=1');
   });
@@ -55,7 +55,7 @@ describe('Resource', () => {
       json: vi.fn().mockResolvedValue(halUser)
     } as unknown as Response;
 
-    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
 
     const link = { rel: '', href: '/api/users/1' };
 
@@ -79,7 +79,7 @@ describe('Resource', () => {
       json: vi.fn().mockResolvedValue(halUser)
     } as unknown as Response;
 
-    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
 
     const link = { rel: '', href: '/api/users/1' };
 
@@ -105,7 +105,7 @@ describe('Resource', () => {
       halUser as HalResource
     );
 
-    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
 
     const link: Link = { ...halUser._links.conversations, rel: 'conversations', type: 'GET' };
 
@@ -118,7 +118,7 @@ describe('Resource', () => {
     const conversationsResource = userState.follow('conversations').withRequestOptions(options);
     const result = await conversationsResource.request();
 
-    expect(mockClient.fetcher.fetch).toHaveBeenCalledWith(link, options);
+    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(link, options);
     expect(result.collection).toHaveLength(40);
     expect(result.uri).toBe('/api/users/1/conversations?page=1&pageSize=10');
   });
@@ -135,7 +135,7 @@ describe('Resource', () => {
       json: vi.fn().mockResolvedValue(halConversations)
     } as unknown as Response;
 
-    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
 
     const link1: Link = { ...halUser._links.conversations, rel: 'conversations', type: 'GET' };
     const link2: Link = { ...halConversations._links.next, rel: 'next', type: 'GET' };
@@ -164,9 +164,9 @@ describe('Resource', () => {
       .follow('next')
       .withRequestOptions(options2)
       .request();
-    expect(mockClient.fetcher.fetch).toHaveBeenCalledTimes(2);
-    expect(mockClient.fetcher.fetch).toHaveBeenNthCalledWith(1, link1, options1);
-    expect(mockClient.fetcher.fetch).toHaveBeenNthCalledWith(2, link2, options2);
+    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);
+    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenNthCalledWith(1, link1, options1);
+    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenNthCalledWith(2, link2, options2);
   });
 
   it('should verify request body with hal template', async () => {

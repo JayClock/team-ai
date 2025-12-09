@@ -20,7 +20,7 @@ export class BaseResource {
       this.verifyFormData(form, options.body);
     }
 
-    const response = await this.client.fetcher.fetch(link, options);
+    const response = await this.client.fetcher.fetchOrThrow(link, options);
     const url = new URL(response.url);
 
     return HalState.create<SafeAny>(
