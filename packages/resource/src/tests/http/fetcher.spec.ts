@@ -1,151 +1,121 @@
-import { describe, expect, vi, beforeEach } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { Container } from 'inversify';
 import { Fetcher } from '../../lib/http/fetcher.js';
+import { TYPES } from '../../lib/archtype/injection-types.js';
+import type { Config } from '../../lib/archtype/config.js';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
 
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+const mockConfig: Config = {
+  baseURL: 'https://api.example.com',
+};
+
+const mockResponseData = {
+  id: '1',
+  name: 'Test User',
+  email: 'test@example.com',
+};
+
+const mockHandlers = [
+  http.get('https://api.example.com/test', () => {
+    return HttpResponse.json(mockResponseData);
+  }),
+  http.post('https://api.example.com/test', () => {
+    return HttpResponse.json(mockResponseData);
+  }),
+  http.get('https://api.example.com/error', () => {
+    return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+  }),
+];
+
+const server = setupServer(...mockHandlers);
 
 describe('Fetcher', () => {
+  let container: Container;
   let fetcher: Fetcher;
 
   beforeEach(() => {
-    fetcher = new Fetcher();
-    vi.clearAllMocks();
+    container = new Container();
+    container.bind<Config>(TYPES.Config).toConstantValue(mockConfig);
+    container.bind<Fetcher>(TYPES.Fetcher).to(Fetcher);
+    fetcher = container.get<Fetcher>(TYPES.Fetcher);
+    server.listen();
   });
 
-  it('should be defined', () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  afterAll(() => {
+    server.close();
+  });
+
+  it('should be instantiated with correct baseURL', () => {
     expect(fetcher).toBeDefined();
   });
 
-  it('should call fetch with string resource', async () => {
-    const mockResponse = { ok: true, status: 200 } as Response;
-    mockFetch.mockResolvedValue(mockResponse);
+  it('should fetch data successfully with GET request', async () => {
+    const response = await fetcher.fetch({ rel: '', href: '/test' });
 
-    const resource = 'https://api.example.com/data';
-    const result = await fetcher.fetch(resource);
+    expect(response.status).toBe(200);
+    expect(response.statusText).toBe('OK');
+    expect(response.url).toBe('https://api.example.com/test');
 
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(result).toEqual(mockResponse);
-
-    const fetchCall = mockFetch.mock.calls[0][0];
-    expect(fetchCall).toBeInstanceOf(Request);
-    expect(fetchCall.url).toBe(resource);
-    expect(fetchCall.method).toBe('GET');
+    const responseData = await response.json();
+    expect(responseData).toEqual(mockResponseData);
   });
 
-  it('should call fetch with Request object', async () => {
-    const mockResponse = { ok: true, status: 200 } as Response;
-    mockFetch.mockResolvedValue(mockResponse);
+  it('should fetch data successfully with POST request', async () => {
+    const response = await fetcher.fetch(
+      { rel: '', href: '/test', type: 'POST' },
+      { body: { name: 'Test User' } }
+    );
 
-    const request = new Request('https://api.example.com/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ test: 'data' })
-    });
+    expect(response.status).toBe(200);
+    expect(response.statusText).toBe('OK');
+    expect(response.url).toBe('https://api.example.com/test');
 
-    const result = await fetcher.fetch(request);
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(result).toEqual(mockResponse);
-
-    const fetchCall = mockFetch.mock.calls[0][0];
-    expect(fetchCall).toBeInstanceOf(Request);
-    expect(fetchCall.url).toBe(request.url);
-    expect(fetchCall.method).toBe('POST');
+    const responseData = await response.json();
+    expect(responseData).toEqual(mockResponseData);
   });
 
-  it('should call fetch with string resource and init options', async () => {
-    const mockResponse = { ok: true, status: 201 } as Response;
-    mockFetch.mockResolvedValue(mockResponse);
+  it('should fetch data successfully with query parameters', async () => {
+    const response = await fetcher.fetch(
+      { rel: '', href: '/test' },
+      { query: { page: 1, pageSize: 10 } }
+    );
 
-    const resource = 'https://api.example.com/data';
-    const init: RequestInit = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Test' })
-    };
+    expect(response).toBeInstanceOf(Response);
+    expect(response.status).toBe(200);
+    expect(response.url).toBe(
+      'https://api.example.com/test?page=1&pageSize=10'
+    );
 
-    const result = await fetcher.fetch(resource, init);
-
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect(result).toEqual(mockResponse);
-
-    const fetchCall = mockFetch.mock.calls[0][0];
-    expect(fetchCall).toBeInstanceOf(Request);
-    expect(fetchCall.url).toBe(resource);
-    expect(fetchCall.method).toBe('POST');
-    expect(fetchCall.headers.get('Content-Type')).toBe('application/json');
+    const responseData = await response.json();
+    expect(responseData).toEqual(mockResponseData);
   });
 
-  it('should handle fetch errors', async () => {
-    const error = new Error('Network error');
-    mockFetch.mockRejectedValue(error);
+  it('should fetch data successfully with templated link', async () => {
+    const response = await fetcher.fetch(
+      { rel: '', href: '/test{?page,pageSize}', templated: true },
+      { query: { page: 1, pageSize: 10 } }
+    );
 
-    const resource = 'https://api.example.com/data';
+    expect(response).toBeInstanceOf(Response);
+    expect(response.status).toBe(200);
+    expect(response.url).toBe(
+      'https://api.example.com/test?page=1&pageSize=10'
+    );
 
-    await expect(fetcher.fetch(resource)).rejects.toThrow('Network error');
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const responseData = await response.json();
+    expect(responseData).toEqual(mockResponseData);
   });
 
-  it('should handle different HTTP methods', async () => {
-    const mockResponse = { ok: true, status: 204 } as Response;
-    mockFetch.mockResolvedValue(mockResponse);
-
-    const resource = 'https://api.example.com/data';
-    const init: RequestInit = { method: 'DELETE' };
-
-    await fetcher.fetch(resource, init);
-
-    const fetchCall = mockFetch.mock.calls[0][0];
-    expect(fetchCall.method).toBe('DELETE');
-  });
-
-  it('should handle custom headers', async () => {
-    const mockResponse = { ok: true, status: 200 } as Response;
-    mockFetch.mockResolvedValue(mockResponse);
-
-    const resource = 'https://api.example.com/data';
-    const init: RequestInit = {
-      headers: {
-        'Authorization': 'Bearer token123',
-        'X-Custom-Header': 'custom-value'
-      }
-    };
-
-    await fetcher.fetch(resource, init);
-
-    const fetchCall = mockFetch.mock.calls[0][0];
-    expect(fetchCall.headers.get('Authorization')).toBe('Bearer token123');
-    expect(fetchCall.headers.get('X-Custom-Header')).toBe('custom-value');
-  });
-
-  it('should handle request with body', async () => {
-    const mockResponse = { ok: true, status: 200 } as Response;
-    mockFetch.mockResolvedValue(mockResponse);
-
-    const resource = 'https://api.example.com/data';
-    const bodyData = { title: 'New Item', content: 'Item content' };
-    const init: RequestInit = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bodyData)
-    };
-
-    await fetcher.fetch(resource, init);
-
-    const fetchCall = mockFetch.mock.calls[0][0];
-    expect(fetchCall.method).toBe('POST');
-    expect(fetchCall.headers.get('Content-Type')).toBe('application/json');
-  });
-
-  it('should handle request with query parameters in URL', async () => {
-    const mockResponse = { ok: true, status: 200 } as Response;
-    mockFetch.mockResolvedValue(mockResponse);
-
-    const resource = 'https://api.example.com/data?page=1&limit=10&sort=name';
-
-    await fetcher.fetch(resource);
-
-    const fetchCall = mockFetch.mock.calls[0][0];
-    expect(fetchCall.url).toBe(resource);
+  it('should fetch data error with status 404', async () => {
+    const response = await fetcher.fetch({ rel: '', href: '/error' });
+    expect(response.status).toBe(404);
+    expect(response.url).toBe('https://api.example.com/error');
+    const responseData = await response.json();
+    expect(responseData).toEqual({ error: 'Not found' });
   });
 });
