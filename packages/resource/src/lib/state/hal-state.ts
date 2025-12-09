@@ -32,6 +32,8 @@ export class HalState<TEntity extends Entity = Entity>
   readonly data: TEntity['data'];
   readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
+  readonly timestamp = new Date().getTime();
+
   private readonly forms: Form[];
   private readonly embedded: Record<string, HalResource | HalResource[]>;
 
@@ -87,7 +89,7 @@ export class HalState<TEntity extends Entity = Entity>
   }
 
   /**
-   * 创建 HalState 实例的工厂方法
+   * Factory method to create HalState instance
    */
   static create<TEntity extends Entity>(
     client: ClientInstance,
@@ -104,7 +106,7 @@ export class HalState<TEntity extends Entity = Entity>
   }
 
   /**
-   * 解析 HAL 链接
+   * Parse HAL links
    */
   private parseHalLinks<TLinks extends Record<string, SafeAny>>(
     halLinks: HalResource['_links']
@@ -124,7 +126,7 @@ export class HalState<TEntity extends Entity = Entity>
   }
 
   /**
-   * 解析 HAL 模板
+   * Parse HAL templates
    */
   private parseHalTemplates(
     links: Links<SafeAny>,
@@ -143,7 +145,7 @@ export class HalState<TEntity extends Entity = Entity>
   }
 
   /**
-   * 解析 HAL 表单字段
+   * Parse HAL form fields
    */
   private parseHalField(halField: HalFormsProperty): Field {
     switch (halField.type) {
@@ -305,7 +307,7 @@ export class HalState<TEntity extends Entity = Entity>
   }
 
   /**
-   * 检查选项是否为内联选项
+   * Check if options are inline options
    */
   private isInlineOptions(
     options: HalFormsSimpleProperty['options']
