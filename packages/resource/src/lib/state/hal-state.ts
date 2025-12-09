@@ -14,12 +14,12 @@ import { Field } from '../form/field.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { Resource } from '../resource/resource.js';
 import { StateResource } from '../resource/state-resource.js';
-import { Axios } from 'axios';
 import { Link } from '../links/link.js';
+import { ClientInstance } from '../client-instance.js';
 
 type StateInit = {
   uri: string;
-  axios: Axios;
+  client: ClientInstance;
   halResource: HalResource;
   rel?: string;
 };
@@ -28,7 +28,7 @@ export class HalState<TEntity extends Entity = Entity>
   implements State<TEntity>
 {
   readonly uri: string;
-  readonly axios: Axios;
+  readonly client: ClientInstance;
   readonly data: TEntity['data'];
   readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
@@ -37,7 +37,7 @@ export class HalState<TEntity extends Entity = Entity>
 
   private constructor(private init: StateInit) {
     this.uri = init.uri;
-    this.axios = init.axios;
+    this.client = init.client;
     const { _links, _embedded, _templates, ...pureData } = init.halResource;
     this.data = pureData;
     this.links = this.parseHalLinks(_links);
@@ -46,7 +46,7 @@ export class HalState<TEntity extends Entity = Entity>
     this.collection = init.rel
       ? (this.embedded[init.rel] ?? []).map((embedded: HalResource) =>
           HalState.create(
-            this.axios,
+            this.client,
             (embedded._links?.self as HalLink).href,
             embedded
           )
@@ -59,7 +59,7 @@ export class HalState<TEntity extends Entity = Entity>
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new StateResource(this.axios, this, [link.rel]);
+      return new StateResource(this.client, this, [link.rel]);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
@@ -90,13 +90,13 @@ export class HalState<TEntity extends Entity = Entity>
    * 创建 HalState 实例的工厂方法
    */
   static create<TEntity extends Entity>(
-    axios: Axios,
+    client: ClientInstance,
     uri: string,
     halResource: HalResource,
     rel?: string
   ): State<TEntity> {
     return new HalState<TEntity>({
-      axios,
+      client,
       uri,
       halResource,
       rel,

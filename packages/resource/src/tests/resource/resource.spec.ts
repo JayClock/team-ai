@@ -7,11 +7,16 @@ import { HalResource } from 'hal-types';
 import { LinkResource } from '../../lib/resource/link-resource.js';
 import { HalState } from '../../lib/state/hal-state.js';
 import { Collection } from '../../lib/index.js';
-import { Axios } from 'axios';
+import { ClientInstance } from '../../lib/client-instance.js';
+import { Link } from '../../lib/links/link.js';
 
-const mockAxios = {
-  request: vi.fn()
-} as unknown as Axios;
+const mockFetcher = {
+  fetch: vi.fn()
+};
+
+const mockClient = {
+  fetcher: mockFetcher
+} as unknown as ClientInstance;
 
 describe('Resource', () => {
   beforeEach(() => {
@@ -19,31 +24,42 @@ describe('Resource', () => {
   });
 
   it('should handle root resource request with embedded', async () => {
-    vi.spyOn(mockAxios, 'request').mockResolvedValue({ data: halAccounts });
+    const mockResponse = {
+      url: 'https://www.test.com/api/users/1/accounts?page=1',
+      json: vi.fn().mockResolvedValue(halAccounts)
+    } as unknown as Response;
 
-    const rootResource = new LinkResource<Collection<Account>>(mockAxios, {
+    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+
+    const link = {
       rel: 'accounts',
       href: '/api/users/1/accounts'
-    }).withRequestOptions({ query: { page: 1 }, body: { page: 1 } });
+    };
+
+    const options = { query: { page: 1 }, body: { page: 1 } };
+
+    const rootResource = new LinkResource<Collection<Account>>(mockClient, link).withRequestOptions(options);
 
     const result = await rootResource.request();
 
-    expect(mockAxios.request).toHaveBeenCalledWith({
-      url: '/api/users/1/accounts?page=1',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      data: { page: 1 }
-    });
+    expect(mockClient.fetcher.fetch).toHaveBeenCalledWith(link, options);
     expect(result.collection.length).toEqual(halAccounts._embedded.accounts.length);
+    expect(result.uri).toEqual('/api/users/1/accounts?page=1');
   });
 
 
   it('should handle embedded array resource request', async () => {
-    vi.spyOn(mockAxios, 'request').mockResolvedValue({ data: halUser });
 
-    const userState = new LinkResource(mockAxios, { rel: '', href: '/api/users/1' });
+    const mockResponse = {
+      url: 'https://www.test.com/api/users/1',
+      json: vi.fn().mockResolvedValue(halUser)
+    } as unknown as Response;
+
+    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+
+    const link = { rel: '', href: '/api/users/1' };
+
+    const userState = new LinkResource(mockClient, link);
 
     const accountsResource = userState.follow('accounts');
     const result = await accountsResource.request();
@@ -58,9 +74,16 @@ describe('Resource', () => {
   });
 
   it('should handle embedded single resource request', async () => {
-    vi.spyOn(mockAxios, 'request').mockResolvedValue({ data: halUser });
+    const mockResponse = {
+      url: 'https://www.test.com/api/users/1',
+      json: vi.fn().mockResolvedValue(halUser)
+    } as unknown as Response;
 
-    const userState = new LinkResource(mockAxios, { rel: '', href: '/api/users/1' });
+    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+
+    const link = { rel: '', href: '/api/users/1' };
+
+    const userState = new LinkResource(mockClient, link);
 
     const latestConversationResource = userState.follow('latest-conversation');
     const result = await latestConversationResource.request();
@@ -71,92 +94,84 @@ describe('Resource', () => {
   });
 
   it('should handle non-embedded resource request with HTTP call', async () => {
+    const mockResponse = {
+      url: 'https://www.test.com/api/users/1/conversations?page=1&pageSize=10',
+      json: vi.fn().mockResolvedValue(halConversations)
+    } as unknown as Response;
+
     const userState = HalState.create<User>(
-      mockAxios,
+      mockClient,
       '/api/users/1',
       halUser as HalResource
     );
 
-    vi.spyOn(mockAxios, 'request').mockResolvedValue({ data: halConversations });
+    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
 
-    const conversationsResource = userState.follow('conversations').withRequestOptions({
+    const link: Link = { ...halUser._links.conversations, rel: 'conversations', type: 'GET' };
+
+    const options = {
       query: {
         page: 1,
         pageSize: 10
       }
-    });
+    };
+    const conversationsResource = userState.follow('conversations').withRequestOptions(options);
     const result = await conversationsResource.request();
 
-    expect(mockAxios.request).toHaveBeenCalledWith({
-      url: '/api/users/1/conversations?page=1&pageSize=10',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    expect(mockClient.fetcher.fetch).toHaveBeenCalledWith(link, options);
     expect(result.collection).toHaveLength(40);
     expect(result.uri).toBe('/api/users/1/conversations?page=1&pageSize=10');
   });
 
   it('should get result with multi follow relation', async () => {
     const userState = HalState.create<User>(
-      mockAxios,
+      mockClient,
       '/api/users/1',
       halUser as HalResource
     );
 
-    vi.spyOn(mockAxios, 'request').mockResolvedValue({ data: halConversations });
+    const mockResponse = {
+      url: 'https://www.test.com/api/users/1/conversations?page=1&pageSize=10',
+      json: vi.fn().mockResolvedValue(halConversations)
+    } as unknown as Response;
 
-    await userState
-      .follow('conversations')
-      .withRequestOptions({
-        query: {
-          page: 1,
-          pageSize: 10
-        }, body: {
-          page: 1,
-          pageSize: 10
-        }
-      })
-      .follow('next')
-      .withRequestOptions({
-        query: {
-          page: 2,
-          pageSize: 20
-        }, body: {
-          page: 2,
-          pageSize: 20
-        }
-      })
-      .request();
-    expect(mockAxios.request).toHaveBeenCalledTimes(2);
-    expect(mockAxios.request).toHaveBeenNthCalledWith(1, {
-      url: '/api/users/1/conversations?page=1&pageSize=10',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      data: {
+    vi.spyOn(mockClient.fetcher, 'fetch').mockResolvedValue(mockResponse);
+
+    const link1: Link = { ...halUser._links.conversations, rel: 'conversations', type: 'GET' };
+    const link2: Link = { ...halConversations._links.next, rel: 'next', type: 'GET' };
+
+    const options1 = {
+      query: {
+        page: 1,
+        pageSize: 10
+      }, body: {
         page: 1,
         pageSize: 10
       }
-    });
-    expect(mockAxios.request).toHaveBeenNthCalledWith(2, {
-      url: '/api/users/1/conversations?page=2&pageSize=20',
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      data: {
+    };
+    const options2 = {
+      query: {
+        page: 2,
+        pageSize: 20
+      }, body: {
         page: 2,
         pageSize: 20
       }
-    });
+    };
+    await userState
+      .follow('conversations')
+      .withRequestOptions(options1)
+      .follow('next')
+      .withRequestOptions(options2)
+      .request();
+    expect(mockClient.fetcher.fetch).toHaveBeenCalledTimes(2);
+    expect(mockClient.fetcher.fetch).toHaveBeenNthCalledWith(1, link1, options1);
+    expect(mockClient.fetcher.fetch).toHaveBeenNthCalledWith(2, link2, options2);
   });
 
   it('should verify request body with hal template', async () => {
     const userState = HalState.create<User>(
-      mockAxios,
+      mockClient,
       '/api/users/1',
       halUser as HalResource
     );

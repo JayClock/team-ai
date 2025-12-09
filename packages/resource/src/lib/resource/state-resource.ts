@@ -5,26 +5,26 @@ import { State } from '../state/state.js';
 import { HalState } from '../state/hal-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
-import { Axios } from 'axios';
+import { ClientInstance } from '../client-instance.js';
 
 export class StateResource<TEntity extends Entity>
   extends BaseResource
   implements Resource<TEntity>
 {
   constructor(
-    axios: Axios,
+    client: ClientInstance,
     private state: State,
     private rels: string[] = [],
     optionsMap: Map<string, RequestOptions> = new Map()
   ) {
-    super(axios, optionsMap);
+    super(client, optionsMap);
   }
 
   follow<K extends keyof TEntity['links']>(
     rel: K
   ): Resource<TEntity['links'][K]> {
     return new StateResource(
-      this.axios,
+      this.client,
       this.state,
       this.rels.concat(rel as string),
       this.optionsMap
@@ -64,7 +64,7 @@ export class StateResource<TEntity extends Entity>
 
     if (Array.isArray(embedded)) {
       nextState = HalState.create(
-        this.axios,
+        this.client,
         link.href,
         {
           _embedded: {
@@ -74,7 +74,7 @@ export class StateResource<TEntity extends Entity>
         link.rel
       ) as unknown as State<any>;
     } else if (embedded) {
-      nextState = HalState.create(this.axios, link.href, embedded);
+      nextState = HalState.create(this.client, link.href, embedded);
     } else {
       // If no embedded data is available, make an HTTP request
       nextState = await this.httpRequest(link, currentState.getForm(link.rel));

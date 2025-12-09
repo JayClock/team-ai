@@ -12,16 +12,16 @@ export class Fetcher {
 
   async fetch(link: Link, option: RequestOptions = {}): Promise<Response> {
     const { body, query } = option;
-    let url = `${this.config.baseURL}${link.href}`;
+    let path: string;
     if (link.templated) {
-      url = parseTemplate(url).expand(query ?? {});
+      path = parseTemplate(link.href).expand(query ?? {});
     } else {
-      url = queryString.stringifyUrl({
-        url,
+      path = queryString.stringifyUrl({
+        url: link.href,
         query,
       });
     }
-    return await fetch(url, {
+    return await fetch(new URL(path, this.config.baseURL), {
       body: JSON.stringify(body),
       method: link.type,
     });

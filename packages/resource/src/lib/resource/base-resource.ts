@@ -1,49 +1,32 @@
-import { parseTemplate } from 'url-template';
 import { HalState } from '../state/hal-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { HalResource } from 'hal-types';
 import { RequestOptions } from './resource.js';
-import { Axios } from 'axios';
-import queryString from 'query-string';
 import { Form } from '../form/form.js';
 import { z } from 'zod';
 import { Link } from '../links/link.js';
+import { ClientInstance } from '../client-instance.js';
 
 export class BaseResource {
   constructor(
-    protected readonly axios: Axios,
+    protected readonly client: ClientInstance,
     protected readonly optionsMap: Map<string, RequestOptions> = new Map()
   ) {}
 
   protected async httpRequest(link: Link, form?: Form) {
-    const { query, body } = this.getRequestOption(link);
-    let url;
-    if (link.templated) {
-      url = parseTemplate(link.href).expand(query ?? {});
-    } else {
-      url = queryString.stringifyUrl({
-        url: link.href,
-        query,
-      });
-    }
+    const options = this.getRequestOption(link);
 
     if (form) {
-      this.verifyFormData(form, body);
+      this.verifyFormData(form, options.body);
     }
 
-    const response = await this.axios.request({
-      url: url,
-      method: link.type,
-      data: body,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await this.client.fetcher.fetch(link, options);
+    const url = new URL(response.url);
 
     return HalState.create<SafeAny>(
-      this.axios,
-      url,
-      (await response.data) as HalResource,
+      this.client,
+      url.pathname + url.search,
+      (await response.json()) as HalResource,
       link.rel
     );
   }
