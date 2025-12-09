@@ -1,11 +1,10 @@
-import { HalState } from '../state/hal-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
-import { HalResource } from 'hal-types';
 import { RequestOptions } from './resource.js';
 import { Form } from '../form/form.js';
 import { z } from 'zod';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
+import { halStateFactory } from '../state/hal-state/hal-state.factory.js';
 
 export class BaseResource {
   constructor(
@@ -23,10 +22,10 @@ export class BaseResource {
     const response = await this.client.fetcher.fetchOrThrow(link, options);
     const url = new URL(response.url);
 
-    return HalState.create<SafeAny>(
+    return halStateFactory.create(
       this.client,
       url.pathname + url.search,
-      (await response.json()) as HalResource,
+      response,
       link.rel
     );
   }

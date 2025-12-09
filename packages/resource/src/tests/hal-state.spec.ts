@@ -1,16 +1,16 @@
 import { describe, expect } from 'vitest';
-import mockUser from './fixtures/hal-user.json' with { type: 'json' };
-import { HalResource } from 'hal-types';
+import halUser from './fixtures/hal-user.json' with { type: 'json' };
 import { State } from '../lib/state/state.js';
-import { HalState } from '../lib/state/hal-state.js';
+import { HalState } from '../lib/state/hal-state/hal-state.js';
 import { User } from './fixtures/interface.js';
 import { SafeAny } from '../lib/archtype/safe-any.js';
 import { ClientInstance } from '../lib/client-instance.js';
+import { halStateFactory } from '../lib/state/hal-state/hal-state.factory.js';
 
 const mockClient = {} as ClientInstance;
 
-describe('HalState', () => {
-  const state = HalState.create(mockClient, '/api/users/1', mockUser as HalResource) as HalState<User>;
+describe('HalState', async () => {
+  const state = await halStateFactory.create(mockClient, '/api/users/1', Response.json(halUser)) as HalState<User>;
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -27,17 +27,17 @@ describe('HalState', () => {
     );
   });
 
-  it('should create collection with existed embedded', () => {
-    const state = HalState.create(mockClient, '/api/users/1', mockUser as HalResource, 'accounts');
-    expect(state.collection.length).toEqual(mockUser._embedded.accounts.length);
+  it('should create collection with existed embedded', async () => {
+    const state = await halStateFactory.create(mockClient, '/api/users/1', Response.json(halUser), 'accounts');
+    expect(state.collection.length).toEqual(halUser._embedded.accounts.length);
   });
 
   it('should create forms with existed templates', () => {
-    expect(state.getForm('create-conversation')?.uri).toEqual(mockUser._templates['create-conversation'].target);
+    expect(state.getForm('create-conversation')?.uri).toEqual(halUser._templates['create-conversation'].target);
   });
 
   it('should get multi state in embedded', () => {
-    expect((state.getEmbedded('accounts') as State[]).length).toEqual(mockUser._embedded.accounts.length);
+    expect((state.getEmbedded('accounts') as State[]).length).toEqual(halUser._embedded.accounts.length);
   });
   it('should clone state', () => {
     const cloned = state.clone();

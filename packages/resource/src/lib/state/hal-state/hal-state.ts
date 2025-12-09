@@ -1,8 +1,8 @@
-import { Entity } from '../archtype/entity.js';
-import { Links } from '../links/links.js';
-import { State } from './state.js';
-import { StateCollection } from './state-collection.js';
-import { Form } from '../form/form.js';
+import { Entity } from '../../archtype/entity.js';
+import { Links } from '../../links/links.js';
+import { State } from '../state.js';
+import { StateCollection } from '../state-collection.js';
+import { Form } from '../../form/form.js';
 import {
   HalFormsOptionsInline,
   HalFormsProperty,
@@ -10,12 +10,12 @@ import {
   HalLink,
   HalResource,
 } from 'hal-types';
-import { Field } from '../form/field.js';
-import { SafeAny } from '../archtype/safe-any.js';
-import { Resource } from '../resource/resource.js';
-import { StateResource } from '../resource/state-resource.js';
-import { Link } from '../links/link.js';
-import { ClientInstance } from '../client-instance.js';
+import { Field } from '../../form/field.js';
+import { SafeAny } from '../../archtype/safe-any.js';
+import { Resource } from '../../resource/resource.js';
+import { StateResource } from '../../resource/state-resource.js';
+import { Link } from '../../links/link.js';
+import { ClientInstance } from '../../client-instance.js';
 
 type StateInit = {
   uri: string;
@@ -37,7 +37,7 @@ export class HalState<TEntity extends Entity = Entity>
   private readonly forms: Form[];
   private readonly embedded: Record<string, HalResource | HalResource[]>;
 
-  private constructor(private init: StateInit) {
+  constructor(private init: StateInit) {
     this.uri = init.uri;
     this.client = init.client;
     const { _links, _embedded, _templates, ...pureData } = init.halResource;
@@ -46,12 +46,13 @@ export class HalState<TEntity extends Entity = Entity>
     this.embedded = _embedded ?? {};
     this.forms = this.parseHalTemplates(this.links, _templates);
     this.collection = init.rel
-      ? (this.embedded[init.rel] ?? []).map((embedded: HalResource) =>
-          HalState.create(
-            this.client,
-            (embedded._links?.self as HalLink).href,
-            embedded
-          )
+      ? (this.embedded[init.rel] ?? []).map(
+          (embedded: HalResource) =>
+            new HalState({
+              client: this.client,
+              uri: (embedded._links?.self as HalLink).href,
+              halResource: embedded,
+            })
         )
       : [];
   }
@@ -86,23 +87,6 @@ export class HalState<TEntity extends Entity = Entity>
 
   clone(): State<TEntity> {
     return new HalState(this.init);
-  }
-
-  /**
-   * Factory method to create HalState instance
-   */
-  static create<TEntity extends Entity>(
-    client: ClientInstance,
-    uri: string,
-    halResource: HalResource,
-    rel?: string
-  ): State<TEntity> {
-    return new HalState<TEntity>({
-      client,
-      uri,
-      halResource,
-      rel,
-    });
   }
 
   /**

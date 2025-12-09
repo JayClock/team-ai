@@ -1,20 +1,19 @@
 import { afterEach, beforeEach, describe, expect } from 'vitest';
 import { ShortCache } from '../../lib/cache/intex.js';
-import { HalState } from '../../lib/state/hal-state.js';
 import { ClientInstance } from '../../lib/client-instance.js';
-import { HalResource } from 'hal-types';
 import { State } from '../../lib/state/state.js';
+import { halStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
 
 describe('ShortCache', () => {
   let cache: ShortCache;
   let state: State;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     cache = new ShortCache();
-    state = HalState.create(
+    state = await halStateFactory.create(
       {} as ClientInstance,
       '/api/users/1',
-      {} as HalResource
+      Response.json({})
     );
   });
 

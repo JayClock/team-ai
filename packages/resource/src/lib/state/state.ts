@@ -4,6 +4,7 @@ import { Form } from '../form/form.js';
 import { StateCollection } from './state-collection.js';
 import { Resource } from '../resource/resource.js';
 import { Link } from '../links/link.js';
+import { ClientInstance } from '../client-instance.js';
 
 export type State<TEntity extends Entity = Entity> = {
   /**
@@ -53,4 +54,17 @@ export type State<TEntity extends Entity = Entity> = {
   getForm<K extends keyof TEntity['links']>(rel: K): Form | undefined;
 
   clone(): State<TEntity>;
+};
+
+/**
+ * A 'StateFactory' is responsible for taking a Fetch Response, and returning
+ * an object that implements the State interface
+ */
+export type StateFactory = {
+  create: <TEntity extends Entity>(
+    client: ClientInstance,
+    uri: string,
+    response: Response,
+    rel?: string
+  ) => Promise<State<TEntity>>;
 };

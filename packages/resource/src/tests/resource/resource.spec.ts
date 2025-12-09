@@ -3,12 +3,12 @@ import { Account, User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import halAccounts from '../fixtures/hal-accounts.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
-import { HalResource } from 'hal-types';
 import { LinkResource } from '../../lib/resource/link-resource.js';
-import { HalState } from '../../lib/state/hal-state.js';
+import { HalState } from '../../lib/state/hal-state/hal-state.js';
 import { Collection } from '../../lib/index.js';
 import { ClientInstance } from '../../lib/client-instance.js';
 import { Link } from '../../lib/links/link.js';
+import { halStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
 
 const mockFetcher = {
   fetchOrThrow: vi.fn()
@@ -99,10 +99,10 @@ describe('Resource', () => {
       json: vi.fn().mockResolvedValue(halConversations)
     } as unknown as Response;
 
-    const userState = HalState.create<User>(
+    const userState = await halStateFactory.create<User>(
       mockClient,
       '/api/users/1',
-      halUser as HalResource
+      Response.json(halUser)
     );
 
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
@@ -124,10 +124,10 @@ describe('Resource', () => {
   });
 
   it('should get result with multi follow relation', async () => {
-    const userState = HalState.create<User>(
+    const userState = await halStateFactory.create<User>(
       mockClient,
       '/api/users/1',
-      halUser as HalResource
+      Response.json(halUser)
     );
 
     const mockResponse = {
@@ -170,10 +170,10 @@ describe('Resource', () => {
   });
 
   it('should verify request body with hal template', async () => {
-    const userState = HalState.create<User>(
+    const userState = await halStateFactory.create<User>(
       mockClient,
       '/api/users/1',
-      halUser as HalResource
+      Response.json(halUser)
     );
     await expect(userState.follow('create-conversation').withRequestOptions({ body: { title: 123 } }).request()).rejects.toThrow('Invalid');
   });

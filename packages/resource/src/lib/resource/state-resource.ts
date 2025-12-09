@@ -2,10 +2,11 @@ import { Entity } from '../archtype/entity.js';
 import { ResourceState } from '../state/resource-state.js';
 import { RequestOptions, Resource } from './resource.js';
 import { State } from '../state/state.js';
-import { HalState } from '../state/hal-state.js';
+import { HalState } from '../state/hal-state/hal-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
+import { halStateFactory } from '../state/hal-state/hal-state.factory.js';
 
 export class StateResource<TEntity extends Entity>
   extends BaseResource
@@ -63,18 +64,22 @@ export class StateResource<TEntity extends Entity>
     let nextState: State<SafeAny>;
 
     if (Array.isArray(embedded)) {
-      nextState = HalState.create(
+      nextState = await halStateFactory.create(
         this.client,
         link.href,
-        {
+        Response.json({
           _embedded: {
             [link.rel]: embedded,
           },
-        },
+        }),
         link.rel
       ) as unknown as State<any>;
     } else if (embedded) {
-      nextState = HalState.create(this.client, link.href, embedded);
+      nextState = await halStateFactory.create(
+        this.client,
+        link.href,
+        Response.json(embedded)
+      );
     } else {
       // If no embedded data is available, make an HTTP request
       nextState = await this.httpRequest(link, currentState.getForm(link.rel));
