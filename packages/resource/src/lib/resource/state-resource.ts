@@ -6,6 +6,7 @@ import { HalState } from '../state/hal-state/hal-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
+import { URL } from 'next/dist/compiled/@edge-runtime/primitives/index.js';
 
 export class StateResource<TEntity extends Entity>
   extends BaseResource
@@ -69,13 +70,13 @@ export class StateResource<TEntity extends Entity>
         },
       });
       nextState = (await this.client.getStateForResponse(
-        link.href,
+        new URL(link.href, this.client.bookmarkUri).toString(),
         response,
         link.rel
       )) as unknown as State<any>;
     } else if (embedded) {
       nextState = await this.client.getStateForResponse(
-        link.href,
+        new URL(link.href, this.client.bookmarkUri).toString(),
         Response.json(embedded)
       );
     } else {

@@ -19,12 +19,7 @@ export class BaseResource {
     }
 
     const response = await this.client.fetcher.fetchOrThrow(link, options);
-    const url = new URL(response.url);
-    return this.client.getStateForResponse(
-      url.pathname + url.search,
-      response,
-      link.rel
-    );
+    return this.client.getStateForResponse(response.url, response, link.rel);
   }
 
   private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {

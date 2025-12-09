@@ -12,6 +12,7 @@ const mockFetcher = {
 };
 
 const mockClient = {
+  bookmarkUri: 'https://www.test.com/',
   fetcher: mockFetcher,
   getStateForResponse: vi.fn()
 } as unknown as ClientInstance;
@@ -40,7 +41,7 @@ describe('StateResource', () => {
 
     const accounts = halUser._embedded.accounts;
     expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-      halUser._links.accounts.href,
+      new URL(halUser._links.accounts.href, mockClient.bookmarkUri).toString(),
       expect.any(Response),
       'accounts'
     );
@@ -58,7 +59,7 @@ describe('StateResource', () => {
     await latestConversationResource.request();
 
     expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-      halUser._links['latest-conversation'].href,
+      new URL(halUser._links['latest-conversation'].href, mockClient.bookmarkUri).toString(),
       expect.any(Response)
     );
 
@@ -73,7 +74,7 @@ describe('StateResource', () => {
 
   it('should handle non-embedded resource request with HTTP call', async () => {
     const mockResponse = {
-      url: 'https://www.test.com/api/users/1/conversations?page=1&pageSize=10',
+      url: new URL('/api/users/1/conversations?page=1&pageSize=10', mockClient.bookmarkUri).toString(),
       json: vi.fn().mockResolvedValue(halConversations)
     } as unknown as Response;
 
@@ -99,7 +100,7 @@ describe('StateResource', () => {
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(link, options);
 
     expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-      '/api/users/1/conversations?page=1&pageSize=10',
+      mockResponse.url,
       mockResponse,
       'conversations'
     );

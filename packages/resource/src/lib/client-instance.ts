@@ -8,13 +8,25 @@ import { Link } from './links/link.js';
 import { Fetcher } from './http/fetcher.js';
 import { State } from './state/state.js';
 import { halStateFactory } from './state/hal-state/hal-state.factory.js';
+import type { Config } from './archtype/config.js';
 
 @injectable()
 export class ClientInstance implements Client {
+  /**
+   * All relative urls will by default use the bookmarkUri to
+   * expand. It should usually be the starting point of your
+   * API
+   */
+  readonly bookmarkUri: string;
+
   constructor(
     @inject(TYPES.Fetcher)
-    readonly fetcher: Fetcher
-  ) {}
+    readonly fetcher: Fetcher,
+    @inject(TYPES.Config)
+    readonly config: Config
+  ) {
+    this.bookmarkUri = config.baseURL;
+  }
 
   /**
    * Transforms a fetch Response to a State object.

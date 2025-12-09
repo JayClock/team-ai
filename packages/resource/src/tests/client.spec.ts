@@ -22,7 +22,8 @@ const server = setupServer(...handlers);
 
 
 describe('Client', () => {
-  const client = createClient({ baseURL: 'https://api.example.com/' });
+  const baseURL = 'https://api.example.com/';
+  const client = createClient({ baseURL: baseURL });
 
   const userResource = client.go<User>({ rel: '', href: '/api/users/1' });
 
@@ -31,6 +32,7 @@ describe('Client', () => {
 
   it('should get user data', async () => {
     const res = await userResource.request();
+    expect(res.uri).toEqual(new URL('/api/users/1', baseURL).toString());
     expect(res.data.id).toEqual(halUser.id);
     expect(res.data.name).toEqual(halUser.name);
     expect(res.data.email).toEqual(halUser.email);
@@ -39,7 +41,7 @@ describe('Client', () => {
   it('should get user accounts data', async () => {
     const res = await userResource.follow('accounts').request();
     expect(res.collection.length).toEqual(halUser._embedded.accounts.length);
-    expect(res.uri).toEqual('/api/users/1/accounts');
+    expect(res.uri).toEqual(new URL('/api/users/1/accounts', baseURL).toString());
     const firstAccount = res.collection[0];
     expect(firstAccount.data.id).toBe('1');
     expect(firstAccount.data.provider).toBe('github');
@@ -54,7 +56,7 @@ describe('Client', () => {
       }
     }).request();
     expect(res.collection.length).toEqual(halConversations._embedded.conversations.length);
-    expect(res.uri).toBe('/api/users/1/conversations?page=1&pageSize=10');
+    expect(res.uri).toBe(new URL('/api/users/1/conversations?page=1&pageSize=10', baseURL).toString());
   });
 
   afterEach(() => server.resetHandlers());
