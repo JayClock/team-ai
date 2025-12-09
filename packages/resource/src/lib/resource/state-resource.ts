@@ -6,7 +6,6 @@ import { HalState } from '../state/hal-state/hal-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
-import { halStateFactory } from '../state/hal-state/hal-state.factory.js';
 
 export class StateResource<TEntity extends Entity>
   extends BaseResource
@@ -64,19 +63,18 @@ export class StateResource<TEntity extends Entity>
     let nextState: State<SafeAny>;
 
     if (Array.isArray(embedded)) {
-      nextState = await halStateFactory.create(
-        this.client,
+      const response = Response.json({
+        _embedded: {
+          [link.rel]: embedded,
+        },
+      });
+      nextState = (await this.client.getStateForResponse(
         link.href,
-        Response.json({
-          _embedded: {
-            [link.rel]: embedded,
-          },
-        }),
+        response,
         link.rel
-      ) as unknown as State<any>;
+      )) as unknown as State<any>;
     } else if (embedded) {
-      nextState = await halStateFactory.create(
-        this.client,
+      nextState = await this.client.getStateForResponse(
         link.href,
         Response.json(embedded)
       );

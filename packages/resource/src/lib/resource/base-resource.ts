@@ -4,7 +4,6 @@ import { Form } from '../form/form.js';
 import { z } from 'zod';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
-import { halStateFactory } from '../state/hal-state/hal-state.factory.js';
 
 export class BaseResource {
   constructor(
@@ -21,9 +20,7 @@ export class BaseResource {
 
     const response = await this.client.fetcher.fetchOrThrow(link, options);
     const url = new URL(response.url);
-
-    return halStateFactory.create(
-      this.client,
+    return this.client.getStateForResponse(
       url.pathname + url.search,
       response,
       link.rel
