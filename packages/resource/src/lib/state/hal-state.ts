@@ -32,7 +32,7 @@ export class HalState<TEntity extends Entity = Entity>
   readonly data: TEntity['data'];
   readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
-  readonly timestamp = new Date().getTime();
+  readonly timestamp = Date.now();
 
   private readonly forms: Form[];
   private readonly embedded: Record<string, HalResource | HalResource[]>;
