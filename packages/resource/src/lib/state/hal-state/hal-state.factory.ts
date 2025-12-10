@@ -7,10 +7,12 @@ import { StateCollection } from '../state-collection.js';
 import { parseHalLinks } from './parse-hal-links.js';
 import { parseHalTemplates } from './parse-hal-templates.js';
 import { parseHalEmbedded } from './parse-hal-embedded.js';
+import { injectable } from 'inversify';
 
 /**
  * Turns a HTTP response into a HalState
  */
+@injectable()
 export class HalStateFactory implements StateFactory {
   async create<TEntity extends Entity>(
     client: ClientInstance,
@@ -36,8 +38,6 @@ export class HalStateFactory implements StateFactory {
     });
   }
 }
-
-export const halStateFactory = new HalStateFactory();
 
 export function getCollection<TEntity extends Entity>(
   embedded: Record<string, State | State[]>,

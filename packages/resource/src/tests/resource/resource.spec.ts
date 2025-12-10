@@ -4,8 +4,10 @@ import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
 import { ClientInstance } from '../../lib/client-instance.js';
 import { Link } from '../../lib/links/link.js';
-import { halStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
+import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
 import { State } from '../../lib/state/state.js';
+import { container } from '../../lib/container.js';
+import { TYPES } from '../../lib/archtype/injection-types.js';
 
 const mockFetcher = {
   fetchOrThrow: vi.fn()
@@ -18,6 +20,7 @@ const mockClient = {
 } as unknown as ClientInstance;
 
 describe('StateResource', () => {
+  const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
   let userState: State<User>;
 
   beforeEach(async () => {

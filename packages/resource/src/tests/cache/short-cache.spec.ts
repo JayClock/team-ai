@@ -2,9 +2,12 @@ import { afterEach, beforeEach, describe, expect } from 'vitest';
 import { ShortCache } from '../../lib/cache/intex.js';
 import { ClientInstance } from '../../lib/client-instance.js';
 import { State } from '../../lib/state/state.js';
-import { halStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
+import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
+import { container } from '../../lib/container.js';
+import { TYPES } from '../../lib/archtype/injection-types.js';
 
 describe('ShortCache', () => {
+  const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
   let cache: ShortCache;
   let state: State;
 

@@ -7,7 +7,7 @@ import { Client } from './create-client.js';
 import { Link } from './links/link.js';
 import { Fetcher } from './http/fetcher.js';
 import { State } from './state/state.js';
-import { halStateFactory } from './state/hal-state/hal-state.factory.js';
+import { HalStateFactory } from './state/hal-state/hal-state.factory.js';
 import type { Config } from './archtype/config.js';
 
 @injectable()
@@ -23,7 +23,9 @@ export class ClientInstance implements Client {
     @inject(TYPES.Fetcher)
     readonly fetcher: Fetcher,
     @inject(TYPES.Config)
-    readonly config: Config
+    readonly config: Config,
+    @inject(TYPES.HalStateFactory)
+    readonly halStateFactory: HalStateFactory
   ) {
     this.bookmarkUri = config.baseURL;
   }
@@ -41,6 +43,6 @@ export class ClientInstance implements Client {
     response: Response,
     rel?: string
   ): Promise<State<TEntity>> {
-    return halStateFactory.create(this, uri, response, rel);
+    return this.halStateFactory.create(this, uri, response, rel);
   }
 }

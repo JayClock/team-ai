@@ -2,5 +2,5 @@ export const TYPES = {
   Config: Symbol.for('Config'),
   Client: Symbol.for('Client'),
   Fetcher: Symbol.for('Fetcher'),
-  ResourceFactory: Symbol.for('ResourceFactory'),
+  HalStateFactory: Symbol.for('HalStateFactory'),
 };
