@@ -57,14 +57,6 @@ export type State<TEntity extends Entity = Entity> = {
 };
 
 /**
- * HeadState represents the response to a HEAD request.
- *
- * Some information in HEAD responses might be available, but many aren't.
- * Notably, the body.
- */
-export type HeadState = Omit<State, 'data' | 'clone' | 'collection'>;
-
-/**
  * A 'StateFactory' is responsible for taking a Fetch Response, and returning
  * an object that implements the State interface
  */
