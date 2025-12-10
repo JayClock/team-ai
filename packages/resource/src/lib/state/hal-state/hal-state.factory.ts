@@ -25,7 +25,7 @@ export class HalStateFactory implements StateFactory {
     const links = parseHalLinks(_links);
     const forms = parseHalTemplates(links, _templates);
     const embedded = parseHalEmbedded(client, _embedded);
-    return new BaseState<TEntity>({
+    return new HalState<TEntity>({
       client,
       uri,
       headers: response.headers,
@@ -35,6 +35,18 @@ export class HalStateFactory implements StateFactory {
       collection: rel ? getCollection(embedded, rel) : [],
       embedded: embedded,
     });
+  }
+}
+
+class HalState<TEntity extends Entity> extends BaseState<TEntity> {
+  override serializeBody(): string {
+    return JSON.stringify({
+      ...this.data,
+    });
+  }
+
+  override clone(): State<TEntity> {
+    return new HalState<TEntity>(this.init)
   }
 }
 

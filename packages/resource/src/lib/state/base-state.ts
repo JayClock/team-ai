@@ -33,7 +33,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   private readonly forms: Form[];
   private readonly headers: Headers;
 
-  constructor(private init: StateInit<TEntity>) {
+  constructor(protected init: StateInit<TEntity>) {
     this.uri = init.uri;
     this.client = init.client;
     this.data = init.data;
