@@ -1,7 +1,7 @@
 import { describe, expect } from 'vitest';
 import halUser from './fixtures/hal-user.json' with { type: 'json' };
 import { State } from '../lib/state/state.js';
-import { HalState } from '../lib/state/hal-state/hal-state.js';
+import { BaseState } from '../lib/state/base-state.js';
 import { User } from './fixtures/interface.js';
 import { SafeAny } from '../lib/archtype/safe-any.js';
 import { ClientInstance } from '../lib/client-instance.js';
@@ -13,7 +13,7 @@ const mockClient = {} as ClientInstance;
 
 describe('HalState', async () => {
   const halStateFactory:HalStateFactory = container.get(TYPES.HalStateFactory);
-  const state = await halStateFactory.create(mockClient, '/api/users/1', Response.json(halUser)) as HalState<User>;
+  const state = await halStateFactory.create(mockClient, '/api/users/1', Response.json(halUser)) as BaseState<User>;
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -40,11 +40,11 @@ describe('HalState', async () => {
   });
 
   it('should get multi state in embedded', () => {
-    expect((state.getEmbeddedResource('accounts') as State[]).length).toEqual(halUser._embedded.accounts.length);
+    expect((state.getEmbedded('accounts') as State[]).length).toEqual(halUser._embedded.accounts.length);
   });
   it('should clone state', () => {
     const cloned = state.clone();
-    expect(cloned).toBeInstanceOf(HalState);
+    expect(cloned).toBeInstanceOf(BaseState);
     expect(cloned).not.toBe(state);
     expect(cloned.uri).toEqual(state.uri);
     expect(cloned.data).toEqual(state.data);

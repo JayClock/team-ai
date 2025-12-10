@@ -16,7 +16,7 @@ const mockFetcher = {
 const mockClient = {
   bookmarkUri: 'https://www.test.com/',
   fetcher: mockFetcher,
-  getStateForResponse: vi.fn()
+  getStateForResponse:vi.fn()
 } as unknown as ClientInstance;
 
 describe('StateResource', () => {
@@ -40,39 +40,15 @@ describe('StateResource', () => {
     );
 
     const accountsResource = userState.follow('accounts');
-    await accountsResource.request();
-
-    const accounts = halUser._embedded.accounts;
-    expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-      new URL(halUser._links.accounts.href, mockClient.bookmarkUri).toString(),
-      expect.any(Response),
-      'accounts'
-    );
-    const mockedGetStateForResponse = vi.mocked(mockClient.getStateForResponse);
-    const mockCall = mockedGetStateForResponse.mock.calls[0];
-    const response = mockCall[1];
-    const responseData = await response.json();
-    expect(responseData).toEqual({
-      _embedded: { accounts }
-    });
+    const accounts =  await accountsResource.request();
+    expect(accounts.collection.length).toEqual(halUser._embedded.accounts.length)
   });
 
   it('should generate states from user embedded latest-conversation', async () => {
     const latestConversationResource = userState.follow('latest-conversation');
-    await latestConversationResource.request();
+    const conversation =  await latestConversationResource.request();
 
-    expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-      new URL(halUser._links['latest-conversation'].href, mockClient.bookmarkUri).toString(),
-      expect.any(Response)
-    );
-
-    const mockedGetStateForResponse = vi.mocked(mockClient.getStateForResponse);
-    const mockCall = mockedGetStateForResponse.mock.calls[0];
-    const response = mockCall[1];
-    const responseData = await response.json();
-    expect(responseData).toEqual(
-      halUser._embedded['latest-conversation']
-    );
+    expect(halUser._embedded['latest-conversation']).toEqual(expect.objectContaining(conversation.data))
   });
 
   it('should handle non-embedded resource request with HTTP call', async () => {

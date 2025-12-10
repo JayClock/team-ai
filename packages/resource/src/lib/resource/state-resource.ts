@@ -1,11 +1,12 @@
 import { Entity } from '../archtype/entity.js';
 import { RequestOptions, Resource } from './resource.js';
 import { State } from '../state/state.js';
-import { HalState } from '../state/hal-state/hal-state.js';
+import { BaseState } from '../state/base-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
 import { URL } from 'next/dist/compiled/@edge-runtime/primitives/index.js';
+import { Links } from '../links/links.js';
 
 export class StateResource<TEntity extends Entity>
   extends BaseResource<TEntity>
@@ -54,28 +55,21 @@ export class StateResource<TEntity extends Entity>
       throw new Error(`Relation ${currentRel} not found`);
     }
 
-    const embedded = (currentState as HalState<TEntity>).getEmbeddedResource(
-      link.rel
-    );
+    const embedded = (currentState as BaseState<TEntity>).getEmbedded(link.rel);
 
     let nextState: State<SafeAny>;
 
     if (Array.isArray(embedded)) {
-      const response = Response.json({
-        _embedded: {
-          [link.rel]: embedded,
-        },
+      nextState = new BaseState({
+        client: this.client,
+        uri: new URL(link.href, this.client.bookmarkUri).toString(),
+        data: {},
+        collection: embedded,
+        links: new Links(),
+        headers: new Headers(),
       });
-      nextState = (await this.client.getStateForResponse(
-        new URL(link.href, this.client.bookmarkUri).toString(),
-        response,
-        link.rel
-      )) as unknown as State<any>;
     } else if (embedded) {
-      nextState = await this.client.getStateForResponse(
-        new URL(link.href, this.client.bookmarkUri).toString(),
-        Response.json(embedded)
-      );
+      nextState = embedded;
     } else {
       // If no embedded data is available, make an HTTP request
       nextState = await this.httpRequest(link, currentState.getForm(link.rel));

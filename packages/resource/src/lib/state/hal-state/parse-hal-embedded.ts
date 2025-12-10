@@ -2,7 +2,7 @@ import { HalLink, HalResource } from 'hal-types';
 import { State } from '../state.js';
 import { parseHalLinks } from './parse-hal-links.js';
 import { parseHalTemplates } from './parse-hal-templates.js';
-import { HalState } from './hal-state.js';
+import { BaseState } from '../base-state.js';
 import { ClientInstance } from '../../client-instance.js';
 
 export const parseHalEmbedded = (
@@ -33,10 +33,9 @@ function createHalStateFromResource(
   const links = parseHalLinks(_links);
   const forms = parseHalTemplates(links, _templates);
 
-  return new HalState({
+  return new BaseState({
     client: client,
     uri: (_links?.self as HalLink)?.href || '',
-    halResource: halResource,
     headers: new Headers(),
     data: pureData,
     links: links,
