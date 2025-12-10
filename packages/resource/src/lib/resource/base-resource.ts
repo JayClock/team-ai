@@ -4,14 +4,19 @@ import { Form } from '../form/form.js';
 import { z } from 'zod';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
+import { State } from '../state/state.js';
+import { Entity } from '../archtype/entity.js';
 
-export class BaseResource {
+export class BaseResource<TEntity extends Entity> {
   constructor(
     protected readonly client: ClientInstance,
     protected readonly optionsMap: Map<string, RequestOptions> = new Map()
   ) {}
 
-  protected async httpRequest(link: Link, form?: Form) {
+  protected async httpRequest(
+    link: Link,
+    form?: Form
+  ): Promise<State<TEntity>> {
     const options = this.getRequestOption(link);
 
     if (form) {

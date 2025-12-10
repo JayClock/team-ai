@@ -1,13 +1,13 @@
 import { Entity } from '../archtype/entity.js';
-import { ResourceState } from '../state/resource-state.js';
 import { RequestOptions, Resource } from './resource.js';
 import { StateResource } from './state-resource.js';
 import { BaseResource } from './base-resource.js';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
+import { State } from '../state/state.js';
 
 export class LinkResource<TEntity extends Entity>
-  extends BaseResource
+  extends BaseResource<TEntity>
   implements Resource<TEntity>
 {
   constructor(
@@ -39,10 +39,10 @@ export class LinkResource<TEntity extends Entity>
     return this;
   }
 
-  async request(): Promise<ResourceState<TEntity>> {
-    const state = await this.httpRequest(this.link);
+  async request(): Promise<State<TEntity>> {
+    const state: State<TEntity> = await this.httpRequest(this.link);
     if (this.isRootResource()) {
-      return state as unknown as ResourceState<TEntity>;
+      return state;
     }
     const stateResource = new StateResource<TEntity>(
       this.client,

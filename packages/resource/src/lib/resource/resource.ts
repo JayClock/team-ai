@@ -1,6 +1,6 @@
 import { Entity } from '../archtype/entity.js';
-import { ResourceState } from '../state/resource-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
+import { State } from '../state/state.js';
 
 export interface RequestOptions {
   query?: Record<string, SafeAny>;
@@ -12,7 +12,7 @@ export interface Resource<TEntity extends Entity> {
     rel: K
   ): Resource<TEntity['links'][K]>;
 
-  request(): Promise<ResourceState<TEntity>>;
+  request(): Promise<State<TEntity>>;
 
   withRequestOptions(options: RequestOptions): Resource<TEntity>;
 }

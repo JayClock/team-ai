@@ -42,19 +42,14 @@ export class HalState<TEntity extends Entity = Entity>
     this.client = init.client;
     const { _links, _embedded, _templates, ...pureData } = init.halResource;
     this.data = pureData;
-    this.links = this.parseHalLinks(_links);
+    this.links = HalState.parseHalLinks(_links);
     this.embedded = _embedded ?? {};
-    this.forms = this.parseHalTemplates(this.links, _templates);
-    this.collection = init.rel
-      ? (this.embedded[init.rel] ?? []).map(
-          (embedded: HalResource) =>
-            new HalState({
-              client: this.client,
-              uri: (embedded._links?.self as HalLink).href,
-              halResource: embedded,
-            })
-        )
-      : [];
+    this.forms = HalState.parseHalTemplates(this.links, _templates);
+    this.collection = HalState.getCollection<TEntity>(
+      init.client,
+      _embedded ?? {},
+      init.rel ?? ''
+    );
   }
 
   follow<K extends keyof TEntity['links']>(
@@ -77,7 +72,7 @@ export class HalState<TEntity extends Entity = Entity>
     );
   }
 
-  getEmbedded(rel: string): HalResource | HalResource[] {
+  getEmbeddedResource<K extends keyof TEntity['links']>(rel: K): HalResource | HalResource[] {
     return this.embedded[rel];
   }
 
@@ -92,7 +87,7 @@ export class HalState<TEntity extends Entity = Entity>
   /**
    * Parse HAL links
    */
-  private parseHalLinks<TLinks extends Record<string, SafeAny>>(
+  static parseHalLinks<TLinks extends Record<string, SafeAny>>(
     halLinks: HalResource['_links']
   ): Links<TLinks> {
     const links = new Links<TLinks>();
@@ -112,7 +107,7 @@ export class HalState<TEntity extends Entity = Entity>
   /**
    * Parse HAL templates
    */
-  private parseHalTemplates(
+  static parseHalTemplates(
     links: Links<SafeAny>,
     templates: HalResource['_templates'] = {}
   ): Form[] {
@@ -131,7 +126,7 @@ export class HalState<TEntity extends Entity = Entity>
   /**
    * Parse HAL form fields
    */
-  private parseHalField(halField: HalFormsProperty): Field {
+  static parseHalField(halField: HalFormsProperty): Field {
     switch (halField.type) {
       case undefined:
       case 'text':
@@ -293,9 +288,31 @@ export class HalState<TEntity extends Entity = Entity>
   /**
    * Check if options are inline options
    */
-  private isInlineOptions(
+  static isInlineOptions(
     options: HalFormsSimpleProperty['options']
   ): options is HalFormsOptionsInline {
     return (options as SafeAny).inline !== undefined;
+  }
+
+  static getCollection<TEntity extends Entity>(
+    client: ClientInstance,
+    embedded: HalResource['_embedded'],
+    rel: string
+  ): StateCollection<TEntity> {
+    if (!embedded || !embedded[rel]) {
+      return [];
+    }
+    const embeddedResource: HalResource | HalResource[] = embedded[rel];
+    if (Array.isArray(embeddedResource)) {
+      return embeddedResource.map(
+        (item) =>
+          new HalState({
+            client: client,
+            uri: (item._links?.self as HalLink).href,
+            halResource: item,
+          })
+      ) as unknown as StateCollection<TEntity>;
+    }
+    return [];
   }
 }

@@ -1,5 +1,4 @@
 import { Entity } from '../archtype/entity.js';
-import { ResourceState } from '../state/resource-state.js';
 import { RequestOptions, Resource } from './resource.js';
 import { State } from '../state/state.js';
 import { HalState } from '../state/hal-state/hal-state.js';
@@ -32,16 +31,11 @@ export class StateResource<TEntity extends Entity>
     );
   }
 
-  async request(): Promise<ResourceState<TEntity>> {
+  async request(): Promise<State<TEntity>> {
     if (this.rels.length === 0) {
       throw new Error('No relations to follow');
     }
-
-    const result = await this.resolveRelationsRecursively(
-      this.state,
-      this.rels
-    );
-    return result as unknown as ResourceState<TEntity>;
+    return await this.resolveRelationsRecursively(this.state, this.rels);
   }
 
   private async resolveRelationsRecursively(
@@ -60,7 +54,7 @@ export class StateResource<TEntity extends Entity>
       throw new Error(`Relation ${currentRel} not found`);
     }
 
-    const embedded = (currentState as HalState).getEmbedded(link.rel);
+    const embedded = (currentState as HalState).getEmbeddedResource(link.rel);
     let nextState: State<SafeAny>;
 
     if (Array.isArray(embedded)) {

@@ -37,7 +37,7 @@ describe('HalState', async () => {
   });
 
   it('should get multi state in embedded', () => {
-    expect((state.getEmbedded('accounts') as State[]).length).toEqual(halUser._embedded.accounts.length);
+    expect((state.getEmbeddedResource('accounts') as State[]).length).toEqual(halUser._embedded.accounts.length);
   });
   it('should clone state', () => {
     const cloned = state.clone();

@@ -36,11 +36,11 @@ export class ClientInstance implements Client {
     return new LinkResource<TEntity>(this, link);
   }
 
-  async getStateForResponse(
+  async getStateForResponse<TEntity extends Entity>(
     uri: string,
     response: Response,
     rel?: string
-  ): Promise<State> {
+  ): Promise<State<TEntity>> {
     return halStateFactory.create(this, uri, response, rel);
   }
 }
