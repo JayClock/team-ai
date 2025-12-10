@@ -8,6 +8,7 @@ import { StateResource } from '../resource/state-resource.js';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
+import { SafeAny } from '../archtype/safe-any.js';
 
 type StateInit<TEntity extends Entity> = {
   uri: string;
@@ -41,6 +42,18 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     this.forms = init.forms ?? [];
     this.collection = init.collection ?? [];
     this.embedded = init.embedded ?? {};
+  }
+
+  serializeBody(): Buffer | Blob | string {
+    const data = this.data as SafeAny;
+    if (
+      ((global as SafeAny).Buffer && data instanceof Buffer) ||
+      ((global as SafeAny).Blob && data instanceof Blob) ||
+      typeof data === 'string'
+    ) {
+      return this.data;
+    }
+    return JSON.stringify(data);
   }
 
   contentHeaders(): Headers {

@@ -58,6 +58,14 @@ describe('HalState', async () => {
     expect(headerCount).toBe(10);
   })
 
+  it('should serialize body to string',()=>{
+    expect(state.serializeBody()).toEqual(JSON.stringify({
+      id: '1',
+      name: 'JayClock',
+      email: 'z891853602@gmail.com'
+    }))
+  })
+
   it('should throw error with not existed link', () => {
     expect(() => state.follow('not existed' as SafeAny)).toThrow(
       `rel not existed is not exited`

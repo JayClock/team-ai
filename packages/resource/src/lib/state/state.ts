@@ -54,6 +54,15 @@ export type State<TEntity extends Entity = Entity> = {
   getForm<K extends keyof TEntity['links']>(rel: K): Form | undefined;
 
   /**
+   * Returns a serialization of the state that can be used in a HTTP
+   * response.
+   *
+   * For example, a JSON object might simply serialize using
+   * JSON.serialize().
+   */
+  serializeBody(): Buffer | Blob | string;
+
+  /**
    * Content-headers are a subset of HTTP headers that related directly
    * to the content. The obvious ones are Content-Type.
    *
