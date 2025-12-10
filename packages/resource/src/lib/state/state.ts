@@ -53,6 +53,16 @@ export type State<TEntity extends Entity = Entity> = {
    * */
   getForm<K extends keyof TEntity['links']>(rel: K): Form | undefined;
 
+  /**
+   * Content-headers are a subset of HTTP headers that related directly
+   * to the content. The obvious ones are Content-Type.
+   *
+   * This set of headers will be sent by the server along with a GET
+   * response, but will also be sent back to the server in a PUT
+   * request.
+   */
+  contentHeaders(): Headers;
+
   clone(): State<TEntity>;
 };
 

@@ -7,6 +7,7 @@ import { Resource } from '../resource/resource.js';
 import { StateResource } from '../resource/state-resource.js';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
+import { entityHeaderNames } from '../http/util.js';
 
 type StateInit<TEntity extends Entity> = {
   uri: string;
@@ -29,15 +30,28 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   readonly embedded: Record<string, State | State[]>;
 
   private readonly forms: Form[];
+  private readonly headers: Headers;
 
   constructor(private init: StateInit<TEntity>) {
     this.uri = init.uri;
     this.client = init.client;
     this.data = init.data;
     this.links = init.links;
+    this.headers = init.headers;
     this.forms = init.forms ?? [];
     this.collection = init.collection ?? [];
     this.embedded = init.embedded ?? {};
+  }
+
+  contentHeaders(): Headers {
+    const result: { [name: string]: string } = {};
+    for (const contentHeader of entityHeaderNames) {
+      if (this.headers.has(contentHeader)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        result[contentHeader] = this.headers.get(contentHeader)!;
+      }
+    }
+    return new Headers(result);
   }
 
   follow<K extends keyof TEntity['links']>(
