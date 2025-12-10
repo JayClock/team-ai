@@ -8,7 +8,7 @@ import { ClientInstance } from '../client-instance.js';
 import { URL } from 'next/dist/compiled/@edge-runtime/primitives/index.js';
 
 export class StateResource<TEntity extends Entity>
-  extends BaseResource
+  extends BaseResource<TEntity>
   implements Resource<TEntity>
 {
   constructor(
@@ -54,7 +54,10 @@ export class StateResource<TEntity extends Entity>
       throw new Error(`Relation ${currentRel} not found`);
     }
 
-    const embedded = (currentState as HalState).getEmbeddedResource(link.rel);
+    const embedded = (currentState as HalState<TEntity>).getEmbeddedResource(
+      link.rel
+    );
+
     let nextState: State<SafeAny>;
 
     if (Array.isArray(embedded)) {

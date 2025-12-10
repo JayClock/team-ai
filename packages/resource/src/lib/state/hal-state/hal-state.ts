@@ -16,17 +16,20 @@ import { Resource } from '../../resource/resource.js';
 import { StateResource } from '../../resource/state-resource.js';
 import { Link } from '../../links/link.js';
 import { ClientInstance } from '../../client-instance.js';
+import { Headers } from 'next/dist/compiled/@edge-runtime/primitives/index.js';
 
-type StateInit = {
+type StateInit<TEntity extends Entity> = {
   uri: string;
   client: ClientInstance;
+  data: TEntity['data'];
+  links: Links<TEntity['links']>;
   halResource: HalResource;
-  rel?: string;
+  headers: Headers;
+  forms: Form[];
+  collection: StateCollection<TEntity>;
 };
 
-export class HalState<TEntity extends Entity = Entity>
-  implements State<TEntity>
-{
+export class HalState<TEntity extends Entity> implements State<TEntity> {
   readonly uri: string;
   readonly client: ClientInstance;
   readonly data: TEntity['data'];
@@ -37,19 +40,14 @@ export class HalState<TEntity extends Entity = Entity>
   private readonly forms: Form[];
   private readonly embedded: Record<string, HalResource | HalResource[]>;
 
-  constructor(private init: StateInit) {
+  constructor(private init: StateInit<TEntity>) {
     this.uri = init.uri;
     this.client = init.client;
-    const { _links, _embedded, _templates, ...pureData } = init.halResource;
-    this.data = pureData;
-    this.links = HalState.parseHalLinks(_links);
-    this.embedded = _embedded ?? {};
-    this.forms = HalState.parseHalTemplates(this.links, _templates);
-    this.collection = HalState.getCollection<TEntity>(
-      init.client,
-      _embedded ?? {},
-      init.rel ?? ''
-    );
+    this.data = init.data;
+    this.links = init.links;
+    this.embedded = init.halResource._embedded ?? {};
+    this.forms = init.forms;
+    this.collection = init.collection;
   }
 
   follow<K extends keyof TEntity['links']>(
@@ -72,7 +70,9 @@ export class HalState<TEntity extends Entity = Entity>
     );
   }
 
-  getEmbeddedResource<K extends keyof TEntity['links']>(rel: K): HalResource | HalResource[] {
+  getEmbeddedResource<K extends keyof TEntity['links']>(
+    rel: K
+  ): HalResource | HalResource[] {
     return this.embedded[rel];
   }
 
@@ -304,14 +304,20 @@ export class HalState<TEntity extends Entity = Entity>
     }
     const embeddedResource: HalResource | HalResource[] = embedded[rel];
     if (Array.isArray(embeddedResource)) {
-      return embeddedResource.map(
-        (item) =>
-          new HalState({
-            client: client,
-            uri: (item._links?.self as HalLink).href,
-            halResource: item,
-          })
-      ) as unknown as StateCollection<TEntity>;
+      return embeddedResource.map((item) => {
+        const { _links, _embedded, _templates, ...pureData } = item;
+        const links = this.parseHalLinks(_links);
+        return new HalState({
+          client: client,
+          uri: (item._links?.self as HalLink).href,
+          halResource: item,
+          headers: new Headers(),
+          data: pureData,
+          links: links,
+          forms: this.parseHalTemplates(links, _templates),
+          collection: [],
+        });
+      }) as unknown as StateCollection<TEntity>;
     }
     return [];
   }

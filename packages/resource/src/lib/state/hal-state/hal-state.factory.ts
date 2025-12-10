@@ -15,7 +15,19 @@ export class HalStateFactory implements StateFactory {
     rel?: string
   ): Promise<State<TEntity>> {
     const halResource = (await response.json()) as HalResource;
-    return new HalState<TEntity>({ client, uri, halResource, rel });
+    const { _links, _embedded, _templates, ...pureData } = halResource;
+    const links = HalState.parseHalLinks(_links);
+    const forms = HalState.parseHalTemplates(links, _templates);
+    return new HalState<TEntity>({
+      client,
+      uri,
+      halResource,
+      headers: response.headers,
+      data: pureData,
+      links: links,
+      forms: forms,
+      collection: rel ? HalState.getCollection(client, _embedded, rel) : [],
+    });
   }
 }
 
