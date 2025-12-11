@@ -1,10 +1,8 @@
 import { injectable } from 'inversify';
 import { Link } from '../links/link.js';
 import { RequestOptions } from '../resource/resource.js';
-import { parseTemplate } from 'url-template';
-import queryString from 'query-string';
 import problemFactory from './error.js';
-import { resolve } from '../util/uri.js';
+import { expand } from '../util/uri-template.js';
 
 @injectable()
 export class Fetcher {
@@ -16,17 +14,9 @@ export class Fetcher {
     options: RequestOptions = {}
   ): Promise<Response> {
     const { body, query, method } = options;
-    let path: string;
-    if (link.templated) {
-      path = parseTemplate(link.href).expand(query ?? {});
-    } else {
-      path = queryString.stringifyUrl({
-        url: link.href,
-        query,
-      });
-    }
+    const url = expand(link, query);
 
-    return await fetch(resolve(link.context, path), {
+    return await fetch(url, {
       body: JSON.stringify(body),
       method: method || 'GET',
       headers: {

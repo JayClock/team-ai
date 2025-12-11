@@ -5,6 +5,7 @@ import { BaseResource } from './base-resource.js';
 import { LinkVariables, NewLink } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
+import { Form } from '../form/form.js';
 
 export class LinkResource<
   TEntity extends Entity
@@ -40,11 +41,12 @@ export class LinkResource<
     return { rel, options };
   }
 
-  async request(): Promise<State<TEntity>> {
-    const state: State<TEntity> = await this.httpRequest({
+  async request(form?: Form): Promise<State<TEntity>> {
+    const link = {
       ...this.link,
       context: this.client.bookmarkUri,
-    });
+    };
+    const state: State<TEntity> = await this.httpRequest(link, form);
     if (this.isRootResource()) {
       return state;
     }

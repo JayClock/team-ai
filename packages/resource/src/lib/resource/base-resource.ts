@@ -8,11 +8,12 @@ import { State } from '../state/state.js';
 import { Entity } from '../archtype/entity.js';
 
 export abstract class BaseResource<TEntity extends Entity>
-  implements Resource<TEntity> {
+  implements Resource<TEntity>
+{
   protected constructor(
     protected readonly client: ClientInstance,
     protected readonly optionsMap: Map<string, RequestOptions> = new Map()
-  ) { }
+  ) {}
 
   protected async httpRequest(
     link: Link,

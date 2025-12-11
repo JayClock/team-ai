@@ -8,6 +8,7 @@ import { ClientInstance } from '../client-instance.js';
 import { Links } from '../links/links.js';
 import { LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
+import { LinkResource } from './link-resource.js';
 
 export class StateResource<
   TEntity extends Entity
@@ -75,10 +76,14 @@ export class StateResource<
     } else {
       const { rel, options } = this.getCurrentOptions();
       // If no embedded data is available, make an HTTP request
-      nextState = await this.httpRequest(
+      const form = currentState.getForm(rel, options.method ?? 'GET');
+      const resource = new LinkResource(
+        this.client,
         link,
-        currentState.getForm(rel, options.method ?? 'GET')
+        [],
+        new Map([[rel, options]])
       );
+      nextState = await resource.request(form);
     }
 
     return this.resolveRelationsRecursively(nextState, nextRels);
