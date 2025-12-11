@@ -79,8 +79,8 @@ describe('Fetcher', () => {
 
   it('should fetch data successfully with POST request', async () => {
     const response = await fetcher.fetchOrThrow(
-      { rel: '', href: '/test', type: 'POST' },
-      { body: { name: 'Test User' } }
+      { rel: '', href: '/test' },
+      { body: { name: 'Test User' }, method: 'POST' }
     );
 
     expect(response.status).toBe(200);

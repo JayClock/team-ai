@@ -7,8 +7,8 @@ import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Entity } from '../archtype/entity.js';
 
-export class BaseResource<TEntity extends Entity> {
-  constructor(
+export abstract class BaseResource<TEntity extends Entity> {
+  protected constructor(
     protected readonly client: ClientInstance,
     protected readonly optionsMap: Map<string, RequestOptions> = new Map()
   ) {}
@@ -33,6 +33,11 @@ export class BaseResource<TEntity extends Entity> {
   ): void {
     this.optionsMap.set(rel, requestOptions);
   }
+
+  protected abstract getCurrentOptions(): {
+    rel: string;
+    options: RequestOptions;
+  };
 
   private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {
     const shape: Record<string, SafeAny> = {};

@@ -88,4 +88,21 @@ export class StateResource<TEntity extends Entity>
     this.optionsMap.set(lastRel, { ...currentOptions, ...options });
     return this;
   }
+
+  withGet(): Resource<TEntity> {
+    const { rel, options } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...options, method: 'GET' });
+    return this;
+  }
+
+  protected override getCurrentOptions(): {
+    rel: string;
+    options: RequestOptions;
+  } {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const rel = this.rels.at(-1)!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const options = this.optionsMap.get(rel)!;
+    return { rel, options };
+  }
 }

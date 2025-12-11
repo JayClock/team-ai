@@ -14,8 +14,7 @@
       "templated": true
     },
     "create-conversation": {
-      "href": "/api/users/1/conversations",
-      "type": "POST"
+      "href": "/api/users/1/conversations"
     },
     "latest-conversation": {
       "href": "/api/conversations/conv-456"

@@ -6,20 +6,16 @@
         "title": "Conversation Item 1",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/1",
-            "type": "GET"
+            "href": "/api/users/1/conversations/1"
           },
           "messages": {
-            "href": "/api/users/1/conversations/1/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/1/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/1/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/1/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/1/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/1/chat-to-breakdown-epic"
           }
         }
       },
@@ -28,20 +24,16 @@
         "title": "Conversation Item 2",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/2",
-            "type": "GET"
+            "href": "/api/users/1/conversations/2"
           },
           "messages": {
-            "href": "/api/users/1/conversations/2/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/2/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/2/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/2/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/2/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/2/chat-to-breakdown-epic"
           }
         }
       },
@@ -50,20 +42,16 @@
         "title": "Conversation Item 3",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/3",
-            "type": "GET"
+            "href": "/api/users/1/conversations/3"
           },
           "messages": {
-            "href": "/api/users/1/conversations/3/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/3/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/3/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/3/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/3/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/3/chat-to-breakdown-epic"
           }
         }
       },
@@ -72,20 +60,16 @@
         "title": "Conversation Item 4",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/4",
-            "type": "GET"
+            "href": "/api/users/1/conversations/4"
           },
           "messages": {
-            "href": "/api/users/1/conversations/4/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/4/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/4/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/4/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/4/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/4/chat-to-breakdown-epic"
           }
         }
       },
@@ -94,20 +78,16 @@
         "title": "Conversation Item 5",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/5",
-            "type": "GET"
+            "href": "/api/users/1/conversations/5"
           },
           "messages": {
-            "href": "/api/users/1/conversations/5/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/5/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/5/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/5/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/5/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/5/chat-to-breakdown-epic"
           }
         }
       },
@@ -116,20 +96,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/6",
-            "type": "GET"
+            "href": "/api/users/1/conversations/6"
           },
           "messages": {
-            "href": "/api/users/1/conversations/6/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/6/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/6/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/6/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/6/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/6/chat-to-breakdown-epic"
           }
         }
       },
@@ -138,20 +114,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/7",
-            "type": "GET"
+            "href": "/api/users/1/conversations/7"
           },
           "messages": {
-            "href": "/api/users/1/conversations/7/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/7/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/7/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/7/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/7/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/7/chat-to-breakdown-epic"
           }
         }
       },
@@ -160,20 +132,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/8",
-            "type": "GET"
+            "href": "/api/users/1/conversations/8"
           },
           "messages": {
-            "href": "/api/users/1/conversations/8/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/8/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/8/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/8/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/8/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/8/chat-to-breakdown-epic"
           }
         }
       },
@@ -182,20 +150,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/9",
-            "type": "GET"
+            "href": "/api/users/1/conversations/9"
           },
           "messages": {
-            "href": "/api/users/1/conversations/9/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/9/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/9/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/9/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/9/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/9/chat-to-breakdown-epic"
           }
         }
       },
@@ -204,20 +168,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/10",
-            "type": "GET"
+            "href": "/api/users/1/conversations/10"
           },
           "messages": {
-            "href": "/api/users/1/conversations/10/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/10/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/10/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/10/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/10/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/10/chat-to-breakdown-epic"
           }
         }
       },
@@ -226,20 +186,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/11",
-            "type": "GET"
+            "href": "/api/users/1/conversations/11"
           },
           "messages": {
-            "href": "/api/users/1/conversations/11/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/11/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/11/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/11/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/11/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/11/chat-to-breakdown-epic"
           }
         }
       },
@@ -248,20 +204,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/12",
-            "type": "GET"
+            "href": "/api/users/1/conversations/12"
           },
           "messages": {
-            "href": "/api/users/1/conversations/12/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/12/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/12/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/12/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/12/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/12/chat-to-breakdown-epic"
           }
         }
       },
@@ -270,20 +222,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/13",
-            "type": "GET"
+            "href": "/api/users/1/conversations/13"
           },
           "messages": {
-            "href": "/api/users/1/conversations/13/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/13/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/13/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/13/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/13/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/13/chat-to-breakdown-epic"
           }
         }
       },
@@ -292,20 +240,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/14",
-            "type": "GET"
+            "href": "/api/users/1/conversations/14"
           },
           "messages": {
-            "href": "/api/users/1/conversations/14/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/14/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/14/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/14/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/14/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/14/chat-to-breakdown-epic"
           }
         }
       },
@@ -314,20 +258,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/15",
-            "type": "GET"
+            "href": "/api/users/1/conversations/15"
           },
           "messages": {
-            "href": "/api/users/1/conversations/15/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/15/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/15/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/15/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/15/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/15/chat-to-breakdown-epic"
           }
         }
       },
@@ -336,20 +276,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/16",
-            "type": "GET"
+            "href": "/api/users/1/conversations/16"
           },
           "messages": {
-            "href": "/api/users/1/conversations/16/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/16/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/16/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/16/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/16/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/16/chat-to-breakdown-epic"
           }
         }
       },
@@ -358,20 +294,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/17",
-            "type": "GET"
+            "href": "/api/users/1/conversations/17"
           },
           "messages": {
-            "href": "/api/users/1/conversations/17/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/17/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/17/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/17/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/17/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/17/chat-to-breakdown-epic"
           }
         }
       },
@@ -380,20 +312,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/18",
-            "type": "GET"
+            "href": "/api/users/1/conversations/18"
           },
           "messages": {
-            "href": "/api/users/1/conversations/18/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/18/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/18/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/18/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/18/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/18/chat-to-breakdown-epic"
           }
         }
       },
@@ -402,20 +330,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/19",
-            "type": "GET"
+            "href": "/api/users/1/conversations/19"
           },
           "messages": {
-            "href": "/api/users/1/conversations/19/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/19/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/19/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/19/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/19/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/19/chat-to-breakdown-epic"
           }
         }
       },
@@ -423,20 +347,16 @@
         "id": "20",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/20",
-            "type": "GET"
+            "href": "/api/users/1/conversations/20"
           },
           "messages": {
-            "href": "/api/users/1/conversations/20/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/20/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/20/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/20/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/20/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/20/chat-to-breakdown-epic"
           }
         }
       },
@@ -445,20 +365,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/21",
-            "type": "GET"
+            "href": "/api/users/1/conversations/21"
           },
           "messages": {
-            "href": "/api/users/1/conversations/21/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/21/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/21/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/21/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/21/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/21/chat-to-breakdown-epic"
           }
         }
       },
@@ -467,20 +383,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/22",
-            "type": "GET"
+            "href": "/api/users/1/conversations/22"
           },
           "messages": {
-            "href": "/api/users/1/conversations/22/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/22/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/22/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/22/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/22/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/22/chat-to-breakdown-epic"
           }
         }
       },
@@ -489,20 +401,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/23",
-            "type": "GET"
+            "href": "/api/users/1/conversations/23"
           },
           "messages": {
-            "href": "/api/users/1/conversations/23/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/23/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/23/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/23/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/23/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/23/chat-to-breakdown-epic"
           }
         }
       },
@@ -511,20 +419,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/24",
-            "type": "GET"
+            "href": "/api/users/1/conversations/24"
           },
           "messages": {
-            "href": "/api/users/1/conversations/24/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/24/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/24/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/24/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/24/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/24/chat-to-breakdown-epic"
           }
         }
       },
@@ -533,20 +437,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/25",
-            "type": "GET"
+            "href": "/api/users/1/conversations/25"
           },
           "messages": {
-            "href": "/api/users/1/conversations/25/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/25/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/25/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/25/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/25/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/25/chat-to-breakdown-epic"
           }
         }
       },
@@ -555,20 +455,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/26",
-            "type": "GET"
+            "href": "/api/users/1/conversations/26"
           },
           "messages": {
-            "href": "/api/users/1/conversations/26/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/26/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/26/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/26/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/26/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/26/chat-to-breakdown-epic"
           }
         }
       },
@@ -577,20 +473,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/27",
-            "type": "GET"
+            "href": "/api/users/1/conversations/27"
           },
           "messages": {
-            "href": "/api/users/1/conversations/27/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/27/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/27/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/27/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/27/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/27/chat-to-breakdown-epic"
           }
         }
       },
@@ -599,20 +491,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/28",
-            "type": "GET"
+            "href": "/api/users/1/conversations/28"
           },
           "messages": {
-            "href": "/api/users/1/conversations/28/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/28/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/28/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/28/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/28/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/28/chat-to-breakdown-epic"
           }
         }
       },
@@ -621,20 +509,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/29",
-            "type": "GET"
+            "href": "/api/users/1/conversations/29"
           },
           "messages": {
-            "href": "/api/users/1/conversations/29/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/29/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/29/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/29/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/29/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/29/chat-to-breakdown-epic"
           }
         }
       },
@@ -643,20 +527,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/30",
-            "type": "GET"
+            "href": "/api/users/1/conversations/30"
           },
           "messages": {
-            "href": "/api/users/1/conversations/30/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/30/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/30/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/30/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/30/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/30/chat-to-breakdown-epic"
           }
         }
       },
@@ -665,20 +545,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/31",
-            "type": "GET"
+            "href": "/api/users/1/conversations/31"
           },
           "messages": {
-            "href": "/api/users/1/conversations/31/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/31/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/31/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/31/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/31/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/31/chat-to-breakdown-epic"
           }
         }
       },
@@ -687,20 +563,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/32",
-            "type": "GET"
+            "href": "/api/users/1/conversations/32"
           },
           "messages": {
-            "href": "/api/users/1/conversations/32/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/32/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/32/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/32/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/32/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/32/chat-to-breakdown-epic"
           }
         }
       },
@@ -709,20 +581,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/33",
-            "type": "GET"
+            "href": "/api/users/1/conversations/33"
           },
           "messages": {
-            "href": "/api/users/1/conversations/33/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/33/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/33/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/33/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/33/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/33/chat-to-breakdown-epic"
           }
         }
       },
@@ -731,20 +599,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/34",
-            "type": "GET"
+            "href": "/api/users/1/conversations/34"
           },
           "messages": {
-            "href": "/api/users/1/conversations/34/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/34/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/34/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/34/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/34/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/34/chat-to-breakdown-epic"
           }
         }
       },
@@ -753,20 +617,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/35",
-            "type": "GET"
+            "href": "/api/users/1/conversations/35"
           },
           "messages": {
-            "href": "/api/users/1/conversations/35/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/35/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/35/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/35/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/35/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/35/chat-to-breakdown-epic"
           }
         }
       },
@@ -775,20 +635,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/36",
-            "type": "GET"
+            "href": "/api/users/1/conversations/36"
           },
           "messages": {
-            "href": "/api/users/1/conversations/36/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/36/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/36/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/36/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/36/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/36/chat-to-breakdown-epic"
           }
         }
       },
@@ -797,20 +653,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/37",
-            "type": "GET"
+            "href": "/api/users/1/conversations/37"
           },
           "messages": {
-            "href": "/api/users/1/conversations/37/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/37/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/37/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/37/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/37/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/37/chat-to-breakdown-epic"
           }
         }
       },
@@ -819,20 +671,16 @@
         "title": "new title",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/38",
-            "type": "GET"
+            "href": "/api/users/1/conversations/38"
           },
           "messages": {
-            "href": "/api/users/1/conversations/38/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/38/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/38/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/38/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/38/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/38/chat-to-breakdown-epic"
           }
         }
       },
@@ -841,20 +689,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/39",
-            "type": "GET"
+            "href": "/api/users/1/conversations/39"
           },
           "messages": {
-            "href": "/api/users/1/conversations/39/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/39/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/39/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/39/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/39/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/39/chat-to-breakdown-epic"
           }
         }
       },
@@ -863,20 +707,16 @@
         "title": "",
         "_links": {
           "self": {
-            "href": "/api/users/1/conversations/40",
-            "type": "GET"
+            "href": "/api/users/1/conversations/40"
           },
           "messages": {
-            "href": "/api/users/1/conversations/40/messages",
-            "type": "GET"
+            "href": "/api/users/1/conversations/40/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/40/messages:chat",
-            "type": "POST"
+            "href": "/api/users/1/conversations/40/messages:chat"
           },
           "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/40/chat-to-breakdown-epic",
-            "type": "POST"
+            "href": "/api/users/1/conversations/40/chat-to-breakdown-epic"
           }
         }
       }

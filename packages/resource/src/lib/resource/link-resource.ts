@@ -42,6 +42,20 @@ export class LinkResource<TEntity extends Entity>
     return this;
   }
 
+  withGet(): Resource<TEntity> {
+    const { rel, options } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...options, method: 'GET' });
+    return this;
+  }
+
+  override getCurrentOptions() {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const rel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const options = this.optionsMap.get(rel)!;
+    return { rel, options };
+  }
+
   async request(): Promise<State<TEntity>> {
     const state: State<TEntity> = await this.httpRequest(this.link);
     if (this.isRootResource()) {

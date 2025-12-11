@@ -31,7 +31,10 @@ export class Fetcher {
     const url = new URL(path, this.config.baseURL);
     return await fetch(url, {
       body: JSON.stringify(body),
-      method: link.type ?? 'GET',
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': link.type ?? 'application/json',
+      },
     });
   }
 

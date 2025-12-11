@@ -6,6 +6,7 @@ import { LinkVariables } from '../links/link.js';
 export interface RequestOptions {
   query?: Record<string, SafeAny>;
   body?: Record<string, SafeAny>;
+  method?: string;
 }
 
 export interface Resource<TEntity extends Entity> {
@@ -17,4 +18,6 @@ export interface Resource<TEntity extends Entity> {
   request(): Promise<State<TEntity>>;
 
   withRequestOptions(options: RequestOptions): Resource<TEntity>;
+
+  withGet(): Resource<TEntity>;
 }
