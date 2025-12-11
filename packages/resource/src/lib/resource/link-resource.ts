@@ -6,10 +6,9 @@ import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 
-export class LinkResource<TEntity extends Entity>
-  extends BaseResource<TEntity>
-  implements Resource<TEntity>
-{
+export class LinkResource<
+  TEntity extends Entity
+> extends BaseResource<TEntity> {
   constructor(
     client: ClientInstance,
     private readonly link: Link,
@@ -42,13 +41,7 @@ export class LinkResource<TEntity extends Entity>
     return this;
   }
 
-  withGet(): Resource<TEntity> {
-    const { rel, options } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...options, method: 'GET' });
-    return this;
-  }
-
-  override getCurrentOptions() {
+  getCurrentOptions() {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const rel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

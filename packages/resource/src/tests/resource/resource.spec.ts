@@ -18,23 +18,23 @@ const mockFetcher = {
 const mockClient = {
   bookmarkUri: 'https://www.test.com/',
   fetcher: mockFetcher,
-  getStateForResponse:vi.fn()
+  getStateForResponse: vi.fn()
 } as unknown as ClientInstance;
 
 describe('StateResource', () => {
-  const resource:Resource<User>  = new LinkResource(mockClient,{rel:'',href:'/api/users/1'});
+  const resource: Resource<User> = new LinkResource(mockClient, { rel: '', href: '/api/users/1' });
   const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
   let userState: State<User>;
 
-  beforeAll(async ()=>{
+  beforeAll(async () => {
     const response = Response.json(halUser);
-    const mockUserState =  await halStateFactory.create<User>(
+    const mockUserState = await halStateFactory.create<User>(
       mockClient,
       '/api/users/1',
       response
     );
-    vi.spyOn(mockClient.fetcher,'fetchOrThrow').mockResolvedValue(response);
-    vi.spyOn(mockClient,'getStateForResponse').mockResolvedValue(mockUserState);
+    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(response);
+    vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(mockUserState);
     userState = await resource.request();
     expect(userState).toBe(mockUserState);
   })
@@ -43,19 +43,19 @@ describe('StateResource', () => {
     vi.clearAllMocks();
   });
 
-  it('should return new link resource with resource follow',()=>{
+  it('should return new link resource with resource follow', () => {
     expect(resource.follow('accounts')).toBeInstanceOf(LinkResource);
   })
 
   it('should generate states from user embedded accounts array', async () => {
     const accountsResource = userState.follow('accounts');
-    const accounts =  await accountsResource.request();
+    const accounts = await accountsResource.request();
     expect(accounts.collection.length).toEqual(halUser._embedded.accounts.length)
   });
 
   it('should generate states from user embedded latest-conversation', async () => {
     const latestConversationResource = userState.follow('latest-conversation');
-    const conversation =  await latestConversationResource.request();
+    const conversation = await latestConversationResource.request();
 
     expect(halUser._embedded['latest-conversation']).toEqual(expect.objectContaining(conversation.data))
   });
@@ -68,15 +68,23 @@ describe('StateResource', () => {
 
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
 
-    const link: Link = { ...halUser._links.conversations, rel: 'conversations'};
+    const link: Link = { ...halUser._links.conversations, rel: 'conversations' };
 
     const options = {
       query: {
         page: 1,
         pageSize: 10
-      }
+      },
+      body:{
+        page: 1,
+        pageSize: 10
+      },
+      method: 'POST',
     };
-    const conversationsResource = userState.follow('conversations',{
+    const conversationsResource = userState.follow('conversations', {
+      page: 1,
+      pageSize: 10
+    }).withPost({
       page: 1,
       pageSize: 10
     });

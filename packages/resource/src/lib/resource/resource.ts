@@ -20,4 +20,6 @@ export interface Resource<TEntity extends Entity> {
   withRequestOptions(options: RequestOptions): Resource<TEntity>;
 
   withGet(): Resource<TEntity>;
+
+  withPost(data: Record<string, SafeAny>): Resource<TEntity>;
 }

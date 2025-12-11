@@ -1,13 +1,15 @@
 import { SafeAny } from '../archtype/safe-any.js';
-import { RequestOptions } from './resource.js';
+import { RequestOptions, Resource } from './resource.js';
 import { Form } from '../form/form.js';
 import { z } from 'zod';
-import { Link } from '../links/link.js';
+import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Entity } from '../archtype/entity.js';
 
-export abstract class BaseResource<TEntity extends Entity> {
+export abstract class BaseResource<TEntity extends Entity>
+  implements Resource<TEntity>
+{
   protected constructor(
     protected readonly client: ClientInstance,
     protected readonly optionsMap: Map<string, RequestOptions> = new Map()
@@ -34,10 +36,17 @@ export abstract class BaseResource<TEntity extends Entity> {
     this.optionsMap.set(rel, requestOptions);
   }
 
-  protected abstract getCurrentOptions(): {
-    rel: string;
-    options: RequestOptions;
-  };
+  withGet(): Resource<TEntity> {
+    const { rel, options } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...options, method: 'GET' });
+    return this;
+  }
+
+  withPost(data: Record<string, SafeAny>): Resource<TEntity> {
+    const { rel, options } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...options, method: 'POST', body: data });
+    return this;
+  }
 
   private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {
     const shape: Record<string, SafeAny> = {};
@@ -76,4 +85,18 @@ export abstract class BaseResource<TEntity extends Entity> {
   private getRequestOption(link: Link) {
     return this.optionsMap.get(link.rel) ?? {};
   }
+
+  abstract follow<K extends keyof TEntity['links']>(
+    rel: K,
+    variables?: LinkVariables
+  ): Resource<TEntity['links'][K]>;
+
+  abstract request(): Promise<State<TEntity>>;
+
+  abstract withRequestOptions(options: RequestOptions): Resource<TEntity>;
+
+  abstract getCurrentOptions(): {
+    rel: string;
+    options: RequestOptions;
+  };
 }

@@ -8,10 +8,9 @@ import { ClientInstance } from '../client-instance.js';
 import { Links } from '../links/links.js';
 import { LinkVariables } from '../links/link.js';
 
-export class StateResource<TEntity extends Entity>
-  extends BaseResource<TEntity>
-  implements Resource<TEntity>
-{
+export class StateResource<
+  TEntity extends Entity
+> extends BaseResource<TEntity> {
   constructor(
     client: ClientInstance,
     private state: State,
@@ -89,13 +88,7 @@ export class StateResource<TEntity extends Entity>
     return this;
   }
 
-  withGet(): Resource<TEntity> {
-    const { rel, options } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...options, method: 'GET' });
-    return this;
-  }
-
-  protected override getCurrentOptions(): {
+  getCurrentOptions(): {
     rel: string;
     options: RequestOptions;
   } {
