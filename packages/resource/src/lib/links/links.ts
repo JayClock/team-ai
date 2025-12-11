@@ -1,6 +1,7 @@
 import { SafeAny } from '../archtype/safe-any.js';
 import { Link, NewLink } from './link.js';
-import { resolve } from '../http/util.js';
+
+import { resolve } from '../util/uri.js';
 
 /**
  * Links container, providing an easy way to manage a set of links.

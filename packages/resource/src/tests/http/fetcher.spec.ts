@@ -67,7 +67,11 @@ describe('Fetcher', () => {
   });
 
   it('should fetch data successfully with GET request', async () => {
-    const response = await fetcher.fetchOrThrow({ rel: '', href: '/test' });
+    const response = await fetcher.fetchOrThrow({
+      rel: '',
+      href: '/test',
+      context: mockConfig.baseURL,
+    });
 
     expect(response.status).toBe(200);
     expect(response.statusText).toBe('OK');
@@ -79,7 +83,7 @@ describe('Fetcher', () => {
 
   it('should fetch data successfully with POST request', async () => {
     const response = await fetcher.fetchOrThrow(
-      { rel: '', href: '/test' },
+      { rel: '', href: '/test', context: mockConfig.baseURL },
       { body: { name: 'Test User' }, method: 'POST' }
     );
 
@@ -93,7 +97,7 @@ describe('Fetcher', () => {
 
   it('should fetch data successfully with query parameters', async () => {
     const response = await fetcher.fetchOrThrow(
-      { rel: '', href: '/test' },
+      { rel: '', href: '/test', context: mockConfig.baseURL },
       { query: { page: 1, pageSize: 10 } }
     );
 
@@ -109,7 +113,12 @@ describe('Fetcher', () => {
 
   it('should fetch data successfully with templated link', async () => {
     const response = await fetcher.fetchOrThrow(
-      { rel: '', href: '/test{?page,pageSize}', templated: true },
+      {
+        rel: '',
+        href: '/test{?page,pageSize}',
+        templated: true,
+        context: mockConfig.baseURL,
+      },
       { query: { page: 1, pageSize: 10 } }
     );
 
@@ -125,7 +134,7 @@ describe('Fetcher', () => {
 
   it('should fetch data error with http error', async () => {
     const error: HttpError = await fetcher
-      .fetchOrThrow({ rel: '', href: '/error' })
+      .fetchOrThrow({ rel: '', href: '/error', context: mockConfig.baseURL })
       .catch((e) => e);
     expect(error).toBeInstanceOf(HttpError);
     expect(error.status).toBe(404);
@@ -136,7 +145,7 @@ describe('Fetcher', () => {
 
   it('should fetch data error with RFC7807 problem', async () => {
     const problem: Problem = await fetcher
-      .fetchOrThrow({ rel: '', href: '/problem' })
+      .fetchOrThrow({ rel: '', href: '/problem', context: mockConfig.baseURL })
       .catch((e) => e);
     expect(problem).toBeInstanceOf(Problem);
     expect(problem.status).toBe(404);

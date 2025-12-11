@@ -1,16 +1,13 @@
-import { inject, injectable } from 'inversify';
-import { TYPES } from '../archtype/injection-types.js';
-import type { Config } from '../archtype/config.js';
+import { injectable } from 'inversify';
 import { Link } from '../links/link.js';
 import { RequestOptions } from '../resource/resource.js';
 import { parseTemplate } from 'url-template';
 import queryString from 'query-string';
 import problemFactory from './error.js';
+import { resolve } from '../util/uri.js';
 
 @injectable()
 export class Fetcher {
-  constructor(@inject(TYPES.Config) private config: Config) {}
-
   /**
    * A wrapper for MDN fetch()
    */
@@ -28,8 +25,8 @@ export class Fetcher {
         query,
       });
     }
-    const url = new URL(path, this.config.baseURL);
-    return await fetch(url, {
+
+    return await fetch(resolve(link.context, path), {
       body: JSON.stringify(body),
       method: method || 'GET',
       headers: {
