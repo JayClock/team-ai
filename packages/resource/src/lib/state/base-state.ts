@@ -78,13 +78,13 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     throw new Error(`rel ${rel as string} is not exited`);
   }
 
-  getForm<K extends keyof TEntity['links']>(rel: K) {
+  getForm<K extends keyof TEntity['links']>(rel: K, method = 'GET') {
     const link = this.links.get(rel as string);
     if (!link) {
       return undefined;
     }
     return this.forms.find(
-      (form) => form.uri === link.href && form.method === link.type
+      (form) => form.uri === link.href && form.method === method
     );
   }
 

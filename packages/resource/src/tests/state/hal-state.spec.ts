@@ -78,8 +78,8 @@ describe('HalState', async () => {
     expect(state.collection.length).toEqual(halUser._embedded.accounts.length);
   });
 
-  it.skip('should create forms with existed templates', () => {
-    expect(state.getForm('create-conversation')?.uri).toEqual(halUser._templates['create-conversation'].target);
+  it('should create forms with existed templates', () => {
+    expect(state.getForm('create-conversation','POST')?.uri).toEqual(halUser._templates['create-conversation'].target);
   });
 
   it('should clone state', () => {

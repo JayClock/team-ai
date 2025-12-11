@@ -99,7 +99,7 @@ describe('StateResource', () => {
     );
   });
 
-  it.skip('should verify request body with hal template', async () => {
-    await expect(userState.follow('create-conversation').withRequestOptions({ body: { title: 123 } }).request()).rejects.toThrow('Invalid');
+  it('should verify request body with hal template', async () => {
+    await expect(userState.follow('create-conversation').withPost({ title: 123 }).request()).rejects.toThrow('Invalid');
   });
 });

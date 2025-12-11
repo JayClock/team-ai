@@ -72,8 +72,12 @@ export class StateResource<
     } else if (embedded) {
       nextState = embedded;
     } else {
+      const { rel, options } = this.getCurrentOptions();
       // If no embedded data is available, make an HTTP request
-      nextState = await this.httpRequest(link, currentState.getForm(link.rel));
+      nextState = await this.httpRequest(
+        link,
+        currentState.getForm(rel, options.method ?? 'GET')
+      );
     }
 
     return this.resolveRelationsRecursively(nextState, nextRels);

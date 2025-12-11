@@ -52,7 +52,10 @@ export type State<TEntity extends Entity = Entity> = {
   /**
    * Return a from by rel key.
    * */
-  getForm<K extends keyof TEntity['links']>(rel: K): Form | undefined;
+  getForm<K extends keyof TEntity['links']>(
+    rel: K,
+    method?: string
+  ): Form | undefined;
 
   /**
    * Returns a serialization of the state that can be used in a HTTP
