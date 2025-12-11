@@ -93,8 +93,6 @@ export abstract class BaseResource<TEntity extends Entity>
 
   abstract request(): Promise<State<TEntity>>;
 
-  abstract withRequestOptions(options: RequestOptions): Resource<TEntity>;
-
   abstract getCurrentOptions(): {
     rel: string;
     options: RequestOptions;

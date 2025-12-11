@@ -17,8 +17,6 @@ export interface Resource<TEntity extends Entity> {
 
   request(): Promise<State<TEntity>>;
 
-  withRequestOptions(options: RequestOptions): Resource<TEntity>;
-
   withGet(): Resource<TEntity>;
 
   withPost(data: Record<string, SafeAny>): Resource<TEntity>;

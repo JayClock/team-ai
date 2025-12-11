@@ -32,15 +32,6 @@ export class LinkResource<
     );
   }
 
-  withRequestOptions(options: RequestOptions): Resource<TEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const lastRel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const currentOptions = this.optionsMap.get(lastRel)!;
-    this.optionsMap.set(lastRel, { ...currentOptions, ...options });
-    return this;
-  }
-
   getCurrentOptions() {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const rel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;

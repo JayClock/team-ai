@@ -83,15 +83,6 @@ export class StateResource<
     return this.resolveRelationsRecursively(nextState, nextRels);
   }
 
-  withRequestOptions(options: RequestOptions): Resource<TEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const lastRel = this.rels.at(-1)!;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const currentOptions = this.optionsMap.get(lastRel)!;
-    this.optionsMap.set(lastRel, { ...currentOptions, ...options });
-    return this;
-  }
-
   getCurrentOptions(): {
     rel: string;
     options: RequestOptions;
