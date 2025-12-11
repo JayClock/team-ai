@@ -3,6 +3,7 @@ import { Fetcher } from '../lib/http/fetcher.js';
 import { Config } from '../lib/archtype/config.js';
 import { StateFactory } from '../lib/state/state.js';
 import { LinkResource } from '../lib/resource/link-resource.js';
+import { resolve } from '../lib/util/uri.js';
 const mockFetcher = {} as Fetcher;
 const mockConfig = { baseURL: 'bookmarkUri' } as Config;
 const mockHalStateFactory = {
@@ -23,10 +24,35 @@ describe('ClientInstance', () => {
     expect(clientInstance.bookmarkUri).toEqual(mockConfig.baseURL);
   });
 
-  it('should go to link resource', () => {
-    expect(clientInstance.go({ rel: 'rel', href: 'href' })).toBeInstanceOf(
-      LinkResource
-    );
+  describe('should go to link resource and cache resource', () => {
+    it('should go with no uri', () => {
+      expect(clientInstance.go()).toBeInstanceOf(LinkResource);
+      expect(
+        clientInstance.resources.has(resolve(clientInstance.bookmarkUri, ''))
+      ).toBeTruthy();
+    });
+
+    it('should go with string type uri', () => {
+      expect(clientInstance.go('href-string')).toBeInstanceOf(
+        LinkResource
+      );
+      expect(
+        clientInstance.resources.has(
+          resolve(clientInstance.bookmarkUri, 'href-string')
+        )
+      ).toBeTruthy();
+    });
+
+    it('should go with new link type uri', () => {
+      expect(clientInstance.go({ rel: 'rel', href: 'href-link' })).toBeInstanceOf(
+        LinkResource
+      );
+      expect(
+        clientInstance.resources.has(
+          resolve(clientInstance.bookmarkUri, 'href-link')
+        )
+      ).toBeTruthy();
+    });
   });
 
   describe('generate binary state', () => {

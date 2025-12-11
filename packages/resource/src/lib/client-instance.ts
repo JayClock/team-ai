@@ -4,13 +4,15 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from './archtype/injection-types.js';
 import { Resource } from './resource/resource.js';
 import { Client } from './create-client.js';
-import { NewLink } from './links/link.js';
+import { Link, NewLink } from './links/link.js';
 import { Fetcher } from './http/fetcher.js';
 import { State, StateFactory } from './state/state.js';
 import { HalStateFactory } from './state/hal-state/hal-state.factory.js';
 import type { Config } from './archtype/config.js';
 import { BinaryStateFactory } from './state/binary-state/binary-state.factory.js';
 import { parseContentType } from './http/util.js';
+import { resolve } from './util/uri.js';
+import { SafeAny } from './archtype/safe-any.js';
 
 @injectable()
 export class ClientInstance implements Client {
@@ -20,6 +22,12 @@ export class ClientInstance implements Client {
    * API
    */
   readonly bookmarkUri: string;
+
+  /**
+   * The cache for 'Resource' objects. Each unique uri should
+   * only ever get 1 associated resource.
+   */
+  readonly resources = new Map<string, Resource<SafeAny>>();
 
   constructor(
     @inject(TYPES.Fetcher)
@@ -60,8 +68,23 @@ export class ClientInstance implements Client {
   /**
    * Transforms a fetch Response to a State object.
    */
-  go<TEntity extends Entity>(link: NewLink): Resource<TEntity> {
-    return new LinkResource<TEntity>(this, link);
+  go<TEntity extends Entity>(uri?: string | NewLink): Resource<TEntity> {
+    let link: Link;
+    if (uri === undefined) {
+      link = { rel: '', context: this.bookmarkUri, href: '' };
+    } else if (typeof uri === 'string') {
+      link = { rel: '', context: this.bookmarkUri, href: uri };
+    } else {
+      link = { ...uri, context: this.bookmarkUri };
+    }
+    const absoluteUri = resolve(link);
+    if (!this.resources.has(absoluteUri)) {
+      const resource: Resource<SafeAny> = new LinkResource(this, link);
+      this.resources.set(absoluteUri, resource);
+      return resource;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return this.resources.get(absoluteUri)!;
   }
 
   async getStateForResponse<TEntity extends Entity>(

@@ -6,7 +6,7 @@ import { NewLink } from './links/link.js';
 import { container } from './container.js';
 
 export interface Client {
-  go<TEntity extends Entity>(link: NewLink): Resource<TEntity>;
+  go<TEntity extends Entity>(link?: string | NewLink): Resource<TEntity>;
 }
 
 export const createClient = (options: Config): Client => {
