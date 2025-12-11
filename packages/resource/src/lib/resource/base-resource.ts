@@ -8,12 +8,11 @@ import { State } from '../state/state.js';
 import { Entity } from '../archtype/entity.js';
 
 export abstract class BaseResource<TEntity extends Entity>
-  implements Resource<TEntity>
-{
+  implements Resource<TEntity> {
   protected constructor(
     protected readonly client: ClientInstance,
     protected readonly optionsMap: Map<string, RequestOptions> = new Map()
-  ) {}
+  ) { }
 
   protected async httpRequest(
     link: Link,
@@ -45,6 +44,24 @@ export abstract class BaseResource<TEntity extends Entity>
   withPost(data: Record<string, SafeAny>): Resource<TEntity> {
     const { rel, options } = this.getCurrentOptions();
     this.optionsMap.set(rel, { ...options, method: 'POST', body: data });
+    return this;
+  }
+
+  withPut(data: Record<string, SafeAny>): Resource<TEntity> {
+    const { rel, options } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...options, method: 'PUT', body: data });
+    return this;
+  }
+
+  withPatch(data: Record<string, SafeAny>): Resource<TEntity> {
+    const { rel, options } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...options, method: 'PATCH', body: data });
+    return this;
+  }
+
+  withDelete(): Resource<TEntity> {
+    const { rel, options } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...options, method: 'DELETE' });
     return this;
   }
 

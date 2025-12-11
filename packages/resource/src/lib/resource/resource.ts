@@ -20,4 +20,10 @@ export interface Resource<TEntity extends Entity> {
   withGet(): Resource<TEntity>;
 
   withPost(data: Record<string, SafeAny>): Resource<TEntity>;
+
+  withPut(data: Record<string, SafeAny>): Resource<TEntity>;
+
+  withPatch(data: Record<string, SafeAny>): Resource<TEntity>;
+
+  withDelete(): Resource<TEntity>;
 }

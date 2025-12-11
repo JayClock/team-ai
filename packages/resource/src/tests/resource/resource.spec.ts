@@ -1,5 +1,5 @@
 import { describe, expect, vi } from 'vitest';
-import { User } from '../fixtures/interface.js';
+import { Conversation, User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
 import { ClientInstance } from '../../lib/client-instance.js';
@@ -8,7 +8,7 @@ import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js'
 import { State } from '../../lib/state/state.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { Resource } from '../../lib/index.js';
+import { Collection, RequestOptions, Resource } from '../../lib/index.js';
 import { LinkResource } from '../../lib/resource/link-resource.js';
 
 const mockFetcher = {
@@ -60,44 +60,120 @@ describe('StateResource', () => {
     expect(halUser._embedded['latest-conversation']).toEqual(expect.objectContaining(conversation.data))
   });
 
-  it('should handle non-embedded resource request with HTTP call', async () => {
+  describe('should handle non-embedded resource request with HTTP call', () => {
     const mockResponse = {
       url: new URL('/api/users/1/conversations?page=1&pageSize=10', mockClient.bookmarkUri).toString(),
       json: vi.fn().mockResolvedValue(halConversations)
     } as unknown as Response;
 
-    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
+    let options: RequestOptions;
 
     const link: Link = { ...halUser._links.conversations, rel: 'conversations' };
 
-    const options = {
-      query: {
+    beforeEach(() => {
+      vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
+    })
+
+    it('should request with post', async () => {
+      options = {
+        query: {
+          page: 1,
+          pageSize: 10
+        },
+        body: {
+          page: 1,
+          pageSize: 10
+        },
+        method: 'POST',
+      };
+      await userState.follow('conversations', {
         page: 1,
         pageSize: 10
-      },
-      body:{
+      }).withPost({
         page: 1,
         pageSize: 10
-      },
-      method: 'POST',
-    };
-    const conversationsResource = userState.follow('conversations', {
-      page: 1,
-      pageSize: 10
-    }).withPost({
-      page: 1,
-      pageSize: 10
-    });
-    await conversationsResource.request();
+      }).request();
+    })
 
-    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(link, options);
+    it('should request with put', async () => {
+      options = {
+        query: {
+          page: 1,
+          pageSize: 10
+        },
+        body: {
+          page: 1,
+          pageSize: 10
+        },
+        method: 'PUT',
+      };
+      await userState.follow('conversations', {
+        page: 1,
+        pageSize: 10
+      }).withPut({
+        page: 1,
+        pageSize: 10
+      }).request();
+    })
 
-    expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-      mockResponse.url,
-      mockResponse,
-      'conversations'
-    );
-  });
+    it('should request with patch', async () => {
+      options = {
+        query: {
+          page: 1,
+          pageSize: 10
+        },
+        body: {
+          page: 1,
+          pageSize: 10
+        },
+        method: 'PATCH',
+      };
+      await userState.follow('conversations', {
+        page: 1,
+        pageSize: 10
+      }).withPatch({
+        page: 1,
+        pageSize: 10
+      }).request();
+    })
+
+    it('should request with get', async () => {
+      options = {
+        query: {
+          page: 1,
+          pageSize: 10
+        },
+        method: 'GET',
+      };
+      await userState.follow('conversations', {
+        page: 1,
+        pageSize: 10
+      }).withGet().request();
+    })
+
+    it('should request with delete', async () => {
+      options = {
+        query: {
+          page: 1,
+          pageSize: 10
+        },
+        method: 'DELETE',
+      };
+      await userState.follow('conversations', {
+        page: 1,
+        pageSize: 10
+      }).withDelete().request();
+    })
+
+    afterEach(() => {
+      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(link, options);
+      expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
+        mockResponse.url,
+        mockResponse,
+        'conversations'
+      );
+    })
+  })
 
   it('should verify request body with hal template', async () => {
     await expect(userState.follow('create-conversation').withPost({ title: 123 }).request()).rejects.toThrow('Invalid');

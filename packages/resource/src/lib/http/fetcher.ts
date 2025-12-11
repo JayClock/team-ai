@@ -18,7 +18,7 @@ export class Fetcher {
     link: Link,
     options: RequestOptions = {}
   ): Promise<Response> {
-    const { body, query } = options;
+    const { body, query, method } = options;
     let path: string;
     if (link.templated) {
       path = parseTemplate(link.href).expand(query ?? {});
@@ -31,7 +31,7 @@ export class Fetcher {
     const url = new URL(path, this.config.baseURL);
     return await fetch(url, {
       body: JSON.stringify(body),
-      method: options.method || 'GET',
+      method: method || 'GET',
       headers: {
         'Content-Type': link.type ?? 'application/json',
       },
