@@ -9,6 +9,7 @@ import { SafeAny } from '../../archtype/safe-any.js';
 import { Links } from '../../links/links.js';
 import { Form } from '../../form/form.js';
 import { Field } from '../../form/field.js';
+import { HttpMethod } from 'src/lib/http/util.js';
 
 export function isInlineOptions(
   options: HalFormsSimpleProperty['options']
@@ -22,7 +23,7 @@ export function parseHalTemplates(
 ): Form[] {
   return Object.values(templates).map((template) => ({
     title: template.title,
-    method: template.method,
+    method: template.method as HttpMethod,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     uri: template.target ?? (links.get('self')! as HalLink).href,
     contentType: template.contentType ?? 'application/json',

@@ -1,3 +1,4 @@
+import { HttpMethod } from '../http/util.js';
 import { Field } from './field.js';
 
 export type Form = {
@@ -16,7 +17,7 @@ export type Form = {
   /**
    * The HTTP method to use
    */
-  method: string;
+  method: HttpMethod;
 
   /**
    * The contentType to use for the form submission

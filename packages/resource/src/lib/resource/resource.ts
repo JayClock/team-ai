@@ -2,11 +2,12 @@ import { Entity } from '../archtype/entity.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { State } from '../state/state.js';
 import { LinkVariables } from '../links/link.js';
+import { HttpMethod } from '../http/util.js';
 
 export interface RequestOptions {
   query?: Record<string, SafeAny>;
   body?: Record<string, SafeAny>;
-  method?: string;
+  method?: HttpMethod;
 }
 
 export interface Resource<TEntity extends Entity> {

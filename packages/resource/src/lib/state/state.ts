@@ -5,6 +5,7 @@ import { StateCollection } from './state-collection.js';
 import { Resource } from '../resource/resource.js';
 import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
+import { HttpMethod } from '../http/util.js';
 
 export type State<TEntity extends Entity = Entity> = {
   /**
@@ -54,7 +55,7 @@ export type State<TEntity extends Entity = Entity> = {
    * */
   getForm<K extends keyof TEntity['links']>(
     rel: K,
-    method?: string
+    method?: HttpMethod
   ): Form | undefined;
 
   /**

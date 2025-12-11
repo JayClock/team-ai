@@ -59,3 +59,5 @@ export const entityHeaderNames = [
   'Title',
   'Warning',
 ];
+
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
