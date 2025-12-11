@@ -7,6 +7,7 @@ import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
 import { Links } from '../links/links.js';
 import { LinkVariables } from '../links/link.js';
+import { resolve } from '../util/uri.js';
 
 export class StateResource<
   TEntity extends Entity
@@ -63,7 +64,7 @@ export class StateResource<
     if (Array.isArray(embedded)) {
       nextState = new BaseState({
         client: this.client,
-        uri: new URL(link.href, this.client.bookmarkUri).toString(),
+        uri: resolve(link),
         data: {},
         collection: embedded,
         links: new Links(this.client.bookmarkUri),

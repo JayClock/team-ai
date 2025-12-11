@@ -7,6 +7,7 @@ import halConversations from './fixtures/hal-conversations.json' with { type: 'j
 
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { resolve } from '../lib/util/uri.js';
 
 
 const handlers = [
@@ -38,7 +39,7 @@ describe('Client', () => {
 
   it('should get user data', async () => {
     const res = await userResource.request();
-    expect(res.uri).toEqual(new URL('/api/users/1', baseURL).toString());
+    expect(res.uri).toEqual(resolve(baseURL,'/api/users/1').toString());
     expect(res.data.id).toEqual(halUser.id);
     expect(res.data.name).toEqual(halUser.name);
     expect(res.data.email).toEqual(halUser.email);
@@ -47,7 +48,7 @@ describe('Client', () => {
   it('should get user accounts data', async () => {
     const res = await userResource.follow('accounts').request();
     expect(res.collection.length).toEqual(halUser._embedded.accounts.length);
-    expect(res.uri).toEqual(new URL('/api/users/1/accounts', baseURL).toString());
+    expect(res.uri).toEqual(resolve(baseURL, '/api/users/1/accounts').toString());
     const firstAccount = res.collection[0];
     expect(firstAccount.data.id).toBe('1');
     expect(firstAccount.data.provider).toBe('github');
@@ -60,7 +61,7 @@ describe('Client', () => {
       pageSize: 10
     }).request();
     expect(res.collection.length).toEqual(halConversations._embedded.conversations.length);
-    expect(res.uri).toBe(new URL('/api/users/1/conversations?page=1&pageSize=10', baseURL).toString());
+    expect(res.uri).toBe(resolve(baseURL, '/api/users/1/conversations?page=1&pageSize=10').toString());
   });
 
   it('should get user file data with binary',async ()=> {

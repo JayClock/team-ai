@@ -10,6 +10,7 @@ import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
 import { RequestOptions, Resource } from '../../lib/index.js';
 import { LinkResource } from '../../lib/resource/link-resource.js';
+import { resolve } from '../../lib/util/uri.js';
 
 const mockFetcher = {
   fetchOrThrow: vi.fn()
@@ -61,14 +62,15 @@ describe('StateResource', () => {
   });
 
   describe('should handle non-embedded resource request with HTTP call', () => {
+    const link: Link = { ...halUser._links.conversations, context: mockClient.bookmarkUri, rel: 'conversations' };
+
     const mockResponse = {
-      url: new URL('/api/users/1/conversations?page=1&pageSize=10', mockClient.bookmarkUri).toString(),
+      url: resolve(link).toString(),
       json: vi.fn().mockResolvedValue(halConversations)
     } as unknown as Response;
 
     let options: RequestOptions;
 
-    const link: Link = { ...halUser._links.conversations, context: mockClient.bookmarkUri, rel: 'conversations' };
 
     beforeEach(() => {
       vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
