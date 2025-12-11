@@ -8,6 +8,8 @@ import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js'
 import { State } from '../../lib/state/state.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
+import { Resource } from '../../lib/index.js';
+import { LinkResource } from '../../lib/resource/link-resource.js';
 
 const mockFetcher = {
   fetchOrThrow: vi.fn()
@@ -20,25 +22,32 @@ const mockClient = {
 } as unknown as ClientInstance;
 
 describe('StateResource', () => {
+  const resource:Resource<User>  = new LinkResource(mockClient,{rel:'',href:'/api/users/1'});
   const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
   let userState: State<User>;
 
-  beforeEach(async () => {
-    userState = await halStateFactory.create<User>(
+  beforeAll(async ()=>{
+    const response = Response.json(halUser);
+    const mockUserState =  await halStateFactory.create<User>(
       mockClient,
       '/api/users/1',
-      Response.json(halUser)
+      response
     );
+    vi.spyOn(mockClient.fetcher,'fetchOrThrow').mockResolvedValue(response);
+    vi.spyOn(mockClient,'getStateForResponse').mockResolvedValue(mockUserState);
+    userState = await resource.request();
+    expect(userState).toBe(mockUserState);
+  })
+
+  beforeEach(async () => {
     vi.clearAllMocks();
   });
 
-  it('should generate states from user embedded accounts array', async () => {
-    userState = await halStateFactory.create<User>(
-      mockClient,
-      '/api/users/1',
-      Response.json(halUser)
-    );
+  it('should return new link resource with resource follow',()=>{
+    expect(resource.follow('accounts')).toBeInstanceOf(LinkResource);
+  })
 
+  it('should generate states from user embedded accounts array', async () => {
     const accountsResource = userState.follow('accounts');
     const accounts =  await accountsResource.request();
     expect(accounts.collection.length).toEqual(halUser._embedded.accounts.length)
@@ -56,12 +65,6 @@ describe('StateResource', () => {
       url: new URL('/api/users/1/conversations?page=1&pageSize=10', mockClient.bookmarkUri).toString(),
       json: vi.fn().mockResolvedValue(halConversations)
     } as unknown as Response;
-
-    const userState = await halStateFactory.create<User>(
-      mockClient,
-      '/api/users/1',
-      Response.json(halUser)
-    );
 
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
 
@@ -86,11 +89,6 @@ describe('StateResource', () => {
   });
 
   it('should verify request body with hal template', async () => {
-    const userState = await halStateFactory.create<User>(
-      mockClient,
-      '/api/users/1',
-      Response.json(halUser)
-    );
     await expect(userState.follow('create-conversation').withRequestOptions({ body: { title: 123 } }).request()).rejects.toThrow('Invalid');
   });
 });

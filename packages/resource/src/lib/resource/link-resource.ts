@@ -18,7 +18,6 @@ export class LinkResource<TEntity extends Entity>
   ) {
     super(client, optionsMap);
     this.link.rel = this.link.rel ?? 'ROOT_REL';
-    this.link.type = 'GET';
   }
 
   follow<K extends keyof TEntity['links']>(
