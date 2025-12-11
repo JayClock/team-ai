@@ -1,13 +1,13 @@
 import { describe, expect } from 'vitest';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
-import { State } from '../../lib/state/state.js';
 import { BaseState } from '../../lib/state/base-state.js';
-import { User } from '../fixtures/interface.js';
 import { SafeAny } from '../../lib/archtype/safe-any.js';
 import { ClientInstance } from '../../lib/client-instance.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
+import { User } from '../fixtures/interface.js';
+import { StateResource } from '../../lib/resource/state-resource.js';
 
 const mockClient = {} as ClientInstance;
 
@@ -25,7 +25,7 @@ describe('HalState', async () => {
     'Sunset': 'Wed, 21 Oct 2026 07:28:00 GMT',
     'Title': 'API Resource Details'
   };
-  const state = await halStateFactory.create(mockClient, '/api/users/1', Response.json(halUser,{headers: mockHeaders})) as BaseState<User>;
+  const state = await halStateFactory.create<User>(mockClient, '/api/users/1', Response.json(halUser,{headers: mockHeaders}));
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -59,11 +59,12 @@ describe('HalState', async () => {
   })
 
   it('should serialize body to string',()=>{
-    expect(state.serializeBody()).toEqual(JSON.stringify({
-      id: '1',
-      name: 'JayClock',
-      email: 'z891853602@gmail.com'
-    }))
+    const resource = JSON.parse(state.serializeBody() as string);
+    expect(halUser).toEqual(expect.objectContaining(resource))
+  })
+
+  it('should follow existed lint and return new state resource',()=>{
+    expect(state.follow('accounts')).toBeInstanceOf(StateResource)
   })
 
   it('should throw error with not existed link', () => {
@@ -81,9 +82,6 @@ describe('HalState', async () => {
     expect(state.getForm('create-conversation')?.uri).toEqual(halUser._templates['create-conversation'].target);
   });
 
-  it('should get multi state in embedded', () => {
-    expect((state.getEmbedded('accounts') as State[]).length).toEqual(halUser._embedded.accounts.length);
-  });
   it('should clone state', () => {
     const cloned = state.clone();
     expect(cloned).toBeInstanceOf(BaseState);

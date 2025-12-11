@@ -12,7 +12,6 @@ export function parseHalLinks<TLinks extends Record<string, SafeAny>>(
       linkList.map((item) => ({
         ...item,
         rel: key,
-        type: item.type ?? 'GET'
       }))
     );
   }

@@ -65,7 +65,7 @@ describe('StateResource', () => {
 
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
 
-    const link: Link = { ...halUser._links.conversations, rel: 'conversations', type: 'GET' };
+    const link: Link = { ...halUser._links.conversations, rel: 'conversations'};
 
     const options = {
       query: {

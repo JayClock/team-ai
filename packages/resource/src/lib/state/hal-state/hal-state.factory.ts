@@ -1,6 +1,6 @@
 import { Entity } from 'src/lib/archtype/entity.js';
 import { BaseState } from '../base-state.js';
-import { HalResource } from 'hal-types';
+import { HalLink, HalResource } from 'hal-types';
 import { ClientInstance } from 'src/lib/client-instance.js';
 import { State, StateFactory } from '../state.js';
 import { StateCollection } from '../state-collection.js';
@@ -42,11 +42,38 @@ class HalState<TEntity extends Entity> extends BaseState<TEntity> {
   override serializeBody(): string {
     return JSON.stringify({
       ...this.data,
+      _links: this.serializeLinks(),
     });
   }
 
   override clone(): State<TEntity> {
-    return new HalState<TEntity>(this.init)
+    return new HalState<TEntity>(this.init);
+  }
+
+  private serializeLinks(): HalResource['_links'] {
+    const links: HalResource['_links'] = {
+      self: { href: this.uri },
+    };
+
+    for (const link of this.links.getAll()) {
+      const { rel, ...attributes } = link;
+      if (rel === 'self') {
+        // skip
+        continue;
+      }
+
+      if (links[rel] === undefined) {
+        // First link of its kind
+        links[rel] = attributes;
+      } else if (Array.isArray(links[rel])) {
+        // Add link to link array.
+        (links[rel] as HalLink[]).push(attributes);
+      } else {
+        // 1 link with this rel existed, so we will transform it to an array.
+        links[rel] = [links[rel] as HalLink, attributes];
+      }
+    }
+    return links;
   }
 }
 
