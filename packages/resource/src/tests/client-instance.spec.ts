@@ -33,9 +33,7 @@ describe('ClientInstance', () => {
     });
 
     it('should go with string type uri', () => {
-      expect(clientInstance.go('href-string')).toBeInstanceOf(
-        LinkResource
-      );
+      expect(clientInstance.go('href-string')).toBeInstanceOf(LinkResource);
       expect(
         clientInstance.resources.has(
           resolve(clientInstance.bookmarkUri, 'href-string')
@@ -44,9 +42,9 @@ describe('ClientInstance', () => {
     });
 
     it('should go with new link type uri', () => {
-      expect(clientInstance.go({ rel: 'rel', href: 'href-link' })).toBeInstanceOf(
-        LinkResource
-      );
+      expect(
+        clientInstance.go({ rel: 'rel', href: 'href-link' })
+      ).toBeInstanceOf(LinkResource);
       expect(
         clientInstance.resources.has(
           resolve(clientInstance.bookmarkUri, 'href-link')
@@ -55,63 +53,65 @@ describe('ClientInstance', () => {
     });
   });
 
-  describe('generate binary state', () => {
-    it('should generate binary state when content-type is not existed', () => {
-      clientInstance.getStateForResponse(
-        '',
-        new Response(null, { headers: { 'Content-Type': '' } })
-      );
-      expect(mockBinaryStateFactory.create).toHaveBeenCalled();
+  describe('getStateForResponse', () => {
+    describe('generate binary state', () => {
+      it('should generate binary state when content-type is not existed', () => {
+        clientInstance.getStateForResponse(
+          '',
+          new Response(null, { headers: { 'Content-Type': '' } })
+        );
+        expect(mockBinaryStateFactory.create).toHaveBeenCalled();
+      });
+
+      it('should generate binary state when status is 204', () => {
+        clientInstance.getStateForResponse(
+          '',
+          new Response(null, { status: 204 })
+        );
+        expect(mockBinaryStateFactory.create).toHaveBeenCalled();
+      });
     });
 
-    it('should generate binary state when status is 204', () => {
-      clientInstance.getStateForResponse(
-        '',
-        new Response(null, { status: 204 })
-      );
-      expect(mockBinaryStateFactory.create).toHaveBeenCalled();
-    });
-  });
+    describe('generate hal state', () => {
+      it('should generate hal state when content-type application/prs.hal-forms+json', () => {
+        clientInstance.getStateForResponse(
+          '',
+          new Response(null, {
+            headers: { 'Content-Type': 'application/prs.hal-forms+json' },
+          })
+        );
+        expect(mockHalStateFactory.create).toHaveBeenCalled();
+      });
 
-  describe('generate hal state', () => {
-    it('should generate hal state when content-type application/prs.hal-forms+json', () => {
-      clientInstance.getStateForResponse(
-        '',
-        new Response(null, {
-          headers: { 'Content-Type': 'application/prs.hal-forms+json' },
-        })
-      );
-      expect(mockHalStateFactory.create).toHaveBeenCalled();
-    });
+      it('should generate hal state when content-type application/hal+json', () => {
+        clientInstance.getStateForResponse(
+          '',
+          new Response(null, {
+            headers: { 'Content-Type': 'application/hal+json' },
+          })
+        );
+        expect(mockHalStateFactory.create).toHaveBeenCalled();
+      });
 
-    it('should generate hal state when content-type application/hal+json', () => {
-      clientInstance.getStateForResponse(
-        '',
-        new Response(null, {
-          headers: { 'Content-Type': 'application/hal+json' },
-        })
-      );
-      expect(mockHalStateFactory.create).toHaveBeenCalled();
-    });
+      it('should generate hal state when content-type application/json', () => {
+        clientInstance.getStateForResponse(
+          '',
+          new Response(null, {
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+        expect(mockHalStateFactory.create).toHaveBeenCalled();
+      });
 
-    it('should generate hal state when content-type application/json', () => {
-      clientInstance.getStateForResponse(
-        '',
-        new Response(null, {
-          headers: { 'Content-Type': 'application/json' },
-        })
-      );
-      expect(mockHalStateFactory.create).toHaveBeenCalled();
-    });
-
-    it('should generate hal state when content-type match /^application\\/[A-Za-z-.]+\\+json/', () => {
-      clientInstance.getStateForResponse(
-        '',
-        new Response(null, {
-          headers: { 'Content-Type': 'application/geo+json' },
-        })
-      );
-      expect(mockHalStateFactory.create).toHaveBeenCalled();
+      it('should generate hal state when content-type match /^application\\/[A-Za-z-.]+\\+json/', () => {
+        clientInstance.getStateForResponse(
+          '',
+          new Response(null, {
+            headers: { 'Content-Type': 'application/geo+json' },
+          })
+        );
+        expect(mockHalStateFactory.create).toHaveBeenCalled();
+      });
     });
   });
 });

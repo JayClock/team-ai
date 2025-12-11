@@ -19,7 +19,8 @@ const mockFetcher = {
 const mockClient = {
   bookmarkUri: 'https://www.test.com/',
   fetcher: mockFetcher,
-  getStateForResponse: vi.fn()
+  getStateForResponse: vi.fn(),
+  go: vi.fn()
 } as unknown as ClientInstance;
 
 describe('StateResource', () => {
@@ -73,15 +74,12 @@ describe('StateResource', () => {
 
 
     beforeEach(() => {
+      vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, link));
       vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
     })
 
     it('should request with post', async () => {
       options = {
-        query: {
-          page: 1,
-          pageSize: 10
-        },
         body: {
           page: 1,
           pageSize: 10
@@ -99,10 +97,6 @@ describe('StateResource', () => {
 
     it('should request with put', async () => {
       options = {
-        query: {
-          page: 1,
-          pageSize: 10
-        },
         body: {
           page: 1,
           pageSize: 10
@@ -120,10 +114,6 @@ describe('StateResource', () => {
 
     it('should request with patch', async () => {
       options = {
-        query: {
-          page: 1,
-          pageSize: 10
-        },
         body: {
           page: 1,
           pageSize: 10
@@ -141,10 +131,6 @@ describe('StateResource', () => {
 
     it('should request with get', async () => {
       options = {
-        query: {
-          page: 1,
-          pageSize: 10
-        },
         method: 'GET',
       };
       await userState.follow('conversations', {
@@ -155,10 +141,6 @@ describe('StateResource', () => {
 
     it('should request with delete', async () => {
       options = {
-        query: {
-          page: 1,
-          pageSize: 10
-        },
         method: 'DELETE',
       };
       await userState.follow('conversations', {
@@ -178,6 +160,7 @@ describe('StateResource', () => {
   })
 
   it('should verify request body with hal template', async () => {
+    vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, { ...halUser._links['latest-conversation'], rel: 'latest-conversation' }))
     await expect(userState.follow('create-conversation').withPost({ title: 123 }).request()).rejects.toThrow('Invalid');
   });
 });

@@ -9,6 +9,7 @@ import { Links } from '../links/links.js';
 import { LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
 import { LinkResource } from './link-resource.js';
+import { expand } from '../util/uri-template.js';
 
 export class StateResource<
   TEntity extends Entity
@@ -75,15 +76,28 @@ export class StateResource<
       nextState = embedded;
     } else {
       const { rel, options } = this.getCurrentOptions();
+      const { method = 'GET', query, body = {} } = options;
       // If no embedded data is available, make an HTTP request
-      const form = currentState.getForm(rel, options.method ?? 'GET');
-      const resource = new LinkResource(
-        this.client,
-        link,
-        [],
-        new Map([[rel, options]])
-      );
-      nextState = await resource.request(form);
+      const form = currentState.getForm(rel, method);
+      let resource = this.client.go({ ...link, href: expand(link, query) });
+      switch (options.method) {
+        case 'GET':
+          resource = resource.withGet();
+          break;
+        case 'POST':
+          resource = resource.withPost(body);
+          break;
+        case 'PUT':
+          resource = resource.withPut(body);
+          break;
+        case 'PATCH':
+          resource = resource.withPatch(body);
+          break;
+        case 'DELETE':
+          resource = resource.withDelete();
+          break;
+      }
+      nextState = await (resource as LinkResource<SafeAny>).request(form);
     }
 
     return this.resolveRelationsRecursively(nextState, nextRels);
