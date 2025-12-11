@@ -89,7 +89,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   }
 
   getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined {
-    return this.links.get(rel);
+    return this.links.get(rel as string);
   }
 
   getEmbedded<K extends keyof TEntity['links']>(rel: K): State | State[] {

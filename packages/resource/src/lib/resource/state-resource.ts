@@ -66,7 +66,7 @@ export class StateResource<
         uri: new URL(link.href, this.client.bookmarkUri).toString(),
         data: {},
         collection: embedded,
-        links: new Links(),
+        links: new Links(this.client.bookmarkUri),
         headers: new Headers(),
       });
     } else if (embedded) {

@@ -17,7 +17,7 @@ export class BinaryStateFactory implements StateFactory {
       uri,
       data: await response.blob(),
       headers: response.headers,
-      links: parseHeaderLink(response.headers),
+      links: parseHeaderLink(client.bookmarkUri, response.headers),
     });
   }
 }

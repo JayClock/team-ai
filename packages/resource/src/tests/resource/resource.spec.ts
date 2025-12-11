@@ -1,5 +1,5 @@
 import { describe, expect, vi } from 'vitest';
-import { Conversation, User } from '../fixtures/interface.js';
+import { User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
 import { ClientInstance } from '../../lib/client-instance.js';
@@ -8,7 +8,7 @@ import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js'
 import { State } from '../../lib/state/state.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { Collection, RequestOptions, Resource } from '../../lib/index.js';
+import { RequestOptions, Resource } from '../../lib/index.js';
 import { LinkResource } from '../../lib/resource/link-resource.js';
 
 const mockFetcher = {
@@ -68,7 +68,7 @@ describe('StateResource', () => {
 
     let options: RequestOptions;
 
-    const link: Link = { ...halUser._links.conversations, rel: 'conversations' };
+    const link: Link = { ...halUser._links.conversations, context: mockClient.bookmarkUri, rel: 'conversations' };
 
     beforeEach(() => {
       vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);

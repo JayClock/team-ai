@@ -4,7 +4,7 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from './archtype/injection-types.js';
 import { Resource } from './resource/resource.js';
 import { Client } from './create-client.js';
-import { Link } from './links/link.js';
+import { NewLink } from './links/link.js';
 import { Fetcher } from './http/fetcher.js';
 import { State, StateFactory } from './state/state.js';
 import { HalStateFactory } from './state/hal-state/hal-state.factory.js';
@@ -60,8 +60,7 @@ export class ClientInstance implements Client {
   /**
    * Transforms a fetch Response to a State object.
    */
-
-  go<TEntity extends Entity>(link: Link): Resource<TEntity> {
+  go<TEntity extends Entity>(link: NewLink): Resource<TEntity> {
     return new LinkResource<TEntity>(this, link);
   }
 

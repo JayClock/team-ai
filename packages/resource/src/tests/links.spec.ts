@@ -1,51 +1,112 @@
 import { describe, expect } from 'vitest';
 import { Links } from '../lib/links/links.js';
-import { Link } from '../lib/links/link.js';
 
 describe('Links', () => {
-  let links: Links<Record<string, Link>>;
-  beforeEach(() => {
-    links = new Links<Record<string, Link>>();
+  it('should instantiate', () => {
+    const links = new Links('http://base.example/');
+    expect(links).to.be.an.instanceof(Links);
   });
 
-  it('should add multi links', () => {
-    const link1: Link = { rel: 'rel1', href: 'href1' };
-    const link2: Link = { rel: 'rel2', href: 'href2' };
-    links.add([link1, link2]);
-    expect(links.get('rel1')).toEqual(link1);
-    expect(links.get('rel2')).toEqual(link2);
+  it('should allow adding links', () => {
+    const links = new Links('http://base.example/');
+    links.add('rel', 'http://a.example/');
+    links.add({
+      rel: 'rel',
+      href: 'http://b.example/',
+    });
+
+    expect(links.getAll()).to.eql([
+      {
+        context: 'http://base.example/',
+        rel: 'rel',
+        href: 'http://a.example/',
+      },
+      {
+        context: 'http://base.example/',
+        rel: 'rel',
+        href: 'http://b.example/',
+      },
+    ]);
   });
 
-  it('should set single link and instead exist link', () => {
-    const link1: Link = { rel: 'rel', href: 'href1' };
-    const link2: Link = { rel: 'rel', href: 'href2' };
-    links.add([link1]);
-    links.set(link2);
-    expect(links.get('rel')).toEqual(link2);
+  it('should overwrite links with .set', () => {
+    const links = new Links('http://base.example/');
+    links.set('rel', 'http://a.example/');
+    links.set({
+      rel: 'rel',
+      href: 'http://b.example/',
+    });
+
+    expect(links.getMany('rel')).to.eql([
+      {
+        context: 'http://base.example/',
+        rel: 'rel',
+        href: 'http://b.example/',
+      },
+    ]);
+
+    expect(links).to.be.an.instanceof(Links);
   });
 
-  it('should get multiple links', () => {
-    const link1: Link = { rel: 'rel', href: 'href1' };
-    const link2: Link = { rel: 'rel', href: 'href2' };
-    const link3: Link = { rel: 'rel3', href: 'href3' };
-    links.add([link1, link2, link3]);
-    expect(links.getMany('rel')).toEqual([link1, link2]);
-    expect(links.getMany('rel3')).toEqual([link3]);
-    expect(links.getMany('not existed')).toEqual([]);
+  it('should return the correct value from "has()"', () => {
+    const links = new Links('http://base.example/', [
+      {
+        context: 'http://base.example',
+        href: 'http://a.example',
+        rel: 'rel',
+      },
+    ]);
+    expect(links.has('rel')).to.equal(true);
+    expect(links.has('not-rel')).to.equal(false);
   });
 
-  it('should get all links', () => {
-    const link1: Link = { rel: 'rel', href: 'href1' };
-    const link2: Link = { rel: 'rel', href: 'href2' };
-    const link3: Link = { rel: 'rel3', href: 'href3' };
-    links.add([link1, link2, link3]);
-    expect(links.getAll()).toEqual([link1, link2, link3]);
+  it('should get a single link from get()', () => {
+    const links = new Links('http://base.example/');
+    links.add('rel', 'http://a.example/');
+    links.add({
+      rel: 'rel',
+      href: 'http://b.example/',
+    });
+    expect(links.get('rel')).to.eql({
+      context: 'http://base.example/',
+      rel: 'rel',
+      href: 'http://a.example/',
+    });
   });
 
-  it('It should be determined whether a link exists', () => {
-    const link: Link = { rel: 'rel', href: 'href1' };
-    links.add([link]);
-    expect(links.has('rel')).toBeTruthy();
-    expect(links.has('not existed')).toBeFalsy();
+  it('should return undefined from get() if the link did not exist', () => {
+    const links = new Links('http://base.example/');
+    links.add('rel', 'http://a.example/');
+    links.add({
+      rel: 'rel',
+      href: 'http://b.example/',
+    });
+    expect(links.get('not-found')).to.eql(undefined);
+  });
+
+  it('should return an empty array from getMany if no links were found', () => {
+    const links = new Links('http://base.example/');
+    links.add('rel', 'http://a.example/');
+    links.add({
+      rel: 'rel',
+      href: 'http://b.example/',
+    });
+    expect(links.getMany('not-found')).to.eql([]);
+  });
+
+  it('should allow cloning via the constructor', () => {
+    const links = new Links('http://base.example/');
+    links.add('rel', 'http://a.example/');
+    links.add({
+      rel: 'rel',
+      href: 'http://b.example/',
+    });
+    const links2 = new Links('http://base.example', links);
+
+    expect(links2.get('rel')).to.eql({
+      context: 'http://base.example/',
+      rel: 'rel',
+      href: 'http://a.example/',
+    });
   });
 });

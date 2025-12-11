@@ -8,6 +8,7 @@ import { parseHalLinks } from './parse-hal-links.js';
 import { parseHalTemplates } from './parse-hal-templates.js';
 import { parseHalEmbedded } from './parse-hal-embedded.js';
 import { injectable } from 'inversify';
+import { Links } from '../../links/links.js';
 
 /**
  * Turns a HTTP response into a HalState
@@ -22,7 +23,10 @@ export class HalStateFactory implements StateFactory {
   ): Promise<State<TEntity>> {
     const halResource = (await response.json()) as HalResource;
     const { _links, _embedded, _templates, ...pureData } = halResource;
-    const links = parseHalLinks(_links);
+    const links = new Links(
+      client.bookmarkUri,
+      parseHalLinks(_links)
+    );
     const forms = parseHalTemplates(links, _templates);
     const embedded = parseHalEmbedded(client, _embedded);
     return new HalState<TEntity>({

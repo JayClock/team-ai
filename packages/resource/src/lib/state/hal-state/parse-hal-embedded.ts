@@ -4,6 +4,7 @@ import { parseHalLinks } from './parse-hal-links.js';
 import { parseHalTemplates } from './parse-hal-templates.js';
 import { BaseState } from '../base-state.js';
 import { ClientInstance } from '../../client-instance.js';
+import { Links } from '../../links/links.js';
 
 export const parseHalEmbedded = (
   client: ClientInstance,
@@ -30,7 +31,10 @@ function createHalStateFromResource(
   halResource: HalResource
 ): State {
   const { _links, _embedded, _templates, ...pureData } = halResource;
-  const links = parseHalLinks(_links);
+  const links = new Links(
+    client.bookmarkUri,
+    parseHalLinks(_links)
+  );
   const forms = parseHalTemplates(links, _templates);
 
   return new BaseState({

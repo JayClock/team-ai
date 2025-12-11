@@ -1,5 +1,5 @@
 import { Links } from '../links/links.js';
-import { Link } from '../links/link.js';
+import { Link, NewLink } from '../links/link.js';
 import LinkHeader from 'http-link-header';
 
 /**
@@ -15,8 +15,11 @@ export function parseContentType(contentType: string | null): string | null {
   return contentType.trim();
 }
 
-export function parseHeaderLink(headers: Headers): Links<Record<string, Link>> {
-  const result = new Links();
+export function parseHeaderLink(
+  context: string,
+  headers: Headers
+): Links<Record<string, Link>> {
+  const result = new Links(context);
   const header = headers.get('Link');
   if (!header) {
     return result;
@@ -26,7 +29,7 @@ export function parseHeaderLink(headers: Headers): Links<Record<string, Link>> {
     // Looping through individual links
     for (const rel of httpLink.rel.split(' ')) {
       // Looping through space separated rel values.
-      const link: Link = {
+      const link: NewLink = {
         rel: rel,
         href: httpLink.uri,
         title: httpLink.title,

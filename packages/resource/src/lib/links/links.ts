@@ -1,16 +1,53 @@
 import { SafeAny } from '../archtype/safe-any.js';
-import { Link } from './link.js';
+import { Link, NewLink } from './link.js';
 
+/**
+ * Links container, providing an easy way to manage a set of links.
+ */
 export class Links<T extends Record<string, SafeAny>> {
   private store = new Map<string, Link[]>();
 
-  add(links: Link[]) {
+  constructor(public defaultContext: string, links?: (Link | NewLink)[] | Links<T>) {
+    this.store = new Map();
+
+    if (links) {
+      if (links instanceof Links) {
+        this.add(...links.getAll());
+      } else {
+        for (const link of links) {
+          this.add(link);
+        }
+      }
+    }
+  }
+
+  /**
+   * Adds a link to the list
+   */
+  add(...links: NewLink[]): void;
+  add(rel: string, href: string): void;
+  add(...args: SafeAny[]): void {
+    let links: Link[];
+
+    if (typeof args[0] === 'string') {
+      links = [
+        {
+          rel: args[0],
+          href: args[1],
+          context: this.defaultContext,
+        },
+      ];
+    } else {
+      links = args.map((link) => {
+        return { context: this.defaultContext, ...link };
+      });
+    }
+
     for (const link of links) {
       if (this.store.has(link.rel)) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        this.store.get(link.rel)!.push(link);
+        this.store.get(link.rel)?.push(link);
       } else {
-        this.set(link);
+        this.store.set(link.rel, [link]);
       }
     }
   }
@@ -20,12 +57,12 @@ export class Links<T extends Record<string, SafeAny>> {
    *
    * If the link does not exist, undefined is returned.
    */
-  get(rel: keyof T): Link | undefined {
-    if (this.store.has(rel as string)) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return this.store.get(rel as string)![0];
+  get(rel: string): Link | undefined {
+    const links = this.store.get(rel);
+    if (!links || links.length < 0) {
+      return undefined;
     }
-    return undefined;
+    return links[0];
   }
 
   /**
@@ -33,7 +70,22 @@ export class Links<T extends Record<string, SafeAny>> {
    *
    * If a link with the provided 'rel' already existed, it will be overwritten.
    */
-  set(link: Link): void {
+  set(link: NewLink): void;
+  set(rel: string, href: string): void;
+  set(arg1: SafeAny, arg2?: SafeAny): void {
+    let link: Link;
+    if (typeof arg1 === 'string') {
+      link = {
+        rel: arg1,
+        href: arg2,
+        context: this.defaultContext,
+      };
+    } else {
+      link = {
+        context: this.defaultContext,
+        ...arg1,
+      };
+    }
     this.store.set(link.rel, [link]);
   }
 
