@@ -36,7 +36,6 @@ describe('Client', () => {
 
   beforeAll(() => server.listen());
 
-
   it('should get user data', async () => {
     const res = await userResource.request();
     expect(res.uri).toEqual(new URL('/api/users/1', baseURL).toString());

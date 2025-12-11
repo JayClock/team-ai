@@ -1,5 +1,6 @@
 import { SafeAny } from '../archtype/safe-any.js';
 import { Link, NewLink } from './link.js';
+import { resolve } from '../http/util.js';
 
 /**
  * Links container, providing an easy way to manage a set of links.
@@ -7,7 +8,10 @@ import { Link, NewLink } from './link.js';
 export class Links<T extends Record<string, SafeAny>> {
   private store = new Map<string, Link[]>();
 
-  constructor(public defaultContext: string, links?: (Link | NewLink)[] | Links<T>) {
+  constructor(
+    public defaultContext: string,
+    links?: (Link | NewLink)[] | Links<T>
+  ) {
     this.store = new Map();
 
     if (links) {
@@ -87,6 +91,29 @@ export class Links<T extends Record<string, SafeAny>> {
       };
     }
     this.store.set(link.rel, [link]);
+  }
+
+  /**
+   * Delete all links with the given 'rel'.
+   *
+   * If the second argument is provided, only links that match the href will
+   * be removed.
+   */
+  delete(rel: string, href?: string): void {
+    if (href === undefined) {
+      this.store.delete(rel);
+      return;
+    }
+
+    const uris = this.store.get(rel);
+    if (!uris) return;
+
+    this.store.delete(rel);
+    const absHref = resolve(this.defaultContext, href);
+    this.store.set(
+      rel,
+      uris.filter((uri) => resolve(uri) !== absHref)
+    );
   }
 
   /**

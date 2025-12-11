@@ -109,4 +109,67 @@ describe('Links', () => {
       href: 'http://a.example/',
     });
   });
+
+  it('should allow removing a link by rel', () => {
+    const links = new Links('http://base.example/');
+    links.add('rel', 'http://a.example/');
+    links.add({
+      rel: 'rel',
+      href: 'http://b.example/',
+    });
+    links.add({
+      rel: 'rel2',
+      href: 'http://c.example/',
+    });
+    links.delete('rel');
+    expect(links.getAll()).to.eql([
+      {
+        context: 'http://base.example/',
+        rel: 'rel2',
+        href: 'http://c.example/',
+      },
+    ]);
+  });
+
+  it('should allow removing a link by rel and href', () => {
+    const links = new Links('http://base.example/');
+    links.add('rel', 'http://a.example/');
+    links.add({
+      rel: 'rel',
+      href: 'http://b.example/',
+    });
+    links.add({
+      rel: 'rel2',
+      href: 'http://c.example/',
+    });
+    links.delete('rel', 'http://a.example/');
+    expect(links.getAll()).to.eql([
+      {
+        context: 'http://base.example/',
+        rel: 'rel2',
+        href: 'http://c.example/',
+      },
+      {
+        context: 'http://base.example/',
+        rel: 'rel',
+        href: 'http://b.example/',
+      },
+    ]);
+  });
+
+  it("should not fail on deleting links that don't exist", () => {
+    const links = new Links('http://base.example/');
+    links.add({
+      rel: 'rel2',
+      href: 'http://c.example/',
+    });
+    links.delete('rel', 'http://a.example/');
+    expect(links.getAll()).to.eql([
+      {
+        context: 'http://base.example/',
+        rel: 'rel2',
+        href: 'http://c.example/',
+      },
+    ]);
+  });
 });
