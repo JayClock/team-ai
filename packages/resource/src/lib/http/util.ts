@@ -1,3 +1,7 @@
+import { Links } from '../links/links.js';
+import { Link } from '../links/link.js';
+import LinkHeader from 'http-link-header';
+
 /**
  * Takes a Content-Type header, and only returns the mime-type part.
  */
@@ -9,6 +13,30 @@ export function parseContentType(contentType: string | null): string | null {
     contentType = contentType.split(';')[0];
   }
   return contentType.trim();
+}
+
+export function parseHeaderLink(headers: Headers): Links<Record<string, Link>> {
+  const result = new Links();
+  const header = headers.get('Link');
+  if (!header) {
+    return result;
+  }
+
+  for (const httpLink of LinkHeader.parse(header).refs) {
+    // Looping through individual links
+    for (const rel of httpLink.rel.split(' ')) {
+      // Looping through space separated rel values.
+      const link: Link = {
+        rel: rel,
+        href: httpLink.uri,
+        title: httpLink.title,
+        hreflang: httpLink.hreflang,
+        type: httpLink.type,
+      };
+      result.set(link);
+    }
+  }
+  return result;
 }
 
 /**

@@ -6,9 +6,11 @@ import { Resource } from './resource/resource.js';
 import { Client } from './create-client.js';
 import { Link } from './links/link.js';
 import { Fetcher } from './http/fetcher.js';
-import { State } from './state/state.js';
+import { State, StateFactory } from './state/state.js';
 import { HalStateFactory } from './state/hal-state/hal-state.factory.js';
 import type { Config } from './archtype/config.js';
+import { BinaryStateFactory } from './state/binary-state/binary-state.factory.js';
+import { parseContentType } from './http/util.js';
 
 @injectable()
 export class ClientInstance implements Client {
@@ -25,10 +27,35 @@ export class ClientInstance implements Client {
     @inject(TYPES.Config)
     readonly config: Config,
     @inject(TYPES.HalStateFactory)
-    readonly halStateFactory: HalStateFactory
+    private readonly halStateFactory: HalStateFactory,
+    @inject(TYPES.BinaryStateFactory)
+    private readonly binaryStateFactory: BinaryStateFactory
   ) {
     this.bookmarkUri = config.baseURL;
+
+    this.contentTypeMap = {
+      'application/prs.hal-forms+json': [halStateFactory, '1.0'],
+      'application/hal+json': [halStateFactory, '0.9'],
+      // 'application/vnd.api+json': [jsonApiStateFactory, '0.8'],
+      // 'application/vnd.siren+json': [sirenStateFactory, '0.8'],
+      // 'application/vnd.collection+json': [cjStateFactory, '0.8'],
+      'application/json': [halStateFactory, '0.7'],
+      // 'text/html': [htmlStateFactory, '0.6'],
+    };
   }
+
+  /**
+   * Supported content types
+   *
+   * Each content-type has a 'factory' that turns a HTTP response
+   * into a State object.
+   *
+   * The last value in the array is the 'q=' value, used in Accept
+   * headers. Higher means higher priority.
+   */
+  contentTypeMap: {
+    [mimeType: string]: [StateFactory, string];
+  } = {};
 
   /**
    * Transforms a fetch Response to a State object.
@@ -43,6 +70,24 @@ export class ClientInstance implements Client {
     response: Response,
     rel?: string
   ): Promise<State<TEntity>> {
-    return this.halStateFactory.create(this, uri, response, rel);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const contentType = parseContentType(response.headers.get('Content-Type')!);
+
+    if (!contentType || response.status === 204) {
+      return this.binaryStateFactory.create<TEntity>(this, uri, response);
+    }
+
+    if (contentType in this.contentTypeMap) {
+      return this.contentTypeMap[contentType][0].create<TEntity>(
+        this,
+        uri,
+        response,
+        rel
+      );
+    } else if (contentType.match(/^application\/[A-Za-z-.]+\+json/)) {
+      return this.halStateFactory.create<TEntity>(this, uri, response, rel);
+    }
+
+    return this.binaryStateFactory.create<TEntity>(this, uri, response);
   }
 }

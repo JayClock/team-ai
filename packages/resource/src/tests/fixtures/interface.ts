@@ -9,6 +9,7 @@ export type User = Entity<
     conversations: Collection<Conversation>;
     'create-conversation': Conversation;
     'latest-conversation': Conversation;
+    file: Entity<Blob>;
   }
 >;
 

@@ -28,9 +28,10 @@ export class Fetcher {
         query,
       });
     }
-    return await fetch(new URL(path, this.config.baseURL), {
+    const url = new URL(path, this.config.baseURL);
+    return await fetch(url, {
       body: JSON.stringify(body),
-      method: link.type,
+      method: link.type ?? 'GET',
     });
   }
 

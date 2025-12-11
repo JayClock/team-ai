@@ -19,6 +19,9 @@
     },
     "latest-conversation": {
       "href": "/api/conversations/conv-456"
+    },
+    "file": {
+      "href": "/api/file"
     }
   },
   "_embedded": {

@@ -15,6 +15,13 @@ const handlers = [
   }),
   http.get('https://api.example.com/api/users/1/conversations?page=1&pageSize=10', () => {
     return HttpResponse.json(halConversations);
+  }),
+  http.get('https://api.example.com/api/file', () => {
+    const binaryData = Buffer.from([0x48, 0x65, 0x6c, 0x6c, 0x6f]);
+    return new HttpResponse(binaryData,{headers: {
+        'content-type': 'application/octet-stream',
+        'content-length': binaryData.length.toString()
+      }})
   })
 ];
 
@@ -58,6 +65,12 @@ describe('Client', () => {
     expect(res.collection.length).toEqual(halConversations._embedded.conversations.length);
     expect(res.uri).toBe(new URL('/api/users/1/conversations?page=1&pageSize=10', baseURL).toString());
   });
+
+  it('should get user file data with binary',async ()=> {
+    const res = await userResource.follow('file').request()
+    const text = await res.data.text();
+    expect(text).toBe('Hello');
+  })
 
   afterEach(() => server.resetHandlers());
 

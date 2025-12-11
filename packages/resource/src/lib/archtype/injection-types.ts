@@ -3,4 +3,5 @@ export const TYPES = {
   Client: Symbol.for('Client'),
   Fetcher: Symbol.for('Fetcher'),
   HalStateFactory: Symbol.for('HalStateFactory'),
+  BinaryStateFactory: Symbol.for('BinaryStateFactory'),
 };
