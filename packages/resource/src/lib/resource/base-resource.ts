@@ -23,9 +23,15 @@ export class BaseResource<TEntity extends Entity> {
       this.verifyFormData(form, options.body);
     }
 
-
     const response = await this.client.fetcher.fetchOrThrow(link, options);
     return this.client.getStateForResponse(response.url, response, link.rel);
+  }
+
+  protected initRequestOptionsWithRel(
+    rel: string,
+    requestOptions: RequestOptions
+  ): void {
+    this.optionsMap.set(rel, requestOptions);
   }
 
   private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {

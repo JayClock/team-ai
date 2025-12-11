@@ -56,11 +56,9 @@ describe('Client', () => {
   });
 
   it('should get user conversations data', async () => {
-    const res = await userResource.follow('conversations').withRequestOptions({
-      query: {
-        page: 1,
-        pageSize: 10
-      }
+    const res = await userResource.follow('conversations',{
+      page: 1,
+      pageSize: 10
     }).request();
     expect(res.collection.length).toEqual(halConversations._embedded.conversations.length);
     expect(res.uri).toBe(new URL('/api/users/1/conversations?page=1&pageSize=10', baseURL).toString());

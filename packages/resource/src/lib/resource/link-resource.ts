@@ -2,7 +2,7 @@ import { Entity } from '../archtype/entity.js';
 import { RequestOptions, Resource } from './resource.js';
 import { StateResource } from './state-resource.js';
 import { BaseResource } from './base-resource.js';
-import { Link } from '../links/link.js';
+import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 
@@ -21,8 +21,10 @@ export class LinkResource<TEntity extends Entity>
   }
 
   follow<K extends keyof TEntity['links']>(
-    rel: K
+    rel: K,
+    variables?: LinkVariables
   ): Resource<TEntity['links'][K]> {
+    this.initRequestOptionsWithRel(rel as string, { query: variables });
     return new LinkResource(
       this.client,
       this.link,
@@ -34,7 +36,9 @@ export class LinkResource<TEntity extends Entity>
   withRequestOptions(options: RequestOptions): Resource<TEntity> {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lastRel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;
-    this.optionsMap.set(lastRel, options);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const currentOptions = this.optionsMap.get(lastRel)!;
+    this.optionsMap.set(lastRel, { ...currentOptions, ...options });
     return this;
   }
 

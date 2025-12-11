@@ -5,8 +5,8 @@ import { BaseState } from '../state/base-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
-import { URL } from 'next/dist/compiled/@edge-runtime/primitives/index.js';
 import { Links } from '../links/links.js';
+import { LinkVariables } from '../links/link.js';
 
 export class StateResource<TEntity extends Entity>
   extends BaseResource<TEntity>
@@ -22,8 +22,10 @@ export class StateResource<TEntity extends Entity>
   }
 
   follow<K extends keyof TEntity['links']>(
-    rel: K
+    rel: K,
+    variables?: LinkVariables
   ): Resource<TEntity['links'][K]> {
+    this.initRequestOptionsWithRel(rel as string, { query: variables });
     return new StateResource(
       this.client,
       this.state,
@@ -81,7 +83,9 @@ export class StateResource<TEntity extends Entity>
   withRequestOptions(options: RequestOptions): Resource<TEntity> {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lastRel = this.rels.at(-1)!;
-    this.optionsMap.set(lastRel, options);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const currentOptions = this.optionsMap.get(lastRel)!;
+    this.optionsMap.set(lastRel, { ...currentOptions, ...options });
     return this;
   }
 }

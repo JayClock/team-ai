@@ -76,7 +76,10 @@ describe('StateResource', () => {
         pageSize: 10
       }
     };
-    const conversationsResource = userState.follow('conversations').withRequestOptions(options);
+    const conversationsResource = userState.follow('conversations',{
+      page: 1,
+      pageSize: 10
+    });
     await conversationsResource.request();
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(link, options);

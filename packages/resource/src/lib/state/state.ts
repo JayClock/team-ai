@@ -3,7 +3,7 @@ import { Links } from '../links/links.js';
 import { Form } from '../form/form.js';
 import { StateCollection } from './state-collection.js';
 import { Resource } from '../resource/resource.js';
-import { Link } from '../links/link.js';
+import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 
 export type State<TEntity extends Entity = Entity> = {
@@ -43,7 +43,8 @@ export type State<TEntity extends Entity = Entity> = {
    * 'alternate', 'item', 'edit' or a custom url-based one.
    */
   follow<K extends keyof TEntity['links']>(
-    rel: K
+    rel: K,
+    variables?: LinkVariables
   ): Resource<TEntity['links'][K]>;
 
   getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined;

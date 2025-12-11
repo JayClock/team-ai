@@ -5,7 +5,7 @@ import { StateCollection } from './state-collection.js';
 import { Form } from '../form/form.js';
 import { Resource } from '../resource/resource.js';
 import { StateResource } from '../resource/state-resource.js';
-import { Link } from '../links/link.js';
+import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
 import { SafeAny } from '../archtype/safe-any.js';
@@ -68,11 +68,12 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   }
 
   follow<K extends keyof TEntity['links']>(
-    rel: K
+    rel: K,
+    variables?: LinkVariables
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new StateResource(this.client, this, [link.rel]);
+      return new StateResource(this.client, this).follow(link.rel, variables);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
