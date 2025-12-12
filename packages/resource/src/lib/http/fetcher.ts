@@ -1,6 +1,6 @@
 import { injectable } from 'inversify';
 import { Link } from '../links/link.js';
-import { RequestOptions } from '../resource/resource.js';
+import { ResourceOptions } from '../resource/resource.js';
 import problemFactory from './error.js';
 import { expand } from '../util/uri-template.js';
 
@@ -11,13 +11,13 @@ export class Fetcher {
    */
   private async fetch(
     link: Link,
-    options: RequestOptions = {}
+    options: ResourceOptions = {}
   ): Promise<Response> {
-    const { body, query, method } = options;
+    const { data, query, method } = options;
     const url = expand(link, query);
 
     return await fetch(url, {
-      body: JSON.stringify(body),
+      body: JSON.stringify(data),
       method: method || 'GET',
       headers: {
         'Content-Type': link.type ?? 'application/json',
@@ -31,7 +31,7 @@ export class Fetcher {
    */
   async fetchOrThrow(
     link: Link,
-    options: RequestOptions = {}
+    options: ResourceOptions = {}
   ): Promise<Response> {
     const response = await this.fetch(link, options);
 

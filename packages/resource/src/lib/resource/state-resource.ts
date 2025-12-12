@@ -1,5 +1,5 @@
 import { Entity } from '../archtype/entity.js';
-import { RequestOptions, Resource } from './resource.js';
+import { ResourceOptions, Resource } from './resource.js';
 import { State } from '../state/state.js';
 import { BaseState } from '../state/base-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
@@ -18,7 +18,7 @@ export class StateResource<
     client: ClientInstance,
     private state: State,
     private rels: string[] = [],
-    optionsMap: Map<string, RequestOptions> = new Map()
+    optionsMap: Map<string, ResourceOptions> = new Map()
   ) {
     super(client, optionsMap);
   }
@@ -76,7 +76,7 @@ export class StateResource<
       nextState = embedded;
     } else {
       const { rel, options } = this.getCurrentOptions();
-      const { method = 'GET', query, body = {} } = options;
+      const { method = 'GET', query, data = {} } = options;
       // If no embedded data is available, make an HTTP request
       const form = currentState.getForm(rel, method);
       let resource = this.client.go({ ...link, href: expand(link, query) });
@@ -85,13 +85,13 @@ export class StateResource<
           resource = resource.withGet();
           break;
         case 'POST':
-          resource = resource.withPost(body);
+          resource = resource.withPost(data);
           break;
         case 'PUT':
-          resource = resource.withPut(body);
+          resource = resource.withPut(data);
           break;
         case 'PATCH':
-          resource = resource.withPatch(body);
+          resource = resource.withPatch(data);
           break;
         case 'DELETE':
           resource = resource.withDelete();
@@ -105,7 +105,7 @@ export class StateResource<
 
   getCurrentOptions(): {
     rel: string;
-    options: RequestOptions;
+    options: ResourceOptions;
   } {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const rel = this.rels.at(-1)!;

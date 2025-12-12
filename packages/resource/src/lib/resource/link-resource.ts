@@ -1,11 +1,13 @@
 import { Entity } from '../archtype/entity.js';
-import { RequestOptions, Resource } from './resource.js';
+import { ResourceOptions, Resource } from './resource.js';
 import { StateResource } from './state-resource.js';
 import { BaseResource } from './base-resource.js';
-import { LinkVariables, NewLink } from '../links/link.js';
+import { Link, LinkVariables, NewLink } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Form } from '../form/form.js';
+import { SafeAny } from '../archtype/safe-any.js';
+import { z } from 'zod';
 
 export class LinkResource<
   TEntity extends Entity
@@ -14,7 +16,7 @@ export class LinkResource<
     client: ClientInstance,
     private readonly link: NewLink,
     private readonly rels: string[] = [],
-    optionsMap: Map<string, RequestOptions> = new Map()
+    optionsMap: Map<string, ResourceOptions> = new Map()
   ) {
     super(client, optionsMap);
     this.link.rel = this.link.rel ?? 'ROOT_REL';
@@ -61,5 +63,54 @@ export class LinkResource<
 
   private isRootResource() {
     return this.rels.length === 0;
+  }
+
+  private async httpRequest(link: Link, form?: Form): Promise<State<TEntity>> {
+    const options = this.getRequestOption(link);
+
+    if (form) {
+      this.verifyFormData(form, options.body);
+    }
+
+    const response = await this.client.fetcher.fetchOrThrow(link, options);
+    return this.client.getStateForResponse(response.url, response, link.rel);
+  }
+
+  private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {
+    const shape: Record<string, SafeAny> = {};
+
+    for (const field of form.fields) {
+      let shapeElement: z.ZodType;
+
+      switch (field.type) {
+        case 'text':
+          shapeElement = z.string();
+          break;
+        case 'url':
+          shapeElement = z.url();
+          break;
+        default:
+          shapeElement = z.string();
+      }
+
+      if (field.readOnly) {
+        shapeElement = shapeElement.readonly();
+      }
+      if (!field.required) {
+        shapeElement = shapeElement.optional();
+      }
+      shape[field.name] = shapeElement;
+    }
+
+    try {
+      const schema = z.object(shape);
+      schema.parse(body);
+    } catch {
+      throw new Error('Invalid');
+    }
+  }
+
+  private getRequestOption(link: Link) {
+    return this.optionsMap.get(link.rel) ?? {};
   }
 }

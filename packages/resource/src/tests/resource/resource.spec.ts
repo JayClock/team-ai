@@ -8,7 +8,7 @@ import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js'
 import { State } from '../../lib/state/state.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { RequestOptions, Resource } from '../../lib/index.js';
+import { ResourceOptions, Resource } from '../../lib/index.js';
 import { LinkResource } from '../../lib/resource/link-resource.js';
 import { resolve } from '../../lib/util/uri.js';
 
@@ -70,7 +70,7 @@ describe('StateResource', () => {
       json: vi.fn().mockResolvedValue(halConversations)
     } as unknown as Response;
 
-    let options: RequestOptions;
+    let options: ResourceOptions;
 
 
     beforeEach(() => {
@@ -80,7 +80,7 @@ describe('StateResource', () => {
 
     it('should request with post', async () => {
       options = {
-        body: {
+        data: {
           page: 1,
           pageSize: 10
         },
@@ -97,7 +97,7 @@ describe('StateResource', () => {
 
     it('should request with put', async () => {
       options = {
-        body: {
+        data: {
           page: 1,
           pageSize: 10
         },
@@ -114,7 +114,7 @@ describe('StateResource', () => {
 
     it('should request with patch', async () => {
       options = {
-        body: {
+        data: {
           page: 1,
           pageSize: 10
         },
