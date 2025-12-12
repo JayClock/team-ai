@@ -53,6 +53,7 @@ export class LinkResource<
     };
     const state: State<TEntity> = await this.httpRequest(link, form);
     if (this.isRootResource()) {
+      this.client.cacheState(state);
       return state;
     }
     const stateResource = new StateResource<TEntity>(

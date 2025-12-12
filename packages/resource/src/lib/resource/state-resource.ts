@@ -6,7 +6,7 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
 import { Links } from '../links/links.js';
-import { Link, LinkVariables } from '../links/link.js';
+import { LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
 import { LinkResource } from './link-resource.js';
 import { expand } from '../util/uri-template.js';
@@ -60,7 +60,9 @@ export class StateResource<
     }
 
     const embedded = (currentState as BaseState<TEntity>).getEmbedded(link.rel);
-
+    const { rel, currentOptions } = this.getCurrentOptions();
+    const { query } = currentOptions;
+    const resource = this.client.go({ ...link, href: expand(link, query) });
     let nextState: State<SafeAny>;
 
     if (Array.isArray(embedded)) {
@@ -75,23 +77,26 @@ export class StateResource<
     } else if (embedded) {
       nextState = embedded;
     } else {
-      const { rel, currentOptions } = this.getCurrentOptions();
       const { method = 'GET' } = currentOptions;
       // If no embedded data is available, make an HTTP request
       const form = currentState.getForm(rel, method);
-      nextState = await this.getLinkResource(link, currentOptions).request(form);
+      nextState = await this.updateLinkResource(
+        resource,
+        currentOptions
+      ).request(form);
     }
+
+    this.client.cacheState(nextState);
 
     return this.resolveRelationsRecursively(nextState, nextRels);
   }
 
-  private getLinkResource(
-    link: Link,
+  private updateLinkResource(
+    resource: Resource<SafeAny>,
     currentOptions: ResourceOptions
   ): LinkResource<SafeAny> {
-    const { query, method } = currentOptions;
+    const { method } = currentOptions;
 
-    let resource = this.client.go({ ...link, href: expand(link, query) });
     switch (method) {
       case 'GET':
         resource = resource.withGet(currentOptions);

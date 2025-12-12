@@ -1,5 +1,5 @@
 import { describe, expect, vi } from 'vitest';
-import { User } from '../fixtures/interface.js';
+import { Conversation, User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import halConversations from '../fixtures/hal-conversations.json' with { type: 'json' };
 import { ClientInstance } from '../../lib/client-instance.js';
@@ -8,12 +8,11 @@ import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js'
 import { State } from '../../lib/state/state.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { Resource } from '../../lib/index.js';
+import { Collection, Resource } from '../../lib/index.js';
 import { LinkResource } from '../../lib/resource/link-resource.js';
 import { resolve } from '../../lib/util/uri.js';
 
 const mockFetcher = {
-  _fetchOrThrow: vi.fn(),
   fetchOrThrow: vi.fn()
 };
 
@@ -21,7 +20,8 @@ const mockClient = {
   bookmarkUri: 'https://www.test.com/',
   fetcher: mockFetcher,
   getStateForResponse: vi.fn(),
-  go: vi.fn()
+  go: vi.fn(),
+  cacheState: vi.fn(),
 } as unknown as ClientInstance;
 
 describe('StateResource', () => {
@@ -40,6 +40,7 @@ describe('StateResource', () => {
     vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(mockUserState);
     userState = await resource.request();
     expect(userState).toBe(mockUserState);
+    expect(mockClient.cacheState).toHaveBeenCalledWith(userState)
   })
 
   beforeEach(async () => {
@@ -54,13 +55,14 @@ describe('StateResource', () => {
     const accountsResource = userState.follow('accounts');
     const accounts = await accountsResource.request();
     expect(accounts.collection.length).toEqual(halUser._embedded.accounts.length)
+    expect(mockClient.cacheState).toHaveBeenCalledWith(accounts)
   });
 
   it('should generate states from user embedded latest-conversation', async () => {
     const latestConversationResource = userState.follow('latest-conversation');
     const conversation = await latestConversationResource.request();
-
     expect(halUser._embedded['latest-conversation']).toEqual(expect.objectContaining(conversation.data))
+    expect(mockClient.cacheState).toHaveBeenCalledWith(conversation)
   });
 
   describe('should handle non-embedded resource request with HTTP call', () => {
@@ -72,7 +74,7 @@ describe('StateResource', () => {
     } as unknown as Response;
 
     let options: RequestInit;
-
+    let state: State<Collection<Conversation>>;
 
     beforeEach(() => {
       vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, link));
@@ -89,7 +91,7 @@ describe('StateResource', () => {
         method: 'POST',
       };
 
-      await userState.follow('conversations', {
+      state = await userState.follow('conversations', {
         page: 1,
         pageSize: 10
       }).withPost({
@@ -112,7 +114,7 @@ describe('StateResource', () => {
         method: 'PUT',
       };
 
-      await userState.follow('conversations', {
+      state = await userState.follow('conversations', {
         page: 1,
         pageSize: 10
       }).withPut({
@@ -135,7 +137,7 @@ describe('StateResource', () => {
         method: 'PATCH',
       };
 
-      await userState.follow('conversations', {
+      state = await userState.follow('conversations', {
         page: 1,
         pageSize: 10
       }).withPatch({
@@ -153,7 +155,7 @@ describe('StateResource', () => {
         headers: new Headers({ 'Content-Type': 'application/json' }),
       };
 
-      await userState.follow('conversations', {
+      state = await userState.follow('conversations', {
         page: 1,
         pageSize: 10
       }).withGet().request();
@@ -167,7 +169,7 @@ describe('StateResource', () => {
         headers: new Headers({ 'Content-Type': 'application/json' }),
       };
 
-      await userState.follow('conversations', {
+      state = await userState.follow('conversations', {
         page: 1,
         pageSize: 10
       }).withDelete().request();
@@ -176,6 +178,7 @@ describe('StateResource', () => {
     })
 
     afterEach(() => {
+      expect(mockClient.cacheState).toHaveBeenCalledWith(state)
       expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
         mockResponse.url,
         mockResponse,
