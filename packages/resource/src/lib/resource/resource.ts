@@ -48,7 +48,7 @@ export type PatchRequestOptions<T = SafeAny> = RequestOptions<T>;
 export type PutRequestOptions<T = SafeAny> = RequestOptions<T>;
 export type PostRequestOptions<T = SafeAny> = RequestOptions<T>;
 
-export interface ResourceOptions extends RequestOptions{
+export interface ResourceOptions extends RequestOptions {
   query?: Record<string, SafeAny>;
   body?: Record<string, SafeAny>;
   method?: HttpMethod;
@@ -62,13 +62,13 @@ export interface Resource<TEntity extends Entity> {
 
   request(): Promise<State<TEntity>>;
 
-  withGet(): Resource<TEntity>;
+  withGet(options?: GetRequestOptions): Resource<TEntity>;
 
-  withPost(data: Record<string, SafeAny>): Resource<TEntity>;
+  withPost(options: PostRequestOptions): Resource<TEntity>;
 
-  withPut(data: Record<string, SafeAny>): Resource<TEntity>;
+  withPut(options: PutRequestOptions): Resource<TEntity>;
 
-  withPatch(data: Record<string, SafeAny>): Resource<TEntity>;
+  withPatch(options: PatchRequestOptions): Resource<TEntity>;
 
   withDelete(): Resource<TEntity>;
 }

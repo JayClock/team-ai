@@ -75,23 +75,23 @@ export class StateResource<
     } else if (embedded) {
       nextState = embedded;
     } else {
-      const { rel, options } = this.getCurrentOptions();
-      const { method = 'GET', query, data = {} } = options;
+      const { rel, currentOptions } = this.getCurrentOptions();
+      const { method = 'GET', query } = currentOptions;
       // If no embedded data is available, make an HTTP request
       const form = currentState.getForm(rel, method);
       let resource = this.client.go({ ...link, href: expand(link, query) });
-      switch (options.method) {
+      switch (method) {
         case 'GET':
           resource = resource.withGet();
           break;
         case 'POST':
-          resource = resource.withPost(data);
+          resource = resource.withPost(currentOptions);
           break;
         case 'PUT':
-          resource = resource.withPut(data);
+          resource = resource.withPut(currentOptions);
           break;
         case 'PATCH':
-          resource = resource.withPatch(data);
+          resource = resource.withPatch(currentOptions);
           break;
         case 'DELETE':
           resource = resource.withDelete();
@@ -105,12 +105,12 @@ export class StateResource<
 
   getCurrentOptions(): {
     rel: string;
-    options: ResourceOptions;
+    currentOptions: ResourceOptions;
   } {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const rel = this.rels.at(-1)!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const options = this.optionsMap.get(rel)!;
-    return { rel, options };
+    const currentOptions = this.optionsMap.get(rel)!;
+    return { rel, currentOptions };
   }
 }

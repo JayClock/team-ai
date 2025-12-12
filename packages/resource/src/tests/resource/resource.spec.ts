@@ -84,15 +84,19 @@ describe('StateResource', () => {
           page: 1,
           pageSize: 10
         },
+        query:{
+          page: 1,
+          pageSize: 10
+        },
         method: 'POST',
       };
       await userState.follow('conversations', {
         page: 1,
         pageSize: 10
-      }).withPost({
-        page: 1,
-        pageSize: 10
-      }).request();
+      }).withPost({data:{
+          page: 1,
+          pageSize: 10
+        }}).request();
     })
 
     it('should request with put', async () => {
@@ -101,15 +105,19 @@ describe('StateResource', () => {
           page: 1,
           pageSize: 10
         },
+        query:{
+          page: 1,
+          pageSize: 10
+        },
         method: 'PUT',
       };
       await userState.follow('conversations', {
         page: 1,
         pageSize: 10
-      }).withPut({
-        page: 1,
-        pageSize: 10
-      }).request();
+      }).withPut({data:{
+          page: 1,
+          pageSize: 10
+        }}).request();
     })
 
     it('should request with patch', async () => {
@@ -118,15 +126,19 @@ describe('StateResource', () => {
           page: 1,
           pageSize: 10
         },
+        query:{
+          page: 1,
+          pageSize: 10
+        },
         method: 'PATCH',
       };
       await userState.follow('conversations', {
         page: 1,
         pageSize: 10
-      }).withPatch({
-        page: 1,
-        pageSize: 10
-      }).request();
+      }).withPatch({data:{
+          page: 1,
+          pageSize: 10
+        }}).request();
     })
 
     it('should request with get', async () => {
@@ -161,6 +173,6 @@ describe('StateResource', () => {
 
   it('should verify request body with hal template', async () => {
     vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, { ...halUser._links['latest-conversation'], rel: 'latest-conversation' }))
-    await expect(userState.follow('create-conversation').withPost({ title: 123 }).request()).rejects.toThrow('Invalid');
+    await expect(userState.follow('create-conversation').withPost({data:{ title: 123 }}).request()).rejects.toThrow('Invalid');
   });
 });

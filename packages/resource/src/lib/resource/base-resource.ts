@@ -1,5 +1,10 @@
-import { SafeAny } from '../archtype/safe-any.js';
-import { ResourceOptions, Resource } from './resource.js';
+import {
+  ResourceOptions,
+  Resource,
+  GetRequestOptions,
+  PostRequestOptions,
+  PatchRequestOptions,
+} from './resource.js';
 import { LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
@@ -20,33 +25,37 @@ export abstract class BaseResource<TEntity extends Entity>
     this.optionsMap.set(rel, requestOptions);
   }
 
-  withGet(): Resource<TEntity> {
-    const { rel, options } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...options, method: 'GET' });
+  withGet(options?: GetRequestOptions): Resource<TEntity> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'GET' });
     return this;
   }
 
-  withPost(data: Record<string, SafeAny>): Resource<TEntity> {
-    const { rel, options } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...options, method: 'POST', data });
+  withPost(options: PostRequestOptions): Resource<TEntity> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'POST' });
     return this;
   }
 
-  withPut(data: Record<string, SafeAny>): Resource<TEntity> {
-    const { rel, options } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...options, method: 'PUT', data });
+  withPut(options: PostRequestOptions): Resource<TEntity> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'PUT' });
     return this;
   }
 
-  withPatch(data: Record<string, SafeAny>): Resource<TEntity> {
-    const { rel, options } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...options, method: 'PATCH', data });
+  withPatch(options: PatchRequestOptions): Resource<TEntity> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, {
+      ...currentOptions,
+      ...options,
+      method: 'PATCH',
+    });
     return this;
   }
 
   withDelete(): Resource<TEntity> {
-    const { rel, options } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...options, method: 'DELETE' });
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, method: 'DELETE' });
     return this;
   }
 
@@ -59,6 +68,6 @@ export abstract class BaseResource<TEntity extends Entity>
 
   abstract getCurrentOptions(): {
     rel: string;
-    options: ResourceOptions;
+    currentOptions: ResourceOptions;
   };
 }

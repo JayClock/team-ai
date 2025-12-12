@@ -39,8 +39,8 @@ export class LinkResource<
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const rel = this.isRootResource() ? this.link.rel : this.rels.at(-1)!;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const options = this.optionsMap.get(rel)!;
-    return { rel, options };
+    const currentOptions = this.optionsMap.get(rel)!;
+    return { rel, currentOptions };
   }
 
   async request(form?: Form): Promise<State<TEntity>> {
@@ -69,7 +69,7 @@ export class LinkResource<
     const options = this.getRequestOption(link);
 
     if (form) {
-      this.verifyFormData(form, options.body);
+      this.verifyFormData(form, options.data);
     }
 
     const response = await this.client.fetcher.fetchOrThrow(link, options);
