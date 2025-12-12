@@ -1,12 +1,12 @@
 import { Entity } from '../archtype/entity.js';
-import { ResourceOptions, Resource } from './resource.js';
+import { Resource, ResourceOptions } from './resource.js';
 import { State } from '../state/state.js';
 import { BaseState } from '../state/base-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
 import { Links } from '../links/links.js';
-import { LinkVariables } from '../links/link.js';
+import { Link, LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
 import { LinkResource } from './link-resource.js';
 import { expand } from '../util/uri-template.js';
@@ -76,31 +76,42 @@ export class StateResource<
       nextState = embedded;
     } else {
       const { rel, currentOptions } = this.getCurrentOptions();
-      const { method = 'GET', query } = currentOptions;
+      const { method = 'GET' } = currentOptions;
       // If no embedded data is available, make an HTTP request
       const form = currentState.getForm(rel, method);
-      let resource = this.client.go({ ...link, href: expand(link, query) });
-      switch (method) {
-        case 'GET':
-          resource = resource.withGet(currentOptions);
-          break;
-        case 'POST':
-          resource = resource.withPost(currentOptions);
-          break;
-        case 'PUT':
-          resource = resource.withPut(currentOptions);
-          break;
-        case 'PATCH':
-          resource = resource.withPatch(currentOptions);
-          break;
-        case 'DELETE':
-          resource = resource.withDelete();
-          break;
-      }
-      nextState = await (resource as LinkResource<SafeAny>).request(form);
+      nextState = await this.getLinkResource(link, currentOptions).request(form);
     }
 
     return this.resolveRelationsRecursively(nextState, nextRels);
+  }
+
+  private getLinkResource(
+    link: Link,
+    currentOptions: ResourceOptions
+  ): LinkResource<SafeAny> {
+    const { query, method } = currentOptions;
+
+    let resource = this.client.go({ ...link, href: expand(link, query) });
+    switch (method) {
+      case 'GET':
+        resource = resource.withGet(currentOptions);
+        break;
+      case 'POST':
+        resource = resource.withPost(currentOptions);
+        break;
+      case 'PUT':
+        resource = resource.withPut(currentOptions);
+        break;
+      case 'PATCH':
+        resource = resource.withPatch(currentOptions);
+        break;
+      case 'DELETE':
+        resource = resource.withDelete();
+        break;
+      default:
+        resource = resource.withGet(currentOptions);
+    }
+    return resource as LinkResource<SafeAny>;
   }
 
   getCurrentOptions(): {
