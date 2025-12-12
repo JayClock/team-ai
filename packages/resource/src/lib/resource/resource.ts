@@ -54,6 +54,31 @@ export interface ResourceOptions extends RequestOptions {
   method?: HttpMethod;
 }
 
+export type GetResource<TEntity extends Entity> = Omit<
+  Resource<TEntity>,
+  'follow' | 'request'
+>;
+
+export type PostResource<TEntity extends Entity> = Omit<
+  Resource<TEntity>,
+  'follow' | 'request'
+>;
+
+export type PutResource<TEntity extends Entity> = Omit<
+  Resource<TEntity>,
+  'follow' | 'request'
+>;
+
+export type PatchResource<TEntity extends Entity> = Omit<
+  Resource<TEntity>,
+  'follow' | 'request'
+>;
+
+export type DeleteResource<TEntity extends Entity> = Omit<
+  Resource<TEntity>,
+  'follow' | 'request'
+>;
+
 export interface Resource<TEntity extends Entity> {
   follow<K extends keyof TEntity['links']>(
     rel: K,
@@ -62,13 +87,13 @@ export interface Resource<TEntity extends Entity> {
 
   request(): Promise<State<TEntity>>;
 
-  withGet(options?: GetRequestOptions): Resource<TEntity>;
+  withGet(options?: GetRequestOptions): GetResource<TEntity>;
 
-  withPost(options: PostRequestOptions): Resource<TEntity>;
+  withPost(options: PostRequestOptions): PostResource<TEntity>;
 
-  withPut(options: PutRequestOptions): Resource<TEntity>;
+  withPut(options: PutRequestOptions): PutResource<TEntity>;
 
-  withPatch(options: PatchRequestOptions): Resource<TEntity>;
+  withPatch(options: PatchRequestOptions): PatchResource<TEntity>;
 
-  withDelete(): Resource<TEntity>;
+  withDelete(): DeleteResource<TEntity>;
 }

@@ -99,22 +99,22 @@ export class StateResource<
 
     switch (method) {
       case 'GET':
-        resource = resource.withGet(currentOptions);
+        resource.withGet(currentOptions);
         break;
       case 'POST':
-        resource = resource.withPost(currentOptions);
+        resource.withPost(currentOptions);
         break;
       case 'PUT':
-        resource = resource.withPut(currentOptions);
+        resource.withPut(currentOptions);
         break;
       case 'PATCH':
-        resource = resource.withPatch(currentOptions);
+        resource.withPatch(currentOptions);
         break;
       case 'DELETE':
-        resource = resource.withDelete();
+        resource.withDelete();
         break;
       default:
-        resource = resource.withGet(currentOptions);
+        resource.withGet(currentOptions);
     }
     return resource as LinkResource<SafeAny>;
   }

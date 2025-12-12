@@ -4,6 +4,11 @@ import {
   GetRequestOptions,
   PostRequestOptions,
   PatchRequestOptions,
+  GetResource,
+  PostResource,
+  PutResource,
+  PatchResource,
+  DeleteResource,
 } from './resource.js';
 import { LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
@@ -25,25 +30,25 @@ export abstract class BaseResource<TEntity extends Entity>
     this.optionsMap.set(rel, requestOptions);
   }
 
-  withGet(options?: GetRequestOptions): Resource<TEntity> {
+  withGet(options?: GetRequestOptions): GetResource<TEntity> {
     const { rel, currentOptions } = this.getCurrentOptions();
     this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'GET' });
     return this;
   }
 
-  withPost(options: PostRequestOptions): Resource<TEntity> {
+  withPost(options: PostRequestOptions): PostResource<TEntity> {
     const { rel, currentOptions } = this.getCurrentOptions();
     this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'POST' });
     return this;
   }
 
-  withPut(options: PostRequestOptions): Resource<TEntity> {
+  withPut(options: PostRequestOptions): PutResource<TEntity> {
     const { rel, currentOptions } = this.getCurrentOptions();
     this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'PUT' });
     return this;
   }
 
-  withPatch(options: PatchRequestOptions): Resource<TEntity> {
+  withPatch(options: PatchRequestOptions): PatchResource<TEntity> {
     const { rel, currentOptions } = this.getCurrentOptions();
     this.optionsMap.set(rel, {
       ...currentOptions,
@@ -53,7 +58,7 @@ export abstract class BaseResource<TEntity extends Entity>
     return this;
   }
 
-  withDelete(): Resource<TEntity> {
+  withDelete(): DeleteResource<TEntity> {
     const { rel, currentOptions } = this.getCurrentOptions();
     this.optionsMap.set(rel, { ...currentOptions, method: 'DELETE' });
     return this;
