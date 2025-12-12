@@ -92,9 +92,9 @@ export class LinkResource<
 
     switch (options.method) {
       case 'GET':
-        return await this.get(link, options);
+        return await this.get(link, options) as State<TEntity>;
       case 'POST':
-        return await this.post(link, options);
+        return (await this.post(link, options)) as State<TEntity>;
       // case 'PATCH':
       //   return await this.patch(link, options);
     }

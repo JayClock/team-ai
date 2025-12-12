@@ -1,40 +1,38 @@
 import { HalLink, HalResource } from 'hal-types';
-import { State } from '../state.js';
 import { parseHalLinks } from './parse-hal-links.js';
 import { parseHalTemplates } from './parse-hal-templates.js';
 import { BaseState } from '../base-state.js';
 import { ClientInstance } from '../../client-instance.js';
 import { Links } from '../../links/links.js';
+import { Entity } from '../../archtype/entity.js';
+import { EmbeddedStates } from '../state-collection.js';
 
-export const parseHalEmbedded = (
+export const parseHalEmbedded = <TEntity extends Entity>(
   client: ClientInstance,
   embedded: HalResource['_embedded']
-): Record<string, State | State[]> => {
+): Partial<EmbeddedStates<TEntity>> => {
   const embeddedResource = embedded || {};
-  const result: Record<string, State | State[]> = {};
+  const result: Record<string, unknown> = {};
 
   Object.entries(embeddedResource).forEach(([key, value]) => {
     if (Array.isArray(value)) {
       result[key] = value.map((item) =>
         createHalStateFromResource(client, item)
-      ) as State[];
+      );
     } else {
-      result[key] = createHalStateFromResource(client, value) as State;
+      result[key] = createHalStateFromResource(client, value);
     }
   });
 
-  return result;
+  return result as Partial<EmbeddedStates<TEntity>>;
 };
 
 function createHalStateFromResource(
   client: ClientInstance,
   halResource: HalResource
-): State {
+) {
   const { _links, _embedded, _templates, ...pureData } = halResource;
-  const links = new Links(
-    client.bookmarkUri,
-    parseHalLinks(_links)
-  );
+  const links = new Links(client.bookmarkUri, parseHalLinks(_links));
   const forms = parseHalTemplates(links, _templates);
 
   return new BaseState({

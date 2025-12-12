@@ -1,7 +1,7 @@
 import { Entity } from '../archtype/entity.js';
 import { Links } from '../links/links.js';
 import { State } from './state.js';
-import { StateCollection } from './state-collection.js';
+import { StateCollection, EmbeddedStates } from './state-collection.js';
 import { Form } from '../form/form.js';
 import { Resource } from '../resource/resource.js';
 import { StateResource } from '../resource/state-resource.js';
@@ -18,7 +18,7 @@ type StateInit<TEntity extends Entity> = {
   headers: Headers;
   forms?: Form[];
   collection?: StateCollection<TEntity>;
-  embedded?: Record<string, State | State[]>;
+  embedded?: Partial<EmbeddedStates<TEntity>>;
 };
 
 export class BaseState<TEntity extends Entity> implements State<TEntity> {
@@ -28,7 +28,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
   readonly timestamp = Date.now();
-  readonly embedded: Record<string, State | State[]>;
+  readonly embedded: Partial<EmbeddedStates<TEntity>>;
 
   private readonly forms: Form[];
   private readonly headers: Headers;
@@ -73,7 +73,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new StateResource(this.client, this).follow(link.rel, variables);
+      return new StateResource(this.client, this as State).follow(link.rel, variables);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
@@ -92,8 +92,10 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     return this.links.get(rel as string);
   }
 
-  getEmbedded<K extends keyof TEntity['links']>(rel: K): State | State[] {
-    return this.embedded[rel as string];
+  getEmbedded<K extends keyof TEntity['links']>(
+    rel: K
+  ): EmbeddedStates<TEntity>[K] | undefined {
+    return this.embedded[rel];
   }
 
   clone(): State<TEntity> {

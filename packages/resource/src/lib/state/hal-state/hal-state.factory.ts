@@ -3,7 +3,7 @@ import { BaseState } from '../base-state.js';
 import { HalLink, HalResource } from 'hal-types';
 import { ClientInstance } from 'src/lib/client-instance.js';
 import { State, StateFactory } from '../state.js';
-import { StateCollection } from '../state-collection.js';
+import { EmbeddedStates, StateCollection } from '../state-collection.js';
 import { parseHalLinks } from './parse-hal-links.js';
 import { parseHalTemplates } from './parse-hal-templates.js';
 import { parseHalEmbedded } from './parse-hal-embedded.js';
@@ -28,7 +28,7 @@ export class HalStateFactory implements StateFactory {
       parseHalLinks(_links)
     );
     const forms = parseHalTemplates(links, _templates);
-    const embedded = parseHalEmbedded(client, _embedded);
+    const embedded = parseHalEmbedded<TEntity>(client, _embedded);
     return new HalState<TEntity>({
       client,
       uri,
@@ -82,7 +82,7 @@ class HalState<TEntity extends Entity> extends BaseState<TEntity> {
 }
 
 export function getCollection<TEntity extends Entity>(
-  embedded: Record<string, State | State[]>,
+  embedded: Partial<EmbeddedStates<TEntity>>,
   rel: string
 ): StateCollection<TEntity> {
   if (!embedded || !embedded[rel]) {

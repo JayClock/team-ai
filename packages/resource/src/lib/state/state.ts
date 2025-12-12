@@ -1,14 +1,13 @@
 import { Entity } from '../archtype/entity.js';
 import { Links } from '../links/links.js';
 import { Form } from '../form/form.js';
-import { StateCollection } from './state-collection.js';
+import { StateCollection, EmbeddedStates } from './state-collection.js';
 import { Resource } from '../resource/resource.js';
 import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { HttpMethod } from '../http/util.js';
-import { SafeAny } from '../archtype/safe-any.js';
 
-export type State<TEntity extends Entity = SafeAny> = {
+export type State<TEntity extends Entity = Entity> = {
   /**
    * Timestamp of when the State was first generated
    */
@@ -41,6 +40,11 @@ export type State<TEntity extends Entity = SafeAny> = {
   links: Links<TEntity['links']>;
 
   /**
+   * Embedded resources with types derived from TEntity['links']
+   */
+  embedded: Partial<EmbeddedStates<TEntity>>;
+
+  /**
    * Follows a relationship, based on its rel type. For example, this might be
    * 'alternate', 'item', 'edit' or a custom url-based one.
    */
@@ -58,6 +62,11 @@ export type State<TEntity extends Entity = SafeAny> = {
     rel: K,
     method?: HttpMethod
   ): Form | undefined;
+
+  /**
+   * Get an embedded resource by rel key.
+   */
+  getEmbedded<K extends keyof TEntity['links']>(rel: K): EmbeddedStates<TEntity>[K] | undefined;
 
   /**
    * Returns a serialization of the state that can be used in a HTTP
