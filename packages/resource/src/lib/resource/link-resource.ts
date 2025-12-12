@@ -1,5 +1,11 @@
 import { Entity } from '../archtype/entity.js';
-import { GetRequestOptions, Resource, ResourceOptions } from './resource.js';
+import {
+  GetRequestOptions,
+  PatchRequestOptions,
+  PostRequestOptions,
+  Resource,
+  ResourceOptions,
+} from './resource.js';
 import { StateResource } from './state-resource.js';
 import { BaseResource } from './base-resource.js';
 import { Link, LinkVariables, NewLink } from '../links/link.js';
@@ -84,47 +90,108 @@ export class LinkResource<
       this.verifyFormData(form, options.data);
     }
 
-    const url = resolve(link.context, expand(link, options.query));
-    const requestInit = optionsToRequestInit(options);
-
-    if (options.method === 'GET') {
-      const state = this.client.cache.get(url);
-      if (state) {
-        return Promise.resolve(state as State<TEntity>);
-      }
-
-      const hash = requestHash(url, options);
-
-      if (!this.activeRefresh.has(hash)) {
-        this.activeRefresh.set(
-          hash,
-          (async (): Promise<State> => {
-            try {
-              const response = await this.client.fetcher.fetchOrThrow(
-                url,
-                requestInit
-              );
-              const state = await this.client.getStateForResponse(
-                response.url,
-                response,
-                link.rel
-              );
-              this.client.cacheState(state);
-              return state;
-            } finally {
-              this.activeRefresh.delete(hash);
-            }
-          })()
-        );
-      }
-
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return await this.activeRefresh.get(hash)!;
+    switch (options.method) {
+      case 'GET':
+        return await this.get(link, options);
+      case 'POST':
+        return await this.post(link, options);
+      // case 'PATCH':
+      //   return await this.patch(link, options);
     }
+
+    const { url, requestInit } = this.parseFetchParameters(link, options);
 
     const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
 
     return this.client.getStateForResponse(response.url, response, link.rel);
+  }
+
+  /**
+   * Gets the current state of the resource.
+   *
+   * This function will return a State object.
+   */
+  private async get(link: Link, options: ResourceOptions) {
+    const { url, requestInit } = this.parseFetchParameters(link, options);
+    const state = this.client.cache.get(url);
+    if (state) {
+      return Promise.resolve(state as State<TEntity>);
+    }
+
+    const hash = requestHash(url, options);
+
+    if (!this.activeRefresh.has(hash)) {
+      this.activeRefresh.set(
+        hash,
+        (async (): Promise<State> => {
+          try {
+            const response = await this.client.fetcher.fetchOrThrow(
+              url,
+              requestInit
+            );
+            const state = await this.client.getStateForResponse(
+              response.url,
+              response,
+              link.rel
+            );
+            this.client.cacheState(state);
+            return state;
+          } finally {
+            this.activeRefresh.delete(hash);
+          }
+        })()
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return await this.activeRefresh.get(hash)!;
+  }
+
+  /**
+   * Sends a POST request to the resource.
+   *
+   * See the documentation for PostRequestOptions for more details.
+   * This function is used for RPC-like endpoints and form submissions.
+   *
+   * This function will return the response as a State object.
+   */
+  private async post(link: Link, options: PostRequestOptions): Promise<State> {
+    const { url, requestInit } = this.parseFetchParameters(link, options);
+
+    const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
+
+    return this.client.getStateForResponse(response.url, response, link.rel);
+  }
+
+  /**
+   * Sends a PATCH request to the resource.
+   *
+   * This function defaults to a application/json content-type header.
+   *
+   * If the server responds with 200 Status code this will return a State object
+   */
+  async patch(
+    link: Link,
+    options: PatchRequestOptions
+  ): Promise<State | undefined> {
+    const { url, requestInit } = this.parseFetchParameters(link, options);
+
+    const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
+
+    if (response.status === 200) {
+      return await this.client.getStateForResponse(
+        response.url,
+        response,
+        link.rel
+      );
+    }
+    return undefined;
+  }
+
+  private parseFetchParameters(link: Link, options: ResourceOptions) {
+    const url = resolve(link.context, expand(link, options.query));
+    const requestInit = optionsToRequestInit(options);
+    return { url, requestInit };
   }
 
   private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {
