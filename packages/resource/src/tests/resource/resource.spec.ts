@@ -8,11 +8,12 @@ import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js'
 import { State } from '../../lib/state/state.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { ResourceOptions, Resource } from '../../lib/index.js';
+import { Resource } from '../../lib/index.js';
 import { LinkResource } from '../../lib/resource/link-resource.js';
 import { resolve } from '../../lib/util/uri.js';
 
 const mockFetcher = {
+  _fetchOrThrow: vi.fn(),
   fetchOrThrow: vi.fn()
 };
 
@@ -70,7 +71,7 @@ describe('StateResource', () => {
       json: vi.fn().mockResolvedValue(halConversations)
     } as unknown as Response;
 
-    let options: ResourceOptions;
+    let options: RequestInit;
 
 
     beforeEach(() => {
@@ -80,89 +81,101 @@ describe('StateResource', () => {
 
     it('should request with post', async () => {
       options = {
-        data: {
+        body: JSON.stringify({
           page: 1,
           pageSize: 10
-        },
-        query:{
-          page: 1,
-          pageSize: 10
-        },
+        }),
+        headers: new Headers({ 'Content-Type': 'application/json' }),
         method: 'POST',
       };
+
       await userState.follow('conversations', {
         page: 1,
         pageSize: 10
-      }).withPost({data:{
+      }).withPost({
+        data: {
           page: 1,
           pageSize: 10
-        }}).request();
+        }
+      }).request();
+
+      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith('https://www.test.com/api/users/1/conversations?page=1&pageSize=10', options);
     })
 
     it('should request with put', async () => {
       options = {
-        data: {
+        body: JSON.stringify({
           page: 1,
           pageSize: 10
-        },
-        query:{
-          page: 1,
-          pageSize: 10
-        },
+        }),
+        headers: new Headers({ 'Content-Type': 'application/json' }),
         method: 'PUT',
       };
+
       await userState.follow('conversations', {
         page: 1,
         pageSize: 10
-      }).withPut({data:{
+      }).withPut({
+        data: {
           page: 1,
           pageSize: 10
-        }}).request();
+        }
+      }).request();
+
+      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith('https://www.test.com/api/users/1/conversations?page=1&pageSize=10', options);
     })
 
     it('should request with patch', async () => {
       options = {
-        data: {
+        body: JSON.stringify({
           page: 1,
           pageSize: 10
-        },
-        query:{
-          page: 1,
-          pageSize: 10
-        },
+        }),
+        headers: new Headers({ 'Content-Type': 'application/json' }),
         method: 'PATCH',
       };
+
       await userState.follow('conversations', {
         page: 1,
         pageSize: 10
-      }).withPatch({data:{
+      }).withPatch({
+        data: {
           page: 1,
           pageSize: 10
-        }}).request();
+        }
+      }).request();
+      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith('https://www.test.com/api/users/1/conversations?page=1&pageSize=10', options);
     })
 
     it('should request with get', async () => {
       options = {
         method: 'GET',
+        headers: new Headers({ 'Content-Type': 'application/json' }),
       };
+
       await userState.follow('conversations', {
         page: 1,
         pageSize: 10
       }).withGet().request();
+
+      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith('https://www.test.com/api/users/1/conversations?page=1&pageSize=10', options);
     })
 
     it('should request with delete', async () => {
       options = {
         method: 'DELETE',
+        headers: new Headers({ 'Content-Type': 'application/json' }),
       };
+
       await userState.follow('conversations', {
         page: 1,
         pageSize: 10
       }).withDelete().request();
+
+      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith('https://www.test.com/api/users/1/conversations', options);
     })
 
     afterEach(() => {
-      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(link, options);
       expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
         mockResponse.url,
         mockResponse,
@@ -173,6 +186,6 @@ describe('StateResource', () => {
 
   it('should verify request body with hal template', async () => {
     vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, { ...halUser._links['latest-conversation'], rel: 'latest-conversation' }))
-    await expect(userState.follow('create-conversation').withPost({data:{ title: 123 }}).request()).rejects.toThrow('Invalid');
+    await expect(userState.follow('create-conversation').withPost({ data: { title: 123 } }).request()).rejects.toThrow('Invalid');
   });
 });

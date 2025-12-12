@@ -8,8 +8,35 @@ import { expand } from '../util/uri-template.js';
 export class Fetcher {
   /**
    * A wrapper for MDN fetch()
+   *
+   * This wrapper supports 'fetch middlewares'. It will call them
+   * in sequence.
    */
-  private async fetch(
+  fetch(resource: string | Request, init?: RequestInit): Promise<Response> {
+    const request = new Request(resource, init);
+    return fetch(request);
+  }
+
+  /**
+   * Does a HTTP request and throws an exception if the server emitted
+   * a HTTP error.
+   *
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/Request/Request
+   */
+  async fetchOrThrow(
+    resource: string | Request,
+    init?: RequestInit
+  ): Promise<Response> {
+    const response = await this.fetch(resource, init);
+
+    if (response.ok) {
+      return response;
+    } else {
+      throw await problemFactory(response);
+    }
+  }
+
+  private async _fetch(
     link: Link,
     options: ResourceOptions = {}
   ): Promise<Response> {
@@ -29,11 +56,11 @@ export class Fetcher {
    * Does a HTTP request and throws an exception if the server emitted
    * a HTTP error.
    */
-  async fetchOrThrow(
+  async _fetchOrThrow(
     link: Link,
     options: ResourceOptions = {}
   ): Promise<Response> {
-    const response = await this.fetch(link, options);
+    const response = await this._fetch(link, options);
 
     if (response.ok) {
       return response;

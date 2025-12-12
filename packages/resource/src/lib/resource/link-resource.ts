@@ -8,6 +8,9 @@ import { State } from '../state/state.js';
 import { Form } from '../form/form.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { z } from 'zod';
+import { needsJsonStringify } from '../util/fetch-body-helper.js';
+import { resolve } from '../util/uri.js';
+import { expand } from '../util/uri-template.js';
 
 export class LinkResource<
   TEntity extends Entity
@@ -72,7 +75,11 @@ export class LinkResource<
       this.verifyFormData(form, options.data);
     }
 
-    const response = await this.client.fetcher.fetchOrThrow(link, options);
+    const response = await this.client.fetcher.fetchOrThrow(
+      resolve(link.context, expand(link, options.query)),
+      optionsToRequestInit(options)
+    );
+
     return this.client.getStateForResponse(response.url, response, link.rel);
   }
 
@@ -113,4 +120,42 @@ export class LinkResource<
   private getRequestOption(link: Link) {
     return this.optionsMap.get(link.rel) ?? {};
   }
+}
+
+/**
+ * Convert request options to RequestInit
+ *
+ * RequestInit is passed to the constructor of fetch(). We have our own 'options' format
+ */
+function optionsToRequestInit(options: ResourceOptions): RequestInit {
+  let headers;
+  if (options.getContentHeaders) {
+    headers = new Headers(options.getContentHeaders());
+  } else if (options.headers) {
+    headers = new Headers(options.headers);
+  } else {
+    headers = new Headers();
+  }
+
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  let body;
+  if (options.serializeBody !== undefined) {
+    body = options.serializeBody();
+  } else if (options.data) {
+    body = options.data;
+    if (needsJsonStringify(body)) {
+      body = JSON.stringify(body);
+    }
+  }
+
+  const init: RequestInit = { method: options.method, headers };
+
+  if (body) {
+    init.body = body;
+  }
+
+  return init;
 }

@@ -82,7 +82,7 @@ export class StateResource<
       let resource = this.client.go({ ...link, href: expand(link, query) });
       switch (method) {
         case 'GET':
-          resource = resource.withGet();
+          resource = resource.withGet(currentOptions);
           break;
         case 'POST':
           resource = resource.withPost(currentOptions);
