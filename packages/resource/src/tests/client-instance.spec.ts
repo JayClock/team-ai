@@ -1,21 +1,33 @@
 import { ClientInstance } from '../lib/client-instance.js';
 import { Fetcher } from '../lib/http/fetcher.js';
 import { Config } from '../lib/archtype/config.js';
-import { StateFactory } from '../lib/state/state.js';
+import { State, StateFactory } from '../lib/state/state.js';
 import { LinkResource } from '../lib/resource/link-resource.js';
 import { resolve } from '../lib/util/uri.js';
+import { Cache } from '../lib/cache/cache.js';
+
 const mockFetcher = {} as Fetcher;
+
 const mockConfig = { baseURL: 'bookmarkUri' } as Config;
+
 const mockHalStateFactory = {
   create: vi.fn(),
 } as StateFactory;
+
 const mockBinaryStateFactory = {
   create: vi.fn(),
 } as StateFactory;
+
+const mockCache = {
+  store: vi.fn(),
+  clear: vi.fn(),
+} as unknown as Cache;
+
 describe('ClientInstance', () => {
   const clientInstance = new ClientInstance(
     mockFetcher,
     mockConfig,
+    mockCache,
     mockHalStateFactory,
     mockBinaryStateFactory
   );
@@ -112,6 +124,33 @@ describe('ClientInstance', () => {
         );
         expect(mockHalStateFactory.create).toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('cache', () => {
+    it('should clear cache', () => {
+      clientInstance.clearCache();
+      expect(mockCache.clear).toHaveBeenCalled();
+    });
+
+    it('should state cache with collection', () => {
+      const level_3 = { collection: [], uri: 'level-3' } as unknown as State;
+
+      const level_2 = {
+        collection: [level_3],
+        uri: 'level-2',
+      } as unknown as State;
+
+      const level_1 = {
+        collection: [level_2],
+        uri: 'level-1',
+      } as State;
+
+      clientInstance.cacheState(level_1);
+
+      expect(mockCache.store).toHaveBeenNthCalledWith(1, level_1);
+      expect(mockCache.store).toHaveBeenNthCalledWith(2, level_2);
+      expect(mockCache.store).toHaveBeenNthCalledWith(3, level_3);
     });
   });
 });

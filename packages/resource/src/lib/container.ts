@@ -4,6 +4,7 @@ import { Fetcher } from './http/fetcher.js';
 import { TYPES } from './archtype/injection-types.js';
 import { HalStateFactory } from './state/hal-state/hal-state.factory.js';
 import { BinaryStateFactory } from './state/binary-state/binary-state.factory.js';
+import { ForeverCache } from './cache/forever-cache.js';
 
 export const container = new Container();
 container.bind(TYPES.Client).to(ClientInstance).inSingletonScope();
@@ -13,3 +14,4 @@ container
   .bind(TYPES.BinaryStateFactory)
   .to(BinaryStateFactory)
   .inSingletonScope();
+container.bind(TYPES.Cache).to(ForeverCache).inSingletonScope();

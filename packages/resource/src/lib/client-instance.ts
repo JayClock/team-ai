@@ -13,6 +13,7 @@ import { BinaryStateFactory } from './state/binary-state/binary-state.factory.js
 import { parseContentType } from './http/util.js';
 import { resolve } from './util/uri.js';
 import { SafeAny } from './archtype/safe-any.js';
+import type { Cache } from './cache/cache.js';
 
 @injectable()
 export class ClientInstance implements Client {
@@ -34,6 +35,8 @@ export class ClientInstance implements Client {
     readonly fetcher: Fetcher,
     @inject(TYPES.Config)
     readonly config: Config,
+    @inject(TYPES.Cache)
+    readonly cache: Cache,
     @inject(TYPES.HalStateFactory)
     private readonly halStateFactory: HalStateFactory,
     @inject(TYPES.BinaryStateFactory)
@@ -111,5 +114,43 @@ export class ClientInstance implements Client {
     }
 
     return this.binaryStateFactory.create<TEntity>(this, uri, response);
+  }
+
+  /**
+   * Clears the entire state cache
+   */
+  clearCache() {
+    this.cache.clear();
+  }
+
+  /**
+   * Caches a State object
+   *
+   * This function will also emit 'update' events to resources, and store all
+   * embedded states.
+   */
+  cacheState(state: State) {
+    // Flatten the list of state objects.
+    const newStates = this.flattenState(state);
+
+    // Store all new caches
+    for (const nState of newStates) {
+      this.cache.store(nState);
+    }
+  }
+
+  /**
+   * Take a State object, find all it's collection resources and return a flat
+   * array of all resources at any depth.
+   */
+  private flattenState(
+    state: State,
+    result: Set<State> = new Set<State>()
+  ): Set<State> {
+    result.add(state);
+    for (const _ of state.collection) {
+      this.flattenState(_, result);
+    }
+    return result;
   }
 }
