@@ -22,6 +22,9 @@ const mockClient = {
   getStateForResponse: vi.fn(),
   go: vi.fn(),
   cacheState: vi.fn(),
+  cache: {
+    get:vi.fn()
+  }
 } as unknown as ClientInstance;
 
 describe('StateResource', () => {
@@ -184,7 +187,19 @@ describe('StateResource', () => {
         mockResponse,
         'conversations'
       );
+      vi.clearAllMocks();
     })
+  })
+
+  it('should not request when get cache value',async ()=>{
+    const cacheState = {} as State;
+    const link: Link = { ...halUser._links.conversations, context: mockClient.bookmarkUri, rel: 'conversations' };
+
+    vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, link));
+    vi.spyOn(mockClient.cache,'get').mockReturnValue(cacheState)
+
+    const state = await userState.follow('conversations').withGet().request();
+    expect(state).toBe(cacheState)
   })
 
   it('should verify request body with hal template', async () => {

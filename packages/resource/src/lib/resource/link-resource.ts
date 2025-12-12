@@ -76,10 +76,17 @@ export class LinkResource<
       this.verifyFormData(form, options.data);
     }
 
-    const response = await this.client.fetcher.fetchOrThrow(
-      resolve(link.context, expand(link, options.query)),
-      optionsToRequestInit(options)
-    );
+    const url = resolve(link.context, expand(link, options.query));
+
+    if (options.method === 'GET') {
+      const state = this.client.cache.get(url);
+      if (state) {
+        return Promise.resolve(state as State<TEntity>);
+      }
+    }
+
+    const requestInit = optionsToRequestInit(options);
+    const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
 
     return this.client.getStateForResponse(response.url, response, link.rel);
   }
