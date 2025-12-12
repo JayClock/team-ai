@@ -6,8 +6,9 @@ import { Resource } from '../resource/resource.js';
 import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { HttpMethod } from '../http/util.js';
+import { SafeAny } from '../archtype/safe-any.js';
 
-export type State<TEntity extends Entity = Entity> = {
+export type State<TEntity extends Entity = SafeAny> = {
   /**
    * Timestamp of when the State was first generated
    */

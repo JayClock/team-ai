@@ -1,5 +1,5 @@
 import { Entity } from '../archtype/entity.js';
-import { ResourceOptions, Resource } from './resource.js';
+import { GetRequestOptions, Resource, ResourceOptions } from './resource.js';
 import { StateResource } from './state-resource.js';
 import { BaseResource } from './base-resource.js';
 import { Link, LinkVariables, NewLink } from '../links/link.js';
@@ -24,6 +24,14 @@ export class LinkResource<
     super(client, optionsMap);
     this.link.rel = this.link.rel ?? 'ROOT_REL';
   }
+
+  /**
+   * This object tracks all in-flight requests.
+   *
+   * When 2 identical requests are made in quick succession, this object is
+   * used to de-duplicate the requests.
+   */
+  private readonly activeRefresh = new Map<string, Promise<State>>();
 
   follow<K extends keyof TEntity['links']>(
     rel: K,
@@ -77,15 +85,43 @@ export class LinkResource<
     }
 
     const url = resolve(link.context, expand(link, options.query));
+    const requestInit = optionsToRequestInit(options);
 
     if (options.method === 'GET') {
       const state = this.client.cache.get(url);
       if (state) {
         return Promise.resolve(state as State<TEntity>);
       }
+
+      const hash = requestHash(url, options);
+
+      if (!this.activeRefresh.has(hash)) {
+        this.activeRefresh.set(
+          hash,
+          (async (): Promise<State> => {
+            try {
+              const response = await this.client.fetcher.fetchOrThrow(
+                url,
+                requestInit
+              );
+              const state = await this.client.getStateForResponse(
+                response.url,
+                response,
+                link.rel
+              );
+              this.client.cacheState(state);
+              return state;
+            } finally {
+              this.activeRefresh.delete(hash);
+            }
+          })()
+        );
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return await this.activeRefresh.get(hash)!;
     }
 
-    const requestInit = optionsToRequestInit(options);
     const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
 
     return this.client.getStateForResponse(response.url, response, link.rel);
@@ -166,4 +202,26 @@ function optionsToRequestInit(options: ResourceOptions): RequestInit {
   }
 
   return init;
+}
+
+function requestHash(
+  uri: string,
+  options: GetRequestOptions | undefined
+): string {
+  const headers: Record<string, string> = {};
+  if (options) {
+    new Headers(options.getContentHeaders?.() || options.headers).forEach(
+      (value, key) => {
+        headers[key] = value;
+      }
+    );
+  }
+
+  const headerStr = Object.entries(headers)
+    .map(([name, value]) => {
+      return name.toLowerCase() + ':' + value;
+    })
+    .join(',');
+
+  return uri + '|' + headerStr;
 }
