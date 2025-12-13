@@ -54,27 +54,27 @@ export interface ResourceOptions extends RequestOptions {
   method?: HttpMethod;
 }
 
-export type GetResource<TEntity extends Entity> = Omit<
+export type GetResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
   'follow' | 'request'
 >;
 
-export type PostResource<TEntity extends Entity> = Omit<
+export type PostResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
   'follow' | 'request'
 >;
 
-export type PutResource<TEntity extends Entity> = Omit<
+export type PutResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
   'follow' | 'request'
 >;
 
-export type PatchResource<TEntity extends Entity> = Omit<
+export type PatchResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
   'follow' | 'request'
 >;
 
-export type DeleteResource<TEntity extends Entity> = Omit<
+export type DeleteResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
   'follow' | 'request'
 >;

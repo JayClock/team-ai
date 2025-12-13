@@ -51,11 +51,7 @@ describe('HalState', async () => {
     expect(contentHeaders.get('Sunset')).toBe('Wed, 21 Oct 2026 07:28:00 GMT');
     expect(contentHeaders.get('Title')).toBe('API Resource Details');
 
-    let headerCount = 0;
-    for (const _ of contentHeaders.entries()) {
-      headerCount++;
-    }
-    expect(headerCount).toBe(10);
+    expect([...contentHeaders.entries()].length).toBe(10);
   })
 
   it('should serialize body to string', () => {
