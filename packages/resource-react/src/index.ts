@@ -1,1 +1,2 @@
-export * from './lib/resource-react';
+export { useClient } from './lib/hooks/use-client';
+export { ResourceProvider } from './lib/provider';

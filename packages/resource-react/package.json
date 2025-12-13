@@ -14,4 +14,7 @@
       "default": "./dist/index.js"
     }
   },
+  "dependencies": {
+    "@hateoas/resource": "workspace:*"
+  }
 }

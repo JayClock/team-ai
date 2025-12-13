@@ -277,7 +277,11 @@ importers:
         specifier: ^2.12.4
         version: 2.12.4(@types/node@20.19.26)(typescript@5.9.3)
 
-  packages/resource-react: {}
+  packages/resource-react:
+    dependencies:
+      '@hateoas/resource':
+        specifier: workspace:*
+        version: link:../resource
 
 packages:
 
