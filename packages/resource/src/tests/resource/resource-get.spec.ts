@@ -44,7 +44,6 @@ describe('StateResource GET Requests', () => {
     vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(mockUserState);
     userState = await resource.request();
     expect(userState).toBe(mockUserState);
-    expect(mockClient.cacheState).toHaveBeenCalledWith(userState)
   })
 
   beforeEach(async () => {

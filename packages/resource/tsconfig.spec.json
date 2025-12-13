@@ -29,7 +29,6 @@
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
     "src/**/*.d.ts",
-    "src/**/*.json"
   ],
   "references": [
     {

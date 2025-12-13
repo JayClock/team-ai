@@ -74,8 +74,10 @@ export class StateResource<
         links: new Links(this.client.bookmarkUri),
         headers: new Headers(),
       });
+      this.client.cacheState(nextState);
     } else if (embedded) {
       nextState = embedded;
+      this.client.cacheState(nextState);
     } else {
       const { method = 'GET' } = currentOptions;
       // If no embedded data is available, make an HTTP request
@@ -85,9 +87,6 @@ export class StateResource<
         currentOptions
       ).request(form);
     }
-
-    this.client.cacheState(nextState);
-
     return this.resolveRelationsRecursively(nextState, nextRels);
   }
 

@@ -67,7 +67,6 @@ export class LinkResource<
     };
     const state: State<TEntity> = await this.httpRequest(link, form);
     if (this.isRootResource()) {
-      this.client.cacheState(state);
       return state;
     }
     const stateResource = new StateResource<TEntity>(
@@ -92,11 +91,11 @@ export class LinkResource<
 
     switch (options.method) {
       case 'GET':
-        return await this.get(link, options) as State<TEntity>;
+        return (await this.get(link, options)) as State<TEntity>;
       case 'POST':
         return (await this.post(link, options)) as State<TEntity>;
-      // case 'PATCH':
-      //   return await this.patch(link, options);
+      case 'PATCH':
+        return (await this.patch(link, options)) as State<TEntity>;
     }
 
     const { url, requestInit } = this.parseFetchParameters(link, options);
@@ -170,22 +169,22 @@ export class LinkResource<
    *
    * If the server responds with 200 Status code this will return a State object
    */
-  async patch(
-    link: Link,
-    options: PatchRequestOptions
-  ): Promise<State | undefined> {
+  async patch(link: Link, options: PatchRequestOptions): Promise<State> {
     const { url, requestInit } = this.parseFetchParameters(link, options);
 
     const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
 
+    const state = await this.client.getStateForResponse(
+      response.url,
+      response,
+      link.rel
+    );
+
     if (response.status === 200) {
-      return await this.client.getStateForResponse(
-        response.url,
-        response,
-        link.rel
-      );
+      this.client.cacheState(state);
     }
-    return undefined;
+
+    return state;
   }
 
   private parseFetchParameters(link: Link, options: ResourceOptions) {
