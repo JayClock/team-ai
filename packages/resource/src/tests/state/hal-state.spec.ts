@@ -12,7 +12,7 @@ import { StateResource } from '../../lib/resource/state-resource.js';
 const mockClient = {} as ClientInstance;
 
 describe('HalState', async () => {
-  const halStateFactory:HalStateFactory = container.get(TYPES.HalStateFactory);
+  const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
   const mockHeaders = {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Language': 'zh-CN',
@@ -25,7 +25,7 @@ describe('HalState', async () => {
     'Sunset': 'Wed, 21 Oct 2026 07:28:00 GMT',
     'Title': 'API Resource Details'
   };
-  const state = await halStateFactory.create<User>(mockClient, '/api/users/1', Response.json(halUser,{headers: mockHeaders}));
+  const state = await halStateFactory.create<User>(mockClient, '/api/users/1', Response.json(halUser, { headers: mockHeaders }));
 
   it('should get pure data with out hal info', () => {
     expect(state.data).toEqual({
@@ -35,7 +35,7 @@ describe('HalState', async () => {
     });
   });
 
-  it('should filter content headers',()=>{
+  it('should filter content headers', () => {
     const contentHeaders = state.contentHeaders();
 
     expect(contentHeaders).toBeInstanceOf(Headers);
@@ -58,12 +58,12 @@ describe('HalState', async () => {
     expect(headerCount).toBe(10);
   })
 
-  it('should serialize body to string',()=>{
+  it('should serialize body to string', () => {
     const resource = JSON.parse(state.serializeBody() as string);
     expect(halUser).toEqual(expect.objectContaining(resource))
   })
 
-  it('should follow existed lint and return new state resource',()=>{
+  it('should follow existed lint and return new state resource', () => {
     expect(state.follow('accounts')).toBeInstanceOf(StateResource)
   })
 
@@ -79,7 +79,7 @@ describe('HalState', async () => {
   });
 
   it('should create forms with existed templates', () => {
-    expect(state.getForm('create-conversation','POST')?.uri).toEqual(halUser._templates['create-conversation'].target);
+    expect(state.getForm('create-conversation', 'POST')?.uri).toEqual(halUser._templates['create-conversation'].target);
   });
 
   it('should clone state', () => {
@@ -87,6 +87,7 @@ describe('HalState', async () => {
     expect(cloned).toBeInstanceOf(BaseState);
     expect(cloned).not.toBe(state);
     expect(cloned.uri).toEqual(state.uri);
+    expect(cloned.data).not.toBe(state.data)
     expect(cloned.data).toEqual(state.data);
   });
 });

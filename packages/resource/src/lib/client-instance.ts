@@ -14,6 +14,7 @@ import { parseContentType } from './http/util.js';
 import { resolve } from './util/uri.js';
 import { SafeAny } from './archtype/safe-any.js';
 import type { Cache } from './cache/cache.js';
+import { StreamStateFactory } from './state/stream-state/stream-state.factory.js';
 
 @injectable()
 export class ClientInstance implements Client {
@@ -38,9 +39,11 @@ export class ClientInstance implements Client {
     @inject(TYPES.Cache)
     readonly cache: Cache,
     @inject(TYPES.HalStateFactory)
-    private readonly halStateFactory: HalStateFactory,
+    readonly halStateFactory: HalStateFactory,
     @inject(TYPES.BinaryStateFactory)
-    private readonly binaryStateFactory: BinaryStateFactory
+    readonly binaryStateFactory: BinaryStateFactory,
+    @inject(TYPES.StreamStateFactory)
+    streamStateFactory: StreamStateFactory
   ) {
     this.bookmarkUri = config.baseURL;
 
@@ -52,6 +55,7 @@ export class ClientInstance implements Client {
       // 'application/vnd.collection+json': [cjStateFactory, '0.8'],
       'application/json': [halStateFactory, '0.7'],
       // 'text/html': [htmlStateFactory, '0.6'],
+      'text/event-stream': [streamStateFactory, '0.5'],
     };
   }
 

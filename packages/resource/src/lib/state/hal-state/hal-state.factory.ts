@@ -23,10 +23,7 @@ export class HalStateFactory implements StateFactory {
   ): Promise<State<TEntity>> {
     const halResource = (await response.json()) as HalResource;
     const { _links, _embedded, _templates, ...pureData } = halResource;
-    const links = new Links(
-      client.bookmarkUri,
-      parseHalLinks(_links)
-    );
+    const links = new Links(client.bookmarkUri, parseHalLinks(_links));
     const forms = parseHalTemplates(links, _templates);
     const embedded = parseHalEmbedded<TEntity>(client, _embedded);
     return new HalState<TEntity>({
@@ -51,7 +48,10 @@ class HalState<TEntity extends Entity> extends BaseState<TEntity> {
   }
 
   override clone(): State<TEntity> {
-    return new HalState<TEntity>(this.init);
+    return new HalState<TEntity>({
+      ...this.init,
+      data: structuredClone(this.data),
+    });
   }
 
   private serializeLinks(): HalResource['_links'] {

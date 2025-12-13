@@ -1,7 +1,6 @@
 import { BinaryStateFactory } from '../../lib/state/binary-state/binary-state.factory.js';
 import { Entity } from '../../lib/index.js';
 import { ClientInstance } from '../../lib/client-instance.js';
-import { HttpResponse } from 'msw';
 
 describe('Binary State', async () => {
   const binaryData = Buffer.from([0x48, 0x65, 0x6c, 0x6c, 0x6f]);
@@ -10,7 +9,7 @@ describe('Binary State', async () => {
   const state = await factory.create<Entity<Blob>>(
     {} as ClientInstance,
     '/binary',
-    new HttpResponse(binaryData, {
+    new Response(binaryData, {
       headers: {
         'content-type': 'application/octet-stream',
         'content-length': binaryData.length.toString(),

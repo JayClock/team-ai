@@ -18,6 +18,10 @@ const mockBinaryStateFactory = {
   create: vi.fn(),
 } as StateFactory;
 
+const mockStreamStateFactory = {
+  create: vi.fn(),
+} as StateFactory;
+
 const mockCache = {
   store: vi.fn(),
   clear: vi.fn(),
@@ -29,7 +33,8 @@ describe('ClientInstance', () => {
     mockConfig,
     mockCache,
     mockHalStateFactory,
-    mockBinaryStateFactory
+    mockBinaryStateFactory,
+    mockStreamStateFactory
   );
 
   it('should set bookmarkUri with config baseURL', () => {
@@ -125,6 +130,18 @@ describe('ClientInstance', () => {
         expect(mockHalStateFactory.create).toHaveBeenCalled();
       });
     });
+
+    describe('generate stream state', () => {
+      it('should generate hal state when content-type text/event-stream', () => {
+        clientInstance.getStateForResponse(
+          '',
+          new Response(null, {
+            headers: { 'Content-Type': 'text/event-stream' },
+          })
+        );
+        expect(mockStreamStateFactory.create).toHaveBeenCalled();
+      });
+    });
   });
 
   describe('cache', () => {
@@ -144,7 +161,7 @@ describe('ClientInstance', () => {
       const level_1 = {
         collection: [level_2],
         uri: 'level-1',
-      } as State;
+      } as unknown as State;
 
       clientInstance.cacheState(level_1);
 

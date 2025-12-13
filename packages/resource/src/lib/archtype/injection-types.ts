@@ -4,5 +4,6 @@ export const TYPES = {
   Fetcher: Symbol.for('Fetcher'),
   HalStateFactory: Symbol.for('HalStateFactory'),
   BinaryStateFactory: Symbol.for('BinaryStateFactory'),
+  StreamStateFactory: Symbol.for('StreamStateFactory'),
   Cache: Symbol.for('Cache'),
 };
