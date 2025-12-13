@@ -86,7 +86,7 @@ describe('StateResource GET Requests', () => {
     const link: Link = { ...halUser._links.conversations, context: mockClient.bookmarkUri, rel: 'conversations' };
 
     vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, link));
-    vi.spyOn(mockClient.cache,'get').mockReturnValue(cacheState)
+    vi.spyOn(mockClient.cache,'get').mockReturnValueOnce(cacheState)
 
     const state = await userState.follow('conversations').withGet().request();
     expect(state).toBe(cacheState)
