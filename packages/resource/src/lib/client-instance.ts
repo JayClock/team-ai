@@ -5,7 +5,7 @@ import { TYPES } from './archtype/injection-types.js';
 import { Resource } from './resource/resource.js';
 import { Client } from './create-client.js';
 import { Link, NewLink } from './links/link.js';
-import { Fetcher } from './http/fetcher.js';
+import { Fetcher, FetchMiddleware } from './http/fetcher.js';
 import { State, StateFactory } from './state/state.js';
 import { HalStateFactory } from './state/hal-state/hal-state.factory.js';
 import type { Config } from './archtype/config.js';
@@ -43,7 +43,7 @@ export class ClientInstance implements Client {
     @inject(TYPES.BinaryStateFactory)
     readonly binaryStateFactory: BinaryStateFactory,
     @inject(TYPES.StreamStateFactory)
-    streamStateFactory: StreamStateFactory
+    streamStateFactory: StreamStateFactory,
   ) {
     this.bookmarkUri = config.baseURL;
 
@@ -94,10 +94,14 @@ export class ClientInstance implements Client {
     return this.resources.get(absoluteUri)!;
   }
 
+  use(middleware: FetchMiddleware, origin = '*') {
+    this.fetcher.use(middleware, origin);
+  }
+
   async getStateForResponse<TEntity extends Entity>(
     uri: string,
     response: Response,
-    rel?: string
+    rel?: string,
   ): Promise<State<TEntity>> {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const contentType = parseContentType(response.headers.get('Content-Type')!);
@@ -111,7 +115,7 @@ export class ClientInstance implements Client {
         this,
         uri,
         response,
-        rel
+        rel,
       );
     } else if (contentType.match(/^application\/[A-Za-z-.]+\+json/)) {
       return this.halStateFactory.create<TEntity>(this, uri, response, rel);
@@ -149,7 +153,7 @@ export class ClientInstance implements Client {
    */
   private flattenState(
     state: State,
-    result: Set<State> = new Set<State>()
+    result: Set<State> = new Set<State>(),
   ): Set<State> {
     result.add(state);
     for (const _ of state.collection) {

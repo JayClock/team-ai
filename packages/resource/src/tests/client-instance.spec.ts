@@ -5,8 +5,9 @@ import { State, StateFactory } from '../lib/state/state.js';
 import { LinkResource } from '../lib/resource/link-resource.js';
 import { resolve } from '../lib/util/uri.js';
 import { Cache } from '../lib/cache/cache.js';
+import { vi } from 'vitest';
 
-const mockFetcher = {} as Fetcher;
+const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
 
 const mockConfig = { baseURL: 'bookmarkUri' } as Config;
 
@@ -34,7 +35,7 @@ describe('ClientInstance', () => {
     mockCache,
     mockHalStateFactory,
     mockBinaryStateFactory,
-    mockStreamStateFactory
+    mockStreamStateFactory,
   );
 
   it('should set bookmarkUri with config baseURL', () => {
@@ -45,7 +46,7 @@ describe('ClientInstance', () => {
     it('should go with no uri', () => {
       expect(clientInstance.go()).toBeInstanceOf(LinkResource);
       expect(
-        clientInstance.resources.has(resolve(clientInstance.bookmarkUri, ''))
+        clientInstance.resources.has(resolve(clientInstance.bookmarkUri, '')),
       ).toBeTruthy();
     });
 
@@ -53,19 +54,19 @@ describe('ClientInstance', () => {
       expect(clientInstance.go('href-string')).toBeInstanceOf(LinkResource);
       expect(
         clientInstance.resources.has(
-          resolve(clientInstance.bookmarkUri, 'href-string')
-        )
+          resolve(clientInstance.bookmarkUri, 'href-string'),
+        ),
       ).toBeTruthy();
     });
 
     it('should go with new link type uri', () => {
       expect(
-        clientInstance.go({ rel: 'rel', href: 'href-link' })
+        clientInstance.go({ rel: 'rel', href: 'href-link' }),
       ).toBeInstanceOf(LinkResource);
       expect(
         clientInstance.resources.has(
-          resolve(clientInstance.bookmarkUri, 'href-link')
-        )
+          resolve(clientInstance.bookmarkUri, 'href-link'),
+        ),
       ).toBeTruthy();
     });
   });
@@ -75,7 +76,7 @@ describe('ClientInstance', () => {
       it('should generate binary state when content-type is not existed', () => {
         clientInstance.getStateForResponse(
           '',
-          new Response(null, { headers: { 'Content-Type': '' } })
+          new Response(null, { headers: { 'Content-Type': '' } }),
         );
         expect(mockBinaryStateFactory.create).toHaveBeenCalled();
       });
@@ -83,7 +84,7 @@ describe('ClientInstance', () => {
       it('should generate binary state when status is 204', () => {
         clientInstance.getStateForResponse(
           '',
-          new Response(null, { status: 204 })
+          new Response(null, { status: 204 }),
         );
         expect(mockBinaryStateFactory.create).toHaveBeenCalled();
       });
@@ -95,7 +96,7 @@ describe('ClientInstance', () => {
           '',
           new Response(null, {
             headers: { 'Content-Type': 'application/prs.hal-forms+json' },
-          })
+          }),
         );
         expect(mockHalStateFactory.create).toHaveBeenCalled();
       });
@@ -105,7 +106,7 @@ describe('ClientInstance', () => {
           '',
           new Response(null, {
             headers: { 'Content-Type': 'application/hal+json' },
-          })
+          }),
         );
         expect(mockHalStateFactory.create).toHaveBeenCalled();
       });
@@ -115,7 +116,7 @@ describe('ClientInstance', () => {
           '',
           new Response(null, {
             headers: { 'Content-Type': 'application/json' },
-          })
+          }),
         );
         expect(mockHalStateFactory.create).toHaveBeenCalled();
       });
@@ -125,7 +126,7 @@ describe('ClientInstance', () => {
           '',
           new Response(null, {
             headers: { 'Content-Type': 'application/geo+json' },
-          })
+          }),
         );
         expect(mockHalStateFactory.create).toHaveBeenCalled();
       });
@@ -137,7 +138,7 @@ describe('ClientInstance', () => {
           '',
           new Response(null, {
             headers: { 'Content-Type': 'text/event-stream' },
-          })
+          }),
         );
         expect(mockStreamStateFactory.create).toHaveBeenCalled();
       });
@@ -168,6 +169,26 @@ describe('ClientInstance', () => {
       expect(mockCache.store).toHaveBeenNthCalledWith(1, level_1);
       expect(mockCache.store).toHaveBeenNthCalledWith(2, level_2);
       expect(mockCache.store).toHaveBeenNthCalledWith(3, level_3);
+    });
+  });
+
+  describe('use', () => {
+    it('should call fetcher.use with middleware and default origin', () => {
+      const mockMiddleware = vi.fn();
+
+      clientInstance.use(mockMiddleware);
+
+      expect(mockFetcher.use).toHaveBeenCalledWith(mockMiddleware, '*');
+    });
+
+    it('should call fetcher.use with middleware and custom origin', () => {
+      const mockMiddleware = vi.fn();
+      clientInstance.use(mockMiddleware, 'https://api.example.com');
+
+      expect(mockFetcher.use).toHaveBeenCalledWith(
+        mockMiddleware,
+        'https://api.example.com',
+      );
     });
   });
 });
