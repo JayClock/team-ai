@@ -1,13 +1,13 @@
-import { getResourceContext } from '../provider';
-import { useContext } from 'react';
 import { Client } from '@hateoas/resource';
+import { useContext } from 'react';
+import { ClientContext } from '../provider';
 
 export function useClient(): Client {
-  const context = useContext(getResourceContext());
-  if (!context.resource) {
+  const context = useContext(ClientContext);
+  if (!context.client) {
     throw new Error(
       'To use useClient, you must have a <ResourceProvider> component set up',
     );
   }
-  return context.resource.client;
+  return context.client;
 }
