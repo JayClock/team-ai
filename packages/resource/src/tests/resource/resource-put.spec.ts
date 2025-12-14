@@ -74,7 +74,7 @@ describe('StateResource PUT Requests', () => {
         data: updatedUserData,
         headers: customHeaders,
       })
-      .request();
+      ._request();
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1',

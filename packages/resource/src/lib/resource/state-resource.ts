@@ -33,7 +33,7 @@ export class StateResource<
     );
   }
 
-  async request(): Promise<State<TEntity>> {
+  async _request(): Promise<State<TEntity>> {
     if (this.rels.length === 0) {
       throw new Error('No relations to follow');
     }
@@ -82,7 +82,7 @@ export class StateResource<
       nextState = await this.updateLinkResource(
         resource,
         currentOptions,
-      ).request(form);
+      )._request(form);
     }
     return this.resolveRelationsRecursively(nextState, nextRels);
   }

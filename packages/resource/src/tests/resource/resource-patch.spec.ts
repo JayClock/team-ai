@@ -72,7 +72,7 @@ describe('StateResource PATCH Requests', () => {
         data: patchedUserData,
         headers: customHeaders,
       })
-      .request();
+      ._request();
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1',
@@ -116,7 +116,7 @@ describe('StateResource PATCH Requests', () => {
     await userState
       .follow('self')
       .withPatch({ data: patchedUserData })
-      .request();
+      ._request();
 
     expect(mockClient.cacheState).not.toHaveBeenCalled();
   });

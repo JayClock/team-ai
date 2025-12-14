@@ -57,27 +57,27 @@ export interface ResourceOptions extends RequestOptions {
 
 export type GetResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
-  'follow' | 'request'
+  'follow' | '_request'
 >;
 
 export type PostResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
-  'follow' | 'request'
+  'follow' | '_request'
 >;
 
 export type PutResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
-  'follow' | 'request'
+  'follow' | '_request'
 >;
 
 export type PatchResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
-  'follow' | 'request'
+  'follow' | '_request'
 >;
 
 export type DeleteResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
-  'follow' | 'request'
+  'follow' | '_request'
 >;
 
 export interface Resource<TEntity extends Entity> {
@@ -89,7 +89,10 @@ export interface Resource<TEntity extends Entity> {
 
   withTemplateParameters(variables: LinkVariables): Resource<TEntity>;
 
-  request(): Promise<State<TEntity>>;
+  /**
+   * @deprecated
+   */
+  _request(): Promise<State<TEntity>>;
 
   withGet(options?: GetRequestOptions): GetResource<TEntity>;
 
@@ -100,4 +103,6 @@ export interface Resource<TEntity extends Entity> {
   withPatch(options: PatchRequestOptions): PatchResource<TEntity>;
 
   withDelete(): DeleteResource<TEntity>;
+
+  withMethod(method: HttpMethod): Resource<TEntity>;
 }

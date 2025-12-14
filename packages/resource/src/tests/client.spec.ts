@@ -40,7 +40,7 @@ describe('Client', () => {
   beforeAll(() => server.listen());
 
   it('should get user data', async () => {
-    const res = await userResource.request();
+    const res = await userResource._request();
     expect(res.uri).toEqual(resolve(baseURL, '/api/users/1').toString());
     expect(res.data.id).toEqual(halUser.id);
     expect(res.data.name).toEqual(halUser.name);
@@ -48,7 +48,7 @@ describe('Client', () => {
   });
 
   it('should get user accounts data', async () => {
-    const res = await userResource.follow('accounts').request();
+    const res = await userResource.follow('accounts')._request();
     expect(res.collection.length).toEqual(halUser._embedded.accounts.length);
     expect(res.uri).toEqual(
       resolve(baseURL, '/api/users/1/accounts').toString(),
@@ -66,7 +66,7 @@ describe('Client', () => {
         page: 1,
         pageSize: 10,
       })
-      .request();
+      ._request();
     expect(res.collection.length).toEqual(
       halConversations._embedded.conversations.length,
     );
@@ -79,7 +79,7 @@ describe('Client', () => {
   });
 
   it('should get user file data with binary', async () => {
-    const res = await userResource.follow('file').request();
+    const res = await userResource.follow('file')._request();
     const text = await res.data.text();
     expect(text).toBe('Hello');
   });

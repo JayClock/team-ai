@@ -47,7 +47,7 @@ describe('StateResource GET Requests', () => {
     vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(
       mockUserState,
     );
-    userState = await resource.request();
+    userState = await resource._request();
     expect(userState).toBe(mockUserState);
   });
 
@@ -86,7 +86,7 @@ describe('StateResource GET Requests', () => {
         pageSize: 10,
       })
       .withGet()
-      .request();
+      ._request();
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1/conversations?page=1&pageSize=10',
@@ -113,7 +113,7 @@ describe('StateResource GET Requests', () => {
     );
     vi.spyOn(mockClient.cache, 'get').mockReturnValueOnce(cacheState);
 
-    const state = await userState.follow('conversations').withGet().request();
+    const state = await userState.follow('conversations').withGet()._request();
     expect(state).toBe(cacheState);
   });
 
@@ -140,8 +140,8 @@ describe('StateResource GET Requests', () => {
     });
 
     it('should de-duplicate identical GET requests made in quick succession', async () => {
-      const request1 = userState.follow('conversations').withGet().request();
-      const request2 = userState.follow('conversations').withGet().request();
+      const request1 = userState.follow('conversations').withGet()._request();
+      const request2 = userState.follow('conversations').withGet()._request();
 
       const [result1, result2] = await Promise.all([request1, request2]);
 
@@ -155,12 +155,12 @@ describe('StateResource GET Requests', () => {
         .follow('conversations')
         .withTemplateParameters({ page: 1 })
         .withGet()
-        .request();
+        ._request();
       const request2 = userState
         .follow('conversations')
         .withTemplateParameters({ page: 2 })
         .withGet()
-        .request();
+        ._request();
 
       await Promise.all([request1, request2]);
 
@@ -171,11 +171,11 @@ describe('StateResource GET Requests', () => {
       const request1 = userState
         .follow('conversations')
         .withGet({ headers: { 'X-Custom': 'value1' } })
-        .request();
+        ._request();
       const request2 = userState
         .follow('conversations')
         .withGet({ headers: { 'X-Custom': 'value2' } })
-        .request();
+        ._request();
 
       await Promise.all([request1, request2]);
 
@@ -187,11 +187,11 @@ describe('StateResource GET Requests', () => {
         'conversations',
       ) as LinkResource<SafeAny>;
 
-      const requestPromise = linkResource.withGet().request();
+      const requestPromise = linkResource.withGet()._request();
 
       await requestPromise;
 
-      const secondRequest = linkResource.withGet().request();
+      const secondRequest = linkResource.withGet()._request();
       await secondRequest;
 
       expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);
@@ -201,11 +201,11 @@ describe('StateResource GET Requests', () => {
       const request1 = userState
         .follow('conversations')
         .withPost({ data: { test: 'data' } })
-        .request();
+        ._request();
       const request2 = userState
         .follow('conversations')
         .withPost({ data: { test: 'data' } })
-        .request();
+        ._request();
 
       await Promise.all([request1, request2]);
 

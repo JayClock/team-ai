@@ -19,13 +19,13 @@ import { resolve } from '../util/uri.js';
 import { expand } from '../util/uri-template.js';
 
 export class LinkResource<
-  TEntity extends Entity
+  TEntity extends Entity,
 > extends BaseResource<TEntity> {
   constructor(
     client: ClientInstance,
     private readonly link: NewLink,
     private readonly rels: string[] = [],
-    optionsMap: Map<string, ResourceOptions> = new Map()
+    optionsMap: Map<string, ResourceOptions> = new Map(),
   ) {
     super(client, optionsMap);
     this.link.rel = this.link.rel ?? 'ROOT_REL';
@@ -41,14 +41,14 @@ export class LinkResource<
 
   follow<K extends keyof TEntity['links']>(
     rel: K,
-    variables?: LinkVariables
+    variables?: LinkVariables,
   ): Resource<TEntity['links'][K]> {
     this.initRequestOptionsWithRel(rel as string, { query: variables });
     return new LinkResource(
       this.client,
       this.link,
       this.rels.concat(rel as string),
-      this.optionsMap
+      this.optionsMap,
     );
   }
 
@@ -60,7 +60,7 @@ export class LinkResource<
     return { rel, currentOptions };
   }
 
-  async request(form?: Form): Promise<State<TEntity>> {
+  async _request(form?: Form): Promise<State<TEntity>> {
     const link = {
       ...this.link,
       context: this.client.bookmarkUri,
@@ -73,9 +73,9 @@ export class LinkResource<
       this.client,
       state,
       this.rels,
-      this.optionsMap
+      this.optionsMap,
     );
-    return stateResource.request();
+    return stateResource._request();
   }
 
   private isRootResource() {
@@ -126,19 +126,19 @@ export class LinkResource<
           try {
             const response = await this.client.fetcher.fetchOrThrow(
               url,
-              requestInit
+              requestInit,
             );
             const state = await this.client.getStateForResponse(
               response.url,
               response,
-              link.rel
+              link.rel,
             );
             this.client.cacheState(state);
             return state;
           } finally {
             this.activeRefresh.delete(hash);
           }
-        })()
+        })(),
       );
     }
 
@@ -177,7 +177,7 @@ export class LinkResource<
     const state = await this.client.getStateForResponse(
       response.url,
       response,
-      link.rel
+      link.rel,
     );
 
     if (response.status === 200) {
@@ -272,14 +272,14 @@ function optionsToRequestInit(options: ResourceOptions): RequestInit {
 
 function requestHash(
   uri: string,
-  options: GetRequestOptions | undefined
+  options: GetRequestOptions | undefined,
 ): string {
   const headers: Record<string, string> = {};
   if (options) {
     new Headers(options.getContentHeaders?.() || options.headers).forEach(
       (value, key) => {
         headers[key] = value;
-      }
+      },
     );
   }
 

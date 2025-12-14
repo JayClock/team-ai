@@ -73,7 +73,7 @@ describe('StateResource POST Requests', () => {
         data: newConversationData,
         headers: customHeaders,
       })
-      .request();
+      ._request();
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1/conversations',
