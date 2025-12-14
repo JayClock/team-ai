@@ -3,7 +3,6 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { State } from '../state/state.js';
 import { LinkVariables } from '../links/link.js';
 import { HttpMethod } from '../http/util.js';
-import { Client } from '../create-client.js';
 
 export type HttpHeaders = Record<string, string>;
 
@@ -50,8 +49,6 @@ export interface ResourceOptions extends RequestOptions {
 }
 
 export interface Resource<TEntity extends Entity> {
-  client: Client;
-
   follow<K extends keyof TEntity['links']>(
     rel: K,
   ): Resource<TEntity['links'][K]>;
