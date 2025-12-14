@@ -1,19 +1,27 @@
-import { Client } from '@hateoas/resource';
+import { Entity, Resource } from '@hateoas/resource';
 import * as React from 'react';
 
-type Props = {
-  client: Client;
+type ResourceProviderProps = {
+  resource: Resource<Entity>;
   children: React.ReactNode;
 };
 
-export const ClientContext = React.createContext<{
-  client?: Client;
+const ResourceContext = React.createContext<{
+  resource?: Resource<Entity>;
 }>({});
 
-export const ResourceProvider: React.FC<Props> = ({ client, children }) => {
+export const getResourceContext = () => {
+  return ResourceContext;
+};
+
+export const ResourceProvider: React.FC<ResourceProviderProps> = ({
+  resource,
+  children,
+}) => {
+  const Context = getResourceContext();
   return (
-    <ClientContext.Provider value={{ client }}>
+    <Context.Provider value={{ resource: resource }}>
       {children}
-    </ClientContext.Provider>
+    </Context.Provider>
   );
 };
