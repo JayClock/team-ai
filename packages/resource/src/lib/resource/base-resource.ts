@@ -15,17 +15,17 @@ import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Entity } from '../archtype/entity.js';
 
-export abstract class BaseResource<TEntity extends Entity>
-  implements Resource<TEntity>
-{
+export abstract class BaseResource<
+  TEntity extends Entity,
+> implements Resource<TEntity> {
   protected constructor(
-    protected readonly client: ClientInstance,
-    protected readonly optionsMap: Map<string, ResourceOptions> = new Map()
+    readonly client: ClientInstance,
+    protected readonly optionsMap: Map<string, ResourceOptions> = new Map(),
   ) {}
 
   protected initRequestOptionsWithRel(
     rel: string,
-    requestOptions: ResourceOptions
+    requestOptions: ResourceOptions,
   ): void {
     this.optionsMap.set(rel, requestOptions);
   }
@@ -64,9 +64,14 @@ export abstract class BaseResource<TEntity extends Entity>
     return this;
   }
 
+  withTemplateParameters(variables: LinkVariables): Resource<TEntity> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, query: variables });
+    return this;
+  }
+
   abstract follow<K extends keyof TEntity['links']>(
     rel: K,
-    variables?: LinkVariables
   ): Resource<TEntity['links'][K]>;
 
   abstract request(): Promise<State<TEntity>>;

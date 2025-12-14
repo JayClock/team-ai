@@ -3,7 +3,7 @@ import { Links } from '../links/links.js';
 import { Form } from '../form/form.js';
 import { StateCollection, EmbeddedStates } from './state-collection.js';
 import { Resource } from '../resource/resource.js';
-import { Link, LinkVariables } from '../links/link.js';
+import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { HttpMethod } from '../http/util.js';
 
@@ -50,7 +50,6 @@ export type State<TEntity extends Entity = Entity> = {
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
-    variables?: LinkVariables
   ): Resource<TEntity['links'][K]>;
 
   getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined;
@@ -60,13 +59,15 @@ export type State<TEntity extends Entity = Entity> = {
    * */
   getForm<K extends keyof TEntity['links']>(
     rel: K,
-    method?: HttpMethod
+    method?: HttpMethod,
   ): Form | undefined;
 
   /**
    * Get an embedded resource by rel key.
    */
-  getEmbedded<K extends keyof TEntity['links']>(rel: K): EmbeddedStates<TEntity>[K] | undefined;
+  getEmbedded<K extends keyof TEntity['links']>(
+    rel: K,
+  ): EmbeddedStates<TEntity>[K] | undefined;
 
   /**
    * Returns a serialization of the state that can be used in a HTTP
@@ -99,6 +100,6 @@ export type StateFactory = {
     client: ClientInstance,
     uri: string,
     response: Response,
-    rel?: string
+    rel?: string,
   ) => Promise<State<TEntity>>;
 };

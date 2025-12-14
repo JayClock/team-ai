@@ -5,7 +5,7 @@ import { StateCollection, EmbeddedStates } from './state-collection.js';
 import { Form } from '../form/form.js';
 import { Resource } from '../resource/resource.js';
 import { StateResource } from '../resource/state-resource.js';
-import { Link, LinkVariables } from '../links/link.js';
+import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
 import { SafeAny } from '../archtype/safe-any.js';
@@ -69,11 +69,10 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
 
   follow<K extends keyof TEntity['links']>(
     rel: K,
-    variables?: LinkVariables
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new StateResource(this.client, this as State).follow(link.rel, variables);
+      return new StateResource(this.client, this as State).follow(link.rel);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
@@ -84,7 +83,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
       return undefined;
     }
     return this.forms.find(
-      (form) => form.uri === link.href && form.method === method
+      (form) => form.uri === link.href && form.method === method,
     );
   }
 
@@ -93,7 +92,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   }
 
   getEmbedded<K extends keyof TEntity['links']>(
-    rel: K
+    rel: K,
   ): EmbeddedStates<TEntity>[K] | undefined {
     return this.embedded[rel];
   }

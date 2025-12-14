@@ -14,7 +14,7 @@ import { resolve } from '../../lib/util/uri.js';
 import { SafeAny } from '../../lib/archtype/safe-any.js';
 
 const mockFetcher = {
-  fetchOrThrow: vi.fn()
+  fetchOrThrow: vi.fn(),
 };
 
 const mockClient = {
@@ -24,12 +24,15 @@ const mockClient = {
   go: vi.fn(),
   cacheState: vi.fn(),
   cache: {
-    get:vi.fn()
-  }
+    get: vi.fn(),
+  },
 } as unknown as ClientInstance;
 
 describe('StateResource GET Requests', () => {
-  const resource: Resource<User> = new LinkResource(mockClient, { rel: '', href: '/api/users/1' });
+  const resource: Resource<User> = new LinkResource(mockClient, {
+    rel: '',
+    href: '/api/users/1',
+  });
   const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
   let userState: State<User>;
 
@@ -38,71 +41,102 @@ describe('StateResource GET Requests', () => {
     const mockUserState = await halStateFactory.create<User>(
       mockClient,
       '/api/users/1',
-      response
+      response,
     );
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(response);
-    vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(mockUserState);
+    vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(
+      mockUserState,
+    );
     userState = await resource.request();
     expect(userState).toBe(mockUserState);
-  })
+  });
 
   beforeEach(async () => {
     vi.clearAllMocks();
   });
 
   it('should handle non-embedded resource request with HTTP call', async () => {
-    const link: Link = { ...halUser._links.conversations, context: mockClient.bookmarkUri, rel: 'conversations' };
+    const link: Link = {
+      ...halUser._links.conversations,
+      context: mockClient.bookmarkUri,
+      rel: 'conversations',
+    };
 
     const mockResponse = {
       url: resolve(link).toString(),
-      json: vi.fn().mockResolvedValue(halConversations)
+      json: vi.fn().mockResolvedValue(halConversations),
     } as unknown as Response;
 
-    const options: RequestInit ={
+    const options: RequestInit = {
       method: 'GET',
       headers: new Headers({ 'Content-Type': 'application/json' }),
     };
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, link));
-    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
+    vi.spyOn(mockClient, 'go').mockReturnValue(
+      new LinkResource(mockClient, link),
+    );
+    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
+      mockResponse,
+    );
 
-    const state: State<Collection<Conversation>> = await userState.follow('conversations', {
-      page: 1,
-      pageSize: 10
-    }).withGet().request();
+    const state: State<Collection<Conversation>> = await userState
+      .follow('conversations')
+      .withTemplateParameters({
+        page: 1,
+        pageSize: 10,
+      })
+      .withGet()
+      .request();
 
-    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith('https://www.test.com/api/users/1/conversations?page=1&pageSize=10', options);
-    expect(mockClient.cacheState).toHaveBeenCalledWith(state)
+    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
+      'https://www.test.com/api/users/1/conversations?page=1&pageSize=10',
+      options,
+    );
+    expect(mockClient.cacheState).toHaveBeenCalledWith(state);
     expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
       mockResponse.url,
       mockResponse,
-      'conversations'
+      'conversations',
     );
-  })
+  });
 
-  it('should get existed cache and do not request',async ()=>{
+  it('should get existed cache and do not request', async () => {
     const cacheState = {} as State;
-    const link: Link = { ...halUser._links.conversations, context: mockClient.bookmarkUri, rel: 'conversations' };
+    const link: Link = {
+      ...halUser._links.conversations,
+      context: mockClient.bookmarkUri,
+      rel: 'conversations',
+    };
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, link));
-    vi.spyOn(mockClient.cache,'get').mockReturnValueOnce(cacheState)
+    vi.spyOn(mockClient, 'go').mockReturnValue(
+      new LinkResource(mockClient, link),
+    );
+    vi.spyOn(mockClient.cache, 'get').mockReturnValueOnce(cacheState);
 
     const state = await userState.follow('conversations').withGet().request();
-    expect(state).toBe(cacheState)
-  })
+    expect(state).toBe(cacheState);
+  });
 
   describe('activeRefresh', () => {
-    const link: Link = { ...halUser._links.conversations, context: mockClient.bookmarkUri, rel: 'conversations' };
+    const link: Link = {
+      ...halUser._links.conversations,
+      context: mockClient.bookmarkUri,
+      rel: 'conversations',
+    };
 
     const mockResponse = {
       url: resolve(link).toString(),
-      json: vi.fn().mockResolvedValue(halConversations)
+      json: vi.fn().mockResolvedValue(halConversations),
     } as unknown as Response;
 
     beforeEach(() => {
       vi.restoreAllMocks();
-      vi.spyOn(mockClient, 'go').mockReturnValue(new LinkResource(mockClient, link));
-      vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(mockResponse);
+      vi.spyOn(mockClient, 'go').mockReturnValue(
+        new LinkResource(mockClient, link),
+      );
+      vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
+        mockResponse,
+      );
     });
 
     it('should de-duplicate identical GET requests made in quick succession', async () => {
@@ -117,8 +151,16 @@ describe('StateResource GET Requests', () => {
     });
 
     it('should not de-duplicate requests with different URLs', async () => {
-      const request1 = userState.follow('conversations', { page: 1 }).withGet().request();
-      const request2 = userState.follow('conversations', { page: 2 }).withGet().request();
+      const request1 = userState
+        .follow('conversations')
+        .withTemplateParameters({ page: 1 })
+        .withGet()
+        .request();
+      const request2 = userState
+        .follow('conversations')
+        .withTemplateParameters({ page: 2 })
+        .withGet()
+        .request();
 
       await Promise.all([request1, request2]);
 
@@ -126,8 +168,14 @@ describe('StateResource GET Requests', () => {
     });
 
     it('should not de-duplicate requests with different headers', async () => {
-      const request1 = userState.follow('conversations').withGet({ headers: { 'X-Custom': 'value1' } }).request();
-      const request2 = userState.follow('conversations').withGet({ headers: { 'X-Custom': 'value2' } }).request();
+      const request1 = userState
+        .follow('conversations')
+        .withGet({ headers: { 'X-Custom': 'value1' } })
+        .request();
+      const request2 = userState
+        .follow('conversations')
+        .withGet({ headers: { 'X-Custom': 'value2' } })
+        .request();
 
       await Promise.all([request1, request2]);
 
@@ -135,7 +183,9 @@ describe('StateResource GET Requests', () => {
     });
 
     it('should clean up activeRefresh after request completes', async () => {
-      const linkResource = userState.follow('conversations') as LinkResource<SafeAny>;
+      const linkResource = userState.follow(
+        'conversations',
+      ) as LinkResource<SafeAny>;
 
       const requestPromise = linkResource.withGet().request();
 
@@ -148,8 +198,14 @@ describe('StateResource GET Requests', () => {
     });
 
     it('should not use activeRefresh for non-GET requests', async () => {
-      const request1 = userState.follow('conversations').withPost({ data: { test: 'data' } }).request();
-      const request2 = userState.follow('conversations').withPost({ data: { test: 'data' } }).request();
+      const request1 = userState
+        .follow('conversations')
+        .withPost({ data: { test: 'data' } })
+        .request();
+      const request2 = userState
+        .follow('conversations')
+        .withPost({ data: { test: 'data' } })
+        .request();
 
       await Promise.all([request1, request2]);
 

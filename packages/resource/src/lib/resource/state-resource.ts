@@ -6,33 +6,30 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { BaseResource } from './base-resource.js';
 import { ClientInstance } from '../client-instance.js';
 import { Links } from '../links/links.js';
-import { LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
 import { LinkResource } from './link-resource.js';
 import { expand } from '../util/uri-template.js';
 
 export class StateResource<
-  TEntity extends Entity
+  TEntity extends Entity,
 > extends BaseResource<TEntity> {
   constructor(
     client: ClientInstance,
     private state: State,
     private rels: string[] = [],
-    optionsMap: Map<string, ResourceOptions> = new Map()
+    optionsMap: Map<string, ResourceOptions> = new Map(),
   ) {
     super(client, optionsMap);
   }
 
   follow<K extends keyof TEntity['links']>(
     rel: K,
-    variables?: LinkVariables
   ): Resource<TEntity['links'][K]> {
-    this.initRequestOptionsWithRel(rel as string, { query: variables });
     return new StateResource(
       this.client,
       this.state,
       this.rels.concat(rel as string),
-      this.optionsMap
+      this.optionsMap,
     );
   }
 
@@ -45,7 +42,7 @@ export class StateResource<
 
   private async resolveRelationsRecursively(
     currentState: State<SafeAny>,
-    remainingRels: string[]
+    remainingRels: string[],
   ): Promise<State<SafeAny>> {
     // Base case: no more relations to process
     if (remainingRels.length === 0) {
@@ -84,7 +81,7 @@ export class StateResource<
       const form = currentState.getForm(rel, method);
       nextState = await this.updateLinkResource(
         resource,
-        currentOptions
+        currentOptions,
       ).request(form);
     }
     return this.resolveRelationsRecursively(nextState, nextRels);
@@ -92,7 +89,7 @@ export class StateResource<
 
   private updateLinkResource(
     resource: Resource<SafeAny>,
-    currentOptions: ResourceOptions
+    currentOptions: ResourceOptions,
   ): LinkResource<SafeAny> {
     const { method } = currentOptions;
 

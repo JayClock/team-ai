@@ -85,8 +85,9 @@ export interface Resource<TEntity extends Entity> {
 
   follow<K extends keyof TEntity['links']>(
     rel: K,
-    variables?: LinkVariables,
   ): Resource<TEntity['links'][K]>;
+
+  withTemplateParameters(variables: LinkVariables): Resource<TEntity>;
 
   request(): Promise<State<TEntity>>;
 
