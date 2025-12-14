@@ -99,32 +99,11 @@ export class StateResource<
   ): LinkResource<SafeAny> {
     const { method } = currentOptions;
 
-    switch (method) {
-      case 'GET':
-        resource
-          .withMethod('GET')
-          .withTemplateParameters(currentOptions.query ?? {});
-        break;
-      case 'POST':
-        resource
-          .withMethod('POST')
-          .withTemplateParameters(currentOptions.query ?? {});
-        break;
-      case 'PUT':
-        resource.withPut(currentOptions);
-        break;
-      case 'PATCH':
-        resource.withPatch(currentOptions);
-        break;
-      case 'DELETE':
-        resource.withMethod('DELETE');
-        break;
-      default:
-        resource
-          .withMethod('GET')
-          .withTemplateParameters(currentOptions.query ?? {});
-    }
-    return resource as LinkResource<SafeAny>;
+    return resource
+      .withMethod(method ?? 'GET')
+      .withTemplateParameters(
+        currentOptions.query ?? {},
+      ) as LinkResource<SafeAny>;
   }
 
   getCurrentOptions(): {

@@ -1,12 +1,4 @@
-import {
-  ResourceOptions,
-  Resource,
-  GetRequestOptions,
-  PostRequestOptions,
-  PatchRequestOptions,
-  PutResource,
-  PatchResource,
-} from './resource.js';
+import { ResourceOptions, Resource, RequestOptions } from './resource.js';
 import { LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
@@ -20,29 +12,6 @@ export abstract class BaseResource<
     readonly client: ClientInstance,
     protected readonly optionsMap: Map<string, ResourceOptions> = new Map(),
   ) {}
-
-  protected initRequestOptionsWithRel(
-    rel: string,
-    requestOptions: ResourceOptions,
-  ): void {
-    this.optionsMap.set(rel, requestOptions);
-  }
-
-  withPut(options: PostRequestOptions): PutResource<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'PUT' });
-    return this;
-  }
-
-  withPatch(options: PatchRequestOptions): PatchResource<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, {
-      ...currentOptions,
-      ...options,
-      method: 'PATCH',
-    });
-    return this;
-  }
 
   withTemplateParameters(variables: LinkVariables): Resource<TEntity> {
     const { rel, currentOptions } = this.getCurrentOptions();
@@ -60,9 +29,7 @@ export abstract class BaseResource<
     rel: K,
   ): Resource<TEntity['links'][K]>;
 
-  abstract _request(): Promise<State<TEntity>>;
-
-  abstract request(getOptions?: GetRequestOptions): Promise<State<TEntity>>;
+  abstract request(requestOptions?: RequestOptions): Promise<State<TEntity>>;
 
   abstract getCurrentOptions(): {
     rel: string;

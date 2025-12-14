@@ -43,26 +43,11 @@ export type RequestOptions<T = SafeAny> = {
   headers?: HttpHeaders | Headers;
 };
 
-export type GetRequestOptions = Omit<RequestOptions, 'serializeBody' | 'data'>;
-export type PatchRequestOptions<T = SafeAny> = RequestOptions<T>;
-export type PutRequestOptions<T = SafeAny> = RequestOptions<T>;
-export type PostRequestOptions<T = SafeAny> = RequestOptions<T>;
-
 export interface ResourceOptions extends RequestOptions {
   query?: Record<string, SafeAny>;
   body?: Record<string, SafeAny>;
   method?: HttpMethod;
 }
-
-export type PutResource<TEntity extends Entity> = Pick<
-  Resource<TEntity>,
-  'follow' | '_request'
->;
-
-export type PatchResource<TEntity extends Entity> = Pick<
-  Resource<TEntity>,
-  'follow' | '_request'
->;
 
 export interface Resource<TEntity extends Entity> {
   client: Client;
@@ -73,16 +58,7 @@ export interface Resource<TEntity extends Entity> {
 
   withTemplateParameters(variables: LinkVariables): Resource<TEntity>;
 
-  /**
-   * @deprecated
-   */
-  _request(): Promise<State<TEntity>>;
-
   request(requestOptions?: RequestOptions): Promise<State<TEntity>>;
-
-  withPut(options: PutRequestOptions): PutResource<TEntity>;
-
-  withPatch(options: PatchRequestOptions): PatchResource<TEntity>;
 
   withMethod(method: HttpMethod): Resource<TEntity>;
 }

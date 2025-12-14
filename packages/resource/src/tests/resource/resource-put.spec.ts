@@ -68,13 +68,10 @@ describe('StateResource PUT Requests', () => {
       mockResponse,
     );
 
-    await userState
-      .follow('self')
-      .withPut({
-        data: updatedUserData,
-        headers: customHeaders,
-      })
-      ._request();
+    await userState.follow('self').withMethod('PUT').request({
+      data: updatedUserData,
+      headers: customHeaders,
+    });
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1',

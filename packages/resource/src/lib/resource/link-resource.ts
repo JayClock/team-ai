@@ -1,15 +1,8 @@
 import { Entity } from '../archtype/entity.js';
-import {
-  GetRequestOptions,
-  PatchRequestOptions,
-  PostRequestOptions,
-  RequestOptions,
-  Resource,
-  ResourceOptions,
-} from './resource.js';
+import { RequestOptions, Resource, ResourceOptions } from './resource.js';
 import { StateResource } from './state-resource.js';
 import { BaseResource } from './base-resource.js';
-import { Link, LinkVariables, NewLink } from '../links/link.js';
+import { Link, NewLink } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Form } from '../form/form.js';
@@ -42,9 +35,7 @@ export class LinkResource<
 
   follow<K extends keyof TEntity['links']>(
     rel: K,
-    variables?: LinkVariables,
   ): Resource<TEntity['links'][K]> {
-    this.initRequestOptionsWithRel(rel as string, { query: variables });
     return new LinkResource(
       this.client,
       this.link,
@@ -85,7 +76,7 @@ export class LinkResource<
       this.rels,
       this.optionsMap,
     );
-    return stateResource._request();
+    return stateResource.request();
   }
 
   private isRootResource() {
@@ -164,7 +155,7 @@ export class LinkResource<
    *
    * This function will return the response as a State object.
    */
-  private async post(link: Link, options: PostRequestOptions): Promise<State> {
+  private async post(link: Link, options: RequestOptions): Promise<State> {
     const { url, requestInit } = this.parseFetchParameters(link, options);
 
     const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
@@ -179,7 +170,7 @@ export class LinkResource<
    *
    * If the server responds with 200 Status code this will return a State object
    */
-  async patch(link: Link, options: PatchRequestOptions): Promise<State> {
+  async patch(link: Link, options: RequestOptions): Promise<State> {
     const { url, requestInit } = this.parseFetchParameters(link, options);
 
     const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
@@ -282,15 +273,15 @@ function optionsToRequestInit(options: ResourceOptions): RequestInit {
 
 function requestHash(
   uri: string,
-  options: GetRequestOptions | undefined,
+  requestOptions: RequestOptions | undefined,
 ): string {
   const headers: Record<string, string> = {};
-  if (options) {
-    new Headers(options.getContentHeaders?.() || options.headers).forEach(
-      (value, key) => {
-        headers[key] = value;
-      },
-    );
+  if (requestOptions) {
+    new Headers(
+      requestOptions.getContentHeaders?.() || requestOptions.headers,
+    ).forEach((value, key) => {
+      headers[key] = value;
+    });
   }
 
   const headerStr = Object.entries(headers)
