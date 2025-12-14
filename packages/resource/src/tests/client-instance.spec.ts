@@ -2,14 +2,14 @@ import { ClientInstance } from '../lib/client-instance.js';
 import { Fetcher } from '../lib/http/fetcher.js';
 import { Config } from '../lib/archtype/config.js';
 import { State, StateFactory } from '../lib/state/state.js';
-import { LinkResource } from '../lib/resource/link-resource.js';
+import { LinkResource } from '../lib/index.js';
 import { resolve } from '../lib/util/uri.js';
 import { Cache } from '../lib/cache/cache.js';
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
 
-const mockConfig = { baseURL: 'bookmarkUri' } as Config;
+const mockConfig = { baseURL: 'https://www.example.com' } as Config;
 
 const mockHalStateFactory = {
   create: vi.fn(),
@@ -169,6 +169,18 @@ describe('ClientInstance', () => {
       expect(mockCache.store).toHaveBeenNthCalledWith(1, level_1);
       expect(mockCache.store).toHaveBeenNthCalledWith(2, level_2);
       expect(mockCache.store).toHaveBeenNthCalledWith(3, level_3);
+    });
+
+    it('should emit when state uri match resource', () => {
+      const mockState = {
+        uri: resolve(clientInstance.bookmarkUri, 'resource-match-state'),
+        collection: [],
+      } as State;
+      let triggered = false;
+      const mockLinkResource = clientInstance.go('resource-match-state');
+      mockLinkResource.once('update', () => (triggered = true));
+      clientInstance.cacheState(mockState);
+      expect(triggered).toBeTruthy();
     });
   });
 

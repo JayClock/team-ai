@@ -29,7 +29,7 @@ export class ClientInstance implements Client {
    * The cache for 'Resource' objects. Each unique uri should
    * only ever get 1 associated resource.
    */
-  readonly resources = new Map<string, Resource<SafeAny>>();
+  readonly resources = new Map<string, LinkResource<SafeAny>>();
 
   constructor(
     @inject(TYPES.Fetcher)
@@ -86,9 +86,9 @@ export class ClientInstance implements Client {
     }
     const absoluteUri = resolve(link);
     if (!this.resources.has(absoluteUri)) {
-      const resource: Resource<SafeAny> = new LinkResource(this, link);
+      const resource = new LinkResource<TEntity>(this, link);
       this.resources.set(absoluteUri, resource);
-      return resource;
+      return resource as Resource<TEntity>;
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this.resources.get(absoluteUri)!;
