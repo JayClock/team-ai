@@ -194,12 +194,12 @@ describe('StateResource GET Requests', () => {
     it('should not use activeRefresh for non-GET requests', async () => {
       const request1 = userState
         .follow('conversations')
-        .withPost({ data: { test: 'data' } })
-        ._request();
+        .withMethod('POST')
+        .request({ data: { test: 'data' } });
       const request2 = userState
         .follow('conversations')
-        .withPost({ data: { test: 'data' } })
-        ._request();
+        .withMethod('POST')
+        .request({ data: { test: 'data' } });
 
       await Promise.all([request1, request2]);
 

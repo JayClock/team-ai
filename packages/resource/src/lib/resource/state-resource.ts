@@ -1,5 +1,5 @@
 import { Entity } from '../archtype/entity.js';
-import { GetRequestOptions, Resource, ResourceOptions } from './resource.js';
+import { RequestOptions, Resource, ResourceOptions } from './resource.js';
 import { State } from '../state/state.js';
 import { BaseState } from '../state/base-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
@@ -33,9 +33,9 @@ export class StateResource<
     );
   }
 
-  async request(getOptions?: GetRequestOptions): Promise<State<TEntity>> {
+  async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
     const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, ...getOptions });
+    this.optionsMap.set(rel, { ...currentOptions, ...requestOptions });
     return await this._request();
   }
 
@@ -88,7 +88,7 @@ export class StateResource<
       nextState = await this.updateLinkResource(
         resource,
         currentOptions,
-      )._request(form);
+      ).request(currentOptions, form);
     }
     return this.resolveRelationsRecursively(nextState, nextRels);
   }
@@ -106,7 +106,9 @@ export class StateResource<
           .withTemplateParameters(currentOptions.query ?? {});
         break;
       case 'POST':
-        resource.withPost(currentOptions);
+        resource
+          .withMethod('POST')
+          .withTemplateParameters(currentOptions.query ?? {});
         break;
       case 'PUT':
         resource.withPut(currentOptions);

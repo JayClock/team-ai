@@ -67,13 +67,10 @@ describe('StateResource POST Requests', () => {
       mockResponse,
     );
 
-    await userState
-      .follow('create-conversation')
-      .withPost({
-        data: newConversationData,
-        headers: customHeaders,
-      })
-      ._request();
+    await userState.follow('create-conversation').withMethod('POST').request({
+      data: newConversationData,
+      headers: customHeaders,
+    });
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1/conversations',

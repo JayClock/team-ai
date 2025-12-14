@@ -3,6 +3,7 @@ import {
   GetRequestOptions,
   PatchRequestOptions,
   PostRequestOptions,
+  RequestOptions,
   Resource,
   ResourceOptions,
 } from './resource.js';
@@ -60,10 +61,13 @@ export class LinkResource<
     return { rel, currentOptions };
   }
 
-  async request(getOptions?: GetRequestOptions): Promise<State<TEntity>> {
+  async request(
+    requestOptions?: RequestOptions,
+    form?: Form,
+  ): Promise<State<TEntity>> {
     const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, ...getOptions });
-    return await this._request();
+    this.optionsMap.set(rel, { ...currentOptions, ...requestOptions });
+    return await this._request(form);
   }
 
   async _request(form?: Form): Promise<State<TEntity>> {

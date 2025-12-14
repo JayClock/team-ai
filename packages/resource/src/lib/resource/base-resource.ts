@@ -4,7 +4,6 @@ import {
   GetRequestOptions,
   PostRequestOptions,
   PatchRequestOptions,
-  PostResource,
   PutResource,
   PatchResource,
 } from './resource.js';
@@ -27,12 +26,6 @@ export abstract class BaseResource<
     requestOptions: ResourceOptions,
   ): void {
     this.optionsMap.set(rel, requestOptions);
-  }
-
-  withPost(options: PostRequestOptions): PostResource<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'POST' });
-    return this;
   }
 
   withPut(options: PostRequestOptions): PutResource<TEntity> {
