@@ -4,11 +4,9 @@ import {
   GetRequestOptions,
   PostRequestOptions,
   PatchRequestOptions,
-  GetResource,
   PostResource,
   PutResource,
   PatchResource,
-  DeleteResource,
 } from './resource.js';
 import { LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
@@ -29,12 +27,6 @@ export abstract class BaseResource<
     requestOptions: ResourceOptions,
   ): void {
     this.optionsMap.set(rel, requestOptions);
-  }
-
-  withGet(options?: GetRequestOptions): GetResource<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, ...options, method: 'GET' });
-    return this;
   }
 
   withPost(options: PostRequestOptions): PostResource<TEntity> {
@@ -59,12 +51,6 @@ export abstract class BaseResource<
     return this;
   }
 
-  withDelete(): DeleteResource<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, method: 'DELETE' });
-    return this;
-  }
-
   withTemplateParameters(variables: LinkVariables): Resource<TEntity> {
     const { rel, currentOptions } = this.getCurrentOptions();
     this.optionsMap.set(rel, { ...currentOptions, query: variables });
@@ -82,6 +68,8 @@ export abstract class BaseResource<
   ): Resource<TEntity['links'][K]>;
 
   abstract _request(): Promise<State<TEntity>>;
+
+  abstract request(getOptions?: GetRequestOptions): Promise<State<TEntity>>;
 
   abstract getCurrentOptions(): {
     rel: string;

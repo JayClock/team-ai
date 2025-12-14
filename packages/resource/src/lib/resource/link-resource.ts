@@ -60,6 +60,12 @@ export class LinkResource<
     return { rel, currentOptions };
   }
 
+  async request(getOptions?: GetRequestOptions): Promise<State<TEntity>> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, ...getOptions });
+    return await this._request();
+  }
+
   async _request(form?: Form): Promise<State<TEntity>> {
     const link = {
       ...this.link,

@@ -1,5 +1,5 @@
 import { Entity } from '../archtype/entity.js';
-import { Resource, ResourceOptions } from './resource.js';
+import { GetRequestOptions, Resource, ResourceOptions } from './resource.js';
 import { State } from '../state/state.js';
 import { BaseState } from '../state/base-state.js';
 import { SafeAny } from '../archtype/safe-any.js';
@@ -31,6 +31,12 @@ export class StateResource<
       this.rels.concat(rel as string),
       this.optionsMap,
     );
+  }
+
+  async request(getOptions?: GetRequestOptions): Promise<State<TEntity>> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, ...getOptions });
+    return await this._request();
   }
 
   async _request(): Promise<State<TEntity>> {
@@ -95,7 +101,9 @@ export class StateResource<
 
     switch (method) {
       case 'GET':
-        resource.withGet(currentOptions);
+        resource
+          .withMethod('GET')
+          .withTemplateParameters(currentOptions.query ?? {});
         break;
       case 'POST':
         resource.withPost(currentOptions);
@@ -107,10 +115,12 @@ export class StateResource<
         resource.withPatch(currentOptions);
         break;
       case 'DELETE':
-        resource.withDelete();
+        resource.withMethod('DELETE');
         break;
       default:
-        resource.withGet(currentOptions);
+        resource
+          .withMethod('GET')
+          .withTemplateParameters(currentOptions.query ?? {});
     }
     return resource as LinkResource<SafeAny>;
   }

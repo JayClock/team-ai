@@ -55,11 +55,6 @@ export interface ResourceOptions extends RequestOptions {
   method?: HttpMethod;
 }
 
-export type GetResource<TEntity extends Entity> = Pick<
-  Resource<TEntity>,
-  'follow' | '_request'
->;
-
 export type PostResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
   'follow' | '_request'
@@ -71,11 +66,6 @@ export type PutResource<TEntity extends Entity> = Pick<
 >;
 
 export type PatchResource<TEntity extends Entity> = Pick<
-  Resource<TEntity>,
-  'follow' | '_request'
->;
-
-export type DeleteResource<TEntity extends Entity> = Pick<
   Resource<TEntity>,
   'follow' | '_request'
 >;
@@ -94,15 +84,13 @@ export interface Resource<TEntity extends Entity> {
    */
   _request(): Promise<State<TEntity>>;
 
-  withGet(options?: GetRequestOptions): GetResource<TEntity>;
+  request(requestOptions?: RequestOptions): Promise<State<TEntity>>;
 
   withPost(options: PostRequestOptions): PostResource<TEntity>;
 
   withPut(options: PutRequestOptions): PutResource<TEntity>;
 
   withPatch(options: PatchRequestOptions): PatchResource<TEntity>;
-
-  withDelete(): DeleteResource<TEntity>;
 
   withMethod(method: HttpMethod): Resource<TEntity>;
 }
