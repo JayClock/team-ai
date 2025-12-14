@@ -6,10 +6,11 @@ import { ClientInstance } from '../../client-instance.js';
 import { Links } from '../../links/links.js';
 import { Entity } from '../../archtype/entity.js';
 import { EmbeddedStates } from '../state-collection.js';
+import { resolve } from '../../util/uri.js';
 
 export const parseHalEmbedded = <TEntity extends Entity>(
   client: ClientInstance,
-  embedded: HalResource['_embedded']
+  embedded: HalResource['_embedded'],
 ): Partial<EmbeddedStates<TEntity>> => {
   const embeddedResource = embedded || {};
   const result: Record<string, unknown> = {};
@@ -17,7 +18,7 @@ export const parseHalEmbedded = <TEntity extends Entity>(
   Object.entries(embeddedResource).forEach(([key, value]) => {
     if (Array.isArray(value)) {
       result[key] = value.map((item) =>
-        createHalStateFromResource(client, item)
+        createHalStateFromResource(client, item),
       );
     } else {
       result[key] = createHalStateFromResource(client, value);
@@ -29,7 +30,7 @@ export const parseHalEmbedded = <TEntity extends Entity>(
 
 function createHalStateFromResource(
   client: ClientInstance,
-  halResource: HalResource
+  halResource: HalResource,
 ) {
   const { _links, _embedded, _templates, ...pureData } = halResource;
   const links = new Links(client.bookmarkUri, parseHalLinks(_links));
@@ -37,7 +38,7 @@ function createHalStateFromResource(
 
   return new BaseState({
     client: client,
-    uri: (_links?.self as HalLink)?.href || '',
+    uri: resolve(client.bookmarkUri, (_links?.self as HalLink)?.href || ''),
     headers: new Headers(),
     data: pureData,
     links: links,

@@ -4,14 +4,18 @@ import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Entity } from '../archtype/entity.js';
 import { HttpMethod } from '../http/util.js';
+import EventEmitter from 'events';
 
-export abstract class BaseResource<
-  TEntity extends Entity,
-> implements Resource<TEntity> {
+export abstract class BaseResource<TEntity extends Entity>
+  extends EventEmitter
+  implements Resource<TEntity>
+{
   protected constructor(
     readonly client: ClientInstance,
     protected readonly optionsMap: Map<string, ResourceOptions> = new Map(),
-  ) {}
+  ) {
+    super();
+  }
 
   withTemplateParameters(variables: LinkVariables): Resource<TEntity> {
     const { rel, currentOptions } = this.getCurrentOptions();

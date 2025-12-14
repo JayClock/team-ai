@@ -145,6 +145,15 @@ export class ClientInstance implements Client {
     for (const nState of newStates) {
       this.cache.store(nState);
     }
+
+    // Emit 'update' events
+    for (const nState of newStates) {
+      const resource = this.resources.get(nState.uri);
+      if (resource) {
+        // We have a resource for this object, notify it as well.
+        resource.emit('update', nState);
+      }
+    }
   }
 
   /**

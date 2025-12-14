@@ -6,10 +6,13 @@ import { ClientInstance } from '../../lib/client-instance.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
-import { User } from '../fixtures/interface.js';
+import { Account, User } from '../fixtures/interface.js';
 import { StateResource } from '../../lib/resource/state-resource.js';
+import { Collection } from '../../lib/index.js';
 
-const mockClient = {} as ClientInstance;
+const mockClient = {
+  bookmarkUri: 'https://example.com/',
+} as ClientInstance;
 
 describe('HalState', async () => {
   const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
@@ -27,7 +30,8 @@ describe('HalState', async () => {
   };
   const state = await halStateFactory.create<User>(mockClient, '/api/users/1', Response.json(halUser, { headers: mockHeaders }));
 
-  it('should get pure data with out hal info', () => {
+  it('should create state from hal info', () => {
+    expect(state.uri).toEqual('https://example.com/api/users/1');
     expect(state.data).toEqual({
       id: '1',
       name: 'JayClock',
@@ -70,8 +74,11 @@ describe('HalState', async () => {
   });
 
   it('should create collection with existed embedded', async () => {
-    const state = await halStateFactory.create(mockClient, '/api/users/1', Response.json(halUser), 'accounts');
+    const state = await halStateFactory.create<Collection<Account>>(mockClient, '/api/users/1', Response.json(halUser), 'accounts');
     expect(state.collection.length).toEqual(halUser._embedded.accounts.length);
+    expect(state.collection[0].uri).toEqual(
+      'https://example.com/api/users/1/accounts/1',
+    );
   });
 
   it('should create forms with existed templates', () => {

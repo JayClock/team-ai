@@ -15,6 +15,11 @@ import { expand } from '../util/uri-template.js';
 export class LinkResource<
   TEntity extends Entity,
 > extends BaseResource<TEntity> {
+  /**
+   * URI of the current resource
+   */
+  uri: string;
+
   constructor(
     client: ClientInstance,
     private readonly link: NewLink,
@@ -23,6 +28,7 @@ export class LinkResource<
   ) {
     super(client, optionsMap);
     this.link.rel = this.link.rel ?? 'ROOT_REL';
+    this.uri = resolve(client.bookmarkUri, link.href);
   }
 
   /**

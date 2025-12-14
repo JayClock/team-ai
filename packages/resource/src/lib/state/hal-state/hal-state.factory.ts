@@ -9,6 +9,7 @@ import { parseHalTemplates } from './parse-hal-templates.js';
 import { parseHalEmbedded } from './parse-hal-embedded.js';
 import { injectable } from 'inversify';
 import { Links } from '../../links/links.js';
+import { resolve } from '../../util/uri.js';
 
 /**
  * Turns a HTTP response into a HalState
@@ -19,7 +20,7 @@ export class HalStateFactory implements StateFactory {
     client: ClientInstance,
     uri: string,
     response: Response,
-    rel?: string
+    rel?: string,
   ): Promise<State<TEntity>> {
     const halResource = (await response.json()) as HalResource;
     const { _links, _embedded, _templates, ...pureData } = halResource;
@@ -28,7 +29,7 @@ export class HalStateFactory implements StateFactory {
     const embedded = parseHalEmbedded<TEntity>(client, _embedded);
     return new HalState<TEntity>({
       client,
-      uri,
+      uri: resolve(client.bookmarkUri, uri),
       headers: response.headers,
       data: pureData,
       links: links,
@@ -56,11 +57,11 @@ class HalState<TEntity extends Entity> extends BaseState<TEntity> {
 
   private serializeLinks(): HalResource['_links'] {
     const links: HalResource['_links'] = {
-      self: { href: this.uri },
+      self: { href: new URL(this.uri).pathname },
     };
 
     for (const link of this.links.getAll()) {
-      const { rel, ...attributes } = link;
+      const { rel, context, ...attributes } = link;
       if (rel === 'self') {
         // skip
         continue;
@@ -83,7 +84,7 @@ class HalState<TEntity extends Entity> extends BaseState<TEntity> {
 
 export function getCollection<TEntity extends Entity>(
   embedded: Partial<EmbeddedStates<TEntity>>,
-  rel: string
+  rel: string,
 ): StateCollection<TEntity> {
   if (!embedded || !embedded[rel]) {
     return [];
