@@ -1,5 +1,4 @@
 import { SafeAny } from '../archtype/safe-any.js';
-import { HttpMethod } from '../http/util.js';
 
 export type HttpHeaders = Record<string, string>;
 
@@ -38,8 +37,3 @@ export type RequestOptions<T = SafeAny> = {
    */
   headers?: HttpHeaders | Headers;
 };
-
-export interface ResourceOptions {
-  query?: Record<string, SafeAny>;
-  method?: HttpMethod;
-}

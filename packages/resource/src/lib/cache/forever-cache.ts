@@ -1,6 +1,7 @@
 import { Cache } from './cache.js';
 import { State } from '../state/state.js';
 import { injectable } from 'inversify';
+import { Entity } from '../archtype/entity.js';
 
 /**
  * The 'Forever' cache stores any State for as long as the application
@@ -34,12 +35,12 @@ export class ForeverCache implements Cache {
   /**
    * Retrieve a State object from the cache by its absolute uri
    */
-  get(uri: string): State | null {
+  get<T extends Entity>(uri: string): State<T> | null {
     const state = this.cache.get(uri);
     if (!state) {
       return null;
     }
-    return state.clone();
+    return state.clone() as State<T>;
   }
 
   /**

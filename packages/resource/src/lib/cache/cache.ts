@@ -1,4 +1,5 @@
 import { State } from '../state/state.js';
+import { Entity } from '../archtype/entity.js';
 
 /**
  * Cache interface
@@ -16,7 +17,7 @@ export interface Cache {
   /**
    * Retrieve a State object from the cache by its absolute uri
    */
-  get: (uri: string) => State | null;
+  get: <T extends Entity>(uri: string) => State<T> | null;
 
   /**
    * Return true if a State object with the specified uri exists in the cache

@@ -14,7 +14,6 @@ import { resolve } from './util/uri.js';
 import { SafeAny } from './archtype/safe-any.js';
 import type { Cache } from './cache/cache.js';
 import { StreamStateFactory } from './state/stream-state/stream-state.factory.js';
-import { BaseState } from './state/base-state.js';
 
 @injectable()
 export class ClientInstance implements Client {
@@ -57,6 +56,34 @@ export class ClientInstance implements Client {
       // 'text/html': [htmlStateFactory, '0.6'],
       'text/event-stream': [streamStateFactory, '0.5'],
     };
+  }
+
+  /**
+   * cacheDependencies contains all cache relationships between
+   * resources.
+   *
+   * This lets a user (for example) let a resource automatically
+   * expire, if another one expires.
+   *
+   * A server can populate this list using the `inv-by' link.
+   *
+   */
+  private cacheDependencies: Map<string, Set<string>> = new Map();
+
+  /**
+   * Adds a cache dependency between two resources.
+   *
+   * If the 'target' resource ever expires, it will cause 'dependentUri' to
+   * also expire.
+   *
+   * Both argument MUST be absolute urls.
+   */
+  private addCacheDependency(targetUri: string, dependentUri: string): void {
+    if (this.cacheDependencies.has(targetUri)) {
+      this.cacheDependencies.get(targetUri)?.add(dependentUri);
+    } else {
+      this.cacheDependencies.set(targetUri, new Set([dependentUri]));
+    }
   }
 
   /**
@@ -125,13 +152,6 @@ export class ClientInstance implements Client {
   }
 
   /**
-   * Clears the entire state cache
-   */
-  clearCache() {
-    this.cache.clear();
-  }
-
-  /**
    * Caches a State object
    *
    * This function will also emit 'update' events to resources, and store all
@@ -140,6 +160,13 @@ export class ClientInstance implements Client {
   cacheState(state: State) {
     // Flatten the list of state objects.
     const newStates = this.flattenState(state);
+
+    // Register all cache dependencies.
+    for (const nState of newStates) {
+      for (const invByLink of nState.links.getMany('inv-by')) {
+        this.addCacheDependency(resolve(invByLink), nState.uri);
+      }
+    }
 
     // Store all new caches
     for (const nState of newStates) {
@@ -169,5 +196,93 @@ export class ClientInstance implements Client {
       this.flattenState(_, result);
     }
     return result;
+  }
+
+  /**
+   * Helper function for clearing the cache for a resource.
+   *
+   * This function will also emit the 'stale' event for resources that have
+   * subscribers, and handle any dependent resource caches.
+   *
+   * If any resources are specified in deletedUris, those will not
+   * receive 'stale' events, but 'delete' events instead.
+   */
+  clearResourceCache(staleUris: string[], deletedUris: string[]) {
+    let stale = new Set<string>();
+    const deleted = new Set<string>();
+    for (const uri of staleUris) {
+      stale.add(resolve(this.bookmarkUri, uri));
+    }
+    for (const uri of deletedUris) {
+      stale.add(resolve(this.bookmarkUri, uri));
+      deleted.add(resolve(this.bookmarkUri, uri));
+    }
+
+    stale = this.expandCacheDependencies(
+      new Set([...stale, ...deleted]),
+      this.cacheDependencies,
+    );
+
+    for (const uri of stale) {
+      this.cache.delete(uri);
+
+      const resource = this.resources.get(uri);
+      if (resource) {
+        if (deleted.has(uri)) {
+          resource.emit('delete');
+        } else {
+          resource.emit('stale');
+        }
+      }
+    }
+  }
+
+  /**
+   * Find all dependencies for a given resource.
+   *
+   * For example, if
+   *   * if resourceA depends on resourceB
+   *   * and resourceB depends on resourceC
+   *
+   * Then if 'resourceC' expires, so should 'resourceA' and 'resourceB'.
+   *
+   * This function helps us find these dependencies recursively and guarding
+   * against recursive loops.
+   */
+  private expandCacheDependencies(
+    uris: Set<string>,
+    dependencies: Map<string, Set<string>>,
+    output?: Set<string>,
+  ): Set<string> {
+    if (!output) output = new Set();
+
+    for (const uri of uris) {
+      if (!output.has(uri)) {
+        output.add(uri);
+
+        // Find resources that depend on this URI (forward dependencies)
+        if (dependencies.has(uri)) {
+          this.expandCacheDependencies(
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            dependencies.get(uri)!,
+            dependencies,
+            output,
+          );
+        }
+
+        // Find resources that this URI depends on (reverse dependencies)
+        for (const [key, value] of dependencies.entries()) {
+          if (value.has(uri) && !output.has(key)) {
+            this.expandCacheDependencies(
+              new Set([key]),
+              dependencies,
+              output,
+            );
+          }
+        }
+      }
+    }
+
+    return output;
   }
 }

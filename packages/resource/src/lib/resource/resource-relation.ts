@@ -1,6 +1,6 @@
 import { ClientInstance } from '../client-instance.js';
 import { Link, LinkVariables } from '../links/link.js';
-import { RequestOptions, ResourceOptions } from './interface.js';
+import { RequestOptions } from './interface.js';
 import { Entity } from '../archtype/entity.js';
 import { HttpMethod } from '../http/util.js';
 import { State } from '../state/state.js';
@@ -9,6 +9,11 @@ import { resolve } from '../util/uri.js';
 import { Links } from '../links/links.js';
 import Resource from './resource.js';
 import { SafeAny } from '../archtype/safe-any.js';
+
+interface ResourceOptions {
+  query?: Record<string, SafeAny>;
+  method?: HttpMethod;
+}
 
 export class ResourceRelation<TEntity extends Entity> {
   constructor(

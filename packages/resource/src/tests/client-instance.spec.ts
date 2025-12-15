@@ -4,7 +4,7 @@ import { Config } from '../lib/archtype/config.js';
 import { State, StateFactory } from '../lib/state/state.js';
 import { resolve } from '../lib/util/uri.js';
 import { Cache } from '../lib/cache/cache.js';
-import { expect, vi } from 'vitest';
+import { beforeEach, describe, expect, vi } from 'vitest';
 import { Resource } from '../lib/index.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
@@ -26,6 +26,9 @@ const mockStreamStateFactory = {
 const mockCache = {
   store: vi.fn(),
   clear: vi.fn(),
+  delete: vi.fn(),
+  get: vi.fn(),
+  has: vi.fn(),
 } as unknown as Cache;
 
 describe('ClientInstance', () => {
@@ -146,24 +149,41 @@ describe('ClientInstance', () => {
   });
 
   describe('cache', () => {
-    it('should clear cache', () => {
-      clientInstance.clearCache();
-      expect(mockCache.clear).toHaveBeenCalled();
+    const level_3 = {
+      collection: [],
+      uri: resolve(clientInstance.bookmarkUri, 'level_3'),
+      links: { getMany: vi.fn().mockReturnValue([]) },
+    } as unknown as State;
+
+    const level_2 = {
+      collection: [level_3],
+      uri: resolve(clientInstance.bookmarkUri, 'level_2'),
+      links: {
+        getMany: vi.fn().mockReturnValue([
+          {
+            href: 'level_1',
+            context: clientInstance.bookmarkUri,
+            rel: 'inv-by',
+          },
+        ]),
+      },
+    } as unknown as State;
+
+    const level_1 = {
+      collection: [level_2],
+      uri: resolve(clientInstance.bookmarkUri, 'level_1'),
+      links: { getMany: vi.fn().mockReturnValue([]) },
+    } as unknown as State;
+
+    const resource_1 = clientInstance.go('level_1');
+    const resource_2 = clientInstance.go('level_2');
+    const resource_3 = clientInstance.go('level_3');
+
+    beforeEach(() => {
+      clientInstance.cacheState(level_1);
     });
 
     it('should state cache with collection', () => {
-      const level_3 = { collection: [], uri: 'level-3' } as unknown as State;
-
-      const level_2 = {
-        collection: [level_3],
-        uri: 'level-2',
-      } as unknown as State;
-
-      const level_1 = {
-        collection: [level_2],
-        uri: 'level-1',
-      } as unknown as State;
-
       clientInstance.cacheState(level_1);
 
       expect(mockCache.store).toHaveBeenNthCalledWith(1, level_1);
@@ -171,16 +191,25 @@ describe('ClientInstance', () => {
       expect(mockCache.store).toHaveBeenNthCalledWith(3, level_3);
     });
 
-    it('should emit when state uri match resource', () => {
-      const mockState = {
-        uri: resolve(clientInstance.bookmarkUri, 'resource-match-state'),
-        collection: [],
-      } as State;
+    it('should emit update when state uri match resource', () => {
       let triggered = false;
-      const mockResource = clientInstance.go('resource-match-state');
-      mockResource.once('update', () => (triggered = true));
-      clientInstance.cacheState(mockState);
+      resource_1.once('update', () => (triggered = true));
+      clientInstance.cacheState(level_1);
       expect(triggered).toBeTruthy();
+    });
+
+    it('should emit delete and stale when clearResourceCache', () => {
+      let deleted = '';
+      let staled = '';
+      resource_1.once('delete', () => (deleted += 1));
+      resource_2.once('delete', () => (deleted += 2));
+      resource_3.once('delete', () => (deleted += 3));
+      resource_1.once('stale', () => (staled += 1));
+      resource_2.once('stale', () => (staled += 2));
+      resource_3.once('stale', () => (staled += 3));
+      clientInstance.clearResourceCache([level_2.uri], [level_3.uri]);
+      expect(deleted).toEqual('3');
+      expect(staled).toEqual('21');
     });
   });
 
