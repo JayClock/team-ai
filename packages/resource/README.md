@@ -4,6 +4,8 @@
 
 `@hateoas/resource` 是一个强大的 TypeScript/JavaScript 客户端库，用于与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。它提供了类型安全的资源导航、关系追踪和状态管理。
 
+**版本**: 0.0.1
+
 ## 安装
 
 ```bash
@@ -93,18 +95,18 @@ const userState = await userResource.withMethod('GET').request();
 
 ### 4. 通过关系导航资源
 
-使用 `.follow()` 方法来导航到关联的资源，无需手动构建 URL。链式调用默认使用 GET 方法，符合 RESTful 的发现规范。
+使用 `.follow()` 方法来导航到关联的资源，无需手动构建 URL。`follow()` 方法返回 `ResourceRelation` 对象，可以继续链式调用或直接请求。
 
 ```typescript
 async function navigateToUserConversations(userId: string) {
   const userResource = client.go<User>(`/api/users/${userId}`);
   const userState = await userResource.request(); // 默认 GET
 
-  // 创建一个指向用户 'conversations' 关系的 Resource 对象
-  const conversationsResource = userState.follow('conversations');
+  // 创建一个指向用户 'conversations' 关系的 ResourceRelation 对象
+  const conversationsRelation = userState.follow('conversations');
 
   // 调用关系以获取对话集合的状态（默认 GET）
-  const conversationsState = await conversationsResource.request();
+  const conversationsState = await conversationsRelation.request();
 
   // 遍历集合并打印每个对话的标题
   if (Array.isArray(conversationsState.collection)) {
@@ -119,7 +121,7 @@ navigateToUserConversations('user-123');
 
 ### 5. 链式导航
 
-你可以连续调用 `.follow()` 来进行深层导航。链式调用默认使用 GET 方法，符合 RESTful 的发现规范。
+你可以连续调用 `.follow()` 来进行深层导航。每次 `follow()` 调用都会返回一个新的 `ResourceRelation` 对象，支持链式调用。
 
 ```typescript
 async function getFirstConversationOfFirstAccount(userId: string) {
@@ -147,10 +149,10 @@ async function createNewConversationForUser(userId: string) {
   const userState = await client.go<User>(`/api/users/${userId}`).request(); // 默认 GET
 
   // 导航到 'create-conversation' 关系
-  const createConversationResource = userState.follow('create-conversation');
+  const createConversationRelation = userState.follow('create-conversation');
 
   // 使用 withMethod 指定 POST 方法，然后提交表单数据创建新对话
-  const newConversationState = await createConversationResource.withMethod('POST').request({
+  const newConversationState = await createConversationRelation.withMethod('POST').request({
     data: { title: '新对话' }
   });
   
@@ -208,6 +210,7 @@ createNewConversationForUser('user-123');
   - `headers`: 请求头
   - `query`: 查询参数
   - `serializeBody`: 自定义序列化函数
+  - `getContentHeaders`: 获取内容头的函数
 - `form`: 表单对象（可选）
 
 **返回值:**
@@ -227,7 +230,7 @@ const newState = await resource.withMethod('POST').request({
 });
 ```
 
-#### resource.follow<K extends keyof TEntity['links']>(rel: K): Resource<TEntity['links'][K]>
+#### resource.follow<K extends keyof TEntity['links']>(rel: K): ResourceRelation<TEntity['links'][K]>
 
 导航到关联的资源。
 
@@ -235,7 +238,7 @@ const newState = await resource.withMethod('POST').request({
 - `rel`: 关系名称
 
 **返回值:**
-- `Resource<TEntity['links'][K]>`: 关联资源的 Resource 对象
+- `ResourceRelation<TEntity['links'][K]>`: 关联资源的 ResourceRelation 对象
 
 #### resource.withMethod(method: HttpMethod): Resource<TEntity>
 
@@ -294,6 +297,57 @@ const state = await resource
   .request();
 ```
 
+### ResourceRelation<TEntity extends Entity>
+
+ResourceRelation 类用于处理资源关系的导航，支持链式调用和参数设置。
+
+#### relation.request(requestOptions?: RequestOptions): Promise<State<TEntity>>
+
+发送请求并获取资源状态。
+
+**参数:**
+- `requestOptions`: 请求选项（可选）
+
+**返回值:**
+- `Promise<State<TEntity>>`: 资源状态
+
+#### relation.getResource(): Promise<Resource<TEntity>>
+
+获取关联的资源对象。
+
+**返回值:**
+- `Promise<Resource<TEntity>>`: 资源对象
+
+#### relation.follow<K extends keyof TEntity['links']>(rel: K): ResourceRelation<TEntity['links'][K]>
+
+继续导航到下一级关联资源。
+
+**参数:**
+- `rel`: 关系名称
+
+**返回值:**
+- `ResourceRelation<TEntity['links'][K]>`: 下一级关联资源的 ResourceRelation 对象
+
+#### relation.withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity>
+
+设置 URI 模板参数。
+
+**参数:**
+- `variables`: 参数键值对
+
+**返回值:**
+- `ResourceRelation<TEntity>`: 当前资源关系对象（支持链式调用）
+
+#### relation.withMethod(method: HttpMethod): ResourceRelation<TEntity>
+
+设置 HTTP 方法。
+
+**参数:**
+- `method`: HTTP 方法
+
+**返回值:**
+- `ResourceRelation<TEntity>`: 当前资源关系对象（支持链式调用）
+
 ### State<TEntity extends Entity>
 
 #### state.data: TEntity['data']
@@ -340,6 +394,28 @@ const state = await resource
 
 克隆状态对象。
 
+### RequestOptions<T = any>
+
+请求选项接口，用于配置 HTTP 请求。
+
+**属性:**
+- `data?: T`: 请求体数据
+- `headers?: HttpHeaders | Headers`: HTTP 请求头
+- `serializeBody?: () => string | Buffer | Blob`: 自定义序列化函数
+- `getContentHeaders?: () => HttpHeaders | Headers`: 获取内容头的函数
+
+### FetchMiddleware
+
+中间件类型，用于拦截和修改 HTTP 请求。
+
+**类型:**
+```typescript
+type FetchMiddleware = (
+  request: Request,
+  next: (request: Request) => Promise<Response>
+) => Promise<Response>;
+```
+
 ## 高级用法
 
 ### 自定义缓存策略
@@ -360,7 +436,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 
 ### 中间件
 
-你可以使用中间件来拦截和修改请求。
+你可以使用中间件来拦截和修改请求。中间件遵循标准的 Fetch API 模式，接收一个 Request 对象和一个 next 函数。
 
 ```typescript
 import { createClient } from '@hateoas/resource';
@@ -368,19 +444,70 @@ import { createClient } from '@hateoas/resource';
 const client = createClient({ baseURL: 'https://api.example.com' });
 
 // 添加认证中间件
-client.use((url, options) => {
-  options.headers = {
-    ...options.headers,
-    Authorization: `Bearer ${token}`
-  };
-  return { url, options };
+client.use((request, next) => {
+  // 修改请求头
+  request.headers.set('Authorization', `Bearer ${token}`);
+  
+  // 调用下一个中间件或发送请求
+  return next(request);
 });
 
 // 添加日志中间件
-client.use((url, options) => {
-  console.log(`请求: ${options.method} ${url}`);
-  return { url, options };
+client.use((request, next) => {
+  console.log(`请求: ${request.method} ${request.url}`);
+  const start = Date.now();
+  
+  // 调用下一个中间件并获取响应
+  return next(request).then(response => {
+    console.log(`响应: ${response.status} (${Date.now() - start}ms)`);
+    return response;
+  });
 });
+
+// 修改请求体的中间件
+client.use((request, next) => {
+  if (request.method === 'POST' && request.headers.get('Content-Type') === 'application/json') {
+    // 克隆请求以修改请求体
+    const clonedRequest = request.clone();
+    const body = clonedRequest.json().then(data => {
+      // 添加时间戳
+      data.timestamp = new Date().toISOString();
+      return new Request(request, {
+        body: JSON.stringify(data)
+      });
+    });
+    
+    return body.then(newRequest => next(newRequest));
+  }
+  
+  return next(request);
+});
+```
+
+**中间件类型:**
+```typescript
+type FetchMiddleware = (
+  request: Request,
+  next: (request: Request) => Promise<Response>
+) => Promise<Response>;
+```
+
+**中间件执行顺序:**
+- 中间件按照添加的顺序执行
+- 每个中间件必须调用 `next()` 函数以传递请求到下一个中间件
+- 最后一个中间件会发送实际的 HTTP 请求
+- 响应会按照相反的顺序通过中间件链返回
+
+**限制中间件作用域:**
+```typescript
+// 只对特定域名应用中间件
+client.use(authMiddleware, 'https://api.example.com');
+
+// 使用通配符匹配多个子域名
+client.use(loggingMiddleware, 'https://*.example.com');
+
+// 默认情况下，中间件应用于所有域名（'*'）
+client.use(generalMiddleware); // 等同于 client.use(generalMiddleware, '*')
 ```
 
 ### 错误处理
@@ -437,20 +564,20 @@ await userResource.request(); // 默认 GET
 
 ```typescript
 async function fetchAllUserConversations(userId: string) {
-  let conversationsResource = client.go<User>(`/api/users/${userId}`).follow('conversations');
+  let conversationsRelation = client.go<User>(`/api/users/${userId}`).follow('conversations');
   const allConversations = [];
   
-  while (conversationsResource) {
+  while (conversationsRelation) {
     // 默认使用 GET 方法获取分页数据
-    const conversationsState = await conversationsResource.request();
+    const conversationsState = await conversationsRelation.request();
     allConversations.push(...conversationsState.collection);
     
     // 使用 follow 导航到下一页
     try {
-      conversationsResource = conversationsState.follow('next');
+      conversationsRelation = conversationsState.follow('next');
     } catch (error) {
       // 如果没有下一页链接，会抛出错误
-      conversationsResource = null;
+      conversationsRelation = null;
     }
   }
   
@@ -470,14 +597,32 @@ async function fetchAllUserConversations(userId: string) {
 
 ### ShortCache
 
-`ShortCache` 在指定时间后自动过期缓存项，默认为 30 秒。这对于需要定期刷新数据的场景很有用。
+`ShortCache` 继承自 `ForeverCache`，在指定时间后自动过期缓存项，默认为 30 秒。这对于需要定期刷新数据的场景很有用。
+
+**特性:**
+- 继承自 `ForeverCache`，具有所有基础缓存功能
+- 支持自定义缓存超时时间（毫秒）
+- 自动清理过期缓存项，避免内存泄漏
+- 适用于频繁变化的数据
 
 ```typescript
 import { ShortCache } from '@hateoas/resource';
 
 // 创建一个 5 分钟过期的缓存
 const shortCache = new ShortCache(5 * 60 * 1000);
+
+// 使用依赖注入容器配置缓存
+import { container } from '@hateoas/resource/container';
+import { TYPES } from '@hateoas/resource/archtype/injection-types';
+
+container.rebind(TYPES.Cache).toConstantValue(shortCache);
 ```
+
+**内部实现:**
+- 使用 `setTimeout` 为每个缓存项设置过期时间
+- 维护一个 `activeTimers` 映射来跟踪所有活动的定时器
+- 在缓存项过期时自动删除
+- 提供 `destroy()` 方法来清理所有定时器
 
 ### 自定义缓存
 
@@ -627,29 +772,22 @@ client.clearCache();
 
 ```typescript
 // 认证中间件
-client.use((url, options) => {
-  if (needsAuth(url)) {
-    options.headers = {
-      ...options.headers,
-      Authorization: `Bearer ${getAuthToken()}`
-    };
+client.use((request, next) => {
+  if (needsAuth(request.url)) {
+    request.headers.set('Authorization', `Bearer ${getAuthToken()}`);
   }
-  return { url, options };
+  return next(request);
 });
 
 // 日志中间件
-client.use((url, options) => {
-  console.log(`[HTTP] ${options.method} ${url}`);
+client.use((request, next) => {
+  console.log(`[HTTP] ${request.method} ${request.url}`);
   const start = Date.now();
   
-  return {
-    url,
-    options,
-    after: (response) => {
-      console.log(`[HTTP] ${options.method} ${url} - ${response.status} (${Date.now() - start}ms)`);
-      return response;
-    }
-  };
+  return next(request).then(response => {
+    console.log(`[HTTP] ${request.method} ${request.url} - ${response.status} (${Date.now() - start}ms)`);
+    return response;
+  });
 });
 ```
 
@@ -660,12 +798,9 @@ client.use((url, options) => {
 A: 使用中间件来自动添加认证头。
 
 ```typescript
-client.use((url, options) => {
-  options.headers = {
-    ...options.headers,
-    Authorization: `Bearer ${token}`
-  };
-  return { url, options };
+client.use((request, next) => {
+  request.headers.set('Authorization', `Bearer ${token}`);
+  return next(request);
 });
 ```
 

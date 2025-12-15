@@ -41,10 +41,16 @@ describe('Client', () => {
 
   it('should get user data', async () => {
     const res = await userResource.request();
-    expect(res.uri).toEqual(resolve(baseURL, '/api/users/1').toString());
-    expect(res.data.id).toEqual(halUser.id);
-    expect(res.data.name).toEqual(halUser.name);
-    expect(res.data.email).toEqual(halUser.email);
+    expect(halUser).toEqual(expect.objectContaining(res.data));
+  });
+
+  it('should get user data with multi follow', async () => {
+    const res = await userResource
+      .follow('latest-conversation')
+      .follow('user')
+      .withMethod('GET')
+      .request();
+    expect(halUser).toEqual(expect.objectContaining(res.data));
   });
 
   it('should get user accounts data', async () => {

@@ -1,14 +1,14 @@
 import { ClientInstance } from '../client-instance.js';
 import { Link, LinkVariables } from '../links/link.js';
-import { ResourceOptions } from './interface.js';
+import { RequestOptions, ResourceOptions } from './interface.js';
 import { Entity } from '../archtype/entity.js';
 import { HttpMethod } from '../http/util.js';
 import { State } from '../state/state.js';
-import { SafeAny } from '../archtype/safe-any.js';
 import { BaseState } from '../state/base-state.js';
-import { expand } from '../util/uri-template.js';
 import { resolve } from '../util/uri.js';
 import { Links } from '../links/links.js';
+import Resource from './resource.js';
+import { SafeAny } from '../archtype/safe-any.js';
 
 export class ResourceRelation<TEntity extends Entity> {
   constructor(
@@ -18,9 +18,52 @@ export class ResourceRelation<TEntity extends Entity> {
     private readonly optionsMap: Map<string, ResourceOptions> = new Map(),
   ) {}
 
-  async request(): Promise<State<TEntity>> {
-    const rootState = await this.client.go<TEntity>(this.link).request();
-    return this.resolveRelationsRecursively(rootState, this.rels);
+  async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
+    const resource = await this.getResource();
+    return resource.request(requestOptions);
+  }
+
+  async getResource(): Promise<Resource<TEntity>> {
+    let resource: Resource<SafeAny> = this.client.go(this.link);
+    let state: State<SafeAny> = await resource.request();
+    for (const rel of this.rels) {
+      const currentOptions = this.optionsMap.get(rel);
+      resource = state
+        .follow(rel)
+        .withMethod(currentOptions?.method ?? 'GET')
+        .withTemplateParameters(currentOptions?.query ?? {});
+
+      const embedded = (state as BaseState<SafeAny>).getEmbedded(rel);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const link = state.getLink(rel)!;
+      if (Array.isArray(embedded)) {
+        state = new BaseState({
+          client: this.client,
+          uri: resolve(link),
+          data: {},
+          collection: embedded,
+          links: new Links(this.client.bookmarkUri),
+          headers: new Headers(),
+        });
+        this.client.cacheState(state);
+      } else if (embedded) {
+        state = embedded;
+        this.client.cacheState(state);
+      }
+      state = await resource.request();
+    }
+    return resource;
+  }
+
+  follow<K extends keyof TEntity['links']>(
+    rel: K,
+  ): ResourceRelation<TEntity['links'][K]> {
+    return new ResourceRelation(
+      this.client,
+      this.link,
+      this.rels.concat(rel as string),
+      this.optionsMap,
+    );
   }
 
   withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity> {
@@ -37,52 +80,8 @@ export class ResourceRelation<TEntity extends Entity> {
 
   private getCurrentOptions() {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const rel = this.rels.at(1)!;
+    const rel = this.rels.at(-1)!;
     const currentOptions = this.optionsMap.get(rel) ?? {};
     return { rel, currentOptions };
-  }
-
-  private async resolveRelationsRecursively(
-    currentState: State<SafeAny>,
-    remainingRels: string[],
-  ): Promise<State<SafeAny>> {
-    // Base case: no more relations to process
-    if (remainingRels.length === 0) {
-      return currentState;
-    }
-
-    const [currentRel, ...nextRels] = remainingRels;
-    const link = currentState.getLink(currentRel);
-
-    if (!link) {
-      throw new Error(`Relation ${currentRel} not found`);
-    }
-
-    const embedded = (currentState as BaseState<TEntity>).getEmbedded(link.rel);
-    const { rel, currentOptions } = this.getCurrentOptions();
-    const { query } = currentOptions;
-    const resource = this.client.go({ ...link, href: expand(link, query) });
-    let nextState: State<SafeAny>;
-
-    if (Array.isArray(embedded)) {
-      nextState = new BaseState({
-        client: this.client,
-        uri: resolve(link),
-        data: {},
-        collection: embedded,
-        links: new Links(this.client.bookmarkUri),
-        headers: new Headers(),
-      });
-      this.client.cacheState(nextState);
-    } else if (embedded) {
-      nextState = embedded;
-      this.client.cacheState(nextState);
-    } else {
-      const { method = 'GET' } = currentOptions;
-      // If no embedded data is available, make an HTTP request
-      const form = currentState.getForm(rel, method);
-      nextState = await resource.request({}, form);
-    }
-    return this.resolveRelationsRecursively(nextState, nextRels);
   }
 }

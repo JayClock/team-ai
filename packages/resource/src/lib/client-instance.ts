@@ -14,6 +14,7 @@ import { resolve } from './util/uri.js';
 import { SafeAny } from './archtype/safe-any.js';
 import type { Cache } from './cache/cache.js';
 import { StreamStateFactory } from './state/stream-state/stream-state.factory.js';
+import { BaseState } from './state/base-state.js';
 
 @injectable()
 export class ClientInstance implements Client {
