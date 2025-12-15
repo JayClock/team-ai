@@ -29,6 +29,10 @@ export abstract class BaseResource<TEntity extends Entity>
     return this;
   }
 
+  abstract rootUri: string;
+
+  abstract isRootResource(): boolean;
+
   abstract follow<K extends keyof TEntity['links']>(
     rel: K,
   ): Resource<TEntity['links'][K]>;

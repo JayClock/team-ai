@@ -13,6 +13,8 @@ import { expand } from '../util/uri-template.js';
 export class StateResource<
   TEntity extends Entity,
 > extends BaseResource<TEntity> {
+  rootUri: string;
+
   constructor(
     client: ClientInstance,
     private state: State,
@@ -20,6 +22,8 @@ export class StateResource<
     optionsMap: Map<string, ResourceOptions> = new Map(),
   ) {
     super(client, optionsMap);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    this.rootUri = resolve(this.state.links.get(rels[0])!);
   }
 
   follow<K extends keyof TEntity['links']>(
@@ -115,5 +119,9 @@ export class StateResource<
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const currentOptions = this.optionsMap.get(rel)!;
     return { rel, currentOptions };
+  }
+
+  override isRootResource(): boolean {
+    return this.rels.length === 1;
   }
 }

@@ -50,6 +50,11 @@ export interface ResourceOptions extends RequestOptions {
 }
 
 export interface Resource<TEntity extends Entity> extends EventEmitter {
+  /**
+   * the inlet uri of resource
+   */
+  rootUri: string;
+
   follow<K extends keyof TEntity['links']>(
     rel: K,
   ): Resource<TEntity['links'][K]>;
@@ -59,6 +64,8 @@ export interface Resource<TEntity extends Entity> extends EventEmitter {
   request(requestOptions?: RequestOptions): Promise<State<TEntity>>;
 
   withMethod(method: HttpMethod): Resource<TEntity>;
+
+  isRootResource(): boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

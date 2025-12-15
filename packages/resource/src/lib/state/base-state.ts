@@ -4,7 +4,6 @@ import { State } from './state.js';
 import { StateCollection, EmbeddedStates } from './state-collection.js';
 import { Form } from '../form/form.js';
 import { Resource } from '../resource/resource.js';
-import { StateResource } from '../resource/state-resource.js';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
@@ -72,7 +71,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return new StateResource(this.client, this as State).follow(link.rel);
+      return this.client.go(link);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
