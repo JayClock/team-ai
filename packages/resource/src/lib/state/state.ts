@@ -2,10 +2,10 @@ import { Entity } from '../archtype/entity.js';
 import { Links } from '../links/links.js';
 import { Form } from '../form/form.js';
 import { StateCollection, EmbeddedStates } from './state-collection.js';
-import { Resource } from '../resource/resource.js';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { HttpMethod } from '../http/util.js';
+import { Resource } from '../index.js';
 
 export type State<TEntity extends Entity = Entity> = {
   /**

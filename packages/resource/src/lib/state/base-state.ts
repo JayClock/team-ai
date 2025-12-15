@@ -3,11 +3,11 @@ import { Links } from '../links/links.js';
 import { State } from './state.js';
 import { StateCollection, EmbeddedStates } from './state-collection.js';
 import { Form } from '../form/form.js';
-import { Resource } from '../resource/resource.js';
 import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
 import { SafeAny } from '../archtype/safe-any.js';
+import { Resource } from '../index.js';
 
 type StateInit<TEntity extends Entity> = {
   uri: string;

@@ -7,7 +7,6 @@ import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
 import { Account, User } from '../fixtures/interface.js';
-import { StateResource } from '../../lib/resource/state-resource.js';
 import { Collection } from '../../lib/index.js';
 
 const mockClient = {

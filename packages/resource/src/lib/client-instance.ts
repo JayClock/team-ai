@@ -1,8 +1,7 @@
 import { Entity } from './archtype/entity.js';
-import { LinkResource } from './resource/link-resource.js';
+import { Resource } from './resource/resource.js';
 import { inject, injectable } from 'inversify';
 import { TYPES } from './archtype/injection-types.js';
-import { Resource } from './resource/resource.js';
 import { Client } from './create-client.js';
 import { Link, NewLink } from './links/link.js';
 import { Fetcher, FetchMiddleware } from './http/fetcher.js';
@@ -29,7 +28,7 @@ export class ClientInstance implements Client {
    * The cache for 'Resource' objects. Each unique uri should
    * only ever get 1 associated resource.
    */
-  readonly resources = new Map<string, LinkResource<SafeAny>>();
+  readonly resources = new Map<string, Resource<SafeAny>>();
 
   constructor(
     @inject(TYPES.Fetcher)
@@ -86,7 +85,7 @@ export class ClientInstance implements Client {
     }
     const absoluteUri = resolve(link);
     if (!this.resources.has(absoluteUri)) {
-      const resource = new LinkResource<TEntity>(this, link);
+      const resource = new Resource<TEntity>(this, link);
       this.resources.set(absoluteUri, resource);
       return resource as Resource<TEntity>;
     }

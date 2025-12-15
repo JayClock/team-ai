@@ -2,10 +2,10 @@ import { ClientInstance } from '../lib/client-instance.js';
 import { Fetcher } from '../lib/http/fetcher.js';
 import { Config } from '../lib/archtype/config.js';
 import { State, StateFactory } from '../lib/state/state.js';
-import { LinkResource } from '../lib/index.js';
 import { resolve } from '../lib/util/uri.js';
 import { Cache } from '../lib/cache/cache.js';
 import { expect, vi } from 'vitest';
+import { Resource } from '../lib/index.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
 
@@ -44,14 +44,14 @@ describe('ClientInstance', () => {
 
   describe('should go to link resource and cache resource', () => {
     it('should go with no uri', () => {
-      expect(clientInstance.go()).toBeInstanceOf(LinkResource);
+      expect(clientInstance.go()).toBeInstanceOf(Resource);
       expect(
         clientInstance.resources.has(resolve(clientInstance.bookmarkUri, '')),
       ).toBeTruthy();
     });
 
     it('should go with string type uri', () => {
-      expect(clientInstance.go('href-string')).toBeInstanceOf(LinkResource);
+      expect(clientInstance.go('href-string')).toBeInstanceOf(Resource);
       expect(
         clientInstance.resources.has(
           resolve(clientInstance.bookmarkUri, 'href-string'),
@@ -62,7 +62,7 @@ describe('ClientInstance', () => {
     it('should go with new link type uri', () => {
       expect(
         clientInstance.go({ rel: 'rel', href: 'href-link' }),
-      ).toBeInstanceOf(LinkResource);
+      ).toBeInstanceOf(Resource);
       expect(
         clientInstance.resources.has(
           resolve(clientInstance.bookmarkUri, 'href-link'),
@@ -177,8 +177,8 @@ describe('ClientInstance', () => {
         collection: [],
       } as State;
       let triggered = false;
-      const mockLinkResource = clientInstance.go('resource-match-state');
-      mockLinkResource.once('update', () => (triggered = true));
+      const mockResource = clientInstance.go('resource-match-state');
+      mockResource.once('update', () => (triggered = true));
       clientInstance.cacheState(mockState);
       expect(triggered).toBeTruthy();
     });

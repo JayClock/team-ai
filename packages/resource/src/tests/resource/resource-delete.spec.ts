@@ -2,12 +2,11 @@ import { describe, expect, vi } from 'vitest';
 import { User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import { Link } from '../../lib/links/link.js';
-import { State } from '../../lib/state/state.js';
-import { LinkResource } from '../../lib/resource/link-resource.js';
+import { Resource, State } from '../../lib/index.js';
 import { resolve } from '../../lib/util/uri.js';
 import { mockClient, setupUserState, clearAllMocks } from './mock-setup.js';
 
-describe('StateResource DELETE Requests', () => {
+describe('Resource DELETE Requests', () => {
   let userState: State<User>;
 
   beforeAll(async () => {
@@ -37,9 +36,7 @@ describe('StateResource DELETE Requests', () => {
       headers: new Headers({ 'Content-Type': 'application/json' }),
     };
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(
-      new LinkResource(mockClient, link),
-    );
+    vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );

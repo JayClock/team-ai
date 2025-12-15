@@ -2,12 +2,11 @@ import { describe, expect, vi } from 'vitest';
 import { User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import { Link } from '../../lib/links/link.js';
-import { State } from '../../lib/state/state.js';
-import { LinkResource } from '../../lib/resource/link-resource.js';
+import { Resource, State } from '../../lib/index.js';
 import { resolve } from '../../lib/util/uri.js';
 import { mockClient, setupUserState, clearAllMocks } from './mock-setup.js';
 
-describe('StateResource PATCH Requests', () => {
+describe('Resource PATCH Requests', () => {
   let userState: State<User>;
   const patchedUserData = { name: 'Patched Name' };
 
@@ -59,9 +58,7 @@ describe('StateResource PATCH Requests', () => {
       body: JSON.stringify(patchedUserData),
     };
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(
-      new LinkResource(mockClient, link),
-    );
+    vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );
@@ -103,9 +100,7 @@ describe('StateResource PATCH Requests', () => {
       status: 204, // No Content
     } as unknown as Response;
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(
-      new LinkResource(mockClient, link),
-    );
+    vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );

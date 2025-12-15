@@ -5,11 +5,10 @@ import halConversations from '../fixtures/hal-conversations.json' with { type: '
 import { ClientInstance } from '../../lib/client-instance.js';
 import { Link } from '../../lib/links/link.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
-import { State } from '../../lib/state/state.js';
+import { Resource, State } from '../../lib/index.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { Collection, Resource } from '../../lib/index.js';
-import { LinkResource } from '../../lib/resource/link-resource.js';
+import { Collection } from '../../lib/index.js';
 import { resolve } from '../../lib/util/uri.js';
 import { SafeAny } from '../../lib/archtype/safe-any.js';
 
@@ -28,8 +27,8 @@ const mockClient = {
   },
 } as unknown as ClientInstance;
 
-describe('StateResource GET Requests', () => {
-  const resource: Resource<User> = new LinkResource(mockClient, {
+describe('Resource GET Requests', () => {
+  const resource: Resource<User> = new Resource(mockClient, {
     rel: '',
     href: '/api/users/1',
   });
@@ -72,9 +71,7 @@ describe('StateResource GET Requests', () => {
       headers: new Headers({ 'Content-Type': 'application/json' }),
     };
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(
-      new LinkResource(mockClient, link),
-    );
+    vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );
@@ -108,9 +105,7 @@ describe('StateResource GET Requests', () => {
       rel: 'conversations',
     };
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(
-      new LinkResource(mockClient, link),
-    );
+    vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
     vi.spyOn(mockClient.cache, 'get').mockReturnValueOnce(cacheState);
 
     const state = await userState
@@ -135,7 +130,7 @@ describe('StateResource GET Requests', () => {
     beforeEach(() => {
       vi.restoreAllMocks();
       vi.spyOn(mockClient, 'go').mockReturnValue(
-        new LinkResource(mockClient, link),
+        new Resource(mockClient, link),
       );
       vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
         mockResponse,
@@ -177,15 +172,13 @@ describe('StateResource GET Requests', () => {
     });
 
     it('should clean up activeRefresh after request completes', async () => {
-      const linkResource = userState.follow(
-        'conversations',
-      ) as LinkResource<SafeAny>;
+      const resource = userState.follow('conversations') as Resource<SafeAny>;
 
-      const requestPromise = linkResource.withMethod('GET').request();
+      const requestPromise = resource.withMethod('GET').request();
 
       await requestPromise;
 
-      const secondRequest = linkResource.withMethod('GET').request();
+      const secondRequest = resource.withMethod('GET').request();
       await secondRequest;
 
       expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);
