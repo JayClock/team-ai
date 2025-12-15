@@ -39,8 +39,7 @@ export type RequestOptions<T = SafeAny> = {
   headers?: HttpHeaders | Headers;
 };
 
-export interface ResourceOptions extends RequestOptions {
+export interface ResourceOptions {
   query?: Record<string, SafeAny>;
-  body?: Record<string, SafeAny>;
   method?: HttpMethod;
 }

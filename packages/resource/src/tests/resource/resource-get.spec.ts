@@ -31,6 +31,7 @@ describe('Resource GET Requests', () => {
   const resource: Resource<User> = new Resource(mockClient, {
     rel: '',
     href: '/api/users/1',
+    context: mockClient.bookmarkUri,
   });
   const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
   let userState: State<User>;
