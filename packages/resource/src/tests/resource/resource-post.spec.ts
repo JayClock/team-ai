@@ -59,15 +59,20 @@ describe('Resource POST Requests', () => {
       body: JSON.stringify(newConversationData),
     };
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
+    vi.spyOn(mockClient, 'go').mockReturnValue(
+      new Resource(mockClient, link, userState.uri),
+    );
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );
+    vi.spyOn(mockClient.cache, 'get').mockReturnValue(userState);
 
     await userState.follow('create-conversation').withMethod('POST').request({
       data: newConversationData,
       headers: customHeaders,
     });
+
+    expect(mockClient.cache.get).toHaveBeenCalledWith(userState.uri);
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1/conversations',

@@ -13,6 +13,7 @@ import { expand } from '../util/uri-template.js';
 import { HttpMethod } from '../http/util.js';
 import EventEmitter from 'events';
 import { ResourceRelation } from './resource-relation.js';
+import { BaseState } from '../state/base-state.js';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class Resource<TEntity extends Entity> extends EventEmitter {
@@ -22,6 +23,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   constructor(
     private readonly client: ClientInstance,
     private readonly link: Link,
+    private readonly prevUri?: string,
   ) {
     super();
     this.link.rel = this.link.rel ?? 'ROOT_REL';
@@ -92,10 +94,12 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return this.client.cache.get(this.uri);
   }
 
-  async request(
-    requestOptions?: RequestOptions,
-    form?: Form,
-  ): Promise<State<TEntity>> {
+  async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
+    const prevState = this.prevUri
+      ? (this.client.cache.get(this.prevUri) as BaseState<SafeAny>)
+      : undefined;
+    const form = prevState?.getForm(this.link.rel, this.method);
+
     if (form) {
       this.verifyFormData(form, requestOptions?.data);
     }

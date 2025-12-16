@@ -10,7 +10,6 @@ import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
 import { Collection } from '../../lib/index.js';
 import { resolve } from '../../lib/util/uri.js';
-import { SafeAny } from '../../lib/archtype/safe-any.js';
 import { expand } from '../../lib/util/uri-template.js';
 
 const mockFetcher = {
@@ -201,7 +200,7 @@ describe('Resource GET Requests', () => {
       vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
         uri: resolve(mockClient.bookmarkUri, '/api/users/1/conversations'),
       } as State);
-      const resource = userState.follow('conversations') as Resource<SafeAny>;
+      const resource = userState.follow('conversations');
 
       const requestPromise = resource.withMethod('GET').request();
 

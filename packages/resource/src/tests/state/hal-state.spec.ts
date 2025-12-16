@@ -76,7 +76,10 @@ describe('HalState', async () => {
 
   it('should follow existed lint and call with client.go', () => {
     state.follow('accounts');
-    expect(mockClient.go).toHaveBeenCalledWith(state.links.get('accounts'));
+    expect(mockClient.go).toHaveBeenCalledWith(
+      state.links.get('accounts'),
+      state.uri,
+    );
   });
 
   it('should throw error with not existed link', () => {

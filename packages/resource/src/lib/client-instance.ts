@@ -109,7 +109,10 @@ export class ClientInstance implements Client {
   /**
    * Transforms a fetch Response to a State object.
    */
-  go<TEntity extends Entity>(uri?: string | NewLink): Resource<TEntity> {
+  go<TEntity extends Entity>(
+    uri?: string | NewLink,
+    prevUri?: string,
+  ): Resource<TEntity> {
     let link: Link;
     if (uri === undefined) {
       link = { rel: '', context: this.bookmarkUri, href: '' };
@@ -120,7 +123,7 @@ export class ClientInstance implements Client {
     }
     const absoluteUri = resolve(link);
     if (!this.resources.has(absoluteUri)) {
-      const resource = new Resource<TEntity>(this, link);
+      const resource = new Resource<TEntity>(this, link, prevUri);
       this.resources.set(absoluteUri, resource);
       return resource as Resource<TEntity>;
     }

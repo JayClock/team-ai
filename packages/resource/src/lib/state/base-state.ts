@@ -3,7 +3,6 @@ import { Links } from '../links/links.js';
 import { State } from './state.js';
 import { StateCollection, EmbeddedStates } from './state-collection.js';
 import { Form } from '../form/form.js';
-import { Link } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
 import { SafeAny } from '../archtype/safe-any.js';
@@ -71,7 +70,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
-      return this.client.go(link);
+      return this.client.go(link, this.uri);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
@@ -84,10 +83,6 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     return this.forms.find(
       (form) => form.uri === link.href && form.method === method,
     );
-  }
-
-  getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined {
-    return this.links.get(rel as string);
   }
 
   getEmbedded<K extends keyof TEntity['links']>(
