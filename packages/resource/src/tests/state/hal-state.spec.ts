@@ -5,7 +5,10 @@ import { SafeAny } from '../../lib/archtype/safe-any.js';
 import { ClientInstance } from '../../lib/client-instance.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
+import {
+  HalState,
+  HalStateFactory,
+} from '../../lib/state/hal-state/hal-state.factory.js';
 import { Account, User } from '../fixtures/interface.js';
 import { Collection } from '../../lib/index.js';
 
@@ -28,11 +31,11 @@ describe('HalState', async () => {
     Sunset: 'Wed, 21 Oct 2026 07:28:00 GMT',
     Title: 'API Resource Details',
   };
-  const state = await halStateFactory.create<User>(
+  const state = (await halStateFactory.create(
     mockClient,
     '/api/users/1',
     Response.json(halUser, { headers: mockHeaders }),
-  );
+  )) as HalState<User>;
 
   it('should create state from hal info', () => {
     expect(state.uri).toEqual('https://example.com/api/users/1');

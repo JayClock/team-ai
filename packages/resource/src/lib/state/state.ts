@@ -1,10 +1,7 @@
 import { Entity } from '../archtype/entity.js';
 import { Links } from '../links/links.js';
-import { Form } from '../form/form.js';
-import { StateCollection, EmbeddedStates } from './state-collection.js';
-import { Link } from '../links/link.js';
+import { StateCollection } from './state-collection.js';
 import { ClientInstance } from '../client-instance.js';
-import { HttpMethod } from '../http/util.js';
 import { Resource } from '../index.js';
 
 export type State<TEntity extends Entity = Entity> = {
@@ -40,34 +37,12 @@ export type State<TEntity extends Entity = Entity> = {
   links: Links<TEntity['links']>;
 
   /**
-   * Embedded resources with types derived from TEntity['links']
-   */
-  embedded: Partial<EmbeddedStates<TEntity>>;
-
-  /**
    * Follows a relationship, based on its rel type. For example, this might be
    * 'alternate', 'item', 'edit' or a custom url-based one.
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
   ): Resource<TEntity['links'][K]>;
-
-  getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined;
-
-  /**
-   * Return a from by rel key.
-   * */
-  getForm<K extends keyof TEntity['links']>(
-    rel: K,
-    method?: HttpMethod,
-  ): Form | undefined;
-
-  /**
-   * Get an embedded resource by rel key.
-   */
-  getEmbedded<K extends keyof TEntity['links']>(
-    rel: K,
-  ): EmbeddedStates<TEntity>[K] | undefined;
 
   /**
    * Returns a serialization of the state that can be used in a HTTP

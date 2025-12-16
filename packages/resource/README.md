@@ -440,49 +440,186 @@ ResourceRelation 类用于处理资源关系的导航，支持链式调用和参
 
 ### State<TEntity extends Entity>
 
+State 接口代表了资源的完整状态，包含数据、链接、集合和操作方法。
+
+#### state.timestamp: number
+
+状态首次生成的时间戳。
+
+**示例:**
+```typescript
+console.log(`状态生成时间: ${new Date(userState.timestamp).toISOString()}`);
+```
+
+#### state.uri: string
+
+与当前状态关联的 URI。
+
+**示例:**
+```typescript
+console.log(`资源 URI: ${userState.uri}`);
+```
+
 #### state.data: TEntity['data']
 
-资源数据。
+资源数据。在 JSON 响应的情况下，这将是反序列化后的数据。
 
-#### state.links: Links<TEntity['links']>
-
-资源链接。
+**示例:**
+```typescript
+// 访问用户数据
+console.log(`用户名: ${userState.data.name}`);
+console.log(`用户邮箱: ${userState.data.email}`);
+```
 
 #### state.collection: StateCollection<TEntity>
 
-集合状态。
+资源的集合状态。当实体是集合类型时，包含集合中每个元素的 State 对象数组；当实体不是集合类型时，返回空数组。支持分页集合的导航和状态管理。
 
-#### state.embedded: Partial<EmbeddedStates<TEntity>>
+**示例:**
+```typescript
+// 检查是否为集合
+if (userState.collection.length > 0) {
+  console.log(`集合包含 ${userState.collection.length} 个项目`);
+  
+  // 遍历集合中的每个项目
+  userState.collection.forEach((itemState, index) => {
+    console.log(`项目 ${index}:`, itemState.data);
+  });
+}
+```
 
-嵌入资源。
+#### state.links: Links<TEntity['links']>
+
+与资源关联的所有链接。
+
+**示例:**
+```typescript
+// 获取所有链接
+console.log('所有链接:', userState.links);
+
+// 检查特定链接是否存在
+if ('self' in userState.links) {
+  console.log('自链接:', userState.links.self);
+}
+```
 
 #### state.follow<K extends keyof TEntity['links']>(rel: K): Resource<TEntity['links'][K]>
 
-导航到关联的资源。
+根据关系类型导航到关联的资源。例如，这可能是 'alternate'、'item'、'edit' 或自定义的基于 URL 的关系。
 
-#### state.getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined
+**参数:**
+- `rel`: 关系名称，必须是 TEntity['links'] 的键
 
-获取指定关系的链接。
+**返回值:**
+- `Resource<TEntity['links'][K]>`: 关联资源的 Resource 对象
 
-#### state.getForm<K extends keyof TEntity['links']>(rel: K, method?: HttpMethod): Form | undefined
+**示例:**
+```typescript
+// 导航到用户的账户集合
+const accountsResource = userState.follow('accounts');
+const accountsState = await accountsResource.request();
 
-获取指定关系和方法的表单。
-
-#### state.getEmbedded<K extends keyof TEntity['links']>(rel: K): EmbeddedStates<TEntity>[K] | undefined
-
-获取嵌入的资源。
+// 导航到创建对话的模板
+const createConversationResource = userState.follow('create-conversation');
+```
 
 #### state.serializeBody(): Buffer | Blob | string
 
-序列化状态为可用于 HTTP 响应的格式。
+返回可用于 HTTP 响应的状态序列化。
+
+例如，JSON 对象可能简单地使用 JSON.serialize() 进行序列化。
+
+**返回值:**
+- `Buffer | Blob | string`: 序列化后的状态数据
+
+**示例:**
+```typescript
+// 序列化状态用于 HTTP 响应
+const serializedData = userState.serializeBody();
+
+// 在服务器端，可以将序列化的数据发送给客户端
+response.send(serializedData);
+```
 
 #### state.contentHeaders(): Headers
 
-获取内容相关的 HTTP 头。
+获取内容相关的 HTTP 头。内容头是 HTTP 头的一个子集，直接与内容相关。最明显的是 Content-Type。
+
+这组头将由服务器随 GET 响应一起发送，但也会在 PUT 请求中发送回服务器。
+
+**返回值:**
+- `Headers`: 包含内容相关头的 Headers 对象
+
+**示例:**
+```typescript
+// 获取内容头
+const headers = userState.contentHeaders();
+
+// 检查内容类型
+console.log('Content-Type:', headers.get('Content-Type'));
+
+// 在 PUT 请求中使用这些头
+const response = await fetch(userState.uri, {
+  method: 'PUT',
+  headers: Object.fromEntries(userState.contentHeaders()),
+  body: userState.serializeBody()
+});
+```
 
 #### state.clone(): State<TEntity>
 
-克隆状态对象。
+创建当前状态对象的深拷贝。
+
+**返回值:**
+- `State<TEntity>`: 克隆的状态对象
+
+**示例:**
+```typescript
+// 克隆状态以进行修改而不影响原始状态
+const clonedState = userState.clone();
+
+// 可以安全地修改克隆的状态
+clonedState.data.name = '新名称';
+
+// 原始状态保持不变
+console.log(userState.data.name); // 原始名称
+console.log(clonedState.data.name); // 新名称
+```
+
+### StateFactory
+
+StateFactory 负责接收 Fetch Response 并返回实现 State 接口的对象。
+
+#### StateFactory.create<TEntity extends Entity>(client: ClientInstance, uri: string, response: Response, rel?: string): Promise<State<TEntity>>
+
+创建一个新的 State 对象。
+
+**参数:**
+- `client`: 客户端实例
+- `uri`: 资源 URI
+- `response`: HTTP 响应对象
+- `rel`: 关系名称（可选）
+
+**返回值:**
+- `Promise<State<TEntity>>`: 创建的状态对象
+
+**示例:**
+```typescript
+// 通常不需要直接使用 StateFactory，库会在内部处理
+// 但如果你需要自定义状态创建逻辑，可以实现自己的 StateFactory
+
+const customStateFactory: StateFactory = {
+  create: async <TEntity extends Entity>(
+    client: ClientInstance,
+    uri: string,
+    response: Response,
+    rel?: string
+  ): Promise<State<TEntity>> => {
+    // 自定义状态创建逻辑
+    // ...
+  }
+};
+```
 
 ### RequestOptions<T = any>
 

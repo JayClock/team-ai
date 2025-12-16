@@ -40,7 +40,7 @@ export class HalStateFactory implements StateFactory {
   }
 }
 
-class HalState<TEntity extends Entity> extends BaseState<TEntity> {
+export class HalState<TEntity extends Entity> extends BaseState<TEntity> {
   override serializeBody(): string {
     return JSON.stringify({
       ...this.data,

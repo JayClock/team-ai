@@ -28,10 +28,14 @@ export class ResourceRelation<TEntity extends Entity> {
     return resource.request(requestOptions);
   }
 
-  async getResource(): Promise<Resource<TEntity>> {
+  async getResource(): Promise<Promise<Resource<TEntity>>> {
+    return this.getResourceWithRels(this.rels);
+  }
+
+  async getResourceWithRels(rels: string[]): Promise<Resource<TEntity>> {
     let resource: Resource<SafeAny> = this.client.go(this.link);
     let state: State<SafeAny> = await resource.request();
-    for (const rel of this.rels) {
+    for (const rel of rels) {
       const currentOptions = this.optionsMap.get(rel);
       resource = state
         .follow(rel)
@@ -40,7 +44,7 @@ export class ResourceRelation<TEntity extends Entity> {
 
       const embedded = (state as BaseState<SafeAny>).getEmbedded(rel);
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const link = state.getLink(rel)!;
+      const link = state.links.get(rel)!;
       if (Array.isArray(embedded)) {
         state = new BaseState({
           client: this.client,
