@@ -200,6 +200,54 @@ createNewConversationForUser('user-123');
 
 ### Resource<TEntity extends Entity>
 
+#### resource.fetch(init?: RequestInit): Promise<Response>
+
+在当前资源 URI 上执行 HTTP 请求。
+
+**参数:**
+- `init`: RequestInit 对象（可选），用于配置请求
+
+**返回值:**
+- `Promise<Response>`: HTTP 响应对象
+
+**示例:**
+```typescript
+// 简单的 GET 请求
+const response = await resource.fetch();
+
+// 带有自定义头的请求
+const response = await resource.fetch({
+  headers: { 'Authorization': 'Bearer token' }
+});
+
+// POST 请求
+const response = await resource.fetch({
+  method: 'POST',
+  body: JSON.stringify({ name: '新名称' }),
+  headers: { 'Content-Type': 'application/json' }
+});
+```
+
+#### resource.fetchOrThrow(init?: RequestInit): Promise<Response>
+
+在当前资源 URI 上执行 HTTP 请求。如果响应是 4XX 或 5XX 状态码，此函数将抛出异常。
+
+**参数:**
+- `init`: RequestInit 对象（可选），用于配置请求
+
+**返回值:**
+- `Promise<Response>`: HTTP 响应对象
+
+**示例:**
+```typescript
+try {
+  const response = await resource.fetchOrThrow();
+  console.log('请求成功:', response.status);
+} catch (error) {
+  console.error('请求失败:', error.status, error.message);
+}
+```
+
 #### resource.request(options?: RequestOptions, form?: Form): Promise<State<TEntity>>
 
 发送一个 HTTP 请求并获取资源的当前状态。默认使用 GET 方法，符合 RESTful 的发现规范。
@@ -228,6 +276,48 @@ const getState = await resource.withMethod('GET').request();
 const newState = await resource.withMethod('POST').request({
   data: { name: '新名称' }
 });
+```
+
+#### resource.updateCache(state: State<TEntity>): void
+
+更新状态缓存并触发事件。这将更新本地状态但不会更新服务器。
+
+**参数:**
+- `state`: 要缓存的状态对象
+
+**异常:**
+- 如果状态对象的 URI 与资源的 URI 不匹配，将抛出错误
+
+**示例:**
+```typescript
+const newState = /* 获取新状态 */;
+resource.updateCache(newState);
+```
+
+#### resource.clearCache(): void
+
+清除当前资源的缓存。
+
+**示例:**
+```typescript
+resource.clearCache();
+```
+
+#### resource.getCache(): State<TEntity> | null
+
+检索当前缓存的资源状态，如果不可用则返回 null。
+
+**返回值:**
+- `State<TEntity> | null`: 缓存的状态对象或 null
+
+**示例:**
+```typescript
+const cachedState = resource.getCache();
+if (cachedState) {
+  console.log('从缓存获取数据:', cachedState.data);
+} else {
+  console.log('缓存中没有数据');
+}
 ```
 
 #### resource.follow<K extends keyof TEntity['links']>(rel: K): ResourceRelation<TEntity['links'][K]>
@@ -647,6 +737,20 @@ async function fetchUserWithErrorHandling(userId: string) {
 
 Resource 对象是 EventEmitter，你可以监听各种事件。
 
+#### 事件类型
+
+Resource 支持以下三种事件类型：
+
+1. **'update'**: 当从服务器接收到新的 State 时触发，包括通过 GET 请求或被嵌入的资源。调用 'PUT' 请求并使用完整状态对象时，以及调用 updateCache() 时也会触发。
+2. **'stale'**: 当使用了不安全的 HTTP 方法（如 POST、PUT、PATCH 等）时触发。使用这些方法后，本地缓存会过期。
+3. **'delete'**: 当使用 DELETE HTTP 方法时触发。
+
+#### 事件监听方法
+
+##### on(event, listener)
+
+订阅事件，每次事件触发时都会调用监听器。
+
 ```typescript
 const userResource = client.go<User>(`/api/users/${userId}`);
 
@@ -664,9 +768,100 @@ userResource.on('stale', () => {
 userResource.on('delete', () => {
   console.log('资源已删除');
 });
+```
 
-// 触发更新事件
+##### once(event, listener)
+
+订阅事件，但只在第一次触发时调用监听器，之后自动取消订阅。
+
+```typescript
+// 只在第一次更新时触发
+userResource.once('update', (state) => {
+  console.log('首次更新:', state.data);
+});
+
+// 只在第一次过期时触发
+userResource.once('stale', () => {
+  console.log('首次过期');
+});
+
+// 只在第一次删除时触发
+userResource.once('delete', () => {
+  console.log('首次删除');
+});
+```
+
+##### off(event, listener)
+
+取消订阅特定事件的监听器。
+
+```typescript
+const updateListener = (state) => {
+  console.log('资源已更新:', state.data);
+};
+
+// 添加监听器
+userResource.on('update', updateListener);
+
+// 移除监听器
+userResource.off('update', updateListener);
+
+// 移除过期事件监听器
+userResource.off('stale', staleListener);
+
+// 移除删除事件监听器
+userResource.off('delete', deleteListener);
+```
+
+##### emit(event, ...args)
+
+手动触发事件。
+
+```typescript
+// 手动触发更新事件
+userResource.emit('update', someState);
+
+// 手动触发过期事件
+userResource.emit('stale');
+
+// 手动触发删除事件
+userResource.emit('delete');
+```
+
+#### 完整示例
+
+```typescript
+const userResource = client.go<User>(`/api/users/${userId}`);
+
+// 添加多种事件监听器
+const updateListener = (state) => console.log('资源已更新:', state.data);
+const staleListener = () => console.log('资源已过期，需要刷新');
+const deleteListener = () => console.log('资源已删除');
+
+userResource.on('update', updateListener);
+userResource.on('stale', staleListener);
+userResource.on('delete', deleteListener);
+
+// 添加一次性监听器
+userResource.once('update', (state) => {
+  console.log('这是第一次更新:', state.data);
+});
+
+// 发送请求，可能会触发事件
 await userResource.request(); // 默认 GET
+
+// 执行 PATCH 请求，会触发 stale 事件
+await userResource.withMethod('PATCH').request({
+  data: { name: '新名称' }
+});
+
+// 手动触发事件
+userResource.emit('stale');
+
+// 移除监听器
+userResource.off('update', updateListener);
+userResource.off('stale', staleListener);
+userResource.off('delete', deleteListener);
 ```
 
 ### 处理分页

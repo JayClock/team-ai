@@ -16,9 +16,8 @@ import { ResourceRelation } from './resource-relation.js';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class Resource<TEntity extends Entity> extends EventEmitter {
-  readonly uri: string;
+  uri: string;
   private method: HttpMethod = 'GET';
-  private variables: LinkVariables = {};
 
   constructor(
     private readonly client: ClientInstance,
@@ -26,7 +25,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   ) {
     super();
     this.link.rel = this.link.rel ?? 'ROOT_REL';
-    this.uri = resolve(client.bookmarkUri, link.href);
+    this.uri = resolve(this.client.bookmarkUri, expand(this.link, {}));
   }
 
   /**
@@ -37,10 +36,60 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    */
   private readonly activeRefresh = new Map<string, Promise<State>>();
 
+  /**
+   * Follows a relationship, based on its rel type.
+   *
+   */
   follow<K extends keyof TEntity['links']>(
     rel: K,
   ): ResourceRelation<TEntity['links'][K]> {
     return new ResourceRelation(this.client, this.link, [rel as string]);
+  }
+
+  /**
+   * Does a HTTP request on the current resource URI
+   */
+  fetch(init?: RequestInit): Promise<Response> {
+    return this.client.fetcher.fetch(this.uri, init);
+  }
+
+  /**
+   * Does a HTTP request on the current resource URI.
+   *
+   * If the response was a 4XX or 5XX, this function will throw
+   * an exception.
+   */
+  fetchOrThrow(init?: RequestInit): Promise<Response> {
+    return this.client.fetcher.fetchOrThrow(this.uri, init);
+  }
+
+  /**
+   * Updates the state cache, and emits events.
+   *
+   * This will update the local state but *not* update the server
+   */
+  updateCache(state: State<TEntity>) {
+    if (state.uri !== this.uri) {
+      throw new Error(
+        'When calling updateCache on a resource, the uri of the State object must match the uri of the Resource',
+      );
+    }
+    this.client.cacheState(state);
+  }
+
+  /**
+   * Clears the state cache for this resource.
+   */
+  clearCache(): void {
+    this.client.clearResourceCache([this.uri], []);
+  }
+
+  /**
+   * Retrieves the current cached resource state, and return `null` if it's
+   * not available.
+   */
+  getCache(): State<TEntity> | null {
+    return this.client.cache.get(this.uri);
   }
 
   async request(
@@ -50,7 +99,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     if (form) {
       this.verifyFormData(form, requestOptions?.data);
     }
-    const { url, requestInit } = this.parseFetchParameters(requestOptions);
+    const requestInit = this.optionsToRequestInit(requestOptions ?? {});
 
     switch (this.method) {
       case 'GET':
@@ -58,21 +107,9 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
       case 'PATCH':
         return await this.patch(requestOptions ?? {});
     }
-    const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
+    const response = await this.fetchOrThrow(requestInit);
 
-    return this.client.getStateForResponse(
-      response.url,
-      response,
-      this.link.rel,
-    );
-  }
-
-  private parseFetchParameters(
-    requestOptions: RequestOptions<SafeAny> | undefined,
-  ) {
-    const url = resolve(this.link.context, expand(this.link, this.variables));
-    const requestInit = this.optionsToRequestInit(requestOptions ?? {});
-    return { url, requestInit };
+    return this.client.getStateForResponse(this.uri, response, this.link.rel);
   }
 
   /**
@@ -81,31 +118,29 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * This function will return a State object.
    */
   private async get(requestOptions?: RequestOptions): Promise<State<TEntity>> {
-    const { url, requestInit } = this.parseFetchParameters(requestOptions);
+    const requestInit = this.optionsToRequestInit(requestOptions ?? {});
 
-    const state = this.client.cache.get(url);
+    const state = this.getCache();
 
     if (state) {
       return Promise.resolve(state as State<TEntity>);
     }
 
-    const hash = this.requestHash(url, requestOptions);
+    const hash = this.requestHash(this.uri, requestOptions);
 
     if (!this.activeRefresh.has(hash)) {
       this.activeRefresh.set(
         hash,
-        (async (): Promise<State> => {
+        (async (): Promise<State<TEntity>> => {
           try {
-            const response = await this.client.fetcher.fetchOrThrow(
-              url,
-              requestInit,
-            );
-            const state = await this.client.getStateForResponse(
-              response.url,
+            const response = await this.fetchOrThrow(requestInit);
+
+            const state: State<TEntity> = await this.client.getStateForResponse(
+              this.uri,
               response,
               this.link.rel,
             );
-            this.client.cacheState(state);
+            this.updateCache(state);
             return state;
           } finally {
             this.activeRefresh.delete(hash);
@@ -126,25 +161,28 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * If the server responds with 200 Status code this will return a State object
    */
   private async patch(requestOptions: RequestOptions): Promise<State<TEntity>> {
-    const { url, requestInit } = this.parseFetchParameters(requestOptions);
+    const requestInit = this.optionsToRequestInit(requestOptions ?? {});
 
-    const response = await this.client.fetcher.fetchOrThrow(url, requestInit);
+    const response = await this.client.fetcher.fetchOrThrow(
+      this.uri,
+      requestInit,
+    );
 
-    const state = await this.client.getStateForResponse(
-      response.url,
+    const state: State<TEntity> = await this.client.getStateForResponse(
+      this.uri,
       response,
       this.link.rel,
     );
 
     if (response.status === 200) {
-      this.client.cacheState(state);
+      this.updateCache(state);
     }
 
     return state as State<TEntity>;
   }
 
   withTemplateParameters(variables: LinkVariables): Resource<TEntity> {
-    this.variables = variables;
+    this.uri = resolve(this.client.bookmarkUri, expand(this.link, variables));
     return this;
   }
 

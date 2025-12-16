@@ -27,10 +27,7 @@ export class Fetcher {
    * This wrapper supports 'fetch middlewares'. It will call them
    * in sequence.
    */
-  private fetch(
-    resource: string | Request,
-    init?: RequestInit,
-  ): Promise<Response> {
+  fetch(resource: string | Request, init?: RequestInit): Promise<Response> {
     const request = new Request(resource, init);
 
     const origin = new URL(request.url).origin;

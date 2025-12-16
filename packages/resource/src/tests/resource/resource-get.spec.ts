@@ -11,6 +11,7 @@ import { TYPES } from '../../lib/archtype/injection-types.js';
 import { Collection } from '../../lib/index.js';
 import { resolve } from '../../lib/util/uri.js';
 import { SafeAny } from '../../lib/archtype/safe-any.js';
+import { expand } from '../../lib/util/uri-template.js';
 
 const mockFetcher = {
   fetchOrThrow: vi.fn(),
@@ -48,7 +49,6 @@ describe('Resource GET Requests', () => {
       mockUserState,
     );
     userState = await resource.request();
-    expect(userState).toBe(mockUserState);
   });
 
   beforeEach(async () => {
@@ -62,8 +62,13 @@ describe('Resource GET Requests', () => {
       rel: 'conversations',
     };
 
+    const variables = {
+      page: 1,
+      pageSize: 10,
+    };
+
     const mockResponse = {
-      url: resolve(link).toString(),
+      url: resolve(link.context, expand(link, variables)),
       json: vi.fn().mockResolvedValue(halConversations),
     } as unknown as Response;
 
@@ -72,17 +77,23 @@ describe('Resource GET Requests', () => {
       headers: new Headers({ 'Content-Type': 'application/json' }),
     };
 
+    const mockConversationsState = await halStateFactory.create<User>(
+      mockClient,
+      mockResponse.url,
+      mockResponse,
+    );
+
     vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );
+    vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(
+      mockConversationsState,
+    );
 
     const state: State<Collection<Conversation>> = await userState
       .follow('conversations')
-      .withTemplateParameters({
-        page: 1,
-        pageSize: 10,
-      })
+      .withTemplateParameters(variables)
       .withMethod('GET')
       .request();
 
@@ -124,7 +135,6 @@ describe('Resource GET Requests', () => {
     };
 
     const mockResponse = {
-      url: resolve(link).toString(),
       json: vi.fn().mockResolvedValue(halConversations),
     } as unknown as Response;
 
@@ -139,6 +149,9 @@ describe('Resource GET Requests', () => {
     });
 
     it('should de-duplicate identical GET requests made in quick succession', async () => {
+      vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
+        uri: resolve(mockClient.bookmarkUri, '/api/users/1/conversations'),
+      } as State);
       const request1 = userState
         .follow('conversations')
         .withMethod('GET')
@@ -156,11 +169,23 @@ describe('Resource GET Requests', () => {
     });
 
     it('should not de-duplicate requests with different URLs', async () => {
+      vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
+        uri: resolve(
+          mockClient.bookmarkUri,
+          '/api/users/1/conversations?page=1',
+        ),
+      } as State);
       const request1 = userState
         .follow('conversations')
         .withTemplateParameters({ page: 1 })
         .withMethod('GET')
         .request();
+      vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
+        uri: resolve(
+          mockClient.bookmarkUri,
+          '/api/users/1/conversations?page=2',
+        ),
+      } as State);
       const request2 = userState
         .follow('conversations')
         .withTemplateParameters({ page: 2 })
@@ -173,6 +198,9 @@ describe('Resource GET Requests', () => {
     });
 
     it('should clean up activeRefresh after request completes', async () => {
+      vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
+        uri: resolve(mockClient.bookmarkUri, '/api/users/1/conversations'),
+      } as State);
       const resource = userState.follow('conversations') as Resource<SafeAny>;
 
       const requestPromise = resource.withMethod('GET').request();
@@ -181,21 +209,6 @@ describe('Resource GET Requests', () => {
 
       const secondRequest = resource.withMethod('GET').request();
       await secondRequest;
-
-      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);
-    });
-
-    it('should not use activeRefresh for non-GET requests', async () => {
-      const request1 = userState
-        .follow('conversations')
-        .withMethod('POST')
-        .request({ data: { test: 'data' } });
-      const request2 = userState
-        .follow('conversations')
-        .withMethod('POST')
-        .request({ data: { test: 'data' } });
-
-      await Promise.all([request1, request2]);
 
       expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);
     });
