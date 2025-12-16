@@ -17,7 +17,7 @@ export function parseContentType(contentType: string | null): string | null {
 
 export function parseHeaderLink(
   context: string,
-  headers: Headers
+  headers: Headers,
 ): Links<Record<string, Link>> {
   const result = new Links(context);
   const header = headers.get('Link');
@@ -65,3 +65,17 @@ export const entityHeaderNames = [
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
 
+const safeMethods = [
+  'GET',
+  'HEAD',
+  'OPTIONS',
+  'PRI',
+  'PROPFIND',
+  'REPORT',
+  'SEARCH',
+  'TRACE',
+];
+
+export function isSafeMethod(method: string): boolean {
+  return safeMethods.includes(method);
+}

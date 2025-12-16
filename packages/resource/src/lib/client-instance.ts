@@ -14,6 +14,9 @@ import { resolve } from './util/uri.js';
 import { SafeAny } from './archtype/safe-any.js';
 import type { Cache } from './cache/cache.js';
 import { StreamStateFactory } from './state/stream-state/stream-state.factory.js';
+import { acceptMiddleware } from './middlewares/accept-header.js';
+import { cacheMiddleware } from './middlewares/cache.js';
+import { warningMiddleware } from './middlewares/warning.js';
 
 @injectable()
 export class ClientInstance implements Client {
@@ -56,6 +59,10 @@ export class ClientInstance implements Client {
       // 'text/html': [htmlStateFactory, '0.6'],
       'text/event-stream': [streamStateFactory, '0.5'],
     };
+
+    this.use(acceptMiddleware(this));
+    this.use(cacheMiddleware(this));
+    this.use(warningMiddleware());
   }
 
   /**
@@ -273,11 +280,7 @@ export class ClientInstance implements Client {
         // Find resources that this URI depends on (reverse dependencies)
         for (const [key, value] of dependencies.entries()) {
           if (value.has(uri) && !output.has(key)) {
-            this.expandCacheDependencies(
-              new Set([key]),
-              dependencies,
-              output,
-            );
+            this.expandCacheDependencies(new Set([key]), dependencies, output);
           }
         }
       }

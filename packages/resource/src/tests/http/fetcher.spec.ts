@@ -3,6 +3,11 @@ import { Fetcher } from '../../lib/http/fetcher.js';
 import { Config } from '../../lib/archtype/config.js';
 import { HttpError, Problem } from '../../lib/http/error.js';
 import { SafeAny } from '../../lib/archtype/safe-any.js';
+import { warningMiddleware } from '../../lib/middlewares/warning.js';
+import { ClientInstance } from '../../lib/client-instance.js';
+import { acceptMiddleware } from '../../lib/middlewares/accept-header.js';
+import { cacheMiddleware } from '../../lib/middlewares/cache.js';
+import { State } from '../../lib/index.js';
 
 describe('Fetcher', () => {
   let fetcher: Fetcher;
@@ -156,6 +161,136 @@ describe('Fetcher', () => {
         expect(error).toBeInstanceOf(Problem);
         expect((error as Problem).body.type).toBe('about:blank');
       }
+    });
+  });
+
+  describe('middlewares', () => {
+    it('should use warning middleware to console warning info', async () => {
+      const consoleSpy = vi.spyOn(console, 'warn');
+
+      fetcher.use(warningMiddleware());
+
+      mockFetch.mockResolvedValue(
+        new Response('test response', {
+          status: 200,
+          headers: {
+            Deprecation: 'true',
+            Sunset: '2024-01-01',
+            Link: '<https://example.com/deprecation-info>; rel="deprecation"',
+          },
+        }),
+      );
+
+      await fetcher.fetchOrThrow('https://api.example.com/test');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Resource] The resource https://api.example.com/test is deprecated. It will no longer respond 2024-01-01See https://example.com/deprecation-info for more information.',
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should use header middleware to set accept header with content maps', async () => {
+      const mockClient = {
+        contentTypeMap: {
+          'application/prs.hal-forms+json': ['halStateFactory', '1.0'],
+          'application/hal+json': ['halStateFactory', '0.9'],
+        },
+      } as unknown as ClientInstance;
+
+      fetcher.use(acceptMiddleware(mockClient));
+
+      mockFetch.mockResolvedValue(
+        new Response('test response', { status: 200 }),
+      );
+
+      await fetcher.fetchOrThrow('https://api.example.com/test');
+
+      expect(mockFetch).toHaveBeenCalledWith(expect.any(Request));
+
+      const request = mockFetch.mock.calls[0][0] as Request;
+      expect(request.headers.get('Accept')).toBe(
+        'application/prs.hal-forms+json;q=1.0, application/hal+json;q=0.9',
+      );
+    });
+
+    it('should not clear cache with safe method', async () => {
+      const mockClient = {
+        clearResourceCache: vi.fn(),
+      } as unknown as ClientInstance;
+
+      fetcher.use(cacheMiddleware(mockClient));
+      vi.clearAllMocks();
+      mockFetch.mockResolvedValue(new Response('success', { status: 200 }));
+
+      await fetcher.fetchOrThrow('https://api.example.com/resource', {
+        method: 'GET',
+      });
+
+      expect(mockClient.clearResourceCache).not.toHaveBeenCalled();
+    });
+
+    it('should use cache middle ware to clear cache', async () => {
+      const mockClient = {
+        clearResourceCache: vi.fn(),
+      } as unknown as ClientInstance;
+
+      fetcher.use(cacheMiddleware(mockClient));
+
+      mockFetch.mockResolvedValue(
+        new Response(null, {
+          status: 204,
+          headers: {
+            Link: '</related-resource>; rel="invalidates"',
+            Location: '/updated-resource',
+          },
+        }),
+      );
+
+      await fetcher.fetchOrThrow('https://api.example.com/resource', {
+        method: 'DELETE',
+      });
+
+      expect(mockClient.clearResourceCache).toHaveBeenCalledWith(
+        [
+          'https://api.example.com/related-resource',
+          'https://api.example.com/updated-resource',
+        ],
+        ['https://api.example.com/resource'],
+      );
+    });
+
+    it('should use cache middle to update data with content-location', async () => {
+      const mockClient = {
+        clearResourceCache: vi.fn(),
+        getStateForResponse: vi.fn(),
+        cacheState: vi.fn(),
+      } as unknown as ClientInstance;
+
+      fetcher.use(cacheMiddleware(mockClient));
+      const mockResponse = new Response('success', {
+        status: 200,
+        headers: {
+          'Content-Location': '/updated-resource',
+        },
+      });
+
+      mockFetch.mockResolvedValue(mockResponse);
+      const mockState = {
+        uri: 'mock-state',
+      } as State;
+      vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(mockState);
+
+      await fetcher.fetchOrThrow('https://api.example.com/resource', {
+        method: 'PUT',
+      });
+
+      expect(mockClient.clearResourceCache).toHaveBeenCalledWith([], []);
+      expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
+        'https://api.example.com/updated-resource',
+        expect.any(Response),
+      );
+      expect(mockClient.cacheState).toHaveBeenCalledWith(mockState);
     });
   });
 });
