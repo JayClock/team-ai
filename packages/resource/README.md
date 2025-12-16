@@ -404,6 +404,60 @@ ResourceRelation 类用于处理资源关系的导航，支持链式调用和参
 - `serializeBody?: () => string | Buffer | Blob`: 自定义序列化函数
 - `getContentHeaders?: () => HttpHeaders | Headers`: 获取内容头的函数
 
+### 内置中间件函数
+
+#### acceptMiddleware(client: ClientInstance): FetchMiddleware
+
+创建一个自动注入 Accept 头的中间件。
+
+**参数:**
+- `client`: 客户端实例
+
+**功能:**
+- 如果请求中没有 Accept 头，则根据客户端的 contentTypeMap 自动添加
+- 支持内容类型优先级（q 值）
+
+**示例:**
+```typescript
+// 自动生成的 Accept 头可能如下：
+// "application/hal+json;q=1.0, application/json;q=0.8"
+```
+
+#### cacheMiddleware(client: ClientInstance): FetchMiddleware
+
+创建一个管理缓存的中间件。
+
+**参数:**
+- `client`: 客户端实例
+
+**功能:**
+- 处理不安全 HTTP 方法（POST、PUT、DELETE）后的缓存失效
+- 根据 Link 头的 rel=invalidates 使缓存失效
+- 处理 Location 头导致的缓存失效
+- 根据 Content-Location 头更新缓存
+- 发出 'stale' 事件
+
+**缓存失效条件:**
+1. 执行不安全 HTTP 方法（POST、PUT、DELETE）
+2. 响应包含 Link: rel=invalidates 头
+3. 响应包含 Location 头
+4. 请求方法为 DELETE
+
+#### warningMiddleware(): FetchMiddleware
+
+创建一个发出警告的中间件。
+
+**功能:**
+- 检查响应中的 Deprecation 头
+- 检查响应中的 Sunset 头
+- 检查 Link 头中的 rel=deprecation
+- 在控制台输出警告信息
+
+**警告格式:**
+```
+[Resource] The resource [URL] is deprecated. It will no longer respond [Sunset]. See [deprecation link] for more information.
+```
+
 ### FetchMiddleware
 
 中间件类型，用于拦截和修改 HTTP 请求。
@@ -437,6 +491,63 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 ### 中间件
 
 你可以使用中间件来拦截和修改请求。中间件遵循标准的 Fetch API 模式，接收一个 Request 对象和一个 next 函数。
+
+#### 内置中间件
+
+库提供了几个内置中间件，可以自动处理常见的 HTTP 场景：
+
+##### Accept 头中间件
+
+`acceptMiddleware` 自动为请求添加合适的 `Accept` 头，基于客户端的内容类型映射。
+
+```typescript
+import { createClient, acceptMiddleware } from '@hateoas/resource';
+
+const client = createClient({ baseURL: 'https://api.example.com' });
+
+// 客户端会自动使用此中间件，无需手动添加
+// 它会根据客户端的 contentTypeMap 自动设置 Accept 头
+// 例如: application/hal+json;q=1.0, application/json;q=0.8
+```
+
+##### 缓存中间件
+
+`cacheMiddleware` 负责管理缓存，处理缓存失效和更新。
+
+```typescript
+import { createClient, cacheMiddleware } from '@hateoas/resource';
+
+const client = createClient({ baseURL: 'https://api.example.com' });
+
+// 客户端会自动使用此中间件，无需手动添加
+// 功能包括：
+// 1. 处理不安全方法（POST、PUT、DELETE）后的缓存失效
+// 2. 根据 Link: rel=invalidates 头使缓存失效
+// 3. 处理 Location 头导致的缓存失效
+// 4. 根据 Content-Location 头更新缓存
+// 5. 发出 'stale' 事件
+```
+
+##### 警告中间件
+
+`warningMiddleware` 监控响应中的警告信息，特别是资源弃用警告。
+
+```typescript
+import { createClient, warningMiddleware } from '@hateoas/resource';
+
+const client = createClient({ baseURL: 'https://api.example.com' });
+
+// 客户端会自动使用此中间件，无需手动添加
+// 它会检查以下头信息：
+// 1. Deprecation: 指示资源已弃用
+// 2. Sunset: 指示资源何时将不再可用
+// 3. Link: rel=deprecation: 提供弃用信息的链接
+// 当检测到弃用警告时，会在控制台输出警告信息
+```
+
+#### 自定义中间件
+
+你可以创建自己的中间件来处理特定需求：
 
 ```typescript
 import { createClient } from '@hateoas/resource';
