@@ -17,17 +17,20 @@ import { BaseState } from '../state/base-state.js';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class Resource<TEntity extends Entity> extends EventEmitter {
-  uri: string;
+  get uri() {
+    return resolve(this.expandedLink());
+  }
+
   private method: HttpMethod = 'GET';
+  private variables: LinkVariables = {};
 
   constructor(
-    private readonly client: ClientInstance,
-    private readonly link: Link,
-    private readonly prevUri?: string,
+    private client: ClientInstance,
+    private link: Link,
+    private prevUri?: string,
   ) {
     super();
     this.link.rel = this.link.rel ?? 'ROOT_REL';
-    this.uri = resolve(this.client.bookmarkUri, expand(this.link, {}));
   }
 
   /**
@@ -113,7 +116,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     }
     const response = await this.fetchOrThrow(requestInit);
 
-    return this.client.getStateForResponse(this.uri, response, this.link.rel);
+    return this.client.getStateForResponse(this.expandedLink(), response);
   }
 
   /**
@@ -140,9 +143,8 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
             const response = await this.fetchOrThrow(requestInit);
 
             const state: State<TEntity> = await this.client.getStateForResponse(
-              this.uri,
+              this.expandedLink(),
               response,
-              this.link.rel,
             );
             this.updateCache(state);
             return state;
@@ -173,9 +175,8 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     );
 
     const state: State<TEntity> = await this.client.getStateForResponse(
-      this.uri,
+      this.expandedLink(),
       response,
-      this.link.rel,
     );
 
     if (response.status === 200) {
@@ -186,13 +187,20 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   withTemplateParameters(variables: LinkVariables): Resource<TEntity> {
-    this.uri = resolve(this.client.bookmarkUri, expand(this.link, variables));
+    this.variables = variables;
     return this;
   }
 
   withMethod(method: HttpMethod): Resource<TEntity> {
     this.method = method;
     return this;
+  }
+
+  private expandedLink(): Link {
+    return {
+      ...this.link,
+      href: expand(this.link, this.variables),
+    };
   }
 
   private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {

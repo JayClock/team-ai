@@ -61,12 +61,15 @@ export function cacheMiddleware(client: ClientInstance): FetchMiddleware {
       request.cache !== 'no-store' &&
       response.headers.has('Content-Location')
     ) {
-      const url = resolve(
-        request.url,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        response.headers.get('Content-Location')!,
+      const clState = await client.getStateForResponse(
+        {
+          rel: '',
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          href: response.headers.get('Content-Location')!,
+          context: request.url,
+        },
+        response.clone(),
       );
-      const clState = await client.getStateForResponse(url, response.clone());
       client.cacheState(clState);
     }
 

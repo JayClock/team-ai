@@ -1,7 +1,6 @@
 import { Link, LinkVariables } from '../links/link.js';
 import { parseTemplate } from 'url-template';
 import queryString from 'query-string';
-import { resolve } from './uri.js';
 
 export function expand(link: Link, query: LinkVariables | undefined) {
   let path: string;
@@ -13,5 +12,5 @@ export function expand(link: Link, query: LinkVariables | undefined) {
       query,
     });
   }
-  return resolve(link.context, path);
+  return path;
 }

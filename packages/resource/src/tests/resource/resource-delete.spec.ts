@@ -3,7 +3,6 @@ import { User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import { Link } from '../../lib/links/link.js';
 import { Resource, State } from '../../lib/index.js';
-import { resolve } from '../../lib/util/uri.js';
 import { mockClient, setupUserState, clearAllMocks } from './mock-setup.js';
 
 describe('Resource DELETE Requests', () => {
@@ -27,8 +26,7 @@ describe('Resource DELETE Requests', () => {
     };
 
     const mockResponse = {
-      url: resolve(link).toString(),
-      status: 204, // No Content
+      status: 204,
     } as unknown as Response;
 
     const options: RequestInit = {
@@ -48,9 +46,8 @@ describe('Resource DELETE Requests', () => {
       options,
     );
     expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-      mockResponse.url,
+      link,
       mockResponse,
-      'self',
     );
   });
 });

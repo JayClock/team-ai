@@ -6,6 +6,7 @@ import { resolve } from '../lib/util/uri.js';
 import { Cache } from '../lib/cache/cache.js';
 import { beforeEach, describe, expect, vi } from 'vitest';
 import { Resource } from '../lib/index.js';
+import { Link } from '../lib/links/link.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
 
@@ -78,7 +79,7 @@ describe('ClientInstance', () => {
     describe('generate binary state', () => {
       it('should generate binary state when content-type is not existed', () => {
         clientInstance.getStateForResponse(
-          '',
+          {} as Link,
           new Response(null, { headers: { 'Content-Type': '' } }),
         );
         expect(mockBinaryStateFactory.create).toHaveBeenCalled();
@@ -86,7 +87,7 @@ describe('ClientInstance', () => {
 
       it('should generate binary state when status is 204', () => {
         clientInstance.getStateForResponse(
-          '',
+          {} as Link,
           new Response(null, { status: 204 }),
         );
         expect(mockBinaryStateFactory.create).toHaveBeenCalled();
@@ -96,7 +97,7 @@ describe('ClientInstance', () => {
     describe('generate hal state', () => {
       it('should generate hal state when content-type application/prs.hal-forms+json', () => {
         clientInstance.getStateForResponse(
-          '',
+          {} as Link,
           new Response(null, {
             headers: { 'Content-Type': 'application/prs.hal-forms+json' },
           }),
@@ -106,7 +107,7 @@ describe('ClientInstance', () => {
 
       it('should generate hal state when content-type application/hal+json', () => {
         clientInstance.getStateForResponse(
-          '',
+          {} as Link,
           new Response(null, {
             headers: { 'Content-Type': 'application/hal+json' },
           }),
@@ -116,7 +117,7 @@ describe('ClientInstance', () => {
 
       it('should generate hal state when content-type application/json', () => {
         clientInstance.getStateForResponse(
-          '',
+          {} as Link,
           new Response(null, {
             headers: { 'Content-Type': 'application/json' },
           }),
@@ -126,7 +127,7 @@ describe('ClientInstance', () => {
 
       it('should generate hal state when content-type match /^application\\/[A-Za-z-.]+\\+json/', () => {
         clientInstance.getStateForResponse(
-          '',
+          {} as Link,
           new Response(null, {
             headers: { 'Content-Type': 'application/geo+json' },
           }),
@@ -138,7 +139,7 @@ describe('ClientInstance', () => {
     describe('generate stream state', () => {
       it('should generate hal state when content-type text/event-stream', () => {
         clientInstance.getStateForResponse(
-          '',
+          {} as Link,
           new Response(null, {
             headers: { 'Content-Type': 'text/event-stream' },
           }),

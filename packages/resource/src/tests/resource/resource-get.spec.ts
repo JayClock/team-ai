@@ -102,9 +102,8 @@ describe('Resource GET Requests', () => {
     );
     expect(mockClient.cacheState).toHaveBeenCalledWith(state);
     expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-      mockResponse.url,
+      { ...link, href: expand(link, variables) },
       mockResponse,
-      'conversations',
     );
   });
 

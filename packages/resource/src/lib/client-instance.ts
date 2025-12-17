@@ -136,10 +136,11 @@ export class ClientInstance implements Client {
   }
 
   async getStateForResponse<TEntity extends Entity>(
-    uri: string,
+    link: Link,
     response: Response,
-    rel?: string,
-  ): Promise<State<TEntity>> {
+  ) {
+    const uri = resolve(link);
+    const rel = link.rel;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const contentType = parseContentType(response.headers.get('Content-Type')!);
 
@@ -160,7 +161,6 @@ export class ClientInstance implements Client {
 
     return this.binaryStateFactory.create<TEntity>(this, uri, response);
   }
-
   /**
    * Caches a State object
    *

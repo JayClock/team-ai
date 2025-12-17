@@ -287,7 +287,11 @@ describe('Fetcher', () => {
 
       expect(mockClient.clearResourceCache).toHaveBeenCalledWith([], []);
       expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
-        'https://api.example.com/updated-resource',
+        {
+          rel: '',
+          href: '/updated-resource',
+          context: 'https://api.example.com/resource',
+        },
         expect.any(Response),
       );
       expect(mockClient.cacheState).toHaveBeenCalledWith(mockState);
