@@ -8,14 +8,18 @@ describe('Binary State', async () => {
   const factory = new BinaryStateFactory();
   const state = await factory.create<Entity<Blob>>(
     {} as ClientInstance,
-    '/binary',
+    {
+      rel: '',
+      context: '',
+      href: '/binary',
+    },
     new Response(binaryData, {
       headers: {
         'content-type': 'application/octet-stream',
         'content-length': binaryData.length.toString(),
         Link: '<https://api.example.com/users/1>; rel="self"; type="application/json"; hreflang="en"; title="User Profile"',
       },
-    })
+    }),
   );
 
   it('should get binary data', async () => {

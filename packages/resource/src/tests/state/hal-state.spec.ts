@@ -33,7 +33,11 @@ describe('HalState', async () => {
   };
   const state = (await halStateFactory.create(
     mockClient,
-    '/api/users/1',
+    {
+      rel: '',
+      href: '/api/users/1',
+      context: mockClient.bookmarkUri,
+    },
     Response.json(halUser, { headers: mockHeaders }),
   )) as HalState<User>;
 
@@ -91,9 +95,12 @@ describe('HalState', async () => {
   it('should create collection with existed embedded', async () => {
     const state = await halStateFactory.create<Collection<Account>>(
       mockClient,
-      '/api/users/1',
+      {
+        rel: 'accounts',
+        href: '/api/users/1',
+        context: mockClient.bookmarkUri,
+      },
       Response.json(halUser),
-      'accounts',
     );
     expect(state.collection.length).toEqual(halUser._embedded.accounts.length);
     expect(state.collection[0].uri).toEqual(

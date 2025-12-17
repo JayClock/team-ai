@@ -3,6 +3,7 @@ import { Links } from '../links/links.js';
 import { StateCollection } from './state-collection.js';
 import { ClientInstance } from '../client-instance.js';
 import { Resource } from '../index.js';
+import { Link } from '../links/link.js';
 
 export type State<TEntity extends Entity = Entity> = {
   /**
@@ -73,8 +74,7 @@ export type State<TEntity extends Entity = Entity> = {
 export type StateFactory = {
   create: <TEntity extends Entity>(
     client: ClientInstance,
-    uri: string,
+    link: Link,
     response: Response,
-    rel?: string,
   ) => Promise<State<TEntity>>;
 };

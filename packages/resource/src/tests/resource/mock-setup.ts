@@ -29,17 +29,18 @@ export const setupUserState = async (): Promise<{
   userState: State<User>;
   halStateFactory: HalStateFactory;
 }> => {
-  const resource: Resource<User> = new Resource(mockClient, {
+  const link = {
     rel: '',
     href: '/api/users/1',
     context: mockClient.bookmarkUri,
-  });
+  };
+  const resource: Resource<User> = new Resource(mockClient, link);
   const halStateFactory: HalStateFactory = container.get(TYPES.HalStateFactory);
 
   const response = Response.json(halUser);
   const mockUserState = await halStateFactory.create<User>(
     mockClient,
-    '/api/users/1',
+    link,
     response,
   );
 

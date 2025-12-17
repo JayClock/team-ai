@@ -139,27 +139,24 @@ export class ClientInstance implements Client {
     link: Link,
     response: Response,
   ) {
-    const uri = resolve(link);
-    const rel = link.rel;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const contentType = parseContentType(response.headers.get('Content-Type')!);
 
     if (!contentType || response.status === 204) {
-      return this.binaryStateFactory.create<TEntity>(this, uri, response);
+      return this.binaryStateFactory.create<TEntity>(this, link, response);
     }
 
     if (contentType in this.contentTypeMap) {
       return this.contentTypeMap[contentType][0].create<TEntity>(
         this,
-        uri,
+        link,
         response,
-        rel,
       );
     } else if (contentType.match(/^application\/[A-Za-z-.]+\+json/)) {
-      return this.halStateFactory.create<TEntity>(this, uri, response, rel);
+      return this.halStateFactory.create<TEntity>(this, link, response);
     }
 
-    return this.binaryStateFactory.create<TEntity>(this, uri, response);
+    return this.binaryStateFactory.create<TEntity>(this, link, response);
   }
   /**
    * Caches a State object

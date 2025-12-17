@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect } from 'vitest';
 import { ForeverCache } from '../../lib/cache/intex.js';
 import { ClientInstance } from '../../lib/client-instance.js';
-import { State } from '../../lib/state/state.js';
+import { State } from '../../lib/index.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
@@ -15,7 +15,7 @@ describe('ForeverCache', () => {
     cache = new ForeverCache();
     state = await halStateFactory.create(
       { bookmarkUri: 'https://www.example.com' } as ClientInstance,
-      '/api/users/1',
+      { rel: '', href: '/api/users/1', context: 'https://www.example.com' },
       Response.json({}),
     );
   });

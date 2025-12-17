@@ -40,7 +40,7 @@ describe('Resource GET Requests', () => {
     const response = Response.json(halUser);
     const mockUserState = await halStateFactory.create<User>(
       mockClient,
-      '/api/users/1',
+      { rel: '', href: '/api/users/1', context: mockClient.bookmarkUri },
       response,
     );
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(response);
@@ -78,7 +78,7 @@ describe('Resource GET Requests', () => {
 
     const mockConversationsState = await halStateFactory.create<User>(
       mockClient,
-      mockResponse.url,
+      { rel: '', href: mockResponse.url, context: mockClient.bookmarkUri },
       mockResponse,
     );
 

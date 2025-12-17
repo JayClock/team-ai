@@ -11,20 +11,20 @@ describe('StreamState', async () => {
       controller.enqueue(encoder.encode('this is '));
       controller.enqueue(encoder.encode('a stream!'));
       controller.close();
-    }
+    },
   });
 
   const factory: StreamStateFactory = new StreamStateFactory();
   const state = await factory.create<Entity<ReadableStream>>(
     {} as ClientInstance,
-    '/stream',
+    { rel: '', context: '', href: '/stream' },
     new Response(streamData, {
       headers: {
         'content-type': 'application/octet-stream',
         'content-length': '21',
         Link: '<https://api.example.com/stream/1>; rel="self"; type="application/octet-stream"; title="Stream Data"',
       },
-    })
+    }),
   );
 
   it('should get stream data', async () => {

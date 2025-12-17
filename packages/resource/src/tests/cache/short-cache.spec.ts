@@ -15,14 +15,14 @@ describe('ShortCache', () => {
     cache = new ShortCache();
     state = await halStateFactory.create(
       { bookmarkUri: 'https://www.example.com' } as ClientInstance,
-      '/api/users/1',
+      { rel: '', href: '/api/users/1', context: 'https://www.example.com' },
       Response.json({}),
     );
   });
 
   it('should store and retrieve cloned State objects', () => {
     cache.store(state);
-    expect(cache.has("https://www.example.com/api/users/1")).toEqual(true);
+    expect(cache.has('https://www.example.com/api/users/1')).toEqual(true);
     const ts = Date.now();
     // We're resetting the timestamps so they do not drift during
     // cloning
