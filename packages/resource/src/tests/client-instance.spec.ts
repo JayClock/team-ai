@@ -1,12 +1,15 @@
 import { ClientInstance } from '../lib/client-instance.js';
 import { Fetcher } from '../lib/http/fetcher.js';
 import { Config } from '../lib/archtype/config.js';
-import { State, StateFactory } from '../lib/state/state.js';
+import { State } from '../lib/index.js';
 import { resolve } from '../lib/util/uri.js';
 import { Cache } from '../lib/cache/cache.js';
 import { beforeEach, describe, expect, vi } from 'vitest';
 import { Resource } from '../lib/index.js';
 import { Link } from '../lib/links/link.js';
+import { HalStateFactory } from '../lib/state/hal-state/hal-state.factory.js';
+import { BinaryStateFactory } from '../lib/state/binary-state/binary-state.factory.js';
+import { StreamStateFactory } from '../lib/state/stream-state/stream-state.factory.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
 
@@ -14,15 +17,15 @@ const mockConfig = { baseURL: 'https://www.example.com' } as Config;
 
 const mockHalStateFactory = {
   create: vi.fn(),
-} as StateFactory;
+} as unknown as HalStateFactory;
 
 const mockBinaryStateFactory = {
   create: vi.fn(),
-} as StateFactory;
+} as BinaryStateFactory;
 
 const mockStreamStateFactory = {
   create: vi.fn(),
-} as StateFactory;
+} as StreamStateFactory;
 
 const mockCache = {
   store: vi.fn(),

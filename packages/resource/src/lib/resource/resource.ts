@@ -1,7 +1,6 @@
 import { Entity } from '../archtype/entity.js';
 import { RequestOptions } from './interface.js';
-import { LinkVariables } from '../links/link.js';
-import { Link } from '../links/link.js';
+import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Form } from '../form/form.js';
@@ -98,14 +97,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
-    const prevState = this.prevUri
-      ? (this.client.cache.get(this.prevUri) as BaseState<SafeAny>)
-      : undefined;
-    const form = prevState?.getForm(this.link.rel, this.method);
-
-    if (form) {
-      this.verifyFormData(form, requestOptions?.data);
-    }
     const requestInit = this.optionsToRequestInit(requestOptions ?? {});
 
     switch (this.method) {
@@ -113,6 +104,12 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
         return await this.get(requestOptions);
       case 'PATCH':
         return await this.patch(requestOptions ?? {});
+    }
+
+    const form = this.getForm();
+
+    if (form) {
+      this.verifyFormData(form, requestOptions?.data);
     }
     const response = await this.fetchOrThrow(requestInit);
 
@@ -133,6 +130,12 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
       return Promise.resolve(state as State<TEntity>);
     }
 
+    const prevState = this.getPrevState();
+    const embeddedState = prevState?.getEmbedded(this.link.rel);
+    if (embeddedState) {
+      this.updateCache(embeddedState);
+      return embeddedState;
+    }
     const hash = this.requestHash(this.uri, requestOptions);
 
     if (!this.activeRefresh.has(hash)) {
@@ -194,6 +197,17 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   withMethod(method: HttpMethod): Resource<TEntity> {
     this.method = method;
     return this;
+  }
+
+  private getPrevState() {
+    return this.prevUri
+      ? (this.client.cache.get(this.prevUri) as BaseState<SafeAny>)
+      : undefined;
+  }
+
+  private getForm() {
+    const prevState = this.getPrevState();
+    return prevState?.getForm(this.link.rel, this.method);
   }
 
   private expandedLink(): Link {

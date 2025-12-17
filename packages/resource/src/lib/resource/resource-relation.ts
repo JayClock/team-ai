@@ -31,7 +31,9 @@ export class ResourceRelation<TEntity extends Entity> {
     return this.getResourceWithRels(this.rels);
   }
 
-  async getResourceWithRels(rels: string[]): Promise<Resource<TEntity>> {
+  private async getResourceWithRels(
+    rels: string[],
+  ): Promise<Resource<TEntity>> {
     let resource: Resource<SafeAny> = this.client.go(this.link);
     let state: State<SafeAny> = await resource.request();
     for (const rel of rels) {

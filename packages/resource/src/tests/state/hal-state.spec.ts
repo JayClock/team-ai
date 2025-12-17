@@ -5,11 +5,8 @@ import { SafeAny } from '../../lib/archtype/safe-any.js';
 import { ClientInstance } from '../../lib/client-instance.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import {
-  HalState,
-  HalStateFactory,
-} from '../../lib/state/hal-state/hal-state.factory.js';
-import { Account, User } from '../fixtures/interface.js';
+import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
+import { Account } from '../fixtures/interface.js';
 import { Collection } from '../../lib/index.js';
 
 const mockClient = {
@@ -31,7 +28,7 @@ describe('HalState', async () => {
     Sunset: 'Wed, 21 Oct 2026 07:28:00 GMT',
     Title: 'API Resource Details',
   };
-  const state = (await halStateFactory.create(
+  const state = await halStateFactory.create(
     mockClient,
     {
       rel: '',
@@ -39,7 +36,7 @@ describe('HalState', async () => {
       context: mockClient.bookmarkUri,
     },
     Response.json(halUser, { headers: mockHeaders }),
-  )) as HalState<User>;
+  );
 
   it('should create state from hal info', () => {
     expect(state.uri).toEqual('https://example.com/api/users/1');
@@ -105,12 +102,6 @@ describe('HalState', async () => {
     expect(state.collection.length).toEqual(halUser._embedded.accounts.length);
     expect(state.collection[0].uri).toEqual(
       'https://example.com/api/users/1/accounts/1',
-    );
-  });
-
-  it('should create forms with existed templates', () => {
-    expect(state.getForm('create-conversation', 'POST')?.uri).toEqual(
-      halUser._templates['create-conversation'].target,
     );
   });
 

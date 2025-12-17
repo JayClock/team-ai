@@ -1,7 +1,7 @@
 import { Entity } from '../archtype/entity.js';
 import { Links } from '../links/links.js';
 import { State } from './state.js';
-import { StateCollection, EmbeddedStates } from './state-collection.js';
+import { StateCollection } from './state-collection.js';
 import { Form } from '../form/form.js';
 import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
@@ -18,8 +18,8 @@ type StateInit<TEntity extends Entity> = {
   currentLink: Link;
   forms?: Form[];
   collection?: StateCollection<TEntity>;
-  embedded?: Partial<EmbeddedStates<TEntity>>;
   prevLink?: Link;
+  embeddedState?: TEntity['links'];
 };
 
 export class BaseState<TEntity extends Entity> implements State<TEntity> {
@@ -29,10 +29,10 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
   readonly timestamp = Date.now();
-  readonly embedded: Partial<EmbeddedStates<TEntity>>;
 
   private readonly forms: Form[];
   private readonly headers: Headers;
+  private readonly embeddedState: TEntity['links'];
 
   constructor(protected init: StateInit<TEntity>) {
     this.uri = resolve(this.init.currentLink);
@@ -42,7 +42,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     this.headers = init.headers;
     this.forms = init.forms ?? [];
     this.collection = init.collection ?? [];
-    this.embedded = init.embedded ?? {};
+    this.embeddedState = init.embeddedState ?? {};
   }
 
   serializeBody(): Buffer | Blob | string {
@@ -90,8 +90,8 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
 
   getEmbedded<K extends keyof TEntity['links']>(
     rel: K,
-  ): EmbeddedStates<TEntity>[K] | undefined {
-    return this.embedded[rel];
+  ): TEntity['links'][K] | undefined {
+    return this.embeddedState[rel];
   }
 
   clone(): State<TEntity> {
