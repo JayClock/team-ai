@@ -76,5 +76,6 @@ export type StateFactory = {
     client: ClientInstance,
     link: Link,
     response: Response,
+    prevLink?: Link,
   ) => Promise<State<TEntity>>;
 };

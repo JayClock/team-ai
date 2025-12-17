@@ -9,7 +9,6 @@ import { parseHalTemplates } from './parse-hal-templates.js';
 import { parseHalEmbedded } from './parse-hal-embedded.js';
 import { injectable } from 'inversify';
 import { Links } from '../../links/links.js';
-import { resolve } from '../../util/uri.js';
 import { Link } from '../../links/link.js';
 
 /**
@@ -19,8 +18,9 @@ import { Link } from '../../links/link.js';
 export class HalStateFactory implements StateFactory {
   async create<TEntity extends Entity>(
     client: ClientInstance,
-    link: Link,
+    currentLink: Link,
     response: Response,
+    prevLink?: Link,
   ): Promise<State<TEntity>> {
     const halResource = (await response.json()) as HalResource;
     const { _links, _embedded, _templates, ...pureData } = halResource;
@@ -29,13 +29,16 @@ export class HalStateFactory implements StateFactory {
     const embedded = parseHalEmbedded<TEntity>(client, _embedded);
     return new HalState<TEntity>({
       client,
-      uri: resolve(link),
       headers: response.headers,
       data: pureData,
       links: links,
       forms: forms,
-      collection: link.rel ? getCollection(embedded, link.rel) : [],
+      collection: currentLink.rel
+        ? getCollection(embedded, currentLink.rel)
+        : [],
       embedded: embedded,
+      currentLink,
+      prevLink,
     });
   }
 }

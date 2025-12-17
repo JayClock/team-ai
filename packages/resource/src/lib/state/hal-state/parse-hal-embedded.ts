@@ -1,12 +1,12 @@
 import { HalLink, HalResource } from 'hal-types';
 import { parseHalLinks } from './parse-hal-links.js';
 import { parseHalTemplates } from './parse-hal-templates.js';
-import { BaseState } from '../base-state.js';
 import { ClientInstance } from '../../client-instance.js';
 import { Links } from '../../links/links.js';
 import { Entity } from '../../archtype/entity.js';
 import { EmbeddedStates } from '../state-collection.js';
-import { resolve } from '../../util/uri.js';
+import { Link } from '../../links/link.js';
+import { HalState } from './hal-state.factory.js';
 
 export const parseHalEmbedded = <TEntity extends Entity>(
   client: ClientInstance,
@@ -36,14 +36,20 @@ function createHalStateFromResource(
   const links = new Links(client.bookmarkUri, parseHalLinks(_links));
   const forms = parseHalTemplates(links, _templates);
 
-  return new BaseState({
+  const link = _links?.self as HalLink;
+  const currentLink: Link = {
+    ...link,
+    rel: '',
+    context: client.bookmarkUri,
+  };
+  return new HalState({
     client: client,
-    uri: resolve(client.bookmarkUri, (_links?.self as HalLink)?.href || ''),
     headers: new Headers(),
     data: pureData,
     links: links,
     forms: forms,
     collection: [],
     embedded: parseHalEmbedded(client, _embedded),
+    currentLink,
   });
 }

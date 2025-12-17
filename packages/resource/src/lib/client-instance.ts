@@ -138,12 +138,18 @@ export class ClientInstance implements Client {
   async getStateForResponse<TEntity extends Entity>(
     link: Link,
     response: Response,
+    prevLink?: Link,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const contentType = parseContentType(response.headers.get('Content-Type')!);
 
     if (!contentType || response.status === 204) {
-      return this.binaryStateFactory.create<TEntity>(this, link, response);
+      return this.binaryStateFactory.create<TEntity>(
+        this,
+        link,
+        response,
+        prevLink,
+      );
     }
 
     if (contentType in this.contentTypeMap) {
@@ -151,12 +157,23 @@ export class ClientInstance implements Client {
         this,
         link,
         response,
+        prevLink,
       );
     } else if (contentType.match(/^application\/[A-Za-z-.]+\+json/)) {
-      return this.halStateFactory.create<TEntity>(this, link, response);
+      return this.halStateFactory.create<TEntity>(
+        this,
+        link,
+        response,
+        prevLink,
+      );
     }
 
-    return this.binaryStateFactory.create<TEntity>(this, link, response);
+    return this.binaryStateFactory.create<TEntity>(
+      this,
+      link,
+      response,
+      prevLink,
+    );
   }
   /**
    * Caches a State object

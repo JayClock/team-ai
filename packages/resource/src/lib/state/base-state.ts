@@ -7,16 +7,19 @@ import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { Resource } from '../index.js';
+import { Link } from '../links/link.js';
+import { resolve } from '../util/uri.js';
 
 type StateInit<TEntity extends Entity> = {
-  uri: string;
   client: ClientInstance;
   data: TEntity['data'];
   links: Links<TEntity['links']>;
   headers: Headers;
+  currentLink: Link;
   forms?: Form[];
   collection?: StateCollection<TEntity>;
   embedded?: Partial<EmbeddedStates<TEntity>>;
+  prevLink?: Link;
 };
 
 export class BaseState<TEntity extends Entity> implements State<TEntity> {
@@ -32,7 +35,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   private readonly headers: Headers;
 
   constructor(protected init: StateInit<TEntity>) {
-    this.uri = init.uri;
+    this.uri = resolve(this.init.currentLink);
     this.client = init.client;
     this.data = init.data;
     this.links = init.links;

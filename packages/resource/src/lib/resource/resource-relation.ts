@@ -5,7 +5,6 @@ import { Entity } from '../archtype/entity.js';
 import { HttpMethod } from '../http/util.js';
 import { State } from '../state/state.js';
 import { BaseState } from '../state/base-state.js';
-import { resolve } from '../util/uri.js';
 import { Links } from '../links/links.js';
 import Resource from './resource.js';
 import { SafeAny } from '../archtype/safe-any.js';
@@ -48,11 +47,11 @@ export class ResourceRelation<TEntity extends Entity> {
       if (Array.isArray(embedded)) {
         state = new BaseState({
           client: this.client,
-          uri: resolve(link),
           data: {},
           collection: embedded,
           links: new Links(this.client.bookmarkUri),
           headers: new Headers(),
+          currentLink: link,
         });
         this.client.cacheState(state);
       } else if (embedded) {
