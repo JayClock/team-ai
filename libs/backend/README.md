@@ -1,6 +1,6 @@
 # Smart Domain DDD 架构实现
 
-本项目是一个使用 **Smart Domain (智能领域模型)** 模式实现**领域驱动设计 (DDD)** 和 **HATEOAS RESTful API** 的代码样例。
+本项目是一个使用 **Smart Domain (智能领域模型)** 模式实现 **领域驱动设计 (DDD)** 和 **HATEOAS RESTful API** 的代码样例。
 
 本架构的核心目标是：**通过高内聚的领域模型直接驱动业务逻辑和 RESTful HATEOAS 接口**，展示如何解决传统架构中的性能瓶颈与逻辑分散问题，同时提供可扩展的、类型安全的 API 设计模式。
 
@@ -12,10 +12,14 @@
 
 核心实体关系如下：
 
-* **User**: 聚合根，系统的入口与身份标识。
-* **Account**: 用户的配置与账户信息（如 API Key 管理）。
-* **Conversation**: 用户发起的对话上下文，作为业务逻辑载体。
-* **Message**: 对话中的具体交互记录。
+- **User**: 聚合根，系统的入口与身份标识。
+
+- **Account**: 用户的配置与账户信息（如 API Key 管理）。
+
+- **Conversation**: 用户发起的对话上下文，作为业务逻辑载体。
+
+- **Message**: 对话中的具体交互记录。
+
 
 ---
 
@@ -28,7 +32,9 @@
 在多层架构中，内存中的对象集合与数据库不再等价。传统做法往往陷入两难：
 
 1. **模型纯洁性 (Model Purity)**：如果在 `User` 中直接持有 `List<Conversation>`，语义最清晰，但在加载用户时必须一次性读入成千上万条对话，导致内存溢出（OOM）。
+
 2. **性能现实 (Performance Reality)**：如果采用简单的懒加载，遍历时会触发 **N+1 问题**（1次查询概况，N次查询明细），导致 I/O 阻塞。
+
 
 ### 2.2 解决方案：关联对象 (Association Object)
 
@@ -38,23 +44,29 @@
 
 关联对象充当了领域层与基础设施层之间的桥梁：
 
-* **显式建模**：`User` 依赖于 `Conversations` 接口，这是一等公民，而非简单的集合。
-* **按需加载**：调用 `user.conversations()` 仅返回关联对象本身（轻量级指针），不触发 I/O。只有调用具体行为（如 `findAll(page)`）时，基础设施层才会执行优化后的 SQL。
+- **显式建模**：`User` 依赖于 `Conversations` 接口，这是一等公民，而非简单的集合。
+
+- **按需加载**：调用 `user.conversations()` 仅返回关联对象本身（轻量级指针），不触发 I/O。只有调用具体行为（如 `findAll(page)`）时，基础设施层才会执行优化后的 SQL。
+
 
 #### 2.2.2 集体逻辑与意图揭示 (Collective Logic & Intention Revealing)
 
 关联对象是存放 **集体逻辑** 的最佳场所。所谓集体逻辑，是指那些属于“群体”而不属于“个体”的能力（例如：计算一群对话的总 Token 消耗）。
 
-通过将逻辑封装在关联对象中，我们避免了逻辑泄露到 Service 层，并实现了**揭示意图的接口**。
+通过将逻辑封装在关联对象中，我们避免了逻辑泄露到 Service 层，并实现了 **揭示意图的接口**。
 
 **对比示例：计算用户本月 Token 消耗**
 
-* ❌ **传统贫血模型 (Service 脚本)**
-* *隐式意图*：只能看到循环，看不出业务目的。
-* *性能杀手*：将所有数据拉到内存计算，造成严重的内存浪费。
+❌ **传统贫血模型 (Service 脚本)**
+
+- _隐式意图_：只能看到循环，看不出业务目的。
+
+- _性能杀手_：将所有数据拉到内存计算，造成严重的内存浪费。
 
 
-```java
+Java
+
+```
 // 逻辑泄露在 Service 层
 List<Conversation> all = user.getConversations(); // OOM 风险！
 int total = 0;
@@ -63,16 +75,18 @@ for (Conversation c : all) {
         total += c.getTokenUsage();
     }
 }
-
 ```
 
+✅ **Smart Domain (关联对象)**
 
-* ✅ **Smart Domain (关联对象)**
-* *意图揭示*：方法名直接说明“我要统计消耗”。
-* *性能优化*：底层自动转化为 `SELECT SUM(tokens) WHERE date > ?`。
+- _意图揭示_：方法名直接说明“我要统计消耗”。
+
+- _性能优化_：底层自动转化为 `SELECT SUM(tokens) WHERE date > ?`。
 
 
-```java
+Java
+
+```
 // 领域层接口：清晰表达业务意图
 public interface Conversations extends HasMany<String, Conversation> {
     // [意图揭示]：不仅是“获取”，而是“统计消耗”
@@ -87,16 +101,15 @@ public interface Conversations extends HasMany<String, Conversation> {
 
 // 调用端 (Domain Service 或 Application Service)
 user.conversations().calculateConsumption(TimeRange.thisMonth());
-
 ```
-
-
 
 ### 2.3 实现策略：宽窄接口分离 (Wide vs. Narrow Interface)
 
-为了确保业务逻辑的封装性，我们采用了**宽接口（内部实现）**与**窄接口（对外暴露）**分离的策略。这确保了领域实体（如 `User`）只能通过受控的领域行为修改状态，而查询操作则通过安全的只读接口暴露。
+为了确保业务逻辑的封装性，我们采用了 **宽接口（内部实现）** 与 **窄接口（对外暴露）** 分离的策略。这确保了领域实体（如 `User`）只能通过受控的领域行为修改状态，而查询操作则通过安全的只读接口暴露。
 
-```mermaid
+代码段
+
+```
 classDiagram
     direction LR
     class Entity~ID, Description~ {
@@ -136,12 +149,13 @@ classDiagram
     User --> "1" Accounts : maintains
     User --> "1" Conversations : maintains
     Conversation --> "1" Messages : contains
-
 ```
 
 **Java 代码实现示例：**
 
-```java
+Java
+
+```
 public class User implements Entity<String, UserDescription> {
     private Accounts accounts; // 关联对象
 
@@ -163,7 +177,6 @@ public class User implements Entity<String, UserDescription> {
         Account add(AccountDescription description);
     }
 }
-
 ```
 
 ---
@@ -176,8 +189,10 @@ public class User implements Entity<String, UserDescription> {
 
 在复杂业务场景中，**Query（查询）优于 Search（搜索）**。
 
-* **Search (传统方式)**：概率性的（Probabilistic）。依赖模糊匹配寻找"可能相关"的片段，容易产生遗漏。
-* **Query (Smart Domain)**：确定性的（Deterministic）。在已知结构中"精确定位"信息，像操作数据库一样操作领域模型。
+- **Search (传统方式)**：概率性的（Probabilistic）。依赖模糊匹配寻找"可能相关"的片段，容易产生遗漏。
+
+- **Query (Smart Domain)**：确定性的（Deterministic）。在已知结构中"精确定位"信息，像操作数据库一样操作领域模型。
+
 
 我们利用 **关联对象** 构建了系统的"目录树"，客户端不再是被动接收全部数据的消费者，而是变成了一个能够主动探索的 **研究员 (Researcher)**，它能够先看目录，再查定义，最后读详细内容。
 
@@ -189,7 +204,9 @@ public class User implements Entity<String, UserDescription> {
 
 **领域 DOM 结构示例 (JSON View):**
 
-```json
+JSON
+
+```
 {
   "$schema": "http://team-ai.dev/schema/domain-dom",
   "user": {
@@ -205,7 +222,6 @@ public class User implements Entity<String, UserDescription> {
     }
   }
 }
-
 ```
 
 ### 3.3 客户端查询工作流示例
@@ -215,29 +231,39 @@ public class User implements Entity<String, UserDescription> {
 **场景案例：** 客户端需要找到"上周关于特定主题的对话，并分析内容"。
 
 **Step 1: 顶层概览 (Level 1 Navigation)**
+
 客户端首先查看根目录，确认入口位置。
 
-* **查询指令**: `$.user.conversations`
-* **系统返回**: 关联对象的元数据（包含 `findAll` 能力描述），而非全量数据。
+- **查询指令**: `$.user.conversations`
+
+- **系统返回**: 关联对象的元数据（包含 `findAll` 能力描述），而非全量数据。
+
 
 **Step 2: 结构化过滤 (Level 2 Filtering)**
+
 客户端利用类 JSONPath 语法下发精准过滤指令，这直接映射到底层的 SQL `WHERE` 子句，避免了内存加载大量无关对话。
 
-* **查询指令**:
-```javascript
-// 查找最近7天且标题包含特定关键词的对话
-$.user.conversations[?(@.updated_at >= 'now-7d' && @.title =~ /Keyword/)]
+- **查询指令**:
+
+
+JavaScript
 
 ```
+// 查找最近7天且标题包含特定关键词的对话
+$.user.conversations[?(@.updated_at >= 'now-7d' && @.title =~ /Keyword/)]
+```
 
+- **系统返回**: 符合条件的 `Conversation` 实体列表（轻量级摘要）。
 
-* **系统返回**: 符合条件的 `Conversation` 实体列表（轻量级摘要）。
 
 **Step 3: 实体深钻 (Level 3 Drill-down)**
+
 客户端锁定目标 ID，获取具体的消息内容。
 
-* **查询指令**: `$.user.conversations['conv_99'].messages`
-* **系统返回**: 具体的消息记录列表。
+- **查询指令**: `$.user.conversations['conv_99'].messages`
+
+- **系统返回**: 具体的消息记录列表。
+
 
 ---
 
@@ -249,17 +275,19 @@ $.user.conversations[?(@.updated_at >= 'now-7d' && @.title =~ /Keyword/)]
 
 实体（Entity）与关联对象（Association Object）的关系，天然对应 REST 资源与子资源的关系。我们利用这种同构性，零成本实现了 Richardson 成熟度模型第 3 级。
 
-| 领域模型 (Java Domain) | 语义 (Semantics) | RESTful API (HTTP Resource) | HATEOAS Link Relation |
-| --- | --- | --- | --- |
-| `user.conversations()` | 获取该用户的对话入口 | `GET /users/{1}/conversations` | `rel="conversations"` |
-| `user.accounts()` | 获取该用户的账户配置 | `GET /users/{1}/accounts` | `rel="accounts"` |
-| `conversation.messages()` | 获取该对话的消息流 | `GET /conversations/{1}/messages` | `rel="messages"` |
+|**领域模型 (Java Domain)**|**语义 (Semantics)**|**RESTful API (HTTP Resource)**|**HATEOAS Link Relation**|
+|---|---|---|---|
+|`user.conversations()`|获取该用户的对话入口|`GET /users/{1}/conversations`|`rel="conversations"`|
+|`user.accounts()`|获取该用户的账户配置|`GET /users/{1}/accounts`|`rel="accounts"`|
+|`conversation.messages()`|获取该对话的消息流|`GET /conversations/{1}/messages`|`rel="messages"`|
 
 ### 4.2 零拷贝与 Wrapper 模式
 
 我们不使用 DTO 进行数据拷贝，而是使用 **Wrapper（包装器）** 模式。`UserModel` 是一个持有实体引用的视图适配器，它根据实体的关联关系动态生成链接。
 
-```java
+Java
+
+```
 public class UserModel extends RepresentationModel {
     private final User user; // 持有引用，零拷贝
 
@@ -272,7 +300,6 @@ public class UserModel extends RepresentationModel {
         this.addLink("conversations", ApiTemplates.conversations(info).build(user.getIdentity()));
     }
 }
-
 ```
 
 ### 4.3 HATEOAS：API 层的"渐进式披露" (Progressive Disclosure)
@@ -281,33 +308,103 @@ public class UserModel extends RepresentationModel {
 
 #### 4.3.1 机制同构性对比
 
-Smart Domain 架构利用关联对象实现了数据结构的渐进式加载，而 HATEOAS 则实现了 **行为与能力的渐进式发现**。两者在设计理念上高度一致：
+Smart Domain 架构利用关联对象实现了数据结构的渐进式加载，这与现代 AI Agent（如 Claude Code）使用的 **Agent Skills** 架构在设计哲学上高度一致。
 
-| 认知阶段 | 客户端发现 (本地/CLI) | RESTful HATEOAS (远程/API) | 目的 (Goal) |
-| --- | --- | --- | --- |
-| **L1: 发现 (Discovery)** | 扫描配置文件中的 `description` | 解析 JSON 中的 `_links` 和 `rel` (关系描述) | **轻量级索引**：仅占用极少资源，建立能力地图 |
-| **L2: 决策 (Decision)** | 客户端根据描述判断是否匹配当前意图 | 客户端根据 `rel` (如 `next`, `edit`) 判断下一步行动 | **意图匹配**：无需加载全部数据，仅根据元数据决策 |
-| **L3: 加载 (Loading)** | 触发功能模块，读取详细配置 | 执行 `GET` 请求，获取具体资源的 `State` | **按需加载 (JIT)**：只有被选中时，才消耗 I/O 和带宽 |
+两者本质上都是通过**“渐进式披露 (Progressive Disclosure)”**机制，在受限环境下管理海量信息，但侧重点各有不同：
 
-#### 4.3.2 为什么这对现代客户端至关重要？
+- **Agent Skills (渐进式索引)**：旨在解决 AI 模型的 **Context Window (上下文窗口)** 瓶颈。通过构建轻量级的**渐进式索引 (Progressive Indexing)**，让 AI 能够“感知”海量知识的存在，而无需实际“加载”它们。
 
-在本项目的 HATEOAS 架构中，API 交互变成了一棵可以被客户端 **逐步遍历的决策树**，而非一本厚重的 API 文档：
+- **HATEOAS (渐进式超媒体)**：旨在解决客户端的 **Bandwidth & Coupling (带宽与耦合)** 瓶颈。通过**渐进式超媒体 (Progressive Hypermedia)**，让客户端能够根据当前状态动态发现下一步可用的操作，而无需硬编码业务流程。
 
-1. **初始状态**：客户端访问 `/api/root`，只看到 User、System 等顶级入口的链接。
-2. **按需展开**：只有当客户端决定"我要管理用户"时，它才会通过链接进入 `/users/{id}`，此时才"披露"出 `conversations` 或 `accounts` 的链接。
-3. **动态剪枝**：如果用户没有权限创建对话，后端 `UserModel` 根本不会生成 `create-conversation` 的链接。客户端检测到链接缺失，就能推断出"当前无法创建对话"，从而避免无效尝试。
 
-这种机制完美契合了 **现代客户端** 的设计哲学：**"提供丰富功能"与"保持界面简洁高效"的平衡**。
+|**认知阶段 (Cognitive Stage)**|**Agent Skills (AI Context)**|**RESTful HATEOAS (API Context)**|**核心机制 (Core Mechanism)**|
+|---|---|---|---|
+|**L1: 发现 (Discovery)**<br><br>  <br>  <br><br>_建立索引_|**渐进式索引 (Progressive Indexing)**：<br><br>  <br>  <br><br>AI 启动时仅扫描 YAML 头部的 `name` 和 `description`，在系统提示词中建立轻量级“能力指针”，此时**不消耗 Token 读取具体内容**。|**超媒体导航 (Hypermedia Navigation)**：<br><br>  <br>  <br><br>客户端解析入口资源的 `_links` 集合，建立当前上下文的导航地图。客户端仅知道“有这个功能”，但**不预加载数据**。|**轻量级索引**：<br><br>  <br>  <br><br>仅持有元数据或链接，建立“能力地图”。|
+|**L2: 决策 (Decision)**<br><br>  <br>  <br><br>_意图匹配_|**语义意图匹配**：<br><br>  <br>  <br><br>AI 根据用户任务的自然语言（如“帮我审阅代码”），在索引中查找描述匹配的 Skill，决定是否需要激活该技能。|**超媒体功能发现**：<br><br>  <br>  <br><br>客户端查询是否存在特定 `rel` (如 `rel="edit"`) 的链接。如果链接不存在（被后端动态剪枝），则界面禁用对应按钮，**无需额外逻辑判断**。|**意图驱动**：<br><br>  <br>  <br><br>基于描述（AI）或 链接存在性（API）做决策。|
+|**L3: 加载 (Loading)**<br><br>  <br>  <br><br>_执行获取_|**即时上下文注入 (JIT Context)**：<br><br>  <br>  <br><br>只有匹配成功后，AI 才读取 `SKILL.md` 正文或执行脚本。此时，具体的领域知识才被**按需**加载到上下文窗口中。|**状态按需传输 (State Transfer)**：<br><br>  <br>  <br><br>只有用户点击操作时，客户端才对 `href` 发起 `GET` 请求，获取完整的资源表述 (Representation)。此时才消耗**网络带宽**。|**即时加载**：<br><br>  <br>  <br><br>推迟高成本操作，直到真正需要。|
+|**优化目标**|**最大化 Token 利用率**|**最小化 带宽消耗 与 逻辑耦合**|**资源效率**|
+
+#### 4.3.2 演进路线：从 HATEOAS 到 Agent Skills 的转换映射
+
+本架构的一个核心优势在于：**只要实现了 HATEOAS，就等同于完成了 Agent Skills 的 80% 定义。** 因为 HATEOAS 已经标准化了资源（名词）和链接关系（动词），我们可以通过确定的规则将其映射为 AI 的技能描述。
+
+这种转换基于以下**语义锚点 (Semantic Anchors)** 的对应关系：
+
+|**HATEOAS 元素 (API)**|**语义作用**|**Agent Skill 映射 (AI)**|**转换逻辑**|
+|---|---|---|---|
+|**Relation (`rel`)**|定义资源间的业务关系|**Skill Keywords**|`rel="conversations"` 直接映射为 Skill 描述中的关键词 "Manage conversations"。|
+|**Href (`_links`)**|定义操作的入口地址|**Tool Definition**|API 路径成为 Skill 可调用的具体工具或 API Client 的端点。|
+|**HTTP Method**|定义操作的性质 (读/写)|**Action Type**|`GET` 映射为“查询/读取”指令；`POST` 映射为“创建/执行”指令。|
+|**Root Resource**|API 的顶级入口|**Skill Description**|API 的根目录文档直接转换为 `SKILL.md` 中的 `description` 字段，作为 AI 发现能力的索引。|
+
+**转换示例：自动生成 Skill 定义**
+
+Smart Domain 允许我们编写转换器，根据 API 的 HATEOAS 响应自动生成 `SKILL.md`。
+
+**1. 输入：HATEOAS API 响应 (User Resource)**
+
+JSON
+
+```
+// GET /users/123
+{
+  "identity": "user_123",
+  "_links": {
+    "self": { "href": "/users/123" },
+    "conversations": { 
+      "href": "/users/123/conversations",
+      "title": "用户对话历史管理" // 语义描述
+    },
+    "accounts": { 
+      "href": "/users/123/accounts",
+      "title": "API Key与配置"
+    }
+  }
+}
+```
+
+**2. 输出：生成的 Agent Skill (SKILL.md)**
+
+YAML
+
+```
+---
+name: user-manager-skill
+description: >
+  A skill for managing User "user_123". 
+  Capabilities include: 
+  1. "conversations" (用户对话历史管理) 
+  2. "accounts" (API Key与配置).
+  Use this skill when the user wants to check history or change settings.
+---
+
+# User Manager Skill
+
+## Available Actions (Derived from HATEOAS Links)
+
+1. **Manage Conversations**
+   - **Trigger**: When asked about chat history or sessions.
+   - **Tool**: `GET /users/123/conversations`
+   
+2. **Manage Accounts**
+   - **Trigger**: When asked about configuration or keys.
+   - **Tool**: `GET /users/123/accounts`
+```
+
+通过这种映射，我们实现了**“一次定义，多端消费”**：
+
+1. **Web 客户端**：通过 HATEOAS 渲染 UI。
+
+2. **AI Agent**：通过生成的 Skills 理解并操作业务。
+
 
 ---
 
 ## 5. 总结
 
-本项目的 Smart Domain DDD 架构展示了如何通过 **智能领域模型** 和 **关联对象** 技术，达成以下目标：
+本项目的 Smart Domain DDD 架构不仅是一种代码实现模式，更是一套面向未来的后端设计哲学。它通过 **智能领域模型** 与 **关联对象** 技术，实现了以下核心价值：
 
-1. **解决 N+1 问题**：利用关联对象隔离领域逻辑与数据库实现，跨越性能与模型的障碍。
-2. **保护业务逻辑封装**：通过 **宽接口与窄接口分离** 策略，确保领域模型的状态变更安全可控。
-3. **意图揭示接口设计**：通过语义化方法名和接口设计，清晰表达业务意图。
-4. **低成本 HATEOAS**：利用同构映射与"渐进式披露"机制，为客户端构建了一套高效的、可自我发现的 API 交互范式。
-
-这个实现为开发者提供了一个完整的 Smart Domain DDD 架构参考，展示了如何在实际项目中应用这些设计模式和最佳实践。
+1. **跨越性能鸿沟**：利用关联对象充当领域层与基础设施层的缓冲，在保持模型语义纯净的同时，彻底解决了 N+1 问题与大对象加载的内存风险。
+2. **构建语义壁垒**：通过**宽窄接口分离**与**意图揭示**设计，将业务逻辑严格封装在领域核心，防止了逻辑向 Service 层的泄露，确保了系统的长期可维护性。
+3. **实现认知同构**：创新性地建立了 **RESTful HATEOAS** 与 **AI Agent Skills** 之间的双向映射。证明了符合成熟度模型第 3 级的 API，天然就是 AI Agent 可理解、可操作的技能集合。
+4. **统一架构范式**：基于“渐进式披露”机制，构建了一套“一次定义，多端消费”的通用协议，使后端能够同时高效支持 Web 界面交互与 AI 自动化代理。
