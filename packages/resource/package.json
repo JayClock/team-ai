@@ -1,23 +1,26 @@
 {
   "name": "@hateoas-ts/resource",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
+  "main": "./dist/index.cjs.js",
+  "module": "./dist/index.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "team-ai": "./src/index.ts",
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "import": "./dist/index.es.js",
+      "require": "./dist/index.cjs.js",
+      "default": "./dist/index.es.js"
     }
   },
   "files": [
     "dist",
     "!**/*.tsbuildinfo"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "hal-types": "^2.0.0",
     "http-link-header": "^1.1.3",
@@ -25,11 +28,11 @@
     "query-string": "^9.3.1",
     "tslib": "^2.3.0",
     "url-template": "^3.1.1",
-    "zod": "^4.1.13",
-    "vitest": "4.0.15"
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@types/http-link-header": "^1.0.7",
-    "msw": "^2.12.4"
+    "msw": "^2.12.4",
+    "vitest": "4.0.15"
   }
 }
