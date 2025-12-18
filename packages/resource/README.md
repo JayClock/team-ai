@@ -2,9 +2,11 @@
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
+**语言**: [中文](README.md) | [English](README.en.md)
+
 `@hateoas/resource` 是一个强大的 TypeScript/JavaScript 客户端库，用于与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。它提供了类型安全的资源导航、关系追踪和状态管理。
 
-**版本**: 0.0.1
+**版本**: 1.0.0
 
 ## 安装
 
