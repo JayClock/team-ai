@@ -1,82 +1,186 @@
-# TeamAi
+# Team AI - Smart Domain DDD & HATEOAS 代码样例
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+[![Nx](https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png)](https://nx.dev)
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is almost ready ✨.
+**Team AI** 是一个使用 **Smart Domain (智能领域模型)** 实现 **领域驱动设计 (DDD)** 和 **HATEOAS** 的代码样例项目。本项目展示了如何通过高内聚的领域模型直接驱动业务逻辑和 RESTful HATEOAS 接口，解决传统架构中的性能瓶颈与逻辑分散问题。
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/next?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+## 🏗️ 架构概览
 
-## Finish your CI setup
+### Smart Domain DDD 实现
 
-[Click here to finish setting up your workspace!](https://cloud.nx.app/connect/3VZNBHFHtW)
+本项目摒弃了传统的"贫血模型 + Service 脚本"架构，采用 **Smart Domain (智能领域模型)** 模式来实现真正的领域驱动设计。
 
+#### 核心特性
 
-## Run tasks
+- **关联对象模式**：解决领域驱动设计中最棘手的性能与模型纯洁性冲突
+- **宽窄接口分离**：确保业务逻辑封装性和状态变更安全可控
+- **集体逻辑封装**：通过意图揭示的接口设计，实现高性能的业务逻辑处理
+- **HATEOAS RESTful API**：实现 Richardson 成熟度模型第 3 级的渐进式披露机制
 
-To run the dev server for your app, use:
+#### 领域模型示例
 
-```sh
+- **User**: 聚合根，系统的入口与身份标识
+- **Account**: 用户的配置与账户信息（如 API Key 管理）
+- **Conversation**: 用户发起的对话上下文，作为业务逻辑载体
+- **Message**: 对话中的具体交互记录
+
+### HATEOAS 客户端库 (@hateoas/resource)
+
+`@hateoas/resource` 是一个 TypeScript/JavaScript 客户端库实现，展示了如何与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。
+
+#### 核心特性
+
+- **类型安全**: TypeScript 类型确保访问数据和关系时的正确性
+- **声明式导航**: 使用语义化的关系名称来导航，而非硬编码 URL
+- **流畅的 API**: 链式调用使代码更具可读性和表达性
+- **灵活的缓存**: 多种缓存策略适应不同的应用场景
+- **事件驱动**: 通过事件监听响应资源状态的变化
+
+## 🚀 快速开始
+
+### 环境要求
+
+- Node.js 18+
+- Java 17+
+- PostgreSQL 14+ (可选，用于持久化层示例)
+
+### 安装依赖
+
+```bash
+# 安装所有依赖
+npm install
+
+# 或使用 pnpm
+pnpm install
+```
+
+### 运行示例
+
+```bash
+# 启动开发环境
 npx nx dev team-ai
-```
 
-To create a production bundle:
-
-```sh
+# 构建项目
 npx nx build team-ai
+
+# 运行测试
+npx nx test
 ```
 
-To see all available targets to run for a project, run:
+### 数据库设置 (可选)
 
-```sh
+如果需要运行持久化层示例，请参考 [数据库设置文档](docs/database-setup.md)
+
+## 📚 文档导航
+
+### 核心技术文档
+
+- [Smart Domain DDD 架构设计](libs/backend/README.md) - 完整的架构设计文档
+  - Smart Domain 模式详解
+  - 关联对象 (Association Object) 设计
+  - 宽窄接口分离策略
+  - HATEOAS RESTful API 设计
+
+- [HATEOAS 客户端实现](packages/resource/README.md) - TypeScript/JavaScript 客户端库文档
+  - 基本用法和 API 参考
+  - 高级用法和最佳实践
+  - 中间件和缓存策略
+  - 错误处理和事件监听
+
+### 补充文档
+
+- [数据库设置](docs/database-setup.md) - PostgreSQL 配置和迁移指南
+- [PostgreSQL 迁移总结](docs/postgresql-migration-summary.md) - 数据库迁移详细记录
+
+## 🛠️ 开发指南
+
+### 项目结构
+
+```
+team-ai/
+├── apps/                    # 示例应用程序
+│   ├── server/             # 后端服务器示例 (Java Spring Boot)
+│   └── web/                # 前端应用示例 (React)
+├── libs/                   # 后端核心库
+│   └── backend/            # Smart Domain DDD 实现
+│       ├── api/            # HATEOAS API 层
+│       ├── domain/         # 领域模型和业务逻辑
+│       └── persistent/     # 持久化层示例
+├── packages/               # 前端包
+│   └── resource/           # HATEOAS 客户端库实现
+└── docs/                   # 技术文档
+```
+
+### 可用命令
+
+```bash
+# 查看所有可用项目
+npx nx show projects
+
+# 查看特定项目的可用目标
 npx nx show project team-ai
+
+# 查看项目依赖图
+npx nx graph
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+### 代码生成
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+使用 Nx 插件生成新代码：
 
-## Add new projects
-
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
-
-Use the plugin's generator to create new projects.
-
-To generate a new application, use:
-
-```sh
+```bash
+# 生成新应用
 npx nx g @nx/next:app demo
-```
 
-To generate a new library, use:
-
-```sh
+# 生成新库
 npx nx g @nx/react:lib mylib
 ```
 
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
+## 🏛️ 架构设计原则
 
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### Smart Domain DDD 核心理念
 
+1. **跨越性能与模型的障碍**：通过关联对象解决 N+1 问题
+2. **保护业务逻辑封装**：宽窄接口分离确保状态变更安全可控
+3. **意图揭示接口**：通过语义化方法名表达业务意图
+4. **低成本 HATEOAS**：同构映射实现渐进式披露机制
 
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+### HATEOAS 客户端设计原则
 
-## Install Nx Console
+1. **类型安全优先**：确保编译时错误检查
+2. **声明式交互**：通过语义化关系导航资源
+3. **性能优化**：智能缓存和请求去重
+4. **事件驱动**：响应式状态管理
 
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
+## 🤝 贡献指南
 
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+我们欢迎社区贡献！请遵循以下步骤：
 
-## Useful links
+1. Fork 项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
 
-Learn more:
+## 📄 许可证
 
-- [Learn more about this workspace setup](https://nx.dev/nx-api/next?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
 
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+## 🔗 有用链接
+
+### 学习资源
+
+- [Nx 官方文档](https://nx.dev)
+- [Smart Domain 架构详解](libs/backend/README.md)
+- [HATEOAS 客户端库文档](packages/resource/README.md)
+
+### 社区
+
+- [Nx Discord](https://go.nx.dev/community)
+- [Nx Twitter](https://twitter.com/nxdevtools)
+- [Nx LinkedIn](https://www.linkedin.com/company/nrwl)
+- [Nx YouTube 频道](https://www.youtube.com/@nxdevtools)
+
+---
+
+**Team AI** - Smart Domain 实现 DDD & HATEOAS 的代码样例项目。
