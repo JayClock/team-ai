@@ -81,7 +81,7 @@ npx nx test
   - 宽窄接口分离策略
   - HATEOAS RESTful API 设计
 
-- [HATEOAS 客户端实现](packages/resource/README_ZH.md) - TypeScript/JavaScript 客户端库文档
+- [HATEOAS 客户端实现](packages/resource/README.md) - TypeScript/JavaScript 客户端库文档
   - 基本用法和 API 参考
   - 高级用法和最佳实践
   - 中间件和缓存策略

@@ -2,7 +2,7 @@
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-**语言**: [中文](https://github.com/JayClock/team-ai/blob/main/packages/resource/README.md) | [English](https://github.com/JayClock/team-ai/blob/main/packages/resource/README.en.md)
+**语言**: [中文](https://github.com/JayClock/team-ai/blob/main/packages/resource/README_ZH.md) | [English](https://github.com/JayClock/team-ai/blob/main/packages/resource/README.md)
 
 `@hateoas-ts/resource` 是一个强大的 TypeScript/JavaScript 客户端库，用于与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。它提供了类型安全的资源导航、关系追踪和状态管理。
 

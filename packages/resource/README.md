@@ -2,7 +2,7 @@
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-**Language**: [English](https://github.com/JayClock/team-ai/blob/main/packages/resource/README.en.md) | [中文](https://github.com/JayClock/team-ai/blob/main/packages/resource/README.md)
+**Language**: [English](https://github.com/JayClock/team-ai/blob/main/packages/resource/README.md) | [中文](https://github.com/JayClock/team-ai/blob/main/packages/resource/README_ZH.md)
 
 `@hateoas-ts/resource` is a powerful TypeScript/JavaScript client library for interacting with REST APIs that follow the HAL (Hypertext Application Language) specification. It provides type-safe resource navigation, relationship tracking, and state management.
 
