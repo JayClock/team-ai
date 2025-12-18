@@ -1,4 +1,4 @@
-import { Entity, Resource } from '@hateoas/resource';
+import { Entity, Resource } from '@hateoas-ts/resource';
 import { useClient } from './use-client';
 import { useState } from 'react';
 

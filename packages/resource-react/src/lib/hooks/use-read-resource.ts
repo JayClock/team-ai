@@ -1,4 +1,4 @@
-import { Entity, Resource, State as ResourceState } from '@hateoas/resource';
+import { Entity, Resource, State as ResourceState } from '@hateoas-ts/resource';
 import { useEffect, useState } from 'react';
 import { ResourceLike, useResolveResource } from './use-resolve-resource';
 

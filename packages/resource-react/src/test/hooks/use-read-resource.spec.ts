@@ -2,7 +2,7 @@ import { describe, it, vi, beforeEach, expect } from 'vitest';
 import { useReadResource } from '../../lib/hooks/use-read-resource';
 import { renderHook, waitFor } from '@testing-library/react';
 import { wrapper } from './wrapper';
-import { Entity, Resource, State } from '@hateoas/resource';
+import { Entity, Resource, State } from '@hateoas-ts/resource';
 
 interface TestEntity extends Entity {
   data: {

@@ -15,7 +15,7 @@
     }
   },
   "dependencies": {
-    "@hateoas/resource": "workspace:*"
+    "@hateoas-ts/resource": "workspace:*"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",

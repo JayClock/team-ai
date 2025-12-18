@@ -2,7 +2,7 @@ import { describe, it, vi, beforeEach, expect } from 'vitest';
 import { useResolveResource } from '../../lib/hooks/use-resolve-resource';
 import { renderHook } from '@testing-library/react';
 import { mockClient, wrapper } from './wrapper';
-import { Entity, Resource } from '@hateoas/resource';
+import { Entity, Resource } from '@hateoas-ts/resource';
 
 describe('useResolveResource', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 {
-  "name": "@hateoas/resource",
+  "name": "@hateoas-ts/resource",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",

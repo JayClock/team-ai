@@ -1,4 +1,4 @@
-import { Client } from '@hateoas/resource';
+import { Client } from '@hateoas-ts/resource';
 import { useContext } from 'react';
 import { ClientContext } from '../provider';
 

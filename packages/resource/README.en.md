@@ -1,21 +1,21 @@
-# @hateoas/resource
+# @hateoas-ts/resource
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
 **Language**: [English](README.en.md) | [中文](README.md)
 
-`@hateoas/resource` is a powerful TypeScript/JavaScript client library for interacting with REST APIs that follow the HAL (Hypertext Application Language) specification. It provides type-safe resource navigation, relationship tracking, and state management.
+`@hateoas-ts/resource` is a powerful TypeScript/JavaScript client library for interacting with REST APIs that follow the HAL (Hypertext Application Language) specification. It provides type-safe resource navigation, relationship tracking, and state management.
 
 **Version**: 1.0.0
 
 ## Installation
 
 ```bash
-npm install @hateoas/resource
+npm install @hateoas-ts/resource
 # or
-yarn add @hateoas/resource
+yarn add @hateoas-ts/resource
 # or
-pnpm add @hateoas/resource
+pnpm add @hateoas-ts/resource
 ```
 
 ## Core Concepts
@@ -35,7 +35,7 @@ The library is built around several core concepts:
 First, use the `Entity` and `Collection` types to define your data models.
 
 ```typescript
-import { Entity, Collection } from '@hateoas/resource';
+import { Entity, Collection } from '@hateoas-ts/resource';
 
 // Define Account entity
 export type Account = Entity<{ id: string; provider: string; providerId: string }, { self: Account }>;
@@ -61,7 +61,7 @@ export type User = Entity<
 Create a `Client` instance pointing to your API base URL.
 
 ```typescript
-import { createClient } from '@hateoas/resource';
+import { createClient } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 ```
@@ -706,9 +706,9 @@ type FetchMiddleware = (
 By default, the library uses `ForeverCache`, which permanently caches resource states. You can also use `ShortCache`, which automatically expires after a specified time.
 
 ```typescript
-import { createClient, ShortCache } from '@hateoas/resource';
-import { container } from '@hateoas/resource/container';
-import { TYPES } from '@hateoas/resource/archtype/injection-types';
+import { createClient, ShortCache } from '@hateoas-ts/resource';
+import { container } from '@hateoas-ts/resource/container';
+import { TYPES } from '@hateoas-ts/resource/archtype/injection-types';
 
 // Use short-term cache (expires in 30 seconds)
 const shortCache = new ShortCache(30000);
@@ -730,7 +730,7 @@ The library provides several built-in middleware that can automatically handle c
 `acceptMiddleware` automatically adds appropriate `Accept` headers to requests based on the client's content type mapping.
 
 ```typescript
-import { createClient, acceptMiddleware } from '@hateoas/resource';
+import { createClient, acceptMiddleware } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 
@@ -744,7 +744,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 `cacheMiddleware` is responsible for managing cache, handling cache invalidation and updates.
 
 ```typescript
-import { createClient, cacheMiddleware } from '@hateoas/resource';
+import { createClient, cacheMiddleware } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 
@@ -762,7 +762,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 `warningMiddleware` monitors warning information in responses, especially resource deprecation warnings.
 
 ```typescript
-import { createClient, warningMiddleware } from '@hateoas/resource';
+import { createClient, warningMiddleware } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 
@@ -779,7 +779,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 You can create your own middleware to handle specific needs:
 
 ```typescript
-import { createClient } from '@hateoas/resource';
+import { createClient } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 
@@ -1051,14 +1051,14 @@ async function fetchAllUserConversations(userId: string) {
 - Suitable for frequently changing data
 
 ```typescript
-import { ShortCache } from '@hateoas/resource';
+import { ShortCache } from '@hateoas-ts/resource';
 
 // Create a cache that expires in 5 minutes
 const shortCache = new ShortCache(5 * 60 * 1000);
 
 // Use dependency injection container to configure cache
-import { container } from '@hateoas/resource/container';
-import { TYPES } from '@hateoas/resource/archtype/injection-types';
+import { container } from '@hateoas-ts/resource/container';
+import { TYPES } from '@hateoas-ts/resource/archtype/injection-types';
 
 container.rebind(TYPES.Cache).toConstantValue(shortCache);
 ```
@@ -1074,7 +1074,7 @@ container.rebind(TYPES.Cache).toConstantValue(shortCache);
 You can also implement your own cache strategy:
 
 ```typescript
-import { Cache, State } from '@hateoas/resource';
+import { Cache, State } from '@hateoas-ts/resource';
 
 class CustomCache implements Cache {
   private cache = new Map<string, { state: State, expires: number }>();
@@ -1322,7 +1322,7 @@ client.use((url, options) => {
 
 ## Summary
 
-The `@hateoas/resource` library simplifies interaction with HAL APIs in the following ways:
+The `@hateoas-ts/resource` library simplifies interaction with HAL APIs in the following ways:
 
 - **Type Safety**: TypeScript types ensure correctness when accessing data and relationships.
 - **Declarative Navigation**: Using the `.follow()` method, you can navigate through semantic relationship names instead of hardcoding URLs.

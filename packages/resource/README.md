@@ -1,21 +1,21 @@
-# @hateoas/resource
+# @hateoas-ts/resource
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
 **语言**: [中文](README.md) | [English](README.en.md)
 
-`@hateoas/resource` 是一个强大的 TypeScript/JavaScript 客户端库，用于与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。它提供了类型安全的资源导航、关系追踪和状态管理。
+`@hateoas-ts/resource` 是一个强大的 TypeScript/JavaScript 客户端库，用于与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。它提供了类型安全的资源导航、关系追踪和状态管理。
 
 **版本**: 1.0.0
 
 ## 安装
 
 ```bash
-npm install @hateoas/resource
+npm install @hateoas-ts/resource
 # 或
-yarn add @hateoas/resource
+yarn add @hateoas-ts/resource
 # 或
-pnpm add @hateoas/resource
+pnpm add @hateoas-ts/resource
 ```
 
 ## 核心概念
@@ -35,7 +35,7 @@ pnpm add @hateoas/resource
 首先，使用 `Entity` 和 `Collection` 类型来定义你的数据模型。
 
 ```typescript
-import { Entity, Collection } from '@hateoas/resource';
+import { Entity, Collection } from '@hateoas-ts/resource';
 
 // 定义账户实体
 export type Account = Entity<{ id: string; provider: string; providerId: string }, { self: Account }>;
@@ -61,7 +61,7 @@ export type User = Entity<
 创建一个 `Client` 实例，指向你的 API 基础 URL。
 
 ```typescript
-import { createClient } from '@hateoas/resource';
+import { createClient } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 ```
@@ -706,9 +706,9 @@ type FetchMiddleware = (
 默认情况下，库使用 `ForeverCache`，它会永久缓存资源状态。你也可以使用 `ShortCache`，它会在指定时间后自动过期。
 
 ```typescript
-import { createClient, ShortCache } from '@hateoas/resource';
-import { container } from '@hateoas/resource/container';
-import { TYPES } from '@hateoas/resource/archtype/injection-types';
+import { createClient, ShortCache } from '@hateoas-ts/resource';
+import { container } from '@hateoas-ts/resource/container';
+import { TYPES } from '@hateoas-ts/resource/archtype/injection-types';
 
 // 使用短期缓存（30秒过期）
 const shortCache = new ShortCache(30000);
@@ -730,7 +730,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 `acceptMiddleware` 自动为请求添加合适的 `Accept` 头，基于客户端的内容类型映射。
 
 ```typescript
-import { createClient, acceptMiddleware } from '@hateoas/resource';
+import { createClient, acceptMiddleware } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 
@@ -744,7 +744,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 `cacheMiddleware` 负责管理缓存，处理缓存失效和更新。
 
 ```typescript
-import { createClient, cacheMiddleware } from '@hateoas/resource';
+import { createClient, cacheMiddleware } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 
@@ -762,7 +762,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 `warningMiddleware` 监控响应中的警告信息，特别是资源弃用警告。
 
 ```typescript
-import { createClient, warningMiddleware } from '@hateoas/resource';
+import { createClient, warningMiddleware } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 
@@ -779,7 +779,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 你可以创建自己的中间件来处理特定需求：
 
 ```typescript
-import { createClient } from '@hateoas/resource';
+import { createClient } from '@hateoas-ts/resource';
 
 const client = createClient({ baseURL: 'https://api.example.com' });
 
@@ -1051,14 +1051,14 @@ async function fetchAllUserConversations(userId: string) {
 - 适用于频繁变化的数据
 
 ```typescript
-import { ShortCache } from '@hateoas/resource';
+import { ShortCache } from '@hateoas-ts/resource';
 
 // 创建一个 5 分钟过期的缓存
 const shortCache = new ShortCache(5 * 60 * 1000);
 
 // 使用依赖注入容器配置缓存
-import { container } from '@hateoas/resource/container';
-import { TYPES } from '@hateoas/resource/archtype/injection-types';
+import { container } from '@hateoas-ts/resource/container';
+import { TYPES } from '@hateoas-ts/resource/archtype/injection-types';
 
 container.rebind(TYPES.Cache).toConstantValue(shortCache);
 ```
@@ -1074,7 +1074,7 @@ container.rebind(TYPES.Cache).toConstantValue(shortCache);
 你也可以实现自己的缓存策略：
 
 ```typescript
-import { Cache, State } from '@hateoas/resource';
+import { Cache, State } from '@hateoas-ts/resource';
 
 class CustomCache implements Cache {
   private cache = new Map<string, { state: State, expires: number }>();
@@ -1322,7 +1322,7 @@ client.use((url, options) => {
 
 ## 总结
 
-`@hateoas/resource` 库通过以下方式简化了与 HAL API 的交互：
+`@hateoas-ts/resource` 库通过以下方式简化了与 HAL API 的交互：
 
 - **类型安全**: TypeScript 类型确保了你在访问数据和关系时的正确性。
 - **声明式导航**: 使用 `.follow()` 方法，你可以通过语义化的关系名称来导航，而不是硬编码 URL。

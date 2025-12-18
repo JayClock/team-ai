@@ -1,6 +1,6 @@
 import { ResourceProvider } from '../../lib/provider';
 import * as React from 'react';
-import { Client } from '@hateoas/resource';
+import { Client } from '@hateoas-ts/resource';
 import { vi } from 'vitest';
 
 export const mockClient = {

@@ -1,4 +1,4 @@
-import { Client } from '@hateoas/resource';
+import { Client } from '@hateoas-ts/resource';
 import * as React from 'react';
 
 type Props = {

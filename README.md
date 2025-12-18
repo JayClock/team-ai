@@ -24,9 +24,9 @@
 - **Conversation**: 用户发起的对话上下文，作为业务逻辑载体
 - **Message**: 对话中的具体交互记录
 
-### HATEOAS 客户端库 (@hateoas/resource)
+### HATEOAS 客户端库 (@hateoas-ts/resource)
 
-`@hateoas/resource` 是一个 TypeScript/JavaScript 客户端库实现，展示了如何与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。
+`@hateoas-ts/resource` 是一个 TypeScript/JavaScript 客户端库实现，展示了如何与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。
 
 #### 核心特性
 
