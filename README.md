@@ -4,6 +4,14 @@
 
 **Team AI** 是一个使用 **Smart Domain (智能领域模型)** 实现 **领域驱动设计 (DDD)** 和 **HATEOAS** 的代码样例项目。本项目展示了如何通过高内聚的领域模型直接驱动业务逻辑和 RESTful HATEOAS 接口，解决传统架构中的性能瓶颈与逻辑分散问题。
 
+## 📚 推荐阅读顺序
+
+为了更好地理解本项目，建议按以下顺序阅读相关文档：
+
+1. [Smart Domain DDD 架构设计](libs/backend/README.md) - 完整的架构设计文档，理解核心设计理念
+2. [REST 原则与智能 UI](public/REST_Principles_Agentic_UI.pdf) - REST 架构原则与智能 UI 设计详解
+3. [HATEOAS 客户端实现](packages/resource/README.md) - TypeScript/JavaScript 客户端库文档
+
 ## 🏗️ 架构概览
 
 ### Smart Domain DDD 实现

@@ -6,6 +6,14 @@
 
 `@hateoas-ts/resource` 是一个强大的 TypeScript/JavaScript 客户端库，用于与遵循 HAL (Hypertext Application Language) 规范的 REST API 进行交互。它提供了类型安全的资源导航、关系追踪和状态管理。
 
+## 📚 推荐阅读顺序
+
+为了更好地理解 HATEOAS 客户端实现，建议按以下顺序阅读相关文档：
+
+1. [Smart Domain DDD 架构实现](../../libs/backend/README.md) - 完整的架构设计文档，理解核心设计理念
+2. **本文档** - TypeScript/JavaScript 客户端库文档
+3. [REST 原则与智能 UI](../../public/REST_Principles_Agentic_UI.pdf) - REST 架构原则与智能 UI 设计详解
+
 ## 安装
 
 ```bash
@@ -1326,3 +1334,4 @@ client.use((url, options) => {
 - **事件驱动**: 通过事件监听，你可以响应资源状态的变化。
 
 要开始使用，请确保你的 API 遵循 HAL 规范，然后按照上述示例定义你的实体类型并开始与 API 交互。
+

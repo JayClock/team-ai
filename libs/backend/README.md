@@ -4,6 +4,14 @@
 
 本架构的核心目标是：**通过高内聚的领域模型直接驱动业务逻辑和 RESTful HATEOAS 接口**，展示如何解决传统架构中的性能瓶颈与逻辑分散问题，同时提供可扩展的、类型安全的 API 设计模式。
 
+## 📚 推荐阅读顺序
+
+为了更好地理解 Smart Domain DDD 架构，建议按以下顺序阅读相关文档：
+
+1. **本文档** - 完整的架构设计文档，理解核心设计理念
+2. [REST 原则与智能 UI](../public/REST_Principles_Agentic_UI.pdf) - REST 架构原则与智能 UI 设计详解
+3. [HATEOAS 客户端实现](../../packages/resource/README_ZH.md) - TypeScript/JavaScript 客户端库文档
+
 <img width="7143" height="3300" alt="image" src="https://github.com/user-attachments/assets/d778446e-2832-41c1-9a83-651a1ce87341" />
 
 ---
@@ -46,7 +54,7 @@
 
 关联对象充当了领域层与基础设施层之间的桥梁：
 
-- **显式建模**：`User` 依赖于 `Conversations` 接口，这是一等公民，而非简单的集合。
+- **显式建模**：`User` 依赖于 `User.Conversations` 接口，这是一等公民，而非简单的集合。
 
 - **按需加载**：调用 `user.conversations()` 仅返回关联对象本身（轻量级指针），不触发 I/O。只有调用具体行为（如 `findAll(page)`）时，基础设施层才会执行优化后的 SQL。
 
