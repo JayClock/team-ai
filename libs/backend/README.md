@@ -397,7 +397,246 @@ description: >
 
 2. **AI Agent**：通过生成的 Skills 理解并操作业务。
 
+## 4.4 演进路线：从 HATEOAS 到 A2UI (Agentic UI)
 
+如果说 **Agent Skills** 是 HATEOAS 在 AI **逻辑认知层** 的映射，那么 **A2UI (Agent to UI)** 就是 HATEOAS 在 **视觉交互层** 的直接投影。
+
+通过谷歌开源的 **A2UI** 标准，我们可以将 HATEOAS 的资源状态自动转换为声明式的 JSON UI 描述，实现 **"Server-Driven Agentic UI"**。
+
+### 4.4.1 核心哲学：UI 即状态的投影
+
+在 A2UI 体系下，前端不再硬编码界面组件，而是作为一个纯粹的 **渲染器 (Renderer)**。后端 Smart Domain 模型通过 HATEOAS 响应告知 Client：“当前状态下，你可以做什么”，并附带相应的 UI 描述。
+
+|**HATEOAS 元素 (Backend)**|**转换逻辑 (Transformer)**|**A2UI 组件 (Frontend)**|**交互语义**|
+|---|---|---|---|
+|**Resource State**<br><br>  <br><br>`{"balance": 100}`|数据绑定 -> 展示组件|`Text`, `Table`, `Status`|**Read**: 用户看到的信息|
+|**Form Property**<br><br>  <br><br>`"date": "2025-12-20"`|类型推断 -> 输入组件|`DateTimeInput`, `TextInput`|**Write**: 用户填写的参数|
+|**Link (`_links`)**<br><br>  <br><br>`rel="submit"`|行为映射 -> 触发组件|`Button`, `Fab`|**Execute**: 用户触发的动作|
+|**Error/Exception**|异常映射 -> 反馈组件|`Banner`, `Toast`|**Feedback**: 系统反馈|
+
+### 4.4.2 架构图：双态映射 (Dual-State Mapping)
+
+Smart Domain 通过一个轻量级的适配层，同时支撑“人机交互”与“机机交互”。
+
+代码段
+
+```
+flowchart LR
+    subgraph Domain ["Smart Domain Core"]
+        Entity[领域实体] -->|State| HATEOAS[HATEOAS Resource]
+    end
+
+    subgraph Adapters ["Presentation Adapters"]
+        HATEOAS -->|映射 1: 语义提取| Skill[Agent Skill (YAML)]
+        HATEOAS -->|映射 2: 视觉声明| A2UI[A2UI JSON]
+    end
+
+    subgraph Clients ["Consumers"]
+        Skill -->|推理| AI_Agent[AI Agent Logic]
+        A2UI -->|渲染| App_UI[Native Client / Web]
+    end
+    
+    AI_Agent -.->|Action| HATEOAS
+    App_UI -.->|Action| HATEOAS
+```
+
+### 4.4.3 代码示例：复杂表单的 HATEOAS 到 A2UI 映射
+
+**场景**：用户请求配置一个新的 AI 对话智能体（Agent Persona）。该表单需要包含基础信息、模型参数配置（枚举与数值）以及生命周期设置。
+
+1. HATEOAS 源数据 (Backend Source)
+
+后端返回包含 _templates (类似 HAL-FORMS) 的资源，精确定义了字段的约束、类型和默认值，同时通过 _links 定义了多个可用操作。
+
+JSON
+
+```
+// GET /agents/new-configuration
+{
+  "title": "Configure New Agent",
+  "defaults": {
+    "temperature": 0.7,
+    "model": "gpt-4o"
+  },
+  "_links": {
+    "self": { "href": "/agents/new-configuration" },
+    "create": { 
+      "href": "/agents", 
+      "method": "POST", 
+      "title": "立即创建" 
+    },
+    "save-draft": { 
+      "href": "/agents/drafts", 
+      "method": "POST", 
+      "title": "保存草稿" 
+    }
+  },
+  "_templates": {
+    "default": {
+      "properties": [
+        { 
+          "name": "name", 
+          "type": "text", 
+          "required": true, 
+          "label": "智能体名称" 
+        },
+        { 
+          "name": "systemPrompt", 
+          "type": "textarea", 
+          "label": "系统提示词 (System Prompt)" 
+        },
+        { 
+          "name": "model", 
+          "type": "select", 
+          "label": "底层模型", 
+          "options": [
+            { "label": "GPT-4o (High Intelligence)", "value": "gpt-4o" },
+            { "label": "Claude 3.5 Sonnet (Coding)", "value": "claude-3-5" },
+            { "label": "Gemini Pro (Balanced)", "value": "gemini-pro" }
+          ]
+        },
+        { 
+          "name": "expiryDate", 
+          "type": "datetime", 
+          "label": "自动归档时间" 
+        }
+      ]
+    }
+  }
+}
+```
+
+2. A2UI 转换结果 (Frontend A2UI JSON)
+
+适配器（Adapter）将上述扁平的 HATEOAS 模板转换为具有 布局层次 (Layout Hierarchy) 的 A2UI 树。注意它是如何将字段分组到不同的 Container 中，并根据字段类型选择 SelectionInput 或 DateTimeInput 的。
+
+JSON
+
+```
+{
+  "surfaceUpdate": {
+    "surfaceId": "agent-config-panel",
+    "components": [
+      {
+        "id": "header-title",
+        "component": {
+          "Text": { "text": { "literalString": "Configure New Agent" }, "usageHint": "h2" }
+        }
+      },
+      // --- Section 1: 基础信息区 ---
+      {
+        "id": "section-basic",
+        "component": {
+          "Container": {
+            "direction": "column",
+            "children": [
+              {
+                "id": "inp-name",
+                "component": {
+                  "TextInput": {
+                    "label": { "literalString": "智能体名称 *" },
+                    "value": { "path": "/request/name" } // 绑定数据路径
+                  }
+                }
+              },
+              {
+                "id": "inp-prompt",
+                "component": {
+                  "TextInput": {
+                    "label": { "literalString": "系统提示词 (System Prompt)" },
+                    "value": { "path": "/request/systemPrompt" },
+                    "multiline": true, // 对应 type: textarea
+                    "minLines": 3
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      // --- Section 2: 高级配置区 (下拉选单与日期) ---
+      {
+        "id": "section-advanced",
+        "component": {
+          "Container": {
+            "style": "card", // 样式提示
+            "children": [
+              {
+                "id": "inp-model",
+                "component": {
+                  "SelectionInput": { // 对应 type: select
+                    "label": { "literalString": "底层模型" },
+                    "type": "dropdown",
+                    "value": { "path": "/request/model" },
+                    "options": [
+                      { "label": "GPT-4o (High Intelligence)", "value": "gpt-4o" },
+                      { "label": "Claude 3.5 Sonnet (Coding)", "value": "claude-3-5" },
+                      { "label": "Gemini Pro (Balanced)", "value": "gemini-pro" }
+                    ]
+                  }
+                }
+              },
+              {
+                "id": "inp-date",
+                "component": {
+                  "DateTimeInput": { // 对应 type: datetime
+                    "label": { "literalString": "自动归档时间" },
+                    "value": { "path": "/request/expiryDate" },
+                    "enableDate": true,
+                    "enableTime": true
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      // --- Footer: 操作按钮组 ---
+      {
+        "id": "action-bar",
+        "component": {
+          "Container": {
+            "direction": "row",
+            "justifyContent": "end",
+            "children": [
+              {
+                "id": "btn-draft",
+                "component": {
+                  "Button": {
+                    "style": "outlined", // 次要按钮
+                    "child": "txt-draft",
+                    "action": { "name": "save-draft", "parameters": { "href": "/agents/drafts" } }
+                  }
+                }
+              },
+              {
+                "id": "btn-submit",
+                "component": {
+                  "Button": {
+                    "style": "filled", // 主要按钮
+                    "child": "txt-submit",
+                    "action": { "name": "create", "parameters": { "href": "/agents" } }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### 4.4.4 价值：动态生成的企业级界面
+
+引入 A2UI 后，我们的架构获得了以下能力：
+
+1. **零前端开发 (Zero Frontend Code)**：增加新的表单字段或业务流程，只需修改后端 HATEOAS 定义，前端 A2UI 渲染器自动更新界面。
+
+2. **安全原生渲染**：UI 不是由不可控的 HTML 字符串拼接而成，而是通过 JSON 指令驱动客户端原生组件（Web Components 或 Native Views），避免了 XSS 攻击并保证了企业级的一致性。
+
+3. **多端一致性**：同一套 HATEOAS -> A2UI 逻辑，可以同时驱动 Web、iOS 和 Android 客户端，无需为每个平台单独开发 UI。
 ---
 
 ## 5. 总结
