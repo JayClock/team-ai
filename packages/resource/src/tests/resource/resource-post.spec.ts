@@ -4,7 +4,7 @@ import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import { Link } from '../../lib/links/link.js';
 import { Resource, State } from '../../lib/index.js';
 import { resolve } from '../../lib/util/uri.js';
-import { mockClient, setupUserState, clearAllMocks } from './mock-setup.js';
+import { clearAllMocks, mockClient, setupUserState } from './mock-setup.js';
 
 describe('Resource POST Requests', () => {
   let userState: State<User>;
@@ -71,6 +71,16 @@ describe('Resource POST Requests', () => {
       data: newConversationData,
       headers: customHeaders,
     });
+
+    const form = await userState
+      .follow('create-conversation')
+      .withMethod('POST')
+      .getForm();
+
+    expect(form?.uri).toEqual(halUser._templates['create-conversation'].target);
+    expect(form?.method).toEqual(
+      halUser._templates['create-conversation'].method,
+    );
 
     expect(mockClient.cache.get).toHaveBeenCalledWith(userState.uri);
 

@@ -4,8 +4,6 @@ import { RequestOptions } from './interface.js';
 import { Entity } from '../archtype/entity.js';
 import { HttpMethod } from '../http/util.js';
 import { State } from '../state/state.js';
-import { BaseState } from '../state/base-state.js';
-import { Links } from '../links/links.js';
 import Resource from './resource.js';
 import { SafeAny } from '../archtype/safe-any.js';
 
@@ -15,6 +13,13 @@ interface ResourceOptions {
 }
 
 export class ResourceRelation<TEntity extends Entity> {
+  /**
+   * Creates a new ResourceRelation instance
+   * @param client The client instance used for handling requests and caching
+   * @param link The link object containing resource relationships and URI templates
+   * @param rels The relationship path array representing the relationship chain from root resource to target resource
+   * @param optionsMap The options map storing configuration parameters for each relationship
+   */
   constructor(
     private readonly client: ClientInstance,
     private readonly link: Link,
@@ -22,13 +27,70 @@ export class ResourceRelation<TEntity extends Entity> {
     private readonly optionsMap: Map<string, ResourceOptions> = new Map(),
   ) {}
 
+  /**
+   * Executes a resource request to get the resource state
+   * @param requestOptions Request options including request body, headers, etc.
+   * @returns Returns a Promise of the resource state
+   */
   async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
     const resource = await this.getResource();
     return resource.request(requestOptions);
   }
 
+  /**
+   * Gets the resource instance
+   * @returns Returns a Promise of the resource instance
+   */
   async getResource(): Promise<Promise<Resource<TEntity>>> {
     return this.getResourceWithRels(this.rels);
+  }
+
+  /**
+   * Gets the form definition associated with the current resource
+   * @returns Returns the form object or undefined
+   */
+  async getForm(): Promise<Form | undefined> {
+    const prevResource = await this.getResourceWithRels(this.rels.slice(0, -1));
+    const prevState = await prevResource.request();
+    return prevState.getForm(this.link.rel, this.method);
+  }
+
+  /**
+   * Follows a resource relationship based on its rel type
+   * @param rel The relationship type, must be a key defined in the entity links
+   * @returns Returns a new ResourceRelation instance representing the followed relationship
+   */
+  follow<K extends keyof TEntity['links']>(
+    rel: K,
+  ): ResourceRelation<TEntity['links'][K]> {
+    return new ResourceRelation(
+      this.client,
+      this.link,
+      this.rels.concat(rel as string),
+      this.optionsMap,
+    );
+  }
+
+  /**
+   * Sets URI template parameters
+   * @param variables The template parameter variables to set
+   * @returns Returns the current ResourceRelation instance for method chaining
+   */
+  withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, query: variables });
+    return this;
+  }
+
+  /**
+   * Sets the HTTP request method
+   * @param method The HTTP method to set
+   * @returns Returns the current ResourceRelation instance for method chaining
+   */
+  withMethod(method: HttpMethod): ResourceRelation<TEntity> {
+    const { rel, currentOptions } = this.getCurrentOptions();
+    this.optionsMap.set(rel, { ...currentOptions, method: method });
+    return this;
   }
 
   private async getResourceWithRels(
@@ -42,50 +104,9 @@ export class ResourceRelation<TEntity extends Entity> {
         .follow(rel)
         .withMethod(currentOptions?.method ?? 'GET')
         .withTemplateParameters(currentOptions?.query ?? {});
-
-      const embedded = (state as BaseState<SafeAny>).getEmbedded(rel);
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const link = state.links.get(rel)!;
-      if (Array.isArray(embedded)) {
-        state = new BaseState({
-          client: this.client,
-          data: {},
-          collection: embedded,
-          links: new Links(this.client.bookmarkUri),
-          headers: new Headers(),
-          currentLink: link,
-        });
-        this.client.cacheState(state);
-      } else if (embedded) {
-        state = embedded;
-        this.client.cacheState(state);
-      }
       state = await resource.request();
     }
     return resource;
-  }
-
-  follow<K extends keyof TEntity['links']>(
-    rel: K,
-  ): ResourceRelation<TEntity['links'][K]> {
-    return new ResourceRelation(
-      this.client,
-      this.link,
-      this.rels.concat(rel as string),
-      this.optionsMap,
-    );
-  }
-
-  withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, query: variables });
-    return this;
-  }
-
-  withMethod(method: HttpMethod): ResourceRelation<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, method: method });
-    return this;
   }
 
   private getCurrentOptions() {
