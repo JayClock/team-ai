@@ -16,6 +16,10 @@ import { BaseState } from '../state/base-state.js';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class Resource<TEntity extends Entity> extends EventEmitter {
+  /**
+   * Gets the complete URI of the current resource
+   * @returns {string} The resolved complete URI
+   */
   get uri() {
     return resolve(this.expandedLink());
   }
@@ -23,6 +27,12 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   private method: HttpMethod = 'GET';
   private variables: LinkVariables = {};
 
+  /**
+   * Creates a new Resource instance
+   * @param client The client instance used for handling requests and caching
+   * @param link The link object containing resource relationships and URI templates
+   * @param prevUri The URI of the previous resource, used for getting embedded resources
+   */
   constructor(
     private client: ClientInstance,
     private link: Link,
@@ -41,8 +51,9 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   private readonly activeRefresh = new Map<string, Promise<State>>();
 
   /**
-   * Follows a relationship, based on its rel type.
-   *
+   * Follows a resource relationship based on its rel type
+   * @param rel The relationship type, must be a key defined in the entity links
+   * @returns Returns a new ResourceRelation instance representing the followed relationship
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
@@ -51,26 +62,29 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   /**
-   * Does a HTTP request on the current resource URI
+   * Performs an HTTP request on the current resource URI
+   * @param init Request initialization options including headers, method, etc.
+   * @returns Returns a Promise of the HTTP response
    */
   fetch(init?: RequestInit): Promise<Response> {
     return this.client.fetcher.fetch(this.uri, init);
   }
 
   /**
-   * Does a HTTP request on the current resource URI.
-   *
-   * If the response was a 4XX or 5XX, this function will throw
-   * an exception.
+   * Performs an HTTP request on the current resource URI and throws an exception on error responses
+   * @param init Request initialization options including headers, method, etc.
+   * @returns Returns a Promise of the HTTP response
+   * @throws Throws an exception when the response status code is 4XX or 5XX
    */
   fetchOrThrow(init?: RequestInit): Promise<Response> {
     return this.client.fetcher.fetchOrThrow(this.uri, init);
   }
 
   /**
-   * Updates the state cache, and emits events.
-   *
-   * This will update the local state but *not* update the server
+   * Updates the state cache and triggers events
+   * Note: This method only updates the local state, not the server-side state
+   * @param state The state object to cache
+   * @throws Throws an error when the state's URI doesn't match the resource's URI
    */
   updateCache(state: State<TEntity>) {
     if (state.uri !== this.uri) {
@@ -82,20 +96,25 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   /**
-   * Clears the state cache for this resource.
+   * Clears the state cache for this resource
    */
   clearCache(): void {
     this.client.clearResourceCache([this.uri], []);
   }
 
   /**
-   * Retrieves the current cached resource state, and return `null` if it's
-   * not available.
+   * Retrieves the current cached resource state, returns null if unavailable
+   * @returns Returns the cached state object or null
    */
   getCache(): State<TEntity> | null {
     return this.client.cache.get(this.uri);
   }
 
+  /**
+   * Executes a resource request, handling different request types based on the currently set HTTP method
+   * @param requestOptions Request options including request body, headers, etc.
+   * @returns Returns a Promise of the resource state
+   */
   async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit(requestOptions ?? {});
 
@@ -106,7 +125,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
         return await this.patch(requestOptions ?? {});
     }
 
-    const form = this.getForm();
+    const form = await this.getForm();
 
     if (form) {
       this.verifyFormData(form, requestOptions?.data);
@@ -189,25 +208,39 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return state as State<TEntity>;
   }
 
+  /**
+   * Sets URI template parameters
+   * @param variables The template parameter variables to set
+   * @returns Returns the current Resource instance for method chaining
+   */
   withTemplateParameters(variables: LinkVariables): Resource<TEntity> {
     this.variables = variables;
     return this;
   }
 
+  /**
+   * Sets the HTTP request method
+   * @param method The HTTP method to set
+   * @returns Returns the current Resource instance for method chaining
+   */
   withMethod(method: HttpMethod): Resource<TEntity> {
     this.method = method;
     return this;
+  }
+
+  /**
+   * Gets the form definition associated with the current resource
+   * @returns Returns the form object or undefined
+   */
+  async getForm(): Promise<Form | undefined> {
+    const prevState = this.getPrevState();
+    return prevState?.getForm(this.link.rel, this.method);
   }
 
   private getPrevState() {
     return this.prevUri
       ? (this.client.cache.get(this.prevUri) as BaseState<SafeAny>)
       : undefined;
-  }
-
-  private getForm() {
-    const prevState = this.getPrevState();
-    return prevState?.getForm(this.link.rel, this.method);
   }
 
   private expandedLink(): Link {
@@ -315,7 +348,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export declare interface Resource<TEntity extends Entity> {
   /**
-   * Subscribe to the 'update' event.
+   * Subscribe to the 'update' event
    *
    * This event will get triggered whenever a new State is received
    * from the server, either through a GET request or if it was
@@ -323,71 +356,114 @@ export declare interface Resource<TEntity extends Entity> {
    *
    * It will also trigger when calling 'PUT' with a full state object,
    * and when updateCache() was used.
+   *
+   * @param event The event name, 'update' in this case
+   * @param listener The event listener function that receives the state object as a parameter
+   * @returns Returns the current instance for method chaining
    */
   on(event: 'update', listener: (state: State) => void): this;
 
   /**
-   * Subscribe to the 'stale' event.
+   * Subscribe to the 'stale' event
    *
    * This event will get triggered whenever an unsafe method was
    * used, such as POST, PUT, PATCH, etc.
    *
    * When any of these methods are used, the local cache is stale.
+   *
+   * @param event The event name, 'stale' in this case
+   * @param listener The event listener function
+   * @returns Returns the current instance for method chaining
    */
   on(event: 'stale', listener: () => void): this;
 
   /**
-   * Subscribe to the 'delete' event.
+   * Subscribe to the 'delete' event
    *
    * This event gets triggered when the `DELETE` http method is used.
+   *
+   * @param event The event name, 'delete' in this case
+   * @param listener The event listener function
+   * @returns Returns the current instance for method chaining
    */
   on(event: 'delete', listener: () => void): this;
 
   /**
-   * Subscribe to the 'update' event and unsubscribe after it was
-   * emitted the first time.
+   * Subscribe to the 'update' event and unsubscribe after it was emitted the first time
+   *
+   * @param event The event name, 'update' in this case
+   * @param listener The event listener function that receives the state object as a parameter
+   * @returns Returns the current instance for method chaining
    */
   once(event: 'update', listener: (state: State) => void): this;
 
   /**
-   * Subscribe to the 'stale' event and unsubscribe after it was
-   * emitted the first time.
+   * 订阅 'stale' 事件，并在首次触发后取消订阅
+   *
+   * @param event 事件名称，此处为 'stale'
+   * @param listener 事件监听器函数
+   * @returns 返回当前实例，支持链式调用
    */
   once(event: 'stale', listener: () => void): this;
 
   /**
-   * Subscribe to the 'delete' event and unsubscribe after it was
-   * emitted the first time.
+   * 订阅 'delete' 事件，并在首次触发后取消订阅
+   *
+   * @param event 事件名称，此处为 'delete'
+   * @param listener 事件监听器函数
+   * @returns 返回当前实例，支持链式调用
    */
   once(event: 'delete', listener: () => void): this;
 
   /**
-   * Unsubscribe from the 'update' event
+   * 取消订阅 'update' 事件
+   *
+   * @param event 事件名称，此处为 'update'
+   * @param listener 要取消订阅的事件监听器函数
+   * @returns 返回当前实例，支持链式调用
    */
   off(event: 'update', listener: (state: State) => void): this;
 
   /**
-   * Unsubscribe from the 'stale' event
+   * 取消订阅 'stale' 事件
+   *
+   * @param event 事件名称，此处为 'stale'
+   * @param listener 要取消订阅的事件监听器函数
+   * @returns 返回当前实例，支持链式调用
    */
   off(event: 'stale', listener: () => void): this;
 
   /**
-   * Unsubscribe from the 'delete' event
+   * 取消订阅 'delete' 事件
+   *
+   * @param event 事件名称，此处为 'delete'
+   * @param listener 要取消订阅的事件监听器函数
+   * @returns 返回当前实例，支持链式调用
    */
   off(event: 'delete', listener: () => void): this;
 
   /**
-   * Emit an 'update' event.
+   * 触发 'update' 事件
+   *
+   * @param event 事件名称，此处为 'update'
+   * @param state 要传递给监听器的状态对象
+   * @returns 返回事件是否被处理
    */
   emit(event: 'update', state: State): boolean;
 
   /**
-   * Emit a 'stale' event.
+   * 触发 'stale' 事件
+   *
+   * @param event 事件名称，此处为 'stale'
+   * @returns 返回事件是否被处理
    */
   emit(event: 'stale'): boolean;
 
   /**
-   * Emit a 'delete' event.
+   * 触发 'delete' 事件
+   *
+   * @param event 事件名称，此处为 'delete'
+   * @returns 返回事件是否被处理
    */
   emit(event: 'delete'): boolean;
 }

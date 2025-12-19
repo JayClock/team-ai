@@ -322,27 +322,23 @@ if (cachedState) {
 
 #### resource.follow<K extends keyof TEntity['links']>(rel: K): ResourceRelation<TEntity['links'][K]>
 
-导航到关联的资源。
+根据关系类型 (rel) 跟踪资源关系。
 
 **参数:**
-- `rel`: 关系名称
+- `rel`: 关系类型，必须是实体链接中定义的键之一
 
 **返回值:**
 - `ResourceRelation<TEntity['links'][K]>`: 关联资源的 ResourceRelation 对象
 
 #### resource.withMethod(method: HttpMethod): Resource<TEntity>
 
-设置 HTTP 方法。对于非 GET 请求，必须在调用 `request()` 之前调用此方法。
+设置 HTTP 请求方法。
 
 **参数:**
-- `method`: HTTP 方法 ('GET', 'POST', 'PUT', 'PATCH', 'DELETE' 等)
+- `method`: 要设置的 HTTP 方法
 
 **返回值:**
 - `Resource<TEntity>`: 当前资源对象（支持链式调用）
-
-**说明:**
-- 默认情况下，`request()` 使用 GET 方法，符合 RESTful 的发现规范
-- 对于 POST、PUT、PATCH、DELETE 等非安全方法，必须使用 `withMethod()` 明确指定
 
 **示例:**
 ```typescript
@@ -369,7 +365,7 @@ const result = await resource
 设置 URI 模板参数。
 
 **参数:**
-- `variables`: 参数键值对
+- `variables`: 要设置的模板参数变量
 
 **返回值:**
 - `Resource<TEntity>`: 当前资源对象（支持链式调用）
@@ -393,7 +389,7 @@ ResourceRelation 类用于处理资源关系的导航，支持链式调用和参
 
 #### relation.request(requestOptions?: RequestOptions): Promise<State<TEntity>>
 
-发送请求并获取资源状态。
+执行资源请求，获取资源状态。
 
 **参数:**
 - `requestOptions`: 请求选项（可选）
@@ -403,37 +399,37 @@ ResourceRelation 类用于处理资源关系的导航，支持链式调用和参
 
 #### relation.getResource(): Promise<Resource<TEntity>>
 
-获取关联的资源对象。
+获取资源实例。
 
 **返回值:**
 - `Promise<Resource<TEntity>>`: 资源对象
 
 #### relation.follow<K extends keyof TEntity['links']>(rel: K): ResourceRelation<TEntity['links'][K]>
 
-继续导航到下一级关联资源。
+根据关系类型 (rel) 跟踪资源关系。
 
 **参数:**
-- `rel`: 关系名称
+- `rel`: 关系类型，必须是实体链接中定义的键之一
 
 **返回值:**
-- `ResourceRelation<TEntity['links'][K]>`: 下一级关联资源的 ResourceRelation 对象
+- `ResourceRelation<TEntity['links'][K]>`: 关联资源的 ResourceRelation 对象
 
 #### relation.withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity>
 
 设置 URI 模板参数。
 
 **参数:**
-- `variables`: 参数键值对
+- `variables`: 要设置的模板参数变量
 
 **返回值:**
 - `ResourceRelation<TEntity>`: 当前资源关系对象（支持链式调用）
 
 #### relation.withMethod(method: HttpMethod): ResourceRelation<TEntity>
 
-设置 HTTP 方法。
+设置 HTTP 请求方法。
 
 **参数:**
-- `method`: HTTP 方法
+- `method`: 要设置的 HTTP 方法
 
 **返回值:**
 - `ResourceRelation<TEntity>`: 当前资源关系对象（支持链式调用）
@@ -505,10 +501,10 @@ if ('self' in userState.links) {
 
 #### state.follow<K extends keyof TEntity['links']>(rel: K): Resource<TEntity['links'][K]>
 
-根据关系类型导航到关联的资源。例如，这可能是 'alternate'、'item'、'edit' 或自定义的基于 URL 的关系。
+根据关系类型 (rel) 跟踪资源关系。
 
 **参数:**
-- `rel`: 关系名称，必须是 TEntity['links'] 的键
+- `rel`: 关系类型，必须是 TEntity['links'] 的键
 
 **返回值:**
 - `Resource<TEntity['links'][K]>`: 关联资源的 Resource 对象
