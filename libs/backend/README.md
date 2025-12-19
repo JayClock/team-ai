@@ -4,6 +4,8 @@
 
 本架构的核心目标是：**通过高内聚的领域模型直接驱动业务逻辑和 RESTful HATEOAS 接口**，展示如何解决传统架构中的性能瓶颈与逻辑分散问题，同时提供可扩展的、类型安全的 API 设计模式。
 
+<img width="7143" height="3300" alt="image" src="https://github.com/user-attachments/assets/d778446e-2832-41c1-9a83-651a1ce87341" />
+
 ---
 
 ## 1. 领域模型设计示例
@@ -307,6 +309,8 @@ public class UserModel extends RepresentationModel {
 在现代客户端开发中，**"渐进式披露"** 是解决复杂功能与有限界面之间矛盾的核心机制。RESTful 架构中的 HATEOAS 正是这一机制在 HTTP 协议层上的完美实现。
 
 #### 4.3.1 机制同构性对比
+
+<img width="1024" height="559" alt="api agent" src="https://github.com/user-attachments/assets/91e498a6-ab41-4c5c-9253-fb36549acb98" />
 
 Smart Domain 架构利用关联对象实现了数据结构的渐进式加载，这与现代 AI Agent（如 Claude Code）使用的 **Agent Skills** 架构在设计哲学上高度一致。
 
