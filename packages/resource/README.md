@@ -322,10 +322,10 @@ if (cachedState) {
 
 #### resource.follow<K extends keyof TEntity['links']>(rel: K): ResourceRelation<TEntity['links'][K]>
 
-Navigate to related resources.
+Follows a resource relationship based on its rel type.
 
 **Parameters:**
-- `rel`: Relationship name
+- `rel`: The relationship type, must be a key defined in the entity links
 
 **Return value:**
 - `ResourceRelation<TEntity['links'][K]>`: ResourceRelation object of the related resource
@@ -366,10 +366,10 @@ const result = await resource
 
 #### resource.withTemplateParameters(variables: LinkVariables): Resource<TEntity>
 
-Set URI template parameters.
+Sets URI template parameters.
 
 **Parameters:**
-- `variables`: Parameter key-value pairs
+- `variables`: The template parameter variables to set
 
 **Return value:**
 - `Resource<TEntity>`: Current resource object (supports chained calls)
@@ -393,7 +393,7 @@ ResourceRelation class is used to handle navigation of resource relationships, s
 
 #### relation.request(requestOptions?: RequestOptions): Promise<State<TEntity>>
 
-Send a request and get the resource state.
+Executes a resource request to get the resource state.
 
 **Parameters:**
 - `requestOptions`: Request options (optional)
@@ -403,27 +403,27 @@ Send a request and get the resource state.
 
 #### relation.getResource(): Promise<Resource<TEntity>>
 
-Get the related resource object.
+Gets the resource instance.
 
 **Return value:**
 - `Promise<Resource<TEntity>>`: Resource object
 
 #### relation.follow<K extends keyof TEntity['links']>(rel: K): ResourceRelation<TEntity['links'][K]>
 
-Continue navigating to the next level of related resources.
+Follows a resource relationship based on its rel type.
 
 **Parameters:**
-- `rel`: Relationship name
+- `rel`: The relationship type, must be a key defined in the entity links
 
 **Return value:**
-- `ResourceRelation<TEntity['links'][K]>`: ResourceRelation object of the next level of related resources
+- `ResourceRelation<TEntity['links'][K]>`: ResourceRelation object of the related resource
 
 #### relation.withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity>
 
-Set URI template parameters.
+Sets URI template parameters.
 
 **Parameters:**
-- `variables`: Parameter key-value pairs
+- `variables`: The template parameter variables to set
 
 **Return value:**
 - `ResourceRelation<TEntity>`: Current resource relation object (supports chained calls)
@@ -505,10 +505,10 @@ if ('self' in userState.links) {
 
 #### state.follow<K extends keyof TEntity['links']>(rel: K): Resource<TEntity['links'][K]>
 
-Navigate to related resources based on relationship type. For example, this might be 'alternate', 'item', 'edit', or custom URL-based relationships.
+Follows a resource relationship based on its rel type.
 
 **Parameters:**
-- `rel`: Relationship name, must be a key of TEntity['links']
+- `rel`: The relationship type, must be a key of TEntity['links']
 
 **Return value:**
 - `Resource<TEntity['links'][K]>`: Resource object of the related resource
