@@ -9,7 +9,7 @@
 为了更好地理解 Smart Domain DDD 架构，建议按以下顺序阅读相关文档：
 
 1. **本文档** - 完整的架构设计文档，理解核心设计理念
-2. [REST 原则与智能 UI](../public/REST_Principles_Agentic_UI.pdf) - REST 架构原则与智能 UI 设计详解
+2. [REST 原则与智能 UI](../../public/REST_Principles_Agentic_UI.pdf) - REST 架构原则与智能 UI 设计详解
 3. [HATEOAS 客户端实现](../../packages/resource/README_ZH.md) - TypeScript/JavaScript 客户端库文档
 
 <img width="7143" height="3300" alt="image" src="https://github.com/user-attachments/assets/d778446e-2832-41c1-9a83-651a1ce87341" />
