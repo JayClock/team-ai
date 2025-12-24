@@ -3,7 +3,7 @@ import {
   HalFormsProperty,
   HalFormsSimpleProperty,
   HalLink,
-  HalResource
+  HalResource,
 } from 'hal-types';
 import { SafeAny } from '../../archtype/safe-any.js';
 import { Links } from '../../links/links.js';
@@ -12,14 +12,14 @@ import { Field } from '../../form/field.js';
 import { HttpMethod } from 'src/lib/http/util.js';
 
 export function isInlineOptions(
-  options: HalFormsSimpleProperty['options']
+  options: HalFormsSimpleProperty['options'],
 ): options is HalFormsOptionsInline {
   return (options as SafeAny).inline !== undefined;
 }
 
 export function parseHalTemplates(
   links: Links<SafeAny>,
-  templates: HalResource['_templates'] = {}
+  templates: HalResource['_templates'] = {},
 ): Form[] {
   return Object.values(templates).map((template) => ({
     title: template.title,
@@ -28,7 +28,7 @@ export function parseHalTemplates(
     uri: template.target ?? (links.get('self')! as HalLink).href,
     contentType: template.contentType ?? 'application/json',
     fields:
-      template.properties?.map((property) => parseHalField(property)) || []
+      template.properties?.map((property) => parseHalField(property)) || [],
   }));
 }
 
@@ -48,7 +48,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
           required: halField.required || false,
           readOnly: halField.readOnly || false,
           multiple: halField.options.multiple as SafeAny,
-          value: (halField.options.selectedValues || halField.value) as SafeAny
+          value: (halField.options.selectedValues || halField.value) as SafeAny,
         };
 
         const labelField = halField.options.promptField || 'prompt';
@@ -66,7 +66,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
 
           return {
             ...baseField,
-            options
+            options,
           };
         } else {
           return {
@@ -75,8 +75,8 @@ export function parseHalField(halField: HalFormsProperty): Field {
               href: halField.options.link.href,
               type: halField.options.link.type,
               labelField,
-              valueField
-            }
+              valueField,
+            },
           };
         }
       } else {
@@ -90,7 +90,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
           label: halField.prompt,
           placeholder: halField.placeholder,
           minLength: halField.minLength,
-          maxLength: halField.maxLength
+          maxLength: halField.maxLength,
         };
       }
     case 'hidden':
@@ -101,7 +101,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
         readOnly: halField.readOnly || false,
         value: halField.value,
         label: halField.prompt,
-        placeholder: halField.placeholder
+        placeholder: halField.placeholder,
       };
     case 'textarea':
       return {
@@ -115,7 +115,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
         cols: halField.cols,
         rows: halField.rows,
         minLength: halField.minLength,
-        maxLength: halField.maxLength
+        maxLength: halField.maxLength,
       };
     case 'password':
       return {
@@ -126,7 +126,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
         label: halField.prompt,
         placeholder: halField.placeholder,
         minLength: halField.minLength,
-        maxLength: halField.maxLength
+        maxLength: halField.maxLength,
       };
     case 'date':
     case 'month':
@@ -141,7 +141,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
         label: halField.prompt,
         min: halField.min,
         max: halField.max,
-        step: halField.step
+        step: halField.step,
       };
     case 'number':
     case 'range':
@@ -154,7 +154,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
         label: halField.prompt,
         min: halField.min,
         max: halField.max,
-        step: halField.step
+        step: halField.step,
       };
     case 'datetime-local':
       return {
@@ -166,7 +166,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
         label: halField.prompt,
         min: halField.min,
         max: halField.max,
-        step: halField.step
+        step: halField.step,
       };
     case 'color':
       return {
@@ -175,7 +175,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
         required: halField.required || false,
         readOnly: halField.readOnly || false,
         label: halField.prompt,
-        value: halField.value
+        value: halField.value,
       };
     case 'radio':
     case 'checkbox':
@@ -185,7 +185,7 @@ export function parseHalField(halField: HalFormsProperty): Field {
         required: halField.required || false,
         readOnly: halField.readOnly || false,
         label: halField.prompt,
-        value: !!halField.value
+        value: !!halField.value,
       };
   }
 }

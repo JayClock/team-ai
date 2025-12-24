@@ -5,10 +5,9 @@ import halConversations from '../fixtures/hal-conversations.json' with { type: '
 import { ClientInstance } from '../../lib/client-instance.js';
 import { Link } from '../../lib/links/link.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
-import { Resource, State } from '../../lib/index.js';
+import { Collection, Resource, State } from '../../lib/index.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { Collection } from '../../lib/index.js';
 import { resolve } from '../../lib/util/uri.js';
 import { expand } from '../../lib/util/uri-template.js';
 

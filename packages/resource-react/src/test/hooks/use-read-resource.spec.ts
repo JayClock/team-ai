@@ -1,4 +1,4 @@
-import { describe, it, vi, beforeEach, expect } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useReadResource } from '../../lib/hooks/use-read-resource';
 import { renderHook, waitFor } from '@testing-library/react';
 import { wrapper } from './wrapper';

@@ -1,11 +1,10 @@
 import { ClientInstance } from '../lib/client-instance.js';
 import { Fetcher } from '../lib/http/fetcher.js';
 import { Config } from '../lib/archtype/config.js';
-import { State } from '../lib/index.js';
+import { Resource, State } from '../lib/index.js';
 import { resolve } from '../lib/util/uri.js';
 import { Cache } from '../lib/cache/cache.js';
 import { beforeEach, describe, expect, vi } from 'vitest';
-import { Resource } from '../lib/index.js';
 import { Link } from '../lib/links/link.js';
 import { HalStateFactory } from '../lib/state/hal-state/hal-state.factory.js';
 import { BinaryStateFactory } from '../lib/state/binary-state/binary-state.factory.js';

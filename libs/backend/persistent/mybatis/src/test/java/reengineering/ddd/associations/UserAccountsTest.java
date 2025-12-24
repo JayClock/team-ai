@@ -1,17 +1,17 @@
 package reengineering.ddd.associations;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
-
-import jakarta.inject.Inject;
 import reengineering.ddd.BaseTestContainersTest;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @MybatisTest
 public class UserAccountsTest extends BaseTestContainersTest {

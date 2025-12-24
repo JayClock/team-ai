@@ -1,4 +1,4 @@
-import { describe, it, vi, beforeEach, expect } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useResolveResource } from '../../lib/hooks/use-resolve-resource';
 import { renderHook } from '@testing-library/react';
 import { mockClient, wrapper } from './wrapper';
@@ -27,7 +27,7 @@ describe('useResolveResource', () => {
       wrapper,
     });
 
-    expect(mockClient.go).toHaveBeenCalledTimes(0)
+    expect(mockClient.go).toHaveBeenCalledTimes(0);
     expect(result.current.resource).toBe(mockResource);
     expect(result.current.setResource).toBeInstanceOf(Function);
   });

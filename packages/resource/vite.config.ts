@@ -31,14 +31,14 @@ export default defineConfig(() => ({
       ],
       output: {
         globals: {
-          'events': 'EventEmitter',
+          events: 'EventEmitter',
           'hal-types': 'HalTypes',
           'http-link-header': 'HttpLinkHeader',
-          'inversify': 'inversify',
+          inversify: 'inversify',
           'query-string': 'QueryString',
-          'tslib': 'tslib',
+          tslib: 'tslib',
           'url-template': 'UrlTemplate',
-          'zod': 'zod',
+          zod: 'zod',
         },
       },
     },

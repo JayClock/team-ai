@@ -1,15 +1,11 @@
 package reengineering.ddd.associations;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import jakarta.inject.Inject;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 import reengineering.ddd.BaseTestContainersTest;
@@ -20,6 +16,10 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @MybatisTest
 public class ConversationMessagesTest extends BaseTestContainersTest {

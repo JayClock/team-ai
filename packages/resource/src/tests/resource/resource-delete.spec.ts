@@ -3,7 +3,7 @@ import { User } from '../fixtures/interface.js';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import { Link } from '../../lib/links/link.js';
 import { Resource, State } from '../../lib/index.js';
-import { mockClient, setupUserState, clearAllMocks } from './mock-setup.js';
+import { clearAllMocks, mockClient, setupUserState } from './mock-setup.js';
 
 describe('Resource DELETE Requests', () => {
   let userState: State<User>;

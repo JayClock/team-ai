@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Fetcher } from '../../lib/http/fetcher.js';
 import { Config } from '../../lib/archtype/config.js';
 import { HttpError, Problem } from '../../lib/http/error.js';

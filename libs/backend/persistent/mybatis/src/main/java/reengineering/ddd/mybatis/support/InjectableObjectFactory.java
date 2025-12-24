@@ -1,12 +1,12 @@
 package reengineering.ddd.mybatis.support;
 
-import java.util.List;
-
 import org.apache.ibatis.reflection.factory.DefaultObjectFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class InjectableObjectFactory extends DefaultObjectFactory implements ApplicationContextAware {

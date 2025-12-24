@@ -5,9 +5,8 @@ import { ClientInstance } from '../../lib/client-instance.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
 import { container } from '../../lib/container.js';
 import { TYPES } from '../../lib/archtype/injection-types.js';
-import { Resource } from '../../lib/index.js';
+import { Resource, State } from '../../lib/index.js';
 import { Fetcher } from '../../lib/http/fetcher.js';
-import { State } from '../../lib/index.js';
 
 export const mockFetcher = {
   fetchOrThrow: vi.fn(),
