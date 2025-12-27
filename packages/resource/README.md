@@ -14,6 +14,29 @@ To better understand the HATEOAS client implementation, it's recommended to read
 2. **This Documentation** - TypeScript/JavaScript client library documentation
 3. [REST Principles and Agentic UI](../../public/REST_Principles_Agentic_UI.pdf) - Detailed explanation of REST architecture principles and intelligent UI design
 
+## 🗺️ Roadmap
+
+### Version 1.2.1 (Current)
+
+- [x] Basic HAL resource navigation
+- [x] Type-safe entity definitions
+- [x] Cache management
+- [x] Event system
+- [x] Middleware support
+
+### Version 1.3 (Planned)
+
+- [ ] Comprehensive form field validation
+- [ ] React integration utilities
+- [ ] Debugging tool support
+
+### Version 1.4 (Planned)
+
+- [ ] Angular integration utilities
+- [ ] More cache strategy options
+- [ ] Automatic retry mechanism
+- [ ] Request cancellation optimization
+
 ## Installation
 
 ```bash

@@ -20,7 +20,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * Gets the complete URI of the current resource
    * @returns {string} The resolved complete URI
    */
-  get uri() {
+  get uri(): string {
     return resolve(this.expandedLink());
   }
 
@@ -120,9 +120,9 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
 
     switch (this.method) {
       case 'GET':
-        return await this.get(requestOptions);
+        return this.get(requestOptions);
       case 'PATCH':
-        return await this.patch(requestOptions ?? {});
+        return this.patch(requestOptions ?? {});
     }
 
     const form = await this.getForm();
