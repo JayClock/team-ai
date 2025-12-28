@@ -6,6 +6,8 @@ import { HttpMethod } from '../http/util.js';
 import { State } from '../state/state.js';
 import Resource from './resource.js';
 import { SafeAny } from '../archtype/safe-any.js';
+import { Form } from '../form/form.js';
+import { BaseState } from '../state/base-state.js';
 
 interface ResourceOptions {
   query?: Record<string, SafeAny>;
@@ -51,8 +53,9 @@ export class ResourceRelation<TEntity extends Entity> {
    */
   async getForm(): Promise<Form | undefined> {
     const prevResource = await this.getResourceWithRels(this.rels.slice(0, -1));
-    const prevState = await prevResource.request();
-    return prevState.getForm(this.link.rel, this.method);
+    const { currentOptions } = this.getCurrentOptions();
+    const prevState = (await prevResource.request()) as BaseState<TEntity>;
+    return prevState.getForm(this.link.rel, currentOptions.method);
   }
 
   /**
