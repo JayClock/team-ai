@@ -1,19 +1,31 @@
-import { Entity, Resource } from '@hateoas-ts/resource';
+import { Entity, Resource, ResourceRelation } from '@hateoas-ts/resource';
 import { useClient } from './use-client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-export type ResourceLike<T extends Entity> = Resource<T> | string;
+export type ResourceLike<T extends Entity> =
+  | Resource<T>
+  | ResourceRelation<T>
+  | string;
+
+function isResourceRelation<T extends Entity>(
+  obj: any,
+): obj is ResourceRelation<T> {
+  return obj && typeof obj.getResource === 'function';
+}
 
 export function useResolveResource<T extends Entity>(
   resourceLike: ResourceLike<T>,
 ) {
   const client = useClient();
-  let res: Resource<T>;
-  if (typeof resourceLike === 'string') {
-    res = client.go(resourceLike);
-  } else {
-    res = resourceLike;
-  }
-  const [resource, setResource] = useState(res);
+  const [resource, setResource] = useState<Resource<T>>();
+  useEffect(() => {
+    if (typeof resourceLike === 'string') {
+      setResource(client.go(resourceLike));
+    } else if (isResourceRelation(resourceLike)) {
+      resourceLike.getResource().then((res) => setResource(res));
+    } else {
+      setResource(resourceLike);
+    }
+  }, [client, resourceLike]);
   return { resource, setResource };
 }

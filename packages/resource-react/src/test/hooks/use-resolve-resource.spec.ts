@@ -1,34 +1,58 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useResolveResource } from '../../lib/hooks/use-resolve-resource';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { mockClient, wrapper } from './wrapper';
-import { Entity, Resource } from '@hateoas-ts/resource';
+import { Entity, Resource, ResourceRelation } from '@hateoas-ts/resource';
 
 describe('useResolveResource', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should use client.go to create a new resource with string', () => {
+  it('should use client.go to create a new resource with string', async () => {
     const mockResource = {} as Resource<Entity>;
     vi.spyOn(mockClient, 'go').mockReturnValue(mockResource);
     const { result } = renderHook(() => useResolveResource('resource'), {
       wrapper,
     });
 
+    await waitFor(() => {
+      expect(result.current.resource).toBe(mockResource);
+    });
+
     expect(mockClient.go).toHaveBeenCalledWith('resource');
-    expect(result.current.resource).toBe(mockResource);
-    expect(result.current.setResource).toBeInstanceOf(Function);
   });
 
-  it('should use return self resource', () => {
+  it('should return self resource when a Resource is provided', async () => {
     const mockResource = {} as Resource<Entity>;
     const { result } = renderHook(() => useResolveResource(mockResource), {
       wrapper,
     });
 
+    await waitFor(() => {
+      expect(result.current.resource).toBe(mockResource);
+    });
+
     expect(mockClient.go).toHaveBeenCalledTimes(0);
-    expect(result.current.resource).toBe(mockResource);
-    expect(result.current.setResource).toBeInstanceOf(Function);
+  });
+
+  it('should handle ResourceRelation asynchronously', async () => {
+    const mockResource = {} as Resource<Entity>;
+    const mockResourceRelation = {
+      getResource: vi.fn().mockResolvedValue(mockResource),
+    } as unknown as ResourceRelation<Entity>;
+
+    const { result } = renderHook(
+      () => useResolveResource(mockResourceRelation),
+      {
+        wrapper,
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.resource).toBe(mockResource);
+    });
+
+    expect(mockResourceRelation.getResource).toHaveBeenCalled();
   });
 });

@@ -43,7 +43,7 @@ export class ResourceRelation<TEntity extends Entity> {
    * Gets the resource instance
    * @returns Returns a Promise of the resource instance
    */
-  async getResource(): Promise<Promise<Resource<TEntity>>> {
+  async getResource(): Promise<Resource<TEntity>> {
     return this.getResourceWithRels(this.rels);
   }
 

@@ -91,7 +91,7 @@ export function useReadResource<T extends Entity>(
     loading,
     error,
     resourceState: resourceState as ResourceState<T>,
-    resource,
+    resource: resource as Resource<T>,
     setResource,
   };
 }
