@@ -34,18 +34,11 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return messages;
   }
 
-  public Message saveMessage(MessageDescription description) {
-    return messages.saveMessage(description);
-  }
-
   public Flux<String> sendMessage(MessageDescription description) {
     return messages.sendMessage(description);
   }
 
-
   public interface Messages extends HasMany<String, Message> {
-    Message saveMessage(MessageDescription description);
-
     Flux<String> sendMessage(MessageDescription description);
   }
 }
