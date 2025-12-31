@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@ant-design/x':
-        specifier: ^1.6.0
+        specifier: ^1.6.1
         version: 1.6.1(antd@5.29.1(luxon@3.7.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@preact/signals-react':
         specifier: ^3.3.0
@@ -21,7 +21,7 @@ importers:
         specifier: ^5.85.5
         version: 5.90.12(react@19.0.0)
       antd:
-        specifier: ^5.26.7
+        specifier: ^5.29.1
         version: 5.29.1(luxon@3.7.2)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       best-effort-json-parser:
         specifier: ^1.2.1

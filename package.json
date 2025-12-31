@@ -5,11 +5,11 @@
   "scripts": {},
   "private": true,
   "dependencies": {
-    "@ant-design/x": "^1.6.0",
+    "@ant-design/x": "^1.6.1",
     "@preact/signals-react": "^3.3.0",
     "@tailwindcss/vite": "^4.1.12",
     "@tanstack/react-query": "^5.85.5",
-    "antd": "^5.26.7",
+    "antd": "^5.29.1",
     "best-effort-json-parser": "^1.2.1",
     "marked": "^16.2.1",
     "next": "16.0.10",

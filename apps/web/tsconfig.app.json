@@ -35,7 +35,13 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../../libs/frontend/shared/schema/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/resource/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/frontend/features/user-conversations/tsconfig.lib.json"
     }
   ]
 }
