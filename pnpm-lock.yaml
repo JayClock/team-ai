@@ -246,12 +246,24 @@ importers:
 
   apps/web:
     dependencies:
+      '@features/user-conversations':
+        specifier: workspace:*
+        version: link:../../libs/frontend/features/user-conversations
       '@hateoas-ts/resource':
         specifier: workspace:*
         version: link:../../packages/resource
       '@shared/schema':
         specifier: workspace:*
         version: link:../../libs/frontend/shared/schema
+
+  libs/frontend/features/user-conversations:
+    dependencies:
+      '@hateoas-ts/resource':
+        specifier: workspace:*
+        version: link:../../../../packages/resource
+      '@shared/schema':
+        specifier: workspace:*
+        version: link:../../shared/schema
 
   libs/frontend/shared/schema:
     dependencies:

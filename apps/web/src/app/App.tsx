@@ -1,10 +1,10 @@
 import { createClient } from '@hateoas-ts/resource';
 import { User } from '@shared/schema';
+import { UserConversations } from '@features/user-conversations';
 
 const client = createClient({ baseURL: 'http://localhost:4200' });
-const state = await client.go<User>('/api/users/1').follow('self').request();
-console.log(state);
+const resource = client.go<User>('/api/users/1');
 
 export default function App() {
-  return <div>123</div>;
+  return <UserConversations resource={resource}></UserConversations>;
 }
