@@ -4,6 +4,13 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@hateoas-ts/resource": "workspace:*"
+    "@hateoas-ts/resource": "workspace:*",
+    "@shared/schema": "workspace:*"
+  },
+  "nx": {
+    "projectType": "application",
+    "tags": [
+      "type:app"
+    ]
   }
 }

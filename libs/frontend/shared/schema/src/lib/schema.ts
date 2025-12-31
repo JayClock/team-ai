@@ -7,8 +7,6 @@ export type User = Entity<
     accounts: Collection<Account>;
     conversations: Collection<Conversation>;
     'create-conversation': Conversation;
-    'latest-conversation': Conversation;
-    file: Entity<Blob>;
   }
 >;
 

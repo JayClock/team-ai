@@ -28,7 +28,8 @@
           "buildDepsName": "build-deps",
           "watchDepsName": "watch-deps"
         }
-      }
+      },
+      "exclude": ["libs/frontend/shared/schema/*"]
     },
     {
       "plugin": "@nx/next/plugin",
@@ -103,6 +104,15 @@
       "plugin": "@nx/vitest",
       "options": {
         "testTargetName": "test"
+      }
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "include": ["libs/frontend/shared/schema/*"],
+      "options": {
+        "typecheck": {
+          "targetName": "typecheck"
+        }
       }
     }
   ],
