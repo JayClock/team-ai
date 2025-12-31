@@ -2,5 +2,8 @@
   "name": "@web/main",
   "version": "0.0.1",
   "type": "module",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@hateoas-ts/resource": "workspace:*"
+  }
 }

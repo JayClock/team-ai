@@ -20,7 +20,6 @@ export default defineConfig(() => ({
     },
     rollupOptions: {
       external: [
-        'events',
         'hal-types',
         'http-link-header',
         'inversify',
@@ -31,7 +30,6 @@ export default defineConfig(() => ({
       ],
       output: {
         globals: {
-          events: 'EventEmitter',
           'hal-types': 'HalTypes',
           'http-link-header': 'HttpLinkHeader',
           inversify: 'inversify',

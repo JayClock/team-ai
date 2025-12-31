@@ -10,7 +10,7 @@ import { needsJsonStringify } from '../util/fetch-body-helper.js';
 import { resolve } from '../util/uri.js';
 import { expand } from '../util/uri-template.js';
 import { HttpMethod } from '../http/util.js';
-import EventEmitter from 'events';
+import { EventEmitter } from 'events';
 import { ResourceRelation } from './resource-relation.js';
 import { BaseState } from '../state/base-state.js';
 
