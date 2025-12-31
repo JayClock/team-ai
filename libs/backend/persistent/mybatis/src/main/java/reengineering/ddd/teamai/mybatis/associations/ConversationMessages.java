@@ -1,8 +1,6 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import org.springframework.ai.chat.client.ChatClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reengineering.ddd.mybatis.database.EntityList;
@@ -20,8 +18,7 @@ public class ConversationMessages extends EntityList<String, Message> implements
   @Inject
   private MessagesMapper mapper;
   @Inject
-  @Named("deepSeekChatClient")
-  public ChatClient deepSeekChatClient;
+  private Conversation.ModelProvider modelProvider;
 
   @Override
   protected List<Message> findEntities(int from, int to) {
@@ -45,13 +42,12 @@ public class ConversationMessages extends EntityList<String, Message> implements
     return findEntity(String.valueOf(idHolder.id()));
   }
 
-
   @Override
   public Flux<String> sendMessage(MessageDescription description) {
     return Mono.fromCallable(() -> saveMessage(description))
       .flatMapMany(savedMessage -> {
         StringBuilder aiResponseBuilder = new StringBuilder();
-        return this.deepSeekChatClient.prompt().user(description.content()).stream().content()
+        return this.modelProvider.sendMessage(description.content())
           .doOnNext(aiResponseBuilder::append)
           .doOnComplete(() -> {
             String fullAiResponse = aiResponseBuilder.toString();

@@ -4,7 +4,6 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
@@ -18,19 +17,18 @@ import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @MybatisTest
 public class ConversationMessagesTest extends BaseTestContainersTest {
   @Inject
   private Users users;
-  @MockitoBean(name = "deepSeekChatClient")
-  private ChatClient deepSeekChatClient;
+  @MockitoBean
+  private Conversation.ModelProvider modelProvider;
 
   Conversation conversation;
 
-  private int messageCount = 100;
+  private final int messageCount = 100;
 
   @BeforeEach
   public void setup() {
@@ -73,16 +71,7 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
   public void should_send_message_and_receive_response() {
     String aiResponse = "AI response content";
 
-    ChatClient.ChatClientRequestSpec mockPrompt = mock(ChatClient.ChatClientRequestSpec.class);
-    when(deepSeekChatClient.prompt()).thenReturn(mockPrompt);
-
-    ChatClient.ChatClientRequestSpec mockUser = mock(ChatClient.ChatClientRequestSpec.class);
-    when(mockPrompt.user("content")).thenReturn(mockUser);
-
-    ChatClient.StreamResponseSpec mockStream = mock(ChatClient.StreamResponseSpec.class);
-    when(mockUser.stream()).thenReturn(mockStream);
-
-    when(mockStream.content()).thenReturn(Flux.just(aiResponse));
+    when(modelProvider.sendMessage("content")).thenReturn(Flux.just(aiResponse));
 
     Flux<String> result = conversation.sendMessage(new MessageDescription("user", "content"));
 

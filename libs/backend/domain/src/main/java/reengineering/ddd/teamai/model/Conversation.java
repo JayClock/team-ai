@@ -34,11 +34,31 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return messages;
   }
 
+  public Message saveMessage(MessageDescription description) {
+    return messages.saveMessage(description);
+  }
+
   public Flux<String> sendMessage(MessageDescription description) {
     return messages.sendMessage(description);
   }
 
+
   public interface Messages extends HasMany<String, Message> {
+    Message saveMessage(MessageDescription description);
+
     Flux<String> sendMessage(MessageDescription description);
+  }
+
+  /**
+   * Interface for model providers, used to abstract different AI model services
+   */
+  public static interface ModelProvider {
+      /**
+       * Send message to AI model and get response stream
+       *
+       * @param message User message content
+       * @return Response stream from AI model
+       */
+      Flux<String> sendMessage(String message);
   }
 }
