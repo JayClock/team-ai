@@ -52,6 +52,9 @@ dependencies {
 	implementation project(':persistent:mybatis')
   implementation platform("org.springframework.ai:spring-ai-bom:1.0.1")
 
+  implementation platform('me.paulschwarz:spring-dotenv-bom:5.0.1')
+  implementation 'me.paulschwarz:springboot3-dotenv'
+
 	// Spring Boot dependencies
 	implementation 'org.springframework.boot:spring-boot-starter'
 	implementation 'org.springframework.boot:spring-boot-starter-hateoas'
