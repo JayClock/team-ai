@@ -1,8 +1,9 @@
 import { User } from '@shared/schema';
 import { Resource } from '@hateoas-ts/resource';
-import { useEffect, useState } from 'react';
-import { GetProp, theme } from 'antd';
-import { Conversations, ConversationsProps } from '@ant-design/x';
+import { theme } from 'antd';
+import { Conversations } from '@ant-design/x';
+import { useInfiniteCollection } from '@hateoas-ts/resource-react';
+import { useMemo } from 'react';
 
 interface Props {
   resource: Resource<User>;
@@ -18,22 +19,23 @@ export function UserConversations(props: Props) {
     borderRadius: token.borderRadius,
   };
 
-  const [items, setItems] = useState<GetProp<ConversationsProps, 'items'>>([]);
+  const conversationsResource = useMemo(
+    () => resource.follow('conversations'),
+    [resource],
+  );
 
-  useEffect(() => {
-    resource
-      .follow('conversations')
-      .withMethod('GET')
-      .request()
-      .then((conversationsState) => {
-        const res: GetProp<ConversationsProps, 'items'> =
-          conversationsState.collection.map((state) => ({
-            key: state.data.id,
-            label: state.data.title,
-          }));
-        setItems(res);
-      });
-  }, [resource]);
+  const { items: conversationCollection } = useInfiniteCollection(
+    conversationsResource,
+  );
+
+  const items = useMemo(
+    () =>
+      conversationCollection.map((conv) => ({
+        key: conv.data.id,
+        label: conv.data.title,
+      })),
+    [conversationCollection],
+  );
 
   return <Conversations items={items} style={style}></Conversations>;
 }

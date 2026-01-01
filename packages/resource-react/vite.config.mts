@@ -40,6 +40,7 @@ export default defineConfig(() => ({
       // External packages that should not be bundled into your library.
       external: ['react', 'react-dom', 'react/jsx-runtime'],
     },
+    sourcemap: true,
   },
   test: {
     name: '@hateoas-ts/resource-react',

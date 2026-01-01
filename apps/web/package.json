@@ -6,6 +6,7 @@
   "dependencies": {
     "@features/user-conversations": "workspace:*",
     "@hateoas-ts/resource": "workspace:*",
+    "@hateoas-ts/resource-react": "workspace:*",
     "@shared/schema": "workspace:*"
   },
   "nx": {

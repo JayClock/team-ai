@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hateoas-ts/resource": "workspace:*",
+    "@hateoas-ts/resource-react": "workspace:*",
     "@shared/schema": "workspace:*"
   }
 }
