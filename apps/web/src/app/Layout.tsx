@@ -1,7 +1,7 @@
 import { Layout } from 'antd';
 import React from 'react';
 
-const { Header, Content, Sider } = Layout;
+const { Header } = Layout;
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -15,7 +15,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   rightContent,
 }) => {
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="h-full">
       <Header
         style={{
           background: '#fff',
@@ -25,23 +25,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           lineHeight: '56px',
         }}
       >
-        {headerContent}
+        <div className="content-between items-center">{headerContent}</div>
       </Header>
-      <Layout>
-        <Content style={{ padding: '16px' }}>{children}</Content>
-        {rightContent && (
-          <Sider
-            width={350}
-            style={{
-              background: '#fff',
-              borderLeft: '1px solid #f0f0f0',
-              padding: '16px',
-            }}
-          >
-            {rightContent}
-          </Sider>
-        )}
-      </Layout>
+      <div className="flex flex-1 overflow-hidden">
+        <div className="p-4">{children}</div>
+        <div className="flex-1">{rightContent}</div>
+      </div>
     </Layout>
   );
 };

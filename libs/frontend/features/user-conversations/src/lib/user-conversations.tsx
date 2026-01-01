@@ -39,17 +39,19 @@ export function UserConversations(props: Props) {
   );
 
   return (
-    <Conversations
-      items={items}
-      style={style}
-      onActiveChange={(value) => {
-        const res = conversationCollection.find(
-          (conv) => conv.data.id === value,
-        );
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        onConversationChange(res!);
-      }}
-    />
+    <div className="h-full overflow-auto">
+      <Conversations
+        items={items}
+        style={style}
+        onActiveChange={(value) => {
+          const res = conversationCollection.find(
+            (conv) => conv.data.id === value,
+          );
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          onConversationChange(res!);
+        }}
+      />
+    </div>
   );
 }
 

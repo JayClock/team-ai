@@ -58,13 +58,15 @@ function MessageList(props: {
   });
 
   return (
-    <Bubble.List
-      items={messages.map(({ id, message, status }) => ({
-        key: id,
-        loading: status === 'loading',
-        role: message.role,
-        content: message.content,
-      }))}
-    ></Bubble.List>
+    <div className="h-full overflow-auto">
+      <Bubble.List
+        items={messages.map(({ id, message, status }) => ({
+          key: id,
+          loading: status === 'loading',
+          role: message.role,
+          content: message.content,
+        }))}
+      ></Bubble.List>
+    </div>
   );
 }
