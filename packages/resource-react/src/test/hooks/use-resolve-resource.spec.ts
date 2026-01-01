@@ -55,4 +55,25 @@ describe('useResolveResource', () => {
 
     expect(mockResourceRelation.getResource).toHaveBeenCalled();
   });
+
+  it('should handle errors when ResourceRelation.getResource throws', async () => {
+    const mockError = new Error('Resource fetch failed');
+    const mockResourceRelation = {
+      getResource: vi.fn().mockRejectedValue(mockError),
+    } as unknown as ResourceRelation<Entity>;
+
+    const { result } = renderHook(
+      () => useResolveResource(mockResourceRelation),
+      {
+        wrapper,
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.error).toBe(mockError);
+    });
+
+    expect(mockResourceRelation.getResource).toHaveBeenCalled();
+    expect(result.current.resource).toBeUndefined();
+  });
 });

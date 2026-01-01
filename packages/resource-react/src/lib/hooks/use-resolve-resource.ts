@@ -18,14 +18,18 @@ export function useResolveResource<T extends Entity>(
 ) {
   const client = useClient();
   const [resource, setResource] = useState<Resource<T>>();
+  const [error, setError] = useState<Error>();
   useEffect(() => {
     if (typeof resourceLike === 'string') {
       setResource(client.go(resourceLike));
     } else if (isResourceRelation(resourceLike)) {
-      resourceLike.getResource().then((res) => setResource(res));
+      resourceLike
+        .getResource()
+        .then((res) => setResource(res))
+        .catch((err) => setError(err));
     } else {
       setResource(resourceLike);
     }
   }, [client, resourceLike]);
-  return { resource, setResource };
+  return { resource, setResource, error };
 }
