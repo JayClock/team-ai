@@ -51,7 +51,10 @@ export default function App() {
   const rightContent = (
     <ResourceProvider client={client}>
       {conversationState ? (
-        <ConversationMessages conversationState={conversationState} />
+        <ConversationMessages
+          conversationState={conversationState}
+          key={conversationState.data.id}
+        />
       ) : (
         <div style={{ textAlign: 'center', marginTop: '50px', color: '#999' }}>
           请选择一个对话查看消息

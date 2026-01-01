@@ -7,15 +7,18 @@ export function useInfiniteCollection<T extends Entity>(
   resourceLike: ResourceLike<T>,
 ) {
   const [items, setItems] = useState<State<ExtractCollectionElement<T>>[]>([]);
-  const { loading, resourceState } = useReadResource(resourceLike);
+  const bc = useReadResource(resourceLike);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && resourceState?.collection) {
+    if (!bc.loading) {
       setItems((prevItems) => {
-        return prevItems.concat(resourceState.collection);
+        return prevItems.concat(bc.resourceState.collection);
       });
+      setLoading(false);
     }
-  }, [loading, resourceLike, resourceState?.collection]);
+  }, [bc.loading, bc.resourceState]);
+
   return {
     items,
     loading,

@@ -65,7 +65,7 @@ export function useReadResource<T extends Entity>(
 ): UseReadResourceResponse<T> {
   const { resource, setResource } = useResolveResource(resourceLike);
   const [resourceState, setResourceState] = useState<ResourceState<T>>();
-  const [loading, setLoading] = useState(resourceState === undefined);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<null | Error>(null);
 
   useEffect(() => {
