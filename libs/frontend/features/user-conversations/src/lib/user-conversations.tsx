@@ -1,5 +1,5 @@
-import { User } from '@shared/schema';
-import { Resource } from '@hateoas-ts/resource';
+import { Conversation, User } from '@shared/schema';
+import { Resource, State } from '@hateoas-ts/resource';
 import { theme } from 'antd';
 import { Conversations } from '@ant-design/x';
 import { useInfiniteCollection } from '@hateoas-ts/resource-react';
@@ -7,10 +7,11 @@ import { useMemo } from 'react';
 
 interface Props {
   resource: Resource<User>;
+  onConversationChange: (conversationState: State<Conversation>) => void;
 }
 
 export function UserConversations(props: Props) {
-  const { resource } = props;
+  const { resource, onConversationChange } = props;
   const { token } = theme.useToken();
 
   const style = {
@@ -37,7 +38,19 @@ export function UserConversations(props: Props) {
     [conversationCollection],
   );
 
-  return <Conversations items={items} style={style}></Conversations>;
+  return (
+    <Conversations
+      items={items}
+      style={style}
+      onActiveChange={(value) => {
+        const res = conversationCollection.find(
+          (conv) => conv.data.id === value,
+        );
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        onConversationChange(res!);
+      }}
+    />
+  );
 }
 
 export default UserConversations;

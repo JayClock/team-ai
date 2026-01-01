@@ -17,6 +17,9 @@
     },
     {
       "path": "./libs/frontend/features/user-conversations"
+    },
+    {
+      "path": "./libs/frontend/features/conversation-messages"
     }
   ]
 }

@@ -246,6 +246,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@features/conversation-messages':
+        specifier: workspace:*
+        version: link:../../libs/frontend/features/conversation-messages
       '@features/user-conversations':
         specifier: workspace:*
         version: link:../../libs/frontend/features/user-conversations
@@ -258,6 +261,15 @@ importers:
       '@shared/schema':
         specifier: workspace:*
         version: link:../../libs/frontend/shared/schema
+
+  libs/frontend/features/conversation-messages:
+    dependencies:
+      '@hateoas-ts/resource-react':
+        specifier: workspace:*
+        version: link:../../../../packages/resource-react
+      '@shared/schema':
+        specifier: workspace:*
+        version: link:../../shared/schema
 
   libs/frontend/features/user-conversations:
     dependencies:

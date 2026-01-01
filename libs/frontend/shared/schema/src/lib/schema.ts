@@ -17,5 +17,7 @@ export type Account = Entity<
 
 export type Conversation = Entity<
   { id: string; title: string },
-  { self: Conversation; user: User }
+  { self: Conversation; messages: Collection<Message> }
 >;
+
+export type Message = Entity<{ id: string; role: string; content: string }>;
