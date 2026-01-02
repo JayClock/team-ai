@@ -76,11 +76,42 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     return new Headers(result);
   }
 
+  /**
+   * Follows a link relation and returns the associated resource.
+   *
+   * @param rel - The link relation to follow
+   * @returns A resource for the followed link
+   * @throws Error if the link relation does not exist
+   *
+   * @RFC
+   * - RFC 8288 (Web Linking): Defines link relations and their semantics
+   * - RFC 6573 (Collection Link + JSON): Defines collection patterns
+   *
+   * Special handling for pagination links in collections:
+   * When this state represents an item within a collection and following pagination
+   * links (self, first, last, prev, next), we preserve the original item's relation
+   * type instead of using the pagination link relation. This ensures that the
+   * returned resource maintains the semantic context of the collection item,
+   * allowing proper traversal within the collection hierarchy.
+   *
+   * Example:
+   * - Item with rel="item" follows "next" → returns resource with rel="item"
+   * - This enables maintaining the item's relationship type while navigating
+   */
   follow<K extends keyof TEntity['links']>(
     rel: K,
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
+      if (
+        ['self', 'first', 'last', 'prev', 'next'].includes(link.rel) &&
+        this.collection.length > 0
+      ) {
+        return this.client.go(
+          { ...link, rel: this.init.currentLink.rel },
+          this.uri,
+        );
+      }
       return this.client.go(link, this.uri);
     }
     throw new Error(`rel ${rel as string} is not exited`);

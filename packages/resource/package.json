@@ -1,6 +1,6 @@
 {
   "name": "@hateoas-ts/resource",
-  "version": "1.2.4",
+  "version": "1.2.5ge",
   "type": "module",
   "main": "./dist/index.cjs.js",
   "module": "./dist/index.es.js",
