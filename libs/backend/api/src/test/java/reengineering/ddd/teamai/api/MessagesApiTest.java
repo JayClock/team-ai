@@ -27,9 +27,6 @@ public class MessagesApiTest extends ApiTest {
   @MockitoBean
   private Users users;
 
-  @Mock
-  private Many<Message> messages;
-
   private User user;
   private Conversation conversation;
 
@@ -43,25 +40,24 @@ public class MessagesApiTest extends ApiTest {
   }
 
   @Test
-  public void should_return_all_messages_of_conversation_as_pages() {
+  public void should_return_all_messages_of_conversation() {
     MessageDescription description = new MessageDescription("user", "content");
     Message message = new Message("1", description);
-    when(conversation.messages().findAll()).thenReturn(messages);
-    when(messages.size()).thenReturn(400);
-    when(messages.subCollection(0, 40)).thenReturn(new EntityList<>(message));
+    Message message2 = new Message("2", new MessageDescription("assistant", "response"));
+
+    when(conversation.messages().findAll()).thenReturn(new EntityList<>(message, message2));
+
     given()
       .accept(MediaTypes.HAL_JSON.toString())
       .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
       .then().statusCode(200)
-      .body("_links.self.href",
-        is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()
-          + "/messages?page=0"))
-      .body("_links.next.href",
-        is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()
-          + "/messages?page=1"))
+      .body("_embedded.messages.size()", is(2))
       .body("_embedded.messages[0].id", is(message.getIdentity()))
       .body("_embedded.messages[0].role", is(message.getDescription().role()))
-      .body("_embedded.messages[0].content", is(message.getDescription().content()));
+      .body("_embedded.messages[0].content", is(message.getDescription().content()))
+      .body("_embedded.messages[1].id", is(message2.getIdentity()))
+      .body("_embedded.messages[1].role", is(message2.getDescription().role()))
+      .body("_embedded.messages[1].content", is(message2.getDescription().content()));
   }
 
   @Test
