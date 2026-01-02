@@ -42,7 +42,7 @@ describe('StreamState', async () => {
   });
 
   it('should get link from header', () => {
-    expect(state.links.get('self')).toEqual({
+    expect(state.getLink('self')).toEqual({
       rel: 'self',
       href: 'https://api.example.com/stream/1',
       type: 'application/octet-stream',

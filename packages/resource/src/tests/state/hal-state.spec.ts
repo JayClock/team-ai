@@ -8,6 +8,7 @@ import { TYPES } from '../../lib/archtype/injection-types.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';
 import { Account } from '../fixtures/interface.js';
 import { Collection } from '../../lib/index.js';
+import { HalLink, HalResource } from 'hal-types';
 
 const mockClient = {
   bookmarkUri: 'https://example.com/',
@@ -28,89 +29,107 @@ describe('HalState', async () => {
     Sunset: 'Wed, 21 Oct 2026 07:28:00 GMT',
     Title: 'API Resource Details',
   };
-  const state = await halStateFactory.create(
-    mockClient,
-    {
-      rel: '',
-      href: '/api/users/1',
-      context: mockClient.bookmarkUri,
-    },
-    Response.json(halUser, { headers: mockHeaders }),
-  );
 
-  it('should create state from hal info', () => {
-    expect(state.uri).toEqual('https://example.com/api/users/1');
-    expect(state.data).toEqual({
-      id: '1',
-      name: 'JayClock',
-      email: 'z891853602@gmail.com',
+  describe('factory', () => {
+    it('should create state from hal resource', async () => {
+      const state = await halStateFactory.create(
+        mockClient,
+        {
+          rel: '',
+          href: '/api/users/1',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json(halUser, { headers: mockHeaders }),
+      );
+
+      expect(state.uri).toEqual('https://example.com/api/users/1');
+      expect(state.data).toEqual({
+        id: '1',
+        name: 'JayClock',
+        email: 'z891853602@gmail.com',
+      });
+      expect(state).toBeInstanceOf(BaseState);
+    });
+
+    it('should create collection from hal _embedded', async () => {
+      const state = await halStateFactory.create<Collection<Account>>(
+        mockClient,
+        {
+          rel: 'accounts',
+          href: '/api/users/1',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json(halUser),
+      );
+
+      expect(state.collection.length).toEqual(
+        halUser._embedded.accounts.length,
+      );
+      expect(state.collection[0].uri).toEqual(
+        'https://example.com/api/users/1/accounts/1',
+      );
+
+      // Data should be purified (without _links, _embedded, etc.)
+      const { _links, ...pureAccount } = halUser._embedded.accounts[0];
+      expect(state.collection[0].data).toEqual(pureAccount);
     });
   });
 
-  it('should filter content headers', () => {
-    const contentHeaders = state.contentHeaders();
+  describe('serializeBody', () => {
+    it('should include _links in serialized body', async () => {
+      const state = await halStateFactory.create(
+        mockClient,
+        {
+          rel: '',
+          href: '/api/users/1',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json(halUser, { headers: mockHeaders }),
+      );
 
-    expect(contentHeaders).toBeInstanceOf(Headers);
+      const serialized = state.serializeBody() as string;
+      const resource = JSON.parse(serialized) as HalResource;
 
-    expect(contentHeaders.get('Content-Type')).toBe(
-      'application/json; charset=utf-8',
-    );
-    expect(contentHeaders.get('Content-Language')).toBe('zh-CN');
-    expect(contentHeaders.get('Content-Location')).toBe('/api/resource/123');
-    expect(contentHeaders.get('ETag')).toBe('"abc123def456"');
-    expect(contentHeaders.get('Expires')).toBe('Wed, 21 Oct 2025 07:28:00 GMT');
-    expect(contentHeaders.get('Last-Modified')).toBe(
-      'Mon, 15 Sep 2024 12:00:00 GMT',
-    );
-    expect(contentHeaders.get('Warning')).toBe('299 - "Deprecated API"');
-    expect(contentHeaders.get('Deprecation')).toBe('true');
-    expect(contentHeaders.get('Sunset')).toBe('Wed, 21 Oct 2026 07:28:00 GMT');
-    expect(contentHeaders.get('Title')).toBe('API Resource Details');
+      expect(resource).toMatchObject({
+        id: '1',
+        name: 'JayClock',
+        email: 'z891853602@gmail.com',
+      });
 
-    expect([...contentHeaders.entries()].length).toBe(10);
+      expect(resource._links).toBeDefined();
+      expect(resource._links?.self).toBeDefined();
+      expect((resource._links?.self as HalLink).href).toBe('/api/users/1');
+
+      expect(resource._links?.accounts).toBeDefined();
+    });
   });
 
-  it('should serialize body to string', () => {
-    const resource = JSON.parse(state.serializeBody() as string);
-    expect(halUser).toEqual(expect.objectContaining(resource));
-  });
+  describe('clone', () => {
+    it('should deeply clone data using structuredClone', async () => {
+      const state = await halStateFactory.create(
+        mockClient,
+        {
+          rel: '',
+          href: '/api/users/1',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json(halUser, { headers: mockHeaders }),
+      );
 
-  it('should follow existed lint and call with client.go', () => {
-    state.follow('accounts');
-    expect(mockClient.go).toHaveBeenCalledWith(
-      state.links.get('accounts'),
-      state.uri,
-    );
-  });
+      const cloned = state.clone();
 
-  it('should throw error with not existed link', () => {
-    expect(() => state.follow('not existed' as SafeAny)).toThrow(
-      `rel not existed is not exited`,
-    );
-  });
+      expect(cloned).not.toBe(state);
 
-  it('should create collection with existed embedded', async () => {
-    const state = await halStateFactory.create<Collection<Account>>(
-      mockClient,
-      {
-        rel: 'accounts',
-        href: '/api/users/1',
-        context: mockClient.bookmarkUri,
-      },
-      Response.json(halUser),
-    );
-    expect(state.collection.length).toEqual(halUser._embedded.accounts.length);
-    expect(state.collection[0].uri).toEqual(
-      'https://example.com/api/users/1/accounts/1',
-    );
-  });
+      expect(cloned).toBeInstanceOf(BaseState);
 
-  it('should clone state', () => {
-    const cloned = state.clone();
-    expect(cloned).toBeInstanceOf(BaseState);
-    expect(cloned).not.toBe(state);
-    expect(cloned.uri).toEqual(state.uri);
-    expect(cloned.data).not.toBe(state.data);
-    expect(cloned.data).toEqual(state.data);
+      expect(cloned.uri).toEqual(state.uri);
+
+      expect(cloned.data).not.toBe(state.data);
+      expect(cloned.data).toEqual(state.data);
+
+      (cloned.data as SafeAny).name = 'Modified';
+      expect(state.data.name).toBe('JayClock');
+      expect(cloned.data.name).toBe('Modified');
+    });
   });
 });

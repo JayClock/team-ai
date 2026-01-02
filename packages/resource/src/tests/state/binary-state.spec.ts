@@ -27,7 +27,7 @@ describe('Binary State', async () => {
   });
 
   it('should get link form header', () => {
-    expect(state.links.get('self')).toEqual({
+    expect(state.getLink('self')).toEqual({
       rel: 'self',
       href: 'https://api.example.com/users/1',
       type: 'application/json',
