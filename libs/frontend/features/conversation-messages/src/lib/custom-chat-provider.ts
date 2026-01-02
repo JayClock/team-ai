@@ -5,7 +5,8 @@ import {
 } from '@ant-design/x-sdk';
 
 export type CustomInput = {
-  query: string;
+  content: string;
+  role: 'user' | 'assistant';
 };
 
 export type CustomOutput = {
@@ -36,7 +37,7 @@ export class CustomChatProvider<
   }
   transformLocalMessage(requestParams: Partial<Input>): ChatMessage {
     return {
-      content: requestParams.query,
+      content: requestParams.content,
       role: 'user',
     } as unknown as ChatMessage;
   }
@@ -52,10 +53,9 @@ export class CustomChatProvider<
         role: 'assistant',
       } as ChatMessage;
     }
-    const chunkJson = JSON.parse(chunk.data);
     const content = originMessage?.content || '';
     return {
-      content: `${content || ''}${chunkJson.data || ''}`,
+      content: `${content || ''}${chunk.data || ''}`,
       role: 'assistant',
     } as ChatMessage;
   }

@@ -20,4 +20,8 @@ export type Conversation = Entity<
   { self: Conversation; messages: Collection<Message>; 'send-message': Entity }
 >;
 
-export type Message = Entity<{ id: string; role: string; content: string }>;
+export type Message = Entity<{
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+}>;
