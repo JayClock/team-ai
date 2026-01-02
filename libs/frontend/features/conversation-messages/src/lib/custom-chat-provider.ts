@@ -55,7 +55,7 @@ export class CustomChatProvider<
     }
     const content = originMessage?.content || '';
     return {
-      content: `${content || ''}${chunk.data || ''}`,
+      content: `${content || ''}${chunk.data.trim() || ''}`,
       role: 'assistant',
     } as ChatMessage;
   }

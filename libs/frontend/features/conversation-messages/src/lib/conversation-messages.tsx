@@ -19,7 +19,6 @@ export function ConversationMessages(props: {
     conversationState.follow('messages'),
   );
 
-
   const [provider] = useState(
     new CustomChatProvider<CustomMessage, CustomInput, CustomOutput>({
       request: XRequest(conversationState.getLink('send-message')?.href || '', {
@@ -66,19 +65,17 @@ function MessageList(props: {
   });
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 overflow-auto">
-        <Bubble.List
-          items={messages.map(({ id, message, status }) => ({
-            key: id,
-            loading: status === 'loading',
-            role: message.role,
-            content: message.content,
-            placement: message.role === 'user' ? 'end' : 'start',
-          }))}
-          autoScroll={true}
-        ></Bubble.List>
-      </div>
+    <div className="h-full flex flex-col gap-2">
+      <Bubble.List
+        className="flex-1"
+        items={messages.map(({ id, message, status }) => ({
+          key: id,
+          loading: status === 'loading',
+          role: message.role,
+          content: message.content,
+          placement: message.role === 'user' ? 'end' : 'start',
+        }))}
+      ></Bubble.List>
       <Sender
         value={content}
         onChange={setContent}

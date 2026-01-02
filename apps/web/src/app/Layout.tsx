@@ -27,8 +27,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       >
         <div className="content-between items-center">{headerContent}</div>
       </Header>
-      <div className="flex flex-1 overflow-hidden">
-        <div className="p-4">{children}</div>
+      <div className="flex flex-1 overflow-hidden p-4 gap-4">
+        <div>{children}</div>
         <div className="flex-1">{rightContent}</div>
       </div>
     </Layout>
