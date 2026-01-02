@@ -22,7 +22,7 @@ export function ConversationMessages(props: {
 
   const [provider] = useState(
     new CustomChatProvider<CustomMessage, CustomInput, CustomOutput>({
-      request: XRequest(conversationState.links.get('send-message')?.href || '', {
+      request: XRequest(conversationState.getLink('send-message')?.href || '', {
         manual: true,
       }),
     }),

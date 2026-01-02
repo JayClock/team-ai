@@ -45,6 +45,14 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     this.embeddedState = init.embeddedState ?? {};
   }
 
+  hasLink<K extends keyof TEntity['links']>(rel: K): boolean {
+    return this.links.has(rel);
+  }
+
+  getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined {
+    return this.links.get(rel as string);
+  }
+
   serializeBody(): Buffer | Blob | string {
     const data = this.data as SafeAny;
     if (

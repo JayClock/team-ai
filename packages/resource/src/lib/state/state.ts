@@ -1,5 +1,4 @@
 import { Entity } from '../archtype/entity.js';
-import { Links } from '../links/links.js';
 import { StateCollection } from './state-collection.js';
 import { ClientInstance } from '../client-instance.js';
 import { Resource } from '../index.js';
@@ -32,10 +31,9 @@ export type State<TEntity extends Entity = Entity> = {
    */
   collection: StateCollection<TEntity>;
 
-  /**
-   * All links associated with the resource.
-   */
-  links: Links<TEntity['links']>;
+  hasLink<K extends keyof TEntity['links']>(rel: K): boolean;
+
+  getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined;
 
   /**
    * Follows a relationship, based on its rel type. For example, this might be
