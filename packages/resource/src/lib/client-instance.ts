@@ -66,34 +66,6 @@ export class ClientInstance implements Client {
   }
 
   /**
-   * cacheDependencies contains all cache relationships between
-   * resources.
-   *
-   * This lets a user (for example) let a resource automatically
-   * expire, if another one expires.
-   *
-   * A server can populate this list using the `inv-by' link.
-   *
-   */
-  private cacheDependencies: Map<string, Set<string>> = new Map();
-
-  /**
-   * Adds a cache dependency between two resources.
-   *
-   * If the 'target' resource ever expires, it will cause 'dependentUri' to
-   * also expire.
-   *
-   * Both argument MUST be absolute urls.
-   */
-  private addCacheDependency(targetUri: string, dependentUri: string): void {
-    if (this.cacheDependencies.has(targetUri)) {
-      this.cacheDependencies.get(targetUri)?.add(dependentUri);
-    } else {
-      this.cacheDependencies.set(targetUri, new Set([dependentUri]));
-    }
-  }
-
-  /**
    * Supported content types
    *
    * Each content-type has a 'factory' that turns a HTTP response
@@ -185,13 +157,6 @@ export class ClientInstance implements Client {
     // Flatten the list of state objects.
     const newStates = this.flattenState(state);
 
-    // Register all cache dependencies.
-    for (const nState of newStates) {
-      for (const invByLink of nState.links.getMany('inv-by')) {
-        this.addCacheDependency(resolve(invByLink), nState.uri);
-      }
-    }
-
     // Store all new caches
     for (const nState of newStates) {
       this.cache.store(nState);
@@ -242,11 +207,6 @@ export class ClientInstance implements Client {
       deleted.add(resolve(this.bookmarkUri, uri));
     }
 
-    stale = this.expandCacheDependencies(
-      new Set([...stale, ...deleted]),
-      this.cacheDependencies,
-    );
-
     for (const uri of stale) {
       this.cache.delete(uri);
 
@@ -259,50 +219,5 @@ export class ClientInstance implements Client {
         }
       }
     }
-  }
-
-  /**
-   * Find all dependencies for a given resource.
-   *
-   * For example, if
-   *   * if resourceA depends on resourceB
-   *   * and resourceB depends on resourceC
-   *
-   * Then if 'resourceC' expires, so should 'resourceA' and 'resourceB'.
-   *
-   * This function helps us find these dependencies recursively and guarding
-   * against recursive loops.
-   */
-  private expandCacheDependencies(
-    uris: Set<string>,
-    dependencies: Map<string, Set<string>>,
-    output?: Set<string>,
-  ): Set<string> {
-    if (!output) output = new Set();
-
-    for (const uri of uris) {
-      if (!output.has(uri)) {
-        output.add(uri);
-
-        // Find resources that depend on this URI (forward dependencies)
-        if (dependencies.has(uri)) {
-          this.expandCacheDependencies(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            dependencies.get(uri)!,
-            dependencies,
-            output,
-          );
-        }
-
-        // Find resources that this URI depends on (reverse dependencies)
-        for (const [key, value] of dependencies.entries()) {
-          if (value.has(uri) && !output.has(key)) {
-            this.expandCacheDependencies(new Set([key]), dependencies, output);
-          }
-        }
-      }
-    }
-
-    return output;
   }
 }

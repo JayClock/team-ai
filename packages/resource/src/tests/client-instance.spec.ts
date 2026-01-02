@@ -161,15 +161,7 @@ describe('ClientInstance', () => {
     const level_2 = {
       collection: [level_3],
       uri: resolve(clientInstance.bookmarkUri, 'level_2'),
-      links: {
-        getMany: vi.fn().mockReturnValue([
-          {
-            href: 'level_1',
-            context: clientInstance.bookmarkUri,
-            rel: 'inv-by',
-          },
-        ]),
-      },
+      links: { getMany: vi.fn().mockReturnValue([]) },
     } as unknown as State;
 
     const level_1 = {
@@ -212,7 +204,7 @@ describe('ClientInstance', () => {
       resource_3.once('stale', () => (staled += 3));
       clientInstance.clearResourceCache([level_2.uri], [level_3.uri]);
       expect(deleted).toEqual('3');
-      expect(staled).toEqual('21');
+      expect(staled).toEqual('2');
     });
   });
 
