@@ -1,6 +1,15 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(nx test:*)",
+      "mcp__jetbrains__find_files_by_name_keyword",
+      "mcp__jetbrains__find_files_by_glob",
+      "mcp__jetbrains__list_directory_tree",
+      "Bash(nx run resource-react:test:*)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "nx-mcp"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

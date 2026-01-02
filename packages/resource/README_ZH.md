@@ -27,7 +27,7 @@
 ### 版本 1.3 (计划中)
 
 - [ ] 完善的表单字段验证
-- [ ] React 集成工具
+- [x] React 集成工具 (参见 [`@hateoas-ts/resource-react`](../resource-react/README_zh.md))
 - [ ] 调试工具支持
 
 ### 版本 1.4 (计划中)
@@ -1345,7 +1345,74 @@ client.use((url, options) => {
 });
 ```
 
-## 总结
+## 框架集成
+
+### React 集成
+
+对于 React 应用程序，我们提供了专门的集成包，提供 React hooks 和组件：
+
+**[@hateoas-ts/resource-react](../resource-react/README_zh.md)**
+
+React 集成包提供：
+
+- **ResourceProvider**: 用于注入 HATEOAS 客户端的上下文提供者
+- **useClient**: 访问客户端实例的 Hook
+- **useInfiniteCollection**: 处理集合资源的无限滚动/分页的 Hook
+- **useResolveResource**: 解析资源类对象的内部 Hook
+
+**安装：**
+```bash
+npm install @hateoas-ts/resource-react
+# 或
+yarn add @hateoas-ts/resource-react
+# 或
+pnpm add @hateoas-ts/resource-react
+```
+
+**快速示例：**
+```tsx
+import { createClient } from '@hateoas-ts/resource';
+import { ResourceProvider, useInfiniteCollection } from '@hateoas-ts/resource-react';
+
+const client = createClient({ baseURL: 'https://api.example.com' });
+
+function App() {
+  return (
+    <ResourceProvider client={client}>
+      <YourComponents />
+    </ResourceProvider>
+  );
+}
+
+function ConversationsList() {
+  const client = useClient();
+  const userResource = client.go<User>('/api/users/123');
+
+  const {
+    items,
+    loading,
+    hasNextPage,
+    loadNextPage
+  } = useInfiniteCollection(userResource.follow('conversations'));
+
+  return (
+    <div>
+      {items.map(conv => (
+        <div key={conv.data.id}>{conv.data.title}</div>
+      ))}
+      {hasNextPage && (
+        <button onClick={loadNextPage} disabled={loading}>
+          加载更多
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+完整的 React 文档，请参阅 [`@hateoas-ts/resource-react` README](../resource-react/README_zh.md)。
+
+---
 
 `@hateoas-ts/resource` 库通过以下方式简化了与 HAL API 的交互：
 

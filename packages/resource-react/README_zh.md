@@ -2,42 +2,42 @@
 
 <a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
 
-**Language**: [English](./README.md) | [中文](./README_zh.md)
+**语言**: [English](./README.md) | [中文](./README_zh.md)
 
-`@hateoas-ts/resource-react` provides React hooks and components for interacting with REST APIs that follow the HAL (Hypertext Application Language) specification. It is the React integration layer for [`@hateoas-ts/resource`](../resource/README.md).
+`@hateoas-ts/resource-react` 提供了用于与遵循 HAL（超文本应用语言）规范的 REST API 进行交互的 React hooks 和组件。它是 [`@hateoas-ts/resource`](../resource/README_ZH.md) 的 React 集成层。
 
-## 📚 Documentation
+## 📚 文档
 
-To better understand the HATEOAS client implementation and React integration, it's recommended to read the documentation in the following order:
+为了更好地理解 HATEOAS 客户端实现和 React 集成，建议按以下顺序阅读文档：
 
-1. [Smart Domain DDD Architecture](../../libs/backend/README.md) - Complete architecture design documentation to understand the core design principles
-2. [`@hateoas-ts/resource` Documentation](../resource/README.md) - Core TypeScript/JavaScript client library documentation
-3. **This Documentation** - React hooks and components integration
+1. [智慧领域 DDD 架构](../../libs/backend/README.md) - 完整的架构设计文档，了解核心设计原则
+2. [`@hateoas-ts/resource` 文档](../resource/README_ZH.md) - 核心 TypeScript/JavaScript 客户端库文档
+3. **本文档** - React hooks 和组件集成
 
-## Installation
+## 安装
 
 ```bash
 npm install @hateoas-ts/resource-react
-# or
+# 或
 yarn add @hateoas-ts/resource-react
-# or
+# 或
 pnpm add @hateoas-ts/resource-react
 ```
 
-## Core Concepts
+## 核心概念
 
-The `@hateoas-ts/resource-react` library provides React-friendly wrappers around the core `@hateoas-ts/resource` library:
+`@hateoas-ts/resource-react` 库提供了围绕核心 `@hateoas-ts/resource` 库的 React 友好封装：
 
-- **ResourceProvider**: Context provider for injecting the HATEOAS client
-- **useClient**: Hook to access the client instance
-- **useInfiniteCollection**: Hook for handling infinite scroll/pagination of collection resources
-- **useResolveResource**: Internal hook for resolving resource-like objects
+- **ResourceProvider**: 用于注入 HATEOAS 客户端的上下文提供者
+- **useClient**: 访问客户端实例的 Hook
+- **useInfiniteCollection**: 处理集合资源的无限滚动/分页的 Hook
+- **useResolveResource**: 解析资源类对象的内部 Hook
 
-## Basic Usage
+## 基本用法
 
-### 1. Wrap Your App with ResourceProvider
+### 1. 使用 ResourceProvider 包装应用
 
-First, create a client instance and wrap your application with `ResourceProvider`:
+首先，创建一个客户端实例，并用 `ResourceProvider` 包装您的应用程序：
 
 ```tsx
 import { createClient } from '@hateoas-ts/resource';
@@ -50,20 +50,20 @@ const client = createClient({
 function App() {
   return (
     <ResourceProvider client={client}>
-      {/* Your app components */}
+      {/* 您的应用组件 */}
     </ResourceProvider>
   );
 }
 ```
 
-### 2. Define Entity Types
+### 2. 定义实体类型
 
-Use the `Entity` and `Collection` types from `@hateoas-ts/resource` to define your data models:
+使用 `@hateoas-ts/resource` 中的 `Entity` 和 `Collection` 类型来定义您的数据模型：
 
 ```typescript
 import { Entity, Collection } from '@hateoas-ts/resource';
 
-// Define Account entity
+// 定义 Account 实体
 export type Account = Entity<{
   id: string;
   provider: string;
@@ -72,7 +72,7 @@ export type Account = Entity<{
   self: Account;
 }>;
 
-// Define Conversation entity
+// 定义 Conversation 实体
 export type Conversation = Entity<{
   id: string;
   title: string;
@@ -80,7 +80,7 @@ export type Conversation = Entity<{
   self: Conversation;
 }>;
 
-// Define User entity with relationships
+// 定义具有关系的 User 实体
 export type User = Entity<{
   id: string;
   name: string;
@@ -93,9 +93,9 @@ export type User = Entity<{
 }>;
 ```
 
-### 3. Use useClient Hook
+### 3. 使用 useClient Hook
 
-Access the client instance in your components using the `useClient` hook:
+使用 `useClient` hook 在您的组件中访问客户端实例：
 
 ```tsx
 import { useClient } from '@hateoas-ts/resource-react';
@@ -112,15 +112,15 @@ function UserProfile({ userId }: { userId: string }) {
       .then(setUser);
   }, [client, userId]);
 
-  if (!user) return <div>Loading...</div>;
+  if (!user) return <div>加载中...</div>;
 
   return <div>{user.data.name}</div>;
 }
 ```
 
-### 4. Use useInfiniteCollection Hook
+### 4. 使用 useInfiniteCollection Hook
 
-The `useInfiniteCollection` hook is designed for handling paginated collections with infinite scroll functionality:
+`useInfiniteCollection` hook 专用于处理具有无限滚动功能的分页集合：
 
 ```tsx
 import { useInfiniteCollection } from '@hateoas-ts/resource-react';
@@ -141,9 +141,9 @@ function UserConversations({ userId }: { userId: string }) {
 
   return (
     <div>
-      <h2>Conversations</h2>
+      <h2>会话列表</h2>
 
-      {error && <div>Error: {error.message}</div>}
+      {error && <div>错误: {error.message}</div>}
 
       <ul>
         {items.map((conversationState) => (
@@ -153,11 +153,11 @@ function UserConversations({ userId }: { userId: string }) {
         ))}
       </ul>
 
-      {loading && <div>Loading more...</div>}
+      {loading && <div>加载更多...</div>}
 
       {hasNextPage && !loading && (
         <button onClick={loadNextPage}>
-          Load More
+          加载更多
         </button>
       )}
     </div>
@@ -165,17 +165,17 @@ function UserConversations({ userId }: { userId: string }) {
 }
 ```
 
-## API Reference
+## API 参考
 
 ### ResourceProvider
 
-Context provider component that makes the HATEOAS client available to all child components.
+上下文提供者组件，使 HATEOAS 客户端可用于所有子组件。
 
-**Props:**
-- `client: Client` - The HATEOAS client instance
-- `children: React.ReactNode` - Child components
+**属性：**
+- `client: Client` - HATEOAS 客户端实例
+- `children: React.ReactNode` - 子组件
 
-**Example:**
+**示例：**
 ```tsx
 <ResourceProvider client={client}>
   <App />
@@ -184,15 +184,15 @@ Context provider component that makes the HATEOAS client available to all child 
 
 ### useClient()
 
-Hook to access the HATEOAS client instance from the context.
+从上下文中访问 HATEOAS 客户端实例的 Hook。
 
-**Return value:**
-- `Client` - The HATEOAS client instance
+**返回值：**
+- `Client` - HATEOAS 客户端实例
 
-**Throws:**
-- Error if used outside of `ResourceProvider`
+**抛出：**
+- 如果在 `ResourceProvider` 外使用则抛出错误
 
-**Example:**
+**示例：**
 ```tsx
 const client = useClient();
 const userResource = client.go<User>('/api/users/123');
@@ -200,34 +200,34 @@ const userResource = client.go<User>('/api/users/123');
 
 ### useInfiniteCollection<T extends Entity>(resourceLike: ResourceLike<T>)
 
-Hook for managing infinite scroll/pagination of collection resources.
+用于管理集合资源的无限滚动/分页的 Hook。
 
-**Parameters:**
-- `resourceLike: ResourceLike<T>` - A resource or resource relation that points to a collection
+**参数：**
+- `resourceLike: ResourceLike<T>` - 指向集合的资源或资源关系
 
-**Return value:**
+**返回值：**
 ```typescript
 {
-  items: State<ExtractCollectionElement<T>>[];  // Array of collection item states
-  loading: boolean;                              // Loading indicator
-  hasNextPage: boolean;                          // Whether there's a next page
-  error: Error | null;                           // Error object
-  loadNextPage: () => void;                      // Function to load next page
+  items: State<ExtractCollectionElement<T>>[];  // 集合项状态的数组
+  loading: boolean;                              // 加载指示器
+  hasNextPage: boolean;                          // 是否有下一页
+  error: Error | null;                           // 错误对象
+  loadNextPage: () => void;                      // 加载下一页的函数
 }
 ```
 
-**Features:**
-- Automatically fetches the initial page
-- Maintains accumulated items across pages
-- Follows HAL "next" links for pagination
-- Handles loading and error states
-- Preserves item relation context when following pagination links
+**特性：**
+- 自动获取初始页面
+- 跨页面维护累积的项目
+- 遵循 HAL "next" 链接进行分页
+- 处理加载和错误状态
+- 在遵循分页链接时保留项目关系上下文
 
-**Important:**
-- Do not memoize or store the `loadNextPage` function reference
-- Always use the latest `loadNextPage` function returned by the hook
+**重要提示：**
+- 不要记忆或存储 `loadNextPage` 函数引用
+- 始终使用 hook 返回的最新 `loadNextPage` 函数
 
-**Example:**
+**示例：**
 ```tsx
 const {
   items,
@@ -237,17 +237,17 @@ const {
   loadNextPage
 } = useInfiniteCollection(userResource.follow('conversations'));
 
-// Load more items
+// 加载更多项目
 <button onClick={loadNextPage} disabled={!hasNextPage || loading}>
-  {loading ? 'Loading...' : 'Load More'}
+  {loading ? '加载中...' : '加载更多'}
 </button>
 ```
 
-## Advanced Usage
+## 高级用法
 
-### Custom Hooks for Resource Reading
+### 自定义资源读取 Hooks
 
-You can create custom hooks to encapsulate resource reading logic:
+您可以创建自定义 hooks 来封装资源读取逻辑：
 
 ```tsx
 import { useReadResource } from '@hateoas-ts/resource-react';
@@ -271,21 +271,21 @@ function useUser(userId: string) {
   };
 }
 
-// Usage
+// 使用
 function UserProfile({ userId }: { userId: string }) {
   const { user, loading, error } = useUser(userId);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (loading) return <div>加载中...</div>;
+  if (error) return <div>错误: {error.message}</div>;
   if (!user) return null;
 
   return <div>{user.data.name}</div>;
 }
 ```
 
-### Combining Multiple Resources
+### 组合多个资源
 
-You can use multiple hooks in a single component to work with different resources:
+您可以在单个组件中使用多个 hooks 来处理不同的资源：
 
 ```tsx
 function UserDashboard({ userId }: { userId: string }) {
@@ -304,17 +304,17 @@ function UserDashboard({ userId }: { userId: string }) {
 
   return (
     <div>
-      <h1>Welcome {user?.data.name}</h1>
+      <h1>欢迎 {user?.data.name}</h1>
 
       <section>
-        <h2>Conversations</h2>
+        <h2>会话</h2>
         {conversations.items.map(conv => (
           <div key={conv.data.id}>{conv.data.title}</div>
         ))}
       </section>
 
       <section>
-        <h2>Accounts</h2>
+        <h2>账户</h2>
         {accounts.items.map(acc => (
           <div key={acc.data.id}>{acc.data.provider}</div>
         ))}
@@ -324,9 +324,9 @@ function UserDashboard({ userId }: { userId: string }) {
 }
 ```
 
-### Error Handling
+### 错误处理
 
-Handle errors gracefully with try-catch and error states:
+使用 try-catch 和错误状态优雅地处理错误：
 
 ```tsx
 function UserConversations({ userId }: { userId: string }) {
@@ -344,30 +344,30 @@ function UserConversations({ userId }: { userId: string }) {
   if (error) {
     return (
       <div>
-        <h3>Error loading conversations</h3>
+        <h3>加载会话时出错</h3>
         <p>{error.message}</p>
         <button onClick={() => window.location.reload()}>
-          Retry
+          重试
         </button>
       </div>
     );
   }
 
-  // ... rest of component
+  // ... 组件其余部分
 }
 ```
 
-## Testing
+## 测试
 
-Run unit tests using Vitest:
+使用 Vitest 运行单元测试：
 
 ```bash
 nx test @hateoas-ts/resource-react
 ```
 
-## Examples
+## 示例
 
-### Complete Example: User Conversations List
+### 完整示例：用户会话列表
 
 ```tsx
 import React from 'react';
@@ -375,12 +375,12 @@ import { createClient } from '@hateoas-ts/resource';
 import { ResourceProvider, useInfiniteCollection } from '@hateoas-ts/resource-react';
 import type { User, Conversation } from './types';
 
-// Create client
+// 创建客户端
 const client = createClient({
   baseURL: 'https://api.example.com'
 });
 
-// Conversations component
+// 会话列表组件
 function ConversationsList({ userId }: { userId: string }) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
@@ -394,7 +394,7 @@ function ConversationsList({ userId }: { userId: string }) {
   } = useInfiniteCollection(userResource.follow('conversations'));
 
   if (error) {
-    return <div>Error: {error.message}</div>;
+    return <div>错误: {error.message}</div>;
   }
 
   return (
@@ -407,22 +407,22 @@ function ConversationsList({ userId }: { userId: string }) {
         ))}
       </ul>
 
-      {loading && <div>Loading more conversations...</div>}
+      {loading && <div>加载更多会话中...</div>}
 
       {hasNextPage && !loading && (
         <button onClick={loadNextPage}>
-          Load More
+          加载更多
         </button>
       )}
 
       {!hasNextPage && items.length > 0 && (
-        <div>No more conversations</div>
+        <div>没有更多会话了</div>
       )}
     </div>
   );
 }
 
-// App component
+// 应用组件
 function App() {
   return (
     <ResourceProvider client={client}>
@@ -434,15 +434,15 @@ function App() {
 export default App;
 ```
 
-## Related Packages
+## 相关包
 
-- [`@hateoas-ts/resource`](../resource/README.md) - Core HATEOAS client library
-- [`@hateoas-ts/resource-react`] - React integration (this package)
+- [`@hateoas-ts/resource`](../resource/README_ZH.md) - 核心 HATEOAS 客户端库
+- [`@hateoas-ts/resource-react`] - React 集成（本包）
 
-## License
+## 许可证
 
-[Add your license information here]
+[在此处添加您的许可证信息]
 
-## Contributing
+## 贡献
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+欢迎贡献！请随时提交 Pull Request。

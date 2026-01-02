@@ -27,7 +27,7 @@ To better understand the HATEOAS client implementation, it's recommended to read
 ### Version 1.3 (Planned)
 
 - [ ] Comprehensive form field validation
-- [ ] React integration utilities
+- [x] React integration utilities (see [`@hateoas-ts/resource-react`](../resource-react/README.md))
 - [ ] Debugging tool support
 
 ### Version 1.4 (Planned)
@@ -1348,6 +1348,73 @@ client.use((url, options) => {
   return { url, options };
 });
 ```
+
+## Framework Integrations
+
+### React Integration
+
+For React applications, we provide a dedicated integration package that offers React hooks and components:
+
+**[@hateoas-ts/resource-react](../resource-react/README.md)**
+
+The React integration package provides:
+
+- **ResourceProvider**: Context provider for injecting the HATEOAS client
+- **useClient**: Hook to access the client instance
+- **useInfiniteCollection**: Hook for handling infinite scroll/pagination of collection resources
+- **useResolveResource**: Internal hook for resolving resource-like objects
+
+**Installation:**
+```bash
+npm install @hateoas-ts/resource-react
+# or
+yarn add @hateoas-ts/resource-react
+# or
+pnpm add @hateoas-ts/resource-react
+```
+
+**Quick Example:**
+```tsx
+import { createClient } from '@hateoas-ts/resource';
+import { ResourceProvider, useInfiniteCollection } from '@hateoas-ts/resource-react';
+
+const client = createClient({ baseURL: 'https://api.example.com' });
+
+function App() {
+  return (
+    <ResourceProvider client={client}>
+      <YourComponents />
+    </ResourceProvider>
+  );
+}
+
+function ConversationsList() {
+  const client = useClient();
+  const userResource = client.go<User>('/api/users/123');
+
+  const {
+    items,
+    loading,
+    hasNextPage,
+    loadNextPage
+  } = useInfiniteCollection(userResource.follow('conversations'));
+
+  return (
+    <div>
+      {items.map(conv => (
+        <div key={conv.data.id}>{conv.data.title}</div>
+      ))}
+      {hasNextPage && (
+        <button onClick={loadNextPage} disabled={loading}>
+          Load More
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+For complete React documentation, see the [`@hateoas-ts/resource-react` README](../resource-react/README.md).
 
 ## Summary
 
