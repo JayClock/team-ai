@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useInfiniteCollection } from '../../lib/hooks/use-infinite-collection';
-import { act, renderHook, waitFor, RenderHookResult } from '@testing-library/react';
+import {
+  act,
+  renderHook,
+  RenderHookResult,
+  waitFor,
+} from '@testing-library/react';
 import { wrapper } from './wrapper';
 import { Entity, Resource, State } from '@hateoas-ts/resource';
 
@@ -65,7 +70,9 @@ function createMockPageResource(
   state: State<TestCollection>,
 ): Resource<TestCollection> {
   return {
-    request: vi.fn().mockResolvedValue(state),
+    withGet: vi
+      .fn()
+      .mockReturnValue({ request: vi.fn().mockResolvedValue(state) }),
   } as unknown as Resource<TestCollection>;
 }
 
@@ -73,19 +80,23 @@ function createMockPaginatedResource(
   firstPageCollection: State<TestEntity>[],
   secondPageCollection: State<TestEntity>[],
 ): Resource<TestCollection> {
-  const mockNextPageState = createMockResourceState(secondPageCollection, false);
+  const mockNextPageState = createMockResourceState(
+    secondPageCollection,
+    false,
+  );
   const mockNextPageResource = createMockPageResource(mockNextPageState);
-  const mockFirstPageState = createMockResourceState(firstPageCollection, true, mockNextPageResource);
+  const mockFirstPageState = createMockResourceState(
+    firstPageCollection,
+    true,
+    mockNextPageResource,
+  );
   return createMockResource(mockFirstPageState);
 }
 
-async function setupHookWithLoading(
-  resource: Resource<TestCollection>,
-) {
-  const { result } = renderHook(
-    () => useInfiniteCollection(resource),
-    { wrapper },
-  );
+async function setupHookWithLoading(resource: Resource<TestCollection>) {
+  const { result } = renderHook(() => useInfiniteCollection(resource), {
+    wrapper,
+  });
 
   await waitFor(() => {
     expect(result.current.loading).toBe(false);
@@ -94,7 +105,12 @@ async function setupHookWithLoading(
   return { result };
 }
 
-async function loadNextPageAndWait(result: RenderHookResult<ReturnType<typeof useInfiniteCollection>, void>['result']) {
+async function loadNextPageAndWait(
+  result: RenderHookResult<
+    ReturnType<typeof useInfiniteCollection>,
+    void
+  >['result'],
+) {
   await result.current.loadNextPage();
 
   await waitFor(() => {
@@ -108,7 +124,10 @@ describe('useInfiniteCollection', () => {
   });
 
   it('should fetch initial resource and return collection items', async () => {
-    const mockCollection = [createMockItem('1', 'Item 1'), createMockItem('2', 'Item 2')];
+    const mockCollection = [
+      createMockItem('1', 'Item 1'),
+      createMockItem('2', 'Item 2'),
+    ];
     const mockResourceState = createMockResourceState(mockCollection, false);
     const mockResource = createMockResource(mockResourceState);
 
@@ -129,7 +148,11 @@ describe('useInfiniteCollection', () => {
 
   it('should return hasNextPage as true when next link exists', async () => {
     const mockCollection = [createMockItem('1', 'Item 1')];
-    const mockResourceState = createMockResourceState(mockCollection, true, {} as Resource<TestCollection>);
+    const mockResourceState = createMockResourceState(
+      mockCollection,
+      true,
+      {} as Resource<TestCollection>,
+    );
     const mockResource = createMockResource(mockResourceState);
 
     const { result } = await setupHookWithLoading(mockResource);
@@ -141,7 +164,10 @@ describe('useInfiniteCollection', () => {
     const firstPageCollection = [createMockItem('1', 'Item 1')];
     const secondPageCollection = [createMockItem('2', 'Item 2')];
 
-    const mockResource = createMockPaginatedResource(firstPageCollection, secondPageCollection);
+    const mockResource = createMockPaginatedResource(
+      firstPageCollection,
+      secondPageCollection,
+    );
     const { result } = await setupHookWithLoading(mockResource);
 
     expect(result.current.items).toEqual(firstPageCollection);
@@ -182,7 +208,11 @@ describe('useInfiniteCollection', () => {
 
     const mockNextPageState = createMockResourceState(emptyCollection, false);
     const mockNextPageResource = createMockPageResource(mockNextPageState);
-    const mockResourceState = createMockResourceState(mockCollection, true, mockNextPageResource);
+    const mockResourceState = createMockResourceState(
+      mockCollection,
+      true,
+      mockNextPageResource,
+    );
     const mockResource = createMockResource(mockResourceState);
 
     const consoleWarnSpy = vi
@@ -211,10 +241,16 @@ describe('useInfiniteCollection', () => {
     const mockError = new Error('Network error');
 
     const mockNextPageResource = {
-      request: vi.fn().mockRejectedValue(mockError),
+      withGet: vi
+        .fn()
+        .mockReturnValue({ request: vi.fn().mockRejectedValue(mockError) }),
     } as unknown as Resource<TestCollection>;
 
-    const mockResourceState = createMockResourceState(mockCollection, true, mockNextPageResource);
+    const mockResourceState = createMockResourceState(
+      mockCollection,
+      true,
+      mockNextPageResource,
+    );
     const mockResource = createMockResource(mockResourceState);
 
     const { result } = await setupHookWithLoading(mockResource);
@@ -264,11 +300,22 @@ describe('useInfiniteCollection', () => {
     const secondPageCollection = [createMockItem('2', 'Item 2')];
     const thirdPageCollection = [createMockItem('3', 'Item 3')];
 
-    const mockThirdPageState = createMockResourceState(thirdPageCollection, false);
+    const mockThirdPageState = createMockResourceState(
+      thirdPageCollection,
+      false,
+    );
     const mockThirdPageResource = createMockPageResource(mockThirdPageState);
-    const mockSecondPageState = createMockResourceState(secondPageCollection, true, mockThirdPageResource);
+    const mockSecondPageState = createMockResourceState(
+      secondPageCollection,
+      true,
+      mockThirdPageResource,
+    );
     const mockSecondPageResource = createMockPageResource(mockSecondPageState);
-    const mockFirstPageState = createMockResourceState(firstPageCollection, true, mockSecondPageResource);
+    const mockFirstPageState = createMockResourceState(
+      firstPageCollection,
+      true,
+      mockSecondPageResource,
+    );
     const mockFirstPageResource = createMockResource(mockFirstPageState);
 
     const { result } = await setupHookWithLoading(mockFirstPageResource);
@@ -296,10 +343,16 @@ describe('useInfiniteCollection', () => {
   });
 
   it('should preserve existing items when loading next page', async () => {
-    const firstPageCollection = [createMockItem('1', 'Item 1'), createMockItem('2', 'Item 2')];
+    const firstPageCollection = [
+      createMockItem('1', 'Item 1'),
+      createMockItem('2', 'Item 2'),
+    ];
     const secondPageCollection = [createMockItem('3', 'Item 3')];
 
-    const mockResource = createMockPaginatedResource(firstPageCollection, secondPageCollection);
+    const mockResource = createMockPaginatedResource(
+      firstPageCollection,
+      secondPageCollection,
+    );
     const { result } = await setupHookWithLoading(mockResource);
 
     const itemsAfterFirstLoad = [...result.current.items];

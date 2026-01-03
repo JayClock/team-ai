@@ -557,6 +557,12 @@ Executes a resource request to get the resource state.
 **Return value:**
 - `Promise<State<TEntity>>`: Resource state
 
+**Example:**
+```typescript
+// Default GET request
+const state = await userState.follow('conversations').request();
+```
+
 #### relation.getResource(): Promise<Resource<TEntity>>
 
 Gets the resource instance.
@@ -574,6 +580,12 @@ Follows a resource relationship based on its rel type.
 **Return value:**
 - `ResourceRelation<TEntity['links'][K]>`: ResourceRelation object of the related resource
 
+**Example:**
+```typescript
+const conversationsRelation = userState.follow('conversations');
+const nextRelation = conversationsRelation.follow('next');
+```
+
 #### relation.withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity>
 
 Sets URI template parameters.
@@ -584,15 +596,90 @@ Sets URI template parameters.
 **Return value:**
 - `ResourceRelation<TEntity>`: Current resource relation object (supports chained calls)
 
-#### relation.withMethod(method: HttpMethod): ResourceRelation<TEntity>
+#### relation.withGet(): { request: (options?: GetRequestOptions) => Promise<State<TEntity>> }
 
-Set the HTTP method.
-
-**Parameters:**
-- `method`: HTTP method
+Prepare a GET request to the resource.
 
 **Return value:**
-- `ResourceRelation<TEntity>`: Current resource relation object (supports chained calls)
+- Object containing:
+  - `request`: Function to execute the GET request with optional options
+
+**Example:**
+```typescript
+const state = await userState.follow('conversations').withGet().request({
+  headers: { 'Accept': 'application/json' }
+});
+```
+
+#### relation.withPost(): { request: (options: PostRequestOptions) => Promise<State>, getForm: () => Promise<Form | undefined> }
+
+Prepare a POST request to the resource.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the POST request with options
+  - `getForm`: Function to get the form definition for POST requests
+
+**Example:**
+```typescript
+const newState = await userState.follow('create-conversation')
+  .withPost()
+  .request({ data: { title: 'New conversation' } });
+
+// Get form definition
+const form = await userState.follow('create-conversation').withPost().getForm();
+```
+
+#### relation.withPut(): { request: (options: PutRequestOptions) => Promise<State<TEntity>>, getForm: () => Promise<Form | undefined> }
+
+Prepare a PUT request to the resource. PUT requests fully replace the resource state.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the PUT request with options
+  - `getForm`: Function to get the form definition for PUT requests
+
+**Example:**
+```typescript
+const updatedState = await userState.follow('self')
+  .withPut()
+  .request({ data: { name: 'Updated Name', email: 'updated@example.com' } });
+
+// Get form definition
+const form = await userState.follow('self').withPut().getForm();
+```
+
+#### relation.withPatch(): { request: (options: PatchRequestOptions) => Promise<State<TEntity>>, getForm: () => Promise<Form | undefined> }
+
+Prepare a PATCH request to the resource. PATCH requests partially update the resource state.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the PATCH request with options
+  - `getForm`: Function to get the form definition for PATCH requests
+
+**Example:**
+```typescript
+const patchedState = await userState.follow('self')
+  .withPatch()
+  .request({ data: { name: 'Patched Name' } });
+
+// Get form definition
+const form = await userState.follow('self').withPatch().getForm();
+```
+
+#### relation.withDelete(): { request: () => Promise<State<TEntity>> }
+
+Prepare a DELETE request to the resource.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the DELETE request
+
+**Example:**
+```typescript
+await userState.follow('self').withDelete().request();
+```
 
 ### State<TEntity extends Entity>
 

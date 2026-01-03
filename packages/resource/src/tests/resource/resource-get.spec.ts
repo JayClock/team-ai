@@ -46,7 +46,7 @@ describe('Resource GET Requests', () => {
     vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(
       mockUserState,
     );
-    userState = await resource.request();
+    userState = await resource.withGet().request();
   });
 
   beforeEach(async () => {

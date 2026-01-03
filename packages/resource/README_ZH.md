@@ -553,6 +553,12 @@ ResourceRelation 类用于处理资源关系的导航，支持链式调用和参
 **返回值:**
 - `Promise<State<TEntity>>`: 资源状态
 
+**示例:**
+```typescript
+// 默认 GET 请求
+const state = await userState.follow('conversations').request();
+```
+
 #### relation.getResource(): Promise<Resource<TEntity>>
 
 获取资源实例。
@@ -570,6 +576,12 @@ ResourceRelation 类用于处理资源关系的导航，支持链式调用和参
 **返回值:**
 - `ResourceRelation<TEntity['links'][K]>`: 关联资源的 ResourceRelation 对象
 
+**示例:**
+```typescript
+const conversationsRelation = userState.follow('conversations');
+const nextRelation = conversationsRelation.follow('next');
+```
+
 #### relation.withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity>
 
 设置 URI 模板参数。
@@ -580,15 +592,90 @@ ResourceRelation 类用于处理资源关系的导航，支持链式调用和参
 **返回值:**
 - `ResourceRelation<TEntity>`: 当前资源关系对象（支持链式调用）
 
-#### relation.withMethod(method: HttpMethod): ResourceRelation<TEntity>
+#### relation.withGet(): { request: (options?: GetRequestOptions) => Promise<State<TEntity>> }
 
-设置 HTTP 请求方法。
-
-**参数:**
-- `method`: 要设置的 HTTP 方法
+准备 GET 请求。
 
 **返回值:**
-- `ResourceRelation<TEntity>`: 当前资源关系对象（支持链式调用）
+- 包含以下内容的对象：
+  - `request`: 执行 GET 请求的函数，接受可选选项
+
+**示例:**
+```typescript
+const state = await userState.follow('conversations').withGet().request({
+  headers: { 'Accept': 'application/json' }
+});
+```
+
+#### relation.withPost(): { request: (options: PostRequestOptions) => Promise<State>, getForm: () => Promise<Form | undefined> }
+
+准备 POST 请求。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 POST 请求的函数，接受选项
+  - `getForm`: 获取 POST 请求表单定义的函数
+
+**示例:**
+```typescript
+const newState = await userState.follow('create-conversation')
+  .withPost()
+  .request({ data: { title: '新对话' } });
+
+// 获取表单定义
+const form = await userState.follow('create-conversation').withPost().getForm();
+```
+
+#### relation.withPut(): { request: (options: PutRequestOptions) => Promise<State<TEntity>>, getForm: () => Promise<Form | undefined> }
+
+准备 PUT 请求。PUT 请求会完全替换资源状态。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 PUT 请求的函数，接受选项
+  - `getForm`: 获取 PUT 请求表单定义的函数
+
+**示例:**
+```typescript
+const updatedState = await userState.follow('self')
+  .withPut()
+  .request({ data: { name: '更新名称', email: 'updated@example.com' } });
+
+// 获取表单定义
+const form = await userState.follow('self').withPut().getForm();
+```
+
+#### relation.withPatch(): { request: (options: PatchRequestOptions) => Promise<State<TEntity>>, getForm: () => Promise<Form | undefined> }
+
+准备 PATCH 请求。PATCH 请求会部分更新资源状态。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 PATCH 请求的函数，接受选项
+  - `getForm`: 获取 PATCH 请求表单定义的函数
+
+**示例:**
+```typescript
+const patchedState = await userState.follow('self')
+  .withPatch()
+  .request({ data: { name: '修补名称' } });
+
+// 获取表单定义
+const form = await userState.follow('self').withPatch().getForm();
+```
+
+#### relation.withDelete(): { request: () => Promise<State<TEntity>> }
+
+准备 DELETE 请求。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 DELETE 请求的函数
+
+**示例:**
+```typescript
+await userState.follow('self').withDelete().request();
+```
 
 ### State<TEntity extends Entity>
 

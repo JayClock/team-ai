@@ -11,7 +11,6 @@ import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Form } from '../form/form.js';
 import { SafeAny } from '../archtype/safe-any.js';
-import { z } from 'zod';
 import { needsJsonStringify } from '../util/fetch-body-helper.js';
 import { resolve } from '../util/uri.js';
 import { HttpMethod } from '../http/util.js';
@@ -121,34 +120,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    */
   getCache(): State<TEntity> | null {
     return this.client.cache.get(this.uri);
-  }
-
-  /**
-   * Executes a resource request, handling different request types based on the currently set HTTP method
-   * @param requestOptions Request options including request body, headers, etc.
-   * @returns Returns a Promise of the resource state
-   */
-  async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
-    const requestInit = this.optionsToRequestInit(
-      this.method,
-      requestOptions ?? {},
-    );
-
-    switch (this.method) {
-      case 'GET':
-        return this.get(requestOptions);
-      case 'PATCH':
-        return this.patch(requestOptions ?? {});
-    }
-
-    const form = await this.getForm();
-
-    if (form) {
-      this.verifyFormData(form, requestOptions?.data);
-    }
-    const response = await this.fetchOrThrow(requestInit);
-
-    return this.client.getStateForResponse(this.link, response);
   }
 
   /**
@@ -361,40 +332,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return this.prevUri
       ? (this.client.cache.get(this.prevUri) as BaseState<SafeAny>)
       : undefined;
-  }
-
-  private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {
-    const shape: Record<string, SafeAny> = {};
-
-    for (const field of form.fields) {
-      let shapeElement: z.ZodType;
-
-      switch (field.type) {
-        case 'text':
-          shapeElement = z.string();
-          break;
-        case 'url':
-          shapeElement = z.url();
-          break;
-        default:
-          shapeElement = z.string();
-      }
-
-      if (field.readOnly) {
-        shapeElement = shapeElement.readonly();
-      }
-      if (!field.required) {
-        shapeElement = shapeElement.optional();
-      }
-      shape[field.name] = shapeElement;
-    }
-
-    try {
-      const schema = z.object(shape);
-      schema.parse(body);
-    } catch {
-      throw new Error('Invalid');
-    }
   }
 
   /**

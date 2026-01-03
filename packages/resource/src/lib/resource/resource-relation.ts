@@ -34,9 +34,9 @@ export class ResourceRelation<TEntity extends Entity> {
    * @param requestOptions Request options including request body, headers, etc.
    * @returns Returns a Promise of the resource state
    */
-  async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
+  private async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
     const resource = await this.getResource();
-    return resource.request(requestOptions);
+    return resource.withGet().request(requestOptions);
   }
 
   /**
@@ -54,7 +54,7 @@ export class ResourceRelation<TEntity extends Entity> {
   async getForm(): Promise<Form | undefined> {
     const prevResource = await this.getResourceWithRels(this.rels.slice(0, -1));
     const { currentOptions } = this.getCurrentOptions();
-    const prevState = (await prevResource.request()) as BaseState<TEntity>;
+    const prevState = (await prevResource.withGet().request()) as BaseState<TEntity>;
     return prevState.getForm(this.link.rel, currentOptions.method);
   }
 
@@ -78,21 +78,98 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
-   * Sets the HTTP request method
-   * @param method The HTTP method to set
-   * @returns Returns the current ResourceRelation instance for method chaining
+   * Prepares a GET request to the resource.
+   *
+   * @returns Returns an object with a request method
+   * - request: Executes the GET request with optional options
    */
-  withMethod(method: HttpMethod): ResourceRelation<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, method: method });
-    return this;
+  withGet() {
+    return {
+      request: (getOptions?: RequestOptions) => this.request(getOptions),
+    };
+  }
+
+  /**
+   * Prepares a PATCH request to the resource.
+   *
+   * @returns Returns an object with getForm and request methods
+   * - getForm: Gets the form definition for PATCH requests
+   * - request: Executes the PATCH request with the provided options
+   */
+  withPatch() {
+    return {
+      getForm: async () => {
+        return this.getForm();
+      },
+      request: (patchOptions: RequestOptions) => {
+        const { rel } = this.getCurrentOptions();
+        this.optionsMap.set(rel, { query: undefined, method: 'PATCH' });
+        return this.request(patchOptions);
+      },
+    };
+  }
+
+  /**
+   * Prepares a POST request to the resource.
+   *
+   * @returns Returns an object with getForm and request methods
+   * - getForm: Gets the form definition for POST requests
+   * - request: Executes the POST request with the provided options
+   */
+  withPost() {
+    return {
+      getForm: async () => {
+        return this.getForm();
+      },
+      request: (postOptions: RequestOptions) => {
+        const { rel } = this.getCurrentOptions();
+        this.optionsMap.set(rel, { query: undefined, method: 'POST' });
+        return this.request(postOptions);
+      },
+    };
+  }
+
+  /**
+   * Prepares a PUT request to the resource.
+   *
+   * @returns Returns an object with getForm and request methods
+   * - getForm: Gets the form definition for PUT requests
+   * - request: Executes the PUT request with the provided options
+   */
+  withPut() {
+    return {
+      getForm: async () => {
+        return this.getForm();
+      },
+      request: (putOptions: RequestOptions) => {
+        const { rel } = this.getCurrentOptions();
+        this.optionsMap.set(rel, { query: undefined, method: 'PUT' });
+        return this.request(putOptions);
+      },
+    };
+  }
+
+  /**
+   * Prepares a DELETE request to the resource.
+   *
+   * @returns Returns an object with a request method
+   * - request: Executes the DELETE request
+   */
+  withDelete() {
+    return {
+      request: () => {
+        const { rel } = this.getCurrentOptions();
+        this.optionsMap.set(rel, { query: undefined, method: 'DELETE' });
+        return this.request();
+      },
+    };
   }
 
   private async getResourceWithRels(
     rels: string[],
   ): Promise<Resource<TEntity>> {
     let resource: Resource<SafeAny> = this.client.go(this.link);
-    let state: State<SafeAny> = await resource.request();
+    let state: State<SafeAny> = await resource.withGet().request();
     for (const rel of rels) {
       const currentOptions = this.optionsMap.get(rel);
       resource = state.follow(rel, currentOptions?.query ?? {});
