@@ -36,9 +36,9 @@ describe('useReadResource', () => {
       uri: '/api/test',
     } as State<TestEntity>;
 
+    const mockRequest = vi.fn().mockResolvedValue(mockState);
     const mockResource = {
-      withMethod: vi.fn().mockReturnThis(),
-      request: vi.fn().mockResolvedValue(mockState),
+      withGet: vi.fn().mockReturnValue({ request: mockRequest }),
     } as unknown as Resource<TestEntity>;
 
     const { result } = renderHook(() => useReadResource(mockResource), {
@@ -51,17 +51,17 @@ describe('useReadResource', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(mockResource.withMethod).toHaveBeenCalledWith('GET');
-    expect(mockResource.request).toHaveBeenCalled();
+    expect(mockResource.withGet).toHaveBeenCalled();
+    expect(mockRequest).toHaveBeenCalled();
     expect(result.current.resourceState).toBe(mockState);
     expect(result.current.error).toBe(null);
   });
 
   it('should handle errors during resource fetching', async () => {
     const mockError = new Error('Network error');
+    const mockRequest = vi.fn().mockRejectedValue(mockError);
     const mockResource = {
-      withMethod: vi.fn().mockReturnThis(),
-      request: vi.fn().mockRejectedValue(mockError),
+      withGet: vi.fn().mockReturnValue({ request: mockRequest }),
     } as unknown as Resource<TestEntity>;
 
     const { result } = renderHook(() => useReadResource(mockResource), {
@@ -74,8 +74,8 @@ describe('useReadResource', () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(mockResource.withMethod).toHaveBeenCalledWith('GET');
-    expect(mockResource.request).toHaveBeenCalled();
+    expect(mockResource.withGet).toHaveBeenCalled();
+    expect(mockRequest).toHaveBeenCalled();
     expect(result.current.error).toBe(mockError);
   });
 });

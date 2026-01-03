@@ -186,11 +186,51 @@ async function createNewConversationForUser(userId: string) {
   const newConversationState = await createConversationRelation.withMethod('POST').request({
     data: { title: 'New conversation' }
   });
-  
+
   console.log(`ID of the newly created conversation: ${newConversationState.data.id}`);
 }
 
 createNewConversationForUser('user-123');
+```
+
+### 7. Using Typed Request Methods
+
+The library provides typed methods for common HTTP operations, which offer better type safety and IDE support:
+
+```typescript
+// GET request
+const userState = await userResource.withGet().request({
+  headers: { 'Accept': 'application/json' }
+});
+
+// POST request
+const newState = await userResource.follow('create-conversation')
+  .withPost()
+  .request({ data: { title: 'New conversation' } });
+
+// PUT request - fully replace resource
+const updatedState = await userResource.follow('self')
+  .withPut()
+  .request({ data: { name: 'Updated Name', email: 'updated@example.com' } });
+
+// PATCH request - partially update resource
+const patchedState = await userResource.follow('self')
+  .withPatch()
+  .request({ data: { name: 'Patched Name' } });
+
+// DELETE request
+await userResource.follow('self').withDelete().request();
+```
+
+These typed methods also provide access to form definitions:
+
+```typescript
+// Get form definition for a PUT request
+const putForm = await userResource.withPut().getForm();
+if (putForm) {
+  console.log('Form fields:', putForm.fields);
+  console.log('Form URI:', putForm.uri);
+}
 ```
 
 ## API Reference
@@ -416,6 +456,91 @@ const state = await resource
   .withTemplateParameters({ userId: '123' })
   .withMethod('GET')
   .request();
+```
+
+#### resource.withGet(): { request: (options?: GetRequestOptions) => Promise<State<TEntity>> }
+
+Prepare a GET request to the resource.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the GET request with optional options
+
+**Example:**
+```typescript
+const state = await resource.withGet().request({
+  headers: { 'Accept': 'application/json' }
+});
+```
+
+#### resource.withPost(): { request: (options: PostRequestOptions) => Promise<State>, getForm: () => Promise<Form | undefined> }
+
+Prepare a POST request to the resource.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the POST request with options
+  - `getForm`: Function to get the form definition for POST requests
+
+**Example:**
+```typescript
+const newState = await resource.withPost().request({
+  data: { title: 'New conversation' }
+});
+
+// Get form definition
+const form = await resource.withPost().getForm();
+```
+
+#### resource.withPut(): { request: (options: PutRequestOptions) => Promise<State<TEntity>>, getForm: () => Promise<Form | undefined> }
+
+Prepare a PUT request to the resource. PUT requests fully replace the resource state.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the PUT request with options
+  - `getForm`: Function to get the form definition for PUT requests
+
+**Example:**
+```typescript
+const updatedState = await resource.withPut().request({
+  data: { name: 'Updated Name', email: 'updated@example.com' }
+});
+
+// Get form definition
+const form = await resource.withPut().getForm();
+```
+
+#### resource.withPatch(): { request: (options: PatchRequestOptions) => Promise<State<TEntity>>, getForm: () => Promise<Form | undefined> }
+
+Prepare a PATCH request to the resource. PATCH requests partially update the resource state.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the PATCH request with options
+  - `getForm`: Function to get the form definition for PATCH requests
+
+**Example:**
+```typescript
+const patchedState = await resource.withPatch().request({
+  data: { name: 'Patched Name' }
+});
+
+// Get form definition
+const form = await resource.withPatch().getForm();
+```
+
+#### resource.withDelete(): { request: () => Promise<State<TEntity>> }
+
+Prepare a DELETE request to the resource.
+
+**Return value:**
+- Object containing:
+  - `request`: Function to execute the DELETE request
+
+**Example:**
+```typescript
+await resource.withDelete().request();
 ```
 
 ### ResourceRelation<TEntity extends Entity>

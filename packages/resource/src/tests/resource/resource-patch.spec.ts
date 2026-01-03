@@ -63,10 +63,10 @@ describe('Resource PATCH Requests', () => {
       mockResponse,
     );
 
-    const state = await userState.follow('self').withMethod('PATCH').request({
-      data: patchedUserData,
-      headers: customHeaders,
-    });
+    const state = await userState
+      .follow('self')
+      .withPatch()
+      .request({ data: patchedUserData, headers: customHeaders });
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1',
@@ -107,7 +107,7 @@ describe('Resource PATCH Requests', () => {
 
     await userState
       .follow('self')
-      .withMethod('PATCH')
+      .withPatch()
       .request({ data: patchedUserData });
 
     expect(mockClient.cacheState).not.toHaveBeenCalled();

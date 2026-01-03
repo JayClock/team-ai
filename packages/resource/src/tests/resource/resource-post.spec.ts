@@ -60,29 +60,34 @@ describe('Resource POST Requests', () => {
     };
 
     vi.spyOn(mockClient, 'go').mockReturnValue(
-      new Resource(mockClient, link, userState.uri),
+      new Resource(mockClient, link, userState.uri, [
+        {
+          method: 'POST',
+          uri: '/api/users/1/conversations',
+          contentType: 'application/json',
+          fields: [],
+        },
+      ]),
     );
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );
     vi.spyOn(mockClient.cache, 'get').mockReturnValue(userState);
 
-    await userState.follow('create-conversation').withMethod('POST').request({
+    await userState.follow('create-conversation').withPost().request({
       data: newConversationData,
       headers: customHeaders,
     });
 
     const form = await userState
       .follow('create-conversation')
-      .withMethod('POST')
+      .withPost()
       .getForm();
 
     expect(form?.uri).toEqual(halUser._templates['create-conversation'].target);
     expect(form?.method).toEqual(
       halUser._templates['create-conversation'].method,
     );
-
-    expect(mockClient.cache.get).toHaveBeenCalledWith(userState.uri);
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1/conversations',

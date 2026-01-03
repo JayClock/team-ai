@@ -186,11 +186,51 @@ async function createNewConversationForUser(userId: string) {
   const newConversationState = await createConversationRelation.withMethod('POST').request({
     data: { title: '新对话' }
   });
-  
+
   console.log(`新创建的对话ID: ${newConversationState.data.id}`);
 }
 
 createNewConversationForUser('user-123');
+```
+
+### 7. 使用类型化请求方法
+
+库为常见的 HTTP 操作提供了类型化方法，提供更好的类型安全和 IDE 支持：
+
+```typescript
+// GET 请求
+const userState = await userResource.withGet().request({
+  headers: { 'Accept': 'application/json' }
+});
+
+// POST 请求
+const newState = await userResource.follow('create-conversation')
+  .withPost()
+  .request({ data: { title: '新对话' } });
+
+// PUT 请求 - 完全替换资源
+const updatedState = await userResource.follow('self')
+  .withPut()
+  .request({ data: { name: '更新名称', email: 'updated@example.com' } });
+
+// PATCH 请求 - 部分更新资源
+const patchedState = await userResource.follow('self')
+  .withPatch()
+  .request({ data: { name: '修补名称' } });
+
+// DELETE 请求
+await userResource.follow('self').withDelete().request();
+```
+
+这些类型化方法还提供对表单定义的访问：
+
+```typescript
+// 获取 PUT 请求的表单定义
+const putForm = await userResource.withPut().getForm();
+if (putForm) {
+  console.log('表单字段:', putForm.fields);
+  console.log('表单 URI:', putForm.uri);
+}
 ```
 
 ## API 参考
@@ -412,6 +452,91 @@ const state = await resource
   .withTemplateParameters({ userId: '123' })
   .withMethod('GET')
   .request();
+```
+
+#### resource.withGet(): { request: (options?: GetRequestOptions) => Promise<State<TEntity>> }
+
+准备 GET 请求。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 GET 请求的函数，接受可选选项
+
+**示例:**
+```typescript
+const state = await resource.withGet().request({
+  headers: { 'Accept': 'application/json' }
+});
+```
+
+#### resource.withPost(): { request: (options: PostRequestOptions) => Promise<State>, getForm: () => Promise<Form | undefined> }
+
+准备 POST 请求。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 POST 请求的函数，接受选项
+  - `getForm`: 获取 POST 请求表单定义的函数
+
+**示例:**
+```typescript
+const newState = await resource.withPost().request({
+  data: { title: '新对话' }
+});
+
+// 获取表单定义
+const form = await resource.withPost().getForm();
+```
+
+#### resource.withPut(): { request: (options: PutRequestOptions) => Promise<State<TEntity>>, getForm: () => Promise<Form | undefined> }
+
+准备 PUT 请求。PUT 请求会完全替换资源状态。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 PUT 请求的函数，接受选项
+  - `getForm`: 获取 PUT 请求表单定义的函数
+
+**示例:**
+```typescript
+const updatedState = await resource.withPut().request({
+  data: { name: '更新名称', email: 'updated@example.com' }
+});
+
+// 获取表单定义
+const form = await resource.withPut().getForm();
+```
+
+#### resource.withPatch(): { request: (options: PatchRequestOptions) => Promise<State<TEntity>>, getForm: () => Promise<Form | undefined> }
+
+准备 PATCH 请求。PATCH 请求会部分更新资源状态。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 PATCH 请求的函数，接受选项
+  - `getForm`: 获取 PATCH 请求表单定义的函数
+
+**示例:**
+```typescript
+const patchedState = await resource.withPatch().request({
+  data: { name: '修补名称' }
+});
+
+// 获取表单定义
+const form = await resource.withPatch().getForm();
+```
+
+#### resource.withDelete(): { request: () => Promise<State<TEntity>> }
+
+准备 DELETE 请求。
+
+**返回值:**
+- 包含以下内容的对象：
+  - `request`: 执行 DELETE 请求的函数
+
+**示例:**
+```typescript
+await resource.withDelete().request();
 ```
 
 ### ResourceRelation<TEntity extends Entity>

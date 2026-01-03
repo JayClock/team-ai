@@ -1,5 +1,11 @@
 import { Entity } from '../archtype/entity.js';
-import { GetRequestOptions, RequestOptions } from './interface.js';
+import {
+  GetRequestOptions,
+  PatchRequestOptions,
+  PostRequestOptions,
+  PutRequestOptions,
+  RequestOptions,
+} from './interface.js';
 import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
@@ -123,7 +129,10 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * @returns Returns a Promise of the resource state
    */
   async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
-    const requestInit = this.optionsToRequestInit(requestOptions ?? {});
+    const requestInit = this.optionsToRequestInit(
+      this.method,
+      requestOptions ?? {},
+    );
 
     switch (this.method) {
       case 'GET':
@@ -148,7 +157,10 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * This function will return a State object.
    */
   private async get(requestOptions?: RequestOptions): Promise<State<TEntity>> {
-    const requestInit = this.optionsToRequestInit(requestOptions ?? {});
+    const requestInit = this.optionsToRequestInit(
+      this.method,
+      requestOptions ?? {},
+    );
 
     const state = this.getCache();
 
@@ -196,7 +208,10 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * If the server responds with 200 Status code this will return a State object
    */
   private async patch(requestOptions: RequestOptions): Promise<State<TEntity>> {
-    const requestInit = this.optionsToRequestInit(requestOptions ?? {});
+    const requestInit = this.optionsToRequestInit(
+      'PATCH',
+      requestOptions ?? {},
+    );
 
     const response = await this.client.fetcher.fetchOrThrow(
       this.uri,
@@ -215,28 +230,115 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return state as State<TEntity>;
   }
 
-  private async delete(): Promise<State<TEntity>> {
-    const response = await this.fetchOrThrow({
-      ...this.optionsToRequestInit({}),
-      method: 'DELETE',
-    });
+  /**
+   * Sends a POST request to the resource.
+   *
+   * See the documentation for PostRequestOptions for more details.
+   * This function is used for RPC-like endpoints and form submissions.
+   *
+   * This function will return the response as a State object.
+   */
+  async post(options: PostRequestOptions): Promise<State> {
+    const response = await this.fetchOrThrow(
+      this.optionsToRequestInit('POST', options),
+    );
 
     return this.client.getStateForResponse(this.link, response);
   }
 
   /**
-   * Sets the HTTP request method
-   * @param method The HTTP method to set
-   * @returns Returns the current Resource instance for method chaining
+   * Sends a PUT request to the resource.
+   *
+   * This function defaults to a application/json content-type header.
+   *
+   * If the server responds with 200 Status code this will return a State object
+   * and update the cache.
+   *
+   * @param requestOptions Request options including request body, headers, etc.
+   * @returns Returns a Promise of the resource state
    */
-  withMethod(method: HttpMethod): Resource<TEntity> {
-    this.method = method;
-    return this;
+  private async put(requestOptions: RequestOptions): Promise<State<TEntity>> {
+    const requestInit = this.optionsToRequestInit('PUT', requestOptions ?? {});
+
+    const response = await this.client.fetcher.fetchOrThrow(
+      this.uri,
+      requestInit,
+    );
+
+    const state: State<TEntity> = await this.client.getStateForResponse(
+      this.link,
+      response,
+    );
+
+    if (response.status === 200) {
+      this.updateCache(state);
+    }
+
+    return state as State<TEntity>;
   }
 
-  withGet(getOptions?: GetRequestOptions) {
+  /**
+   * Deletes the resource
+   */
+  private async delete(): Promise<State<TEntity>> {
+    const response = await this.fetchOrThrow(
+      this.optionsToRequestInit('DELETE', {}),
+    );
+
+    return this.client.getStateForResponse(this.link, response);
+  }
+
+  withGet() {
     return {
-      request: () => this.get(getOptions),
+      request: (getOptions?: GetRequestOptions) => this.get(getOptions),
+    };
+  }
+
+  /**
+   * Prepare a PATCH request to the resource.
+   *
+   * @returns Returns an object with getForm and request methods
+   * - getForm: Gets the form definition for PATCH requests
+   * - request: Executes the PATCH request with the provided options
+   */
+  withPatch() {
+    return {
+      getForm: async () => {
+        return this.forms.find((form) => form.method === 'PATCH');
+      },
+      request: (patchOptions: PatchRequestOptions) => this.patch(patchOptions),
+    };
+  }
+
+  /**
+   * Prepare a POST request to the resource.
+   *
+   * @returns Returns an object with getForm and request methods
+   * - getForm: Gets the form definition for POST requests
+   * - request: Executes the POST request with the provided options
+   */
+  withPost() {
+    return {
+      getForm: async () => {
+        return this.forms.find((form) => form.method === 'POST');
+      },
+      request: (postOptions: PostRequestOptions) => this.post(postOptions),
+    };
+  }
+
+  /**
+   * Prepare a PUT request to the resource.
+   *
+   * @returns Returns an object with getForm and request methods
+   * - getForm: Gets the form definition for PUT requests
+   * - request: Executes the PUT request with the provided options
+   */
+  withPut() {
+    return {
+      getForm: async () => {
+        return this.forms.find((form) => form.method === 'PUT');
+      },
+      request: (putOptions: PutRequestOptions) => this.put(putOptions),
     };
   }
 
@@ -300,7 +402,10 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    *
    * RequestInit is passed to the constructor of fetch(). We have our own 'options' format
    */
-  private optionsToRequestInit(options: RequestOptions): RequestInit {
+  private optionsToRequestInit(
+    method: HttpMethod,
+    options: RequestOptions,
+  ): RequestInit {
     let headers;
     if (options.getContentHeaders) {
       headers = new Headers(options.getContentHeaders());
@@ -324,7 +429,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
       }
     }
 
-    const init: RequestInit = { method: this.method, headers };
+    const init: RequestInit = { method, headers };
 
     if (body) {
       init.body = body;

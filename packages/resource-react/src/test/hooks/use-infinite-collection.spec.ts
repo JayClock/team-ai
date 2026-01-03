@@ -55,9 +55,9 @@ function createMockResourceState(
 function createMockResource(
   state: State<TestCollection>,
 ): Resource<TestCollection> {
+  const mockRequest = vi.fn().mockResolvedValue(state);
   return {
-    withMethod: vi.fn().mockReturnThis(),
-    request: vi.fn().mockResolvedValue(state),
+    withGet: vi.fn().mockReturnValue({ request: mockRequest }),
   } as unknown as Resource<TestCollection>;
 }
 
@@ -240,9 +240,9 @@ describe('useInfiniteCollection', () => {
 
   it('should handle errors during initial resource loading', async () => {
     const mockError = new Error('Network error');
+    const mockRequest = vi.fn().mockRejectedValue(mockError);
     const mockResource = {
-      withMethod: vi.fn().mockReturnThis(),
-      request: vi.fn().mockRejectedValue(mockError),
+      withGet: vi.fn().mockReturnValue({ request: mockRequest }),
     } as unknown as Resource<TestCollection>;
 
     const { result } = renderHook(() => useInfiniteCollection(mockResource), {

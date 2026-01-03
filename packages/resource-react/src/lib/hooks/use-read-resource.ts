@@ -76,7 +76,7 @@ export function useReadResource<T extends Entity>(
     }
     setLoading(true);
     resource
-      .withMethod('GET')
+      .withGet()
       .request()
       .then((state) => {
         setResourceState(state);

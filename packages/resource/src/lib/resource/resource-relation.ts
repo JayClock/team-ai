@@ -95,10 +95,8 @@ export class ResourceRelation<TEntity extends Entity> {
     let state: State<SafeAny> = await resource.request();
     for (const rel of rels) {
       const currentOptions = this.optionsMap.get(rel);
-      resource = state
-        .follow(rel, currentOptions?.query ?? {})
-        .withMethod(currentOptions?.method ?? 'GET');
-      state = await resource.request();
+      resource = state.follow(rel, currentOptions?.query ?? {});
+      state = await resource.withGet().request();
     }
     return resource;
   }
