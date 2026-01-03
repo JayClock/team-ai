@@ -61,28 +61,20 @@ export class ResourceRelation<TEntity extends Entity> {
   /**
    * Follows a resource relationship based on its rel type
    * @param rel The relationship type, must be a key defined in the entity links
+   * @param variables the template variables
    * @returns Returns a new ResourceRelation instance representing the followed relationship
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
+    variables?: LinkVariables,
   ): ResourceRelation<TEntity['links'][K]> {
+    this.optionsMap.set(rel as string, { query: variables });
     return new ResourceRelation(
       this.client,
       this.link,
       this.rels.concat(rel as string),
       this.optionsMap,
     );
-  }
-
-  /**
-   * Sets URI template parameters
-   * @param variables The template parameter variables to set
-   * @returns Returns the current ResourceRelation instance for method chaining
-   */
-  withTemplateParameters(variables: LinkVariables): ResourceRelation<TEntity> {
-    const { rel, currentOptions } = this.getCurrentOptions();
-    this.optionsMap.set(rel, { ...currentOptions, query: variables });
-    return this;
   }
 
   /**

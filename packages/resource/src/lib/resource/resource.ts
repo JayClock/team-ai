@@ -55,12 +55,19 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   /**
    * Follows a resource relationship based on its rel type
    * @param rel The relationship type, must be a key defined in the entity links
+   * @param variables the template variables
    * @returns Returns a new ResourceRelation instance representing the followed relationship
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
+    variables?: LinkVariables,
   ): ResourceRelation<TEntity['links'][K]> {
-    return new ResourceRelation(this.client, this.link, [rel as string]);
+    return new ResourceRelation(
+      this.client,
+      this.link,
+      [rel as string],
+      new Map([[rel as string, { query: variables }]]),
+    );
   }
 
   /**

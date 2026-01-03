@@ -67,8 +67,7 @@ describe('Client', () => {
 
   it('should get user conversations data', async () => {
     const res = await userResource
-      .follow('conversations')
-      .withTemplateParameters({
+      .follow('conversations', {
         page: 1,
         pageSize: 10,
       })
