@@ -37,3 +37,8 @@ export type RequestOptions<T = SafeAny> = {
    */
   headers?: HttpHeaders | Headers;
 };
+
+export type GetRequestOptions = Omit<RequestOptions, 'serializeBody' | 'data'>;
+export type PatchRequestOptions<T = SafeAny> = RequestOptions<T>;
+export type PutRequestOptions<T = SafeAny> = RequestOptions<T>;
+export type PostRequestOptions<T = SafeAny> = RequestOptions<T>;

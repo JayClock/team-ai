@@ -93,7 +93,7 @@ describe('Resource GET Requests', () => {
 
     const state: State<Collection<Conversation>> = await userState
       .follow('conversations', variables)
-      .withMethod('GET')
+      .withGet()
       .request();
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
@@ -120,7 +120,7 @@ describe('Resource GET Requests', () => {
 
     const state = await userState
       .follow('conversations')
-      .withMethod('GET')
+      .withGet()
       .request();
     expect(state).toBe(cacheState);
   });
@@ -152,11 +152,11 @@ describe('Resource GET Requests', () => {
       } as State);
       const request1 = userState
         .follow('conversations')
-        .withMethod('GET')
+        .withGet()
         .request();
       const request2 = userState
         .follow('conversations')
-        .withMethod('GET')
+        .withGet()
         .request();
 
       const [result1, result2] = await Promise.all([request1, request2]);
@@ -172,11 +172,11 @@ describe('Resource GET Requests', () => {
       } as State);
       const resource = userState.follow('conversations');
 
-      const requestPromise = resource.withMethod('GET').request();
+      const requestPromise = resource.withGet().request();
 
       await requestPromise;
 
-      const secondRequest = resource.withMethod('GET').request();
+      const secondRequest = resource.withGet().request();
       await secondRequest;
 
       expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);

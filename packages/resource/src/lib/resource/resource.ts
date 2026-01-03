@@ -1,5 +1,5 @@
 import { Entity } from '../archtype/entity.js';
-import { RequestOptions } from './interface.js';
+import { GetRequestOptions, RequestOptions } from './interface.js';
 import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
@@ -8,7 +8,6 @@ import { SafeAny } from '../archtype/safe-any.js';
 import { z } from 'zod';
 import { needsJsonStringify } from '../util/fetch-body-helper.js';
 import { resolve } from '../util/uri.js';
-import { expand } from '../util/uri-template.js';
 import { HttpMethod } from '../http/util.js';
 import { EventEmitter } from 'events';
 import { ResourceRelation } from './resource-relation.js';
@@ -25,7 +24,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   private method: HttpMethod = 'GET';
-  private variables: LinkVariables = {};
 
   /**
    * Creates a new Resource instance
@@ -141,7 +139,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     }
     const response = await this.fetchOrThrow(requestInit);
 
-    return this.client.getStateForResponse(this.expandedLink(), response);
+    return this.client.getStateForResponse(this.link, response);
   }
 
   /**
@@ -174,7 +172,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
             const response = await this.fetchOrThrow(requestInit);
 
             const state: State<TEntity> = await this.client.getStateForResponse(
-              this.expandedLink(),
+              this.link,
               response,
             );
             this.updateCache(state);
@@ -206,7 +204,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     );
 
     const state: State<TEntity> = await this.client.getStateForResponse(
-      this.expandedLink(),
+      this.link,
       response,
     );
 
@@ -217,6 +215,15 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return state as State<TEntity>;
   }
 
+  private async delete(): Promise<State<TEntity>> {
+    const response = await this.fetchOrThrow({
+      ...this.optionsToRequestInit({}),
+      method: 'DELETE',
+    });
+
+    return this.client.getStateForResponse(this.link, response);
+  }
+
   /**
    * Sets the HTTP request method
    * @param method The HTTP method to set
@@ -225,6 +232,18 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   withMethod(method: HttpMethod): Resource<TEntity> {
     this.method = method;
     return this;
+  }
+
+  withGet(getOptions?: GetRequestOptions) {
+    return {
+      request: () => this.get(getOptions),
+    };
+  }
+
+  withDelete() {
+    return {
+      request: () => this.delete(),
+    };
   }
 
   /**
@@ -240,13 +259,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return this.prevUri
       ? (this.client.cache.get(this.prevUri) as BaseState<SafeAny>)
       : undefined;
-  }
-
-  private expandedLink(): Link {
-    return {
-      ...this.link,
-      href: expand(this.link, this.variables),
-    };
   }
 
   private verifyFormData(form: Form, body: Record<string, SafeAny> = {}) {
