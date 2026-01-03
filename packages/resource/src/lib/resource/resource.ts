@@ -32,11 +32,13 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * @param client The client instance used for handling requests and caching
    * @param link The link object containing resource relationships and URI templates
    * @param prevUri The URI of the previous resource, used for getting embedded resources
+   * @param forms
    */
   constructor(
     private client: ClientInstance,
     private link: Link,
     private prevUri?: string,
+    private forms: Form[] = [],
   ) {
     super();
     this.link.rel = this.link.rel ?? 'ROOT_REL';

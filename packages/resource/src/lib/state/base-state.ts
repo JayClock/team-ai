@@ -103,6 +103,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
+      const forms = this.forms.filter((form) => form.uri === link.href);
       if (
         ['self', 'first', 'last', 'prev', 'next'].includes(link.rel) &&
         this.collection.length > 0
@@ -110,9 +111,10 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
         return this.client.go(
           { ...link, rel: this.init.currentLink.rel },
           this.uri,
+          forms,
         );
       }
-      return this.client.go(link, this.uri);
+      return this.client.go(link, this.uri, forms);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }

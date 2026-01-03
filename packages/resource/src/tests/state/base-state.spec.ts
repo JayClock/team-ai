@@ -309,12 +309,13 @@ describe('BaseState', () => {
   });
 
   describe('follow', () => {
-    it('should call client.go with the correct link and current uri', () => {
-      state.follow('related');
+    it('should call client.go with the correct link and forms', () => {
+      state.follow('edit');
 
       expect(mockClient.go).toHaveBeenCalledWith(
-        mockLinks.get('related'),
+        mockLinks.get('edit'),
         state.uri,
+        [mockForms[0]],
       );
     });
 
@@ -357,25 +358,36 @@ describe('BaseState', () => {
             data: { id: '1' },
             links: mockLinks,
             headers: mockHeaders,
-            currentLink: { rel: 'item', href: '/api/items/1', context: mockClient.bookmarkUri },
+            currentLink: {
+              rel: 'item',
+              href: '/api/items/1',
+              context: mockClient.bookmarkUri,
+            },
           }),
-        ] as StateCollection<CollectionEntity>;
+        ] as unknown as StateCollection<CollectionEntity>;
 
-        collectionLinks = new Links<CollectionEntity['links']>(mockClient.bookmarkUri, [
-          { rel: 'self', href: '/api/items?page=1' },
-          { rel: 'first', href: '/api/items?page=1' },
-          { rel: 'last', href: '/api/items?page=10' },
-          { rel: 'prev', href: '/api/items?page=2' },
-          { rel: 'next', href: '/api/items?page=2' },
-          { rel: 'item', href: '/api/items/1' },
-        ]);
+        collectionLinks = new Links<CollectionEntity['links']>(
+          mockClient.bookmarkUri,
+          [
+            { rel: 'self', href: '/api/items?page=1' },
+            { rel: 'first', href: '/api/items?page=1' },
+            { rel: 'last', href: '/api/items?page=10' },
+            { rel: 'prev', href: '/api/items?page=2' },
+            { rel: 'next', href: '/api/items?page=2' },
+            { rel: 'item', href: '/api/items/1' },
+          ],
+        );
 
         collectionState = new BaseState<CollectionEntity>({
           client: mockClient,
           data: { id: '1' },
           links: collectionLinks,
           headers: mockHeaders,
-          currentLink: { rel: 'item', href: '/api/items/1', context: mockClient.bookmarkUri },
+          currentLink: {
+            rel: 'item',
+            href: '/api/items/1',
+            context: mockClient.bookmarkUri,
+          },
           collection: mockCollection,
         });
       });
@@ -384,35 +396,55 @@ describe('BaseState', () => {
         collectionState.follow('self');
 
         const expectedLink = { ...collectionLinks.get('self')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, collectionState.uri);
+        expect(mockClient.go).toHaveBeenCalledWith(
+          expectedLink,
+          collectionState.uri,
+          [],
+        );
       });
 
       it('should replace rel with currentLink.rel for "first" when collection has items', () => {
         collectionState.follow('first');
 
         const expectedLink = { ...collectionLinks.get('first')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, collectionState.uri);
+        expect(mockClient.go).toHaveBeenCalledWith(
+          expectedLink,
+          collectionState.uri,
+          [],
+        );
       });
 
       it('should replace rel with currentLink.rel for "last" when collection has items', () => {
         collectionState.follow('last');
 
         const expectedLink = { ...collectionLinks.get('last')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, collectionState.uri);
+        expect(mockClient.go).toHaveBeenCalledWith(
+          expectedLink,
+          collectionState.uri,
+          [],
+        );
       });
 
       it('should replace rel with currentLink.rel for "prev" when collection has items', () => {
         collectionState.follow('prev');
 
         const expectedLink = { ...collectionLinks.get('prev')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, collectionState.uri);
+        expect(mockClient.go).toHaveBeenCalledWith(
+          expectedLink,
+          collectionState.uri,
+          [],
+        );
       });
 
       it('should replace rel with currentLink.rel for "next" when collection has items', () => {
         collectionState.follow('next');
 
         const expectedLink = { ...collectionLinks.get('next')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, collectionState.uri);
+        expect(mockClient.go).toHaveBeenCalledWith(
+          expectedLink,
+          collectionState.uri,
+          [],
+        );
       });
 
       it('should not replace rel for non-pagination links even when collection has items', () => {
@@ -421,6 +453,7 @@ describe('BaseState', () => {
         expect(mockClient.go).toHaveBeenCalledWith(
           collectionLinks.get('item'),
           collectionState.uri,
+          [],
         );
       });
 
@@ -430,7 +463,11 @@ describe('BaseState', () => {
           data: { id: '1' },
           links: collectionLinks,
           headers: mockHeaders,
-          currentLink: { rel: 'item', href: '/api/items/1', context: mockClient.bookmarkUri },
+          currentLink: {
+            rel: 'item',
+            href: '/api/items/1',
+            context: mockClient.bookmarkUri,
+          },
           collection: [],
         });
 
@@ -439,6 +476,7 @@ describe('BaseState', () => {
         expect(mockClient.go).toHaveBeenCalledWith(
           collectionLinks.get('self'),
           emptyCollectionState.uri,
+          [],
         );
       });
     });

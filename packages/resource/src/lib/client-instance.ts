@@ -17,6 +17,7 @@ import { StreamStateFactory } from './state/stream-state/stream-state.factory.js
 import { acceptMiddleware } from './middlewares/accept-header.js';
 import { cacheMiddleware } from './middlewares/cache.js';
 import { warningMiddleware } from './middlewares/warning.js';
+import { Form } from './form/form.js';
 
 @injectable()
 export class ClientInstance implements Client {
@@ -84,6 +85,7 @@ export class ClientInstance implements Client {
   go<TEntity extends Entity>(
     uri?: string | NewLink,
     prevUri?: string,
+    forms: Form[] = [],
   ): Resource<TEntity> {
     let link: Link;
     if (uri === undefined) {
@@ -95,9 +97,9 @@ export class ClientInstance implements Client {
     }
     const absoluteUri = resolve(link);
     if (!this.resources.has(absoluteUri)) {
-      const resource = new Resource<TEntity>(this, link, prevUri);
+      const resource = new Resource<TEntity>(this, link, prevUri, forms);
       this.resources.set(absoluteUri, resource);
-      return resource as Resource<TEntity>;
+      return resource;
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this.resources.get(absoluteUri)!;
