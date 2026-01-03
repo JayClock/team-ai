@@ -5,8 +5,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import reactor.core.publisher.Flux;
-import reactor.test.StepVerifier;
 import reengineering.ddd.BaseTestContainersTest;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
@@ -17,7 +15,6 @@ import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.when;
 
 @MybatisTest
 public class ConversationMessagesTest extends BaseTestContainersTest {
@@ -68,25 +65,11 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
   }
 
   @Test
-  public void should_send_message_and_receive_response() {
-    String aiResponse = "AI response content";
+  public void should_save_message_and_return_saved_message() {
+    var description = new MessageDescription("user", "Hello, world!");
+    Message savedMessage = conversation.saveMessage(description);
 
-    when(modelProvider.sendMessage("content")).thenReturn(Flux.just(aiResponse));
-
-    Flux<String> result = conversation.sendMessage(new MessageDescription("user", "content"));
-
-    StepVerifier.create(result)
-        .expectNext(aiResponse)
-        .verifyComplete();
-
-    Message userMessage = conversation.messages().findAll().subCollection(100, 101).stream().toList().stream()
-        .findFirst().get();
-    assertEquals("user", userMessage.getDescription().role());
-    assertEquals("content", userMessage.getDescription().content());
-
-    Message assistantMessage = conversation.messages().findAll().subCollection(101, 102).stream().toList().stream()
-        .findFirst().get();
-    assertEquals("assistant", assistantMessage.getDescription().role());
-    assertEquals("AI response content", assistantMessage.getDescription().content());
+    assertEquals("user", savedMessage.getDescription().role());
+    assertEquals("Hello, world!", savedMessage.getDescription().content());
   }
 }

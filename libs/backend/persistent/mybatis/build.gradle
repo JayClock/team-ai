@@ -32,15 +32,13 @@ dependencyManagement {
 
 dependencies {
     implementation project(':domain')
-    implementation platform("org.springframework.ai:spring-ai-bom:1.0.1")
+    implementation project(':infrastructure:spring-ai')
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.4'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.postgresql:postgresql'
-    implementation 'org.springframework.ai:spring-ai-starter-model-deepseek'
-    implementation 'org.springframework.ai:spring-ai-spring-boot-testcontainers'
     implementation 'com.vladsch.flexmark:flexmark-all:0.64.8'
     implementation 'com.vladsch.flexmark:flexmark-ext-yaml-front-matter:0.64.8'
 

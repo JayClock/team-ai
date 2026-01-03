@@ -1,4 +1,4 @@
-package reengineering.ddd.teamai.mybatis.providers;
+package reengineering.ddd.teamai.infrastructure.providers;
 
 import org.springframework.ai.chat.client.ChatClient;
 import reactor.core.publisher.Flux;

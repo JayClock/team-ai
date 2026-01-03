@@ -1,3 +1,6 @@
 rootProject.name = 'mybatis'
 include 'domain'
+include 'infrastructure:spring-ai'
+
 project(':domain').projectDir = file('../../domain')
+project(':infrastructure:spring-ai').projectDir = file('../../infrastructure/spring-ai')

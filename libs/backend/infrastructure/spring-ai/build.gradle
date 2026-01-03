@@ -14,8 +14,14 @@ java {
 }
 
 repositories {
-    mavenLocal()
-    mavenCentral()
+  mavenLocal()
+  mavenCentral()
+  maven { url 'https://repo.spring.io/milestone' }
+  maven { url 'https://repo.spring.io/snapshot' }
+  maven {
+    name = 'Central Portal Snapshots'
+    url = 'https://central.sonatype.com/repository/maven-snapshots/'
+  }
 }
 
 dependencyManagement {
@@ -25,11 +31,15 @@ dependencyManagement {
 }
 
 dependencies {
-    implementation 'io.projectreactor:reactor-core'
+    implementation project(':domain')
+    implementation platform("org.springframework.ai:spring-ai-bom:1.0.1")
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
+    implementation 'org.springframework.ai:spring-ai-starter-model-deepseek'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'org.mockito:mockito-core'
-    testImplementation 'org.mockito:mockito-junit-jupiter'
 }
 
 tasks.named('test') {
@@ -38,7 +48,7 @@ tasks.named('test') {
 
 publishing {
     publications {
-        domainMaven(MavenPublication) {
+        springAiMaven(MavenPublication) {
             from components.java
 
             // Suppress the validation for dependencies without versions

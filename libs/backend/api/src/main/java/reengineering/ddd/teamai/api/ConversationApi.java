@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.api;
 
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -16,6 +17,9 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.User;
 
 public class ConversationApi {
+  @Inject
+  private Conversation.ModelProvider modelProvider;
+
   private final User user;
   private final Conversation conversation;
 
@@ -41,7 +45,7 @@ public class ConversationApi {
     MessageDescription description,
     @Context SseEventSink sseEventSink,
     @Context Sse sse) {
-    this.conversation.sendMessage(description).subscribe(
+    this.conversation.sendMessage(description, modelProvider).subscribe(
       text -> {
         OutboundSseEvent event = sse.newEventBuilder()
           .data(text)

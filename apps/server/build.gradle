@@ -49,8 +49,8 @@ dependencies {
 	// Backend module dependencies (now as project dependencies)
 	implementation project(':domain')
 	implementation project(':api')
+	implementation project(':infrastructure:spring-ai')
 	implementation project(':persistent:mybatis')
-  implementation platform("org.springframework.ai:spring-ai-bom:1.0.1")
 
   implementation platform('me.paulschwarz:spring-dotenv-bom:5.0.1')
   implementation 'me.paulschwarz:springboot3-dotenv'
@@ -65,8 +65,6 @@ dependencies {
 	implementation 'org.flywaydb:flyway-database-postgresql'
   implementation 'org.springframework.boot:spring-boot-starter-security'
   implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-  implementation 'org.springframework.ai:spring-ai-deepseek'
-  implementation 'org.springframework.ai:spring-ai-spring-boot-testcontainers'
 
   // Test dependencies
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

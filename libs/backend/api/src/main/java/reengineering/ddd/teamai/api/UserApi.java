@@ -2,12 +2,16 @@ package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.UriInfo;
 import reengineering.ddd.teamai.api.representation.UserModel;
 import reengineering.ddd.teamai.model.User;
 
 public class UserApi {
+  @Context
+  ResourceContext resourceContext;
+
   private final User user;
 
   public UserApi(User user) {
@@ -26,6 +30,7 @@ public class UserApi {
 
   @Path("conversations")
   public ConversationsApi conversations() {
-    return new ConversationsApi(user);
+    ConversationsApi conversationsApi = new ConversationsApi(user);
+    return resourceContext.initResource(conversationsApi);
   }
 }

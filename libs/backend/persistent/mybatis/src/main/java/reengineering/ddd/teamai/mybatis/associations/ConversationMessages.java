@@ -1,8 +1,6 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reengineering.ddd.mybatis.database.EntityList;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.MessageDescription;
@@ -17,8 +15,6 @@ public class ConversationMessages extends EntityList<String, Message> implements
 
   @Inject
   private MessagesMapper mapper;
-  @Inject
-  private Conversation.ModelProvider modelProvider;
 
   @Override
   protected List<Message> findEntities(int from, int to) {
@@ -40,20 +36,6 @@ public class ConversationMessages extends EntityList<String, Message> implements
     IdHolder idHolder = new IdHolder();
     mapper.insertMessage(idHolder, conversationId, description);
     return findEntity(String.valueOf(idHolder.id()));
-  }
-
-  @Override
-  public Flux<String> sendMessage(MessageDescription description) {
-    return Mono.fromCallable(() -> saveMessage(description))
-      .flatMapMany(savedMessage -> {
-        StringBuilder aiResponseBuilder = new StringBuilder();
-        return this.modelProvider.sendMessage(description.content())
-          .doOnNext(aiResponseBuilder::append)
-          .doOnComplete(() -> {
-            String fullAiResponse = aiResponseBuilder.toString();
-            saveMessage(new MessageDescription("assistant", fullAiResponse));
-          });
-      });
   }
 }
 

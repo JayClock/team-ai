@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.model;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -38,27 +39,33 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return messages.saveMessage(description);
   }
 
-  public Flux<String> sendMessage(MessageDescription description) {
-    return messages.sendMessage(description);
+  public Flux<String> sendMessage(MessageDescription description, ModelProvider modelProvider) {
+    return Mono.fromCallable(() -> saveMessage(description))
+      .flatMapMany(savedMessage -> {
+        StringBuilder aiResponseBuilder = new StringBuilder();
+        return modelProvider.sendMessage(description.content())
+          .doOnNext(aiResponseBuilder::append)
+          .doOnComplete(() -> {
+            String fullAiResponse = aiResponseBuilder.toString();
+            saveMessage(new MessageDescription("assistant", fullAiResponse));
+          });
+      });
   }
-
 
   public interface Messages extends HasMany<String, Message> {
     Message saveMessage(MessageDescription description);
-
-    Flux<String> sendMessage(MessageDescription description);
   }
 
   /**
    * Interface for model providers, used to abstract different AI model services
    */
-  public static interface ModelProvider {
-      /**
-       * Send message to AI model and get response stream
-       *
-       * @param message User message content
-       * @return Response stream from AI model
-       */
-      Flux<String> sendMessage(String message);
+  public interface ModelProvider {
+    /**
+     * Send message to AI model and get response stream
+     *
+     * @param message User message content
+     * @return Response stream from AI model
+     */
+    Flux<String> sendMessage(String message);
   }
 }

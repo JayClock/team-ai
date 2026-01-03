@@ -9,7 +9,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(nx run:*)",
-      "Skill(commit)"
+      "Skill(commit)",
+      "Bash(tree:*)",
+      "Bash(mkdir:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

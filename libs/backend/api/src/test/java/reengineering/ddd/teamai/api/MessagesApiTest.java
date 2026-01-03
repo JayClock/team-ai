@@ -3,11 +3,9 @@ package reengineering.ddd.teamai.api;
 import jakarta.ws.rs.core.MediaType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reactor.core.publisher.Flux;
-import reengineering.ddd.archtype.Many;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.description.UserDescription;
@@ -20,12 +18,16 @@ import java.util.Optional;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class MessagesApiTest extends ApiTest {
   @MockitoBean
   private Users users;
+  @MockitoBean
+  private Conversation.ModelProvider modelProvider;
 
   private User user;
   private Conversation conversation;
@@ -62,8 +64,17 @@ public class MessagesApiTest extends ApiTest {
 
   @Test
   public void should_send_message_and_receive_streaming_response() {
-    MessageDescription description = new MessageDescription("user", "content");
-    when(conversation.sendMessage(description)).thenReturn(Flux.just("data"));
+    MessageDescription description = new MessageDescription("user", "Hello, AI!");
+    Message savedMessage = new Message("1", description);
+    Message assistantMessage = new Message("2", new MessageDescription("assistant", "Hello there! How can I help you?"));
+
+    when(conversation.saveMessage(any(MessageDescription.class)))
+      .thenReturn(savedMessage)
+      .thenReturn(assistantMessage);
+
+    when(modelProvider.sendMessage(eq("Hello, AI!")))
+      .thenReturn(Flux.just("Hello", " there", "!", " How", " can", " I", " help", " you", "?"));
+
     given()
       .urlEncodingEnabled(false)
       .accept(MediaType.SERVER_SENT_EVENTS)
