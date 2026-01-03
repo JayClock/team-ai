@@ -108,12 +108,11 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
       ) {
         return this.client.go(
           { ...link, rel: this.init.currentLink.rel },
-          this.uri,
           forms,
         );
       }
       const expandedHref = expand(link, variables);
-      return this.client.go({ ...link, href: expandedHref }, this.uri, forms);
+      return this.client.go({ ...link, href: expandedHref }, forms);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }

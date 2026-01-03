@@ -84,7 +84,6 @@ export class ClientInstance implements Client {
    */
   go<TEntity extends Entity>(
     uri?: string | NewLink,
-    prevUri?: string,
     forms: Form[] = [],
   ): Resource<TEntity> {
     let link: Link;
@@ -97,7 +96,7 @@ export class ClientInstance implements Client {
     }
     const absoluteUri = resolve(link);
     if (!this.resources.has(absoluteUri)) {
-      const resource = new Resource<TEntity>(this, link, prevUri, forms);
+      const resource = new Resource<TEntity>(this, link, forms);
       this.resources.set(absoluteUri, resource);
       return resource;
     }

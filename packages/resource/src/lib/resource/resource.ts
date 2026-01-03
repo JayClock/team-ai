@@ -10,13 +10,11 @@ import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
 import { Form } from '../form/form.js';
-import { SafeAny } from '../archtype/safe-any.js';
 import { needsJsonStringify } from '../util/fetch-body-helper.js';
 import { resolve } from '../util/uri.js';
 import { HttpMethod } from '../http/util.js';
 import { EventEmitter } from 'events';
 import { ResourceRelation } from './resource-relation.js';
-import { BaseState } from '../state/base-state.js';
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class Resource<TEntity extends Entity> extends EventEmitter {
@@ -28,19 +26,15 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return resolve(this.link);
   }
 
-  private method: HttpMethod = 'GET';
-
   /**
    * Creates a new Resource instance
    * @param client The client instance used for handling requests and caching
    * @param link The link object containing resource relationships and URI templates
-   * @param prevUri The URI of the previous resource, used for getting embedded resources
    * @param forms
    */
   constructor(
     private client: ClientInstance,
     private link: Link,
-    private prevUri?: string,
     private forms: Form[] = [],
   ) {
     super();
@@ -128,10 +122,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * This function will return a State object.
    */
   private async get(requestOptions?: RequestOptions): Promise<State<TEntity>> {
-    const requestInit = this.optionsToRequestInit(
-      this.method,
-      requestOptions ?? {},
-    );
+    const requestInit = this.optionsToRequestInit('GET', requestOptions ?? {});
 
     const state = this.getCache();
 
@@ -139,12 +130,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
       return Promise.resolve(state as State<TEntity>);
     }
 
-    const prevState = this.getPrevState();
-    const embeddedState = prevState?.getEmbedded(this.link.rel);
-    if (embeddedState) {
-      this.updateCache(embeddedState);
-      return embeddedState;
-    }
     const hash = this.requestHash(this.uri, requestOptions);
 
     if (!this.activeRefresh.has(hash)) {
@@ -317,21 +302,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return {
       request: () => this.delete(),
     };
-  }
-
-  /**
-   * Gets the form definition associated with the current resource
-   * @returns Returns the form object or undefined
-   */
-  async getForm(): Promise<Form | undefined> {
-    const prevState = this.getPrevState();
-    return prevState?.getForm(this.link.rel, this.method);
-  }
-
-  private getPrevState() {
-    return this.prevUri
-      ? (this.client.cache.get(this.prevUri) as BaseState<SafeAny>)
-      : undefined;
   }
 
   /**

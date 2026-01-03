@@ -18,6 +18,21 @@ const handlers = [
       return HttpResponse.json(halConversations);
     },
   ),
+  http.get('https://api.example.com/api/users/1/accounts', () => {
+    // Return the same structure as hal-user.json but as a collection response
+    return HttpResponse.json({
+      _embedded: halUser._embedded,
+      _links: {
+        self: {
+          href: '/api/users/1/accounts'
+        }
+      }
+    });
+  }),
+  http.get('https://api.example.com/api/conversations/conv-456', () => {
+    // Return embedded latest-conversation from hal-user.json
+    return HttpResponse.json(halUser._embedded['latest-conversation']);
+  }),
   http.get('https://api.example.com/api/file', () => {
     const binaryData = Buffer.from([0x48, 0x65, 0x6c, 0x6c, 0x6f]);
     return new HttpResponse(binaryData, {

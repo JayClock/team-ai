@@ -314,7 +314,6 @@ describe('BaseState', () => {
 
       expect(mockClient.go).toHaveBeenCalledWith(
         mockLinks.get('edit'),
-        state.uri,
         [mockForms[0]],
       );
     });
@@ -398,7 +397,6 @@ describe('BaseState', () => {
         const expectedLink = { ...collectionLinks.get('self')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(
           expectedLink,
-          collectionState.uri,
           [],
         );
       });
@@ -409,7 +407,6 @@ describe('BaseState', () => {
         const expectedLink = { ...collectionLinks.get('first')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(
           expectedLink,
-          collectionState.uri,
           [],
         );
       });
@@ -420,7 +417,6 @@ describe('BaseState', () => {
         const expectedLink = { ...collectionLinks.get('last')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(
           expectedLink,
-          collectionState.uri,
           [],
         );
       });
@@ -431,7 +427,6 @@ describe('BaseState', () => {
         const expectedLink = { ...collectionLinks.get('prev')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(
           expectedLink,
-          collectionState.uri,
           [],
         );
       });
@@ -442,7 +437,6 @@ describe('BaseState', () => {
         const expectedLink = { ...collectionLinks.get('next')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(
           expectedLink,
-          collectionState.uri,
           [],
         );
       });
@@ -452,7 +446,6 @@ describe('BaseState', () => {
 
         expect(mockClient.go).toHaveBeenCalledWith(
           collectionLinks.get('item'),
-          collectionState.uri,
           [],
         );
       });
@@ -475,7 +468,6 @@ describe('BaseState', () => {
 
         expect(mockClient.go).toHaveBeenCalledWith(
           collectionLinks.get('self'),
-          emptyCollectionState.uri,
           [],
         );
       });
