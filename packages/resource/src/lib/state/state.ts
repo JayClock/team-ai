@@ -2,7 +2,7 @@ import { Entity } from '../archtype/entity.js';
 import { StateCollection } from './state-collection.js';
 import { ClientInstance } from '../client-instance.js';
 import { Resource } from '../index.js';
-import { Link } from '../links/link.js';
+import { Link, LinkVariables } from '../links/link.js';
 
 export type State<TEntity extends Entity = Entity> = {
   /**
@@ -41,6 +41,7 @@ export type State<TEntity extends Entity = Entity> = {
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
+    variables?: LinkVariables,
   ): Resource<TEntity['links'][K]>;
 
   /**

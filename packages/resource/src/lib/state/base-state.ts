@@ -7,8 +7,9 @@ import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { Resource } from '../index.js';
-import { Link } from '../links/link.js';
+import { Link, LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
+import { expand } from '../util/uri-template.js';
 
 type StateInit<TEntity extends Entity> = {
   client: ClientInstance;
@@ -79,10 +80,6 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   /**
    * Follows a link relation and returns the associated resource.
    *
-   * @param rel - The link relation to follow
-   * @returns A resource for the followed link
-   * @throws Error if the link relation does not exist
-   *
    * @RFC
    * - RFC 8288 (Web Linking): Defines link relations and their semantics
    * - RFC 6573 (Collection Link + JSON): Defines collection patterns
@@ -100,6 +97,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
+    variables?: LinkVariables,
   ): Resource<TEntity['links'][K]> {
     const link = this.links.get(rel as string);
     if (link) {
@@ -114,7 +112,8 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
           forms,
         );
       }
-      return this.client.go(link, this.uri, forms);
+      const expandedHref = expand(link, variables);
+      return this.client.go({ ...link, href: expandedHref }, this.uri, forms);
     }
     throw new Error(`rel ${rel as string} is not exited`);
   }
