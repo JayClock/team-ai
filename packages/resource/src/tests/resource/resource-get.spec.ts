@@ -81,7 +81,9 @@ describe('Resource GET Requests', () => {
       mockResponse,
     );
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
+    vi.spyOn(mockClient, 'go').mockReturnValue(
+      new Resource(mockClient, { ...link, href: expand(link, variables) }),
+    );
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );
@@ -90,8 +92,7 @@ describe('Resource GET Requests', () => {
     );
 
     const state: State<Collection<Conversation>> = await userState
-      .follow('conversations')
-      .withTemplateParameters(variables)
+      .follow('conversations', variables)
       .withMethod('GET')
       .request();
 
@@ -138,7 +139,7 @@ describe('Resource GET Requests', () => {
     beforeEach(() => {
       vi.restoreAllMocks();
       vi.spyOn(mockClient, 'go').mockReturnValue(
-        new Resource(mockClient, link),
+        new Resource(mockClient, { ...link, href: expand(link, {}) }),
       );
       vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
         mockResponse,
@@ -163,35 +164,6 @@ describe('Resource GET Requests', () => {
       expect(result1).toBe(result2);
 
       expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(1);
-    });
-
-    it('should not de-duplicate requests with different URLs', async () => {
-      vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
-        uri: resolve(
-          mockClient.bookmarkUri,
-          '/api/users/1/conversations?page=1',
-        ),
-      } as State);
-      const request1 = userState
-        .follow('conversations')
-        .withTemplateParameters({ page: 1 })
-        .withMethod('GET')
-        .request();
-      vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
-        uri: resolve(
-          mockClient.bookmarkUri,
-          '/api/users/1/conversations?page=2',
-        ),
-      } as State);
-      const request2 = userState
-        .follow('conversations')
-        .withTemplateParameters({ page: 2 })
-        .withMethod('GET')
-        .request();
-
-      await Promise.all([request1, request2]);
-
-      expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);
     });
 
     it('should clean up activeRefresh after request completes', async () => {

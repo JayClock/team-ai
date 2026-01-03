@@ -21,7 +21,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * @returns {string} The resolved complete URI
    */
   get uri(): string {
-    return resolve(this.expandedLink());
+    return resolve(this.link);
   }
 
   private method: HttpMethod = 'GET';
@@ -208,16 +208,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     }
 
     return state as State<TEntity>;
-  }
-
-  /**
-   * Sets URI template parameters
-   * @param variables The template parameter variables to set
-   * @returns Returns the current Resource instance for method chaining
-   */
-  withTemplateParameters(variables: LinkVariables): Resource<TEntity> {
-    this.variables = variables;
-    return this;
   }
 
   /**

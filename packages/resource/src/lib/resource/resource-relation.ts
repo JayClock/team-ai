@@ -105,8 +105,7 @@ export class ResourceRelation<TEntity extends Entity> {
       const currentOptions = this.optionsMap.get(rel);
       resource = state
         .follow(rel, currentOptions?.query ?? {})
-        .withMethod(currentOptions?.method ?? 'GET')
-        .withTemplateParameters(currentOptions?.query ?? {});
+        .withMethod(currentOptions?.method ?? 'GET');
       state = await resource.request();
     }
     return resource;

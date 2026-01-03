@@ -5,7 +5,9 @@
       "mcp__jetbrains__find_files_by_name_keyword",
       "mcp__jetbrains__find_files_by_glob",
       "mcp__jetbrains__list_directory_tree",
-      "Bash(nx run resource-react:test:*)"
+      "Bash(nx run resource-react:test:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
