@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
@@ -50,6 +51,9 @@ public class SecurityConfig {
         .logoutSuccessHandler(apiLogoutSuccessHandler())
         .deleteCookies("JSESSIONID")
       )
+      .headers(headers -> headers
+        .cacheControl(HeadersConfigurer.CacheControlConfig::disable)
+      )
       .exceptionHandling(handling -> handling
         .authenticationEntryPoint(apiAuthenticationEntryPoint())
       );
@@ -60,10 +64,13 @@ public class SecurityConfig {
   @Profile("dev")
   public SecurityFilterChain devSecurityFilterChain(HttpSecurity http) throws Exception {
     http
-      .authorizeHttpRequests(authz -> authz
+      .authorizeHttpRequests(auth -> auth
         .anyRequest().permitAll()
       )
-      .csrf(AbstractHttpConfigurer::disable);
+      .csrf(AbstractHttpConfigurer::disable)
+      .headers(headers -> headers
+        .cacheControl(HeadersConfigurer.CacheControlConfig::disable)
+      );
     return http.build();
   }
 

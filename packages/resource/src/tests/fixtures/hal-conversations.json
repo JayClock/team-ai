@@ -12,7 +12,7 @@
             "href": "/api/users/1/conversations/1/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/1/messages:chat"
+            "href": "/api/users/1/conversations/1/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/1/chat-to-breakdown-epic"
@@ -30,7 +30,7 @@
             "href": "/api/users/1/conversations/2/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/2/messages:chat"
+            "href": "/api/users/1/conversations/2/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/2/chat-to-breakdown-epic"
@@ -48,7 +48,7 @@
             "href": "/api/users/1/conversations/3/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/3/messages:chat"
+            "href": "/api/users/1/conversations/3/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/3/chat-to-breakdown-epic"
@@ -66,7 +66,7 @@
             "href": "/api/users/1/conversations/4/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/4/messages:chat"
+            "href": "/api/users/1/conversations/4/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/4/chat-to-breakdown-epic"
@@ -84,7 +84,7 @@
             "href": "/api/users/1/conversations/5/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/5/messages:chat"
+            "href": "/api/users/1/conversations/5/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/5/chat-to-breakdown-epic"
@@ -102,7 +102,7 @@
             "href": "/api/users/1/conversations/6/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/6/messages:chat"
+            "href": "/api/users/1/conversations/6/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/6/chat-to-breakdown-epic"
@@ -120,7 +120,7 @@
             "href": "/api/users/1/conversations/7/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/7/messages:chat"
+            "href": "/api/users/1/conversations/7/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/7/chat-to-breakdown-epic"
@@ -138,7 +138,7 @@
             "href": "/api/users/1/conversations/8/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/8/messages:chat"
+            "href": "/api/users/1/conversations/8/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/8/chat-to-breakdown-epic"
@@ -156,7 +156,7 @@
             "href": "/api/users/1/conversations/9/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/9/messages:chat"
+            "href": "/api/users/1/conversations/9/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/9/chat-to-breakdown-epic"
@@ -174,7 +174,7 @@
             "href": "/api/users/1/conversations/10/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/10/messages:chat"
+            "href": "/api/users/1/conversations/10/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/10/chat-to-breakdown-epic"
@@ -192,7 +192,7 @@
             "href": "/api/users/1/conversations/11/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/11/messages:chat"
+            "href": "/api/users/1/conversations/11/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/11/chat-to-breakdown-epic"
@@ -210,7 +210,7 @@
             "href": "/api/users/1/conversations/12/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/12/messages:chat"
+            "href": "/api/users/1/conversations/12/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/12/chat-to-breakdown-epic"
@@ -228,7 +228,7 @@
             "href": "/api/users/1/conversations/13/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/13/messages:chat"
+            "href": "/api/users/1/conversations/13/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/13/chat-to-breakdown-epic"
@@ -246,7 +246,7 @@
             "href": "/api/users/1/conversations/14/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/14/messages:chat"
+            "href": "/api/users/1/conversations/14/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/14/chat-to-breakdown-epic"
@@ -264,7 +264,7 @@
             "href": "/api/users/1/conversations/15/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/15/messages:chat"
+            "href": "/api/users/1/conversations/15/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/15/chat-to-breakdown-epic"
@@ -282,7 +282,7 @@
             "href": "/api/users/1/conversations/16/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/16/messages:chat"
+            "href": "/api/users/1/conversations/16/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/16/chat-to-breakdown-epic"
@@ -300,7 +300,7 @@
             "href": "/api/users/1/conversations/17/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/17/messages:chat"
+            "href": "/api/users/1/conversations/17/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/17/chat-to-breakdown-epic"
@@ -318,7 +318,7 @@
             "href": "/api/users/1/conversations/18/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/18/messages:chat"
+            "href": "/api/users/1/conversations/18/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/18/chat-to-breakdown-epic"
@@ -336,7 +336,7 @@
             "href": "/api/users/1/conversations/19/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/19/messages:chat"
+            "href": "/api/users/1/conversations/19/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/19/chat-to-breakdown-epic"
@@ -353,7 +353,7 @@
             "href": "/api/users/1/conversations/20/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/20/messages:chat"
+            "href": "/api/users/1/conversations/20/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/20/chat-to-breakdown-epic"
@@ -371,7 +371,7 @@
             "href": "/api/users/1/conversations/21/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/21/messages:chat"
+            "href": "/api/users/1/conversations/21/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/21/chat-to-breakdown-epic"
@@ -389,7 +389,7 @@
             "href": "/api/users/1/conversations/22/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/22/messages:chat"
+            "href": "/api/users/1/conversations/22/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/22/chat-to-breakdown-epic"
@@ -407,7 +407,7 @@
             "href": "/api/users/1/conversations/23/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/23/messages:chat"
+            "href": "/api/users/1/conversations/23/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/23/chat-to-breakdown-epic"
@@ -425,7 +425,7 @@
             "href": "/api/users/1/conversations/24/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/24/messages:chat"
+            "href": "/api/users/1/conversations/24/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/24/chat-to-breakdown-epic"
@@ -443,7 +443,7 @@
             "href": "/api/users/1/conversations/25/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/25/messages:chat"
+            "href": "/api/users/1/conversations/25/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/25/chat-to-breakdown-epic"
@@ -461,7 +461,7 @@
             "href": "/api/users/1/conversations/26/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/26/messages:chat"
+            "href": "/api/users/1/conversations/26/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/26/chat-to-breakdown-epic"
@@ -479,7 +479,7 @@
             "href": "/api/users/1/conversations/27/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/27/messages:chat"
+            "href": "/api/users/1/conversations/27/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/27/chat-to-breakdown-epic"
@@ -497,7 +497,7 @@
             "href": "/api/users/1/conversations/28/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/28/messages:chat"
+            "href": "/api/users/1/conversations/28/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/28/chat-to-breakdown-epic"
@@ -515,7 +515,7 @@
             "href": "/api/users/1/conversations/29/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/29/messages:chat"
+            "href": "/api/users/1/conversations/29/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/29/chat-to-breakdown-epic"
@@ -533,7 +533,7 @@
             "href": "/api/users/1/conversations/30/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/30/messages:chat"
+            "href": "/api/users/1/conversations/30/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/30/chat-to-breakdown-epic"
@@ -551,7 +551,7 @@
             "href": "/api/users/1/conversations/31/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/31/messages:chat"
+            "href": "/api/users/1/conversations/31/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/31/chat-to-breakdown-epic"
@@ -569,7 +569,7 @@
             "href": "/api/users/1/conversations/32/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/32/messages:chat"
+            "href": "/api/users/1/conversations/32/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/32/chat-to-breakdown-epic"
@@ -587,7 +587,7 @@
             "href": "/api/users/1/conversations/33/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/33/messages:chat"
+            "href": "/api/users/1/conversations/33/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/33/chat-to-breakdown-epic"
@@ -605,7 +605,7 @@
             "href": "/api/users/1/conversations/34/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/34/messages:chat"
+            "href": "/api/users/1/conversations/34/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/34/chat-to-breakdown-epic"
@@ -623,7 +623,7 @@
             "href": "/api/users/1/conversations/35/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/35/messages:chat"
+            "href": "/api/users/1/conversations/35/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/35/chat-to-breakdown-epic"
@@ -641,7 +641,7 @@
             "href": "/api/users/1/conversations/36/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/36/messages:chat"
+            "href": "/api/users/1/conversations/36/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/36/chat-to-breakdown-epic"
@@ -659,7 +659,7 @@
             "href": "/api/users/1/conversations/37/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/37/messages:chat"
+            "href": "/api/users/1/conversations/37/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/37/chat-to-breakdown-epic"
@@ -677,7 +677,7 @@
             "href": "/api/users/1/conversations/38/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/38/messages:chat"
+            "href": "/api/users/1/conversations/38/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/38/chat-to-breakdown-epic"
@@ -695,7 +695,7 @@
             "href": "/api/users/1/conversations/39/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/39/messages:chat"
+            "href": "/api/users/1/conversations/39/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/39/chat-to-breakdown-epic"
@@ -713,7 +713,7 @@
             "href": "/api/users/1/conversations/40/messages"
           },
           "send-message": {
-            "href": "/api/users/1/conversations/40/messages:chat"
+            "href": "/api/users/1/conversations/40/messages/stream"
           },
           "chat-to-breakdown-epic": {
             "href": "/api/users/1/conversations/40/chat-to-breakdown-epic"

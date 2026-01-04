@@ -80,7 +80,7 @@ public class MessagesApiTest extends ApiTest {
       .accept(MediaType.SERVER_SENT_EVENTS)
       .contentType(MediaType.APPLICATION_JSON)
       .body(description)
-      .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages:chat")
+      .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/stream")
       .then().statusCode(200);
   }
 }

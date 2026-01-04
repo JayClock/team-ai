@@ -39,7 +39,7 @@ public class ConversationApi {
   }
 
   @POST
-  @Path("messages:chat")
+  @Path("messages/stream")
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void chat(
     MessageDescription description,
