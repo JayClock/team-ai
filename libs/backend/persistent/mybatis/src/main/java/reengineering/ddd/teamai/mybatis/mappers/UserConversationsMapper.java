@@ -9,7 +9,7 @@ import reengineering.ddd.teamai.model.Conversation;
 import java.util.List;
 
 @Mapper
-public interface ConversationsMapper {
+public interface UserConversationsMapper {
   Conversation findConversationByUserAndId(@Param("user_id") int userId, @Param("id") int id);
 
   List<Conversation> findConversationsByUserId(@Param("user_id") int userId, @Param("from") int from, @Param("size") int size);

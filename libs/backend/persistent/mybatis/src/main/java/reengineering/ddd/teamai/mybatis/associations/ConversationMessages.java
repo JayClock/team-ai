@@ -6,7 +6,7 @@ import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
-import reengineering.ddd.teamai.mybatis.mappers.MessagesMapper;
+import reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper;
 
 import java.util.List;
 
@@ -14,7 +14,7 @@ public class ConversationMessages extends EntityList<String, Message> implements
   private int conversationId;
 
   @Inject
-  private MessagesMapper mapper;
+  private ConversationMessagesMapper mapper;
 
   @Override
   protected List<Message> findEntities(int from, int to) {

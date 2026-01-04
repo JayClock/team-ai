@@ -13,8 +13,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class UsersApiTest extends ApiTest {
   @MockitoBean
@@ -48,5 +47,15 @@ public class UsersApiTest extends ApiTest {
       .body("_templates.default.properties", hasSize(2))
       .body("_templates.create-conversation.method", is("POST"))
       .body("_templates.create-conversation.properties", hasSize(1));
+
+    verify(users, times(1)).findById(user.getIdentity());
+
+    given().accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+      .when().get("/users/" + user.getIdentity())
+      .then().statusCode(200)
+      .body("id", is(user.getIdentity()))
+      .body("name", is(user.getDescription().name()));
+
+    verify(users, times(1)).findById(user.getIdentity());
   }
 }

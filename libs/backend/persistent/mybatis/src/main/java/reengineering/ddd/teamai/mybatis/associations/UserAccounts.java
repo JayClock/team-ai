@@ -6,13 +6,13 @@ import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.User;
-import reengineering.ddd.teamai.mybatis.mappers.AccountsMapper;
+import reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper;
 
 public class UserAccounts extends EntityList<String, Account> implements User.Accounts {
   private int userId;
 
   @Inject
-  AccountsMapper mapper;
+  UserAccountsMapper mapper;
 
 
   @Override

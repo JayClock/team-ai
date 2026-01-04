@@ -16,6 +16,8 @@ import java.util.Optional;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.core.Is.is;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class AccountsApiTest extends ApiTest {
@@ -45,5 +47,15 @@ public class AccountsApiTest extends ApiTest {
       .body("_embedded.accounts[0].provider", is(account.getDescription().provider()))
       .body("_embedded.accounts[0].providerId", is(account.getDescription().providerId()))
       .body("_embedded.accounts[0]._links.self.href", is("/api/users/" + user.getIdentity() + "/accounts/" + account.getIdentity()));
+
+    verify(user.accounts(), times(1)).findAll();
+
+    given().accept(MediaTypes.HAL_JSON.toString())
+      .when().get("/users/" + user.getIdentity() + "/accounts")
+      .then().statusCode(200)
+      .body("_embedded.accounts.size()", is(1))
+      .body("_embedded.accounts[0].id", is(account.getIdentity()));
+
+    verify(user.accounts(), times(1)).findAll();
   }
 }

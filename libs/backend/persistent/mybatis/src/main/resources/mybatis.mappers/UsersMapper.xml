@@ -11,7 +11,7 @@
     </association>
     <association property="accounts" javaType="reengineering.ddd.teamai.mybatis.associations.UserAccounts">
       <result column="id" property="userId" javaType="int"/>
-      <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.AccountsMapper.account"
+      <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.account"
                   ofType="reengineering.ddd.teamai.model.Account"/>
     </association>
     <association property="conversations" javaType="reengineering.ddd.teamai.mybatis.associations.UserConversations">

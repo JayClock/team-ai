@@ -22,6 +22,8 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class ConversationsApiTest extends ApiTest {
@@ -79,6 +81,32 @@ public class ConversationsApiTest extends ApiTest {
       .header(HttpHeaders.LOCATION,
         is(uri("/api/users/" + user.getIdentity() + "/conversations/" + newConversation.getIdentity())))
       .body("id", is(newConversation.getIdentity()));
+  }
+
+  @Test
+  public void should_return_single_conversation() {
+    when(user.conversations().findByIdentity(conversation.getIdentity())).thenReturn(Optional.of(conversation));
+
+    given().accept(MediaTypes.HAL_JSON.toString())
+      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
+      .then().statusCode(200)
+      .body("id", is(conversation.getIdentity()))
+      .body("title", is(conversation.getDescription().title()))
+      .body("_links.self.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
+      .body("_links.messages.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
+      .body("_links.messages.type", is(HttpMethod.GET))
+      .body("_links.send-message.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/stream"))
+      .body("_links.send-message.type", is(HttpMethod.POST));
+
+    verify(user.conversations(), times(1)).findByIdentity(conversation.getIdentity());
+
+    given().accept(MediaTypes.HAL_JSON.toString())
+      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
+      .then().statusCode(200)
+      .body("id", is(conversation.getIdentity()))
+      .body("title", is(conversation.getDescription().title()));
+
+    verify(user.conversations(), times(1)).findByIdentity(conversation.getIdentity());
   }
 
 }

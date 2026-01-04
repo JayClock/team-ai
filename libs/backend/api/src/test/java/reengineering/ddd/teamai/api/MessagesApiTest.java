@@ -21,6 +21,8 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class MessagesApiTest extends ApiTest {
@@ -60,6 +62,17 @@ public class MessagesApiTest extends ApiTest {
       .body("_embedded.messages[1].id", is(message2.getIdentity()))
       .body("_embedded.messages[1].role", is(message2.getDescription().role()))
       .body("_embedded.messages[1].content", is(message2.getDescription().content()));
+
+    verify(conversation.messages(), times(1)).findAll();
+
+    given()
+      .accept(MediaTypes.HAL_JSON.toString())
+      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
+      .then().statusCode(200)
+      .body("_embedded.messages.size()", is(2))
+      .body("_embedded.messages[0].id", is(message.getIdentity()));
+
+    verify(conversation.messages(), times(1)).findAll();
   }
 
   @Test
@@ -82,5 +95,44 @@ public class MessagesApiTest extends ApiTest {
       .body(description)
       .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/stream")
       .then().statusCode(200);
+  }
+
+  @Test
+  public void should_evict_messages_cache_after_chat() {
+    Message message1 = new Message("1", new MessageDescription("user", "initial message"));
+    Message message2 = new Message("2", new MessageDescription("assistant", "initial response"));
+
+    when(conversation.messages().findAll()).thenReturn(new EntityList<>(message1, message2));
+
+    given()
+      .accept(MediaTypes.HAL_JSON.toString())
+      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
+      .then().statusCode(200)
+      .body("_embedded.messages.size()", is(2));
+
+    verify(conversation.messages(), times(1)).findAll();
+
+    Message newMessage = new Message("3", new MessageDescription("user", "New message"));
+    when(conversation.saveMessage(any(MessageDescription.class))).thenReturn(newMessage);
+    when(modelProvider.sendMessage(any())).thenReturn(Flux.just("Response"));
+
+    given()
+      .urlEncodingEnabled(false)
+      .accept(MediaType.SERVER_SENT_EVENTS)
+      .contentType(MediaType.APPLICATION_JSON)
+      .body(new MessageDescription("user", "New message"))
+      .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/stream")
+      .then().statusCode(200);
+
+    Message message3 = new Message("3", newMessage.getDescription());
+    when(conversation.messages().findAll()).thenReturn(new EntityList<>(message1, message2, message3));
+
+    given()
+      .accept(MediaTypes.HAL_JSON.toString())
+      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
+      .then().statusCode(200)
+      .body("_embedded.messages.size()", is(3));
+
+    verify(conversation.messages(), times(2)).findAll();
   }
 }

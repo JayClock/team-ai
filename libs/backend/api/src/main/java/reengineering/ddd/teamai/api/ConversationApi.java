@@ -11,6 +11,8 @@ import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import reengineering.ddd.teamai.api.representation.ConversationModel;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
@@ -29,6 +31,7 @@ public class ConversationApi {
   }
 
   @GET
+  @Cacheable(value = "conversation", key = "#root.target.user.getIdentity() + ':' + #root.target.conversation.getIdentity()")
   public ConversationModel get(@Context UriInfo uriInfo) {
     return new ConversationModel(user, conversation, uriInfo);
   }
@@ -41,6 +44,7 @@ public class ConversationApi {
   @POST
   @Path("messages/stream")
   @Produces(MediaType.SERVER_SENT_EVENTS)
+  @CacheEvict(value = "messages", key = "#root.target.conversation.getIdentity()")
   public void chat(
     MessageDescription description,
     @Context SseEventSink sseEventSink,

@@ -14,9 +14,9 @@ import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
-import reengineering.ddd.teamai.mybatis.mappers.AccountsMapper;
-import reengineering.ddd.teamai.mybatis.mappers.ConversationsMapper;
-import reengineering.ddd.teamai.mybatis.mappers.MessagesMapper;
+import reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper;
+import reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper;
+import reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper;
 import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
 
 import java.util.Random;
@@ -90,7 +90,7 @@ public class ModelMapperTest extends BaseTestContainersTest {
   @Nested
   class AccountsMapperTest {
     @Inject
-    private AccountsMapper accountsMapper;
+    private UserAccountsMapper accountsMapper;
 
     @Test
     public void should_find_account_by_user_and_id() {
@@ -110,7 +110,7 @@ public class ModelMapperTest extends BaseTestContainersTest {
   @Nested
   class ConversationsMapperTest {
     @Inject
-    private ConversationsMapper conversationsMapper;
+    private UserConversationsMapper conversationsMapper;
 
     @Test
     void should_find_conversation_by_user_and_id() {
@@ -136,7 +136,7 @@ public class ModelMapperTest extends BaseTestContainersTest {
   @Nested
   class MessagesMapperTest {
     @Inject
-    private MessagesMapper messagesMapper;
+    private ConversationMessagesMapper messagesMapper;
 
     @Test
     public void should_find_message_by_conversation_and_id() {
