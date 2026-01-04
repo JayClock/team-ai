@@ -57,3 +57,5 @@ vite.config.*.timestamp*
 vitest.config.*.timestamp*
 
 .npmrc
+.gradle
+build
