@@ -14,6 +14,13 @@
     "projectType": "application",
     "tags": [
       "type:app"
-    ]
+    ],
+    "targets": {
+      "dev": {
+        "dependsOn": [
+          ":apps:server:bootRun"
+        ]
+      }
+    }
   }
 }

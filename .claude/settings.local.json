@@ -11,7 +11,10 @@
       "Bash(nx run:*)",
       "Skill(commit)",
       "Bash(tree:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "mcp__jetbrains__get_file_text_by_path",
+      "mcp__jetbrains__search_in_files_by_text",
+      "Bash(grep:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

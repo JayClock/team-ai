@@ -1,0 +1,14 @@
+{
+  "targets": {
+    "bootRun": {
+      "dependsOn": ["build"]
+    },
+    "build": {
+      "continuous": true,
+      "cache": false,
+      "options": {
+        "args": ["--continuous"]
+      }
+    }
+  }
+}
