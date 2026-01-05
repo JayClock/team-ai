@@ -115,7 +115,7 @@ public class OAuth2UserService extends DefaultOAuth2UserService {
 
         @Override
         public String getName() {
-            return user.getDescription().name();
+            return user.getIdentity();
         }
 
         public User getUser() {

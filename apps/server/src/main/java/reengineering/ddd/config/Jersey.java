@@ -10,6 +10,7 @@ import org.springframework.hateoas.config.EnableHypermediaSupport;
 import org.springframework.lang.NonNull;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
+import reengineering.ddd.teamai.api.RootApi;
 import reengineering.ddd.teamai.api.UsersApi;
 
 import java.io.IOException;
@@ -22,6 +23,7 @@ import static org.springframework.hateoas.config.EnableHypermediaSupport.Hyperme
 public class Jersey extends ResourceConfig {
   public Jersey() {
     setProperties(Map.of(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, true));
+    register(RootApi.class);
     register(UsersApi.class);
   }
 
