@@ -5,6 +5,7 @@ include 'backend:api'
 include 'backend:domain'
 include 'backend:persistent:mybatis'
 include 'backend:infrastructure:spring-ai'
+include 'backend:infrastructure:spring-security'
 
 // Server app
 include 'apps:server'
@@ -14,4 +15,5 @@ project(':backend:api').projectDir = file('libs/backend/api')
 project(':backend:domain').projectDir = file('libs/backend/domain')
 project(':backend:persistent:mybatis').projectDir = file('libs/backend/persistent/mybatis')
 project(':backend:infrastructure:spring-ai').projectDir = file('libs/backend/infrastructure/spring-ai')
+project(':backend:infrastructure:spring-security').projectDir = file('libs/backend/infrastructure/spring-security')
 project(':apps:server').projectDir = file('apps/server')

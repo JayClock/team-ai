@@ -1,4 +1,4 @@
-package reengineering.ddd.config;
+package reengineering.ddd.infrastructure.security.oauth2;
 
 import jakarta.inject.Inject;
 import org.slf4j.Logger;

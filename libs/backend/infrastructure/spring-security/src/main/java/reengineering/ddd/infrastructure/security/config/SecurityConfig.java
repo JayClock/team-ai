@@ -1,4 +1,4 @@
-package reengineering.ddd.config;
+package reengineering.ddd.infrastructure.security.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import reengineering.ddd.infrastructure.security.oauth2.OAuth2UserService;
 
 @Configuration
 @EnableWebSecurity
@@ -158,4 +159,3 @@ public class SecurityConfig {
     }
   }
 }
-
