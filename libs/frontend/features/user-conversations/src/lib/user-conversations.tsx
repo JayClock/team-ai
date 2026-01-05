@@ -23,7 +23,7 @@ export function UserConversations(props: Props) {
   };
 
   const conversationsResource = useMemo(
-    () => resource.follow('conversations'),
+    () => resource?.follow('conversations'),
     [resource],
   );
 

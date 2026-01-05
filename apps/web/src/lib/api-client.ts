@@ -1,9 +1,23 @@
 import { createClient, FetchMiddleware } from '@hateoas-ts/resource';
 import { appConfig } from '../config/app.config';
+import { Root } from '@shared/schema';
 
 export const apiClient = createClient({
   baseURL: appConfig.api.baseURL,
+  sendUserAgent: false,
 });
+
+export const rootResource = apiClient.go<Root>('/api');
+
+function createCredentialsMiddleware(): FetchMiddleware {
+  return (request, next) => {
+    // Clone request to add credentials
+    const requestWithCredentials = new Request(request, {
+      credentials: 'include',
+    });
+    return next(requestWithCredentials);
+  };
+}
 
 function createAuthMiddleware(): FetchMiddleware {
   return async (request, next) => {
@@ -20,4 +34,5 @@ function createAuthMiddleware(): FetchMiddleware {
   };
 }
 
+apiClient.use(createCredentialsMiddleware());
 apiClient.use(createAuthMiddleware());

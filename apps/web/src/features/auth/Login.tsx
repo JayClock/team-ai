@@ -2,16 +2,18 @@ import { Button, Card } from 'antd';
 import { GithubOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useClient } from '@hateoas-ts/resource-react';
+import { useClient, useResource } from '@hateoas-ts/resource-react';
+import { rootResource } from '../../lib/api-client';
 
 export function Login() {
   const client = useClient();
   const [loginHref, setLoginHref] = useState<string>('');
   const navigate = useNavigate();
+  useResource(rootResource);
 
   useEffect(() => {
     const fetchLoginLink = async () => {
-      const rootState = await client.go('/api').withGet().request();
+      const rootState = await rootResource.withGet().request();
       const loginLink = rootState.getLink('login')?.href;
       if (loginLink) {
         setLoginHref(loginLink);

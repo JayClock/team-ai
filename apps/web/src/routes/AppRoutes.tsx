@@ -1,20 +1,18 @@
 import { useState } from 'react';
 import { Menu } from 'antd';
 import { State } from '@hateoas-ts/resource';
-import { User, Conversation } from '@shared/schema';
+import { Conversation } from '@shared/schema';
 import { UserConversations } from '@features/user-conversations';
 import { ConversationMessages } from '@features/conversation-messages';
-import { appConfig } from '../config/app.config';
-import { apiClient } from '../lib/api-client';
-
-const userResource = apiClient.go<User>(
-  `/api/users/${appConfig.auth.defaultUserId}`,
-);
+import { rootResource } from '../lib/api-client';
+import { useResource } from '@hateoas-ts/resource-react';
 
 export function AppRoutes() {
   const [selectedKey, setSelectedKey] = useState('conversations');
   const [conversationState, setConversationState] =
     useState<State<Conversation>>();
+
+  const { resource } = useResource(rootResource.follow('me'));
 
   const menuItems = [
     {
@@ -41,7 +39,7 @@ export function AppRoutes() {
 
   const mainContent = (
     <UserConversations
-      resource={userResource}
+      resource={resource}
       onConversationChange={setConversationState}
     />
   );
