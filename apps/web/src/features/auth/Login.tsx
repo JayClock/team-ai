@@ -1,31 +1,27 @@
-import { Button, Card, message } from 'antd';
+import { Button, Card } from 'antd';
 import { GithubOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rootResource } from './client';
+import { useClient } from '@hateoas-ts/resource-react';
 
 export function Login() {
+  const client = useClient();
   const [loginHref, setLoginHref] = useState<string>('');
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchLoginLink = async () => {
-      try {
-        const rootState = await rootResource.withGet().request();
-
-        const loginLink = rootState.getLink('login')?.href
-        if (loginLink) {
-          setLoginHref(loginLink);
-        } else {
-          navigate('/');
-        }
-      } catch (error) {
-        message.error('获取登录链接失败，请稍后重试');
+      const rootState = await client.go('/api').withGet().request();
+      const loginLink = rootState.getLink('login')?.href;
+      if (loginLink) {
+        setLoginHref(loginLink);
+      } else {
+        navigate('/');
       }
     };
 
     fetchLoginLink().then();
-  }, [navigate]);
+  }, [client, navigate]);
 
   const handleGithubLogin = () => {
     if (loginHref) {

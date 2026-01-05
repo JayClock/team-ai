@@ -1,19 +1,19 @@
 import { Layout } from 'antd';
-import React from 'react';
+import type { ReactNode } from 'react';
 
 const { Header } = Layout;
 
 interface AppLayoutProps {
-  children: React.ReactNode;
-  headerContent: React.ReactNode;
-  rightContent?: React.ReactNode;
+  children: ReactNode;
+  headerContent: ReactNode;
+  rightContent?: ReactNode;
 }
 
-export const AppLayout: React.FC<AppLayoutProps> = ({
+export const AppLayout = ({
   children,
   headerContent,
   rightContent,
-}) => {
+}: AppLayoutProps) => {
   return (
     <Layout className="h-full">
       <Header

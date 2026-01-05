@@ -11,6 +11,25 @@ import {
 import { DefaultMessageInfo, useXChat, XRequest } from '@ant-design/x-sdk';
 
 export function ConversationMessages(props: {
+  conversationState?: State<Conversation>;
+}) {
+  const { conversationState } = props;
+
+  if (!conversationState) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '50px', color: '#999' }}>
+        请选择一个对话查看消息
+      </div>
+    );
+  }
+  return (
+    <ConversationMessagesInner
+      conversationState={conversationState}
+    ></ConversationMessagesInner>
+  );
+}
+
+function ConversationMessagesInner(props: {
   conversationState: State<Conversation>;
 }) {
   const { conversationState } = props;
