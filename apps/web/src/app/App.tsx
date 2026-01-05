@@ -1,14 +1,16 @@
-import { createClient, State } from '@hateoas-ts/resource';
+import { State } from '@hateoas-ts/resource';
 import { Conversation, User } from '@shared/schema';
 import { UserConversations } from '@features/user-conversations';
 import { XProvider } from '@ant-design/x';
 import { ResourceProvider } from '@hateoas-ts/resource-react';
 import { AppLayout } from './Layout';
+import { Login } from './Login';
 import { Menu } from 'antd';
 import { useState } from 'react';
 import { ConversationMessages } from '@features/conversation-messages';
+import { Route, Routes } from 'react-router-dom';
+import { client } from './client';
 
-const client = createClient({ baseURL: 'http://localhost:4200' });
 const resource = client.go<User>('/api/users/1');
 
 export default function App() {
@@ -65,9 +67,20 @@ export default function App() {
 
   return (
     <XProvider>
-      <AppLayout headerContent={headerContent} rightContent={rightContent}>
-        {mainContent}
-      </AppLayout>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/*"
+          element={
+            <AppLayout
+              headerContent={headerContent}
+              rightContent={rightContent}
+            >
+              {mainContent}
+            </AppLayout>
+          }
+        />
+      </Routes>
     </XProvider>
   );
 }

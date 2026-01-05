@@ -1,5 +1,14 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
 
+export type Root = Entity<
+  never,
+  {
+    login: never;
+    me: User;
+    logout: never;
+  }
+>;
+
 export type User = Entity<
   { id: string; name: string; email: string },
   {

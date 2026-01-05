@@ -1,31 +1,28 @@
 spring:
   datasource:
+    driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:teamai_dev}
     username: ${DB_USERNAME:teamai_dev}
     password: ${DB_PASSWORD:teamai_dev}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
   flyway:
     clean-disabled: false
+    locations: classpath:db.migration
+    baseline-on-migrate: true
   jpa:
     show-sql: true
     properties:
       hibernate:
         format_sql: true
-  security:
-    oauth2:
-      client:
-        registration:
-          github:
-            client-id: ${GITHUB_CLIENT_ID}
-            client-secret: ${GITHUB_CLIENT_SECRET}
-            scope: user:email
-            redirect-uri: http://localhost:8080/login/oauth2/code/github
-        provider:
-          github:
-            authorization-uri: https://github.com/login/oauth/authorize
-            token-uri: https://github.com/login/oauth/access_token
-            user-info-uri: https://api.github.com/user
+
 logging:
   level:
+    root: INFO
     org.springframework.jdbc: DEBUG
     org.mybatis: DEBUG
     reengineering.ddd: DEBUG
@@ -34,4 +31,4 @@ logging:
     org.springframework.security.oauth2.client: DEBUG
     org.springframework.security.oauth2.core: DEBUG
     org.springframework.web.client.RestTemplate: DEBUG
-    reengineering.ddd.config.OAuth2UserService: DEBUG
+    reengineering.ddd.infrastructure.security.oauth2.OAuth2UserService: DEBUG

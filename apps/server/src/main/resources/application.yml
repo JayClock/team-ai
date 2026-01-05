@@ -1,33 +1,35 @@
 spring:
   main:
-    banner-mode: "off"
-  datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/teamai
-    username: ${DB_USERNAME:teamai}
-    password: ${DB_PASSWORD:teamai}
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-  flyway:
-    clean-disabled: false
-    locations: classpath:db.migration
-    baseline-on-migrate: true
+    banner-mode: 'off'
   jersey:
     application-path: /api
-  ai:
-    deepseek:
-      api-key: ${DEEPSEEK_API_KEY}
   cache:
     type: caffeine
     caffeine:
       spec: maximumSize=1000,expireAfterWrite=10m
+  ai:
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY}
+
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${GITHUB_CLIENT_ID}
+            client-secret: ${GITHUB_CLIENT_SECRET}
+            scope: user:email
+            redirect-uri: "{baseUrl}/login/oauth2/code/github"
+        provider:
+          github:
+            authorization-uri: https://github.com/login/oauth/authorize
+            token-uri: https://github.com/login/oauth/access_token
+            user-info-uri: https://api.github.com/user
 mybatis:
   mapper-locations: classpath:mybatis.mappers/**/*.xml
   config-location: classpath:mybatis-config.xml
+
 logging:
-  level:
-    root: info
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
