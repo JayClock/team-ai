@@ -29,6 +29,8 @@ import static org.mockito.Mockito.when;
 public class ConversationsApiTest extends ApiTest {
   @MockitoBean
   private Users users;
+  @MockitoBean
+  private Conversation.ModelProvider modelProvider;
   private User user;
 
   @Mock
@@ -97,14 +99,6 @@ public class ConversationsApiTest extends ApiTest {
       .body("_links.messages.type", is(HttpMethod.GET))
       .body("_links.send-message.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/stream"))
       .body("_links.send-message.type", is(HttpMethod.POST));
-
-    verify(user.conversations(), times(1)).findByIdentity(conversation.getIdentity());
-
-    given().accept(MediaTypes.HAL_JSON.toString())
-      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
-      .then().statusCode(200)
-      .body("id", is(conversation.getIdentity()))
-      .body("title", is(conversation.getDescription().title()));
 
     verify(user.conversations(), times(1)).findByIdentity(conversation.getIdentity());
   }

@@ -7,7 +7,6 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.AccountModel;
 import reengineering.ddd.teamai.model.User;
@@ -23,7 +22,6 @@ public class AccountsApi {
   }
 
   @GET
-  @Cacheable(value = "accounts", key = "#root.target.user.getIdentity()")
   public CollectionModel<AccountModel> findAll(@Context UriInfo uriInfo) {
     List<AccountModel> accounts = user.accounts().findAll().stream()
       .map(account ->
@@ -34,7 +32,6 @@ public class AccountsApi {
 
   @GET
   @Path("{account-id}")
-  @Cacheable(value = "account", key = "#root.target.user.getIdentity() + ':' + #id")
   public AccountModel findById(@PathParam("account-id") String id, @Context UriInfo uriInfo) {
     return user.accounts().findByIdentity(id).map(account -> new AccountModel(account, uriInfo.getAbsolutePathBuilder()))
       .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));

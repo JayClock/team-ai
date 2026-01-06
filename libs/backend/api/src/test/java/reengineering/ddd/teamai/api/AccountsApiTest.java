@@ -49,13 +49,5 @@ public class AccountsApiTest extends ApiTest {
       .body("_embedded.accounts[0]._links.self.href", is("/api/users/" + user.getIdentity() + "/accounts/" + account.getIdentity()));
 
     verify(user.accounts(), times(1)).findAll();
-
-    given().accept(MediaTypes.HAL_JSON.toString())
-      .when().get("/users/" + user.getIdentity() + "/accounts")
-      .then().statusCode(200)
-      .body("_embedded.accounts.size()", is(1))
-      .body("_embedded.accounts[0].id", is(account.getIdentity()));
-
-    verify(user.accounts(), times(1)).findAll();
   }
 }

@@ -1,7 +1,6 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.GET;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.MessageModel;
 import reengineering.ddd.teamai.model.Conversation;
@@ -17,7 +16,6 @@ public class MessagesApi {
   }
 
   @GET
-  @Cacheable(value = "messages", key = "#root.target.conversation.getIdentity()")
   public CollectionModel<MessageModel> findAll() {
     var messages = conversation.messages().findAll().stream()
       .map(MessageModel::new)

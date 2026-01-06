@@ -5,7 +5,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.UriInfo;
-import org.springframework.cache.annotation.Cacheable;
 import reengineering.ddd.teamai.api.representation.UserModel;
 import reengineering.ddd.teamai.model.User;
 
@@ -20,7 +19,6 @@ public class UserApi {
   }
 
   @GET
-  @Cacheable(value = "users", key = "#root.target.user.getIdentity()")
   public UserModel get(@Context UriInfo uriInfo) {
     return new UserModel(user, uriInfo);
   }
