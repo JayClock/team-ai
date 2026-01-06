@@ -17,9 +17,11 @@ export function UserConversations(props: Props) {
   const { token } = theme.useToken();
 
   const style = {
-    width: 256,
+    width: 320,
     background: token.colorBgContainer,
-    borderRadius: token.borderRadius,
+    borderRadius: 0,
+    border: 'none',
+    height: '100%',
   };
 
   const conversationsResource = useMemo(
@@ -43,16 +45,20 @@ export function UserConversations(props: Props) {
   );
 
   return (
-    <div id="scrollableDiv" className="h-full overflow-auto">
+    <div id="scrollableDiv" className="h-full overflow-auto bg-white">
       <InfiniteScroll
         next={loadNextPage}
         hasMore={hasNextPage}
         loader={
-          <div style={{ textAlign: 'center' }}>
+          <div className="flex justify-center py-4">
             <Spin indicator={<RedoOutlined spin />} size="small" />
           </div>
         }
-        endMessage={<Divider plain>It is all, nothing more</Divider>}
+        endMessage={
+          <Divider plain className="text-gray-400 text-xs">
+            没有更多对话了
+          </Divider>
+        }
         scrollableTarget="scrollableDiv"
         dataLength={items.length}
         style={{ overflow: 'hidden' }}

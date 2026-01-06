@@ -15,21 +15,27 @@ export const AppLayout = ({
   rightContent,
 }: AppLayoutProps) => {
   return (
-    <Layout className="h-full">
+    <Layout className="h-full bg-gray-50">
       <Header
         style={{
           background: '#fff',
-          padding: '0 16px',
-          borderBottom: '1px solid #f0f0f0',
+          padding: '0 24px',
+          borderBottom: '1px solid #e8e8e8',
           height: '56px',
           lineHeight: '56px',
+          boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+          zIndex: 10,
         }}
       >
-        <div className="content-between items-center">{headerContent}</div>
+        <div className="flex items-center justify-between h-full">
+          {headerContent}
+        </div>
       </Header>
-      <div className="flex flex-1 overflow-hidden p-4 gap-4">
-        <div>{children}</div>
-        <div className="flex-1">{rightContent}</div>
+      <div className="flex flex-1 overflow-hidden bg-gray-50">
+        <div className="flex-shrink-0 border-r border-gray-200 bg-white shadow-sm">
+          {children}
+        </div>
+        <div className="flex-1 flex flex-col bg-white">{rightContent}</div>
       </div>
     </Layout>
   );
