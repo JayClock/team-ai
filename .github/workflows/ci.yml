@@ -68,16 +68,21 @@ jobs:
           path: |
             .nx/cache
             node_modules/.cache/nx
-          key: ${{ runner.os }}-nx-${{ hashFiles('nx.json', 'package-lock.json') }}
+          key: ${{ runner.os }}-nx-${{ hashFiles('nx.json', 'pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-nx-
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - run: npm ci --legacy-peer-deps
+      - run: pnpm install
       - run: npx playwright install --with-deps
 
       # This enables task distribution via Nx Cloud
