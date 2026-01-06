@@ -1,9 +1,12 @@
 rootProject.name = 'team-ai'
 
 // Backend modules
+include 'backend'
 include 'backend:api'
 include 'backend:domain'
+include 'backend:persistent'
 include 'backend:persistent:mybatis'
+include 'backend:infrastructure'
 include 'backend:infrastructure:spring-ai'
 include 'backend:infrastructure:spring-security'
 
@@ -11,9 +14,12 @@ include 'backend:infrastructure:spring-security'
 include 'apps:server'
 
 // Set project directories
+project(':backend').projectDir = file('libs/backend')
 project(':backend:api').projectDir = file('libs/backend/api')
 project(':backend:domain').projectDir = file('libs/backend/domain')
+project(':backend:persistent').projectDir = file('libs/backend/persistent')
 project(':backend:persistent:mybatis').projectDir = file('libs/backend/persistent/mybatis')
+project(':backend:infrastructure').projectDir = file('libs/backend/infrastructure')
 project(':backend:infrastructure:spring-ai').projectDir = file('libs/backend/infrastructure/spring-ai')
 project(':backend:infrastructure:spring-security').projectDir = file('libs/backend/infrastructure/spring-security')
 project(':apps:server').projectDir = file('apps/server')
