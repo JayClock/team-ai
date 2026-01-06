@@ -17,6 +17,7 @@ env:
   CI: true
   NODE_OPTIONS: --max-old-space-size=4096
   TZ: UTC
+  GRADLE_OPTS: '-Dorg.gradle.daemon=false'
 
 jobs:
   main:
@@ -56,6 +57,9 @@ jobs:
       # Make Gradle wrapper executable
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
+
+      - name: Verify Gradle
+        run: ./gradlew help
 
       # Cache Gradle dependencies
       - name: Cache Gradle
@@ -102,7 +106,7 @@ jobs:
       # - run: npx nx-cloud record -- echo Hello World
 
       - name: Lint
-        run: npx nx run-many -t lint --parallel=true
+        run: npx nx run-many -t lint --parallel=true --verbose
 
       - name: Type check
         run: npx nx run-many -t typecheck --parallel=true
