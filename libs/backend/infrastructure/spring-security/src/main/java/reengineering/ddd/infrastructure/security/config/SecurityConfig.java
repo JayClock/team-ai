@@ -4,15 +4,25 @@ import jakarta.inject.Inject;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import reengineering.ddd.infrastructure.security.oauth2.OAuth2UserService;
+
+import java.io.IOException;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -29,7 +39,7 @@ public class SecurityConfig {
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
       .authorizeHttpRequests(authz -> authz
-        .requestMatchers("/", "/public/**").permitAll()
+        .requestMatchers("/", "/public/**", "/api").permitAll()
         .anyRequest().authenticated()
       )
       .csrf(AbstractHttpConfigurer::disable)
@@ -68,14 +78,14 @@ public class SecurityConfig {
   @Bean
   public AuthenticationSuccessHandler apiAuthenticationSuccessHandler() {
     return (request, response, authentication) -> {
-      response.sendRedirect("/api/");
+      response.sendRedirect("/");
     };
   }
 
   @Bean
   public LogoutSuccessHandler apiLogoutSuccessHandler() {
     return (request, response, authentication) -> {
-      response.sendRedirect("/api/");
+      response.sendRedirect("/");
     };
   }
 
