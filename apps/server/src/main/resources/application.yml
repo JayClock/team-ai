@@ -3,10 +3,6 @@ spring:
     banner-mode: 'off'
   jersey:
     application-path: /api
-  cache:
-    type: caffeine
-    caffeine:
-      spec: maximumSize=1000,expireAfterWrite=10m
   ai:
     deepseek:
       api-key: ${DEEPSEEK_API_KEY}
@@ -19,7 +15,7 @@ spring:
             client-id: ${GITHUB_CLIENT_ID}
             client-secret: ${GITHUB_CLIENT_SECRET}
             scope: user:email
-            redirect-uri: "{baseUrl}/login/oauth2/code/github"
+            redirect-uri: '{baseUrl}/login/oauth2/code/github'
         provider:
           github:
             authorization-uri: https://github.com/login/oauth/authorize

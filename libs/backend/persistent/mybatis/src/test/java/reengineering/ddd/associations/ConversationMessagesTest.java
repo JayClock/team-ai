@@ -41,11 +41,21 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
   @Test
   public void should_get_messages_association_of_conversation() {
     assertEquals(messageCount, conversation.messages().findAll().size());
+
+    var firstResult = conversation.messages().findAll();
+    var secondResult = conversation.messages().findAll();
+    assertEquals(firstResult.size(), secondResult.size());
+    assertEquals(messageCount, secondResult.size());
   }
 
   @Test
   public void should_sub_messages_association_of_conversation() {
     assertEquals(40, conversation.messages().findAll().subCollection(0, 40).size());
+
+    var firstResult = conversation.messages().findAll().subCollection(0, 40);
+    var secondResult = conversation.messages().findAll().subCollection(0, 40);
+    assertEquals(firstResult.size(), secondResult.size());
+    assertEquals(40, secondResult.size());
   }
 
   @Test
@@ -53,6 +63,11 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
     String identity = conversation.messages().findAll().iterator().next().getIdentity();
     Message message = conversation.messages().findByIdentity(identity).get();
     assertEquals(identity, message.getIdentity());
+
+    var cachedMessage = conversation.messages().findByIdentity(identity).get();
+    assertEquals(message.getIdentity(), cachedMessage.getIdentity());
+    assertEquals(message.getDescription().role(), cachedMessage.getDescription().role());
+    assertEquals(message.getDescription().content(), cachedMessage.getDescription().content());
   }
 
   @Test
@@ -71,5 +86,10 @@ public class ConversationMessagesTest extends BaseTestContainersTest {
 
     assertEquals("user", savedMessage.getDescription().role());
     assertEquals("Hello, world!", savedMessage.getDescription().content());
+
+    var retrievedMessage = conversation.messages().findByIdentity(savedMessage.getIdentity()).get();
+    assertEquals(savedMessage.getIdentity(), retrievedMessage.getIdentity());
+    assertEquals(savedMessage.getDescription().role(), retrievedMessage.getDescription().role());
+    assertEquals(savedMessage.getDescription().content(), retrievedMessage.getDescription().content());
   }
 }

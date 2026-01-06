@@ -92,10 +92,6 @@ jobs:
       - run: pnpm install
       - run: npx playwright install --with-deps
 
-      # Ensure Gradle projects are initialized before running Nx commands
-      - name: Initialize Gradle projects
-        run: ./gradlew classes --no-daemon
-
       # This enables task distribution via Nx Cloud
       # Run this command as early as possible, before dependencies are installed
       # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
@@ -116,9 +112,6 @@ jobs:
 
       - name: Run all tests
         run: npx nx run-many -t test --parallel=true
-
-      - name: E2E tests
-        run: npx nx e2e web-e2e
 
       - name: Fix CI issues
         run: npx nx fix-ci

@@ -11,6 +11,7 @@ import reengineering.ddd.teamai.model.Users;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 @MybatisTest
 public class UsersTest extends BaseTestContainersTest {
@@ -34,6 +35,12 @@ public class UsersTest extends BaseTestContainersTest {
     assertEquals(String.valueOf(userId), user.getIdentity());
     assertEquals("John Smith", user.getDescription().name());
     assertEquals("john.smith@email.com", user.getDescription().email());
+
+    User cachedUser = users.findById(String.valueOf(userId)).get();
+    assertEquals(user.getIdentity(), cachedUser.getIdentity());
+    assertEquals(user.getDescription().name(), cachedUser.getDescription().name());
+    assertEquals(user.getDescription().email(), cachedUser.getDescription().email());
+    assertSame(user, cachedUser, "User should be cached and return same instance");
   }
 
   @Test

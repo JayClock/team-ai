@@ -33,6 +33,11 @@ public class UserConversationsTest extends BaseTestContainersTest {
   @Test
   public void should_get_conversations_association_of_user() {
     assertEquals(conversationCount, user.conversations().findAll().size());
+
+    var firstResult = user.conversations().findAll();
+    var secondResult = user.conversations().findAll();
+    assertEquals(firstResult.size(), secondResult.size());
+    assertEquals(conversationCount, secondResult.size());
   }
 
   @Test
@@ -45,6 +50,10 @@ public class UserConversationsTest extends BaseTestContainersTest {
     String identity = user.conversations().findAll().iterator().next().getIdentity();
     Conversation conversation = user.conversations().findByIdentity(identity).get();
     assertEquals(identity, conversation.getIdentity());
+
+    Conversation cachedConversation = user.conversations().findByIdentity(identity).get();
+    assertEquals(conversation.getIdentity(), cachedConversation.getIdentity());
+    assertEquals(conversation.getDescription().title(), cachedConversation.getDescription().title());
   }
 
   @Test

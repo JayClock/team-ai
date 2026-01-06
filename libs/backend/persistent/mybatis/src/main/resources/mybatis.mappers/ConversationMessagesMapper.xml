@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper">
+ <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper">
+
   <resultMap id="message" type="reengineering.ddd.teamai.model.Message">
     <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.MessageDescription">
@@ -26,7 +27,8 @@
   </select>
 
   <insert id="insertMessage" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+          parameterType="reengineering.ddd.mybatis.support.IdHolder"
+          flushCache="true">
     insert into messages (conversation_id, role, content)
     values (#{conversation_id}, #{description.role}, #{description.content})
   </insert>
