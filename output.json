@@ -5082,9 +5082,9 @@
                 "domain:build",
                 "mybatis:buildDependents",
                 "server:buildDependents",
-                "api:buildDependents",
+                "spring-ai:buildDependents",
                 "spring-security:buildDependents",
-                "spring-ai:buildDependents"
+                "api:buildDependents"
               ],
               "executor": "@nx/gradle:gradle",
               "metadata": {
@@ -8614,12 +8614,12 @@
             "buildNeeded": {
               "cache": true,
               "dependsOn": [
+                "server:build",
                 "domain:buildNeeded",
                 "api:buildNeeded",
                 "spring-ai:buildNeeded",
                 "spring-security:buildNeeded",
-                "mybatis:buildNeeded",
-                "server:build"
+                "mybatis:buildNeeded"
               ],
               "executor": "@nx/gradle:gradle",
               "metadata": {
@@ -8672,14 +8672,11 @@
             "classes": {
               "cache": true,
               "dependsOn": [
-                "server:bootBuildInfo",
                 "server:compileJava",
+                "server:bootBuildInfo",
                 "server:processResources"
               ],
               "inputs": [
-                {
-                  "dependentTasksOutputFiles": "apps/server/build/resources/main/META-INF/**/*"
-                },
                 {
                   "dependentTasksOutputFiles": "apps/server/build/classes/java/main/**/*"
                 },
@@ -8691,6 +8688,9 @@
                 },
                 {
                   "dependentTasksOutputFiles": "apps/server/build/tmp/compileJava/previous-compilation-data.bin"
+                },
+                {
+                  "dependentTasksOutputFiles": "apps/server/build/resources/main/META-INF/**/*"
                 },
                 {
                   "dependentTasksOutputFiles": "apps/server/build/resources/main/**/*"

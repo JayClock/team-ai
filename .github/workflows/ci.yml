@@ -9,23 +9,69 @@ on:
 permissions:
   actions: read
   contents: read
+  checks: write
+  statuses: write
+  id-token: write
+
+env:
+  CI: true
+  NODE_OPTIONS: --max-old-space-size=4096
+  TZ: UTC
 
 jobs:
   main:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_USER: test
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - uses: actions/checkout@v4
         with:
           filter: tree:0
           fetch-depth: 0
 
-      # This enables task distribution via Nx Cloud
-      # Run this command as early as possible, before dependencies are installed
-      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
-      # Uncomment this line to enable task distribution
-      # - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e-ci"
+      # Set up Java 17 for backend builds
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: 'gradle'
 
-      # Cache node_modules
+      # Cache Gradle dependencies
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # Cache Nx workspace
+      - name: Cache Nx
+        uses: actions/cache@v4
+        with:
+          path: |
+            .nx/cache
+            node_modules/.cache/nx
+          key: ${{ runner.os }}-nx-${{ hashFiles('nx.json', 'package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nx-
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -34,11 +80,60 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npx playwright install --with-deps
 
+      # This enables task distribution via Nx Cloud
+      # Run this command as early as possible, before dependencies are installed
+      # Learn more at https://nx.dev/ci/reference/nx-cloud-cli#npx-nxcloud-startcirun
+      # Uncomment this line to enable task distribution
+      # - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e-ci"
+
       # Prepend any command with "nx-cloud record --" to record its logs to Nx Cloud
       # - run: npx nx-cloud record -- echo Hello World
-      # When you enable task distribution, run the e2e-ci task instead of e2e
-      - run: df -h
-      - run: npx nx run-many -t lint test build e2e
-      # Nx Cloud recommends fixes for failures to help you get CI green faster. Learn more: https://nx.dev/ci/features/self-healing-ci
-      - run: npx nx fix-ci
+
+      - name: Lint
+        run: npx nx run-many -t lint --parallel=true
+
+      - name: Type check
+        run: npx nx run-many -t typecheck --parallel=true
+
+      - name: Build Java backend
+        run: npx nx gradle build :apps:server
+
+      - name: Build frontend
+        run: npx nx run-many -t build --parallel=true
+
+      - name: Unit tests
+        run: npx nx run-many -t test --parallel=true
+
+      - name: Java integration tests
+        run: npx nx gradle test :apps:server
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
+          SPRING_DATASOURCE_USERNAME: test
+          SPRING_DATASOURCE_PASSWORD: test
+
+      - name: E2E tests
+        run: npx nx e2e web-e2e
+
+      - name: Fix CI issues
+        run: npx nx fix-ci
+        if: failure()
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
         if: always()
+        with:
+          name: test-results
+          path: |
+            apps/web/test-results/
+            **/build/reports/tests/
+          retention-days: 7
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            apps/web/coverage/
+            **/build/reports/jacoco/
+          retention-days: 7
