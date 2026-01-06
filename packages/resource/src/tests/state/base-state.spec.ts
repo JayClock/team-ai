@@ -6,6 +6,7 @@ import { ClientInstance } from '../../lib/client-instance.js';
 import { Form } from '../../lib/form/form.js';
 import { StateCollection } from '../../lib/state/state-collection.js';
 import { Entity } from '../../lib/index.js';
+import { SafeAny } from '../../lib/archtype/safe-any.js';
 
 const mockClient = {
   bookmarkUri: 'https://example.com/',
@@ -312,10 +313,9 @@ describe('BaseState', () => {
     it('should call client.go with the correct link and forms', () => {
       state.follow('edit');
 
-      expect(mockClient.go).toHaveBeenCalledWith(
-        mockLinks.get('edit'),
-        [mockForms[0]],
-      );
+      expect(mockClient.go).toHaveBeenCalledWith(mockLinks.get('edit'), [
+        mockForms[0],
+      ]);
     });
 
     it('should throw error if link does not exist', () => {
@@ -355,7 +355,7 @@ describe('BaseState', () => {
           new BaseState<CollectionEntity>({
             client: mockClient,
             data: { id: '1' },
-            links: mockLinks,
+            links: mockLinks as SafeAny,
             headers: mockHeaders,
             currentLink: {
               rel: 'item',
@@ -395,50 +395,35 @@ describe('BaseState', () => {
         collectionState.follow('self');
 
         const expectedLink = { ...collectionLinks.get('self')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(
-          expectedLink,
-          [],
-        );
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should replace rel with currentLink.rel for "first" when collection has items', () => {
         collectionState.follow('first');
 
         const expectedLink = { ...collectionLinks.get('first')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(
-          expectedLink,
-          [],
-        );
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should replace rel with currentLink.rel for "last" when collection has items', () => {
         collectionState.follow('last');
 
         const expectedLink = { ...collectionLinks.get('last')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(
-          expectedLink,
-          [],
-        );
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should replace rel with currentLink.rel for "prev" when collection has items', () => {
         collectionState.follow('prev');
 
         const expectedLink = { ...collectionLinks.get('prev')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(
-          expectedLink,
-          [],
-        );
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should replace rel with currentLink.rel for "next" when collection has items', () => {
         collectionState.follow('next');
 
         const expectedLink = { ...collectionLinks.get('next')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(
-          expectedLink,
-          [],
-        );
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should not replace rel for non-pagination links even when collection has items', () => {
