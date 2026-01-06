@@ -198,7 +198,7 @@ export class ClientInstance implements Client {
    * receive 'stale' events, but 'delete' events instead.
    */
   clearResourceCache(staleUris: string[], deletedUris: string[]) {
-    let stale = new Set<string>();
+    const stale = new Set<string>();
     const deleted = new Set<string>();
     for (const uri of staleUris) {
       stale.add(resolve(this.bookmarkUri, uri));

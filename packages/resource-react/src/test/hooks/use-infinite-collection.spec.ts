@@ -189,7 +189,7 @@ describe('useInfiniteCollection', () => {
 
     const consoleWarnSpy = vi
       .spyOn(console, 'warn')
-      .mockImplementation(() => {});
+      .mockImplementation(() => { /* empty */ });
 
     const { result } = await setupHookWithLoading(mockResource);
 
@@ -217,7 +217,7 @@ describe('useInfiniteCollection', () => {
 
     const consoleWarnSpy = vi
       .spyOn(console, 'warn')
-      .mockImplementation(() => {});
+      .mockImplementation(() => { /* empty */ });
 
     const { result } = await setupHookWithLoading(mockResource);
 
