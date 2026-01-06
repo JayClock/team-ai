@@ -9,6 +9,7 @@ allprojects {
 
     repositories {
         mavenLocal()
+        maven { url 'https://maven.aliyun.com/repository/public/' }
         mavenCentral()
         maven { url 'https://repo.spring.io/milestone' }
         maven { url 'https://repo.spring.io/snapshot' }
@@ -29,7 +30,7 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom 'org.springframework.boot:spring-boot-dependencies:3.4.8'
+            mavenBom 'org.springframework.boot:spring-boot-dependencies:3.5.9'
         }
     }
 
