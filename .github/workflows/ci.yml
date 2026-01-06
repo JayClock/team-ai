@@ -21,6 +21,10 @@ env:
 jobs:
   main:
     runs-on: ubuntu-latest
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
+      SPRING_DATASOURCE_USERNAME: test
+      SPRING_DATASOURCE_PASSWORD: test
     services:
       postgres:
         image: postgres:15-alpine
@@ -100,21 +104,11 @@ jobs:
       - name: Type check
         run: npx nx run-many -t typecheck --parallel=true
 
-      - name: Build Java backend
-        run: npx nx gradle build :apps:server
-
-      - name: Build frontend
+      - name: Build all projects
         run: npx nx run-many -t build --parallel=true
 
-      - name: Unit tests
+      - name: Run all tests
         run: npx nx run-many -t test --parallel=true
-
-      - name: Java integration tests
-        run: npx nx gradle test :apps:server
-        env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/testdb
-          SPRING_DATASOURCE_USERNAME: test
-          SPRING_DATASOURCE_PASSWORD: test
 
       - name: E2E tests
         run: npx nx e2e web-e2e
