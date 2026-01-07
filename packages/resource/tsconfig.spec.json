@@ -13,7 +13,8 @@
     "moduleResolution": "nodenext",
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "baseUrl": "."
   },
   "include": [
     "vite.config.ts",
@@ -29,6 +30,8 @@
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
     "src/**/*.d.ts",
+    "src/tests/**/*",
+    "src/**/*.json"
   ],
   "references": [
     {
