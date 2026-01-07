@@ -11,11 +11,6 @@
     },
     "./package.json": "./package.json"
   },
-  "nx": {
-    "tags": [
-      "tech:frontend"
-    ]
-  },
   "dependencies": {
     "@hateoas-ts/resource": "workspace:*",
     "@hateoas-ts/resource-react": "workspace:*",

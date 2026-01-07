@@ -13,8 +13,7 @@
   "nx": {
     "projectType": "application",
     "tags": [
-      "type:app",
-      "tech:frontend"
+      "type:app"
     ],
     "targets": {
       "dev": {
