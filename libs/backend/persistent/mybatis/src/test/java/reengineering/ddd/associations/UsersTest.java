@@ -4,17 +4,17 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
-import reengineering.ddd.BaseTestContainersTest;
+import org.springframework.context.annotation.Import;
+import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.*;
 
 @MybatisTest
-public class UsersTest extends BaseTestContainersTest {
+@Import(TestContainerConfig.class)
+public class UsersTest {
   @Inject
   private Users users;
   private User user;

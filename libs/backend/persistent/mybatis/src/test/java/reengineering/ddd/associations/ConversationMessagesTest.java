@@ -4,8 +4,9 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import reengineering.ddd.BaseTestContainersTest;
+import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.description.UserDescription;
@@ -17,7 +18,8 @@ import reengineering.ddd.teamai.mybatis.associations.Users;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @MybatisTest
-public class ConversationMessagesTest extends BaseTestContainersTest {
+@Import(TestContainerConfig.class)
+public class ConversationMessagesTest {
   @Inject
   private Users users;
   @MockitoBean

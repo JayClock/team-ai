@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import org.springframework.context.annotation.Import;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -14,9 +15,9 @@ import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
+import reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper;
 import reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper;
 import reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper;
-import reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper;
 import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
 
 import java.util.Random;
@@ -24,7 +25,8 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @MybatisTest
-public class ModelMapperTest extends BaseTestContainersTest {
+@Import(TestContainerConfig.class)
+public class ModelMapperTest {
   @Inject
   private TestDataMapper testData;
 

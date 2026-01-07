@@ -4,29 +4,29 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
-import reengineering.ddd.BaseTestContainersTest;
+import org.springframework.context.annotation.Import;
+import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.UserDescription;
-import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @MybatisTest
-public class UserAccountsTest extends BaseTestContainersTest {
-    @Inject
-    private Users users;
+@Import(TestContainerConfig.class)
+public class UserAccountsTest {
+  @Inject
+  private Users users;
 
-    private User user;
+  private User user;
 
-    @BeforeEach
-    public void setUp() {
-        user = users.createUser(new UserDescription("john.smith", "john.smith@email.com"));
-        user.add(new AccountDescription("github", "github01"));
-    }
+  @BeforeEach
+  public void setUp() {
+    user = users.createUser(new UserDescription("john.smith", "john.smith@email.com"));
+    user.add(new AccountDescription("github", "github01"));
+  }
 
   @Test
   public void should_get_accounts_association_of_user() {
@@ -47,8 +47,8 @@ public class UserAccountsTest extends BaseTestContainersTest {
     assertEquals(identity, cachedAccount.getIdentity());
   }
 
-    @Test
-    public void should_not_find_account_by_user_and_id_if_not_exist() {
-        assertTrue(user.accounts().findByIdentity("-1").isEmpty());
-    }
+  @Test
+  public void should_not_find_account_by_user_and_id_if_not_exist() {
+    assertTrue(user.accounts().findByIdentity("-1").isEmpty());
+  }
 }
