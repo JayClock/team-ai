@@ -61,5 +61,6 @@ export default defineConfig(() => ({
       provider: 'v8' as const,
       include: ['src/**/*.{ts,tsx,js,jsx}'],
     },
+    passWithNoTests: true,
   },
 }));
