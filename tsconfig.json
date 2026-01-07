@@ -20,6 +20,9 @@
     },
     {
       "path": "./libs/frontend/features/conversation-messages"
+    },
+    {
+      "path": "./libs/frontend/shared/ui"
     }
   ]
 }

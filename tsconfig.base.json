@@ -18,6 +18,10 @@
     "target": "es2022",
     "customConditions": ["team-ai"],
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@shared/ui": ["libs/frontend/shared/ui/src/index.ts"],
+      "@shared/ui/*": ["libs/frontend/shared/ui/src/*"]
+    }
   }
 }
