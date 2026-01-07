@@ -1,24 +1,28 @@
 package reengineering.ddd.infrastructure.security.config;
 
 import jakarta.inject.Inject;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.config.Customizer;
+import org.springframework.lang.NonNull;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
-import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.OncePerRequestFilter;
 import reengineering.ddd.infrastructure.security.oauth2.OAuth2UserService;
 
 import java.io.IOException;
@@ -68,6 +72,15 @@ public class SecurityConfig {
       .authorizeHttpRequests(auth -> auth
         .anyRequest().permitAll()
       )
+      .addFilterBefore(new OncePerRequestFilter() {
+        @Override
+        protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain) throws ServletException, IOException {
+          SecurityContext context = SecurityContextHolder.createEmptyContext();
+          context.setAuthentication(new UsernamePasswordAuthenticationToken("1", "N/A", List.of(new SimpleGrantedAuthority("ROLE_USER"))));
+          SecurityContextHolder.setContext(context);
+          filterChain.doFilter(request, response);
+        }
+      }, AnonymousAuthenticationFilter.class)
       .csrf(AbstractHttpConfigurer::disable)
       .headers(headers -> headers
         .cacheControl(HeadersConfigurer.CacheControlConfig::disable)
