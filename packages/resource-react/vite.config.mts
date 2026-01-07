@@ -10,7 +10,14 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     dts({
-      entryRoot: 'src',
+      insertTypesEntry: true,
+      exclude: [
+        '**/*.test.ts',
+        '**/*.spec.ts',
+        '**/*.test.tsx',
+        '**/*.spec.tsx',
+        'src/test',
+      ],
       tsconfigPath: path.join(import.meta.dirname, 'tsconfig.lib.json'),
     }),
   ],
@@ -31,16 +38,37 @@ export default defineConfig(() => ({
       // Could also be a dictionary or array of multiple entry points.
       entry: 'src/index.ts',
       name: '@hateoas-ts/resource-react',
-      fileName: 'index',
+      fileName: (format) => `index.${format}.js`,
       // Change this to the formats you want to support.
       // Don't forget to update your package.json as well.
-      formats: ['es' as const],
+      formats: ['es', 'cjs'],
     },
     rollupOptions: {
       // External packages that should not be bundled into your library.
-      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      external: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        '@hateoas-ts/resource',
+      ],
+      output: {
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM',
+          '@hateoas-ts/resource': 'HateoasResource',
+        },
+      },
     },
     sourcemap: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log'],
+      },
+    },
+    target: 'es2020',
   },
   test: {
     name: '@hateoas-ts/resource-react',
