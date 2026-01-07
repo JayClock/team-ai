@@ -1,14 +1,8 @@
 import { Conversation } from '@shared/schema';
 import { State, useInfiniteCollection } from '@hateoas-ts/resource-react';
-import { useMemo, useState } from 'react';
-import { Bubble, Sender } from '@ant-design/x';
-import {
-  CustomChatProvider,
-  CustomInput,
-  CustomMessage,
-  CustomOutput,
-} from './custom-chat-provider';
-import { DefaultMessageInfo, useXChat, XRequest } from '@ant-design/x-sdk';
+import { useMemo } from 'react';
+import { UIMessage, useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 
 export function ConversationMessages(props: {
   conversationState?: State<Conversation>;
@@ -62,20 +56,12 @@ function ConversationMessagesInner(props: {
     conversationState.follow('messages'),
   );
 
-  const [provider] = useState(
-    new CustomChatProvider<CustomMessage, CustomInput, CustomOutput>({
-      request: XRequest(conversationState.getLink('send-message')?.href || '', {
-        manual: true,
-      }),
-    }),
-  );
-
-  const defaultMessages: DefaultMessageInfo<CustomMessage>[] = useMemo(() => {
+  const defaultMessages: UIMessage[] = useMemo(() => {
     if (!loading) {
       return messagesCollections.map((message) => ({
         id: message.data.id,
-        message: { role: message.data.role, content: message.data.content },
-        status: 'success',
+        role: message.data.role,
+        parts: [{ type: 'text', text: message.data.content }],
       }));
     }
     return [];
@@ -87,7 +73,7 @@ function ConversationMessagesInner(props: {
   return (
     <MessageList
       defaultMessages={defaultMessages}
-      provider={provider}
+      conversationState={conversationState}
     ></MessageList>
   );
 }
@@ -95,44 +81,27 @@ function ConversationMessagesInner(props: {
 export default ConversationMessages;
 
 function MessageList(props: {
-  defaultMessages: DefaultMessageInfo<CustomMessage>[];
-  provider: CustomChatProvider<CustomMessage, CustomInput, CustomOutput>;
+  defaultMessages: UIMessage[];
+  conversationState: State<Conversation>;
 }) {
-  const { defaultMessages, provider } = props;
-
-  const [content, setContent] = useState('');
-
-  const { messages, onRequest } = useXChat({
-    provider,
-    defaultMessages,
+  const { defaultMessages, conversationState } = props;
+  const { messages } = useChat({
+    transport: new DefaultChatTransport({
+      api: conversationState.getLink('send-message')?.href,
+    }),
+    messages: defaultMessages,
   });
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 overflow-auto px-6 py-4">
-        <Bubble.List
-          items={messages.map(({ id, message, status }) => ({
-            key: id,
-            loading: status === 'loading',
-            role: message.role,
-            content: message.content,
-            placement: message.role === 'user' ? 'end' : 'start',
-          }))}
-        />
-      </div>
-      <div className="border-t border-gray-100 bg-gray-50 px-6 py-4">
-        <Sender
-          value={content}
-          onChange={setContent}
-          onSubmit={(nextContent) => {
-            onRequest({
-              content: nextContent,
-              role: 'user',
-            });
-            setContent('');
-          }}
-        />
-      </div>
+    <div>
+      {messages.map((message) => (
+        <div key={message.id}>
+          {message.role === 'user' ? 'User: ' : 'AI: '}
+          {message.parts.map((part, index) =>
+            part.type === 'text' ? <span key={index}>{part.text}</span> : null,
+          )}
+        </div>
+      ))}
     </div>
   );
 }
