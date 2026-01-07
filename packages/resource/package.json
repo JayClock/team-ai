@@ -23,6 +23,11 @@
     "url": "https://github.com/JayClock/team-ai.git",
     "directory": "packages/resource"
   },
+  "nx": {
+    "tags": [
+      "tech:frontend"
+    ]
+  },
   "publishConfig": {
     "access": "public"
   },
