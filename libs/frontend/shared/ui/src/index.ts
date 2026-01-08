@@ -1,7 +1,16 @@
 export * from './components/ai-elements/conversation';
 export * from './components/ai-elements/message';
+export * from './components/ai-elements/prompt-input';
 
 export * from './components/button';
 export * from './components/button-group';
+export * from './components/command';
+export * from './components/dialog';
+export * from './components/dropdown-menu';
+export * from './components/hover-card';
+export * from './components/input';
+export * from './components/input-group';
+export * from './components/select';
 export * from './components/separator';
+export * from './components/textarea';
 export * from './components/tooltip';
