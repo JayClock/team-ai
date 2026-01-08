@@ -3,6 +3,7 @@ import { State, useInfiniteCollection } from '@hateoas-ts/resource-react';
 import { useMemo } from 'react';
 import { UIMessage, useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
+import { Message, MessageContent, MessageResponse } from '@shared/ui';
 
 export function ConversationMessages(props: {
   conversationState?: State<Conversation>;
@@ -95,12 +96,22 @@ function MessageList(props: {
   return (
     <div>
       {messages.map((message) => (
-        <div key={message.id}>
-          {message.role === 'user' ? 'User: ' : 'AI: '}
-          {message.parts.map((part, index) =>
-            part.type === 'text' ? <span key={index}>{part.text}</span> : null,
-          )}
-        </div>
+        <Message from={message.role} key={message.id}>
+          <MessageContent>
+            {message.parts.map((part, i) => {
+              switch (part.type) {
+                case 'text': // we don't use any reasoning or tool calls in this example
+                  return (
+                    <MessageResponse key={`${message.id}-${i}`}>
+                      {part.text}
+                    </MessageResponse>
+                  );
+                default:
+                  return null;
+              }
+            })}
+          </MessageContent>
+        </Message>
       ))}
     </div>
   );
