@@ -194,10 +194,31 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    *
    * This function will return the response as a State object.
    */
-  async post(options: PostRequestOptions): Promise<State> {
-    const response = await this.fetchOrThrow(
-      this.optionsToRequestInit('POST', options),
-    );
+  async post(options: PostRequestOptions, dedup = false): Promise<State> {
+    const requestInit = this.optionsToRequestInit('POST', options);
+
+    if (dedup) {
+      const hash = this.requestHash(this.uri, options);
+
+      if (!this.activeRefresh.has(hash)) {
+        this.activeRefresh.set(
+          hash,
+          (async (): Promise<State> => {
+            try {
+              const response = await this.fetchOrThrow(requestInit);
+              return this.client.getStateForResponse(this.link, response);
+            } finally {
+              this.activeRefresh.delete(hash);
+            }
+          })(),
+        );
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      return await this.activeRefresh.get(hash)!;
+    }
+
+    const response = await this.fetchOrThrow(requestInit);
 
     return this.client.getStateForResponse(this.link, response);
   }
@@ -273,12 +294,13 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * - getForm: Gets the form definition for POST requests
    * - request: Executes the POST request with the provided options
    */
-  withPost() {
+  withPost(options?: { dedup?: boolean }) {
     return {
       getForm: async () => {
         return this.forms.find((form) => form.method === 'POST');
       },
-      request: (postOptions: PostRequestOptions) => this.post(postOptions),
+      request: (postOptions: PostRequestOptions) =>
+        this.post(postOptions, options?.dedup),
     };
   }
 
@@ -364,7 +386,20 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
       })
       .join(',');
 
-    return uri + '|' + headerStr;
+    let bodyStr = '';
+    if (requestOptions?.data) {
+      if (typeof requestOptions.data === 'string') {
+        bodyStr = requestOptions.data;
+      } else if (requestOptions.serializeBody) {
+        const serialized = requestOptions.serializeBody();
+        bodyStr =
+          typeof serialized === 'string' ? serialized : serialized.toString();
+      } else {
+        bodyStr = JSON.stringify(requestOptions.data);
+      }
+    }
+
+    return uri + '|' + headerStr + '|' + bodyStr;
   }
 }
 
