@@ -22,8 +22,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
+import reengineering.ddd.infrastructure.security.filter.RedirectUrlCookieFilter;
 import reengineering.ddd.infrastructure.security.jwt.JwtAuthenticationFilter;
 import reengineering.ddd.infrastructure.security.jwt.JwtUtil;
 import reengineering.ddd.infrastructure.security.oauth2.OAuth2UserService;
@@ -36,6 +38,7 @@ import java.util.List;
 public class SecurityConfig {
   private static final String AUTH_TRANSPORT_COOKIE = "auth_transport";
   private static final int COOKIE_MAX_AGE_SECONDS = 30;
+  private static final String DEFAULT_REDIRECT_URI = "/";
 
   private final OAuth2UserService oAuth2UserService;
   private final JwtUtil jwtUtil;
@@ -80,9 +83,26 @@ public class SecurityConfig {
           tokenCookie.setHttpOnly(false);
 
           response.addCookie(tokenCookie);
-          response.sendRedirect("/auth/callback");
+
+          String targetUrl = DEFAULT_REDIRECT_URI;
+          Cookie[] cookies = request.getCookies();
+          if (cookies != null) {
+            for (Cookie cookie : cookies) {
+              if (RedirectUrlCookieFilter.REDIRECT_URI_COOKIE.equals(cookie.getName())) {
+                targetUrl = cookie.getValue();
+                cookie.setValue("");
+                cookie.setPath("/");
+                cookie.setMaxAge(0);
+                response.addCookie(cookie);
+                break;
+              }
+            }
+          }
+
+          response.sendRedirect(targetUrl);
         })
       )
+      .addFilterBefore(new RedirectUrlCookieFilter(), OAuth2AuthorizationRequestRedirectFilter.class)
       .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
       .headers(headers -> headers
         .cacheControl(HeadersConfigurer.CacheControlConfig::disable)

@@ -16,7 +16,6 @@ public class RootModel extends RepresentationModel<RootModel> {
 
     model.add(Link.of(uriInfo.getRequestUri().getPath()).withSelfRel());
     model.add(Link.of("/oauth2/authorization/github", "login"));
-    model.add(Link.of("/auth/callback", "login-callback"));
 
     return model;
   }
