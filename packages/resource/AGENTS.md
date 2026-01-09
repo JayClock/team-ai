@@ -30,10 +30,11 @@ packages/resource/src/lib/
 ## CONVENTIONS
 
 - **Resource Navigation**: Use `follow('rel-name')` for semantic navigation, never hardcoded URLs
+- **State Factories**: HAL (JSON), Binary (blobs), Stream (response.body) - auto-selected by Content-Type
 - **State Management**: State objects are immutable - use `clone()` for modifications
 - **Cache Strategy**: Default ForeverCache for static data, ShortCache (30s TTL) for dynamic data
-- **Middleware Pipeline**: Use `client.use(middleware, origin)` for cross-cutting concerns
-- **Event-Driven**: Resource extends EventEmitter - listen to 'update', 'stale', 'delete' events
+- **Middleware Pipeline**: Use `client.use(middleware, origin)` for cross-cutting concerns (auth, logging)
+- **Event-Driven**: Resource extends EventEmitter - listen to 'update' (state change), 'stale' (cache invalidation), 'delete' events
 - **Dependency Injection**: Inversify container with singleton-scoped services
 - **Type Safety**: Entity types define data shape and link relationships at compile time
 

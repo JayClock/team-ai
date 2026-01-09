@@ -1,54 +1,50 @@
 # TEAM AI API MODULE
 
-**Generated:** 2026-01-06
-**Module:** HATEOAS REST API Layer (Java Spring Boot)
+**Generated:** 2026-01-09
+**Module:** HATEOAS REST API Layer (Jersey JAX-RS + HAL)
 
 ## OVERVIEW
 
-HATEOAS REST API layer implementing zero-copy wrapper pattern with Richardson Maturity Level 3 compliance.
+HATEOAS REST API layer using Jersey JAX-RS with zero-copy wrappers and Spring HATEOAS HAL configuration.
 
 ## STRUCTURE
 
 ```
 libs/backend/api/src/main/java/reengineering/ddd/teamai/api/
-├── representation/          # HATEOAS resource models (zero-copy wrappers)
-│   ├── UserModel.java      # User resource with dynamic links
-│   ├── ConversationModel.java
-│   ├── MessageModel.java
-│   └── AccountModel.java
-├── ApiTemplates.java       # URI template builders for link generation
-├── Pagination.java         # Collection pagination with HAL support
-├── *Api.java              # REST controllers (UsersApi, UserApi, ConversationsApi)
-└── RootApi.java           # API entry point with auth context
+├── representation/          # Zero-copy resource models
+├── ApiTemplates.java       # UriTemplate builders (no hardcoded URLs)
+├── Pagination.java         # PagedModel with HAL metadata
+├── *Api.java              # JAX-RS resources (@Path, not @RestController)
+└── config/HAL.java         # Jackson2HalModule registration
 ```
 
 ## WHERE TO LOOK
 
-| Task             | Location                     | Notes                                          |
-| ---------------- | ---------------------------- | ---------------------------------------------- |
-| Resource models  | `representation/*Model.java` | Zero-copy wrappers, extend RepresentationModel |
-| Link generation  | `ApiTemplates.java`          | UriTemplate builders for HATEOAS links         |
-| REST controllers | `*Api.java`                  | JAX-RS resources with HAL responses            |
-| Pagination       | `Pagination.java`            | CollectionModel with \_links metadata          |
+| Task            | Location                     | Notes                                      |
+| --------------- | ---------------------------- | ------------------------------------------ |
+| Resource models | `representation/*Model.java` | Zero-copy wrappers, entity references only |
+| Link generation | `ApiTemplates.java`          | UriTemplate.build() semantic URLs          |
+| REST endpoints  | `*Api.java`                  | Jersey @Path, @GET, @PathParam             |
+| HAL config      | `config/HAL.java`            | Jackson2HalModule registration             |
+| Affordances     | `UserModel.java` constructor | `.afford(HttpMethod.*)` HTTP hints         |
 
 ## CONVENTIONS
 
 ### Zero-Copy Wrapper Pattern
 
-- **Resource Models**: Extend `RepresentationModel<T>`, hold entity references (no DTO copying)
-- **Dynamic Links**: Generate from domain relationships via `ApiTemplates`
-- **Affordances**: HTTP method declarations via `Affordances.of(link).afford(HttpMethod.*)`
+Resource models extend `RepresentationModel<T>`, hold entity references (no DTO copying). Generate dynamic links from domain relationships via `ApiTemplates`. Declare HTTP methods via `Affordances.of(link).afford(HttpMethod.*)`.
 
-### HATEOAS Response Structure
+### Jersey JAX-RS (Not Spring MVC)
 
-- **\_links**: Self-rel + navigation rels (accounts, conversations, messages)
-- **\_embedded**: Collections use `CollectionModel<T>` with pagination metadata
-- **Templates**: Create operations expose input types via `.withInput(RequestBody.class)`
+Use JAX-RS `@Path`, `@GET`, `@POST`, `@PathParam` (never `@RestController`). Use `@Inject` from `jakarta.inject` (never `@Autowired`). Sub-resources delegate via `ResourceContext.initResource()`.
 
-### Link Generation
+### HAL + Affordances
+
+Register `Jackson2HalModule` + `Jackson2HalFormsModule` in `config/HAL.java`. Affordance: `Affordances.of(link).afford(HttpMethod.POST).withInput(Class)`. Use `@Relation(collectionRelation = "conversations")` for collections.
+
+### Link Generation (No Hardcoded URLs)
 
 ```java
-// Template-based link building
 ApiTemplates.user(uriInfo).build(userId)           // /users/{id}
 ApiTemplates.conversations(uriInfo).build(userId)   // /users/{id}/conversations
 ApiTemplates.messages(uriInfo).build(userId, convId) // /users/{id}/conversations/{id}/messages
@@ -66,6 +62,11 @@ ApiTemplates.messages(uriInfo).build(userId, convId) // /users/{id}/conversation
 - Never: Manual URL building (`"/users/" + id`)
 - Always: Use `ApiTemplates` for semantic link generation
 
+❌ **Spring MVC Controllers**
+
+- Never: Use `@RestController`, `@GetMapping`, `@RequestMapping`
+- Always: Use Jersey JAX-RS: `@Path`, `@GET`, `@PathParam`, `@POST`
+
 ❌ **Missing Affordances**
 
 - Never: Return plain `_links` without HTTP method hints
@@ -74,16 +75,4 @@ ApiTemplates.messages(uriInfo).build(userId, convId) // /users/{id}/conversation
 ❌ **Bypassing Domain Relationships**
 
 - Never: Generate links unrelated to domain model structure
-- Always: Links must map 1:1 to domain associations (`user.conversations()` → `rel="conversations"`)
-
-### Resource Model Naming
-
-- Entity → Resource: `User` → `UserModel`, `Conversation` → `ConversationModel`
-- Collection Relations: Use `@Relation(collectionRelation = "conversations")`
-- JSON Properties: `@JsonProperty("id")` for identity, `@JsonUnwrapped` for descriptions
-
-### Controller Patterns
-
-- **Sub-resource delegation**: `@Path("accounts") public AccountsApi accounts()`
-- **Caching**: `@Cacheable(value = "users", key = "#root.target.user.getIdentity()")`
-- **Error handling**: `orElseThrow(() -> new WebApplicationException(NOT_FOUND))`
+- Always: Links must map 1:1 to domain associations

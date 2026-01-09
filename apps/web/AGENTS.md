@@ -35,80 +35,20 @@ apps/web/src/
 
 ## CONVENTIONS
 
-### Project-Specific Patterns
+**Application Bootstrap:** `main.tsx` wraps app with `XProvider` → `ResourceProvider` → `BrowserRouter`
 
-**Application Setup:**
+**HATEOAS Client:** Configured with auth middleware and credentials in `lib/api-client.ts`
 
-- **Entry Point:** `main.tsx` wraps app with `XProvider` → `ResourceProvider` → `BrowserRouter`
-- **HATEOAS Client:** Uses `@hateoas-ts/resource` with auth/credentials middleware
-- **Vite Proxy:** `/api` routes proxy to `http://localhost:8080` (backend)
+**Vite Proxy:** `/api` routes proxy to `http://localhost:8080` (backend server)
 
-**Routing Structure:**
-
-- **Protected Routes:** All routes except `/login` wrapped in `ProtectedRoute`
-- **Layout Pattern:** `AppLayout` accepts `headerContent`, `rightContent`, and children
-- **Feature Mapping:** `AppRoutes` orchestrates feature components via HATEOAS navigation
-
-**Component Usage:**
-
-- **Ant Design:** Primary UI component library (Layout, Menu, etc.)
-- **Tailwind CSS:** Utility-first styling for layout and spacing
-- **Feature Modules:** Consume `@features/*` packages for business logic
-
-**HATEOAS Integration:**
-
-- **Resource Provider:** Global context for HATEOAS client
-- **Navigation:** Use `resource.follow('rel-name')` for semantic navigation
-- **State Management:** React hooks (`useResource`) for HATEOAS resources
+**Feature Consumption:** Routes map to feature modules in `libs/frontend/features/` via HATEOAS navigation
 
 ## ANTI-PATTERNS (FORBIDDEN)
 
-### Forbidden Practices
+❌ **Direct API Calls:** Never use `fetch` or `axios` directly - always use HATEOAS client
 
-❌ **Direct API Calls Without HATEOAS**
+❌ **Hardcoded URLs:** Never construct URLs manually - always navigate via `resource.follow('rel-name')`
 
-- Never: Use `fetch` or `axios` directly for API calls
-- Always: Use HATEOAS client with `resource.follow()` semantic navigation
+❌ **Bypassing ResourceProvider:** Never create HATEOAS clients outside provider context
 
-❌ **Hardcoded URL Navigation**
-
-- Never: Manual URL construction (`/api/users/123/conversations`)
-- Always: Use HATEOAS semantic links from resources
-
-❌ **Bypassing Resource Provider**
-
-- Never: Create HATEOAS clients outside provider context
-- Always: Use global `apiClient` from `lib/api-client.ts`
-
-❌ **Mixing Styling Approaches**
-
-- Never: Mix inline styles with Tailwind utilities
-- Always: Use Tailwind classes, Ant Design components for structured UI
-
-### Strict Conventions
-
-**File Organization:**
-
-- Feature modules in `src/features/feature-name/` pattern
-- Shared configuration in `src/config/`
-- Core setup (`main.tsx`, `App.tsx`) at `src/` root
-
-**Component Patterns:**
-
-- Use TypeScript interfaces for props
-- Follow Ant Design theming conventions
-- Apply Tailwind utility classes consistently
-
-**HATEOAS Usage:**
-
-- Always use `useResource` hook for resource state
-- Handle loading/error states from HATEOAS client
-- Follow semantic navigation patterns
-
-## KEY FILES
-
-- `src/main.tsx` - Application bootstrap with providers
-- `src/lib/api-client.ts` - HATEOAS client configuration with middleware
-- `src/routes/AppRoutes.tsx` - Route-to-feature mapping and layout
-- `src/features/layout/AppLayout.tsx` - Main layout structure
-- `vite.config.ts` - Development proxy to backend server
+❌ **Mixed Styling:** Never mix inline styles with Tailwind utilities

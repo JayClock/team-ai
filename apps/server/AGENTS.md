@@ -1,6 +1,6 @@
 # TEAM AI SERVER KNOWLEDGE BASE
 
-**Generated:** 2026-01-06
+**Generated:** 2026-01-09
 **Workspace:** Spring Boot 3.4.8 (Java 17)
 **Core Architecture:** Smart Domain DDD + HATEOAS + Jersey JAX-RS
 
@@ -37,30 +37,26 @@ apps/server/
 
 ## CONVENTIONS
 
-### Project-Specific (Deviations from Standard)
-
-**Spring Boot Integration:**
+### Spring Boot Integration
 
 - **Custom scanning:** `scanBasePackageClasses` includes SecurityConfig and OAuth2UserService
 - **JAX-RS over MVC:** Jersey with Spring DI, not Spring MVC controllers
 - **HAL configuration:** Jackson2HalModule + Jackson2HalFormsModule auto-registered
 - **Resource registration:** API classes registered in Jersey constructor
 
-**Domain Integration:**
+### Domain Integration
 
 - **Zero-copy wrappers:** HATEOAS ResourceModels hold entity references, not DTO copies
 - **Association Objects:** Domain services expose HasMany interfaces, not collections
 - **Service injection:** Domain services injected via Spring DI into Jersey resources
 
-**Configuration Patterns:**
+### Configuration Patterns
 
 - **Multi-environment:** application.yml + application-{env}.yml profiles
 - **Caffeine caching:** 1000 entries, 10-minute expiration
 - **ETag filtering:** ShallowEtagHeaderFilter excludes SSE endpoints
 
-## ANTI-PATTERNS (THIS PROJECT)
-
-### Forbidden Patterns
+## ANTI-PATTERNS (FORBIDDEN)
 
 ❌ **Direct Database Access Bypassing Domain**
 

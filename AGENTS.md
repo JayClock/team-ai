@@ -1,15 +1,16 @@
 # TEAM AI PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-01-06
-**Workspace:** Nx monorepo (Java + TypeScript)
-**Core Architecture:** Smart Domain DDD + HATEOAS
+**Generated:** 2026-01-09
+**Updated:** Hybrid Nx + Gradle monorepo (Java 17 + TypeScript)
+**Core Architecture:** Smart Domain DDD + HATEOAS RESTful APIs
+**Scale:** 203 source files (TS/Java), 12,874 lines of code
 
 ## OVERVIEW
 
-Team AI implements a **Smart Domain DDD** architecture with HATEOAS RESTful APIs. The project demonstrates how to overcome traditional architectural bottlenecks (N+1 queries, model purity vs. performance) through intelligent domain modeling and progressive disclosure patterns.
+Team AI demonstrates Smart Domain DDD architecture solving traditional DDD bottlenecks (N+1 queries, model purity vs. performance) through Association Objects and progressive disclosure HATEOAS APIs.
 
-- **Backend:** Java 17 + Spring Boot 3.4.8 + MyBatis + PostgreSQL
-- **Frontend:** React 19 + TypeScript + Vite + Ant Design + Tailwind
+- **Backend:** Java 17 + Spring Boot 3.5.9 + MyBatis + PostgreSQL + Jersey JAX-RS
+- **Frontend:** React 19 + TypeScript + Vite + Ant Design + Tailwind CSS
 - **Architecture:** Smart Domain with Association Objects, HATEOAS Level 3, Zero-Copy Wrappers
 
 ## STRUCTURE
@@ -18,19 +19,19 @@ Team AI implements a **Smart Domain DDD** architecture with HATEOAS RESTful APIs
 team-ai/
 ├── apps/                    # Applications
 │   ├── server/             # Spring Boot backend (Smart Domain DDD)
-│   └── web/                # React frontend (Vite)
-├── libs/backend/             # Backend libraries
-│   ├── domain/             # Core domain entities & business logic
-│   ├── api/                # HATEOAS REST API layer
-│   ├── persistent/mybatis/  # Database persistence (PostgreSQL)
-│   └── infrastructure/     # Spring AI, Spring Security
-├── packages/               # Frontend packages (publishable)
-│   ├── resource/           # HATEOAS TypeScript client library
-│   └── resource-react/     # React integration hooks
-├── libs/frontend/            # Frontend libraries (internal)
-│   ├── features/           # Feature modules (conversations, messages)
-│   └── shared/             # Shared schema definitions
-└── docs/                   # Documentation
+│   └── web/                # React frontend (Vite + HATEOAS)
+├── libs/                   # Internal libraries
+│   ├── backend/             # Java backend modules
+│   │   ├── domain/          # Core domain entities & business logic
+│   │   ├── api/             # HATEOAS REST API layer (Jersey JAX-RS)
+│   │   ├── persistent/       # Database persistence (MyBatis + PostgreSQL)
+│   │   └── infrastructure/  # Spring Security, Spring AI
+│   └── frontend/            # TypeScript frontend modules
+│       ├── features/         # Feature modules (conversations, messages)
+│       └── shared/          # Shared UI components and schemas
+└── packages/               # Publishable npm packages
+    ├── resource/            # HATEOAS TypeScript client library
+    └── resource-react/      # React integration hooks
 ```
 
 ## WHERE TO LOOK
@@ -44,6 +45,24 @@ team-ai/
 | Server entry        | `apps/server/src/main/java/reengineering/ddd/Application.java`      | Spring Boot bootstrap              |
 | Web entry           | `apps/web/src/main.tsx`                                             | React with ResourceProvider        |
 | Build config        | `nx.json`, `build.gradle`, `settings.gradle`                        | Hybrid Nx+Gradle                   |
+| Feature modules     | `libs/frontend/features/`                                           | Conversation/message features      |
+| Shared UI           | `libs/frontend/shared/ui/src/`                                      | Ant Design + Tailwind components   |
+
+## CODE MAP
+
+| Symbol                | Type      | Location                                                                             | Refs | Role                 |
+| --------------------- | --------- | ------------------------------------------------------------------------------------ | ---- | -------------------- |
+| Application           | Class     | `apps/server/src/main/java/reengineering/ddd/Application.java`                       | High | Spring Boot entry    |
+| User                  | Entity    | `libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java`         | High | Aggregate root       |
+| Conversation          | Entity    | `libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java` | High | Business context     |
+| Message               | Entity    | `libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Message.java`      | Med  | Conversation content |
+| HasMany               | Interface | `libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/HasMany.java`      | High | Association object   |
+| Resource              | Class     | `packages/resource/src/lib/resource/resource.ts`                                     | High | HATEOAS navigation   |
+| State                 | Interface | `packages/resource/src/lib/state/state.ts`                                           | High | Resource state       |
+| createClient          | Function  | `packages/resource/src/lib/create-client.ts`                                         | Med  | Client factory       |
+| ResourceProvider      | Component | `packages/resource-react/src/lib/provider.tsx`                                       | High | React DI context     |
+| useClient             | Hook      | `packages/resource-react/src/lib/hooks/use-client.ts`                                | High | Client access        |
+| useInfiniteCollection | Hook      | `packages/resource-react/src/lib/hooks/use-infinite-collection.ts`                   | High | Pagination           |
 
 ## CONVENTIONS
 
@@ -54,6 +73,7 @@ team-ai/
 - Nx (TypeScript) + Gradle (Java) orchestrated via custom configuration
 - Custom `settings.gradle` mapping: `project(':backend:domain').projectDir = file('libs/backend/domain')`
 - Nx plugins for both languages: `@nx/js/typescript`, `@nx/gradle`
+- Tests depend on builds: `"test": { "dependsOn": ["^build"] }`
 
 **Smart Domain DDD Patterns:**
 
@@ -66,11 +86,13 @@ team-ai/
 
 - **Strict mode** enabled globally (`tsconfig.base.json`)
 - **Decorators:** Experimental decorators enabled for DI (`emitDecoratorMetadata: true`)
-- **ESLint:** 17 justified violations with inline `// eslint-disable-next-line`
+- **ESLint:** 18 justified violations with inline `// eslint-disable-next-line`
+- **No standalone configs:** Vitest uses Nx plugin, not `vitest.config.js`
 
 **Testing:**
 
 - **Vitest** (not Jest) for all TypeScript projects
+- **TestContainers:** PostgreSQL containers for integration tests (no H2 mocks)
 - **Test organization:** `*.spec.ts` files in `src/tests/` or `src/test/`
 - **Mocking:** MSW (Mock Service Worker) for HTTP tests
 
@@ -79,12 +101,21 @@ team-ai/
 - **Feature modules:** `libs/frontend/features/feature-name/` pattern
 - **HATEOAS navigation:** Use `.follow()` semantic links, never hardcode URLs
 - **State management:** React Context + Preact Signals (reactive state)
+- **UI library:** Ant Design components + Tailwind CSS utilities
 
 **Backend:**
 
 - **Package naming:** `reengineering.ddd.teamai.model` despite project being "team-ai"
 - **Repository pattern:** Domain interfaces in `model/`, implementations in `persistent/mybatis`
+- **JAX-RS over Spring MVC:** Uses Jersey `@Path` instead of `@RestController`
 - **TestContainers:** PostgreSQL containers for integration tests
+
+**Build & CI:**
+
+- **GitHub Actions:** Single job with triple caching (Gradle + Nx + pnpm)
+- **No deployment CI:** CI only, no CD pipeline
+- **Nx Cloud disabled:** Available but commented out
+- **Extended timeouts:** 10-minute Gradle HTTP timeouts configured
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
@@ -111,13 +142,26 @@ team-ai/
 - Never: Copy data from domain to API models
 - Always: Zero-copy wrapper pattern (hold entity references)
 
+❌ **Type Error Suppression**
+
+- Never: `as any`, `@ts-ignore`, `@ts-expect-error` except 1 justified `SafeAny` type
+- Never: Blanket ESLint disables (all 18 have specific inline justification)
+- Always: Follow strict TypeScript mode globally
+
+❌ **Technical Debt Markers**
+
+- Zero TODO/FIXME/HACK comments in production code
+- Zero @deprecated annotations
+- Zero debugger statements
+
 ### Strict Conventions
 
 **TypeScript:**
 
 - No `any` types except in controlled `safe-any.ts` (1 justified violation)
-- All non-null assertions have inline justification (10 violations)
+- All non-null assertions have inline justification (12 violations)
 - Single quotes enforced by Prettier
+- Experimental decorators enabled for Inversify DI
 
 **Nx Monorepo:**
 
@@ -136,7 +180,7 @@ team-ai/
 - Zero TODO/FIXME/HACK comments in production code
 - Zero @deprecated annotations
 - Zero debugger statements
-- No blanket ESLint disables (all 17 have specific justifications)
+- No blanket ESLint disables (all 18 have specific justifications)
 
 ## UNIQUE STYLES
 
@@ -164,6 +208,12 @@ team-ai/
 - Cross-language dependency: Java backend depends on TypeScript build artifacts for specs
 - Feature modules consume shared packages via workspace aliases (`@shared/schema`)
 
+**Build Orchestration:**
+
+- Nx orchestrates both TypeScript and Java builds via `@nx/gradle` plugin
+- Gradle uses `dev.nx.gradle.project-graph` plugin for Nx synchronization
+- Custom module mapping: `:backend:domain` → `libs/backend/domain` (flat structure)
+
 ## COMMANDS
 
 ```bash
@@ -190,10 +240,8 @@ cd apps/server
 ./gradlew test                    # Run backend tests
 ./gradlew build                   # Build backend JAR
 
-# Nx Workspace
-npx nx graph                       # Visualize dependency graph
-npx nx show projects                # List all projects
-npx nx show project web             # Show web app details
+# Database
+docker-compose up -d postgres     # Start PostgreSQL for development
 ```
 
 ## NOTES
@@ -206,7 +254,7 @@ npx nx show project web             # Show web app details
 
 3. **HATEOAS Navigation:** Clients use `resource.follow('rel-name')` for semantic navigation, not URL construction. Links are generated dynamically from domain relationships.
 
-4. **Package Naming:** Java packages use `com.example` (generic) despite project name. This is intentional per `build.gradle` configuration.
+4. **Package Naming:** Java packages use `reengineering.ddd.teamai` despite root package being `com.example`. This is intentional per `build.gradle` configuration.
 
 5. **Experimental Decorators:** TypeScript uses `experimentalDecorators: true` for Inversify DI. This is intentional but adds complexity.
 
