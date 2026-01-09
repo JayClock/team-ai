@@ -1,7 +1,7 @@
 import { Button, Card } from 'antd';
 import { GithubOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useClient, useResource } from '@hateoas-ts/resource-react';
 import { rootResource } from '../../lib/api-client';
 
@@ -9,6 +9,7 @@ export function Login() {
   const client = useClient();
   const [loginHref, setLoginHref] = useState<string>('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   useResource(rootResource);
 
   useEffect(() => {
@@ -27,7 +28,9 @@ export function Login() {
 
   const handleGithubLogin = () => {
     if (loginHref) {
-      window.location.href = loginHref;
+      const returnTo = searchParams.get('return_to') || '/';
+      const redirectParam = encodeURIComponent(returnTo);
+      window.location.href = `${loginHref}?redirect_uri=${redirectParam}`;
     }
   };
 

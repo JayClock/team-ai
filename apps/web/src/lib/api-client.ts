@@ -39,6 +39,12 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
+function buildLoginUrlWithReturnTo(): string {
+  const currentPath = window.location.pathname + window.location.search;
+  const returnTo = encodeURIComponent(currentPath);
+  return `${appConfig.auth.loginPath}?return_to=${returnTo}`;
+}
+
 export const apiClient = createClient({
   baseURL: appConfig.api.baseURL,
   sendUserAgent: false,
@@ -77,7 +83,7 @@ function createAuthMiddleware(): FetchMiddleware {
       window.location.pathname !== appConfig.auth.loginPath
     ) {
       clearToken();
-      window.location.href = appConfig.auth.loginPath;
+      window.location.href = buildLoginUrlWithReturnTo();
     }
 
     return response;
