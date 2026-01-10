@@ -3,6 +3,7 @@ package reengineering.ddd.infrastructure.security.jwt;
 import jakarta.inject.Inject;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
@@ -12,9 +13,11 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import reengineering.ddd.infrastructure.security.config.SecurityConfig;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -34,19 +37,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
 
-        extractTokenFromHeader(request)
+        extractToken(request)
                 .flatMap(jwtUtil::getUserIdFromToken)
                 .ifPresent(this::setAuthentication);
 
         filterChain.doFilter(request, response);
     }
 
-    private java.util.Optional<String> extractTokenFromHeader(HttpServletRequest request) {
+    private Optional<String> extractToken(HttpServletRequest request) {
+        return extractTokenFromCookie(request)
+                .or(() -> extractTokenFromHeader(request));
+    }
+
+    private Optional<String> extractTokenFromCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (SecurityConfig.AUTH_TOKEN_COOKIE.equals(cookie.getName())) {
+                    return Optional.of(cookie.getValue());
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<String> extractTokenFromHeader(HttpServletRequest request) {
         String header = request.getHeader(AUTHORIZATION_HEADER);
         if (header != null && header.startsWith(BEARER_PREFIX)) {
-            return java.util.Optional.of(header.substring(BEARER_PREFIX.length()));
+            return Optional.of(header.substring(BEARER_PREFIX.length()));
         }
-        return java.util.Optional.empty();
+        return Optional.empty();
     }
 
     private void setAuthentication(String userId) {

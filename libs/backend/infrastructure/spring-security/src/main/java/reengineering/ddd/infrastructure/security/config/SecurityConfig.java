@@ -9,6 +9,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -31,28 +34,36 @@ import reengineering.ddd.infrastructure.security.jwt.JwtUtil;
 import reengineering.ddd.infrastructure.security.oauth2.OAuth2UserService;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-  private static final String AUTH_TRANSPORT_COOKIE = "auth_transport";
-  private static final int COOKIE_MAX_AGE_SECONDS = 30;
+  public static final String AUTH_TOKEN_COOKIE = "auth_token";
+  private static final long COOKIE_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 days
   private static final String DEFAULT_REDIRECT_URI = "/";
 
   private final OAuth2UserService oAuth2UserService;
   private final JwtUtil jwtUtil;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final Environment environment;
 
   @Inject
   public SecurityConfig(
     OAuth2UserService oAuth2UserService,
     JwtUtil jwtUtil,
-    JwtAuthenticationFilter jwtAuthenticationFilter
+    JwtAuthenticationFilter jwtAuthenticationFilter,
+    Environment environment
   ) {
     this.oAuth2UserService = oAuth2UserService;
     this.jwtUtil = jwtUtil;
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    this.environment = environment;
+  }
+
+  private boolean isSecureEnvironment() {
+    return !Arrays.asList(environment.getActiveProfiles()).contains("dev");
   }
 
   @Bean
@@ -77,23 +88,26 @@ public class SecurityConfig {
 
           String token = jwtUtil.generateToken(oauthUser.getUser());
 
-          Cookie tokenCookie = new Cookie(AUTH_TRANSPORT_COOKIE, token);
-          tokenCookie.setPath("/");
-          tokenCookie.setMaxAge(COOKIE_MAX_AGE_SECONDS);
-          tokenCookie.setHttpOnly(false);
+          ResponseCookie cookie = ResponseCookie.from(AUTH_TOKEN_COOKIE, token)
+            .httpOnly(true)
+            .secure(isSecureEnvironment())
+            .path("/")
+            .maxAge(COOKIE_MAX_AGE_SECONDS)
+            .sameSite("Lax")
+            .build();
 
-          response.addCookie(tokenCookie);
+          response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
           String targetUrl = DEFAULT_REDIRECT_URI;
           Cookie[] cookies = request.getCookies();
           if (cookies != null) {
-            for (Cookie cookie : cookies) {
-              if (RedirectUrlCookieFilter.REDIRECT_URI_COOKIE.equals(cookie.getName())) {
-                targetUrl = cookie.getValue();
-                cookie.setValue("");
-                cookie.setPath("/");
-                cookie.setMaxAge(0);
-                response.addCookie(cookie);
+            for (Cookie c : cookies) {
+              if (RedirectUrlCookieFilter.RETURN_TO_COOKIE.equals(c.getName())) {
+                targetUrl = c.getValue();
+                c.setValue("");
+                c.setPath("/");
+                c.setMaxAge(0);
+                response.addCookie(c);
                 break;
               }
             }
@@ -104,6 +118,20 @@ public class SecurityConfig {
       )
       .addFilterBefore(new RedirectUrlCookieFilter(), OAuth2AuthorizationRequestRedirectFilter.class)
       .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+      .logout(logout -> logout
+        .logoutUrl("/auth/logout")
+        .logoutSuccessHandler((req, resp, auth) -> {
+          ResponseCookie cookie = ResponseCookie.from(AUTH_TOKEN_COOKIE, "")
+            .httpOnly(true)
+            .secure(isSecureEnvironment())
+            .path("/")
+            .maxAge(0)
+            .sameSite("Lax")
+            .build();
+          resp.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+          resp.setStatus(HttpServletResponse.SC_OK);
+        })
+      )
       .headers(headers -> headers
         .cacheControl(HeadersConfigurer.CacheControlConfig::disable)
       )
