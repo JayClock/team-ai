@@ -6,9 +6,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
+import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,16 +23,48 @@ public class ConversationTest {
   private Conversation.ModelProvider modelProvider;
 
   private Conversation conversation;
+  private ConversationDescription conversationDescription;
   private MessageDescription userMessage;
   private Message userMessageEntity;
   private Message assistantMessageEntity;
 
   @BeforeEach
   public void setUp() {
-    conversation = new Conversation("1", new ConversationDescription("Test Conversation"), messages);
+    conversationDescription = new ConversationDescription("Test Conversation");
+    conversation = new Conversation("1", conversationDescription, messages);
     userMessage = new MessageDescription("user", "Hello, AI!");
     userMessageEntity = new Message("1", userMessage);
     assistantMessageEntity = new Message("2", new MessageDescription("assistant", "Hello there!"));
+  }
+
+  @Test
+  public void should_return_identity() {
+    assertEquals("1", conversation.getIdentity());
+  }
+
+  @Test
+  public void should_return_description() {
+    assertEquals(conversationDescription, conversation.getDescription());
+    assertEquals("Test Conversation", conversation.getDescription().title());
+  }
+
+  @Test
+  public void should_return_messages_association() {
+    HasMany<String, Message> result = conversation.messages();
+
+    assertSame(messages, result);
+  }
+
+  @Test
+  public void should_delegate_save_message_to_messages_association() {
+    MessageDescription messageDescription = new MessageDescription("user", "Test message");
+    Message expectedMessage = new Message("msg-1", messageDescription);
+    when(messages.saveMessage(messageDescription)).thenReturn(expectedMessage);
+
+    Message result = conversation.saveMessage(messageDescription);
+
+    assertSame(expectedMessage, result);
+    verify(messages).saveMessage(messageDescription);
   }
 
   @Test
