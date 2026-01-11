@@ -9,8 +9,7 @@ import reengineering.ddd.teamai.api.representation.UserModel;
 import reengineering.ddd.teamai.model.User;
 
 public class UserApi {
-  @Context
-  ResourceContext resourceContext;
+  @Context ResourceContext resourceContext;
 
   private final User user;
 

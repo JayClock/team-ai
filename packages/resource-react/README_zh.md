@@ -44,15 +44,11 @@ import { createClient } from '@hateoas-ts/resource';
 import { ResourceProvider } from '@hateoas-ts/resource-react';
 
 const client = createClient({
-  baseURL: 'https://api.example.com'
+  baseURL: 'https://api.example.com',
 });
 
 function App() {
-  return (
-    <ResourceProvider client={client}>
-      {/* 您的应用组件 */}
-    </ResourceProvider>
-  );
+  return <ResourceProvider client={client}>{/* 您的应用组件 */}</ResourceProvider>;
 }
 ```
 
@@ -64,33 +60,42 @@ function App() {
 import { Entity, Collection } from '@hateoas-ts/resource';
 
 // 定义 Account 实体
-export type Account = Entity<{
-  id: string;
-  provider: string;
-  providerId: string;
-}, {
-  self: Account;
-}>;
+export type Account = Entity<
+  {
+    id: string;
+    provider: string;
+    providerId: string;
+  },
+  {
+    self: Account;
+  }
+>;
 
 // 定义 Conversation 实体
-export type Conversation = Entity<{
-  id: string;
-  title: string;
-}, {
-  self: Conversation;
-}>;
+export type Conversation = Entity<
+  {
+    id: string;
+    title: string;
+  },
+  {
+    self: Conversation;
+  }
+>;
 
 // 定义具有关系的 User 实体
-export type User = Entity<{
-  id: string;
-  name: string;
-  email: string;
-}, {
-  self: User;
-  accounts: Collection<Account>;
-  conversations: Collection<Conversation>;
-  'create-conversation': Conversation;
-}>;
+export type User = Entity<
+  {
+    id: string;
+    name: string;
+    email: string;
+  },
+  {
+    self: User;
+    accounts: Collection<Account>;
+    conversations: Collection<Conversation>;
+    'create-conversation': Conversation;
+  }
+>;
 ```
 
 ### 3. 使用 useClient Hook
@@ -107,9 +112,7 @@ function UserProfile({ userId }: { userId: string }) {
   const [user, setUser] = useState<UserState | null>(null);
 
   useEffect(() => {
-    client.go<User>(`/api/users/${userId}`)
-      .request()
-      .then(setUser);
+    client.go<User>(`/api/users/${userId}`).request().then(setUser);
   }, [client, userId]);
 
   if (!user) return <div>加载中...</div>;
@@ -131,13 +134,7 @@ function UserConversations({ userId }: { userId: string }) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
 
-  const {
-    items,
-    loading,
-    hasNextPage,
-    error,
-    loadNextPage
-  } = useInfiniteCollection(userResource.follow('conversations'));
+  const { items, loading, hasNextPage, error, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
   return (
     <div>
@@ -147,19 +144,13 @@ function UserConversations({ userId }: { userId: string }) {
 
       <ul>
         {items.map((conversationState) => (
-          <li key={conversationState.data.id}>
-            {conversationState.data.title}
-          </li>
+          <li key={conversationState.data.id}>{conversationState.data.title}</li>
         ))}
       </ul>
 
       {loading && <div>加载更多...</div>}
 
-      {hasNextPage && !loading && (
-        <button onClick={loadNextPage}>
-          加载更多
-        </button>
-      )}
+      {hasNextPage && !loading && <button onClick={loadNextPage}>加载更多</button>}
     </div>
   );
 }
@@ -172,10 +163,12 @@ function UserConversations({ userId }: { userId: string }) {
 上下文提供者组件，使 HATEOAS 客户端可用于所有子组件。
 
 **属性：**
+
 - `client: Client` - HATEOAS 客户端实例
 - `children: React.ReactNode` - 子组件
 
 **示例：**
+
 ```tsx
 <ResourceProvider client={client}>
   <App />
@@ -187,12 +180,15 @@ function UserConversations({ userId }: { userId: string }) {
 从上下文中访问 HATEOAS 客户端实例的 Hook。
 
 **返回值：**
+
 - `Client` - HATEOAS 客户端实例
 
 **抛出：**
+
 - 如果在 `ResourceProvider` 外使用则抛出错误
 
 **示例：**
+
 ```tsx
 const client = useClient();
 const userResource = client.go<User>('/api/users/123');
@@ -203,9 +199,11 @@ const userResource = client.go<User>('/api/users/123');
 用于管理集合资源的无限滚动/分页的 Hook。
 
 **参数：**
+
 - `resourceLike: ResourceLike<T>` - 指向集合的资源或资源关系
 
 **返回值：**
+
 ```typescript
 {
   items: State<ExtractCollectionElement<T>>[];  // 集合项状态的数组
@@ -217,6 +215,7 @@ const userResource = client.go<User>('/api/users/123');
 ```
 
 **特性：**
+
 - 自动获取初始页面
 - 跨页面维护累积的项目
 - 遵循 HAL "next" 链接进行分页
@@ -224,23 +223,19 @@ const userResource = client.go<User>('/api/users/123');
 - 在遵循分页链接时保留项目关系上下文
 
 **重要提示：**
+
 - 不要记忆或存储 `loadNextPage` 函数引用
 - 始终使用 hook 返回的最新 `loadNextPage` 函数
 
 **示例：**
+
 ```tsx
-const {
-  items,
-  loading,
-  hasNextPage,
-  error,
-  loadNextPage
-} = useInfiniteCollection(userResource.follow('conversations'));
+const { items, loading, hasNextPage, error, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
 // 加载更多项目
 <button onClick={loadNextPage} disabled={!hasNextPage || loading}>
   {loading ? '加载中...' : '加载更多'}
-</button>
+</button>;
 ```
 
 ## 高级用法
@@ -257,17 +252,12 @@ function useUser(userId: string) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
 
-  const {
-    loading,
-    error,
-    resourceState,
-    resource
-  } = useReadResource(userResource);
+  const { loading, error, resourceState, resource } = useReadResource(userResource);
 
   return {
     user: resourceState,
     loading,
-    error
+    error,
   };
 }
 
@@ -294,13 +284,9 @@ function UserDashboard({ userId }: { userId: string }) {
   const userResource = client.go<User>(`/api/users/${userId}`);
   const { resourceState: user } = useReadResource(userResource);
 
-  const conversations = useInfiniteCollection(
-    userResource.follow('conversations')
-  );
+  const conversations = useInfiniteCollection(userResource.follow('conversations'));
 
-  const accounts = useInfiniteCollection(
-    userResource.follow('accounts')
-  );
+  const accounts = useInfiniteCollection(userResource.follow('accounts'));
 
   return (
     <div>
@@ -308,14 +294,14 @@ function UserDashboard({ userId }: { userId: string }) {
 
       <section>
         <h2>会话</h2>
-        {conversations.items.map(conv => (
+        {conversations.items.map((conv) => (
           <div key={conv.data.id}>{conv.data.title}</div>
         ))}
       </section>
 
       <section>
         <h2>账户</h2>
-        {accounts.items.map(acc => (
+        {accounts.items.map((acc) => (
           <div key={acc.data.id}>{acc.data.provider}</div>
         ))}
       </section>
@@ -333,22 +319,14 @@ function UserConversations({ userId }: { userId: string }) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
 
-  const {
-    items,
-    loading,
-    hasNextPage,
-    error,
-    loadNextPage
-  } = useInfiniteCollection(userResource.follow('conversations'));
+  const { items, loading, hasNextPage, error, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
   if (error) {
     return (
       <div>
         <h3>加载会话时出错</h3>
         <p>{error.message}</p>
-        <button onClick={() => window.location.reload()}>
-          重试
-        </button>
+        <button onClick={() => window.location.reload()}>重试</button>
       </div>
     );
   }
@@ -377,7 +355,7 @@ import type { User, Conversation } from './types';
 
 // 创建客户端
 const client = createClient({
-  baseURL: 'https://api.example.com'
+  baseURL: 'https://api.example.com',
 });
 
 // 会话列表组件
@@ -385,13 +363,7 @@ function ConversationsList({ userId }: { userId: string }) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
 
-  const {
-    items,
-    loading,
-    hasNextPage,
-    error,
-    loadNextPage
-  } = useInfiniteCollection(userResource.follow('conversations'));
+  const { items, loading, hasNextPage, error, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
   if (error) {
     return <div>错误: {error.message}</div>;
@@ -401,23 +373,15 @@ function ConversationsList({ userId }: { userId: string }) {
     <div>
       <ul>
         {items.map((conversation) => (
-          <li key={conversation.data.id}>
-            {conversation.data.title}
-          </li>
+          <li key={conversation.data.id}>{conversation.data.title}</li>
         ))}
       </ul>
 
       {loading && <div>加载更多会话中...</div>}
 
-      {hasNextPage && !loading && (
-        <button onClick={loadNextPage}>
-          加载更多
-        </button>
-      )}
+      {hasNextPage && !loading && <button onClick={loadNextPage}>加载更多</button>}
 
-      {!hasNextPage && items.length > 0 && (
-        <div>没有更多会话了</div>
-      )}
+      {!hasNextPage && items.length > 0 && <div>没有更多会话了</div>}
     </div>
   );
 }

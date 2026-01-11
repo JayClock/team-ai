@@ -8,17 +8,13 @@
           "root": "libs/frontend/features/conversation-messages",
           "targets": {
             "typecheck": {
-              "dependsOn": [
-                "^typecheck"
-              ],
+              "dependsOn": ["^typecheck"],
               "cache": true,
               "inputs": [
                 "production",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "typescript"
-                  ]
+                  "externalDependencies": ["typescript"]
                 }
               ],
               "outputs": [
@@ -40,21 +36,14 @@
                 "{projectRoot}/out-tsc/vitest/**/*.d.ts",
                 "{projectRoot}/out-tsc/vitest/tsconfig.tsbuildinfo"
               ],
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "metadata": {
-                "technologies": [
-                  "typescript",
-                  "typescript"
-                ],
+                "technologies": ["typescript", "typescript"],
                 "description": "Runs type-checking for the project.",
                 "help": {
                   "command": "pnpm exec tsc --build --help",
                   "example": {
-                    "args": [
-                      "--force"
-                    ]
+                    "args": ["--force"]
                   }
                 }
               },
@@ -79,18 +68,12 @@
                 "{workspaceRoot}/libs/frontend/features/conversation-messages/eslint.config.mjs",
                 "{workspaceRoot}/tools/eslint-rules/**/*",
                 {
-                  "externalDependencies": [
-                    "eslint"
-                  ]
+                  "externalDependencies": ["eslint"]
                 }
               ],
-              "outputs": [
-                "{options.outputFile}"
-              ],
+              "outputs": ["{options.outputFile}"],
               "metadata": {
-                "technologies": [
-                  "eslint"
-                ],
+                "technologies": ["eslint"],
                 "description": "Runs ESLint on project",
                 "help": {
                   "command": "pnpm exec eslint --help",
@@ -111,22 +94,15 @@
                 "default",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "vitest"
-                  ]
+                  "externalDependencies": ["vitest"]
                 },
                 {
                   "env": "CI"
                 }
               ],
-              "outputs": [
-                "{projectRoot}/test-output/vitest/coverage"
-              ],
+              "outputs": ["{projectRoot}/test-output/vitest/coverage"],
               "metadata": {
-                "technologies": [
-                  "vite",
-                  "vitest"
-                ],
+                "technologies": ["vite", "vitest"],
                 "description": "Run Vitest tests",
                 "help": {
                   "command": "pnpm exec vitest --help",
@@ -145,14 +121,10 @@
               },
               "configurations": {},
               "parallelism": true,
-              "dependsOn": [
-                "^build"
-              ]
+              "dependsOn": ["^build"]
             },
             "build-deps": {
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "configurations": {},
               "options": {},
               "parallelism": true,
@@ -160,9 +132,7 @@
             },
             "watch-deps": {
               "continuous": true,
-              "dependsOn": [
-                "build-deps"
-              ],
+              "dependsOn": ["build-deps"],
               "executor": "nx:run-commands",
               "options": {
                 "command": "pnpm exec nx watch --projects @features/conversation-messages --includeDependentProjects -- pnpm exec nx build-deps @features/conversation-messages"
@@ -172,9 +142,7 @@
             },
             "nx-release-publish": {
               "executor": "@nx/js:release-publish",
-              "dependsOn": [
-                "^nx-release-publish"
-              ],
+              "dependsOn": ["^nx-release-publish"],
               "options": {},
               "configurations": {},
               "parallelism": true
@@ -199,9 +167,7 @@
           },
           "projectType": "library",
           "name": "@features/conversation-messages",
-          "tags": [
-            "npm:public"
-          ],
+          "tags": ["npm:public"],
           "implicitDependencies": []
         }
       },
@@ -236,32 +202,17 @@
                 "resolvableConfigurations",
                 "tasks"
               ],
-              "verification": [
-                "check",
-                "test"
-              ],
-              "documentation": [
-                "javadoc"
-              ],
-              "Reporting": [
-                "nxProjectGraph",
-                "nxProjectReport"
-              ],
-              "publishing": [
-                "publish",
-                "publishToMavenLocal"
-              ]
+              "verification": ["check", "test"],
+              "documentation": ["javadoc"],
+              "Reporting": ["nxProjectGraph", "nxProjectReport"],
+              "publishing": ["publish", "publishToMavenLocal"]
             },
-            "technologies": [
-              "gradle"
-            ]
+            "technologies": ["gradle"]
           },
           "targets": {
             "assemble": {
               "cache": true,
-              "dependsOn": [
-                "spring-security:jar"
-              ],
+              "dependsOn": ["spring-security:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-security/build/libs/spring-security-0.0.1-SNAPSHOT.jar"
@@ -270,9 +221,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles the outputs of this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:assemble"
                 }
@@ -292,9 +241,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:build"
                 }
@@ -307,16 +254,11 @@
             },
             "buildDependents": {
               "cache": true,
-              "dependsOn": [
-                "spring-security:build",
-                "server:buildDependents"
-              ],
+              "dependsOn": ["spring-security:build", "server:buildDependents"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects that depend on it.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:buildDependents"
                 }
@@ -332,9 +274,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all buildscript dependencies declared in project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:buildEnvironment"
                 }
@@ -347,16 +287,11 @@
             },
             "buildNeeded": {
               "cache": true,
-              "dependsOn": [
-                "spring-security:build",
-                "domain:buildNeeded"
-              ],
+              "dependsOn": ["spring-security:build", "domain:buildNeeded"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects it depends on.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:buildNeeded"
                 }
@@ -369,9 +304,7 @@
             },
             "check": {
               "cache": true,
-              "dependsOn": [
-                "spring-security:test"
-              ],
+              "dependsOn": ["spring-security:test"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-security/build/test-results/test/binary/**/*"
@@ -386,9 +319,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs all checks.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:check"
                 }
@@ -425,9 +356,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles main classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:classes"
                 }
@@ -443,9 +372,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Deletes the build directory.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:clean"
                 }
@@ -464,9 +391,7 @@
                 "{projectRoot}/build/generated/sources/headers/java/main",
                 "{projectRoot}/build/tmp/compileJava/previous-compilation-data.bin"
               ],
-              "dependsOn": [
-                "domain:jar"
-              ],
+              "dependsOn": ["domain:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/libs/domain-0.0.1-SNAPSHOT.jar"
@@ -540,9 +465,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles main Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:compileJava"
                 }
@@ -678,9 +601,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles test Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:compileTestJava"
                 }
@@ -696,9 +617,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the components produced by project ':backend:infrastructure:spring-security'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:components"
                 }
@@ -714,9 +633,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all dependencies declared in project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:dependencies"
                 }
@@ -732,9 +649,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the insight into a specific dependency in project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:dependencyInsight"
                 }
@@ -750,9 +665,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependency management declared in project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:dependencyManagement"
                 }
@@ -768,9 +681,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependent components of components in project ':backend:infrastructure:spring-security'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:dependentComponents"
                 }
@@ -786,9 +697,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays a help message.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:help"
                 }
@@ -837,9 +746,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles a jar archive containing the classes of the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:jar"
                 }
@@ -855,9 +762,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the detected java toolchains.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:javaToolchains"
                 }
@@ -870,9 +775,7 @@
             },
             "javadoc": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/docs/javadoc"
-              ],
+              "outputs": ["{projectRoot}/build/docs/javadoc"],
               "dependsOn": [
                 "spring-security:classes",
                 "spring-security:compileJava",
@@ -969,9 +872,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates Javadoc API documentation for the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:javadoc"
                 }
@@ -987,9 +888,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configuration model of project ':backend:infrastructure:spring-security'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:model"
                 }
@@ -1002,9 +901,7 @@
             },
             "nxProjectGraph": {
               "cache": true,
-              "dependsOn": [
-                "spring-security:nxProjectReport"
-              ],
+              "dependsOn": ["spring-security:nxProjectReport"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-security/build/nx/spring-security.json"
@@ -1013,9 +910,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project graph for spring-security",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:nxProjectGraph"
                 }
@@ -1028,15 +923,11 @@
             },
             "nxProjectReport": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/nx/spring-security.json"
-              ],
+              "outputs": ["{projectRoot}/build/nx/spring-security.json"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project report for spring-security",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:nxProjectReport"
                 }
@@ -1052,9 +943,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the outgoing variants of project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:outgoingVariants"
                 }
@@ -1067,15 +956,11 @@
             },
             "processResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/main"
-              ],
+              "outputs": ["{projectRoot}/build/resources/main"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes main resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:processResources"
                 }
@@ -1088,15 +973,11 @@
             },
             "processTestResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/test"
-              ],
+              "outputs": ["{projectRoot}/build/resources/test"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes test resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:processTestResources"
                 }
@@ -1112,9 +993,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the sub-projects of project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:projects"
                 }
@@ -1130,9 +1009,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the properties of project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:properties"
                 }
@@ -1148,9 +1025,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all publications produced by this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:publish"
                 }
@@ -1166,9 +1041,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all Maven publications produced by this project to the local Maven cache.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:publishToMavenLocal"
                 }
@@ -1184,9 +1057,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configurations that can be resolved in project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:resolvableConfigurations"
                 }
@@ -1202,9 +1073,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the tasks runnable from project ':backend:infrastructure:spring-security'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:tasks"
                 }
@@ -1222,9 +1091,7 @@
                 "{projectRoot}/build/reports/tests/test",
                 "{projectRoot}/build/test-results/test"
               ],
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-security/build/classes/java/test/**/*"
@@ -1361,9 +1228,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs the test suite.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:test"
                 }
@@ -1400,9 +1265,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles test classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-security:testClasses"
                 }
@@ -1425,17 +1288,13 @@
           "root": "libs/frontend/features/user-conversations",
           "targets": {
             "typecheck": {
-              "dependsOn": [
-                "^typecheck"
-              ],
+              "dependsOn": ["^typecheck"],
               "cache": true,
               "inputs": [
                 "production",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "typescript"
-                  ]
+                  "externalDependencies": ["typescript"]
                 }
               ],
               "outputs": [
@@ -1457,21 +1316,14 @@
                 "{projectRoot}/out-tsc/vitest/**/*.d.ts",
                 "{projectRoot}/out-tsc/vitest/tsconfig.tsbuildinfo"
               ],
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "metadata": {
-                "technologies": [
-                  "typescript",
-                  "typescript"
-                ],
+                "technologies": ["typescript", "typescript"],
                 "description": "Runs type-checking for the project.",
                 "help": {
                   "command": "pnpm exec tsc --build --help",
                   "example": {
-                    "args": [
-                      "--force"
-                    ]
+                    "args": ["--force"]
                   }
                 }
               },
@@ -1496,18 +1348,12 @@
                 "{workspaceRoot}/libs/frontend/features/user-conversations/eslint.config.mjs",
                 "{workspaceRoot}/tools/eslint-rules/**/*",
                 {
-                  "externalDependencies": [
-                    "eslint"
-                  ]
+                  "externalDependencies": ["eslint"]
                 }
               ],
-              "outputs": [
-                "{options.outputFile}"
-              ],
+              "outputs": ["{options.outputFile}"],
               "metadata": {
-                "technologies": [
-                  "eslint"
-                ],
+                "technologies": ["eslint"],
                 "description": "Runs ESLint on project",
                 "help": {
                   "command": "pnpm exec eslint --help",
@@ -1528,22 +1374,15 @@
                 "default",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "vitest"
-                  ]
+                  "externalDependencies": ["vitest"]
                 },
                 {
                   "env": "CI"
                 }
               ],
-              "outputs": [
-                "{projectRoot}/test-output/vitest/coverage"
-              ],
+              "outputs": ["{projectRoot}/test-output/vitest/coverage"],
               "metadata": {
-                "technologies": [
-                  "vite",
-                  "vitest"
-                ],
+                "technologies": ["vite", "vitest"],
                 "description": "Run Vitest tests",
                 "help": {
                   "command": "pnpm exec vitest --help",
@@ -1562,14 +1401,10 @@
               },
               "configurations": {},
               "parallelism": true,
-              "dependsOn": [
-                "^build"
-              ]
+              "dependsOn": ["^build"]
             },
             "build-deps": {
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "configurations": {},
               "options": {},
               "parallelism": true,
@@ -1577,9 +1412,7 @@
             },
             "watch-deps": {
               "continuous": true,
-              "dependsOn": [
-                "build-deps"
-              ],
+              "dependsOn": ["build-deps"],
               "executor": "nx:run-commands",
               "options": {
                 "command": "pnpm exec nx watch --projects @features/user-conversations --includeDependentProjects -- pnpm exec nx build-deps @features/user-conversations"
@@ -1589,9 +1422,7 @@
             },
             "nx-release-publish": {
               "executor": "@nx/js:release-publish",
-              "dependsOn": [
-                "^nx-release-publish"
-              ],
+              "dependsOn": ["^nx-release-publish"],
               "options": {},
               "configurations": {},
               "parallelism": true
@@ -1616,9 +1447,7 @@
           },
           "projectType": "library",
           "name": "@features/user-conversations",
-          "tags": [
-            "npm:public"
-          ],
+          "tags": ["npm:public"],
           "implicitDependencies": []
         }
       },
@@ -1653,32 +1482,17 @@
                 "resolvableConfigurations",
                 "tasks"
               ],
-              "verification": [
-                "check",
-                "test"
-              ],
-              "documentation": [
-                "javadoc"
-              ],
-              "Reporting": [
-                "nxProjectGraph",
-                "nxProjectReport"
-              ],
-              "publishing": [
-                "publish",
-                "publishToMavenLocal"
-              ]
+              "verification": ["check", "test"],
+              "documentation": ["javadoc"],
+              "Reporting": ["nxProjectGraph", "nxProjectReport"],
+              "publishing": ["publish", "publishToMavenLocal"]
             },
-            "technologies": [
-              "gradle"
-            ]
+            "technologies": ["gradle"]
           },
           "targets": {
             "assemble": {
               "cache": true,
-              "dependsOn": [
-                "spring-ai:jar"
-              ],
+              "dependsOn": ["spring-ai:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-ai/build/libs/spring-ai-0.0.1-SNAPSHOT.jar"
@@ -1687,9 +1501,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles the outputs of this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:assemble"
                 }
@@ -1702,16 +1514,11 @@
             },
             "build": {
               "cache": true,
-              "dependsOn": [
-                "spring-ai:check",
-                "spring-ai:assemble"
-              ],
+              "dependsOn": ["spring-ai:check", "spring-ai:assemble"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:build"
                 }
@@ -1732,9 +1539,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects that depend on it.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:buildDependents"
                 }
@@ -1750,9 +1555,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all buildscript dependencies declared in project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:buildEnvironment"
                 }
@@ -1765,16 +1568,11 @@
             },
             "buildNeeded": {
               "cache": true,
-              "dependsOn": [
-                "spring-ai:build",
-                "domain:buildNeeded"
-              ],
+              "dependsOn": ["spring-ai:build", "domain:buildNeeded"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects it depends on.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:buildNeeded"
                 }
@@ -1787,9 +1585,7 @@
             },
             "check": {
               "cache": true,
-              "dependsOn": [
-                "spring-ai:test"
-              ],
+              "dependsOn": ["spring-ai:test"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-ai/build/test-results/test/binary/**/*"
@@ -1804,9 +1600,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs all checks.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:check"
                 }
@@ -1843,9 +1637,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles main classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:classes"
                 }
@@ -1861,9 +1653,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Deletes the build directory.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:clean"
                 }
@@ -1882,9 +1672,7 @@
                 "{projectRoot}/build/generated/sources/headers/java/main",
                 "{projectRoot}/build/tmp/compileJava/previous-compilation-data.bin"
               ],
-              "dependsOn": [
-                "domain:jar"
-              ],
+              "dependsOn": ["domain:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/libs/domain-0.0.1-SNAPSHOT.jar"
@@ -1960,9 +1748,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles main Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:compileJava"
                 }
@@ -2104,9 +1890,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles test Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:compileTestJava"
                 }
@@ -2122,9 +1906,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the components produced by project ':backend:infrastructure:spring-ai'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:components"
                 }
@@ -2140,9 +1922,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all dependencies declared in project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:dependencies"
                 }
@@ -2158,9 +1938,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the insight into a specific dependency in project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:dependencyInsight"
                 }
@@ -2176,9 +1954,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependency management declared in project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:dependencyManagement"
                 }
@@ -2194,9 +1970,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependent components of components in project ':backend:infrastructure:spring-ai'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:dependentComponents"
                 }
@@ -2212,9 +1986,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays a help message.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:help"
                 }
@@ -2230,10 +2002,7 @@
               "outputs": [
                 "{projectRoot}/build/libs/spring-ai-0.0.1-SNAPSHOT.jar"
               ],
-              "dependsOn": [
-                "spring-ai:classes",
-                "spring-ai:compileJava"
-              ],
+              "dependsOn": ["spring-ai:classes", "spring-ai:compileJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-ai/build/classes/java/main/**/*"
@@ -2260,9 +2029,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles a jar archive containing the classes of the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:jar"
                 }
@@ -2278,9 +2045,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the detected java toolchains.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:javaToolchains"
                 }
@@ -2293,9 +2058,7 @@
             },
             "javadoc": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/docs/javadoc"
-              ],
+              "outputs": ["{projectRoot}/build/docs/javadoc"],
               "dependsOn": [
                 "spring-ai:classes",
                 "spring-ai:compileJava",
@@ -2394,9 +2157,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates Javadoc API documentation for the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:javadoc"
                 }
@@ -2412,9 +2173,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configuration model of project ':backend:infrastructure:spring-ai'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:model"
                 }
@@ -2427,9 +2186,7 @@
             },
             "nxProjectGraph": {
               "cache": true,
-              "dependsOn": [
-                "spring-ai:nxProjectReport"
-              ],
+              "dependsOn": ["spring-ai:nxProjectReport"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-ai/build/nx/spring-ai.json"
@@ -2438,9 +2195,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project graph for spring-ai",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:nxProjectGraph"
                 }
@@ -2453,15 +2208,11 @@
             },
             "nxProjectReport": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/nx/spring-ai.json"
-              ],
+              "outputs": ["{projectRoot}/build/nx/spring-ai.json"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project report for spring-ai",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:nxProjectReport"
                 }
@@ -2477,9 +2228,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the outgoing variants of project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:outgoingVariants"
                 }
@@ -2492,15 +2241,11 @@
             },
             "processResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/main"
-              ],
+              "outputs": ["{projectRoot}/build/resources/main"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes main resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:processResources"
                 }
@@ -2513,15 +2258,11 @@
             },
             "processTestResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/test"
-              ],
+              "outputs": ["{projectRoot}/build/resources/test"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes test resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:processTestResources"
                 }
@@ -2537,9 +2278,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the sub-projects of project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:projects"
                 }
@@ -2555,9 +2294,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the properties of project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:properties"
                 }
@@ -2573,9 +2310,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all publications produced by this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:publish"
                 }
@@ -2591,9 +2326,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all Maven publications produced by this project to the local Maven cache.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:publishToMavenLocal"
                 }
@@ -2609,9 +2342,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configurations that can be resolved in project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:resolvableConfigurations"
                 }
@@ -2627,9 +2358,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the tasks runnable from project ':backend:infrastructure:spring-ai'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:tasks"
                 }
@@ -2647,9 +2376,7 @@
                 "{projectRoot}/build/reports/tests/test",
                 "{projectRoot}/build/test-results/test"
               ],
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/infrastructure/spring-ai/build/classes/java/test/**/*"
@@ -2792,9 +2519,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs the test suite.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:test"
                 }
@@ -2831,9 +2556,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles test classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:infrastructure:spring-ai:testClasses"
                 }
@@ -2880,32 +2603,17 @@
                 "resolvableConfigurations",
                 "tasks"
               ],
-              "verification": [
-                "check",
-                "test"
-              ],
-              "documentation": [
-                "javadoc"
-              ],
-              "Reporting": [
-                "nxProjectGraph",
-                "nxProjectReport"
-              ],
-              "publishing": [
-                "publish",
-                "publishToMavenLocal"
-              ]
+              "verification": ["check", "test"],
+              "documentation": ["javadoc"],
+              "Reporting": ["nxProjectGraph", "nxProjectReport"],
+              "publishing": ["publish", "publishToMavenLocal"]
             },
-            "technologies": [
-              "gradle"
-            ]
+            "technologies": ["gradle"]
           },
           "targets": {
             "assemble": {
               "cache": true,
-              "dependsOn": [
-                "mybatis:jar"
-              ],
+              "dependsOn": ["mybatis:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/persistent/mybatis/build/libs/mybatis-0.0.1-SNAPSHOT.jar"
@@ -2914,9 +2622,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles the outputs of this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:assemble"
                 }
@@ -2929,16 +2635,11 @@
             },
             "build": {
               "cache": true,
-              "dependsOn": [
-                "mybatis:check",
-                "mybatis:assemble"
-              ],
+              "dependsOn": ["mybatis:check", "mybatis:assemble"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:build"
                 }
@@ -2951,16 +2652,11 @@
             },
             "buildDependents": {
               "cache": true,
-              "dependsOn": [
-                "server:buildDependents",
-                "mybatis:build"
-              ],
+              "dependsOn": ["server:buildDependents", "mybatis:build"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects that depend on it.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:buildDependents"
                 }
@@ -2976,9 +2672,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all buildscript dependencies declared in project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:buildEnvironment"
                 }
@@ -2999,9 +2693,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects it depends on.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:buildNeeded"
                 }
@@ -3014,9 +2706,7 @@
             },
             "check": {
               "cache": true,
-              "dependsOn": [
-                "mybatis:test"
-              ],
+              "dependsOn": ["mybatis:test"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/persistent/mybatis/build/test-results/test/binary/**/*"
@@ -3031,9 +2721,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs all checks.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:check"
                 }
@@ -3046,10 +2734,7 @@
             },
             "classes": {
               "cache": true,
-              "dependsOn": [
-                "mybatis:compileJava",
-                "mybatis:processResources"
-              ],
+              "dependsOn": ["mybatis:compileJava", "mybatis:processResources"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/persistent/mybatis/build/classes/java/main/**/*"
@@ -3070,9 +2755,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles main classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:classes"
                 }
@@ -3088,9 +2771,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Deletes the build directory.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:clean"
                 }
@@ -3109,10 +2790,7 @@
                 "{projectRoot}/build/generated/sources/headers/java/main",
                 "{projectRoot}/build/tmp/compileJava/previous-compilation-data.bin"
               ],
-              "dependsOn": [
-                "domain:jar",
-                "spring-ai:jar"
-              ],
+              "dependsOn": ["domain:jar", "spring-ai:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/libs/domain-0.0.1-SNAPSHOT.jar"
@@ -3246,9 +2924,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles main Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:compileJava"
                 }
@@ -3463,9 +3139,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles test Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:compileTestJava"
                 }
@@ -3481,9 +3155,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the components produced by project ':backend:persistent:mybatis'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:components"
                 }
@@ -3499,9 +3171,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all dependencies declared in project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:dependencies"
                 }
@@ -3517,9 +3187,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the insight into a specific dependency in project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:dependencyInsight"
                 }
@@ -3535,9 +3203,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependency management declared in project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:dependencyManagement"
                 }
@@ -3553,9 +3219,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependent components of components in project ':backend:persistent:mybatis'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:dependentComponents"
                 }
@@ -3571,9 +3235,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays a help message.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:help"
                 }
@@ -3589,10 +3251,7 @@
               "outputs": [
                 "{projectRoot}/build/libs/mybatis-0.0.1-SNAPSHOT.jar"
               ],
-              "dependsOn": [
-                "mybatis:classes",
-                "mybatis:compileJava"
-              ],
+              "dependsOn": ["mybatis:classes", "mybatis:compileJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/persistent/mybatis/build/classes/java/main/**/*"
@@ -3706,9 +3365,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles a jar archive containing the classes of the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:jar"
                 }
@@ -3724,9 +3381,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the detected java toolchains.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:javaToolchains"
                 }
@@ -3739,9 +3394,7 @@
             },
             "javadoc": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/docs/javadoc"
-              ],
+              "outputs": ["{projectRoot}/build/docs/javadoc"],
               "dependsOn": [
                 "mybatis:classes",
                 "mybatis:compileJava",
@@ -3899,9 +3552,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates Javadoc API documentation for the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:javadoc"
                 }
@@ -3917,9 +3568,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configuration model of project ':backend:persistent:mybatis'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:model"
                 }
@@ -3932,9 +3581,7 @@
             },
             "nxProjectGraph": {
               "cache": true,
-              "dependsOn": [
-                "mybatis:nxProjectReport"
-              ],
+              "dependsOn": ["mybatis:nxProjectReport"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/persistent/mybatis/build/nx/mybatis.json"
@@ -3943,9 +3590,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project graph for mybatis",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:nxProjectGraph"
                 }
@@ -3958,15 +3603,11 @@
             },
             "nxProjectReport": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/nx/mybatis.json"
-              ],
+              "outputs": ["{projectRoot}/build/nx/mybatis.json"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project report for mybatis",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:nxProjectReport"
                 }
@@ -3982,9 +3623,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the outgoing variants of project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:outgoingVariants"
                 }
@@ -3997,9 +3636,7 @@
             },
             "processResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/main"
-              ],
+              "outputs": ["{projectRoot}/build/resources/main"],
               "inputs": [
                 "{projectRoot}/src/main/resources/mybatis-config.xml",
                 "{projectRoot}/src/main/resources/knowledge-pack/contexts/demo_ev_charging_stations.md",
@@ -4021,9 +3658,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes main resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:processResources"
                 }
@@ -4036,18 +3671,12 @@
             },
             "processTestResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/test"
-              ],
-              "inputs": [
-                "{projectRoot}/src/test/resources/application.yml"
-              ],
+              "outputs": ["{projectRoot}/build/resources/test"],
+              "inputs": ["{projectRoot}/src/test/resources/application.yml"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes test resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:processTestResources"
                 }
@@ -4063,9 +3692,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the sub-projects of project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:projects"
                 }
@@ -4081,9 +3708,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the properties of project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:properties"
                 }
@@ -4099,9 +3724,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all publications produced by this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:publish"
                 }
@@ -4117,9 +3740,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all Maven publications produced by this project to the local Maven cache.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:publishToMavenLocal"
                 }
@@ -4135,9 +3756,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configurations that can be resolved in project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:resolvableConfigurations"
                 }
@@ -4153,9 +3772,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the tasks runnable from project ':backend:persistent:mybatis'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:tasks"
                 }
@@ -4173,9 +3790,7 @@
                 "{projectRoot}/build/reports/tests/test",
                 "{projectRoot}/build/test-results/test"
               ],
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/persistent/mybatis/build/classes/java/test/**/*"
@@ -4452,9 +4067,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs the test suite.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:test"
                 }
@@ -4491,9 +4104,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles test classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:persistent:mybatis:testClasses"
                 }
@@ -4528,18 +4139,12 @@
                 "{workspaceRoot}/libs/frontend/shared/schema/eslint.config.mjs",
                 "{workspaceRoot}/tools/eslint-rules/**/*",
                 {
-                  "externalDependencies": [
-                    "eslint"
-                  ]
+                  "externalDependencies": ["eslint"]
                 }
               ],
-              "outputs": [
-                "{options.outputFile}"
-              ],
+              "outputs": ["{options.outputFile}"],
               "metadata": {
-                "technologies": [
-                  "eslint"
-                ],
+                "technologies": ["eslint"],
                 "description": "Runs ESLint on project",
                 "help": {
                   "command": "pnpm exec eslint --help",
@@ -4555,9 +4160,7 @@
               "parallelism": true
             },
             "typecheck": {
-              "dependsOn": [
-                "^typecheck"
-              ],
+              "dependsOn": ["^typecheck"],
               "options": {
                 "cwd": "libs/frontend/shared/schema",
                 "command": "tsc --build --emitDeclarationOnly"
@@ -4586,20 +4189,14 @@
                 "{projectRoot}/dist/**/*.d.ts",
                 "{projectRoot}/dist/tsconfig.lib.tsbuildinfo"
               ],
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "metadata": {
-                "technologies": [
-                  "typescript"
-                ],
+                "technologies": ["typescript"],
                 "description": "Runs type-checking for the project.",
                 "help": {
                   "command": "pnpm exec tsc --build --help",
                   "example": {
-                    "args": [
-                      "--force"
-                    ]
+                    "args": ["--force"]
                   }
                 }
               },
@@ -4609,9 +4206,7 @@
             }
           },
           "name": "@shared/schema",
-          "tags": [
-            "npm:private"
-          ],
+          "tags": ["npm:private"],
           "metadata": {
             "targetGroups": {},
             "js": {
@@ -4639,17 +4234,13 @@
           "root": "packages/resource-react",
           "targets": {
             "typecheck": {
-              "dependsOn": [
-                "^typecheck"
-              ],
+              "dependsOn": ["^typecheck"],
               "cache": true,
               "inputs": [
                 "production",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "typescript"
-                  ]
+                  "externalDependencies": ["typescript"]
                 }
               ],
               "outputs": [
@@ -4671,21 +4262,14 @@
                 "{projectRoot}/out-tsc/vitest/**/*.d.ts",
                 "{projectRoot}/out-tsc/vitest/tsconfig.tsbuildinfo"
               ],
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "metadata": {
-                "technologies": [
-                  "typescript",
-                  "typescript"
-                ],
+                "technologies": ["typescript", "typescript"],
                 "description": "Runs type-checking for the project.",
                 "help": {
                   "command": "pnpm exec tsc --build --help",
                   "example": {
-                    "args": [
-                      "--force"
-                    ]
+                    "args": ["--force"]
                   }
                 }
               },
@@ -4703,26 +4287,17 @@
                 "command": "vite build"
               },
               "cache": true,
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 "production",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "vite"
-                  ]
+                  "externalDependencies": ["vite"]
                 }
               ],
-              "outputs": [
-                "{projectRoot}/dist"
-              ],
+              "outputs": ["{projectRoot}/dist"],
               "metadata": {
-                "technologies": [
-                  "typescript",
-                  "vite"
-                ],
+                "technologies": ["typescript", "vite"],
                 "description": "Run Vite build",
                 "help": {
                   "command": "pnpm exec vite build --help",
@@ -4734,17 +4309,13 @@
                   }
                 }
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
               "configurations": {},
               "parallelism": true
             },
             "build-deps": {
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "configurations": {},
               "options": {},
               "parallelism": true,
@@ -4752,9 +4323,7 @@
             },
             "watch-deps": {
               "continuous": true,
-              "dependsOn": [
-                "build-deps"
-              ],
+              "dependsOn": ["build-deps"],
               "executor": "nx:run-commands",
               "options": {
                 "command": "pnpm exec nx watch --projects @hateoas-ts/resource-react --includeDependentProjects -- pnpm exec nx build-deps @hateoas-ts/resource-react"
@@ -4775,18 +4344,12 @@
                 "{workspaceRoot}/packages/resource-react/eslint.config.mjs",
                 "{workspaceRoot}/tools/eslint-rules/**/*",
                 {
-                  "externalDependencies": [
-                    "eslint"
-                  ]
+                  "externalDependencies": ["eslint"]
                 }
               ],
-              "outputs": [
-                "{options.outputFile}"
-              ],
+              "outputs": ["{options.outputFile}"],
               "metadata": {
-                "technologies": [
-                  "eslint"
-                ],
+                "technologies": ["eslint"],
                 "description": "Runs ESLint on project",
                 "help": {
                   "command": "pnpm exec eslint --help",
@@ -4807,22 +4370,15 @@
                 "default",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "vitest"
-                  ]
+                  "externalDependencies": ["vitest"]
                 },
                 {
                   "env": "CI"
                 }
               ],
-              "outputs": [
-                "{projectRoot}/test-output/vitest/coverage"
-              ],
+              "outputs": ["{projectRoot}/test-output/vitest/coverage"],
               "metadata": {
-                "technologies": [
-                  "vite",
-                  "vitest"
-                ],
+                "technologies": ["vite", "vitest"],
                 "description": "Run Vitest tests",
                 "help": {
                   "command": "pnpm exec vitest --help",
@@ -4841,9 +4397,7 @@
               },
               "configurations": {},
               "parallelism": true,
-              "dependsOn": [
-                "^build"
-              ]
+              "dependsOn": ["^build"]
             },
             "serve": {
               "continuous": true,
@@ -4852,9 +4406,7 @@
                 "command": "vite"
               },
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Starts Vite dev server",
                 "help": {
                   "command": "pnpm exec vite --help",
@@ -4866,9 +4418,7 @@
                 },
                 "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
               "configurations": {},
               "parallelism": true
@@ -4880,9 +4430,7 @@
                 "command": "vite"
               },
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Starts Vite dev server",
                 "help": {
                   "command": "pnpm exec vite --help",
@@ -4893,26 +4441,20 @@
                   }
                 }
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
               "configurations": {},
               "parallelism": true
             },
             "preview": {
               "continuous": true,
-              "dependsOn": [
-                "build"
-              ],
+              "dependsOn": ["build"],
               "options": {
                 "cwd": "packages/resource-react",
                 "command": "vite preview"
               },
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Locally preview Vite production build",
                 "help": {
                   "command": "pnpm exec vite preview --help",
@@ -4934,17 +4476,13 @@
                 "buildTarget": "build",
                 "spa": true
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "configurations": {},
               "parallelism": true
             },
             "nx-release-publish": {
               "executor": "@nx/js:release-publish",
-              "dependsOn": [
-                "^nx-release-publish"
-              ],
+              "dependsOn": ["^nx-release-publish"],
               "options": {},
               "configurations": {},
               "parallelism": true
@@ -4970,9 +4508,7 @@
             }
           },
           "name": "@hateoas-ts/resource-react",
-          "tags": [
-            "npm:public"
-          ],
+          "tags": ["npm:public"],
           "implicitDependencies": []
         }
       },
@@ -5007,32 +4543,17 @@
                 "resolvableConfigurations",
                 "tasks"
               ],
-              "verification": [
-                "check",
-                "test"
-              ],
-              "documentation": [
-                "javadoc"
-              ],
-              "Reporting": [
-                "nxProjectGraph",
-                "nxProjectReport"
-              ],
-              "publishing": [
-                "publish",
-                "publishToMavenLocal"
-              ]
+              "verification": ["check", "test"],
+              "documentation": ["javadoc"],
+              "Reporting": ["nxProjectGraph", "nxProjectReport"],
+              "publishing": ["publish", "publishToMavenLocal"]
             },
-            "technologies": [
-              "gradle"
-            ]
+            "technologies": ["gradle"]
           },
           "targets": {
             "assemble": {
               "cache": true,
-              "dependsOn": [
-                "domain:jar"
-              ],
+              "dependsOn": ["domain:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/libs/domain-0.0.1-SNAPSHOT.jar"
@@ -5041,9 +4562,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles the outputs of this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:assemble"
                 }
@@ -5056,16 +4575,11 @@
             },
             "build": {
               "cache": true,
-              "dependsOn": [
-                "domain:check",
-                "domain:assemble"
-              ],
+              "dependsOn": ["domain:check", "domain:assemble"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:build"
                 }
@@ -5089,9 +4603,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects that depend on it.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:buildDependents"
                 }
@@ -5107,9 +4619,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all buildscript dependencies declared in project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:buildEnvironment"
                 }
@@ -5122,15 +4632,11 @@
             },
             "buildNeeded": {
               "cache": true,
-              "dependsOn": [
-                "domain:build"
-              ],
+              "dependsOn": ["domain:build"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects it depends on.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:buildNeeded"
                 }
@@ -5143,9 +4649,7 @@
             },
             "check": {
               "cache": true,
-              "dependsOn": [
-                "domain:test"
-              ],
+              "dependsOn": ["domain:test"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/test-results/test/binary/**/*"
@@ -5160,9 +4664,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs all checks.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:check"
                 }
@@ -5175,10 +4677,7 @@
             },
             "classes": {
               "cache": true,
-              "dependsOn": [
-                "domain:compileJava",
-                "domain:processResources"
-              ],
+              "dependsOn": ["domain:compileJava", "domain:processResources"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/classes/java/main/**/*"
@@ -5199,9 +4698,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles main classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:classes"
                 }
@@ -5217,9 +4714,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Deletes the build directory.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:clean"
                 }
@@ -5261,9 +4756,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles main Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:compileJava"
                 }
@@ -5282,10 +4775,7 @@
                 "{projectRoot}/build/generated/sources/headers/java/test",
                 "{projectRoot}/build/tmp/compileTestJava/previous-compilation-data.bin"
               ],
-              "dependsOn": [
-                "domain:classes",
-                "domain:compileJava"
-              ],
+              "dependsOn": ["domain:classes", "domain:compileJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/classes/java/main/**/*"
@@ -5326,9 +4816,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles test Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:compileTestJava"
                 }
@@ -5344,9 +4832,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the components produced by project ':backend:domain'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:components"
                 }
@@ -5362,9 +4848,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all dependencies declared in project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:dependencies"
                 }
@@ -5380,9 +4864,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the insight into a specific dependency in project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:dependencyInsight"
                 }
@@ -5398,9 +4880,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependency management declared in project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:dependencyManagement"
                 }
@@ -5416,9 +4896,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependent components of components in project ':backend:domain'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:dependentComponents"
                 }
@@ -5434,9 +4912,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays a help message.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:help"
                 }
@@ -5449,13 +4925,8 @@
             },
             "jar": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/libs/domain-0.0.1-SNAPSHOT.jar"
-              ],
-              "dependsOn": [
-                "domain:classes",
-                "domain:compileJava"
-              ],
+              "outputs": ["{projectRoot}/build/libs/domain-0.0.1-SNAPSHOT.jar"],
+              "dependsOn": ["domain:classes", "domain:compileJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/classes/java/main/**/*"
@@ -5524,9 +4995,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles a jar archive containing the classes of the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:jar"
                 }
@@ -5542,9 +5011,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the detected java toolchains.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:javaToolchains"
                 }
@@ -5557,13 +5024,8 @@
             },
             "javadoc": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/docs/javadoc"
-              ],
-              "dependsOn": [
-                "domain:classes",
-                "domain:compileJava"
-              ],
+              "outputs": ["{projectRoot}/build/docs/javadoc"],
+              "dependsOn": ["domain:classes", "domain:compileJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/classes/java/main/**/*"
@@ -5605,9 +5067,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates Javadoc API documentation for the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:javadoc"
                 }
@@ -5623,9 +5083,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configuration model of project ':backend:domain'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:model"
                 }
@@ -5638,9 +5096,7 @@
             },
             "nxProjectGraph": {
               "cache": true,
-              "dependsOn": [
-                "domain:nxProjectReport"
-              ],
+              "dependsOn": ["domain:nxProjectReport"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/nx/domain.json"
@@ -5649,9 +5105,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project graph for domain",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:nxProjectGraph"
                 }
@@ -5664,15 +5118,11 @@
             },
             "nxProjectReport": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/nx/domain.json"
-              ],
+              "outputs": ["{projectRoot}/build/nx/domain.json"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project report for domain",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:nxProjectReport"
                 }
@@ -5688,9 +5138,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the outgoing variants of project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:outgoingVariants"
                 }
@@ -5703,15 +5151,11 @@
             },
             "processResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/main"
-              ],
+              "outputs": ["{projectRoot}/build/resources/main"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes main resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:processResources"
                 }
@@ -5724,15 +5168,11 @@
             },
             "processTestResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/test"
-              ],
+              "outputs": ["{projectRoot}/build/resources/test"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes test resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:processTestResources"
                 }
@@ -5748,9 +5188,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the sub-projects of project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:projects"
                 }
@@ -5766,9 +5204,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the properties of project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:properties"
                 }
@@ -5784,9 +5220,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all publications produced by this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:publish"
                 }
@@ -5802,9 +5236,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all Maven publications produced by this project to the local Maven cache.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:publishToMavenLocal"
                 }
@@ -5820,9 +5252,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configurations that can be resolved in project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:resolvableConfigurations"
                 }
@@ -5838,9 +5268,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the tasks runnable from project ':backend:domain'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:tasks"
                 }
@@ -5858,9 +5286,7 @@
                 "{projectRoot}/build/reports/tests/test",
                 "{projectRoot}/build/test-results/test"
               ],
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/classes/java/test/**/*"
@@ -5925,9 +5351,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs the test suite.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:test"
                 }
@@ -5964,9 +5388,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles test classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:domain:testClasses"
                 }
@@ -5989,17 +5411,13 @@
           "root": "packages/resource",
           "targets": {
             "typecheck": {
-              "dependsOn": [
-                "^typecheck"
-              ],
+              "dependsOn": ["^typecheck"],
               "cache": true,
               "inputs": [
                 "production",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "typescript"
-                  ]
+                  "externalDependencies": ["typescript"]
                 }
               ],
               "outputs": [
@@ -6021,21 +5439,14 @@
                 "{projectRoot}/out-tsc/vitest/**/*.d.ts",
                 "{projectRoot}/out-tsc/vitest/tsconfig.tsbuildinfo"
               ],
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "metadata": {
-                "technologies": [
-                  "typescript",
-                  "typescript"
-                ],
+                "technologies": ["typescript", "typescript"],
                 "description": "Runs type-checking for the project.",
                 "help": {
                   "command": "pnpm exec tsc --build --help",
                   "example": {
-                    "args": [
-                      "--force"
-                    ]
+                    "args": ["--force"]
                   }
                 }
               },
@@ -6053,26 +5464,17 @@
                 "command": "vite build"
               },
               "cache": true,
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 "production",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "vite"
-                  ]
+                  "externalDependencies": ["vite"]
                 }
               ],
-              "outputs": [
-                "{projectRoot}/dist"
-              ],
+              "outputs": ["{projectRoot}/dist"],
               "metadata": {
-                "technologies": [
-                  "typescript",
-                  "vite"
-                ],
+                "technologies": ["typescript", "vite"],
                 "description": "Run Vite build",
                 "help": {
                   "command": "pnpm exec vite build --help",
@@ -6084,17 +5486,13 @@
                   }
                 }
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
               "configurations": {},
               "parallelism": true
             },
             "build-deps": {
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "configurations": {},
               "options": {},
               "parallelism": true,
@@ -6102,9 +5500,7 @@
             },
             "watch-deps": {
               "continuous": true,
-              "dependsOn": [
-                "build-deps"
-              ],
+              "dependsOn": ["build-deps"],
               "executor": "nx:run-commands",
               "options": {
                 "command": "pnpm exec nx watch --projects @hateoas-ts/resource --includeDependentProjects -- pnpm exec nx build-deps @hateoas-ts/resource"
@@ -6125,18 +5521,12 @@
                 "{workspaceRoot}/packages/resource/eslint.config.mjs",
                 "{workspaceRoot}/tools/eslint-rules/**/*",
                 {
-                  "externalDependencies": [
-                    "eslint"
-                  ]
+                  "externalDependencies": ["eslint"]
                 }
               ],
-              "outputs": [
-                "{options.outputFile}"
-              ],
+              "outputs": ["{options.outputFile}"],
               "metadata": {
-                "technologies": [
-                  "eslint"
-                ],
+                "technologies": ["eslint"],
                 "description": "Runs ESLint on project",
                 "help": {
                   "command": "pnpm exec eslint --help",
@@ -6157,22 +5547,15 @@
                 "default",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "vitest"
-                  ]
+                  "externalDependencies": ["vitest"]
                 },
                 {
                   "env": "CI"
                 }
               ],
-              "outputs": [
-                "{projectRoot}/test-output/vitest/coverage"
-              ],
+              "outputs": ["{projectRoot}/test-output/vitest/coverage"],
               "metadata": {
-                "technologies": [
-                  "vite",
-                  "vitest"
-                ],
+                "technologies": ["vite", "vitest"],
                 "description": "Run Vitest tests",
                 "help": {
                   "command": "pnpm exec vitest --help",
@@ -6191,9 +5574,7 @@
               },
               "configurations": {},
               "parallelism": true,
-              "dependsOn": [
-                "^build"
-              ]
+              "dependsOn": ["^build"]
             },
             "serve": {
               "continuous": true,
@@ -6202,9 +5583,7 @@
                 "command": "vite"
               },
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Starts Vite dev server",
                 "help": {
                   "command": "pnpm exec vite --help",
@@ -6216,9 +5595,7 @@
                 },
                 "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
               "configurations": {},
               "parallelism": true
@@ -6230,9 +5607,7 @@
                 "command": "vite"
               },
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Starts Vite dev server",
                 "help": {
                   "command": "pnpm exec vite --help",
@@ -6243,26 +5618,20 @@
                   }
                 }
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
               "configurations": {},
               "parallelism": true
             },
             "preview": {
               "continuous": true,
-              "dependsOn": [
-                "build"
-              ],
+              "dependsOn": ["build"],
               "options": {
                 "cwd": "packages/resource",
                 "command": "vite preview"
               },
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Locally preview Vite production build",
                 "help": {
                   "command": "pnpm exec vite preview --help",
@@ -6284,17 +5653,13 @@
                 "buildTarget": "build",
                 "spa": true
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "configurations": {},
               "parallelism": true
             },
             "nx-release-publish": {
               "executor": "@nx/js:release-publish",
-              "dependsOn": [
-                "^nx-release-publish"
-              ],
+              "dependsOn": ["^nx-release-publish"],
               "options": {},
               "configurations": {},
               "parallelism": true
@@ -6320,9 +5685,7 @@
             }
           },
           "name": "@hateoas-ts/resource",
-          "tags": [
-            "npm:public"
-          ],
+          "tags": ["npm:public"],
           "implicitDependencies": []
         }
       },
@@ -6357,32 +5720,17 @@
                 "resolvableConfigurations",
                 "tasks"
               ],
-              "verification": [
-                "check",
-                "test"
-              ],
-              "documentation": [
-                "javadoc"
-              ],
-              "Reporting": [
-                "nxProjectGraph",
-                "nxProjectReport"
-              ],
-              "publishing": [
-                "publish",
-                "publishToMavenLocal"
-              ]
+              "verification": ["check", "test"],
+              "documentation": ["javadoc"],
+              "Reporting": ["nxProjectGraph", "nxProjectReport"],
+              "publishing": ["publish", "publishToMavenLocal"]
             },
-            "technologies": [
-              "gradle"
-            ]
+            "technologies": ["gradle"]
           },
           "targets": {
             "assemble": {
               "cache": true,
-              "dependsOn": [
-                "api:jar"
-              ],
+              "dependsOn": ["api:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/libs/api-0.0.1-SNAPSHOT.jar"
@@ -6391,9 +5739,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles the outputs of this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:assemble"
                 }
@@ -6406,16 +5752,11 @@
             },
             "build": {
               "cache": true,
-              "dependsOn": [
-                "api:check",
-                "api:assemble"
-              ],
+              "dependsOn": ["api:check", "api:assemble"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:build"
                 }
@@ -6428,16 +5769,11 @@
             },
             "buildDependents": {
               "cache": true,
-              "dependsOn": [
-                "api:build",
-                "server:buildDependents"
-              ],
+              "dependsOn": ["api:build", "server:buildDependents"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects that depend on it.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:buildDependents"
                 }
@@ -6453,9 +5789,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all buildscript dependencies declared in project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:buildEnvironment"
                 }
@@ -6468,16 +5802,11 @@
             },
             "buildNeeded": {
               "cache": true,
-              "dependsOn": [
-                "api:build",
-                "domain:buildNeeded"
-              ],
+              "dependsOn": ["api:build", "domain:buildNeeded"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects it depends on.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:buildNeeded"
                 }
@@ -6490,9 +5819,7 @@
             },
             "check": {
               "cache": true,
-              "dependsOn": [
-                "api:test"
-              ],
+              "dependsOn": ["api:test"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/test-results/test/binary/**/*"
@@ -6507,9 +5834,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs all checks.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:check"
                 }
@@ -6522,10 +5847,7 @@
             },
             "classes": {
               "cache": true,
-              "dependsOn": [
-                "api:compileJava",
-                "api:processResources"
-              ],
+              "dependsOn": ["api:compileJava", "api:processResources"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/classes/java/main/**/*"
@@ -6546,9 +5868,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles main classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:classes"
                 }
@@ -6564,9 +5884,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Deletes the build directory.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:clean"
                 }
@@ -6585,9 +5903,7 @@
                 "{projectRoot}/build/generated/sources/headers/java/main",
                 "{projectRoot}/build/tmp/compileJava/previous-compilation-data.bin"
               ],
-              "dependsOn": [
-                "domain:jar"
-              ],
+              "dependsOn": ["domain:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/domain/build/libs/domain-0.0.1-SNAPSHOT.jar"
@@ -6680,9 +5996,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles main Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:compileJava"
                 }
@@ -6701,11 +6015,7 @@
                 "{projectRoot}/build/generated/sources/headers/java/test",
                 "{projectRoot}/build/tmp/compileTestJava/previous-compilation-data.bin"
               ],
-              "dependsOn": [
-                "api:classes",
-                "api:compileJava",
-                "domain:jar"
-              ],
+              "dependsOn": ["api:classes", "api:compileJava", "domain:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/classes/java/main/**/*"
@@ -6877,9 +6187,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles test Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:compileTestJava"
                 }
@@ -6895,9 +6203,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the components produced by project ':backend:api'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:components"
                 }
@@ -6913,9 +6219,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all dependencies declared in project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:dependencies"
                 }
@@ -6931,9 +6235,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the insight into a specific dependency in project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:dependencyInsight"
                 }
@@ -6949,9 +6251,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependency management declared in project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:dependencyManagement"
                 }
@@ -6967,9 +6267,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependent components of components in project ':backend:api'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:dependentComponents"
                 }
@@ -6985,9 +6283,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays a help message.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:help"
                 }
@@ -7000,13 +6296,8 @@
             },
             "jar": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/libs/api-0.0.1-SNAPSHOT.jar"
-              ],
-              "dependsOn": [
-                "api:classes",
-                "api:compileJava"
-              ],
+              "outputs": ["{projectRoot}/build/libs/api-0.0.1-SNAPSHOT.jar"],
+              "dependsOn": ["api:classes", "api:compileJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/classes/java/main/**/*"
@@ -7072,9 +6363,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles a jar archive containing the classes of the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:jar"
                 }
@@ -7090,9 +6379,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the detected java toolchains.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:javaToolchains"
                 }
@@ -7105,14 +6392,8 @@
             },
             "javadoc": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/docs/javadoc"
-              ],
-              "dependsOn": [
-                "api:classes",
-                "api:compileJava",
-                "domain:jar"
-              ],
+              "outputs": ["{projectRoot}/build/docs/javadoc"],
+              "dependsOn": ["api:classes", "api:compileJava", "domain:jar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/classes/java/main/**/*"
@@ -7223,9 +6504,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates Javadoc API documentation for the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:javadoc"
                 }
@@ -7241,9 +6520,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configuration model of project ':backend:api'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:model"
                 }
@@ -7256,9 +6533,7 @@
             },
             "nxProjectGraph": {
               "cache": true,
-              "dependsOn": [
-                "api:nxProjectReport"
-              ],
+              "dependsOn": ["api:nxProjectReport"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/nx/api.json"
@@ -7267,9 +6542,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project graph for api",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:nxProjectGraph"
                 }
@@ -7282,15 +6555,11 @@
             },
             "nxProjectReport": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/nx/api.json"
-              ],
+              "outputs": ["{projectRoot}/build/nx/api.json"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project report for api",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:nxProjectReport"
                 }
@@ -7306,9 +6575,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the outgoing variants of project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:outgoingVariants"
                 }
@@ -7321,15 +6588,11 @@
             },
             "processResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/main"
-              ],
+              "outputs": ["{projectRoot}/build/resources/main"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes main resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:processResources"
                 }
@@ -7342,18 +6605,12 @@
             },
             "processTestResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/test"
-              ],
-              "inputs": [
-                "{projectRoot}/src/test/resources/application.yml"
-              ],
+              "outputs": ["{projectRoot}/build/resources/test"],
+              "inputs": ["{projectRoot}/src/test/resources/application.yml"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes test resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:processTestResources"
                 }
@@ -7369,9 +6626,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the sub-projects of project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:projects"
                 }
@@ -7387,9 +6642,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the properties of project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:properties"
                 }
@@ -7405,9 +6658,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all publications produced by this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:publish"
                 }
@@ -7423,9 +6674,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all Maven publications produced by this project to the local Maven cache.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:publishToMavenLocal"
                 }
@@ -7441,9 +6690,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configurations that can be resolved in project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:resolvableConfigurations"
                 }
@@ -7459,9 +6706,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the tasks runnable from project ':backend:api'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:tasks"
                 }
@@ -7479,9 +6724,7 @@
                 "{projectRoot}/build/reports/tests/test",
                 "{projectRoot}/build/test-results/test"
               ],
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/classes/java/test/**/*"
@@ -7694,9 +6937,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs the test suite.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:test"
                 }
@@ -7709,10 +6950,7 @@
             },
             "testClasses": {
               "cache": true,
-              "dependsOn": [
-                "api:processTestResources",
-                "api:compileTestJava"
-              ],
+              "dependsOn": ["api:processTestResources", "api:compileTestJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "libs/backend/api/build/resources/test/**/*"
@@ -7733,9 +6971,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles test classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :backend:api:testClasses"
                 }
@@ -7774,10 +7010,7 @@
                 "resolveTestMainClassName",
                 "testClasses"
               ],
-              "application": [
-                "bootRun",
-                "bootTestRun"
-              ],
+              "application": ["bootRun", "bootTestRun"],
               "help": [
                 "buildEnvironment",
                 "dependencies",
@@ -7791,10 +7024,7 @@
                 "resolvableConfigurations",
                 "tasks"
               ],
-              "verification": [
-                "check",
-                "test"
-              ],
+              "verification": ["check", "test"],
               "publishing": [
                 "generateMetadataFileForMavenJavaPublication",
                 "generatePomFileForMavenJavaPublication",
@@ -7802,25 +7032,15 @@
                 "publishMavenJavaPublicationToMavenLocal",
                 "publishToMavenLocal"
               ],
-              "documentation": [
-                "javadoc"
-              ],
-              "Reporting": [
-                "nxProjectGraph",
-                "nxProjectReport"
-              ]
+              "documentation": ["javadoc"],
+              "Reporting": ["nxProjectGraph", "nxProjectReport"]
             },
-            "technologies": [
-              "gradle"
-            ]
+            "technologies": ["gradle"]
           },
           "targets": {
             "assemble": {
               "cache": true,
-              "dependsOn": [
-                "server:jar",
-                "server:bootJar"
-              ],
+              "dependsOn": ["server:jar", "server:bootJar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "apps/server/build/libs/server-0.0.1-SNAPSHOT-plain.jar"
@@ -7832,9 +7052,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles the outputs of this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:assemble"
                 }
@@ -7847,9 +7065,7 @@
             },
             "bootBuildImage": {
               "cache": true,
-              "dependsOn": [
-                "server:bootJar"
-              ],
+              "dependsOn": ["server:bootJar"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "apps/server/build/libs/server-0.0.1-SNAPSHOT.jar"
@@ -7861,9 +7077,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Builds an OCI image of the application using the output of the bootJar task",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:bootBuildImage"
                 }
@@ -7876,15 +7090,11 @@
             },
             "bootBuildInfo": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/main/META-INF"
-              ],
+              "outputs": ["{projectRoot}/build/resources/main/META-INF"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates a META-INF/build-info.properties file.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:bootBuildInfo"
                 }
@@ -7897,9 +7107,7 @@
             },
             "bootJar": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/libs/server-0.0.1-SNAPSHOT.jar"
-              ],
+              "outputs": ["{projectRoot}/build/libs/server-0.0.1-SNAPSHOT.jar"],
               "dependsOn": [
                 "server:classes",
                 "server:compileJava",
@@ -7913,9 +7121,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles an executable jar archive containing the main classes and their dependencies.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:bootJar"
                 }
@@ -7929,9 +7135,7 @@
             "bootRun": {
               "cache": false,
               "continuous": true,
-              "dependsOn": [
-                "build"
-              ],
+              "dependsOn": ["build"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "apps/server/build/classes/java/main/**/*"
@@ -8201,9 +7405,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs this project as a Spring Boot application.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:bootRun"
                 }
@@ -8533,9 +7735,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs this project as a Spring Boot application using the test runtime classpath.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:bootTestRun"
                 }
@@ -8548,16 +7748,11 @@
             },
             "build": {
               "cache": false,
-              "dependsOn": [
-                "server:check",
-                "server:assemble"
-              ],
+              "dependsOn": ["server:check", "server:assemble"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:build"
                 }
@@ -8565,24 +7760,18 @@
               "continuous": true,
               "options": {
                 "taskName": ":apps:server:build",
-                "args": [
-                  "--continuous"
-                ]
+                "args": ["--continuous"]
               },
               "configurations": {},
               "parallelism": true
             },
             "buildDependents": {
               "cache": true,
-              "dependsOn": [
-                "server:build"
-              ],
+              "dependsOn": ["server:build"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects that depend on it.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:buildDependents"
                 }
@@ -8598,9 +7787,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all buildscript dependencies declared in project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:buildEnvironment"
                 }
@@ -8624,9 +7811,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles and tests this project and all projects it depends on.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:buildNeeded"
                 }
@@ -8639,9 +7824,7 @@
             },
             "check": {
               "cache": true,
-              "dependsOn": [
-                "server:test"
-              ],
+              "dependsOn": ["server:test"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "apps/server/build/test-results/test/binary/**/*"
@@ -8656,9 +7839,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs all checks.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:check"
                 }
@@ -8699,9 +7880,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles main classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:classes"
                 }
@@ -8717,9 +7896,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Deletes the build directory.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:clean"
                 }
@@ -8888,9 +8065,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles main Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:compileJava"
                 }
@@ -9099,9 +8274,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Compiles test Java source.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:compileTestJava"
                 }
@@ -9117,9 +8290,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the components produced by project ':apps:server'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:components"
                 }
@@ -9135,9 +8306,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays all dependencies declared in project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:dependencies"
                 }
@@ -9153,9 +8322,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the insight into a specific dependency in project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:dependencyInsight"
                 }
@@ -9171,9 +8338,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependency management declared in project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:dependencyManagement"
                 }
@@ -9189,9 +8354,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the dependent components of components in project ':apps:server'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:dependentComponents"
                 }
@@ -9210,9 +8373,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates the Gradle metadata file for publication 'mavenJava'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:generateMetadataFileForMavenJavaPublication"
                 }
@@ -9231,9 +8392,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates the Maven POM file for publication 'mavenJava'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:generatePomFileForMavenJavaPublication"
                 }
@@ -9249,9 +8408,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays a help message.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:help"
                 }
@@ -9267,10 +8424,7 @@
               "outputs": [
                 "{projectRoot}/build/libs/server-0.0.1-SNAPSHOT-plain.jar"
               ],
-              "dependsOn": [
-                "server:classes",
-                "server:compileJava"
-              ],
+              "dependsOn": ["server:classes", "server:compileJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "apps/server/build/classes/java/main/**/*"
@@ -9318,9 +8472,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles a jar archive containing the classes of the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:jar"
                 }
@@ -9336,9 +8488,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the detected java toolchains.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:javaToolchains"
                 }
@@ -9351,9 +8501,7 @@
             },
             "javadoc": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/docs/javadoc"
-              ],
+              "outputs": ["{projectRoot}/build/docs/javadoc"],
               "dependsOn": [
                 "server:classes",
                 "server:compileJava",
@@ -9524,9 +8672,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Generates Javadoc API documentation for the 'main' feature.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:javadoc"
                 }
@@ -9542,9 +8688,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configuration model of project ':apps:server'. [deprecated]",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:model"
                 }
@@ -9557,9 +8701,7 @@
             },
             "nxProjectGraph": {
               "cache": true,
-              "dependsOn": [
-                "server:nxProjectReport"
-              ],
+              "dependsOn": ["server:nxProjectReport"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "apps/server/build/nx/server.json"
@@ -9568,9 +8710,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project graph for server",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:nxProjectGraph"
                 }
@@ -9583,15 +8723,11 @@
             },
             "nxProjectReport": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/nx/server.json"
-              ],
+              "outputs": ["{projectRoot}/build/nx/server.json"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Create Nx project report for server",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:nxProjectReport"
                 }
@@ -9607,9 +8743,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the outgoing variants of project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:outgoingVariants"
                 }
@@ -9622,9 +8756,7 @@
             },
             "processResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/main"
-              ],
+              "outputs": ["{projectRoot}/build/resources/main"],
               "inputs": [
                 "{projectRoot}/src/main/resources/application-prod.yml",
                 "{projectRoot}/src/main/resources/application-dev.yml",
@@ -9633,9 +8765,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes main resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:processResources"
                 }
@@ -9648,15 +8778,11 @@
             },
             "processTestResources": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resources/test"
-              ],
+              "outputs": ["{projectRoot}/build/resources/test"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Processes test resources.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:processTestResources"
                 }
@@ -9672,9 +8798,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the sub-projects of project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:projects"
                 }
@@ -9690,9 +8814,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the properties of project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:properties"
                 }
@@ -9708,9 +8830,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all publications produced by this project.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:publish"
                 }
@@ -9744,9 +8864,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes Maven publication 'mavenJava' to the local Maven repository.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:publishMavenJavaPublicationToMavenLocal"
                 }
@@ -9759,15 +8877,11 @@
             },
             "publishToMavenLocal": {
               "cache": true,
-              "dependsOn": [
-                "server:publishMavenJavaPublicationToMavenLocal"
-              ],
+              "dependsOn": ["server:publishMavenJavaPublicationToMavenLocal"],
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Publishes all Maven publications produced by this project to the local Maven cache.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:publishToMavenLocal"
                 }
@@ -9783,9 +8897,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the configurations that can be resolved in project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:resolvableConfigurations"
                 }
@@ -9798,13 +8910,8 @@
             },
             "resolveMainClassName": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resolvedMainClassName"
-              ],
-              "dependsOn": [
-                "server:classes",
-                "server:compileJava"
-              ],
+              "outputs": ["{projectRoot}/build/resolvedMainClassName"],
+              "dependsOn": ["server:classes", "server:compileJava"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "apps/server/build/classes/java/main/**/*"
@@ -9828,9 +8935,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Resolves the name of the application's main class.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:resolveMainClassName"
                 }
@@ -9843,9 +8948,7 @@
             },
             "resolveTestMainClassName": {
               "cache": true,
-              "outputs": [
-                "{projectRoot}/build/resolvedMainTestClassName"
-              ],
+              "outputs": ["{projectRoot}/build/resolvedMainTestClassName"],
               "dependsOn": [
                 "server:testClasses",
                 "server:compileTestJava",
@@ -9893,9 +8996,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Resolves the name of the application's test main class.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:resolveTestMainClassName"
                 }
@@ -9911,9 +9012,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Displays the tasks runnable from project ':apps:server'.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:tasks"
                 }
@@ -9931,9 +9030,7 @@
                 "{projectRoot}/build/reports/tests/test",
                 "{projectRoot}/build/test-results/test"
               ],
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 {
                   "dependentTasksOutputFiles": "apps/server/build/classes/java/test/**/*"
@@ -10247,9 +9344,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Runs the test suite.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:test"
                 }
@@ -10286,9 +9381,7 @@
               "executor": "@nx/gradle:gradle",
               "metadata": {
                 "description": "Assembles test classes.",
-                "technologies": [
-                  "gradle"
-                ],
+                "technologies": ["gradle"],
                 "help": {
                   "command": "./gradlew help --task :apps:server:testClasses"
                 }
@@ -10311,17 +9404,13 @@
           "root": "apps/web",
           "targets": {
             "typecheck": {
-              "dependsOn": [
-                "^typecheck"
-              ],
+              "dependsOn": ["^typecheck"],
               "cache": true,
               "inputs": [
                 "production",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "typescript"
-                  ]
+                  "externalDependencies": ["typescript"]
                 }
               ],
               "outputs": [
@@ -10343,21 +9432,14 @@
                 "{projectRoot}/out-tsc/vitest/**/*.d.ts",
                 "{projectRoot}/out-tsc/vitest/tsconfig.tsbuildinfo"
               ],
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "metadata": {
-                "technologies": [
-                  "typescript",
-                  "typescript"
-                ],
+                "technologies": ["typescript", "typescript"],
                 "description": "Runs type-checking for the project.",
                 "help": {
                   "command": "pnpm exec tsc --build --help",
                   "example": {
-                    "args": [
-                      "--force"
-                    ]
+                    "args": ["--force"]
                   }
                 }
               },
@@ -10382,18 +9464,12 @@
                 "{workspaceRoot}/apps/web/eslint.config.mjs",
                 "{workspaceRoot}/tools/eslint-rules/**/*",
                 {
-                  "externalDependencies": [
-                    "eslint"
-                  ]
+                  "externalDependencies": ["eslint"]
                 }
               ],
-              "outputs": [
-                "{options.outputFile}"
-              ],
+              "outputs": ["{options.outputFile}"],
               "metadata": {
-                "technologies": [
-                  "eslint"
-                ],
+                "technologies": ["eslint"],
                 "description": "Runs ESLint on project",
                 "help": {
                   "command": "pnpm exec eslint --help",
@@ -10414,22 +9490,15 @@
                 "default",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "vitest"
-                  ]
+                  "externalDependencies": ["vitest"]
                 },
                 {
                   "env": "CI"
                 }
               ],
-              "outputs": [
-                "{projectRoot}/test-output/vitest/coverage"
-              ],
+              "outputs": ["{projectRoot}/test-output/vitest/coverage"],
               "metadata": {
-                "technologies": [
-                  "vite",
-                  "vitest"
-                ],
+                "technologies": ["vite", "vitest"],
                 "description": "Run Vitest tests",
                 "help": {
                   "command": "pnpm exec vitest --help",
@@ -10448,9 +9517,7 @@
               },
               "configurations": {},
               "parallelism": true,
-              "dependsOn": [
-                "^build"
-              ]
+              "dependsOn": ["^build"]
             },
             "build": {
               "options": {
@@ -10458,25 +9525,17 @@
                 "command": "vite build"
               },
               "cache": true,
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "inputs": [
                 "production",
                 "^production",
                 {
-                  "externalDependencies": [
-                    "vite"
-                  ]
+                  "externalDependencies": ["vite"]
                 }
               ],
-              "outputs": [
-                "{projectRoot}/dist"
-              ],
+              "outputs": ["{projectRoot}/dist"],
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Run Vite build",
                 "help": {
                   "command": "pnpm exec vite build --help",
@@ -10488,9 +9547,7 @@
                   }
                 }
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
               "configurations": {},
               "parallelism": true
@@ -10502,9 +9559,7 @@
                 "command": "vite"
               },
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Starts Vite dev server",
                 "help": {
                   "command": "pnpm exec vite --help",
@@ -10516,9 +9571,7 @@
                 },
                 "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
               "configurations": {},
               "parallelism": true
@@ -10526,9 +9579,7 @@
             "dev": {
               "continuous": true,
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Starts Vite dev server",
                 "help": {
                   "command": "pnpm exec vite --help",
@@ -10539,13 +9590,9 @@
                   }
                 }
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "executor": "nx:run-commands",
-              "dependsOn": [
-                ":apps:server:bootRun"
-              ],
+              "dependsOn": [":apps:server:bootRun"],
               "options": {
                 "cwd": "apps/web",
                 "command": "vite"
@@ -10555,17 +9602,13 @@
             },
             "preview": {
               "continuous": true,
-              "dependsOn": [
-                "build"
-              ],
+              "dependsOn": ["build"],
               "options": {
                 "cwd": "apps/web",
                 "command": "vite preview"
               },
               "metadata": {
-                "technologies": [
-                  "vite"
-                ],
+                "technologies": ["vite"],
                 "description": "Locally preview Vite production build",
                 "help": {
                   "command": "pnpm exec vite preview --help",
@@ -10587,16 +9630,12 @@
                 "buildTarget": "build",
                 "spa": true
               },
-              "syncGenerators": [
-                "@nx/js:typescript-sync"
-              ],
+              "syncGenerators": ["@nx/js:typescript-sync"],
               "configurations": {},
               "parallelism": true
             },
             "build-deps": {
-              "dependsOn": [
-                "^build"
-              ],
+              "dependsOn": ["^build"],
               "configurations": {},
               "options": {},
               "parallelism": true,
@@ -10604,9 +9643,7 @@
             },
             "watch-deps": {
               "continuous": true,
-              "dependsOn": [
-                "build-deps"
-              ],
+              "dependsOn": ["build-deps"],
               "executor": "nx:run-commands",
               "options": {
                 "command": "pnpm exec nx watch --projects @web/main --includeDependentProjects -- pnpm exec nx build-deps @web/main"
@@ -10625,10 +9662,7 @@
             }
           },
           "name": "@web/main",
-          "tags": [
-            "npm:private",
-            "type:app"
-          ],
+          "tags": ["npm:private", "type:app"],
           "implicitDependencies": []
         }
       },
@@ -10639,9 +9673,7 @@
           "root": ".",
           "name": "team-ai",
           "includedScripts": [],
-          "tags": [
-            "npm:private"
-          ],
+          "tags": ["npm:private"],
           "metadata": {
             "targetGroups": {},
             "js": {

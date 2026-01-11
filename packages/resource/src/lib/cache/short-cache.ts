@@ -50,7 +50,7 @@ export class ShortCache extends ForeverCache {
       setTimeout(() => {
         this.delete(uri);
         this.activeTimers.delete(uri);
-      }, this.cacheTimeout)
+      }, this.cacheTimeout),
     );
   }
 

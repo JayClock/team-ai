@@ -61,7 +61,7 @@ export class Problem extends HttpError {
  * a Promise resolving in either object.
  */
 export default async function problemFactory(
-  response: Response
+  response: Response,
 ): Promise<HttpError | Problem> {
   const contentType = response.headers.get('Content-Type');
   if (contentType?.match(/^application\/problem\+json/i)) {

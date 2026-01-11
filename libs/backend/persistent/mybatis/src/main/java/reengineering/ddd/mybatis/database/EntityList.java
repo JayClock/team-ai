@@ -1,12 +1,11 @@
 package reengineering.ddd.mybatis.database;
 
-import reengineering.ddd.archtype.Entity;
-import reengineering.ddd.archtype.HasMany;
-import reengineering.ddd.archtype.Many;
-
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import reengineering.ddd.archtype.Entity;
+import reengineering.ddd.archtype.HasMany;
+import reengineering.ddd.archtype.Many;
 
 public abstract class EntityList<Id, E extends Entity<Id, ?>> implements Many<E>, HasMany<Id, E> {
   @Override

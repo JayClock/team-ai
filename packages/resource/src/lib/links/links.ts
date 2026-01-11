@@ -11,7 +11,7 @@ export class Links<T extends Record<string, SafeAny>> {
 
   constructor(
     public defaultContext: string,
-    links?: (Link | NewLink)[] | Links<T>
+    links?: (Link | NewLink)[] | Links<T>,
   ) {
     this.store = new Map();
 
@@ -113,7 +113,7 @@ export class Links<T extends Record<string, SafeAny>> {
     const absHref = resolve(this.defaultContext, href);
     this.store.set(
       rel,
-      uris.filter((uri) => resolve(uri) !== absHref)
+      uris.filter((uri) => resolve(uri) !== absHref),
     );
   }
 

@@ -1,5 +1,7 @@
 package reengineering.ddd;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -13,14 +15,11 @@ import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 @MybatisTest
 @Import({TestContainerConfig.class, FlywayConfig.class})
 @ExtendWith(TestDataSetup.class)
 public class AssociationsTest {
-  @Inject
-  private Users users;
+  @Inject private Users users;
 
   private User user;
 
@@ -77,7 +76,8 @@ public class AssociationsTest {
 
         Conversation cachedConversation = user.conversations().findByIdentity(identity).get();
         assertEquals(conversation.getIdentity(), cachedConversation.getIdentity());
-        assertEquals(conversation.getDescription().title(), cachedConversation.getDescription().title());
+        assertEquals(
+            conversation.getDescription().title(), cachedConversation.getDescription().title());
       }
 
       @Test
@@ -124,7 +124,8 @@ public class AssociationsTest {
           var cachedMessage = conversation.messages().findByIdentity(identity).get();
           assertEquals(message.getIdentity(), cachedMessage.getIdentity());
           assertEquals(message.getDescription().role(), cachedMessage.getDescription().role());
-          assertEquals(message.getDescription().content(), cachedMessage.getDescription().content());
+          assertEquals(
+              message.getDescription().content(), cachedMessage.getDescription().content());
         }
 
         @Test
@@ -144,10 +145,13 @@ public class AssociationsTest {
           assertEquals("user", savedMessage.getDescription().role());
           assertEquals("Hello, world!", savedMessage.getDescription().content());
 
-          var retrievedMessage = conversation.messages().findByIdentity(savedMessage.getIdentity()).get();
+          var retrievedMessage =
+              conversation.messages().findByIdentity(savedMessage.getIdentity()).get();
           assertEquals(savedMessage.getIdentity(), retrievedMessage.getIdentity());
-          assertEquals(savedMessage.getDescription().role(), retrievedMessage.getDescription().role());
-          assertEquals(savedMessage.getDescription().content(), retrievedMessage.getDescription().content());
+          assertEquals(
+              savedMessage.getDescription().role(), retrievedMessage.getDescription().role());
+          assertEquals(
+              savedMessage.getDescription().content(), retrievedMessage.getDescription().content());
         }
       }
     }

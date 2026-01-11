@@ -18,8 +18,7 @@ public class Conversation implements Entity<String, ConversationDescription> {
     this.messages = messages;
   }
 
-  public Conversation() {
-  }
+  public Conversation() {}
 
   @Override
   public String getIdentity() {
@@ -41,24 +40,25 @@ public class Conversation implements Entity<String, ConversationDescription> {
 
   public Flux<String> sendMessage(MessageDescription description, ModelProvider modelProvider) {
     return Mono.fromCallable(() -> saveMessage(description))
-      .flatMapMany(savedMessage -> {
-        StringBuilder aiResponseBuilder = new StringBuilder();
-        return modelProvider.sendMessage(description.content())
-          .doOnNext(aiResponseBuilder::append)
-          .doOnComplete(() -> {
-            String fullAiResponse = aiResponseBuilder.toString();
-            saveMessage(new MessageDescription("assistant", fullAiResponse));
-          });
-      });
+        .flatMapMany(
+            savedMessage -> {
+              StringBuilder aiResponseBuilder = new StringBuilder();
+              return modelProvider
+                  .sendMessage(description.content())
+                  .doOnNext(aiResponseBuilder::append)
+                  .doOnComplete(
+                      () -> {
+                        String fullAiResponse = aiResponseBuilder.toString();
+                        saveMessage(new MessageDescription("assistant", fullAiResponse));
+                      });
+            });
   }
 
   public interface Messages extends HasMany<String, Message> {
     Message saveMessage(MessageDescription description);
   }
 
-  /**
-   * Interface for model providers, used to abstract different AI model services
-   */
+  /** Interface for model providers, used to abstract different AI model services */
   public interface ModelProvider {
     /**
      * Send message to AI model and get response stream

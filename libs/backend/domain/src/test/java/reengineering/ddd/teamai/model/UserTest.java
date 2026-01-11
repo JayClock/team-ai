@@ -1,5 +1,8 @@
 package reengineering.ddd.teamai.model;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,15 +13,10 @@ import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 public class UserTest {
-  @Mock
-  private User.Accounts accounts;
-  @Mock
-  private User.Conversations conversations;
+  @Mock private User.Accounts accounts;
+  @Mock private User.Conversations conversations;
 
   private User user;
   private UserDescription userDescription;
@@ -69,7 +67,8 @@ public class UserTest {
 
   @Test
   public void should_delegate_add_conversation_to_conversations_association() {
-    ConversationDescription conversationDescription = new ConversationDescription("Test Conversation");
+    ConversationDescription conversationDescription =
+        new ConversationDescription("Test Conversation");
     Conversation expectedConversation = mock(Conversation.class);
     when(conversations.add(conversationDescription)).thenReturn(expectedConversation);
 

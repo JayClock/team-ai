@@ -1,5 +1,10 @@
 package reengineering.ddd.teamai.model;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,17 +15,10 @@ import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 public class ConversationTest {
-  @Mock
-  private Conversation.Messages messages;
-  @Mock
-  private Conversation.ModelProvider modelProvider;
+  @Mock private Conversation.Messages messages;
+  @Mock private Conversation.ModelProvider modelProvider;
 
   private Conversation conversation;
   private ConversationDescription conversationDescription;
@@ -70,17 +68,18 @@ public class ConversationTest {
   @Test
   public void should_save_user_message_and_send_to_model_provider() {
     when(messages.saveMessage(any(MessageDescription.class)))
-      .thenAnswer(invocation -> {
-        MessageDescription desc = invocation.getArgument(0);
-        if (desc.role().equals("user")) {
-          return userMessageEntity;
-        } else {
-          return assistantMessageEntity;
-        }
-      });
+        .thenAnswer(
+            invocation -> {
+              MessageDescription desc = invocation.getArgument(0);
+              if (desc.role().equals("user")) {
+                return userMessageEntity;
+              } else {
+                return assistantMessageEntity;
+              }
+            });
 
     when(modelProvider.sendMessage(userMessage.content()))
-      .thenReturn(Flux.just("Hello", " there", "!"));
+        .thenReturn(Flux.just("Hello", " there", "!"));
 
     Flux<String> response = conversation.sendMessage(userMessage, modelProvider);
 
@@ -93,23 +92,25 @@ public class ConversationTest {
   @Test
   public void should_save_assistant_response_after_stream_completes() {
     when(messages.saveMessage(any(MessageDescription.class)))
-      .thenAnswer(invocation -> {
-        MessageDescription desc = invocation.getArgument(0);
-        if (desc.role().equals("user")) {
-          return userMessageEntity;
-        } else {
-          return assistantMessageEntity;
-        }
-      });
+        .thenAnswer(
+            invocation -> {
+              MessageDescription desc = invocation.getArgument(0);
+              if (desc.role().equals("user")) {
+                return userMessageEntity;
+              } else {
+                return assistantMessageEntity;
+              }
+            });
 
     when(modelProvider.sendMessage(userMessage.content()))
-      .thenReturn(Flux.just("Hello", " there", "!"));
+        .thenReturn(Flux.just("Hello", " there", "!"));
 
     Flux<String> response = conversation.sendMessage(userMessage, modelProvider);
 
     response.collectList().block();
 
-    MessageDescription expectedAssistantMessage = new MessageDescription("assistant", "Hello there!");
+    MessageDescription expectedAssistantMessage =
+        new MessageDescription("assistant", "Hello there!");
     verify(messages).saveMessage(userMessage);
     verify(messages).saveMessage(expectedAssistantMessage);
   }
@@ -117,17 +118,18 @@ public class ConversationTest {
   @Test
   public void should_return_streaming_response_from_model_provider() {
     when(messages.saveMessage(any(MessageDescription.class)))
-      .thenAnswer(invocation -> {
-        MessageDescription desc = invocation.getArgument(0);
-        if (desc.role().equals("user")) {
-          return userMessageEntity;
-        } else {
-          return assistantMessageEntity;
-        }
-      });
+        .thenAnswer(
+            invocation -> {
+              MessageDescription desc = invocation.getArgument(0);
+              if (desc.role().equals("user")) {
+                return userMessageEntity;
+              } else {
+                return assistantMessageEntity;
+              }
+            });
 
     when(modelProvider.sendMessage(userMessage.content()))
-      .thenReturn(Flux.just("Hello", " there", "!"));
+        .thenReturn(Flux.just("Hello", " there", "!"));
 
     Flux<String> response = conversation.sendMessage(userMessage, modelProvider);
 

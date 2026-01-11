@@ -21,7 +21,12 @@ public class HAL implements InitializingBean {
   private final AutowireCapableBeanFactory beanFactory;
 
   @Inject
-  public HAL(ObjectMapper mapper, LinkRelationProvider provider, MessageResolver resolver, HalConfiguration halConfiguration, AutowireCapableBeanFactory beanFactory) {
+  public HAL(
+      ObjectMapper mapper,
+      LinkRelationProvider provider,
+      MessageResolver resolver,
+      HalConfiguration halConfiguration,
+      AutowireCapableBeanFactory beanFactory) {
     this.mapper = mapper;
     this.provider = provider;
     this.resolver = resolver;
@@ -33,6 +38,8 @@ public class HAL implements InitializingBean {
   public void afterPropertiesSet() {
     mapper.registerModule(new Jackson2HalModule());
     mapper.registerModule(new Jackson2HalFormsModule());
-    mapper.setHandlerInstantiator(new Jackson2HalModule.HalHandlerInstantiator(provider, CurieProvider.NONE, resolver, halConfiguration, beanFactory));
+    mapper.setHandlerInstantiator(
+        new Jackson2HalModule.HalHandlerInstantiator(
+            provider, CurieProvider.NONE, resolver, halConfiguration, beanFactory));
   }
 }

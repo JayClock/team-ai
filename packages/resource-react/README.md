@@ -44,15 +44,11 @@ import { createClient } from '@hateoas-ts/resource';
 import { ResourceProvider } from '@hateoas-ts/resource-react';
 
 const client = createClient({
-  baseURL: 'https://api.example.com'
+  baseURL: 'https://api.example.com',
 });
 
 function App() {
-  return (
-    <ResourceProvider client={client}>
-      {/* Your app components */}
-    </ResourceProvider>
-  );
+  return <ResourceProvider client={client}>{/* Your app components */}</ResourceProvider>;
 }
 ```
 
@@ -64,33 +60,42 @@ Use the `Entity` and `Collection` types from `@hateoas-ts/resource` to define yo
 import { Entity, Collection } from '@hateoas-ts/resource';
 
 // Define Account entity
-export type Account = Entity<{
-  id: string;
-  provider: string;
-  providerId: string;
-}, {
-  self: Account;
-}>;
+export type Account = Entity<
+  {
+    id: string;
+    provider: string;
+    providerId: string;
+  },
+  {
+    self: Account;
+  }
+>;
 
 // Define Conversation entity
-export type Conversation = Entity<{
-  id: string;
-  title: string;
-}, {
-  self: Conversation;
-}>;
+export type Conversation = Entity<
+  {
+    id: string;
+    title: string;
+  },
+  {
+    self: Conversation;
+  }
+>;
 
 // Define User entity with relationships
-export type User = Entity<{
-  id: string;
-  name: string;
-  email: string;
-}, {
-  self: User;
-  accounts: Collection<Account>;
-  conversations: Collection<Conversation>;
-  'create-conversation': Conversation;
-}>;
+export type User = Entity<
+  {
+    id: string;
+    name: string;
+    email: string;
+  },
+  {
+    self: User;
+    accounts: Collection<Account>;
+    conversations: Collection<Conversation>;
+    'create-conversation': Conversation;
+  }
+>;
 ```
 
 ### 3. Use useClient Hook
@@ -107,9 +112,7 @@ function UserProfile({ userId }: { userId: string }) {
   const [user, setUser] = useState<UserState | null>(null);
 
   useEffect(() => {
-    client.go<User>(`/api/users/${userId}`)
-      .request()
-      .then(setUser);
+    client.go<User>(`/api/users/${userId}`).request().then(setUser);
   }, [client, userId]);
 
   if (!user) return <div>Loading...</div>;
@@ -131,13 +134,7 @@ function UserConversations({ userId }: { userId: string }) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
 
-  const {
-    items,
-    loading,
-    hasNextPage,
-    error,
-    loadNextPage
-  } = useInfiniteCollection(userResource.follow('conversations'));
+  const { items, loading, hasNextPage, error, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
   return (
     <div>
@@ -147,19 +144,13 @@ function UserConversations({ userId }: { userId: string }) {
 
       <ul>
         {items.map((conversationState) => (
-          <li key={conversationState.data.id}>
-            {conversationState.data.title}
-          </li>
+          <li key={conversationState.data.id}>{conversationState.data.title}</li>
         ))}
       </ul>
 
       {loading && <div>Loading more...</div>}
 
-      {hasNextPage && !loading && (
-        <button onClick={loadNextPage}>
-          Load More
-        </button>
-      )}
+      {hasNextPage && !loading && <button onClick={loadNextPage}>Load More</button>}
     </div>
   );
 }
@@ -172,10 +163,12 @@ function UserConversations({ userId }: { userId: string }) {
 Context provider component that makes the HATEOAS client available to all child components.
 
 **Props:**
+
 - `client: Client` - The HATEOAS client instance
 - `children: React.ReactNode` - Child components
 
 **Example:**
+
 ```tsx
 <ResourceProvider client={client}>
   <App />
@@ -187,12 +180,15 @@ Context provider component that makes the HATEOAS client available to all child 
 Hook to access the HATEOAS client instance from the context.
 
 **Return value:**
+
 - `Client` - The HATEOAS client instance
 
 **Throws:**
+
 - Error if used outside of `ResourceProvider`
 
 **Example:**
+
 ```tsx
 const client = useClient();
 const userResource = client.go<User>('/api/users/123');
@@ -203,9 +199,11 @@ const userResource = client.go<User>('/api/users/123');
 Hook for managing infinite scroll/pagination of collection resources.
 
 **Parameters:**
+
 - `resourceLike: ResourceLike<T>` - A resource or resource relation that points to a collection
 
 **Return value:**
+
 ```typescript
 {
   items: State<ExtractCollectionElement<T>>[];  // Array of collection item states
@@ -217,6 +215,7 @@ Hook for managing infinite scroll/pagination of collection resources.
 ```
 
 **Features:**
+
 - Automatically fetches the initial page
 - Maintains accumulated items across pages
 - Follows HAL "next" links for pagination
@@ -224,23 +223,19 @@ Hook for managing infinite scroll/pagination of collection resources.
 - Preserves item relation context when following pagination links
 
 **Important:**
+
 - Do not memoize or store the `loadNextPage` function reference
 - Always use the latest `loadNextPage` function returned by the hook
 
 **Example:**
+
 ```tsx
-const {
-  items,
-  loading,
-  hasNextPage,
-  error,
-  loadNextPage
-} = useInfiniteCollection(userResource.follow('conversations'));
+const { items, loading, hasNextPage, error, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
 // Load more items
 <button onClick={loadNextPage} disabled={!hasNextPage || loading}>
   {loading ? 'Loading...' : 'Load More'}
-</button>
+</button>;
 ```
 
 ## Advanced Usage
@@ -257,17 +252,12 @@ function useUser(userId: string) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
 
-  const {
-    loading,
-    error,
-    resourceState,
-    resource
-  } = useReadResource(userResource);
+  const { loading, error, resourceState, resource } = useReadResource(userResource);
 
   return {
     user: resourceState,
     loading,
-    error
+    error,
   };
 }
 
@@ -294,13 +284,9 @@ function UserDashboard({ userId }: { userId: string }) {
   const userResource = client.go<User>(`/api/users/${userId}`);
   const { resourceState: user } = useReadResource(userResource);
 
-  const conversations = useInfiniteCollection(
-    userResource.follow('conversations')
-  );
+  const conversations = useInfiniteCollection(userResource.follow('conversations'));
 
-  const accounts = useInfiniteCollection(
-    userResource.follow('accounts')
-  );
+  const accounts = useInfiniteCollection(userResource.follow('accounts'));
 
   return (
     <div>
@@ -308,14 +294,14 @@ function UserDashboard({ userId }: { userId: string }) {
 
       <section>
         <h2>Conversations</h2>
-        {conversations.items.map(conv => (
+        {conversations.items.map((conv) => (
           <div key={conv.data.id}>{conv.data.title}</div>
         ))}
       </section>
 
       <section>
         <h2>Accounts</h2>
-        {accounts.items.map(acc => (
+        {accounts.items.map((acc) => (
           <div key={acc.data.id}>{acc.data.provider}</div>
         ))}
       </section>
@@ -333,22 +319,14 @@ function UserConversations({ userId }: { userId: string }) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
 
-  const {
-    items,
-    loading,
-    hasNextPage,
-    error,
-    loadNextPage
-  } = useInfiniteCollection(userResource.follow('conversations'));
+  const { items, loading, hasNextPage, error, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
   if (error) {
     return (
       <div>
         <h3>Error loading conversations</h3>
         <p>{error.message}</p>
-        <button onClick={() => window.location.reload()}>
-          Retry
-        </button>
+        <button onClick={() => window.location.reload()}>Retry</button>
       </div>
     );
   }
@@ -377,7 +355,7 @@ import type { User, Conversation } from './types';
 
 // Create client
 const client = createClient({
-  baseURL: 'https://api.example.com'
+  baseURL: 'https://api.example.com',
 });
 
 // Conversations component
@@ -385,13 +363,7 @@ function ConversationsList({ userId }: { userId: string }) {
   const client = useClient();
   const userResource = client.go<User>(`/api/users/${userId}`);
 
-  const {
-    items,
-    loading,
-    hasNextPage,
-    error,
-    loadNextPage
-  } = useInfiniteCollection(userResource.follow('conversations'));
+  const { items, loading, hasNextPage, error, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
   if (error) {
     return <div>Error: {error.message}</div>;
@@ -401,23 +373,15 @@ function ConversationsList({ userId }: { userId: string }) {
     <div>
       <ul>
         {items.map((conversation) => (
-          <li key={conversation.data.id}>
-            {conversation.data.title}
-          </li>
+          <li key={conversation.data.id}>{conversation.data.title}</li>
         ))}
       </ul>
 
       {loading && <div>Loading more conversations...</div>}
 
-      {hasNextPage && !loading && (
-        <button onClick={loadNextPage}>
-          Load More
-        </button>
-      )}
+      {hasNextPage && !loading && <button onClick={loadNextPage}>Load More</button>}
 
-      {!hasNextPage && items.length > 0 && (
-        <div>No more conversations</div>
-      )}
+      {!hasNextPage && items.length > 0 && <div>No more conversations</div>}
     </div>
   );
 }

@@ -17,9 +17,7 @@ public class MessagesApi {
 
   @GET
   public CollectionModel<MessageModel> findAll() {
-    var messages = conversation.messages().findAll().stream()
-      .map(MessageModel::new)
-      .toList();
+    var messages = conversation.messages().findAll().stream().map(MessageModel::new).toList();
     return CollectionModel.of(messages);
   }
 }

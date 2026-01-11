@@ -1,15 +1,14 @@
 package reengineering.ddd.teamai.api.config;
 
+import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL_FORMS;
+
+import java.util.Map;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.hateoas.config.EnableHypermediaSupport;
 import reengineering.ddd.teamai.api.RootApi;
 import reengineering.ddd.teamai.api.UsersApi;
-
-import java.util.Map;
-
-import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL_FORMS;
 
 @Configuration
 @EnableHypermediaSupport(type = HAL_FORMS)

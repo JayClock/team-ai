@@ -1,11 +1,10 @@
 package reengineering.ddd.teamai.api.representation;
 
+import jakarta.ws.rs.core.UriInfo;
+import java.net.URI;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
 import reengineering.ddd.teamai.api.UsersApi;
-
-import jakarta.ws.rs.core.UriInfo;
-import java.net.URI;
 
 public class RootModel extends RepresentationModel<RootModel> {
 
@@ -25,10 +24,12 @@ public class RootModel extends RepresentationModel<RootModel> {
 
     model.add(Link.of(uriInfo.getRequestUri().getPath()).withSelfRel());
 
-    URI userUri = uriInfo.getBaseUriBuilder()
-      .path(UsersApi.class)
-      .path(UsersApi.class, "findById")
-      .build(userId);
+    URI userUri =
+        uriInfo
+            .getBaseUriBuilder()
+            .path(UsersApi.class)
+            .path(UsersApi.class, "findById")
+            .build(userId);
 
     model.add(Link.of(userUri.getPath(), "me"));
     model.add(Link.of("/logout", "logout"));

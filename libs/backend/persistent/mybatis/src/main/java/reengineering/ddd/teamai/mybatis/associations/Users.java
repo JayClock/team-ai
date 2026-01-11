@@ -1,13 +1,12 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
+import java.util.Optional;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
-
-import java.util.Optional;
 
 @Component
 public class Users implements reengineering.ddd.teamai.model.Users {

@@ -16,33 +16,36 @@ public class TestDataSetup implements BeforeAllCallback, ExtensionContext.Store.
 
   @Override
   public void beforeAll(ExtensionContext context) throws Exception {
-    ExtensionContext.Store globalStore = context.getRoot().getStore(ExtensionContext.Namespace.GLOBAL);
+    ExtensionContext.Store globalStore =
+        context.getRoot().getStore(ExtensionContext.Namespace.GLOBAL);
 
-    globalStore.getOrComputeIfAbsent(GLOBAL_KEY, key -> {
-      ApplicationContext springContext = SpringExtension.getApplicationContext(context);
-      TestDataMapper testData = springContext.getBean(TestDataMapper.class);
-      Users users = springContext.getBean(Users.class);
+    globalStore.getOrComputeIfAbsent(
+        GLOBAL_KEY,
+        key -> {
+          ApplicationContext springContext = SpringExtension.getApplicationContext(context);
+          TestDataMapper testData = springContext.getBean(TestDataMapper.class);
+          Users users = springContext.getBean(Users.class);
 
-      int userId = 1;
-      testData.insertUser(userId, "John Smith", "john.smith@email.com");
+          int userId = 1;
+          testData.insertUser(userId, "John Smith", "john.smith@email.com");
 
-      User user = users.findById(String.valueOf(userId)).get();
+          User user = users.findById(String.valueOf(userId)).get();
 
-      for (var conversation = 0; conversation < 100; conversation++) {
-        var description = new ConversationDescription("title");
-        user.add(description);
-      }
+          for (var conversation = 0; conversation < 100; conversation++) {
+            var description = new ConversationDescription("title");
+            user.add(description);
+          }
 
-      Conversation conversation = user.conversations().findAll().stream().findFirst().get();
+          Conversation conversation = user.conversations().findAll().stream().findFirst().get();
 
-      for (var i = 0; i < 100; i++) {
-        var description = new MessageDescription("role", "content");
-        conversation.saveMessage(description);
-      }
+          for (var i = 0; i < 100; i++) {
+            var description = new MessageDescription("role", "content");
+            conversation.saveMessage(description);
+          }
 
-      user.add(new AccountDescription("github", "github01"));
-      return this;
-    });
+          user.add(new AccountDescription("github", "github01"));
+          return this;
+        });
   }
 
   @Override

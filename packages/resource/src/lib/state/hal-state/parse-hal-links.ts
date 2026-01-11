@@ -4,9 +4,7 @@ import { NewLink } from '../../links/link.js';
 /**
  * Parse the Hal _links object and populate the 'links' property.
  */
-export function parseHalLinks(
-  halLinks: HalResource['_links']
-): NewLink[] {
+export function parseHalLinks(halLinks: HalResource['_links']): NewLink[] {
   if (halLinks === undefined) {
     return [];
   }

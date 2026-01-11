@@ -17,8 +17,7 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.User;
 
 public class ConversationApi {
-  @Inject
-  private Conversation.ModelProvider modelProvider;
+  @Inject private Conversation.ModelProvider modelProvider;
 
   private final User user;
   private final Conversation conversation;
@@ -42,22 +41,20 @@ public class ConversationApi {
   @Path("messages/stream")
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void chat(
-    MessageDescription description,
-    @Context SseEventSink sseEventSink,
-    @Context Sse sse) {
-    this.conversation.sendMessage(description, modelProvider).subscribe(
-      text -> {
-        OutboundSseEvent event = sse.newEventBuilder()
-          .data(text)
-          .build();
+      MessageDescription description, @Context SseEventSink sseEventSink, @Context Sse sse) {
+    this.conversation
+        .sendMessage(description, modelProvider)
+        .subscribe(
+            text -> {
+              OutboundSseEvent event = sse.newEventBuilder().data(text).build();
 
-        sseEventSink.send(event);
-      },
-      error -> {
-        sseEventSink.close();
-      },
-      () -> {
-        sseEventSink.close();
-      });
+              sseEventSink.send(event);
+            },
+            error -> {
+              sseEventSink.close();
+            },
+            () -> {
+              sseEventSink.close();
+            });
   }
 }

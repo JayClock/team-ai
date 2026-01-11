@@ -12,5 +12,8 @@ import reengineering.ddd.teamai.model.Account;
 public interface UserAccountsMapper {
   Account findAccountByUserAndId(@Param("user_id") int userId, @Param("id") int id);
 
-  int insertAccount(@Param("holder") IdHolder id, @Param("user_id") int userId, @Param("description") AccountDescription description);
+  int insertAccount(
+      @Param("holder") IdHolder id,
+      @Param("user_id") int userId,
+      @Param("description") AccountDescription description);
 }

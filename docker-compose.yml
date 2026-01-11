@@ -9,11 +9,11 @@ services:
       POSTGRES_USER: teamai_dev
       POSTGRES_PASSWORD: teamai_dev
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U teamai_dev -d teamai_dev"]
+      test: ['CMD-SHELL', 'pg_isready -U teamai_dev -d teamai_dev']
       interval: 30s
       timeout: 10s
       retries: 3

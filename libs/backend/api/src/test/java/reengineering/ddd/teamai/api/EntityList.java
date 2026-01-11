@@ -1,10 +1,9 @@
 package reengineering.ddd.teamai.api;
 
-import reengineering.ddd.archtype.Entity;
-import reengineering.ddd.archtype.Many;
-
 import java.util.Iterator;
 import java.util.List;
+import reengineering.ddd.archtype.Entity;
+import reengineering.ddd.archtype.Many;
 
 class EntityList<E extends Entity<?, ?>> implements Many<E> {
   private final List<E> list;

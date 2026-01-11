@@ -1,10 +1,10 @@
 package reengineering.ddd.teamai.model;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reengineering.ddd.teamai.description.AccountDescription;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class AccountTest {
   private Account account;

@@ -1,6 +1,6 @@
 spring:
   main:
-    banner-mode: "off"
+    banner-mode: 'off'
   flyway:
     clean-disabled: false
     locations: classpath:db.migration
@@ -10,5 +10,3 @@ mybatis:
 logging:
   level:
     root: info
-
-

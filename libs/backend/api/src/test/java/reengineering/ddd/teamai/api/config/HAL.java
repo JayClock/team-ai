@@ -12,29 +12,35 @@ import org.springframework.hateoas.mediatype.hal.Jackson2HalModule;
 import org.springframework.hateoas.mediatype.hal.forms.Jackson2HalFormsModule;
 import org.springframework.hateoas.server.LinkRelationProvider;
 
-
 @Configuration
 public class HAL implements InitializingBean {
 
-    private final ObjectMapper mapper;
-    private final LinkRelationProvider provider;
-    private final MessageResolver resolver;
-    private final HalConfiguration halConfiguration;
-    private final AutowireCapableBeanFactory beanFactory;
+  private final ObjectMapper mapper;
+  private final LinkRelationProvider provider;
+  private final MessageResolver resolver;
+  private final HalConfiguration halConfiguration;
+  private final AutowireCapableBeanFactory beanFactory;
 
-    @Inject
-    public HAL(ObjectMapper mapper, LinkRelationProvider provider, MessageResolver resolver, HalConfiguration halConfiguration, AutowireCapableBeanFactory beanFactory) {
-        this.mapper = mapper;
-        this.provider = provider;
-        this.resolver = resolver;
-        this.halConfiguration = halConfiguration;
-        this.beanFactory = beanFactory;
-    }
+  @Inject
+  public HAL(
+      ObjectMapper mapper,
+      LinkRelationProvider provider,
+      MessageResolver resolver,
+      HalConfiguration halConfiguration,
+      AutowireCapableBeanFactory beanFactory) {
+    this.mapper = mapper;
+    this.provider = provider;
+    this.resolver = resolver;
+    this.halConfiguration = halConfiguration;
+    this.beanFactory = beanFactory;
+  }
 
-    @Override
-    public void afterPropertiesSet() {
-        mapper.registerModule(new Jackson2HalModule());
-        mapper.registerModule(new Jackson2HalFormsModule());
-        mapper.setHandlerInstantiator(new Jackson2HalModule.HalHandlerInstantiator(provider, CurieProvider.NONE, resolver, halConfiguration, beanFactory));
-    }
+  @Override
+  public void afterPropertiesSet() {
+    mapper.registerModule(new Jackson2HalModule());
+    mapper.registerModule(new Jackson2HalFormsModule());
+    mapper.setHandlerInstantiator(
+        new Jackson2HalModule.HalHandlerInstantiator(
+            provider, CurieProvider.NONE, resolver, halConfiguration, beanFactory));
+  }
 }

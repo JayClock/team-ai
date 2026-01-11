@@ -12,9 +12,9 @@ public class TestContainerConfig {
   @ServiceConnection
   public PostgreSQLContainer<?> postgresContainer() {
     return new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
-      .withDatabaseName("testdb")
-      .withUsername("test")
-      .withPassword("test")
-      .withReuse(true);
+        .withDatabaseName("testdb")
+        .withUsername("test")
+        .withPassword("test")
+        .withReuse(true);
   }
 }

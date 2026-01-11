@@ -12,15 +12,18 @@ public class User implements Entity<String, UserDescription> {
   private Accounts accounts;
   private Conversations conversations;
 
-  public User(String identity, UserDescription description, Accounts accounts, Conversations conversations) {
+  public User(
+      String identity,
+      UserDescription description,
+      Accounts accounts,
+      Conversations conversations) {
     this.identity = identity;
     this.description = description;
     this.accounts = accounts;
     this.conversations = conversations;
   }
 
-  private User() {
-  }
+  private User() {}
 
   @Override
   public String getIdentity() {

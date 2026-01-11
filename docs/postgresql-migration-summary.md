@@ -7,10 +7,12 @@ This document summarizes the changes made to migrate the Team AI project from H2
 ### 1. Dependencies Updated
 
 **Files Modified:**
+
 - `apps/team-ai-server/build.gradle`
 - `libs/backend/persistent/mybatis/build.gradle`
 
 **Changes:**
+
 - Replaced `com.h2database:h2` with `org.postgresql:postgresql` in production dependencies
 - Added `org.flywaydb:flyway-database-postgresql` for PostgreSQL-specific Flyway support
 - Kept H2 as test dependency for testing
@@ -18,14 +20,17 @@ This document summarizes the changes made to migrate the Team AI project from H2
 ### 2. Configuration Files Updated
 
 **Files Modified:**
+
 - `apps/team-ai-server/src/main/resources/application.yml`
 - `libs/backend/persistent/mybatis/src/test/resources/application.yml`
 
 **Files Created:**
+
 - `apps/team-ai-server/src/main/resources/application-dev.yml`
 - `apps/team-ai-server/src/main/resources/application-prod.yml`
 
 **Changes:**
+
 - Updated main configuration to use PostgreSQL driver and connection settings
 - Added environment variable support for database credentials
 - Added HikariCP connection pool configuration
@@ -35,10 +40,12 @@ This document summarizes the changes made to migrate the Team AI project from H2
 ### 3. Database Schema Migration
 
 **Files Modified:**
+
 - `libs/backend/persistent/mybatis/src/main/resources/db.migration/V01__create_users.sql`
 - `libs/backend/persistent/mybatis/src/main/resources/db.migration/V02__create_accounts.sql`
 
 **Changes:**
+
 - Replaced MySQL-style backticks with standard SQL identifiers
 - Changed `AUTO_INCREMENT` to `BIGSERIAL` for PostgreSQL
 - Updated `user_id` column type from `VARCHAR(255)` to `BIGINT` for proper foreign key relationship
@@ -47,10 +54,12 @@ This document summarizes the changes made to migrate the Team AI project from H2
 ### 4. MyBatis Mappers Updated
 
 **Files Modified:**
+
 - `libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UsersMapper.xml`
 - `libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/AccountsMapper.xml`
 
 **Changes:**
+
 - Updated SQL queries to use lowercase table and column names (PostgreSQL convention)
 - Changed JDBC type from `VARCHAR` to `BIGINT` for account ID mapping
 - Ensured all SQL is PostgreSQL-compatible
@@ -58,26 +67,31 @@ This document summarizes the changes made to migrate the Team AI project from H2
 ### 5. Development Environment Setup
 
 **Files Created:**
+
 - `docker-compose.yml` - PostgreSQL and pgAdmin containers for development
 - `scripts/init-db.sql` - Database initialization script
 - `scripts/migrate-to-postgresql.sh` - Migration automation script
 - `.env.example` - Environment variables template
 
 **Files Modified:**
+
 - `.gitignore` - Added environment variable files to ignore list
 
 ### 6. Documentation
 
 **Files Created:**
+
 - `docs/database-setup.md` - Comprehensive PostgreSQL setup guide
 - `docs/postgresql-migration-summary.md` - This summary document
 
 **Files Modified:**
+
 - `README.md` - Updated with PostgreSQL information and setup instructions
 
 ## Database Schema Changes
 
 ### Before (H2/MySQL)
+
 ```sql
 CREATE TABLE `users` (
     `id` BIGINT AUTO_INCREMENT NOT NULL PRIMARY KEY,
@@ -95,6 +109,7 @@ CREATE TABLE `accounts` (
 ```
 
 ### After (PostgreSQL)
+
 ```sql
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
@@ -139,6 +154,7 @@ The application now supports the following environment variables:
 ## Rollback Plan
 
 If rollback is needed:
+
 1. Revert the dependency changes in `build.gradle` files
 2. Restore original `application.yml` configurations
 3. Revert SQL migration files to original MySQL syntax

@@ -13,30 +13,37 @@ import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
 
 public class UserModel extends RepresentationModel<UserModel> {
-  @JsonProperty
-  public String id;
+  @JsonProperty public String id;
 
-  @JsonUnwrapped
-  private UserDescription description;
+  @JsonUnwrapped private UserDescription description;
 
   public UserModel(User user, UriInfo uriInfo) {
     this.id = user.getIdentity();
     this.description = user.getDescription();
 
-    Link selfRel = Link.of(ApiTemplates.user(uriInfo).build(user.getIdentity()).getPath()).withSelfRel();
-    add(Affordances.of(selfRel)
-      .afford(HttpMethod.PUT)
-      .withInput(UserDescription.class)
-      .withName("update-user")
-      .toLink());
+    Link selfRel =
+        Link.of(ApiTemplates.user(uriInfo).build(user.getIdentity()).getPath()).withSelfRel();
+    add(
+        Affordances.of(selfRel)
+            .afford(HttpMethod.PUT)
+            .withInput(UserDescription.class)
+            .withName("update-user")
+            .toLink());
 
-    add(Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath()).withRel("accounts"));
-    add(Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath()).withRel("conversations"));
+    add(
+        Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath())
+            .withRel("accounts"));
+    add(
+        Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath())
+            .withRel("conversations"));
 
-    add(Affordances.of(Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath()).withRel("create-conversation"))
-      .afford(HttpMethod.POST)
-      .withInput(ConversationsApi.CreateConversationRequestBody.class)
-      .withName("create-conversation")
-      .toLink());
+    add(
+        Affordances.of(
+                Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath())
+                    .withRel("create-conversation"))
+            .afford(HttpMethod.POST)
+            .withInput(ConversationsApi.CreateConversationRequestBody.class)
+            .withName("create-conversation")
+            .toLink());
   }
 }

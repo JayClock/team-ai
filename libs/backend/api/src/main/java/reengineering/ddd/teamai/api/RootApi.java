@@ -7,10 +7,9 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.core.UriInfo;
+import java.security.Principal;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.teamai.api.representation.RootModel;
-
-import java.security.Principal;
 
 @Component
 @Path("/")

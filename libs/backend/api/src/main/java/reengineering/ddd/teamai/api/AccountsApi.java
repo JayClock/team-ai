@@ -7,12 +7,11 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.AccountModel;
 import reengineering.ddd.teamai.model.User;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class AccountsApi {
   private final User user;
@@ -23,17 +22,23 @@ public class AccountsApi {
 
   @GET
   public CollectionModel<AccountModel> findAll(@Context UriInfo uriInfo) {
-    List<AccountModel> accounts = user.accounts().findAll().stream()
-      .map(account ->
-        new AccountModel(account, uriInfo.getAbsolutePathBuilder().path(AccountsApi.class, "findById"))
-      ).collect(Collectors.toList());
+    List<AccountModel> accounts =
+        user.accounts().findAll().stream()
+            .map(
+                account ->
+                    new AccountModel(
+                        account,
+                        uriInfo.getAbsolutePathBuilder().path(AccountsApi.class, "findById")))
+            .collect(Collectors.toList());
     return CollectionModel.of(accounts);
   }
 
   @GET
   @Path("{account-id}")
   public AccountModel findById(@PathParam("account-id") String id, @Context UriInfo uriInfo) {
-    return user.accounts().findByIdentity(id).map(account -> new AccountModel(account, uriInfo.getAbsolutePathBuilder()))
-      .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
+    return user.accounts()
+        .findByIdentity(id)
+        .map(account -> new AccountModel(account, uriInfo.getAbsolutePathBuilder()))
+        .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
   }
 }

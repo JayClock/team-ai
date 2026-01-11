@@ -4,9 +4,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import reactor.core.publisher.Flux;
 import reengineering.ddd.teamai.model.Conversation;
 
-/**
- * DeepSeek model provider implementation
- */
+/** DeepSeek model provider implementation */
 public class DeepSeekModelProvider implements Conversation.ModelProvider {
   private final ChatClient chatClient;
 

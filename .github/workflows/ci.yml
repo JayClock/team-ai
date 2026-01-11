@@ -87,6 +87,9 @@ jobs:
       - name: Lint
         run: npx nx run-many -t lint --parallel=true --verbose
 
+      - name: Check Java formatting
+        run: npx nx run-many -t spotlessCheck --parallel=true
+
       - name: Type check
         run: npx nx run-many -t typecheck --parallel=true
 

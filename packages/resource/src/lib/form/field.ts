@@ -94,8 +94,9 @@ export interface DateTimeField extends RangeField<Date> {
   type: 'datetime' | 'datetime-local';
 }
 
-export interface HiddenField
-  extends BaseField<string | number | null | boolean> {
+export interface HiddenField extends BaseField<
+  string | number | null | boolean
+> {
   type: 'hidden';
 }
 

@@ -1,6 +1,10 @@
 package reengineering.ddd.config;
 
+import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL_FORMS;
+
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.util.Map;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -13,11 +17,6 @@ import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import reengineering.ddd.teamai.api.RootApi;
 import reengineering.ddd.teamai.api.UsersApi;
 
-import java.io.IOException;
-import java.util.Map;
-
-import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL_FORMS;
-
 @Configuration
 @EnableHypermediaSupport(type = HAL_FORMS)
 public class Jersey extends ResourceConfig {
@@ -29,7 +28,8 @@ public class Jersey extends ResourceConfig {
 
   @Bean
   public FilterRegistrationBean<ShallowEtagHeaderFilterWithoutSse> shallowEtagHeaderFilter() {
-    FilterRegistrationBean<ShallowEtagHeaderFilterWithoutSse> registrationBean = new FilterRegistrationBean<>();
+    FilterRegistrationBean<ShallowEtagHeaderFilterWithoutSse> registrationBean =
+        new FilterRegistrationBean<>();
     registrationBean.setFilter(new ShallowEtagHeaderFilterWithoutSse());
     registrationBean.addUrlPatterns("/*");
     return registrationBean;
@@ -39,7 +39,11 @@ public class Jersey extends ResourceConfig {
     private final ShallowEtagHeaderFilter delegate = new ShallowEtagHeaderFilter();
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response, jakarta.servlet.FilterChain filterChain) throws jakarta.servlet.ServletException, IOException {
+    protected void doFilterInternal(
+        @NonNull HttpServletRequest request,
+        jakarta.servlet.http.HttpServletResponse response,
+        jakarta.servlet.FilterChain filterChain)
+        throws jakarta.servlet.ServletException, IOException {
       if (shouldNotFilter(request)) {
         filterChain.doFilter(request, response);
       } else {

@@ -1,24 +1,21 @@
 package reengineering.ddd.mybatis.memory;
 
-import reengineering.ddd.archtype.Entity;
-import reengineering.ddd.archtype.HasMany;
-import reengineering.ddd.archtype.Many;
-
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import reengineering.ddd.archtype.Entity;
+import reengineering.ddd.archtype.HasMany;
+import reengineering.ddd.archtype.Many;
 
 public class EntityList<Id, E extends Entity<Id, ?>> implements Many<E>, HasMany<Id, E> {
   protected List<E> list = new ArrayList<>();
 
-  public EntityList() {
-  }
+  public EntityList() {}
 
   public EntityList(List<E> list) {
     this.list = list;
   }
-
 
   @Override
   public Many<E> findAll() {

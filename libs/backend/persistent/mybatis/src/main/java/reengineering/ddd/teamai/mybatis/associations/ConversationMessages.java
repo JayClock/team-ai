@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
+import java.util.List;
 import reengineering.ddd.mybatis.database.EntityList;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.MessageDescription;
@@ -8,13 +9,11 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper;
 
-import java.util.List;
-
-public class ConversationMessages extends EntityList<String, Message> implements Conversation.Messages {
+public class ConversationMessages extends EntityList<String, Message>
+    implements Conversation.Messages {
   private int conversationId;
 
-  @Inject
-  private ConversationMessagesMapper mapper;
+  @Inject private ConversationMessagesMapper mapper;
 
   @Override
   protected List<Message> findEntities(int from, int to) {
@@ -38,4 +37,3 @@ public class ConversationMessages extends EntityList<String, Message> implements
     return findEntity(String.valueOf(idHolder.id()));
   }
 }
-

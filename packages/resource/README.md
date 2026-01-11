@@ -184,7 +184,7 @@ async function createNewConversationForUser(userId: string) {
 
   // Use withMethod to specify POST method, then submit form data to create a new conversation
   const newConversationState = await createConversationRelation.withMethod('POST').request({
-    data: { title: 'New conversation' }
+    data: { title: 'New conversation' },
   });
 
   console.log(`ID of the newly created conversation: ${newConversationState.data.id}`);
@@ -200,21 +200,24 @@ The library provides typed methods for common HTTP operations, which offer bette
 ```typescript
 // GET request
 const userState = await userResource.withGet().request({
-  headers: { 'Accept': 'application/json' }
+  headers: { Accept: 'application/json' },
 });
 
 // POST request
-const newState = await userResource.follow('create-conversation')
+const newState = await userResource
+  .follow('create-conversation')
   .withPost()
   .request({ data: { title: 'New conversation' } });
 
 // PUT request - fully replace resource
-const updatedState = await userResource.follow('self')
+const updatedState = await userResource
+  .follow('self')
   .withPut()
   .request({ data: { name: 'Updated Name', email: 'updated@example.com' } });
 
 // PATCH request - partially update resource
-const patchedState = await userResource.follow('self')
+const patchedState = await userResource
+  .follow('self')
   .withPatch()
   .request({ data: { name: 'Patched Name' } });
 
@@ -240,11 +243,13 @@ if (putForm) {
 Create a new client instance.
 
 **Parameters:**
+
 - `options`: Configuration object
   - `baseURL`: API base URL
   - `sendUserAgent`: Whether to send User-Agent header (optional)
 
 **Return value:**
+
 - `Client`: Client instance
 
 ### Client
@@ -254,11 +259,13 @@ Create a new client instance.
 Create a Resource object pointing to a specific resource.
 
 **Parameters:**
+
 - `link`: Resource link (optional)
   - If a string, it's a path relative to baseURL
   - If a NewLink object, it contains more detailed link information
 
 **Return value:**
+
 - `Resource<TEntity>`: Resource object
 
 #### client.use(middleware: FetchMiddleware, origin?: string): void
@@ -266,8 +273,9 @@ Create a Resource object pointing to a specific resource.
 Add a fetch middleware for each fetch() call.
 
 **Parameters:**
+
 - `middleware`: Middleware function
-- `origin`: Origin where the middleware applies (optional, default is '*')
+- `origin`: Origin where the middleware applies (optional, default is '\*')
 
 ### Resource<TEntity extends Entity>
 
@@ -276,26 +284,29 @@ Add a fetch middleware for each fetch() call.
 Execute an HTTP request on the current resource URI.
 
 **Parameters:**
+
 - `init`: RequestInit object (optional) for configuring the request
 
 **Return value:**
+
 - `Promise<Response>`: HTTP response object
 
 **Example:**
+
 ```typescript
 // Simple GET request
 const response = await resource.fetch();
 
 // Request with custom headers
 const response = await resource.fetch({
-  headers: { 'Authorization': 'Bearer token' }
+  headers: { Authorization: 'Bearer token' },
 });
 
 // POST request
 const response = await resource.fetch({
   method: 'POST',
   body: JSON.stringify({ name: 'New name' }),
-  headers: { 'Content-Type': 'application/json' }
+  headers: { 'Content-Type': 'application/json' },
 });
 ```
 
@@ -304,12 +315,15 @@ const response = await resource.fetch({
 Execute an HTTP request on the current resource URI. If the response has a 4XX or 5XX status code, this function will throw an exception.
 
 **Parameters:**
+
 - `init`: RequestInit object (optional) for configuring the request
 
 **Return value:**
+
 - `Promise<Response>`: HTTP response object
 
 **Example:**
+
 ```typescript
 try {
   const response = await resource.fetchOrThrow();
@@ -324,6 +338,7 @@ try {
 Send an HTTP request and get the current state of the resource. Uses GET method by default, which aligns with RESTful discovery conventions.
 
 **Parameters:**
+
 - `options`: Request options (optional)
   - `data`: Request body data
   - `headers`: Request headers
@@ -333,9 +348,11 @@ Send an HTTP request and get the current state of the resource. Uses GET method 
 - `form`: Form object (optional)
 
 **Return value:**
+
 - `Promise<State<TEntity>>`: Resource state
 
 **Example:**
+
 ```typescript
 // Default GET request, aligns with RESTful discovery convention
 const state = await resource.request();
@@ -345,7 +362,7 @@ const getState = await resource.withMethod('GET').request();
 
 // POST request (requires explicit method specification)
 const newState = await resource.withMethod('POST').request({
-  data: { name: 'New name' }
+  data: { name: 'New name' },
 });
 ```
 
@@ -354,12 +371,15 @@ const newState = await resource.withMethod('POST').request({
 Update the state cache and trigger events. This updates the local state but does not update the server.
 
 **Parameters:**
+
 - `state`: State object to cache
 
 **Exception:**
+
 - Will throw an error if the URI of the state object does not match the resource's URI
 
 **Example:**
+
 ```typescript
 const newState = /* Get new state */;
 resource.updateCache(newState);
@@ -370,6 +390,7 @@ resource.updateCache(newState);
 Clear the cache of the current resource.
 
 **Example:**
+
 ```typescript
 resource.clearCache();
 ```
@@ -379,9 +400,11 @@ resource.clearCache();
 Retrieve the currently cached resource state, returns null if unavailable.
 
 **Return value:**
+
 - `State<TEntity> | null`: Cached state object or null
 
 **Example:**
+
 ```typescript
 const cachedState = resource.getCache();
 if (cachedState) {
@@ -396,9 +419,11 @@ if (cachedState) {
 Follows a resource relationship based on its rel type.
 
 **Parameters:**
+
 - `rel`: The relationship type, must be a key defined in the entity links
 
 **Return value:**
+
 - `ResourceRelation<TEntity['links'][K]>`: ResourceRelation object of the related resource
 
 #### resource.withMethod(method: HttpMethod): Resource<TEntity>
@@ -406,16 +431,20 @@ Follows a resource relationship based on its rel type.
 Set the HTTP method. For non-GET requests, this method must be called before calling `request()`.
 
 **Parameters:**
+
 - `method`: HTTP method ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', etc.)
 
 **Return value:**
+
 - `Resource<TEntity>`: Current resource object (supports chained calls)
 
 **Description:**
+
 - By default, `request()` uses the GET method, which aligns with RESTful discovery conventions
 - For non-safe methods like POST, PUT, PATCH, DELETE, you must use `withMethod()` to specify explicitly
 
 **Example:**
+
 ```typescript
 // Default GET request (no need to specify method)
 const getState = await resource.request();
@@ -425,7 +454,7 @@ const explicitGetState = await resource.withMethod('GET').request();
 
 // Set POST method (must specify)
 const postState = await resource.withMethod('POST').request({
-  data: { title: 'New title' }
+  data: { title: 'New title' },
 });
 
 // Chained calls
@@ -440,22 +469,21 @@ const result = await resource
 Sets URI template parameters.
 
 **Parameters:**
+
 - `variables`: The template parameter variables to set
 
 **Return value:**
+
 - `Resource<TEntity>`: Current resource object (supports chained calls)
 
 **Example:**
+
 ```typescript
 // Set template parameters
-const resource = client.go<User>('/api/users/{userId}')
-  .withTemplateParameters({ userId: '123' });
+const resource = client.go<User>('/api/users/{userId}').withTemplateParameters({ userId: '123' });
 
 // Use withMethod in chain
-const state = await resource
-  .withTemplateParameters({ userId: '123' })
-  .withMethod('GET')
-  .request();
+const state = await resource.withTemplateParameters({ userId: '123' }).withMethod('GET').request();
 ```
 
 #### resource.withGet(): { request: (options?: GetRequestOptions) => Promise<State<TEntity>> }
@@ -463,13 +491,15 @@ const state = await resource
 Prepare a GET request to the resource.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the GET request with optional options
 
 **Example:**
+
 ```typescript
 const state = await resource.withGet().request({
-  headers: { 'Accept': 'application/json' }
+  headers: { Accept: 'application/json' },
 });
 ```
 
@@ -478,14 +508,16 @@ const state = await resource.withGet().request({
 Prepare a POST request to the resource.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the POST request with options
   - `getForm`: Function to get the form definition for POST requests
 
 **Example:**
+
 ```typescript
 const newState = await resource.withPost().request({
-  data: { title: 'New conversation' }
+  data: { title: 'New conversation' },
 });
 
 // Get form definition
@@ -497,14 +529,16 @@ const form = await resource.withPost().getForm();
 Prepare a PUT request to the resource. PUT requests fully replace the resource state.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the PUT request with options
   - `getForm`: Function to get the form definition for PUT requests
 
 **Example:**
+
 ```typescript
 const updatedState = await resource.withPut().request({
-  data: { name: 'Updated Name', email: 'updated@example.com' }
+  data: { name: 'Updated Name', email: 'updated@example.com' },
 });
 
 // Get form definition
@@ -516,14 +550,16 @@ const form = await resource.withPut().getForm();
 Prepare a PATCH request to the resource. PATCH requests partially update the resource state.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the PATCH request with options
   - `getForm`: Function to get the form definition for PATCH requests
 
 **Example:**
+
 ```typescript
 const patchedState = await resource.withPatch().request({
-  data: { name: 'Patched Name' }
+  data: { name: 'Patched Name' },
 });
 
 // Get form definition
@@ -535,10 +571,12 @@ const form = await resource.withPatch().getForm();
 Prepare a DELETE request to the resource.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the DELETE request
 
 **Example:**
+
 ```typescript
 await resource.withDelete().request();
 ```
@@ -552,12 +590,15 @@ ResourceRelation class is used to handle navigation of resource relationships, s
 Executes a resource request to get the resource state.
 
 **Parameters:**
+
 - `requestOptions`: Request options (optional)
 
 **Return value:**
+
 - `Promise<State<TEntity>>`: Resource state
 
 **Example:**
+
 ```typescript
 // Default GET request
 const state = await userState.follow('conversations').request();
@@ -568,6 +609,7 @@ const state = await userState.follow('conversations').request();
 Gets the resource instance.
 
 **Return value:**
+
 - `Promise<Resource<TEntity>>`: Resource object
 
 #### relation.follow<K extends keyof TEntity['links']>(rel: K): ResourceRelation<TEntity['links'][K]>
@@ -575,12 +617,15 @@ Gets the resource instance.
 Follows a resource relationship based on its rel type.
 
 **Parameters:**
+
 - `rel`: The relationship type, must be a key defined in the entity links
 
 **Return value:**
+
 - `ResourceRelation<TEntity['links'][K]>`: ResourceRelation object of the related resource
 
 **Example:**
+
 ```typescript
 const conversationsRelation = userState.follow('conversations');
 const nextRelation = conversationsRelation.follow('next');
@@ -591,9 +636,11 @@ const nextRelation = conversationsRelation.follow('next');
 Sets URI template parameters.
 
 **Parameters:**
+
 - `variables`: The template parameter variables to set
 
 **Return value:**
+
 - `ResourceRelation<TEntity>`: Current resource relation object (supports chained calls)
 
 #### relation.withGet(): { request: (options?: GetRequestOptions) => Promise<State<TEntity>> }
@@ -601,14 +648,19 @@ Sets URI template parameters.
 Prepare a GET request to the resource.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the GET request with optional options
 
 **Example:**
+
 ```typescript
-const state = await userState.follow('conversations').withGet().request({
-  headers: { 'Accept': 'application/json' }
-});
+const state = await userState
+  .follow('conversations')
+  .withGet()
+  .request({
+    headers: { Accept: 'application/json' },
+  });
 ```
 
 #### relation.withPost(): { request: (options: PostRequestOptions) => Promise<State>, getForm: () => Promise<Form | undefined> }
@@ -616,13 +668,16 @@ const state = await userState.follow('conversations').withGet().request({
 Prepare a POST request to the resource.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the POST request with options
   - `getForm`: Function to get the form definition for POST requests
 
 **Example:**
+
 ```typescript
-const newState = await userState.follow('create-conversation')
+const newState = await userState
+  .follow('create-conversation')
   .withPost()
   .request({ data: { title: 'New conversation' } });
 
@@ -635,13 +690,16 @@ const form = await userState.follow('create-conversation').withPost().getForm();
 Prepare a PUT request to the resource. PUT requests fully replace the resource state.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the PUT request with options
   - `getForm`: Function to get the form definition for PUT requests
 
 **Example:**
+
 ```typescript
-const updatedState = await userState.follow('self')
+const updatedState = await userState
+  .follow('self')
   .withPut()
   .request({ data: { name: 'Updated Name', email: 'updated@example.com' } });
 
@@ -654,13 +712,16 @@ const form = await userState.follow('self').withPut().getForm();
 Prepare a PATCH request to the resource. PATCH requests partially update the resource state.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the PATCH request with options
   - `getForm`: Function to get the form definition for PATCH requests
 
 **Example:**
+
 ```typescript
-const patchedState = await userState.follow('self')
+const patchedState = await userState
+  .follow('self')
   .withPatch()
   .request({ data: { name: 'Patched Name' } });
 
@@ -673,10 +734,12 @@ const form = await userState.follow('self').withPatch().getForm();
 Prepare a DELETE request to the resource.
 
 **Return value:**
+
 - Object containing:
   - `request`: Function to execute the DELETE request
 
 **Example:**
+
 ```typescript
 await userState.follow('self').withDelete().request();
 ```
@@ -690,6 +753,7 @@ The State interface represents the complete state of a resource, including data,
 Timestamp when the state was first generated.
 
 **Example:**
+
 ```typescript
 console.log(`State generation time: ${new Date(userState.timestamp).toISOString()}`);
 ```
@@ -699,6 +763,7 @@ console.log(`State generation time: ${new Date(userState.timestamp).toISOString(
 The URI associated with the current state.
 
 **Example:**
+
 ```typescript
 console.log(`Resource URI: ${userState.uri}`);
 ```
@@ -708,6 +773,7 @@ console.log(`Resource URI: ${userState.uri}`);
 Resource data. In the case of a JSON response, this will be the deserialized data.
 
 **Example:**
+
 ```typescript
 // Access user data
 console.log(`User name: ${userState.data.name}`);
@@ -719,11 +785,12 @@ console.log(`User email: ${userState.data.email}`);
 The collection state of the resource. When the entity is a collection type, it contains an array of State objects for each element in the collection; when the entity is not a collection type, it returns an empty array. Supports navigation and state management of paginated collections.
 
 **Example:**
+
 ```typescript
 // Check if it's a collection
 if (userState.collection.length > 0) {
   console.log(`Collection contains ${userState.collection.length} items`);
-  
+
   // Iterate through each item in the collection
   userState.collection.forEach((itemState, index) => {
     console.log(`Item ${index}:`, itemState.data);
@@ -736,6 +803,7 @@ if (userState.collection.length > 0) {
 All links associated with the resource.
 
 **Example:**
+
 ```typescript
 // Get all links
 console.log('All links:', userState.links);
@@ -751,12 +819,15 @@ if ('self' in userState.links) {
 Follows a resource relationship based on its rel type.
 
 **Parameters:**
+
 - `rel`: The relationship type, must be a key of TEntity['links']
 
 **Return value:**
+
 - `Resource<TEntity['links'][K]>`: Resource object of the related resource
 
 **Example:**
+
 ```typescript
 // Navigate to the user's accounts collection
 const accountsResource = userState.follow('accounts');
@@ -773,9 +844,11 @@ Return a state serialization that can be used for HTTP responses.
 For example, a JSON object might simply be serialized using JSON.serialize().
 
 **Return value:**
+
 - `Buffer | Blob | string`: Serialized state data
 
 **Example:**
+
 ```typescript
 // Serialize state for HTTP response
 const serializedData = userState.serializeBody();
@@ -791,9 +864,11 @@ Get content-related HTTP headers. Content headers are a subset of HTTP headers d
 This set of headers will be sent by the server with the GET response, but will also be sent back to the server in PUT requests.
 
 **Return value:**
+
 - `Headers`: Headers object containing content-related headers
 
 **Example:**
+
 ```typescript
 // Get content headers
 const headers = userState.contentHeaders();
@@ -805,7 +880,7 @@ console.log('Content-Type:', headers.get('Content-Type'));
 const response = await fetch(userState.uri, {
   method: 'PUT',
   headers: Object.fromEntries(userState.contentHeaders()),
-  body: userState.serializeBody()
+  body: userState.serializeBody(),
 });
 ```
 
@@ -814,9 +889,11 @@ const response = await fetch(userState.uri, {
 Create a deep copy of the current state object.
 
 **Return value:**
+
 - `State<TEntity>`: Cloned state object
 
 **Example:**
+
 ```typescript
 // Clone the state for modification without affecting the original state
 const clonedState = userState.clone();
@@ -838,29 +915,27 @@ StateFactory is responsible for receiving a Fetch Response and returning an obje
 Create a new State object.
 
 **Parameters:**
+
 - `client`: Client instance
 - `uri`: Resource URI
 - `response`: HTTP response object
 - `rel`: Relationship name (optional)
 
 **Return value:**
+
 - `Promise<State<TEntity>>`: Created state object
 
 **Example:**
+
 ```typescript
 // Usually you don't need to use StateFactory directly, the library handles it internally
 // But if you need custom state creation logic, you can implement your own StateFactory
 
 const customStateFactory: StateFactory = {
-  create: async <TEntity extends Entity>(
-    client: ClientInstance,
-    uri: string,
-    response: Response,
-    rel?: string
-  ): Promise<State<TEntity>> => {
+  create: async <TEntity extends Entity>(client: ClientInstance, uri: string, response: Response, rel?: string): Promise<State<TEntity>> => {
     // Custom state creation logic
     // ...
-  }
+  },
 };
 ```
 
@@ -869,6 +944,7 @@ const customStateFactory: StateFactory = {
 Request options interface for configuring HTTP requests.
 
 **Properties:**
+
 - `data?: T`: Request body data
 - `headers?: HttpHeaders | Headers`: HTTP request headers
 - `serializeBody?: () => string | Buffer | Blob`: Custom serialization function
@@ -881,13 +957,16 @@ Request options interface for configuring HTTP requests.
 Create a middleware that automatically injects Accept headers.
 
 **Parameters:**
+
 - `client`: Client instance
 
 **Features:**
+
 - If the request doesn't have an Accept header, it automatically adds one based on the client's contentTypeMap
 - Supports content type priority (q values)
 
 **Example:**
+
 ```typescript
 // The automatically generated Accept header might look like this:
 // "application/hal+json;q=1.0, application/json;q=0.8"
@@ -898,9 +977,11 @@ Create a middleware that automatically injects Accept headers.
 Create a middleware that manages caching.
 
 **Parameters:**
+
 - `client`: Client instance
 
 **Features:**
+
 - Handle cache invalidation after unsafe HTTP methods (POST, PUT, DELETE)
 - Invalidate cache based on Link header's rel=invalidates
 - Handle cache invalidation caused by Location header
@@ -908,6 +989,7 @@ Create a middleware that manages caching.
 - Emit 'stale' events
 
 **Cache invalidation conditions:**
+
 1. Execute unsafe HTTP methods (POST, PUT, DELETE)
 2. Response contains Link: rel=invalidates header
 3. Response contains Location header
@@ -918,12 +1000,14 @@ Create a middleware that manages caching.
 Create a middleware that issues warnings.
 
 **Features:**
+
 - Check for Deprecation header in responses
 - Check for Sunset header in responses
 - Check for rel=deprecation in Link headers
 - Output warning information to the console
 
 **Warning format:**
+
 ```
 [Resource] The resource [URL] is deprecated. It will no longer respond [Sunset]. See [deprecation link] for more information.
 ```
@@ -933,11 +1017,9 @@ Create a middleware that issues warnings.
 Middleware type for intercepting and modifying HTTP requests.
 
 **Type:**
+
 ```typescript
-type FetchMiddleware = (
-  request: Request,
-  next: (request: Request) => Promise<Response>
-) => Promise<Response>;
+type FetchMiddleware = (request: Request, next: (request: Request) => Promise<Response>) => Promise<Response>;
 ```
 
 ## Advanced Usage
@@ -1028,7 +1110,7 @@ const client = createClient({ baseURL: 'https://api.example.com' });
 client.use((request, next) => {
   // Modify request headers
   request.headers.set('Authorization', `Bearer ${token}`);
-  
+
   // Call the next middleware or send the request
   return next(request);
 });
@@ -1037,9 +1119,9 @@ client.use((request, next) => {
 client.use((request, next) => {
   console.log(`Request: ${request.method} ${request.url}`);
   const start = Date.now();
-  
+
   // Call the next middleware and get the response
-  return next(request).then(response => {
+  return next(request).then((response) => {
     console.log(`Response: ${response.status} (${Date.now() - start}ms)`);
     return response;
   });
@@ -1050,36 +1132,36 @@ client.use((request, next) => {
   if (request.method === 'POST' && request.headers.get('Content-Type') === 'application/json') {
     // Clone the request to modify the request body
     const clonedRequest = request.clone();
-    const body = clonedRequest.json().then(data => {
+    const body = clonedRequest.json().then((data) => {
       // Add timestamp
       data.timestamp = new Date().toISOString();
       return new Request(request, {
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
     });
-    
-    return body.then(newRequest => next(newRequest));
+
+    return body.then((newRequest) => next(newRequest));
   }
-  
+
   return next(request);
 });
 ```
 
 **Middleware type:**
+
 ```typescript
-type FetchMiddleware = (
-  request: Request,
-  next: (request: Request) => Promise<Response>
-) => Promise<Response>;
+type FetchMiddleware = (request: Request, next: (request: Request) => Promise<Response>) => Promise<Response>;
 ```
 
 **Middleware execution order:**
+
 - Middleware is executed in the order they are added
 - Each middleware must call the `next()` function to pass the request to the next middleware
 - The last middleware will send the actual HTTP request
 - Responses are returned through the middleware chain in reverse order
 
 **Limiting middleware scope:**
+
 ```typescript
 // Apply middleware only to specific domains
 client.use(authMiddleware, 'https://api.example.com');
@@ -1232,7 +1314,7 @@ await userResource.request(); // Default GET
 
 // Execute PATCH request, will trigger stale event
 await userResource.withMethod('PATCH').request({
-  data: { name: 'New name' }
+  data: { name: 'New name' },
 });
 
 // Manually trigger events
@@ -1252,12 +1334,12 @@ For collection resources, you can use pagination links to navigate.
 async function fetchAllUserConversations(userId: string) {
   let conversationsRelation = client.go<User>(`/api/users/${userId}`).follow('conversations');
   const allConversations = [];
-  
+
   while (conversationsRelation) {
     // Use GET method by default to get paginated data
     const conversationsState = await conversationsRelation.request();
     allConversations.push(...conversationsState.collection);
-    
+
     // Use follow to navigate to the next page
     try {
       conversationsRelation = conversationsState.follow('next');
@@ -1266,7 +1348,7 @@ async function fetchAllUserConversations(userId: string) {
       conversationsRelation = null;
     }
   }
-  
+
   return allConversations;
 }
 ```
@@ -1286,6 +1368,7 @@ async function fetchAllUserConversations(userId: string) {
 `ShortCache` inherits from `ForeverCache` and automatically expires cache items after a specified time, defaulting to 30 seconds. This is useful for scenarios that require regular data refresh.
 
 **Features:**
+
 - Inherits from `ForeverCache`, has all basic cache functionality
 - Supports custom cache timeout (milliseconds)
 - Automatically cleans up expired cache items to avoid memory leaks
@@ -1305,6 +1388,7 @@ container.rebind(TYPES.Cache).toConstantValue(shortCache);
 ```
 
 **Internal implementation:**
+
 - Uses `setTimeout` to set expiration time for each cache item
 - Maintains an `activeTimers` map to track all active timers
 - Automatically deletes cache items when they expire
@@ -1318,25 +1402,25 @@ You can also implement your own cache strategy:
 import { Cache, State } from '@hateoas-ts/resource';
 
 class CustomCache implements Cache {
-  private cache = new Map<string, { state: State, expires: number }>();
+  private cache = new Map<string, { state: State; expires: number }>();
   private ttl = 60000; // 1 minute
 
   store(state: State) {
     this.cache.set(state.uri, {
       state: state.clone(),
-      expires: Date.now() + this.ttl
+      expires: Date.now() + this.ttl,
     });
   }
 
   get(uri: string): State | null {
     const item = this.cache.get(uri);
     if (!item) return null;
-    
+
     if (Date.now() > item.expires) {
       this.cache.delete(uri);
       return null;
     }
-    
+
     return item.state.clone();
   }
 
@@ -1391,9 +1475,12 @@ When submitting form data, if the data does not meet the validation rules define
 
 ```typescript
 try {
-  const result = await userResource.follow('create-conversation').withMethod('POST').request({
-    data: { title: '' } // Empty title might not meet validation rules
-  });
+  const result = await userResource
+    .follow('create-conversation')
+    .withMethod('POST')
+    .request({
+      data: { title: '' }, // Empty title might not meet validation rules
+    });
 } catch (error) {
   if (error.message === 'Invalid') {
     console.log('Form validation failed');
@@ -1469,8 +1556,8 @@ client.use((request, next) => {
 client.use((request, next) => {
   console.log(`[HTTP] ${request.method} ${request.url}`);
   const start = Date.now();
-  
-  return next(request).then(response => {
+
+  return next(request).then((response) => {
     console.log(`[HTTP] ${request.method} ${request.url} - ${response.status} (${Date.now() - start}ms)`);
     return response;
   });
@@ -1502,9 +1589,12 @@ userResource.clearCache();
 client.clearCache();
 
 // Executing POST requests will automatically invalidate related cache
-await userResource.follow('update').withMethod('POST').request({
-  data: { name: 'New name' }
-});
+await userResource
+  .follow('update')
+  .withMethod('POST')
+  .request({
+    data: { name: 'New name' },
+  });
 ```
 
 ### Q: How to handle large file uploads?
@@ -1530,7 +1620,7 @@ A: Use AbortController.
 const controller = new AbortController();
 
 const promise = userResource.request({
-  signal: controller.signal
+  signal: controller.signal,
 });
 
 // Cancel request
@@ -1577,6 +1667,7 @@ The React integration package provides:
 - **useResolveResource**: Internal hook for resolving resource-like objects
 
 **Installation:**
+
 ```bash
 npm install @hateoas-ts/resource-react
 # or
@@ -1586,6 +1677,7 @@ pnpm add @hateoas-ts/resource-react
 ```
 
 **Quick Example:**
+
 ```tsx
 import { createClient } from '@hateoas-ts/resource';
 import { ResourceProvider, useInfiniteCollection } from '@hateoas-ts/resource-react';
@@ -1604,16 +1696,11 @@ function ConversationsList() {
   const client = useClient();
   const userResource = client.go<User>('/api/users/123');
 
-  const {
-    items,
-    loading,
-    hasNextPage,
-    loadNextPage
-  } = useInfiniteCollection(userResource.follow('conversations'));
+  const { items, loading, hasNextPage, loadNextPage } = useInfiniteCollection(userResource.follow('conversations'));
 
   return (
     <div>
-      {items.map(conv => (
+      {items.map((conv) => (
         <div key={conv.data.id}>{conv.data.title}</div>
       ))}
       {hasNextPage && (
@@ -1640,4 +1727,3 @@ The `@hateoas-ts/resource` library simplifies interaction with HAL APIs in the f
 - **Event-Driven**: Through event listening, you can respond to changes in resource state.
 
 To get started, ensure your API follows the HAL specification, then define your entity types according to the examples above and start interacting with the API.
-

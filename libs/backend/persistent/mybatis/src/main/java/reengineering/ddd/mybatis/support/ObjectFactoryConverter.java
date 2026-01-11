@@ -10,24 +10,26 @@ import org.springframework.stereotype.Component;
 
 @Component
 @ConfigurationPropertiesBinding
-public class ObjectFactoryConverter implements Converter<String, ObjectFactory>, ApplicationContextAware {
+public class ObjectFactoryConverter
+    implements Converter<String, ObjectFactory>, ApplicationContextAware {
 
-    private ApplicationContext context;
+  private ApplicationContext context;
 
-    @Override
-    public ObjectFactory convert(String source) {
-        try {
-            ObjectFactory factory = (ObjectFactory) Class.forName(source).getDeclaredConstructor().newInstance();
-            if (factory instanceof ApplicationContextAware applicationContextAware)
-                applicationContextAware.setApplicationContext(context);
-            return factory;
-        } catch (Exception e) {
-            return null;
-        }
+  @Override
+  public ObjectFactory convert(String source) {
+    try {
+      ObjectFactory factory =
+          (ObjectFactory) Class.forName(source).getDeclaredConstructor().newInstance();
+      if (factory instanceof ApplicationContextAware applicationContextAware)
+        applicationContextAware.setApplicationContext(context);
+      return factory;
+    } catch (Exception e) {
+      return null;
     }
+  }
 
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.context = applicationContext;
-    }
+  @Override
+  public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+    this.context = applicationContext;
+  }
 }

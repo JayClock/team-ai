@@ -10,9 +10,9 @@ import reengineering.ddd.teamai.model.User;
 
 @Mapper
 @CacheNamespace(implementation = CaffeineCache.class, readWrite = false)
-public interface
-UsersMapper {
+public interface UsersMapper {
   User findUserById(@Param("id") int id);
 
-  int insertUser(@Param("holder") IdHolder id, @Param("description") UserDescription userDescription);
+  int insertUser(
+      @Param("holder") IdHolder id, @Param("description") UserDescription userDescription);
 }

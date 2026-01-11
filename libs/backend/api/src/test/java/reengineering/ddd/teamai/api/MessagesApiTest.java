@@ -1,6 +1,16 @@
 package reengineering.ddd.teamai.api;
 
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import jakarta.ws.rs.core.MediaType;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.hateoas.MediaTypes;
@@ -14,33 +24,27 @@ import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
-import java.util.Optional;
-
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 public class MessagesApiTest extends ApiTest {
-  @MockitoBean
-  private Users users;
-  @MockitoBean
-  private Conversation.ModelProvider modelProvider;
+  @MockitoBean private Users users;
+  @MockitoBean private Conversation.ModelProvider modelProvider;
 
   private User user;
   private Conversation conversation;
 
   @BeforeEach
   public void beforeEach() {
-    user = new User("JayClock", new UserDescription("JayClock", "JayClock@email"), mock(User.Accounts.class),
-      mock(User.Conversations.class));
+    user =
+        new User(
+            "JayClock",
+            new UserDescription("JayClock", "JayClock@email"),
+            mock(User.Accounts.class),
+            mock(User.Conversations.class));
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
-    conversation = new Conversation("1", new ConversationDescription("title"), mock(Conversation.Messages.class));
-    when(user.conversations().findByIdentity(conversation.getIdentity())).thenReturn(Optional.ofNullable(conversation));
+    conversation =
+        new Conversation(
+            "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
+    when(user.conversations().findByIdentity(conversation.getIdentity()))
+        .thenReturn(Optional.ofNullable(conversation));
   }
 
   @Test
@@ -52,16 +56,23 @@ public class MessagesApiTest extends ApiTest {
     when(conversation.messages().findAll()).thenReturn(new EntityList<>(message, message2));
 
     given()
-      .accept(MediaTypes.HAL_JSON.toString())
-      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages")
-      .then().statusCode(200)
-      .body("_embedded.messages.size()", is(2))
-      .body("_embedded.messages[0].id", is(message.getIdentity()))
-      .body("_embedded.messages[0].role", is(message.getDescription().role()))
-      .body("_embedded.messages[0].content", is(message.getDescription().content()))
-      .body("_embedded.messages[1].id", is(message2.getIdentity()))
-      .body("_embedded.messages[1].role", is(message2.getDescription().role()))
-      .body("_embedded.messages[1].content", is(message2.getDescription().content()));
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .get(
+            "/users/"
+                + user.getIdentity()
+                + "/conversations/"
+                + conversation.getIdentity()
+                + "/messages")
+        .then()
+        .statusCode(200)
+        .body("_embedded.messages.size()", is(2))
+        .body("_embedded.messages[0].id", is(message.getIdentity()))
+        .body("_embedded.messages[0].role", is(message.getDescription().role()))
+        .body("_embedded.messages[0].content", is(message.getDescription().content()))
+        .body("_embedded.messages[1].id", is(message2.getIdentity()))
+        .body("_embedded.messages[1].role", is(message2.getDescription().role()))
+        .body("_embedded.messages[1].content", is(message2.getDescription().content()));
 
     verify(conversation.messages(), times(1)).findAll();
   }
@@ -70,21 +81,29 @@ public class MessagesApiTest extends ApiTest {
   public void should_send_message_and_receive_streaming_response() {
     MessageDescription description = new MessageDescription("user", "Hello, AI!");
     Message savedMessage = new Message("1", description);
-    Message assistantMessage = new Message("2", new MessageDescription("assistant", "Hello there! How can I help you?"));
+    Message assistantMessage =
+        new Message("2", new MessageDescription("assistant", "Hello there! How can I help you?"));
 
     when(conversation.saveMessage(any(MessageDescription.class)))
-      .thenReturn(savedMessage)
-      .thenReturn(assistantMessage);
+        .thenReturn(savedMessage)
+        .thenReturn(assistantMessage);
 
     when(modelProvider.sendMessage(eq("Hello, AI!")))
-      .thenReturn(Flux.just("Hello", " there", "!", " How", " can", " I", " help", " you", "?"));
+        .thenReturn(Flux.just("Hello", " there", "!", " How", " can", " I", " help", " you", "?"));
 
     given()
-      .urlEncodingEnabled(false)
-      .accept(MediaType.SERVER_SENT_EVENTS)
-      .contentType(MediaType.APPLICATION_JSON)
-      .body(description)
-      .when().post("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/stream")
-      .then().statusCode(200);
+        .urlEncodingEnabled(false)
+        .accept(MediaType.SERVER_SENT_EVENTS)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(description)
+        .when()
+        .post(
+            "/users/"
+                + user.getIdentity()
+                + "/conversations/"
+                + conversation.getIdentity()
+                + "/messages/stream")
+        .then()
+        .statusCode(200);
   }
 }

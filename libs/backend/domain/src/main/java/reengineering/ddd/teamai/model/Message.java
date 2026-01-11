@@ -12,8 +12,7 @@ public class Message implements Entity<String, MessageDescription> {
     this.description = description;
   }
 
-  public Message() {
-  }
+  public Message() {}
 
   @Override
   public String getIdentity() {

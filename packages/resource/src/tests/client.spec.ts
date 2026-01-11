@@ -24,9 +24,9 @@ const handlers = [
       _embedded: halUser._embedded,
       _links: {
         self: {
-          href: '/api/users/1/accounts'
-        }
-      }
+          href: '/api/users/1/accounts',
+        },
+      },
     });
   }),
   http.get('https://api.example.com/api/conversations/conv-456', () => {

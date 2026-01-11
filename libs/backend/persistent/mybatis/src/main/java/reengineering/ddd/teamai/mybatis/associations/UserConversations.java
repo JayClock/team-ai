@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
+import java.util.List;
 import reengineering.ddd.mybatis.database.EntityList;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -8,13 +9,11 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper;
 
-import java.util.List;
-
-public class UserConversations extends EntityList<String, Conversation> implements User.Conversations {
+public class UserConversations extends EntityList<String, Conversation>
+    implements User.Conversations {
   private int userId;
 
-  @Inject
-  private UserConversationsMapper mapper;
+  @Inject private UserConversationsMapper mapper;
 
   @Override
   protected List<Conversation> findEntities(int from, int to) {

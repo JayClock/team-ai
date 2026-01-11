@@ -1,7 +1,17 @@
 package reengineering.ddd.teamai.api;
 
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.MediaType;
+import java.util.Optional;
 import org.apache.http.HttpHeaders;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,35 +25,28 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
-import java.util.Optional;
-
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 public class ConversationsApiTest extends ApiTest {
-  @MockitoBean
-  private Users users;
-  @MockitoBean
-  private Conversation.ModelProvider modelProvider;
+  @MockitoBean private Users users;
+  @MockitoBean private Conversation.ModelProvider modelProvider;
   private User user;
 
-  @Mock
-  private Many<Conversation> conversations;
+  @Mock private Many<Conversation> conversations;
   private Conversation conversation;
 
   @BeforeEach
   public void beforeEach() {
-    user = new User("JayClock", new UserDescription("JayClock", "JayClock@email"), mock(User.Accounts.class),
-      mock(User.Conversations.class));
+    user =
+        new User(
+            "JayClock",
+            new UserDescription("JayClock", "JayClock@email"),
+            mock(User.Accounts.class),
+            mock(User.Conversations.class));
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
-    conversation = new Conversation("1", new ConversationDescription("title"), mock(Conversation.Messages.class));
-    when(user.conversations().findByIdentity(conversation.getIdentity())).thenReturn(Optional.of(conversation));
+    conversation =
+        new Conversation(
+            "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
+    when(user.conversations().findByIdentity(conversation.getIdentity()))
+        .thenReturn(Optional.of(conversation));
   }
 
   @Test
@@ -51,56 +54,101 @@ public class ConversationsApiTest extends ApiTest {
     when(user.conversations().findAll()).thenReturn(conversations);
     when(conversations.size()).thenReturn(400);
     when(conversations.subCollection(eq(0), eq(40))).thenReturn(new EntityList<>(conversation));
-    given().accept(MediaTypes.HAL_JSON.toString())
-      .when().get("/users/" + user.getIdentity() + "/conversations")
-      .then().statusCode(200)
-      .body("_links.self.href", is("/api/users/" + user.getIdentity() + "/conversations?page=0"))
-      .body("_links.next.href", is("/api/users/" + user.getIdentity() + "/conversations?page=1"))
-      .body("_embedded.conversations.size()", is(1))
-      .body("_embedded.conversations[0].id", is(conversation.getIdentity()))
-      .body("_embedded.conversations[0].title", is(conversation.getDescription().title()))
-      .body("_embedded.conversations[0]._links.self.href",
-        is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
-      .body("_embedded.conversations[0]._links.messages.href",
-        is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
-      .body("_embedded.conversations[0]._links.messages.type", is(HttpMethod.GET))
-      .body("_embedded.conversations[0]._links.send-message.href",
-        is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/stream"))
-      .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST));
+    given()
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .get("/users/" + user.getIdentity() + "/conversations")
+        .then()
+        .statusCode(200)
+        .body("_links.self.href", is("/api/users/" + user.getIdentity() + "/conversations?page=0"))
+        .body("_links.next.href", is("/api/users/" + user.getIdentity() + "/conversations?page=1"))
+        .body("_embedded.conversations.size()", is(1))
+        .body("_embedded.conversations[0].id", is(conversation.getIdentity()))
+        .body("_embedded.conversations[0].title", is(conversation.getDescription().title()))
+        .body(
+            "_embedded.conversations[0]._links.self.href",
+            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
+        .body(
+            "_embedded.conversations[0]._links.messages.href",
+            is(
+                "/api/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages"))
+        .body("_embedded.conversations[0]._links.messages.type", is(HttpMethod.GET))
+        .body(
+            "_embedded.conversations[0]._links.send-message.href",
+            is(
+                "/api/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages/stream"))
+        .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST));
   }
 
   @Test
   public void should_create_new_conversation() {
     ConversationDescription description = new ConversationDescription("New Conversation");
-    Conversation newConversation = new Conversation("2", description, mock(Conversation.Messages.class));
+    Conversation newConversation =
+        new Conversation("2", description, mock(Conversation.Messages.class));
     when(user.add(any(ConversationDescription.class))).thenReturn(newConversation);
 
-    given().accept(MediaTypes.HAL_JSON.toString())
-      .contentType(MediaType.APPLICATION_JSON)
-      .body(description)
-      .when().post("/users/" + user.getIdentity() + "/conversations")
-      .then().statusCode(201)
-      .header(HttpHeaders.LOCATION,
-        is(uri("/api/users/" + user.getIdentity() + "/conversations/" + newConversation.getIdentity())))
-      .body("id", is(newConversation.getIdentity()));
+    given()
+        .accept(MediaTypes.HAL_JSON.toString())
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(description)
+        .when()
+        .post("/users/" + user.getIdentity() + "/conversations")
+        .then()
+        .statusCode(201)
+        .header(
+            HttpHeaders.LOCATION,
+            is(
+                uri(
+                    "/api/users/"
+                        + user.getIdentity()
+                        + "/conversations/"
+                        + newConversation.getIdentity())))
+        .body("id", is(newConversation.getIdentity()));
   }
 
   @Test
   public void should_return_single_conversation() {
-    when(user.conversations().findByIdentity(conversation.getIdentity())).thenReturn(Optional.of(conversation));
+    when(user.conversations().findByIdentity(conversation.getIdentity()))
+        .thenReturn(Optional.of(conversation));
 
-    given().accept(MediaTypes.HAL_JSON.toString())
-      .when().get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
-      .then().statusCode(200)
-      .body("id", is(conversation.getIdentity()))
-      .body("title", is(conversation.getDescription().title()))
-      .body("_links.self.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
-      .body("_links.messages.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages"))
-      .body("_links.messages.type", is(HttpMethod.GET))
-      .body("_links.send-message.href", is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity() + "/messages/stream"))
-      .body("_links.send-message.type", is(HttpMethod.POST));
+    given()
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("id", is(conversation.getIdentity()))
+        .body("title", is(conversation.getDescription().title()))
+        .body(
+            "_links.self.href",
+            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
+        .body(
+            "_links.messages.href",
+            is(
+                "/api/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages"))
+        .body("_links.messages.type", is(HttpMethod.GET))
+        .body(
+            "_links.send-message.href",
+            is(
+                "/api/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages/stream"))
+        .body("_links.send-message.type", is(HttpMethod.POST));
 
     verify(user.conversations(), times(1)).findByIdentity(conversation.getIdentity());
   }
-
 }

@@ -1,6 +1,7 @@
 plugins {
     id "dev.nx.gradle.project-graph" version "0.1.10" apply false
     id 'io.spring.dependency-management' version '1.1.0' apply false
+    id 'com.diffplug.spotless' version '6.25.0' apply false
 }
 
 allprojects {
@@ -21,6 +22,16 @@ subprojects {
     apply plugin: 'io.spring.dependency-management'
     apply plugin: 'maven-publish'
     apply plugin: 'dev.nx.gradle.project-graph'
+    apply plugin: 'com.diffplug.spotless'
+
+    spotless {
+        java {
+            target 'src/**/*.java'
+            googleJavaFormat('1.22.0')
+            importOrder()
+            removeUnusedImports()
+        }
+    }
 
     java {
         toolchain {

@@ -14,8 +14,7 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.User;
 
 public class ConversationsApi {
-  @Context
-  ResourceContext resourceContext;
+  @Context ResourceContext resourceContext;
 
   private final User user;
 
@@ -25,18 +24,27 @@ public class ConversationsApi {
 
   @Path("{conversation-id}")
   public ConversationApi findById(@PathParam("conversation-id") String id) {
-    return user.conversations().findByIdentity(id).map(conversation -> {
-        ConversationApi conversationApi = new ConversationApi(user, conversation);
-        return resourceContext.initResource(conversationApi);
-      })
-      .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
+    return user.conversations()
+        .findByIdentity(id)
+        .map(
+            conversation -> {
+              ConversationApi conversationApi = new ConversationApi(user, conversation);
+              return resourceContext.initResource(conversationApi);
+            })
+        .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
   }
 
   @GET
-  public CollectionModel<ConversationModel> findAll(@Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
-    return new Pagination<>(user.conversations().findAll(), 40).page(page,
-      conversation -> new ConversationModel(user, conversation, uriInfo),
-      p -> ApiTemplates.conversations(uriInfo).queryParam("page", p).build(user.getIdentity()));
+  public CollectionModel<ConversationModel> findAll(
+      @Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
+    return new Pagination<>(user.conversations().findAll(), 40)
+        .page(
+            page,
+            conversation -> new ConversationModel(user, conversation, uriInfo),
+            p ->
+                ApiTemplates.conversations(uriInfo)
+                    .queryParam("page", p)
+                    .build(user.getIdentity()));
   }
 
   @POST
@@ -45,15 +53,17 @@ public class ConversationsApi {
     ConversationDescription description = new ConversationDescription(requestBody.getTitle());
     Conversation conversation = user.add(description);
     ConversationModel conversationModel = new ConversationModel(user, conversation, uriInfo);
-    return Response.created(ApiTemplates.conversation(uriInfo).build(user.getIdentity(), conversation.getIdentity())).entity(conversationModel).build();
+    return Response.created(
+            ApiTemplates.conversation(uriInfo)
+                .build(user.getIdentity(), conversation.getIdentity()))
+        .entity(conversationModel)
+        .build();
   }
 
   public static class CreateConversationRequestBody {
-    @NotNull()
-    private String title;
+    @NotNull() private String title;
 
-    public CreateConversationRequestBody() {
-    }
+    public CreateConversationRequestBody() {}
 
     public String getTitle() {
       return title;
@@ -64,4 +74,3 @@ public class ConversationsApi {
     }
   }
 }
-

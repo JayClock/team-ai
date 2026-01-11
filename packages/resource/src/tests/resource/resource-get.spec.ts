@@ -118,10 +118,7 @@ describe('Resource GET Requests', () => {
     vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
     vi.spyOn(mockClient.cache, 'get').mockReturnValueOnce(cacheState);
 
-    const state = await userState
-      .follow('conversations')
-      .withGet()
-      .request();
+    const state = await userState.follow('conversations').withGet().request();
     expect(state).toBe(cacheState);
   });
 
@@ -150,14 +147,8 @@ describe('Resource GET Requests', () => {
       vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
         uri: resolve(mockClient.bookmarkUri, '/api/users/1/conversations'),
       } as State);
-      const request1 = userState
-        .follow('conversations')
-        .withGet()
-        .request();
-      const request2 = userState
-        .follow('conversations')
-        .withGet()
-        .request();
+      const request1 = userState.follow('conversations').withGet().request();
+      const request2 = userState.follow('conversations').withGet().request();
 
       const [result1, result2] = await Promise.all([request1, request2]);
 

@@ -34,7 +34,9 @@ export class ResourceRelation<TEntity extends Entity> {
    * @param requestOptions Request options including request body, headers, etc.
    * @returns Returns a Promise of the resource state
    */
-  private async request(requestOptions?: RequestOptions): Promise<State<TEntity>> {
+  private async request(
+    requestOptions?: RequestOptions,
+  ): Promise<State<TEntity>> {
     const resource = await this.getResource();
     return resource.withGet().request(requestOptions);
   }
@@ -54,7 +56,9 @@ export class ResourceRelation<TEntity extends Entity> {
   async getForm(): Promise<Form | undefined> {
     const prevResource = await this.getResourceWithRels(this.rels.slice(0, -1));
     const { currentOptions } = this.getCurrentOptions();
-    const prevState = (await prevResource.withGet().request()) as BaseState<TEntity>;
+    const prevState = (await prevResource
+      .withGet()
+      .request()) as BaseState<TEntity>;
     return prevState.getForm(this.link.rel, currentOptions.method);
   }
 

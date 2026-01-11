@@ -12,9 +12,7 @@ public class Account implements Entity<String, AccountDescription> {
     this.description = description;
   }
 
-  private Account() {
-  }
-
+  private Account() {}
 
   @Override
   public String getIdentity() {

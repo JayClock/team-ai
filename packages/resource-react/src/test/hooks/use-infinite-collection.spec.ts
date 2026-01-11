@@ -187,9 +187,9 @@ describe('useInfiniteCollection', () => {
     const mockResourceState = createMockResourceState(mockCollection, false);
     const mockResource = createMockResource(mockResourceState);
 
-    const consoleWarnSpy = vi
-      .spyOn(console, 'warn')
-      .mockImplementation(() => { /* empty */ });
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* empty */
+    });
 
     const { result } = await setupHookWithLoading(mockResource);
 
@@ -215,9 +215,9 @@ describe('useInfiniteCollection', () => {
     );
     const mockResource = createMockResource(mockResourceState);
 
-    const consoleWarnSpy = vi
-      .spyOn(console, 'warn')
-      .mockImplementation(() => { /* empty */ });
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+      /* empty */
+    });
 
     const { result } = await setupHookWithLoading(mockResource);
 

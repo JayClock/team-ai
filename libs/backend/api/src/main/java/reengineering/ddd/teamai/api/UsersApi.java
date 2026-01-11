@@ -12,8 +12,7 @@ public class UsersApi {
 
   private final Users users;
 
-  @Context
-  private ResourceContext resourceContext;
+  @Context private ResourceContext resourceContext;
 
   @Inject
   public UsersApi(Users users) {
@@ -22,9 +21,13 @@ public class UsersApi {
 
   @Path("{id}")
   public UserApi findById(@PathParam("id") String id) {
-    return users.findById(id).map((user) -> {
-      UserApi userApi = new UserApi(user);
-      return resourceContext.initResource(userApi);
-    }).orElse(null);
+    return users
+        .findById(id)
+        .map(
+            (user) -> {
+              UserApi userApi = new UserApi(user);
+              return resourceContext.initResource(userApi);
+            })
+        .orElse(null);
   }
 }

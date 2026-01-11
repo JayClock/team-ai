@@ -1,6 +1,9 @@
 package reengineering.ddd;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import jakarta.inject.Inject;
+import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,15 +23,10 @@ import reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper;
 import reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper;
 import reengineering.ddd.teamai.mybatis.mappers.UsersMapper;
 
-import java.util.Random;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 @MybatisTest
 @Import(TestContainerConfig.class)
 public class ModelMapperTest {
-  @Inject
-  private TestDataMapper testData;
+  @Inject private TestDataMapper testData;
 
   private final int userId = id();
   private final int accountId = id();
@@ -49,8 +47,7 @@ public class ModelMapperTest {
 
   @Nested
   class UsersMapperTest {
-    @Inject
-    private UsersMapper usersMapper;
+    @Inject private UsersMapper usersMapper;
 
     @Test
     public void should_find_user_by_id() {
@@ -91,8 +88,7 @@ public class ModelMapperTest {
 
   @Nested
   class AccountsMapperTest {
-    @Inject
-    private UserAccountsMapper accountsMapper;
+    @Inject private UserAccountsMapper accountsMapper;
 
     @Test
     public void should_find_account_by_user_and_id() {
@@ -103,7 +99,8 @@ public class ModelMapperTest {
     @Test
     public void should_add_account_to_database() {
       IdHolder idHolder = new IdHolder();
-      accountsMapper.insertAccount(idHolder, userId, new AccountDescription("provider", "providerId2"));
+      accountsMapper.insertAccount(
+          idHolder, userId, new AccountDescription("provider", "providerId2"));
       Account account = accountsMapper.findAccountByUserAndId(userId, idHolder.id());
       assertEquals(account.getIdentity(), String.valueOf(idHolder.id()));
     }
@@ -111,34 +108,36 @@ public class ModelMapperTest {
 
   @Nested
   class ConversationsMapperTest {
-    @Inject
-    private UserConversationsMapper conversationsMapper;
+    @Inject private UserConversationsMapper conversationsMapper;
 
     @Test
     void should_find_conversation_by_user_and_id() {
-      Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
+      Conversation conversation =
+          conversationsMapper.findConversationByUserAndId(userId, conversationId);
       assertEquals(String.valueOf(conversationId), conversation.getIdentity());
     }
 
     @Test
     void should_assign_messages_association_of_conversation() {
-      Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, conversationId);
+      Conversation conversation =
+          conversationsMapper.findConversationByUserAndId(userId, conversationId);
       assertEquals(1, conversation.messages().findAll().size());
     }
 
     @Test
     public void should_add_conversation_to_database() {
       IdHolder idHolder = new IdHolder();
-      conversationsMapper.insertConversation(idHolder, userId, new ConversationDescription("title"));
-      Conversation conversation = conversationsMapper.findConversationByUserAndId(userId, idHolder.id());
+      conversationsMapper.insertConversation(
+          idHolder, userId, new ConversationDescription("title"));
+      Conversation conversation =
+          conversationsMapper.findConversationByUserAndId(userId, idHolder.id());
       assertEquals(conversation.getIdentity(), String.valueOf(idHolder.id()));
     }
   }
 
   @Nested
   class MessagesMapperTest {
-    @Inject
-    private ConversationMessagesMapper messagesMapper;
+    @Inject private ConversationMessagesMapper messagesMapper;
 
     @Test
     public void should_find_message_by_conversation_and_id() {
@@ -149,8 +148,10 @@ public class ModelMapperTest {
     @Test
     public void should_add_message_to_database() {
       IdHolder idHolder = new IdHolder();
-      messagesMapper.insertMessage(idHolder, conversationId, new MessageDescription("role", "description"));
-      Message message = messagesMapper.findMessageByConversationAndId(conversationId, idHolder.id());
+      messagesMapper.insertMessage(
+          idHolder, conversationId, new MessageDescription("role", "description"));
+      Message message =
+          messagesMapper.findMessageByConversationAndId(conversationId, idHolder.id());
       assertEquals(message.getIdentity(), String.valueOf(idHolder.id()));
     }
   }

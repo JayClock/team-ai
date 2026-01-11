@@ -9,10 +9,8 @@ import reengineering.ddd.teamai.model.Message;
 
 @Relation(collectionRelation = "messages")
 public class MessageModel extends RepresentationModel<MessageModel> {
-  @JsonProperty
-  private String id;
-  @JsonUnwrapped
-  private MessageDescription description;
+  @JsonProperty private String id;
+  @JsonUnwrapped private MessageDescription description;
 
   public MessageModel(Message message) {
     this.id = message.getIdentity();

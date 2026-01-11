@@ -11,9 +11,7 @@ import reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper;
 public class UserAccounts extends EntityList<String, Account> implements User.Accounts {
   private int userId;
 
-  @Inject
-  UserAccountsMapper mapper;
-
+  @Inject UserAccountsMapper mapper;
 
   @Override
   public Account add(AccountDescription description) {

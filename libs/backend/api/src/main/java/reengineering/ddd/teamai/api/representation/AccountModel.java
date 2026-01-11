@@ -11,10 +11,8 @@ import reengineering.ddd.teamai.model.Account;
 
 @Relation(collectionRelation = "accounts")
 public class AccountModel extends RepresentationModel<AccountModel> {
-  @JsonProperty
-  private String id;
-  @JsonUnwrapped
-  private AccountDescription description;
+  @JsonProperty private String id;
+  @JsonUnwrapped private AccountDescription description;
 
   public AccountModel(Account account, UriBuilder builder) {
     this.id = account.getIdentity();
