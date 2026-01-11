@@ -1,0 +1,2 @@
+nx affected -t format:write
+nx affected -t lint --fix
