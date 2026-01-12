@@ -1,5 +1,7 @@
-import { Button, Card } from 'antd';
-import { GithubOutlined } from '@ant-design/icons';
+import { Button } from '@shared/ui/components/button';
+import { Card } from '@shared/ui/components/card';
+import { Spinner } from '@shared/ui/components/spinner';
+import { Github } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useClient, useResource } from '@hateoas-ts/resource-react';
@@ -43,15 +45,21 @@ export function Login() {
         </div>
 
         <Button
-          type="primary"
-          icon={<GithubOutlined />}
-          size="large"
-          block
+          className="w-full h-12"
           onClick={handleGithubLogin}
           disabled={!loginHref}
-          loading={!loginHref}
         >
-          GitHub 登录
+          {!loginHref ? (
+            <div className="flex items-center gap-2">
+              <Spinner className="h-4 w-4" />
+              加载中...
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Github className="h-5 w-5" />
+              GitHub 登录
+            </div>
+          )}
         </Button>
       </Card>
     </div>

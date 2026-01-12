@@ -9,6 +9,16 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./components/*": {
+      "types": "./src/components/*.tsx",
+      "import": "./src/components/*.tsx",
+      "default": "./src/components/*.tsx"
+    },
+    "./lib/*": {
+      "types": "./src/lib/*.ts",
+      "import": "./src/lib/*.ts",
+      "default": "./src/lib/*.ts"
+    },
     "./package.json": "./package.json"
   }
 }
