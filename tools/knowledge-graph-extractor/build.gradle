@@ -48,9 +48,6 @@ dependencies {
     // XML parsing
     implementation 'org.dom4j:dom4j:2.1.4'
 
-    // Neo4j driver
-    implementation 'org.neo4j.driver:neo4j-java-driver:5.18.0'
-
     // Jackson for JSON serialization
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
 
@@ -61,6 +58,5 @@ dependencies {
     // Testing
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testImplementation 'org.testcontainers:neo4j:1.19.3'
     testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
 }

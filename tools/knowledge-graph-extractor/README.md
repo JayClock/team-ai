@@ -1,6 +1,6 @@
 # Knowledge Graph Extractor
 
-Extracts code structure and dependencies from the Team AI codebase and builds a knowledge graph. Supports both Neo4j and local (file-based) usage.
+Extracts code structure and dependencies from the Team AI codebase and builds a knowledge graph for local file-based usage.
 
 ## Quick Start
 
@@ -31,38 +31,6 @@ This will generate:
 👉 **For detailed local usage instructions, see [LOCAL_USAGE.md](LOCAL_USAGE.md)**
 
 ---
-
-## Neo4j Usage (Database Storage)
-
-### Required Dependencies
-
-1. **Neo4j Database**: Running Neo4j instance (Docker recommended)
-
-   ```bash
-   docker run -d \
-     --name neo4j \
-     -p 7474:7474 -p 7687:7687 \
-     -e NEO4J_AUTH=neo4j/password \
-     neo4j:5.18
-   ```
-
-2. **Java 17+**: For running the extractor
-
-### Running the Extractor with Neo4j
-
-```bash
-# Run with default settings (Neo4j at localhost:7687)
-./gradlew :tools:knowledge-graph-extractor:run
-
-# Run with custom Neo4j settings
-./gradlew :tools:knowledge-graph-extractor:run \
-  -Dneo4j.uri=bolt://localhost:7687 \
-  -Dneo4j.user=neo4j \
-  -Dneo4j.password=your_password
-
-# Clear Neo4j database before extraction
-./gradlew :tools:knowledge-graph-extractor:run -Dneo4j.clear=true
-```
 
 ## Graph Schema
 
@@ -117,58 +85,6 @@ This will generate:
 ./gradlew :tools:knowledge-graph-extractor:extractToLocal -Dquery=violations
 ./gradlew :tools:knowledge-graph-extractor:extractToLocal -Dquery=impact -Dnode=ENTITY:User
 ./gradlew :tools:knowledge-graph-extractor:extractToLocal -Dquery=unused
-```
-
-### Neo4j Tasks
-
-```bash
-# Run extractor with Neo4j
-./gradlew :tools:knowledge-graph-extractor:run
-
-# Run query runner
-./tools/knowledge-graph-extractor/run-queries.sh
-```
-
-## Example Cypher Queries (Neo4j)
-
-### Find API-to-Domain flow
-
-```cypher
-MATCH (api:JAXRSResource)-[:INJECTS|USES]->(domain:Entity)
-MATCH (api)-[:CONTAINS]->(method:Method)-[:CALLS]->(domainMethod:Method)
-RETURN api, domain, method, domainMethod
-```
-
-### Find Association Implementation Chain
-
-```cypher
-MATCH (assocInterface:DomainInterface)
-MATCH (assocInterface)<-[:IMPLEMENTS]-(assocImpl:AssociationImplementation)
-MATCH (assocImpl)-[:INJECTS]->(mapper:MyBatisMapper)
-MATCH (mapper)-[:BINDS_TO]->(xml:XMLMapper)
-MATCH (mapper)-[:MAPS_TO]->(table:DatabaseTable)
-RETURN assocInterface, assocImpl, mapper, xml, table
-```
-
-### Trace Full Request Flow
-
-```cypher
-MATCH path = (api:JAXRSResource)-[:CONTAINS]->(apiMethod:Method)
-MATCH (apiMethod)-[:CALLS]->(domainMethod:Method)
-MATCH (domainMethod)-[:CALLS*]->(infraMethod:Method)
-MATCH (infraMethod)-[:MAPS_TO]->(table:DatabaseTable)
-RETURN path
-```
-
-### Find All Smart Domain Associations
-
-```cypher
-MATCH (entity:Entity)-[:CONTAINS]->(assocInterface:DomainInterface)
-MATCH (assocInterface)-[:EXTENDS]->(:DomainInterface {type: 'Association'})
-MATCH (assocInterface)-[:IMPLEMENTED_BY]->(assocImpl:AssociationImplementation)
-MATCH (assocImpl)-[:INJECTS]->(mapper:MyBatisMapper)
-MATCH (mapper)-[:BINDS_TO]->(xml:XMLMapper)
-RETURN entity, assocInterface, assocImpl, mapper, xml
 ```
 
 ## Output Files (Local Usage)
@@ -233,18 +149,6 @@ Open `knowledge-graph/api-to-database.md` to trace database operations and ident
 # Check architecture compliance
 ./gradlew :tools:knowledge-graph-extractor:extractToLocal -Dquery=violations
 ```
-
-## Comparison: Local vs Neo4j
-
-| Feature           | Local (IntelliJ IDEA)    | Neo4j                         |
-| ----------------- | ------------------------ | ----------------------------- |
-| Database Required | ❌ No                    | ✅ Neo4j                      |
-| Code Navigation   | ✅ Click to jump         | ⚠️ Manual                     |
-| Query Language    | ❌ Predefined            | ✅ Cypher                     |
-| Performance       | ✅ Fast startup          | ⚠️ Requires Neo4j             |
-| Visualization     | ✅ Mermaid charts        | ✅ Neo4j Browser              |
-| Deployment        | ✅ Simple                | ⚠️ Requires setup             |
-| Best For          | Development, code review | Advanced analysis, production |
 
 ## Documentation
 

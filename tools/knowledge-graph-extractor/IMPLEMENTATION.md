@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Knowledge Graph Extractor has been successfully implemented to analyze the Team AI codebase and extract structural relationships into a Neo4j graph database.
+The Knowledge Graph Extractor has been successfully implemented to analyze the Team AI codebase and extract structural relationships into local files for visualization and analysis.
 
 ## Implementation Details
 
@@ -11,7 +11,8 @@ The Knowledge Graph Extractor has been successfully implemented to analyze the T
 ```
 tools/knowledge-graph-extractor/
 ├── src/main/java/reengineering/ddd/knowledgegraph/
-│   ├── KnowledgeGraphApplication.java       # Main entry point
+│   ├── LocalGraphApplication.java          # Main entry point for local export
+│   ├── KnowledgeGraphApplication.java      # Main entry point (extraction only)
 │   ├── model/                             # Graph node and relationship types
 │   ├── extractor/                          # Code analysis extractors
 │   │   ├── BaseExtractor.java              # Base extractor with JavaParser config
@@ -21,10 +22,14 @@ tools/knowledge-graph-extractor/
 │   │   └── infrastructure/              # Infrastructure layer
 │   │       ├── InfrastructureLayerExtractor.java
 │   │       └── XMLMapperExtractor.java
-│   └── neo4j/                             # Neo4j integration
-│       ├── Neo4jGraphStore.java
-│       ├── CypherQueryRunner.java
-│       └── MermaidGraphExporter.java
+│   ├── exporter/                          # Local file exporters
+│   │   └── LocalGraphExporter.java
+│   ├── mermaid/                           # Mermaid diagram generation
+│   │   ├── MermaidExporter.java
+│   │   └── MermaidViewGenerator.java
+│   └── analysis/                          # Query analysis
+│       ├── LocalQueryAnalyzer.java
+│       └── CLI.java
 ├── build.gradle                          # Gradle configuration
 └── README.md                             # Usage documentation
 ```
@@ -68,35 +73,15 @@ tools/knowledge-graph-extractor/
 
 1. **Java 17+**
 2. **Gradle 8.10**
-3. **Neo4j Database** (optional, for graph storage)
 
 ### Running the Extractor
 
 ```bash
-# Extract to memory only (no Neo4j)
-./gradlew :tools:knowledge-graph-extractor:run -Dneo4j.uri=dummy
-
-# Extract and store in Neo4j
-./gradlew :tools:knowledge-graph-extractor:run \
-  -Dneo4j.uri=bolt://localhost:7687 \
-  -Dneo4j.user=neo4j \
-  -Dneo4j.password=password
-
-# Clear Neo4j database before extraction
-./gradlew :tools:knowledge-graph-extractor:run -Dneo4j.clear=true
+# Extract and export to local files
+./gradlew :tools:knowledge-graph-extractor:extractToLocal
 
 # Using the provided script
-./tools/knowledge-graph-extractor/run-extractor.sh
-```
-
-### Starting Neo4j (Docker)
-
-```bash
-docker run -d \
-  --name neo4j \
-  -p 7474:7474 -p 7687:7687 \
-  -e NEO4J_AUTH=neo4j/password \
-  neo4j:5.18
+./tools/knowledge-graph-extractor/run-local.sh
 ```
 
 ## Test Results
@@ -225,8 +210,8 @@ RETURN resource.name as resource,
 
 - **JavaParser 3.26.1**: AST parsing with Java 17 support
 - **DOM4J 2.1.4**: XML mapper file parsing
-- **Neo4j Driver 5.18.0**: Graph database connectivity
-- **TestContainers**: Integration testing with Neo4j
+- **Jackson 2.16.1**: JSON serialization
+- **TestContainers**: Integration testing
 
 ### JavaParser Configuration
 
@@ -267,13 +252,7 @@ Add to GitHub Actions:
 
 ```yaml
 - name: Extract Knowledge Graph
-  run: ./gradlew :tools:knowledge-graph-extractor:run
-
-- name: Store in Neo4j
-  run: ./gradlew :tools:knowledge-graph-extractor:run
-    -Dneo4j.uri=${{ secrets.NEO4J_URI }}
-    -Dneo4j.user=${{ secrets.NEO4J_USER }}
-    -Dneo4j.password=${{ secrets.NEO4J_PASSWORD }}
+  run: ./gradlew :tools:knowledge-graph-extractor:extractToLocal
 ```
 
 ## Next Steps
@@ -288,10 +267,10 @@ Add to GitHub Actions:
 
 ### Visualization
 
-1. Integrate with graph visualization tools (Neo4j Bloom, D3.js)
-2. Generate interactive Mermaid diagrams from graph
-3. Create layer-based visualization
-4. Add temporal analysis (how graph changes over commits)
+1. Generate interactive Mermaid diagrams from graph
+2. Create layer-based visualization
+3. Add temporal analysis (how graph changes over commits)
+4. Export to interactive HTML views
 
 ### Analysis Queries
 
@@ -307,10 +286,11 @@ Add to GitHub Actions:
 
 - Model classes: `Layer`, `Node`, `Graph`, `Relationship` (and subclasses)
 - Extractors: `ApiLayerExtractor`, `DomainLayerExtractor`, `InfrastructureLayerExtractor`
-- Neo4j integration: `Neo4jGraphStore`, `CypherQueryRunner`, `MermaidGraphExporter`
+- Local exporters: `LocalGraphExporter`, `MermaidExporter`, `MermaidViewGenerator`
+- Query analyzers: `LocalQueryAnalyzer`, `CLI`
 - Configuration: `build.gradle`, `logback.xml`, `application.properties`
-- Documentation: `README.md` (in extractor directory)
-- Scripts: `run-extractor.sh`, `run-queries.sh`
+- Documentation: `README.md`, `LOCAL_USAGE.md` (in extractor directory)
+- Scripts: `run-local.sh`
 
 ### Modified
 
@@ -318,6 +298,6 @@ Add to GitHub Actions:
 
 ## Conclusion
 
-The Knowledge Graph Extractor successfully implements the plan to analyze the Smart Domain DDD architecture of Team AI. It extracts 81 nodes and 147 relationships, capturing the three-layer architecture (API, Domain, Infrastructure), Smart Domain patterns (association objects), and HATEOAS link structures.
+The Knowledge Graph Extractor successfully implements of plan to analyze the Smart Domain DDD architecture of Team AI. It extracts 81 nodes and 147 relationships, capturing the three-layer architecture (API, Domain, Infrastructure), Smart Domain patterns (association objects), and HATEOAS link structures.
 
-All tests pass, and the extractor is ready for integration into the development workflow and CI/CD pipeline.
+The tool generates local files including Mermaid diagrams, JSON data, and interactive HTML views for visualization and analysis in IntelliJ IDEA. All tests pass, and the extractor is ready for integration into the development workflow and CI/CD pipeline.
