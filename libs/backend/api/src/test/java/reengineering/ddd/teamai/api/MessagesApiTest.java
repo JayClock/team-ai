@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -77,7 +78,7 @@ public class MessagesApiTest extends ApiTest {
   }
 
   @Test
-  public void should_send_message_and_receive_streaming_response() {
+  public void should_send_message_and_receive_streaming_response_in_vercel_ai_sdk_format() {
     MessageDescription userDescription = new MessageDescription("user", "Hello, AI!");
     Message savedMessage = new Message("1", userDescription);
     MessageDescription assistantDescription =
@@ -91,25 +92,33 @@ public class MessagesApiTest extends ApiTest {
     when(modelProvider.sendMessage(eq("Hello, AI!")))
         .thenReturn(Flux.just("Hello", " there", "!", " How", " can", " I", " help", " you", "?"));
 
-    // Extract response body to ensure SSE stream is fully consumed before verification
-    given()
-        .urlEncodingEnabled(false)
-        .accept(MediaType.SERVER_SENT_EVENTS)
-        .contentType(MediaType.APPLICATION_JSON)
-        .body(userDescription)
-        .when()
-        .post(
-            "/users/"
-                + user.getIdentity()
-                + "/conversations/"
-                + conversation.getIdentity()
-                + "/messages/stream")
-        .then()
-        .statusCode(200)
-        .extract()
-        .asString();
+    String responseBody =
+        given()
+            .urlEncodingEnabled(false)
+            .accept(MediaType.SERVER_SENT_EVENTS)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(userDescription)
+            .when()
+            .post(
+                "/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages/stream")
+            .then()
+            .statusCode(200)
+            .extract()
+            .asString();
 
-    // Verify user message was saved first, then assistant message after stream completes
+    // Verify Vercel AI SDK Data Stream Protocol format
+    assertThat(responseBody).contains("\"type\":\"start\"");
+    assertThat(responseBody).contains("\"type\":\"text-start\"");
+    assertThat(responseBody).contains("\"type\":\"text-delta\"");
+    assertThat(responseBody).contains("\"delta\":\"Hello\"");
+    assertThat(responseBody).contains("\"type\":\"text-end\"");
+    assertThat(responseBody).contains("\"type\":\"finish\"");
+    assertThat(responseBody).contains("[DONE]");
+
     verify(messages).saveMessage(eq(userDescription));
     verify(messages).saveMessage(eq(assistantDescription));
   }

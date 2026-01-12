@@ -6,11 +6,13 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
+import java.util.UUID;
 import reengineering.ddd.teamai.api.representation.ConversationModel;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
@@ -41,8 +43,20 @@ public class ConversationApi {
   @Path("messages/stream")
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void chat(
-      MessageDescription description, @Context SseEventSink sseEventSink, @Context Sse sse) {
+      MessageDescription description,
+      @Context SseEventSink sseEventSink,
+      @Context Sse sse,
+      @Context HttpHeaders headers) {
     StringBuilder aiResponseBuilder = new StringBuilder();
+    String messageId = UUID.randomUUID().toString();
+    String textId = UUID.randomUUID().toString();
+
+    // Send Vercel AI SDK Data Stream Protocol events
+    // 1. Message start
+    sendSseEvent(sseEventSink, sse, "{\"type\":\"start\",\"messageId\":\"" + messageId + "\"}");
+    // 2. Text start
+    sendSseEvent(sseEventSink, sse, "{\"type\":\"text-start\",\"id\":\"" + textId + "\"}");
+
     this.conversation
         .sendMessage(description, modelProvider)
         .doOnNext(aiResponseBuilder::append)
@@ -53,15 +67,50 @@ public class ConversationApi {
             })
         .subscribe(
             text -> {
-              OutboundSseEvent event = sse.newEventBuilder().data(text).build();
-
-              sseEventSink.send(event);
+              // 3. Text delta - escape JSON string properly
+              String escapedText = escapeJsonString(text);
+              sendSseEvent(
+                  sseEventSink,
+                  sse,
+                  "{\"type\":\"text-delta\",\"id\":\""
+                      + textId
+                      + "\",\"delta\":\""
+                      + escapedText
+                      + "\"}");
             },
             error -> {
+              // Send error event
+              String errorMessage = escapeJsonString(error.getMessage());
+              sendSseEvent(
+                  sseEventSink, sse, "{\"type\":\"error\",\"errorText\":\"" + errorMessage + "\"}");
+              sendSseEvent(sseEventSink, sse, "[DONE]");
               sseEventSink.close();
             },
             () -> {
+              // 4. Text end
+              sendSseEvent(sseEventSink, sse, "{\"type\":\"text-end\",\"id\":\"" + textId + "\"}");
+              // 5. Finish message
+              sendSseEvent(sseEventSink, sse, "{\"type\":\"finish\"}");
+              // 6. Stream termination
+              sendSseEvent(sseEventSink, sse, "[DONE]");
               sseEventSink.close();
             });
+  }
+
+  private void sendSseEvent(SseEventSink sseEventSink, Sse sse, String data) {
+    OutboundSseEvent event = sse.newEventBuilder().data(data).build();
+    sseEventSink.send(event);
+  }
+
+  private String escapeJsonString(String input) {
+    if (input == null) {
+      return "";
+    }
+    return input
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t");
   }
 }
