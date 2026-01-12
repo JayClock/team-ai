@@ -90,32 +90,6 @@ public class ConversationTest {
   }
 
   @Test
-  public void should_save_assistant_response_after_stream_completes() {
-    when(messages.saveMessage(any(MessageDescription.class)))
-        .thenAnswer(
-            invocation -> {
-              MessageDescription desc = invocation.getArgument(0);
-              if (desc.role().equals("user")) {
-                return userMessageEntity;
-              } else {
-                return assistantMessageEntity;
-              }
-            });
-
-    when(modelProvider.sendMessage(userMessage.content()))
-        .thenReturn(Flux.just("Hello", " there", "!"));
-
-    Flux<String> response = conversation.sendMessage(userMessage, modelProvider);
-
-    response.collectList().block();
-
-    MessageDescription expectedAssistantMessage =
-        new MessageDescription("assistant", "Hello there!");
-    verify(messages).saveMessage(userMessage);
-    verify(messages).saveMessage(expectedAssistantMessage);
-  }
-
-  @Test
   public void should_return_streaming_response_from_model_provider() {
     when(messages.saveMessage(any(MessageDescription.class)))
         .thenAnswer(

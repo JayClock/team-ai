@@ -1,7 +1,6 @@
 package reengineering.ddd.teamai.model;
 
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -39,19 +38,8 @@ public class Conversation implements Entity<String, ConversationDescription> {
   }
 
   public Flux<String> sendMessage(MessageDescription description, ModelProvider modelProvider) {
-    return Mono.fromCallable(() -> saveMessage(description))
-        .flatMapMany(
-            savedMessage -> {
-              StringBuilder aiResponseBuilder = new StringBuilder();
-              return modelProvider
-                  .sendMessage(description.content())
-                  .doOnNext(aiResponseBuilder::append)
-                  .doOnComplete(
-                      () -> {
-                        String fullAiResponse = aiResponseBuilder.toString();
-                        saveMessage(new MessageDescription("assistant", fullAiResponse));
-                      });
-            });
+    saveMessage(description);
+    return modelProvider.sendMessage(description.content());
   }
 
   public interface Messages extends HasMany<String, Message> {

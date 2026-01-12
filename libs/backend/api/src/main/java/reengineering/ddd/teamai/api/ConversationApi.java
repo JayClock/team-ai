@@ -42,8 +42,15 @@ public class ConversationApi {
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void chat(
       MessageDescription description, @Context SseEventSink sseEventSink, @Context Sse sse) {
+    StringBuilder aiResponseBuilder = new StringBuilder();
     this.conversation
         .sendMessage(description, modelProvider)
+        .doOnNext(aiResponseBuilder::append)
+        .doOnComplete(
+            () -> {
+              String fullAiResponse = aiResponseBuilder.toString();
+              conversation.saveMessage(new MessageDescription("assistant", fullAiResponse));
+            })
         .subscribe(
             text -> {
               OutboundSseEvent event = sse.newEventBuilder().data(text).build();

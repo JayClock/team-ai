@@ -5,7 +5,6 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -30,6 +29,7 @@ public class MessagesApiTest extends ApiTest {
 
   private User user;
   private Conversation conversation;
+  private Conversation.Messages messages;
 
   @BeforeEach
   public void beforeEach() {
@@ -40,9 +40,8 @@ public class MessagesApiTest extends ApiTest {
             mock(User.Accounts.class),
             mock(User.Conversations.class));
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
-    conversation =
-        new Conversation(
-            "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
+    messages = mock(Conversation.Messages.class);
+    conversation = new Conversation("1", new ConversationDescription("title"), messages);
     when(user.conversations().findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.ofNullable(conversation));
   }
@@ -53,7 +52,7 @@ public class MessagesApiTest extends ApiTest {
     Message message = new Message("1", description);
     Message message2 = new Message("2", new MessageDescription("assistant", "response"));
 
-    when(conversation.messages().findAll()).thenReturn(new EntityList<>(message, message2));
+    when(messages.findAll()).thenReturn(new EntityList<>(message, message2));
 
     given()
         .accept(MediaTypes.HAL_JSON.toString())
@@ -74,28 +73,30 @@ public class MessagesApiTest extends ApiTest {
         .body("_embedded.messages[1].role", is(message2.getDescription().role()))
         .body("_embedded.messages[1].content", is(message2.getDescription().content()));
 
-    verify(conversation.messages(), times(1)).findAll();
+    verify(messages).findAll();
   }
 
   @Test
   public void should_send_message_and_receive_streaming_response() {
-    MessageDescription description = new MessageDescription("user", "Hello, AI!");
-    Message savedMessage = new Message("1", description);
-    Message assistantMessage =
-        new Message("2", new MessageDescription("assistant", "Hello there! How can I help you?"));
+    MessageDescription userDescription = new MessageDescription("user", "Hello, AI!");
+    Message savedMessage = new Message("1", userDescription);
+    MessageDescription assistantDescription =
+        new MessageDescription("assistant", "Hello there! How can I help you?");
+    Message assistantMessage = new Message("2", assistantDescription);
 
-    when(conversation.saveMessage(any(MessageDescription.class)))
+    when(messages.saveMessage(any(MessageDescription.class)))
         .thenReturn(savedMessage)
         .thenReturn(assistantMessage);
 
     when(modelProvider.sendMessage(eq("Hello, AI!")))
         .thenReturn(Flux.just("Hello", " there", "!", " How", " can", " I", " help", " you", "?"));
 
+    // Extract response body to ensure SSE stream is fully consumed before verification
     given()
         .urlEncodingEnabled(false)
         .accept(MediaType.SERVER_SENT_EVENTS)
         .contentType(MediaType.APPLICATION_JSON)
-        .body(description)
+        .body(userDescription)
         .when()
         .post(
             "/users/"
@@ -104,6 +105,12 @@ public class MessagesApiTest extends ApiTest {
                 + conversation.getIdentity()
                 + "/messages/stream")
         .then()
-        .statusCode(200);
+        .statusCode(200)
+        .extract()
+        .asString();
+
+    // Verify user message was saved first, then assistant message after stream completes
+    verify(messages).saveMessage(eq(userDescription));
+    verify(messages).saveMessage(eq(assistantDescription));
   }
 }
