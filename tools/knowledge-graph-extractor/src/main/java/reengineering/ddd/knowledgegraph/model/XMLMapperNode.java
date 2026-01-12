@@ -7,6 +7,12 @@ public class XMLMapperNode extends Node {
     setProperty("filepath", filepath);
   }
 
+  public XMLMapperNode(String namespace, String filepath, String xmlFilePath) {
+    super("XML:" + namespace, xmlFilePath);
+    setProperty("namespace", namespace);
+    setProperty("filepath", filepath);
+  }
+
   @Override
   public String getType() {
     return "XMLMapper";

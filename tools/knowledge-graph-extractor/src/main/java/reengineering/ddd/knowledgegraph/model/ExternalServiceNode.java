@@ -6,6 +6,11 @@ public class ExternalServiceNode extends Node {
     setProperty("name", serviceName);
   }
 
+  public ExternalServiceNode(String serviceName, String filePath) {
+    super("SERVICE:" + serviceName, filePath);
+    setProperty("name", serviceName);
+  }
+
   @Override
   public String getType() {
     return "ExternalService";

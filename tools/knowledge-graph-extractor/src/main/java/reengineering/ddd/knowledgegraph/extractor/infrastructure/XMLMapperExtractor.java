@@ -35,9 +35,9 @@ public class XMLMapperExtractor extends BaseExtractor {
         Element root = document.getRootElement();
 
         String namespace = root.attributeValue("namespace");
-        String filepath = file.getAbsolutePath();
+        String xmlFilePath = file.getAbsolutePath();
 
-        XMLMapperNode xmlNode = new XMLMapperNode(namespace, filepath);
+        XMLMapperNode xmlNode = new XMLMapperNode(namespace, xmlFilePath, xmlFilePath);
         graph.addNode(xmlNode);
 
         graph.addRelationship(
@@ -49,7 +49,7 @@ public class XMLMapperExtractor extends BaseExtractor {
         graph.addRelationship(
             new Relationship(xmlNode.getId(), "MAPPER:" + namespace, Relationship.Type.BINDS_TO));
 
-        extractStatements(root, namespace);
+        extractStatements(root, namespace, xmlFilePath);
 
       } catch (DocumentException e) {
         throw new RuntimeException("Failed to parse XML file: " + file.getName(), e);
@@ -57,7 +57,7 @@ public class XMLMapperExtractor extends BaseExtractor {
     }
   }
 
-  private void extractStatements(Element root, String namespace) {
+  private void extractStatements(Element root, String namespace, String xmlFilePath) {
     root.elements()
         .forEach(
             element -> {
@@ -70,7 +70,8 @@ public class XMLMapperExtractor extends BaseExtractor {
                       namespace,
                       statementId + "_SQL",
                       statementType.toUpperCase() + " statement",
-                      "public");
+                      "public",
+                      xmlFilePath);
               graph.addNode(statementNode);
 
               graph.addRelationship(

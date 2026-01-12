@@ -7,6 +7,12 @@ public class HATEOASModelNode extends Node {
     setProperty("relation", relation);
   }
 
+  public HATEOASModelNode(String modelName, String relation, String filePath) {
+    super("HATEOAS:" + modelName, filePath);
+    setProperty("name", modelName);
+    setProperty("relation", relation);
+  }
+
   @Override
   public String getType() {
     return "HATEOASModel";

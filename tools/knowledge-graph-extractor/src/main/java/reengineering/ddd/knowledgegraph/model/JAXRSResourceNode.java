@@ -8,6 +8,13 @@ public class JAXRSResourceNode extends Node {
     setProperty("layer", layer.name());
   }
 
+  public JAXRSResourceNode(String className, String path, Layer layer, String filePath) {
+    super("JAXRS:" + className, filePath);
+    setProperty("name", className);
+    setProperty("path", path);
+    setProperty("layer", layer.name());
+  }
+
   @Override
   public String getType() {
     return "JAXRSResource";

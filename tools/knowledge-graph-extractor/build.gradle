@@ -3,7 +3,37 @@ plugins {
 }
 
 application {
-    mainClass = 'reengineering.ddd.knowledgegraph.KnowledgeGraphApplication'
+    mainClass = 'reengineering.ddd.knowledgegraph.LocalGraphApplication'
+}
+
+// Custom Gradle tasks
+task extractToLocal(type: JavaExec) {
+    description = 'Extract knowledge graph and export to local files'
+    group = 'knowledge-graph'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'reengineering.ddd.knowledgegraph.LocalGraphApplication'
+}
+
+task extractMermaid(type: JavaExec) {
+    description = 'Extract and export only Mermaid files'
+    group = 'knowledge-graph'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'reengineering.ddd.knowledgegraph.LocalGraphApplication'
+}
+
+task queryAnalysis(type: JavaExec) {
+    description = 'Run query analysis'
+    group = 'knowledge-graph'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'reengineering.ddd.knowledgegraph.LocalGraphApplication'
+    systemProperty 'interactive', 'true'
+}
+
+task exportInteractive(type: JavaExec) {
+    description = 'Generate interactive HTML view'
+    group = 'knowledge-graph'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'reengineering.ddd.knowledgegraph.LocalGraphApplication'
 }
 
 dependencies {
@@ -20,6 +50,9 @@ dependencies {
 
     // Neo4j driver
     implementation 'org.neo4j.driver:neo4j-java-driver:5.18.0'
+
+    // Jackson for JSON serialization
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
 
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.11'

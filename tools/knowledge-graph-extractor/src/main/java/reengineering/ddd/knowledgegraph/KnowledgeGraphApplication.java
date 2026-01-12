@@ -11,9 +11,11 @@ public class KnowledgeGraphApplication {
   public static void main(String[] args) {
     String userDir = System.getProperty("user.dir");
     String projectPath =
-        System.getProperty("project.path", userDir.contains("/tools/knowledge-graph-extractor")
-            ? userDir.replace("/tools/knowledge-graph-extractor", "")
-            : userDir);
+        System.getProperty(
+            "project.path",
+            userDir.contains("/tools/knowledge-graph-extractor")
+                ? userDir.replace("/tools/knowledge-graph-extractor", "")
+                : userDir);
     String neo4jUri = System.getProperty("neo4j.uri", "bolt://localhost:7687");
     String neo4jUser = System.getProperty("neo4j.user", "neo4j");
     String neo4jPassword = System.getProperty("neo4j.password", "password");

@@ -22,11 +22,18 @@ public class DomainLayerExtractor extends BaseExtractor {
 
     for (File file : javaFiles) {
       CompilationUnit cu = parseFile(file);
-      new DomainVisitor().visit(cu, null);
+      String filePath = getFilePath(file);
+      new DomainVisitor(filePath).visit(cu, null);
     }
   }
 
   private class DomainVisitor extends VoidVisitorAdapter<Void> {
+    private final String filePath;
+
+    public DomainVisitor(String filePath) {
+      this.filePath = filePath;
+    }
+
     @Override
     public void visit(ClassOrInterfaceDeclaration n, Void arg) {
       super.visit(n, arg);
@@ -39,20 +46,21 @@ public class DomainLayerExtractor extends BaseExtractor {
               .orElse("");
       String fullyQualifiedName = packageName + "." + className;
 
-      checkForEntity(n, fullyQualifiedName);
-      checkForDTO(n, fullyQualifiedName);
-      checkForAssociationInterface(n, fullyQualifiedName);
-      checkForExternalService(n, fullyQualifiedName);
+      checkForEntity(n, fullyQualifiedName, filePath);
+      checkForDTO(n, fullyQualifiedName, filePath);
+      checkForAssociationInterface(n, fullyQualifiedName, filePath);
+      checkForExternalService(n, fullyQualifiedName, filePath);
     }
 
-    private void checkForEntity(ClassOrInterfaceDeclaration n, String fullyQualifiedName) {
+    private void checkForEntity(
+        ClassOrInterfaceDeclaration n, String fullyQualifiedName, String filePath) {
       boolean isEntity =
           n.getImplementedTypes().stream()
               .map(type -> type.getNameAsString())
               .anyMatch(name -> name.equals("Entity"));
 
       if (isEntity) {
-        EntityNode entityNode = new EntityNode(fullyQualifiedName, Layer.DOMAIN_LAYER);
+        EntityNode entityNode = new EntityNode(fullyQualifiedName, Layer.DOMAIN_LAYER, filePath);
         graph.addNode(entityNode);
 
         graph.addRelationship(
@@ -61,12 +69,13 @@ public class DomainLayerExtractor extends BaseExtractor {
                 "LAYER:" + Layer.DOMAIN_LAYER.name(),
                 Relationship.Type.BELONGS_TO));
 
-        extractEntityInterfaces(n, fullyQualifiedName);
-        extractMethods(n, fullyQualifiedName);
+        extractEntityInterfaces(n, fullyQualifiedName, filePath);
+        extractMethods(n, fullyQualifiedName, filePath);
       }
     }
 
-    private void extractEntityInterfaces(ClassOrInterfaceDeclaration n, String className) {
+    private void extractEntityInterfaces(
+        ClassOrInterfaceDeclaration n, String className, String filePath) {
       n.getMembers().stream()
           .filter(member -> member.isClassOrInterfaceDeclaration())
           .map(member -> (ClassOrInterfaceDeclaration) member)
@@ -76,7 +85,7 @@ public class DomainLayerExtractor extends BaseExtractor {
                 String interfaceName = className + "." + inner.getNameAsString();
 
                 DomainInterfaceNode interfaceNode =
-                    new DomainInterfaceNode(interfaceName, "Association");
+                    new DomainInterfaceNode(interfaceName, "Association", filePath);
                 graph.addNode(interfaceNode);
 
                 graph.addRelationship(
@@ -101,7 +110,7 @@ public class DomainLayerExtractor extends BaseExtractor {
               });
     }
 
-    private void extractMethods(ClassOrInterfaceDeclaration n, String className) {
+    private void extractMethods(ClassOrInterfaceDeclaration n, String className, String filePath) {
       n.getMethods()
           .forEach(
               method -> {
@@ -114,7 +123,7 @@ public class DomainLayerExtractor extends BaseExtractor {
                         : "private";
 
                 MethodNode methodNode =
-                    new MethodNode(className, methodName, signature, visibility);
+                    new MethodNode(className, methodName, signature, visibility, filePath);
                 graph.addNode(methodNode);
 
                 graph.addRelationship(
@@ -133,10 +142,11 @@ public class DomainLayerExtractor extends BaseExtractor {
               });
     }
 
-    private void checkForDTO(ClassOrInterfaceDeclaration n, String fullyQualifiedName) {
+    private void checkForDTO(
+        ClassOrInterfaceDeclaration n, String fullyQualifiedName, String filePath) {
       if (n.isRecordDeclaration()
           || n.getAnnotations().stream().anyMatch(a -> a.getNameAsString().equals("Record"))) {
-        DTONode dtoNode = new DTONode(fullyQualifiedName);
+        DTONode dtoNode = new DTONode(fullyQualifiedName, filePath);
         graph.addNode(dtoNode);
 
         graph.addRelationship(
@@ -148,7 +158,7 @@ public class DomainLayerExtractor extends BaseExtractor {
     }
 
     private void checkForAssociationInterface(
-        ClassOrInterfaceDeclaration n, String fullyQualifiedName) {
+        ClassOrInterfaceDeclaration n, String fullyQualifiedName, String filePath) {
       if (n.isInterface()) {
         boolean extendsHasMany =
             n.getExtendedTypes().stream()
@@ -157,7 +167,7 @@ public class DomainLayerExtractor extends BaseExtractor {
 
         if (extendsHasMany) {
           DomainInterfaceNode interfaceNode =
-              new DomainInterfaceNode(fullyQualifiedName, "Association");
+              new DomainInterfaceNode(fullyQualifiedName, "Association", filePath);
           graph.addNode(interfaceNode);
 
           graph.addRelationship(
@@ -173,11 +183,12 @@ public class DomainLayerExtractor extends BaseExtractor {
       }
     }
 
-    private void checkForExternalService(ClassOrInterfaceDeclaration n, String fullyQualifiedName) {
+    private void checkForExternalService(
+        ClassOrInterfaceDeclaration n, String fullyQualifiedName, String filePath) {
       if (n.isInterface()) {
         String name = n.getNameAsString();
         if (name.contains("Provider") || name.contains("Service")) {
-          ExternalServiceNode serviceNode = new ExternalServiceNode(fullyQualifiedName);
+          ExternalServiceNode serviceNode = new ExternalServiceNode(fullyQualifiedName, filePath);
           graph.addNode(serviceNode);
 
           graph.addRelationship(

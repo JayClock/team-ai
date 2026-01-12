@@ -50,4 +50,8 @@ public abstract class BaseExtractor {
       throw new RuntimeException("Failed to parse file: " + file.getName(), e);
     }
   }
+
+  protected String getFilePath(File file) {
+    return file.getAbsolutePath();
+  }
 }

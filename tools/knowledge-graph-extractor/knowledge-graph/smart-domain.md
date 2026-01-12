@@ -1,0 +1,113 @@
+```mermaid
+graph TD
+  %% Smart Domain 关联模式
+
+  %% 配置
+---
+config:
+  theme: base
+  layout: elk
+---
+
+  %% 实体
+  ENTITY_reengineering_ddd_teamai_model_Conversation["reengineering.ddd.teamai.model.Conversation<br/><small>Entity</small>"]
+  click ENTITY_reengineering_ddd_teamai_model_Conversation "file:////Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java" "跳转到源文件"
+  ENTITY_reengineering_ddd_teamai_model_Account["reengineering.ddd.teamai.model.Account<br/><small>Entity</small>"]
+  click ENTITY_reengineering_ddd_teamai_model_Account "file:////Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Account.java" "跳转到源文件"
+  ENTITY_reengineering_ddd_teamai_model_User["reengineering.ddd.teamai.model.User<br/><small>Entity</small>"]
+  click ENTITY_reengineering_ddd_teamai_model_User "file:////Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java" "跳转到源文件"
+  ENTITY_reengineering_ddd_teamai_model_Message["reengineering.ddd.teamai.model.Message<br/><small>Entity</small>"]
+  click ENTITY_reengineering_ddd_teamai_model_Message "file:////Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Message.java" "跳转到源文件"
+
+  %% 关联接口
+  INTERFACE_reengineering_ddd_teamai_model_Conversation_ModelProvider["reengineering.ddd.teamai.model.Conversation.ModelProvider<br/><small>Association</small>"]
+  INTERFACE_reengineering_ddd_teamai_model_Conversation_Messages["reengineering.ddd.teamai.model.Conversation.Messages<br/><small>Association</small>"]
+  INTERFACE_reengineering_ddd_teamai_model_User_Conversations["reengineering.ddd.teamai.model.User.Conversations<br/><small>Association</small>"]
+  INTERFACE_reengineering_ddd_teamai_model_Messages["reengineering.ddd.teamai.model.Messages<br/><small>Association</small>"]
+  INTERFACE_reengineering_ddd_teamai_model_Conversations["reengineering.ddd.teamai.model.Conversations<br/><small>Association</small>"]
+  INTERFACE_reengineering_ddd_teamai_model_Accounts["reengineering.ddd.teamai.model.Accounts<br/><small>Association</small>"]
+  INTERFACE_reengineering_ddd_teamai_model_User_Accounts["reengineering.ddd.teamai.model.User.Accounts<br/><small>Association</small>"]
+
+  %% 关联实现
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_ConversationMessages["reengineering.ddd.teamai.mybatis.associations.ConversationMessages<br/><small>Impl</small>"]
+  click ASSOC_reengineering_ddd_teamai_mybatis_associations_ConversationMessages "file:////Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/associations/ConversationMessages.java" "跳转到源文件"
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_UserAccounts["reengineering.ddd.teamai.mybatis.associations.UserAccounts<br/><small>Impl</small>"]
+  click ASSOC_reengineering_ddd_teamai_mybatis_associations_UserAccounts "file:////Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/associations/UserAccounts.java" "跳转到源文件"
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_UserConversations["reengineering.ddd.teamai.mybatis.associations.UserConversations<br/><small>Impl</small>"]
+  click ASSOC_reengineering_ddd_teamai_mybatis_associations_UserConversations "file:////Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/associations/UserConversations.java" "跳转到源文件"
+
+  %% Mapper
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper["reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper<br/><small>Mapper</small>"]
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UsersMapper["reengineering.ddd.teamai.mybatis.mappers.UsersMapper<br/><small>Mapper</small>"]
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper["reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper<br/><small>Mapper</small>"]
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper["reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper<br/><small>Mapper</small>"]
+
+  %% XML Mapper
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper["reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper<br/><small>XML</small>"]
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper["reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper<br/><small>XML</small>"]
+  XML_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper["reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper<br/><small>XML</small>"]
+  XML_reengineering_ddd_teamai_mybatis_mappers_UsersMapper["reengineering.ddd.teamai.mybatis.mappers.UsersMapper<br/><small>XML</small>"]
+
+  %% 关联关系
+  JAXRS_reengineering_ddd_teamai_api_RootApi -->|CONTAINS| METHOD_reengineering_ddd_teamai_api_RootApi_get
+  ENTITY_reengineering_ddd_teamai_model_Message -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Message_getIdentity
+  ENTITY_reengineering_ddd_teamai_model_Message -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Message_getDescription
+  ENTITY_reengineering_ddd_teamai_model_User -->|CONTAINS| INTERFACE_reengineering_ddd_teamai_model_User_Accounts
+  ENTITY_reengineering_ddd_teamai_model_User -->|CONTAINS| INTERFACE_reengineering_ddd_teamai_model_User_Conversations
+  ENTITY_reengineering_ddd_teamai_model_User -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_User_getIdentity
+  ENTITY_reengineering_ddd_teamai_model_User -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_User_getDescription
+  ENTITY_reengineering_ddd_teamai_model_User -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_User_add
+  ENTITY_reengineering_ddd_teamai_model_User -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_User_add
+  ENTITY_reengineering_ddd_teamai_model_User -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_User_accounts
+  ENTITY_reengineering_ddd_teamai_model_User -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_User_conversations
+  ENTITY_reengineering_ddd_teamai_model_Account -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Account_getIdentity
+  ENTITY_reengineering_ddd_teamai_model_Account -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Account_getDescription
+  ENTITY_reengineering_ddd_teamai_model_Conversation -->|CONTAINS| INTERFACE_reengineering_ddd_teamai_model_Conversation_Messages
+  ENTITY_reengineering_ddd_teamai_model_Conversation -->|CONTAINS| INTERFACE_reengineering_ddd_teamai_model_Conversation_ModelProvider
+  ENTITY_reengineering_ddd_teamai_model_Conversation -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Conversation_getIdentity
+  ENTITY_reengineering_ddd_teamai_model_Conversation -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Conversation_getDescription
+  ENTITY_reengineering_ddd_teamai_model_Conversation -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Conversation_messages
+  ENTITY_reengineering_ddd_teamai_model_Conversation -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Conversation_saveMessage
+  ENTITY_reengineering_ddd_teamai_model_Conversation -->|CONTAINS| METHOD_reengineering_ddd_teamai_model_Conversation_sendMessage
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_findMessageByConversationAndId
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_subMessagesByConversation
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_insertMessage
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_countMessagesByConversation
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_findConversationByUserAndId
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_findConversationsByUserId
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_insertConversation
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_countConversationByUser
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UsersMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UsersMapper_findUserById
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UsersMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UsersMapper_insertUser
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper_findAccountByUserAndId
+  MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper_insertAccount
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_UserAccounts -->|IMPLEMENTS| INTERFACE_reengineering_ddd_teamai_mybatis_associations_Accounts
+  INTERFACE_reengineering_ddd_teamai_mybatis_associations_Accounts -->|IMPLEMENTED_BY| ASSOC_reengineering_ddd_teamai_mybatis_associations_UserAccounts
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_UserAccounts -->|INJECTS| MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_ConversationMessages -->|IMPLEMENTS| INTERFACE_reengineering_ddd_teamai_mybatis_associations_Messages
+  INTERFACE_reengineering_ddd_teamai_mybatis_associations_Messages -->|IMPLEMENTED_BY| ASSOC_reengineering_ddd_teamai_mybatis_associations_ConversationMessages
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_ConversationMessages -->|INJECTS| MAPPER_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_UserConversations -->|IMPLEMENTS| INTERFACE_reengineering_ddd_teamai_mybatis_associations_Conversations
+  INTERFACE_reengineering_ddd_teamai_mybatis_associations_Conversations -->|IMPLEMENTED_BY| ASSOC_reengineering_ddd_teamai_mybatis_associations_UserConversations
+  ASSOC_reengineering_ddd_teamai_mybatis_associations_UserConversations -->|INJECTS| MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|BINDS_TO| MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_conversation_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_findConversationByUserAndId_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_insertConversation_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_countConversationByUser_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserConversationsMapper_findConversationsByUserId_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper -->|BINDS_TO| MAPPER_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper_account_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper_findAccountByUserAndId_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UserAccountsMapper_insertAccount_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|BINDS_TO| MAPPER_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper
+  XML_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_message_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_findMessageByConversationAndId_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_countMessagesByConversation_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_insertMessage_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_ConversationMessagesMapper_subMessagesByConversation_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UsersMapper -->|BINDS_TO| MAPPER_reengineering_ddd_teamai_mybatis_mappers_UsersMapper
+  XML_reengineering_ddd_teamai_mybatis_mappers_UsersMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UsersMapper_user_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UsersMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UsersMapper_findUserById_SQL
+  XML_reengineering_ddd_teamai_mybatis_mappers_UsersMapper -->|CONTAINS| METHOD_reengineering_ddd_teamai_mybatis_mappers_UsersMapper_insertUser_SQL
+```

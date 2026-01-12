@@ -1,0 +1,728 @@
+[ {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.conversation_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserConversationsMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "RESULTMAP statement",
+    "name" : "conversation_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserAccountsMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "SELECT statement",
+    "name" : "findAccountByUserAndId_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper"
+  }
+}, {
+  "id" : "TABLE:set",
+  "type" : "DatabaseTable",
+  "filePath" : null,
+  "properties" : {
+    "name" : "set"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Conversation.getIdentity",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "String getIdentity()",
+    "name" : "getIdentity",
+    "className" : "reengineering.ddd.teamai.model.Conversation"
+  }
+}, {
+  "id" : "INTERFACE:reengineering.ddd.teamai.model.User.Conversations",
+  "type" : "DomainInterface",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.User.Conversations",
+    "type" : "Association"
+  }
+}, {
+  "id" : "TABLE:conversations",
+  "type" : "DatabaseTable",
+  "filePath" : null,
+  "properties" : {
+    "name" : "conversations"
+  }
+}, {
+  "id" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "Layer",
+  "filePath" : null,
+  "properties" : {
+    "name" : "Infrastructure Layer"
+  }
+}, {
+  "id" : "JAXRS:reengineering.ddd.teamai.api.UsersApi",
+  "type" : "JAXRSResource",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/api/src/main/java/reengineering/ddd/teamai/api/UsersApi.java",
+  "properties" : {
+    "path" : "",
+    "name" : "reengineering.ddd.teamai.api.UsersApi",
+    "layer" : "API_LAYER"
+  }
+}, {
+  "id" : "INTERFACE:reengineering.ddd.teamai.model.Conversations",
+  "type" : "DomainInterface",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.Conversations",
+    "type" : "Association"
+  }
+}, {
+  "id" : "HATEOAS:reengineering.ddd.teamai.api.representation.AccountModel",
+  "type" : "HATEOASModel",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/api/src/main/java/reengineering/ddd/teamai/api/representation/AccountModel.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.api.representation.AccountModel",
+    "relation" : "collection"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.User.conversations",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "HasMany<String, Conversation> conversations()",
+    "name" : "conversations",
+    "className" : "reengineering.ddd.teamai.model.User"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserConversationsMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "INSERT statement",
+    "name" : "insertConversation_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "INTERFACE:reengineering.ddd.teamai.model.Conversation.ModelProvider",
+  "type" : "DomainInterface",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.Conversation.ModelProvider",
+    "type" : "Association"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UserConversationsMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "int insertConversation(IdHolder, int, ConversationDescription)",
+    "name" : "insertConversation",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "TABLE:accounts",
+  "type" : "DatabaseTable",
+  "filePath" : null,
+  "properties" : {
+    "name" : "accounts"
+  }
+}, {
+  "id" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "type" : "MyBatisMapper",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UsersMapper.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+    "namespace" : "reengineering.ddd.teamai.mybatis.mappers.UsersMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserAccountsMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "INSERT statement",
+    "name" : "insertAccount_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Conversation.getDescription",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "ConversationDescription getDescription()",
+    "name" : "getDescription",
+    "className" : "reengineering.ddd.teamai.model.Conversation"
+  }
+}, {
+  "id" : "LAYER:DOMAIN_LAYER",
+  "type" : "Layer",
+  "filePath" : null,
+  "properties" : {
+    "name" : "Domain Layer"
+  }
+}, {
+  "id" : "INTERFACE:reengineering.ddd.teamai.model.Messages",
+  "type" : "DomainInterface",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.Messages",
+    "type" : "Association"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/ConversationMessagesMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "int countMessagesByConversation(int)",
+    "name" : "countMessagesByConversation",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Message.getDescription",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Message.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "MessageDescription getDescription()",
+    "name" : "getDescription",
+    "className" : "reengineering.ddd.teamai.model.Message"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserConversationsMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "SELECT statement",
+    "name" : "findConversationsByUserId_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "INTERFACE:reengineering.ddd.teamai.model.Conversation.Messages",
+  "type" : "DomainInterface",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.Conversation.Messages",
+    "type" : "Association"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Account.getDescription",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Account.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "AccountDescription getDescription()",
+    "name" : "getDescription",
+    "className" : "reengineering.ddd.teamai.model.Account"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UserAccountsMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "Account findAccountByUserAndId(int, int)",
+    "name" : "findAccountByUserAndId",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.user_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UsersMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "RESULTMAP statement",
+    "name" : "user_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UsersMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.User.getDescription",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "UserDescription getDescription()",
+    "name" : "getDescription",
+    "className" : "reengineering.ddd.teamai.model.User"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.User.accounts",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "HasMany<String, Account> accounts()",
+    "name" : "accounts",
+    "className" : "reengineering.ddd.teamai.model.User"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.account_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserAccountsMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "RESULTMAP statement",
+    "name" : "account_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper"
+  }
+}, {
+  "id" : "LAYER:API_LAYER",
+  "type" : "Layer",
+  "filePath" : null,
+  "properties" : {
+    "name" : "API Layer"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/ConversationMessagesMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "SELECT statement",
+    "name" : "countMessagesByConversation_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UserConversationsMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "int countConversationByUser(int)",
+    "name" : "countConversationByUser",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserConversations",
+  "type" : "AssociationImplementation",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/associations/UserConversations.java",
+  "properties" : {
+    "implements" : "reengineering.ddd.teamai.mybatis.associations.Conversations",
+    "name" : "reengineering.ddd.teamai.mybatis.associations.UserConversations"
+  }
+}, {
+  "id" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "type" : "Entity",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.Conversation",
+    "layer" : "DOMAIN_LAYER"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/ConversationMessagesMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "INSERT statement",
+    "name" : "insertMessage_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Conversation.sendMessage",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "Flux<String> sendMessage(MessageDescription, ModelProvider)",
+    "name" : "sendMessage",
+    "className" : "reengineering.ddd.teamai.model.Conversation"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UserAccountsMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "int insertAccount(IdHolder, int, AccountDescription)",
+    "name" : "insertAccount",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/ConversationMessagesMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "SELECT statement",
+    "name" : "findMessageByConversationAndId_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "type" : "Entity",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.User",
+    "layer" : "DOMAIN_LAYER"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.subMessagesByConversation",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/ConversationMessagesMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "List<Message> subMessagesByConversation(int, int, int)",
+    "name" : "subMessagesByConversation",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "HATEOAS:reengineering.ddd.teamai.api.representation.ConversationModel",
+  "type" : "HATEOASModel",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/api/src/main/java/reengineering/ddd/teamai/api/representation/ConversationModel.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.api.representation.ConversationModel",
+    "relation" : "collection"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UsersMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "INSERT statement",
+    "name" : "insertUser_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UsersMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UserConversationsMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "Conversation findConversationByUserAndId(int, int)",
+    "name" : "findConversationByUserAndId",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "INTERFACE:reengineering.ddd.teamai.model.User.Accounts",
+  "type" : "DomainInterface",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.User.Accounts",
+    "type" : "Association"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Conversation.saveMessage",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "Message saveMessage(MessageDescription)",
+    "name" : "saveMessage",
+    "className" : "reengineering.ddd.teamai.model.Conversation"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.User.getIdentity",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "String getIdentity()",
+    "name" : "getIdentity",
+    "className" : "reengineering.ddd.teamai.model.User"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.subMessagesByConversation_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/ConversationMessagesMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "SELECT statement",
+    "name" : "subMessagesByConversation_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "type" : "XMLMapper",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserConversationsMapper.xml",
+  "properties" : {
+    "filepath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserConversationsMapper.xml",
+    "namespace" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "type" : "XMLMapper",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserAccountsMapper.xml",
+  "properties" : {
+    "filepath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserAccountsMapper.xml",
+    "namespace" : "reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UsersMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "int insertUser(IdHolder, UserDescription)",
+    "name" : "insertUser",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UsersMapper"
+  }
+}, {
+  "id" : "XML:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "type" : "XMLMapper",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/ConversationMessagesMapper.xml",
+  "properties" : {
+    "filepath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/ConversationMessagesMapper.xml",
+    "namespace" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "SERVICE:reengineering.ddd.teamai.model.ModelProvider",
+  "type" : "ExternalService",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.ModelProvider"
+  }
+}, {
+  "id" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserAccounts",
+  "type" : "AssociationImplementation",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/associations/UserAccounts.java",
+  "properties" : {
+    "implements" : "reengineering.ddd.teamai.mybatis.associations.Accounts",
+    "name" : "reengineering.ddd.teamai.mybatis.associations.UserAccounts"
+  }
+}, {
+  "id" : "JAXRS:reengineering.ddd.teamai.api.RootApi",
+  "type" : "JAXRSResource",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/api/src/main/java/reengineering/ddd/teamai/api/RootApi.java",
+  "properties" : {
+    "path" : "",
+    "name" : "reengineering.ddd.teamai.api.RootApi",
+    "layer" : "API_LAYER"
+  }
+}, {
+  "id" : "INTERFACE:reengineering.ddd.teamai.model.Accounts",
+  "type" : "DomainInterface",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.Accounts",
+    "type" : "Association"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.message_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/ConversationMessagesMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "RESULTMAP statement",
+    "name" : "message_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UsersMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "SELECT statement",
+    "name" : "findUserById_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UsersMapper"
+  }
+}, {
+  "id" : "HATEOAS:reengineering.ddd.teamai.api.representation.MessageModel",
+  "type" : "HATEOASModel",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/api/src/main/java/reengineering/ddd/teamai/api/representation/MessageModel.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.api.representation.MessageModel",
+    "relation" : "collection"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Conversation.messages",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Conversation.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "HasMany<String, Message> messages()",
+    "name" : "messages",
+    "className" : "reengineering.ddd.teamai.model.Conversation"
+  }
+}, {
+  "id" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.ConversationMessages",
+  "type" : "AssociationImplementation",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/associations/ConversationMessages.java",
+  "properties" : {
+    "implements" : "reengineering.ddd.teamai.mybatis.associations.Messages",
+    "name" : "reengineering.ddd.teamai.mybatis.associations.ConversationMessages"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserConversationsMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "SELECT statement",
+    "name" : "findConversationByUserAndId_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Account.getIdentity",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Account.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "String getIdentity()",
+    "name" : "getIdentity",
+    "className" : "reengineering.ddd.teamai.model.Account"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.Message.getIdentity",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Message.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "String getIdentity()",
+    "name" : "getIdentity",
+    "className" : "reengineering.ddd.teamai.model.Message"
+  }
+}, {
+  "id" : "ENTITY:reengineering.ddd.teamai.model.Account",
+  "type" : "Entity",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Account.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.Account",
+    "layer" : "DOMAIN_LAYER"
+  }
+}, {
+  "id" : "TABLE:messages",
+  "type" : "DatabaseTable",
+  "filePath" : null,
+  "properties" : {
+    "name" : "messages"
+  }
+}, {
+  "id" : "TABLE:users",
+  "type" : "DatabaseTable",
+  "filePath" : null,
+  "properties" : {
+    "name" : "users"
+  }
+}, {
+  "id" : "ENTITY:reengineering.ddd.teamai.model.Message",
+  "type" : "Entity",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/Message.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.model.Message",
+    "layer" : "DOMAIN_LAYER"
+  }
+}, {
+  "id" : "HATEOAS:reengineering.ddd.teamai.api.representation.RootModel",
+  "type" : "HATEOASModel",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/api/src/main/java/reengineering/ddd/teamai/api/representation/RootModel.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.api.representation.RootModel",
+    "relation" : "collection"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UsersMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "User findUserById(int)",
+    "name" : "findUserById",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UsersMapper"
+  }
+}, {
+  "id" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "type" : "MyBatisMapper",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/ConversationMessagesMapper.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+    "namespace" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "type" : "MyBatisMapper",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UserAccountsMapper.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+    "namespace" : "reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper"
+  }
+}, {
+  "id" : "HATEOAS:reengineering.ddd.teamai.api.representation.UserModel",
+  "type" : "HATEOASModel",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/api/src/main/java/reengineering/ddd/teamai/api/representation/UserModel.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.api.representation.UserModel",
+    "relation" : "collection"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/ConversationMessagesMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "int insertMessage(IdHolder, int, MessageDescription)",
+    "name" : "insertMessage",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.model.User.add",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/domain/src/main/java/reengineering/ddd/teamai/model/User.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "Conversation add(ConversationDescription)",
+    "name" : "add",
+    "className" : "reengineering.ddd.teamai.model.User"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser_SQL",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UserConversationsMapper.xml",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "SELECT statement",
+    "name" : "countConversationByUser_SQL",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/ConversationMessagesMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "Message findMessageByConversationAndId(int, int)",
+    "name" : "findMessageByConversationAndId",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.api.RootApi.get",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/api/src/main/java/reengineering/ddd/teamai/api/RootApi.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "RootModel get(SecurityContext, UriInfo)",
+    "name" : "get",
+    "className" : "reengineering.ddd.teamai.api.RootApi"
+  }
+}, {
+  "id" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId",
+  "type" : "Method",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UserConversationsMapper.java",
+  "properties" : {
+    "visibility" : "public",
+    "signature" : "List<Conversation> findConversationsByUserId(int, int, int)",
+    "name" : "findConversationsByUserId",
+    "className" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "type" : "MyBatisMapper",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/mappers/UserConversationsMapper.java",
+  "properties" : {
+    "name" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+    "namespace" : "reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper"
+  }
+}, {
+  "id" : "XML:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "type" : "XMLMapper",
+  "filePath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UsersMapper.xml",
+  "properties" : {
+    "filepath" : "/Users/zhongjie/Documents/GitHub/team-ai/libs/backend/persistent/mybatis/src/main/resources/mybatis.mappers/UsersMapper.xml",
+    "namespace" : "reengineering.ddd.teamai.mybatis.mappers.UsersMapper"
+  }
+} ]

@@ -9,6 +9,15 @@ public class MethodNode extends Node {
     setProperty("visibility", visibility);
   }
 
+  public MethodNode(
+      String className, String methodName, String signature, String visibility, String filePath) {
+    super("METHOD:" + className + "." + methodName, filePath);
+    setProperty("className", className);
+    setProperty("name", methodName);
+    setProperty("signature", signature);
+    setProperty("visibility", visibility);
+  }
+
   @Override
   public String getType() {
     return "Method";

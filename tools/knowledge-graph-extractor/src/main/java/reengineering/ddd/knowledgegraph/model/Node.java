@@ -7,10 +7,18 @@ import java.util.Objects;
 public abstract class Node {
   protected final String id;
   protected final Map<String, Object> properties;
+  protected String filePath;
 
   protected Node(String id) {
     this.id = id;
     this.properties = new HashMap<>();
+    this.filePath = null;
+  }
+
+  protected Node(String id, String filePath) {
+    this.id = id;
+    this.properties = new HashMap<>();
+    this.filePath = filePath;
   }
 
   public String getId() {
@@ -29,6 +37,14 @@ public abstract class Node {
 
   public Object getProperty(String key) {
     return properties.get(key);
+  }
+
+  public String getFilePath() {
+    return filePath;
+  }
+
+  public void setFilePath(String filePath) {
+    this.filePath = filePath;
   }
 
   @Override

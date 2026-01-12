@@ -6,6 +6,11 @@ public class DTONode extends Node {
     setProperty("name", className);
   }
 
+  public DTONode(String className, String filePath) {
+    super("DTO:" + className, filePath);
+    setProperty("name", className);
+  }
+
   @Override
   public String getType() {
     return "DTO";

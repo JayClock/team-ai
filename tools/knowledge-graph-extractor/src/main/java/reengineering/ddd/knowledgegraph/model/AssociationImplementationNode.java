@@ -7,6 +7,13 @@ public class AssociationImplementationNode extends Node {
     setProperty("implements", implementsInterface);
   }
 
+  public AssociationImplementationNode(
+      String className, String implementsInterface, String filePath) {
+    super("ASSOC:" + className, filePath);
+    setProperty("name", className);
+    setProperty("implements", implementsInterface);
+  }
+
   @Override
   public String getType() {
     return "AssociationImplementation";

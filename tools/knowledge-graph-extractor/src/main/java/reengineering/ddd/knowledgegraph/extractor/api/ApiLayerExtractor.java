@@ -27,11 +27,18 @@ public class ApiLayerExtractor extends BaseExtractor {
 
     for (File file : javaFiles) {
       CompilationUnit cu = parseFile(file);
-      new ApiVisitor().visit(cu, null);
+      String filePath = getFilePath(file);
+      new ApiVisitor(filePath).visit(cu, null);
     }
   }
 
   private class ApiVisitor extends VoidVisitorAdapter<Void> {
+    private final String filePath;
+
+    public ApiVisitor(String filePath) {
+      this.filePath = filePath;
+    }
+
     @Override
     public void visit(ClassOrInterfaceDeclaration n, Void arg) {
       super.visit(n, arg);
@@ -47,7 +54,7 @@ public class ApiLayerExtractor extends BaseExtractor {
 
         String fullyQualifiedName = packageName + "." + className;
         JAXRSResourceNode resourceNode =
-            new JAXRSResourceNode(fullyQualifiedName, path, Layer.API_LAYER);
+            new JAXRSResourceNode(fullyQualifiedName, path, Layer.API_LAYER, filePath);
         graph.addNode(resourceNode);
 
         graph.addRelationship(
@@ -57,10 +64,10 @@ public class ApiLayerExtractor extends BaseExtractor {
                 Relationship.Type.BELONGS_TO));
 
         processFields(n, fullyQualifiedName);
-        processMethods(n, fullyQualifiedName);
+        processMethods(n, fullyQualifiedName, filePath);
       }
 
-      checkForHATEOASModel(n);
+      checkForHATEOASModel(n, filePath);
     }
 
     private void processFields(ClassOrInterfaceDeclaration clazz, String className) {
@@ -89,7 +96,8 @@ public class ApiLayerExtractor extends BaseExtractor {
               });
     }
 
-    private void processMethods(ClassOrInterfaceDeclaration clazz, String className) {
+    private void processMethods(
+        ClassOrInterfaceDeclaration clazz, String className, String filePath) {
       clazz
           .getMethods()
           .forEach(
@@ -104,7 +112,7 @@ public class ApiLayerExtractor extends BaseExtractor {
                     || hasAnnotation(method, "DELETE")) {
 
                   MethodNode methodNode =
-                      new MethodNode(className, methodName, signature, visibility);
+                      new MethodNode(className, methodName, signature, visibility, filePath);
                   graph.addNode(methodNode);
 
                   graph.addRelationship(
@@ -126,7 +134,7 @@ public class ApiLayerExtractor extends BaseExtractor {
               });
     }
 
-    private void checkForHATEOASModel(ClassOrInterfaceDeclaration n) {
+    private void checkForHATEOASModel(ClassOrInterfaceDeclaration n, String filePath) {
       String extendedType =
           n.getExtendedTypes().stream().map(type -> type.getNameAsString()).findFirst().orElse("");
 
@@ -139,7 +147,8 @@ public class ApiLayerExtractor extends BaseExtractor {
                 .orElse("");
         String fullyQualifiedName = packageName + "." + className;
 
-        HATEOASModelNode modelNode = new HATEOASModelNode(fullyQualifiedName, "collection");
+        HATEOASModelNode modelNode =
+            new HATEOASModelNode(fullyQualifiedName, "collection", filePath);
         graph.addNode(modelNode);
 
         graph.addRelationship(

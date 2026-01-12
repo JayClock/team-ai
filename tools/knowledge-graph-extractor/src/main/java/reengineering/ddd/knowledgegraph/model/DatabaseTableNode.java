@@ -6,6 +6,11 @@ public class DatabaseTableNode extends Node {
     setProperty("name", tableName);
   }
 
+  public DatabaseTableNode(String tableName, String filePath) {
+    super("TABLE:" + tableName, filePath);
+    setProperty("name", tableName);
+  }
+
   @Override
   public String getType() {
     return "DatabaseTable";

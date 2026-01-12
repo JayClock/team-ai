@@ -24,7 +24,8 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
 
     for (File file : javaFiles) {
       CompilationUnit cu = parseFile(file);
-      new InfrastructureVisitor().visit(cu, null);
+      String filePath = getFilePath(file);
+      new InfrastructureVisitor(filePath).visit(cu, null);
     }
 
     Path associationPath =
@@ -34,11 +35,18 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
 
     for (File file : associationFiles) {
       CompilationUnit cu = parseFile(file);
-      new AssociationVisitor().visit(cu, null);
+      String filePath = getFilePath(file);
+      new AssociationVisitor(filePath).visit(cu, null);
     }
   }
 
   private class InfrastructureVisitor extends VoidVisitorAdapter<Void> {
+    private final String filePath;
+
+    public InfrastructureVisitor(String filePath) {
+      this.filePath = filePath;
+    }
+
     @Override
     public void visit(ClassOrInterfaceDeclaration n, Void arg) {
       super.visit(n, arg);
@@ -55,13 +63,15 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
               .orElse("");
       String fullyQualifiedName = packageName + "." + className;
 
-      checkForMyBatisMapper(n, fullyQualifiedName);
+      checkForMyBatisMapper(n, fullyQualifiedName, filePath);
     }
 
-    private void checkForMyBatisMapper(ClassOrInterfaceDeclaration n, String fullyQualifiedName) {
+    private void checkForMyBatisMapper(
+        ClassOrInterfaceDeclaration n, String fullyQualifiedName, String filePath) {
       if (hasAnnotation(n, "Mapper")) {
         String namespace = fullyQualifiedName;
-        MyBatisMapperNode mapperNode = new MyBatisMapperNode(fullyQualifiedName, namespace);
+        MyBatisMapperNode mapperNode =
+            new MyBatisMapperNode(fullyQualifiedName, namespace, filePath);
         graph.addNode(mapperNode);
 
         graph.addRelationship(
@@ -70,11 +80,12 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
                 "LAYER:" + Layer.INFRASTRUCTURE_LAYER.name(),
                 Relationship.Type.BELONGS_TO));
 
-        extractMapperMethods(n, fullyQualifiedName);
+        extractMapperMethods(n, fullyQualifiedName, filePath);
       }
     }
 
-    private void extractMapperMethods(ClassOrInterfaceDeclaration n, String className) {
+    private void extractMapperMethods(
+        ClassOrInterfaceDeclaration n, String className, String filePath) {
       n.getMethods()
           .forEach(
               method -> {
@@ -83,7 +94,7 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
                 String visibility = "public";
 
                 MethodNode methodNode =
-                    new MethodNode(className, methodName, signature, visibility);
+                    new MethodNode(className, methodName, signature, visibility, filePath);
                 graph.addNode(methodNode);
 
                 graph.addRelationship(
@@ -119,6 +130,12 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
   }
 
   private class AssociationVisitor extends VoidVisitorAdapter<Void> {
+    private final String filePath;
+
+    public AssociationVisitor(String filePath) {
+      this.filePath = filePath;
+    }
+
     @Override
     public void visit(ClassOrInterfaceDeclaration n, Void arg) {
       super.visit(n, arg);
@@ -135,11 +152,11 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
               .orElse("");
       String fullyQualifiedName = packageName + "." + className;
 
-      checkForAssociationImplementation(n, fullyQualifiedName);
+      checkForAssociationImplementation(n, fullyQualifiedName, filePath);
     }
 
     private void checkForAssociationImplementation(
-        ClassOrInterfaceDeclaration n, String fullyQualifiedName) {
+        ClassOrInterfaceDeclaration n, String fullyQualifiedName, String filePath) {
       Optional<String> implementsInterface =
           n.getImplementedTypes().stream()
               .map(type -> type.getNameAsString())
@@ -159,7 +176,7 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
                 .orElse(interfaceName);
 
         AssociationImplementationNode assocNode =
-            new AssociationImplementationNode(fullyQualifiedName, fullInterfaceName);
+            new AssociationImplementationNode(fullyQualifiedName, fullInterfaceName, filePath);
         graph.addNode(assocNode);
 
         graph.addRelationship(

@@ -1,0 +1,736 @@
+[ {
+  "sourceId" : "JAXRS:reengineering.ddd.teamai.api.RootApi",
+  "targetId" : "LAYER:API_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "JAXRS:reengineering.ddd.teamai.api.RootApi",
+  "targetId" : "METHOD:reengineering.ddd.teamai.api.RootApi.get",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "JAXRS:reengineering.ddd.teamai.api.UsersApi",
+  "targetId" : "LAYER:API_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "HATEOAS:reengineering.ddd.teamai.api.representation.MessageModel",
+  "targetId" : "LAYER:API_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "HATEOAS:reengineering.ddd.teamai.api.representation.AccountModel",
+  "targetId" : "LAYER:API_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "HATEOAS:reengineering.ddd.teamai.api.representation.RootModel",
+  "targetId" : "LAYER:API_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "HATEOAS:reengineering.ddd.teamai.api.representation.UserModel",
+  "targetId" : "LAYER:API_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "HATEOAS:reengineering.ddd.teamai.api.representation.ConversationModel",
+  "targetId" : "LAYER:API_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Message",
+  "targetId" : "LAYER:DOMAIN_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Message",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Message.getIdentity",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Message",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Message.getDescription",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.Accounts",
+  "targetId" : "LAYER:DOMAIN_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.Accounts",
+  "targetId" : "INTERFACE:HasMany",
+  "type" : "EXTENDS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.Conversations",
+  "targetId" : "LAYER:DOMAIN_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.Conversations",
+  "targetId" : "INTERFACE:HasMany",
+  "type" : "EXTENDS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "LAYER:DOMAIN_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.model.User.Accounts",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.User.Accounts",
+  "targetId" : "INTERFACE:HasMany",
+  "type" : "EXTENDS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.model.User.Conversations",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.User.Conversations",
+  "targetId" : "INTERFACE:HasMany",
+  "type" : "EXTENDS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.User.getIdentity",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.User.getDescription",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.User.add",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.User.add",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.User.accounts",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.model.User.accounts",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.model.User.Accounts",
+  "type" : "EXPOSES_AS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.User",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.User.conversations",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.model.User.conversations",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.model.User.Conversations",
+  "type" : "EXPOSES_AS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Account",
+  "targetId" : "LAYER:DOMAIN_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Account",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Account.getIdentity",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Account",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Account.getDescription",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.Messages",
+  "targetId" : "LAYER:DOMAIN_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.Messages",
+  "targetId" : "INTERFACE:HasMany",
+  "type" : "EXTENDS",
+  "label" : null
+}, {
+  "sourceId" : "SERVICE:reengineering.ddd.teamai.model.ModelProvider",
+  "targetId" : "LAYER:DOMAIN_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "targetId" : "LAYER:DOMAIN_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.model.Conversation.Messages",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.model.Conversation.Messages",
+  "targetId" : "INTERFACE:HasMany",
+  "type" : "EXTENDS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.model.Conversation.ModelProvider",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Conversation.getIdentity",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Conversation.getDescription",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Conversation.messages",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.model.Conversation.messages",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.model.Conversation.Messages",
+  "type" : "EXPOSES_AS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Conversation.saveMessage",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "ENTITY:reengineering.ddd.teamai.model.Conversation",
+  "targetId" : "METHOD:reengineering.ddd.teamai.model.Conversation.sendMessage",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId",
+  "targetId" : "TABLE:messages",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.subMessagesByConversation",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.subMessagesByConversation",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.subMessagesByConversation_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage",
+  "targetId" : "TABLE:messages",
+  "type" : "WRITES_TO",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation",
+  "targetId" : "TABLE:messages",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId",
+  "targetId" : "TABLE:messages",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId",
+  "targetId" : "TABLE:messages",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation",
+  "targetId" : "TABLE:messages",
+  "type" : "WRITES_TO",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser",
+  "targetId" : "TABLE:messages",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById",
+  "targetId" : "TABLE:messages",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser",
+  "targetId" : "TABLE:messages",
+  "type" : "WRITES_TO",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId",
+  "targetId" : "TABLE:messages",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount_SQL",
+  "type" : "DEFINES_QUERY",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount",
+  "targetId" : "TABLE:messages",
+  "type" : "WRITES_TO",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserAccounts",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserAccounts",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.mybatis.associations.Accounts",
+  "type" : "IMPLEMENTS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.mybatis.associations.Accounts",
+  "targetId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserAccounts",
+  "type" : "IMPLEMENTED_BY",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserAccounts",
+  "targetId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "type" : "INJECTS",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.ConversationMessages",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.ConversationMessages",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.mybatis.associations.Messages",
+  "type" : "IMPLEMENTS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.mybatis.associations.Messages",
+  "targetId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.ConversationMessages",
+  "type" : "IMPLEMENTED_BY",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.ConversationMessages",
+  "targetId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "type" : "INJECTS",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserConversations",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserConversations",
+  "targetId" : "INTERFACE:reengineering.ddd.teamai.mybatis.associations.Conversations",
+  "type" : "IMPLEMENTS",
+  "label" : null
+}, {
+  "sourceId" : "INTERFACE:reengineering.ddd.teamai.mybatis.associations.Conversations",
+  "targetId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserConversations",
+  "type" : "IMPLEMENTED_BY",
+  "label" : null
+}, {
+  "sourceId" : "ASSOC:reengineering.ddd.teamai.mybatis.associations.UserConversations",
+  "targetId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "type" : "INJECTS",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "type" : "BINDS_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.conversation_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId_SQL",
+  "targetId" : "TABLE:conversations",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationByUserAndId_SQL",
+  "targetId" : "TABLE:conversations",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation_SQL",
+  "targetId" : "TABLE:conversations",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.insertConversation_SQL",
+  "targetId" : "TABLE:conversations",
+  "type" : "WRITES_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser_SQL",
+  "targetId" : "TABLE:conversations",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.countConversationByUser_SQL",
+  "targetId" : "TABLE:conversations",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId_SQL",
+  "targetId" : "TABLE:conversations",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.findConversationsByUserId_SQL",
+  "targetId" : "TABLE:conversations",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "targetId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "type" : "BINDS_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.account_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId_SQL",
+  "targetId" : "TABLE:accounts",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.findAccountByUserAndId_SQL",
+  "targetId" : "TABLE:accounts",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount_SQL",
+  "targetId" : "TABLE:accounts",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.insertAccount_SQL",
+  "targetId" : "TABLE:accounts",
+  "type" : "WRITES_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "type" : "BINDS_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.message_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId_SQL",
+  "targetId" : "TABLE:messages",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.findMessageByConversationAndId_SQL",
+  "targetId" : "TABLE:messages",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation_SQL",
+  "targetId" : "TABLE:messages",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.countMessagesByConversation_SQL",
+  "targetId" : "TABLE:messages",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage_SQL",
+  "targetId" : "TABLE:messages",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.insertMessage_SQL",
+  "targetId" : "TABLE:messages",
+  "type" : "WRITES_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.subMessagesByConversation_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.subMessagesByConversation_SQL",
+  "targetId" : "TABLE:messages",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper.subMessagesByConversation_SQL",
+  "targetId" : "TABLE:messages",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "targetId" : "LAYER:INFRASTRUCTURE_LAYER",
+  "type" : "BELONGS_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "targetId" : "MAPPER:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "type" : "BINDS_TO",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.user_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById_SQL",
+  "targetId" : "TABLE:users",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById_SQL",
+  "targetId" : "TABLE:users",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById_SQL",
+  "targetId" : "TABLE:accounts",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.findUserById_SQL",
+  "targetId" : "TABLE:accounts",
+  "type" : "READS_FROM",
+  "label" : null
+}, {
+  "sourceId" : "XML:reengineering.ddd.teamai.mybatis.mappers.UsersMapper",
+  "targetId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser_SQL",
+  "type" : "CONTAINS",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser_SQL",
+  "targetId" : "TABLE:users",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser_SQL",
+  "targetId" : "TABLE:users",
+  "type" : "WRITES_TO",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser_SQL",
+  "targetId" : "TABLE:set",
+  "type" : "OPERATES_ON",
+  "label" : null
+}, {
+  "sourceId" : "METHOD:reengineering.ddd.teamai.mybatis.mappers.UsersMapper.insertUser_SQL",
+  "targetId" : "TABLE:set",
+  "type" : "WRITES_TO",
+  "label" : null
+} ]
