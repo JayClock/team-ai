@@ -13,5 +13,5 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to={`/login?return_to=${returnTo}`} replace />;
   }
 
-  return <div>{children}</div>;
+  return <div className="h-full">{children}</div>;
 }

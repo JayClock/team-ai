@@ -19,7 +19,7 @@ export const AppLayout = ({
         </div>
       </header>
       <div className="flex flex-1 overflow-hidden bg-gray-50">
-        <div className="flex-shrink-0 border-r border-gray-200 bg-white shadow-sm">
+        <div className="shrink-0 border-r border-gray-200 bg-white shadow-sm">
           {children}
         </div>
         <div className="flex-1 flex flex-col bg-white">{rightContent}</div>

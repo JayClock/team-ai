@@ -51,27 +51,29 @@ export function MessageList({
   };
 
   return (
-    <ConversationWrapper>
-      <ConversationContent>
-        {messages.map((message) => (
-          <Message from={message.role} key={message.id}>
-            <MessageContent>
-              {message.parts.map((part, i) => {
-                switch (part.type) {
-                  case 'text':
-                    return (
-                      <MessageResponse key={`${message.id}-${i}`}>
-                        {part.text}
-                      </MessageResponse>
-                    );
-                  default:
-                    return null;
-                }
-              })}
-            </MessageContent>
-          </Message>
-        ))}
-      </ConversationContent>
+    <div className="flex-col flex h-full">
+      <ConversationWrapper className="relative size-full">
+        <ConversationContent>
+          {messages.map((message) => (
+            <Message from={message.role} key={message.id}>
+              <MessageContent>
+                {message.parts.map((part, i) => {
+                  switch (part.type) {
+                    case 'text':
+                      return (
+                        <MessageResponse key={`${message.id}-${i}`}>
+                          {part.text}
+                        </MessageResponse>
+                      );
+                    default:
+                      return null;
+                  }
+                })}
+              </MessageContent>
+            </Message>
+          ))}
+        </ConversationContent>
+      </ConversationWrapper>
       <div className="border-t bg-background p-4">
         <PromptInput onSubmit={handleSubmit}>
           <PromptInputBody>
@@ -82,6 +84,6 @@ export function MessageList({
           </PromptInputFooter>
         </PromptInput>
       </div>
-    </ConversationWrapper>
+    </div>
   );
 }

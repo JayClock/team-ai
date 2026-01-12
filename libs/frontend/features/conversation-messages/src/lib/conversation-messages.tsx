@@ -1,6 +1,7 @@
 import { Conversation } from '@shared/schema';
 import { State } from '@hateoas-ts/resource-react';
-import { ConversationMessagesInner, EmptyState } from './components';
+import { ConversationMessagesInner } from './components';
+import { ConversationEmptyState } from '@shared/ui';
 
 export function ConversationMessages(props: {
   conversationState?: State<Conversation>;
@@ -8,14 +9,10 @@ export function ConversationMessages(props: {
   const { conversationState } = props;
 
   if (!conversationState) {
-    return <EmptyState />;
+    return <ConversationEmptyState />;
   }
 
-  return (
-    <div className="h-full">
-      <ConversationMessagesInner conversationState={conversationState} />
-    </div>
-  );
+  return <ConversationMessagesInner conversationState={conversationState} />;
 }
 
 export default ConversationMessages;
