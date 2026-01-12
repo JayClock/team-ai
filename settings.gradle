@@ -13,6 +13,9 @@ include 'backend:infrastructure:spring-security'
 // Server app
 include 'apps:server'
 
+// Tools
+include 'tools:knowledge-graph-extractor'
+
 // Set project directories
 project(':backend').projectDir = file('libs/backend')
 project(':backend:api').projectDir = file('libs/backend/api')
@@ -23,3 +26,4 @@ project(':backend:infrastructure').projectDir = file('libs/backend/infrastructur
 project(':backend:infrastructure:spring-ai').projectDir = file('libs/backend/infrastructure/spring-ai')
 project(':backend:infrastructure:spring-security').projectDir = file('libs/backend/infrastructure/spring-security')
 project(':apps:server').projectDir = file('apps/server')
+project(':tools:knowledge-graph-extractor').projectDir = file('tools/knowledge-graph-extractor')
