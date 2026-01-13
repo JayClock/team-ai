@@ -77,4 +77,13 @@ public class UserTest {
     assertSame(expectedConversation, result);
     verify(conversations).add(conversationDescription);
   }
+
+  @Test
+  public void should_delegate_delete_conversation_to_conversations_association() {
+    String conversationId = "conversation-1";
+
+    user.deleteConversation(conversationId);
+
+    verify(conversations).delete(conversationId);
+  }
 }

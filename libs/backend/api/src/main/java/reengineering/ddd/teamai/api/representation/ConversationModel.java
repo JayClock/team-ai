@@ -43,5 +43,12 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
                     .getPath(),
                 "send-message")
             .withType(HttpMethod.POST));
+    add(
+        Link.of(
+                ApiTemplates.conversation(uriInfo)
+                    .build(user.getIdentity(), conversation.getIdentity())
+                    .getPath(),
+                "delete")
+            .withType(HttpMethod.DELETE));
   }
 }

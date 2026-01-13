@@ -36,4 +36,9 @@ public class UserConversations extends EntityList<String, Conversation>
     mapper.insertConversation(idHolder, userId, description);
     return findEntity(String.valueOf(idHolder.id()));
   }
+
+  @Override
+  public void delete(String id) {
+    mapper.deleteConversation(userId, Integer.parseInt(id));
+  }
 }

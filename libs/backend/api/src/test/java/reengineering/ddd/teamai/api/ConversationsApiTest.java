@@ -31,6 +31,7 @@ public class ConversationsApiTest extends ApiTest {
   private User user;
 
   @Mock private Many<Conversation> conversations;
+  @Mock private User.Conversations userConversations;
   private Conversation conversation;
 
   @BeforeEach
@@ -40,18 +41,18 @@ public class ConversationsApiTest extends ApiTest {
             "JayClock",
             new UserDescription("JayClock", "JayClock@email"),
             mock(User.Accounts.class),
-            mock(User.Conversations.class));
+            userConversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     conversation =
         new Conversation(
             "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
-    when(user.conversations().findByIdentity(conversation.getIdentity()))
+    when(userConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.of(conversation));
   }
 
   @Test
   public void should_return_all_conversations_of_user_as_pages() {
-    when(user.conversations().findAll()).thenReturn(conversations);
+    when(userConversations.findAll()).thenReturn(conversations);
     when(conversations.size()).thenReturn(400);
     when(conversations.subCollection(eq(0), eq(40))).thenReturn(new EntityList<>(conversation));
     given()
@@ -85,7 +86,11 @@ public class ConversationsApiTest extends ApiTest {
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages/stream"))
-        .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST));
+        .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST))
+        .body(
+            "_embedded.conversations[0]._links.delete.href",
+            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
+        .body("_embedded.conversations[0]._links.delete.type", is(HttpMethod.DELETE));
   }
 
   @Test
@@ -116,7 +121,7 @@ public class ConversationsApiTest extends ApiTest {
 
   @Test
   public void should_return_single_conversation() {
-    when(user.conversations().findByIdentity(conversation.getIdentity()))
+    when(userConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.of(conversation));
 
     given()
@@ -147,8 +152,39 @@ public class ConversationsApiTest extends ApiTest {
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages/stream"))
-        .body("_links.send-message.type", is(HttpMethod.POST));
+        .body("_links.send-message.type", is(HttpMethod.POST))
+        .body(
+            "_links.delete.href",
+            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
+        .body("_links.delete.type", is(HttpMethod.DELETE));
 
-    verify(user.conversations(), times(1)).findByIdentity(conversation.getIdentity());
+    verify(userConversations, times(1)).findByIdentity(conversation.getIdentity());
+  }
+
+  @Test
+  public void should_delete_conversation() {
+    when(userConversations.findByIdentity(conversation.getIdentity()))
+        .thenReturn(Optional.of(conversation));
+
+    given()
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .delete("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
+        .then()
+        .statusCode(204);
+
+    verify(userConversations).delete(conversation.getIdentity());
+  }
+
+  @Test
+  public void should_return_404_when_deleting_non_existent_conversation() {
+    when(userConversations.findByIdentity("non-existent")).thenReturn(Optional.empty());
+
+    given()
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .delete("/users/" + user.getIdentity() + "/conversations/non-existent")
+        .then()
+        .statusCode(404);
   }
 }

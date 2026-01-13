@@ -85,6 +85,24 @@ public class AssociationsTest {
         assertTrue(user.conversations().findByIdentity("-1").isEmpty());
       }
 
+      @Test
+      public void should_delete_conversation_of_user() {
+        // Get the first conversation
+        String identity = user.conversations().findAll().iterator().next().getIdentity();
+        int initialCount = user.conversations().findAll().size();
+
+        // Verify it exists before deletion
+        assertTrue(user.conversations().findByIdentity(identity).isPresent());
+
+        // Delete the conversation
+        user.deleteConversation(identity);
+
+        // Verify it no longer exists - need to get fresh user to avoid cache
+        User freshUser = users.findById(userId).get();
+        assertTrue(freshUser.conversations().findByIdentity(identity).isEmpty());
+        assertEquals(initialCount - 1, freshUser.conversations().findAll().size());
+      }
+
       @Nested
       class ConversationMessagesTest {
         int messageCount = 100;

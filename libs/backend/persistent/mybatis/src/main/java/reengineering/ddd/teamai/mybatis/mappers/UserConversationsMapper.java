@@ -22,4 +22,6 @@ public interface UserConversationsMapper {
       @Param("description") ConversationDescription description);
 
   int countConversationByUser(@Param("user_id") int userId);
+
+  int deleteConversation(@Param("user_id") int userId, @Param("id") int id);
 }

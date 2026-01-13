@@ -43,6 +43,10 @@ public class User implements Entity<String, UserDescription> {
     return conversations.add(conversation);
   }
 
+  public void deleteConversation(String conversationId) {
+    conversations.delete(conversationId);
+  }
+
   public HasMany<String, Account> accounts() {
     return accounts;
   }
@@ -57,5 +61,7 @@ public class User implements Entity<String, UserDescription> {
 
   public interface Conversations extends HasMany<String, Conversation> {
     Conversation add(ConversationDescription description);
+
+    void delete(String id);
   }
 }
