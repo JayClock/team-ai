@@ -1,8 +1,14 @@
 import { Conversation } from '@shared/schema';
 import { State } from '@hateoas-ts/resource-react';
 import { ConversationMessagesInner } from './components';
-import { ConversationEmptyState, Suggestions, Suggestion } from '@shared/ui';
+import {
+  ConversationEmptyState,
+  Suggestions,
+  Suggestion,
+  MessageListSkeleton,
+} from '@shared/ui';
 import { MessageSquareIcon } from 'lucide-react';
+import { Suspense } from 'react';
 
 const defaultSuggestions = [
   '帮我写一篇技术文档',
@@ -10,6 +16,19 @@ const defaultSuggestions = [
   '如何优化 React 性能？',
   '给我一些代码审查建议',
 ];
+
+function MessagesLoading() {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex-1 overflow-hidden">
+        <MessageListSkeleton count={4} />
+      </div>
+      <div className="border-t bg-background p-4">
+        <div className="h-24 animate-pulse rounded-lg bg-muted" />
+      </div>
+    </div>
+  );
+}
 
 export function ConversationMessages(props: {
   conversationState?: State<Conversation>;
@@ -49,7 +68,11 @@ export function ConversationMessages(props: {
     );
   }
 
-  return <ConversationMessagesInner conversationState={conversationState} />;
+  return (
+    <Suspense fallback={<MessagesLoading />}>
+      <ConversationMessagesInner conversationState={conversationState} />
+    </Suspense>
+  );
 }
 
 export default ConversationMessages;

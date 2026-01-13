@@ -1,38 +1,29 @@
 import { Button } from '@shared/ui/components/button';
 import { Card } from '@shared/ui/components/card';
-import { Spinner } from '@shared/ui/components/spinner';
 import { Github } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useClient, useResource } from '@hateoas-ts/resource-react';
+import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { rootResource } from '../../lib/api-client';
+import { useEffect } from 'react';
 
 export function Login() {
-  const client = useClient();
-  const [loginHref, setLoginHref] = useState<string>('');
+  const { resourceState: rootState } = useSuspenseResource(rootResource);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  useResource(rootResource);
+
+  const loginLink = rootState.getLink('login');
 
   useEffect(() => {
-    const fetchLoginLink = async () => {
-      const rootState = await rootResource.withGet().request();
-      const loginLink = rootState.getLink('login')?.href;
-      if (loginLink) {
-        setLoginHref(loginLink);
-      } else {
-        navigate('/');
-      }
-    };
-
-    fetchLoginLink().then();
-  }, [client, navigate]);
+    if (!loginLink) {
+      navigate('/');
+    }
+  }, [loginLink, navigate]);
 
   const handleGithubLogin = () => {
-    if (loginHref) {
+    if (loginLink?.href) {
       const returnTo = searchParams.get('return_to') || '/';
       const redirectParam = encodeURIComponent(returnTo);
-      window.location.href = `${loginHref}?redirect_uri=${redirectParam}`;
+      window.location.href = `${loginLink.href}?redirect_uri=${redirectParam}`;
     }
   };
 
@@ -47,19 +38,12 @@ export function Login() {
         <Button
           className="w-full h-12"
           onClick={handleGithubLogin}
-          disabled={!loginHref}
+          disabled={!loginLink}
         >
-          {!loginHref ? (
-            <div className="flex items-center gap-2">
-              <Spinner className="h-4 w-4" />
-              加载中...
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Github className="h-5 w-5" />
-              GitHub 登录
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Github className="h-5 w-5" />
+            GitHub 登录
+          </div>
         </Button>
       </Card>
     </div>

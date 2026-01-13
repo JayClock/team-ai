@@ -72,12 +72,13 @@ export class ResourceRelation<TEntity extends Entity> {
     rel: K,
     variables?: LinkVariables,
   ): ResourceRelation<TEntity['links'][K]> {
-    this.optionsMap.set(rel as string, { query: variables });
+    const newOptionsMap = new Map(this.optionsMap);
+    newOptionsMap.set(rel as string, { query: variables });
     return new ResourceRelation(
       this.client,
       this.link,
       this.rels.concat(rel as string),
-      this.optionsMap,
+      newOptionsMap,
     );
   }
 

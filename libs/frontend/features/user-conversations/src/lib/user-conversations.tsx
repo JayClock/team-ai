@@ -1,6 +1,6 @@
 import { Conversation, User } from '@shared/schema';
 import { Resource, State } from '@hateoas-ts/resource';
-import { useInfiniteCollection } from '@hateoas-ts/resource-react';
+import { useSuspenseInfiniteCollection } from '@hateoas-ts/resource-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
 
@@ -32,8 +32,8 @@ export function UserConversations(props: Props) {
     items: conversationCollection,
     hasNextPage,
     loadNextPage,
-    loading: isLoading,
-  } = useInfiniteCollection(conversationsResource);
+    isLoadingMore,
+  } = useSuspenseInfiniteCollection(conversationsResource);
 
   const items = useMemo(
     () =>
@@ -48,7 +48,7 @@ export function UserConversations(props: Props) {
 
   const { ref: loadMoreRef } = useInView({
     threshold: 0,
-    skip: isLoading,
+    skip: isLoadingMore,
     onChange: (inView) => {
       if (inView && hasNextPage && !loadingRef.current) {
         loadingRef.current = true;
@@ -92,7 +92,7 @@ export function UserConversations(props: Props) {
           {/* Sentinel element for intersection observer */}
           <div ref={loadMoreRef} className="h-1" />
 
-          {isLoading && (
+          {isLoadingMore && (
             <>
               <SidebarMenuSkeleton showIcon />
               <SidebarMenuSkeleton showIcon />
@@ -106,7 +106,7 @@ export function UserConversations(props: Props) {
             </div>
           )}
 
-          {!isLoading && items.length === 0 && (
+          {items.length === 0 && (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               暂无对话
             </div>
