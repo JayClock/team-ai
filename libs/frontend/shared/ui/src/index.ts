@@ -1,6 +1,7 @@
 export * from './components/ai-elements/conversation';
 export * from './components/ai-elements/message';
 export * from './components/ai-elements/prompt-input';
+export * from './components/ai-elements/suggestion';
 
 export * from './components/button';
 export * from './components/button-group';

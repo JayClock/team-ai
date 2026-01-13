@@ -12,8 +12,18 @@ import {
   PromptInput,
   PromptInputBody,
   PromptInputFooter,
+  PromptInputHeader,
   PromptInputSubmit,
   PromptInputTextarea,
+  PromptInputAttachments,
+  PromptInputAttachment,
+  PromptInputActionMenu,
+  PromptInputActionMenuTrigger,
+  PromptInputActionMenuContent,
+  PromptInputActionAddAttachments,
+  PromptInputTools,
+  Suggestions,
+  Suggestion,
 } from '@shared/ui';
 import { useState } from 'react';
 
@@ -21,6 +31,13 @@ interface MessageListProps {
   defaultMessages: UIMessage[];
   conversationState: State<Conversation>;
 }
+
+const defaultSuggestions = [
+  '帮我写一篇技术文档',
+  '解释一下什么是 HATEOAS',
+  '如何优化 React 性能？',
+  '给我一些代码审查建议',
+];
 
 export function MessageList({
   defaultMessages,
@@ -52,6 +69,15 @@ export function MessageList({
     setIsLoading(false);
   };
 
+  const handleSuggestionClick = async (suggestion: string) => {
+    if (isLoading) return;
+    setIsLoading(true);
+    await sendMessage({ text: suggestion });
+    setIsLoading(false);
+  };
+
+  const showSuggestions = messages.length === 0;
+
   return (
     <div className="flex h-full flex-col bg-background">
       <ConversationWrapper className="relative flex-1 overflow-hidden">
@@ -77,16 +103,42 @@ export function MessageList({
         </ConversationContent>
         <ConversationScrollButton />
       </ConversationWrapper>
-      <div className="shrink-0 border-t border-border bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto max-w-3xl">
-          <PromptInput onSubmit={handleSubmit}>
+
+      <div className="shrink-0 border-t border-border bg-background/95 p-4 backdrop-blur supports-backdrop-filter:bg-background/60">
+        <div className="mx-auto max-w-3xl space-y-4">
+          {showSuggestions && (
+            <Suggestions className="justify-center">
+              {defaultSuggestions.map((suggestion) => (
+                <Suggestion
+                  key={suggestion}
+                  suggestion={suggestion}
+                  onClick={handleSuggestionClick}
+                />
+              ))}
+            </Suggestions>
+          )}
+
+          <PromptInput onSubmit={handleSubmit} multiple accept="image/*">
+            <PromptInputHeader>
+              <PromptInputAttachments>
+                {(attachment) => <PromptInputAttachment data={attachment} />}
+              </PromptInputAttachments>
+            </PromptInputHeader>
             <PromptInputBody className="rounded-xl border border-input bg-background shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
               <PromptInputTextarea
-                placeholder="Type a message..."
-                className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                placeholder="输入消息..."
+                className="min-h-15 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
               />
             </PromptInputBody>
-            <PromptInputFooter className="mt-2 flex items-center justify-end">
+            <PromptInputFooter className="mt-2 flex items-center justify-between">
+              <PromptInputTools>
+                <PromptInputActionMenu>
+                  <PromptInputActionMenuTrigger />
+                  <PromptInputActionMenuContent>
+                    <PromptInputActionAddAttachments label="添加图片或文件" />
+                  </PromptInputActionMenuContent>
+                </PromptInputActionMenu>
+              </PromptInputTools>
               <PromptInputSubmit
                 status={isLoading ? 'submitted' : undefined}
                 className="transition-all hover:scale-105"

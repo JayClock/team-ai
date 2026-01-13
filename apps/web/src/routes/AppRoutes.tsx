@@ -5,66 +5,43 @@ import { UserConversations } from '@features/user-conversations';
 import { ConversationMessages } from '@features/conversation-messages';
 import { rootResource } from '../lib/api-client';
 import { useResource } from '@hateoas-ts/resource-react';
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-} from '@shared/ui/components/navigation-menu';
-import { cn } from '@shared/ui/lib/utils';
+import { Button } from '@shared/ui/components/button';
+import { PlusIcon, MessageSquareIcon } from 'lucide-react';
 
 export function AppRoutes() {
-  const [selectedKey, setSelectedKey] = useState('conversations');
   const [conversationState, setConversationState] =
     useState<State<Conversation>>();
 
   const { resource } = useResource(rootResource.follow('me'));
 
-  const headerContent = (
-    <div className="flex items-center gap-8">
-      <h2 className="m-0">Team AI</h2>
-      <NavigationMenu>
-        <NavigationMenuList>
-          <NavigationMenuItem>
-            <NavigationMenuLink
-              className={cn(
-                'group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50',
-                selectedKey === 'conversations' && 'bg-accent',
-              )}
-              onClick={() => setSelectedKey('conversations')}
-            >
-              对话列表
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-          <NavigationMenuItem>
-            <NavigationMenuLink
-              className={cn(
-                'group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50',
-                selectedKey === 'settings' && 'bg-accent',
-              )}
-              onClick={() => setSelectedKey('settings')}
-            >
-              设置
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-        </NavigationMenuList>
-      </NavigationMenu>
+  const sidebarHeader = (
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center gap-2">
+        <MessageSquareIcon className="h-5 w-5" />
+        <span className="font-semibold">Team AI</span>
+      </div>
+      <Button variant="ghost" size="icon" className="h-8 w-8">
+        <PlusIcon className="h-4 w-4" />
+        <span className="sr-only">新建对话</span>
+      </Button>
     </div>
   );
 
-  const mainContent = (
+  const sidebarContent = (
     <UserConversations
       resource={resource}
       onConversationChange={setConversationState}
     />
   );
 
-  const rightContent = (
+  const mainContent = (
     <ConversationMessages
       conversationState={conversationState}
       key={conversationState?.data.id}
     />
   );
 
-  return { headerContent, mainContent, rightContent };
+  const conversationTitle = conversationState?.data.title || '选择一个对话';
+
+  return { sidebarHeader, sidebarContent, mainContent, conversationTitle };
 }

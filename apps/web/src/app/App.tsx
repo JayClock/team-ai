@@ -2,9 +2,18 @@ import { Login } from '../features/auth/Login';
 import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 import { AppRoutes } from '../routes/AppRoutes';
 import { Route, Routes } from 'react-router-dom';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@shared/ui/components/sidebar';
 
 export default function App() {
-  const { headerContent, mainContent, rightContent } = AppRoutes();
+  const { sidebarHeader, sidebarContent, mainContent, conversationTitle } =
+    AppRoutes();
 
   return (
     <Routes>
@@ -13,21 +22,25 @@ export default function App() {
         path="/*"
         element={
           <ProtectedRoute>
-            <div className="h-full bg-gray-50 flex flex-col">
-              <header className="h-14 bg-white border-b border-gray-200 px-6 flex items-center shadow-sm relative z-10">
-                <div className="flex items-center justify-between w-full h-full">
-                  {headerContent}
-                </div>
-              </header>
-              <div className="flex flex-1 overflow-hidden bg-gray-50">
-                <div className="shrink-0 border-r border-gray-200 bg-white shadow-sm">
+            <SidebarProvider className="h-full">
+              <Sidebar className="border-r border-sidebar-border">
+                <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
+                  {sidebarHeader}
+                </SidebarHeader>
+                <SidebarContent>{sidebarContent}</SidebarContent>
+              </Sidebar>
+              <SidebarInset className="flex flex-col">
+                <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
+                  <SidebarTrigger className="-ml-1" />
+                  <div className="flex-1 truncate font-medium">
+                    {conversationTitle}
+                  </div>
+                </header>
+                <main className="flex flex-1 flex-col overflow-hidden">
                   {mainContent}
-                </div>
-                <div className="flex-1 flex flex-col bg-white">
-                  {rightContent}
-                </div>
-              </div>
-            </div>
+                </main>
+              </SidebarInset>
+            </SidebarProvider>
           </ProtectedRoute>
         }
       />

@@ -3,8 +3,16 @@ import { Resource, State } from '@hateoas-ts/resource';
 import { useInfiniteCollection } from '@hateoas-ts/resource-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
-import { ScrollArea, Separator, Spinner } from '@shared/ui';
-import { clsx } from 'clsx';
+
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSkeleton,
+} from '@shared/ui/components/sidebar';
+import { MessageSquareIcon } from 'lucide-react';
 
 interface Props {
   resource: Resource<User>;
@@ -64,42 +72,48 @@ export function UserConversations(props: Props) {
   );
 
   return (
-    <ScrollArea className="h-full bg-white">
-      <div className="w-[320px]">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => handleConversationClick(item.id)}
-            className={clsx(
-              'w-full px-4 py-3 text-left border-b border-gray-100 hover:bg-gray-50 transition-colors',
-              activeConversationId === item.id && 'bg-blue-50',
-            )}
-          >
-            <div className="text-sm font-medium text-gray-900 truncate">
-              {item.title}
+    <SidebarGroup className="p-0">
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.id}>
+              <SidebarMenuButton
+                isActive={activeConversationId === item.id}
+                onClick={() => handleConversationClick(item.id)}
+                tooltip={item.title}
+                className="px-4"
+              >
+                <MessageSquareIcon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{item.title}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+
+          {/* Sentinel element for intersection observer */}
+          <div ref={loadMoreRef} className="h-1" />
+
+          {isLoading && (
+            <>
+              <SidebarMenuSkeleton showIcon />
+              <SidebarMenuSkeleton showIcon />
+              <SidebarMenuSkeleton showIcon />
+            </>
+          )}
+
+          {!hasNextPage && items.length > 0 && (
+            <div className="px-4 py-3 text-center text-xs text-muted-foreground">
+              没有更多对话了
             </div>
-          </button>
-        ))}
+          )}
 
-        {/* Sentinel element for intersection observer */}
-        <div ref={loadMoreRef} className="h-1" />
-
-        {isLoading && (
-          <div className="flex justify-center py-4">
-            <Spinner className="h-4 w-4" />
-          </div>
-        )}
-
-        {!hasNextPage && items.length > 0 && (
-          <div className="flex items-center py-4">
-            <Separator
-              className="text-xs text-gray-400"
-              data-text="没有更多对话了"
-            />
-          </div>
-        )}
-      </div>
-    </ScrollArea>
+          {!isLoading && items.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+              暂无对话
+            </div>
+          )}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
