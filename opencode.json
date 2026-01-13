@@ -13,7 +13,20 @@
     },
     "nx-mcp": {
       "type": "local",
-      "command": ["npx", "nx", "mcp"],
+      "command": [
+        "npx",
+        "nx",
+        "mcp"
+      ],
+      "enabled": true
+    },
+    "shadcn": {
+      "type": "local",
+      "command": [
+        "npx",
+        "shadcn@latest",
+        "mcp"
+      ],
       "enabled": true
     }
   }

@@ -3,6 +3,7 @@ import { Conversation } from '@shared/schema';
 import { State, useInfiniteCollection } from '@hateoas-ts/resource-react';
 import { useMemo } from 'react';
 import { MessageList } from './message-list';
+import { MessageListSkeleton } from '@shared/ui';
 
 interface ConversationMessagesInnerProps {
   conversationState: State<Conversation>;
@@ -27,7 +28,16 @@ export function ConversationMessagesInner({
   }, [loading, messagesCollections]);
 
   if (loading) {
-    return 'loading';
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex-1 overflow-hidden">
+          <MessageListSkeleton count={4} />
+        </div>
+        <div className="border-t bg-background p-4">
+          <div className="h-24 animate-pulse rounded-lg bg-muted" />
+        </div>
+      </div>
+    );
   }
 
   return (

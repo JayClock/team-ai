@@ -5,6 +5,7 @@ import { State } from '@hateoas-ts/resource-react';
 import {
   Conversation as ConversationWrapper,
   ConversationContent,
+  ConversationScrollButton,
   Message,
   MessageContent,
   MessageResponse,
@@ -30,10 +31,11 @@ export function MessageList({
       api: conversationState.getLink('send-message')?.href,
       prepareSendMessagesRequest: ({ messages }) => {
         const lastMessage = messages.at(-1);
+        const textPart = lastMessage?.parts.find((p) => p.type === 'text');
         return {
           body: {
             role: lastMessage?.role,
-            content: lastMessage?.parts[0].text,
+            content: textPart && 'text' in textPart ? textPart.text : '',
           },
         };
       },
@@ -51,9 +53,9 @@ export function MessageList({
   };
 
   return (
-    <div className="flex-col flex h-full">
-      <ConversationWrapper className="relative size-full">
-        <ConversationContent>
+    <div className="flex h-full flex-col bg-background">
+      <ConversationWrapper className="relative flex-1 overflow-hidden">
+        <ConversationContent className="gap-6 px-4 py-6 md:px-6">
           {messages.map((message) => (
             <Message from={message.role} key={message.id}>
               <MessageContent>
@@ -73,16 +75,25 @@ export function MessageList({
             </Message>
           ))}
         </ConversationContent>
+        <ConversationScrollButton />
       </ConversationWrapper>
-      <div className="border-t bg-background p-4">
-        <PromptInput onSubmit={handleSubmit}>
-          <PromptInputBody>
-            <PromptInputTextarea />
-          </PromptInputBody>
-          <PromptInputFooter>
-            <PromptInputSubmit status={isLoading ? 'submitted' : undefined} />
-          </PromptInputFooter>
-        </PromptInput>
+      <div className="shrink-0 border-t border-border bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto max-w-3xl">
+          <PromptInput onSubmit={handleSubmit}>
+            <PromptInputBody className="rounded-xl border border-input bg-background shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+              <PromptInputTextarea
+                placeholder="Type a message..."
+                className="min-h-[60px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+              />
+            </PromptInputBody>
+            <PromptInputFooter className="mt-2 flex items-center justify-end">
+              <PromptInputSubmit
+                status={isLoading ? 'submitted' : undefined}
+                className="transition-all hover:scale-105"
+              />
+            </PromptInputFooter>
+          </PromptInput>
+        </div>
       </div>
     </div>
   );

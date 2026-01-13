@@ -2,6 +2,7 @@
 
 import { Button } from '../button';
 import { ButtonGroup, ButtonGroupText } from '../button-group';
+import { Skeleton } from '../skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -441,5 +442,60 @@ export const MessageToolbar = ({
     {...props}
   >
     {children}
+  </div>
+);
+
+export type MessageSkeletonProps = React.ComponentProps<'div'> & {
+  from?: UIMessage['role'];
+};
+
+export const MessageSkeleton = ({
+  className,
+  from = 'assistant',
+  ...props
+}: MessageSkeletonProps) => (
+  <div
+    className={cn(
+      'flex w-full max-w-[95%] flex-col gap-2',
+      from === 'user' ? 'ml-auto items-end' : 'items-start',
+      className,
+    )}
+    {...props}
+  >
+    <div
+      className={cn(
+        'flex flex-col gap-2',
+        from === 'user' ? 'items-end' : 'w-full max-w-[80%]',
+      )}
+    >
+      {from === 'user' ? (
+        <Skeleton className="h-10 w-48 rounded-lg" />
+      ) : (
+        <>
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-[90%]" />
+          <Skeleton className="h-4 w-[75%]" />
+        </>
+      )}
+    </div>
+  </div>
+);
+
+export type MessageListSkeletonProps = React.ComponentProps<'div'> & {
+  count?: number;
+};
+
+export const MessageListSkeleton = ({
+  className,
+  count = 3,
+  ...props
+}: MessageListSkeletonProps) => (
+  <div className={cn('flex flex-col gap-8 p-4', className)} {...props}>
+    {Array.from({ length: count }).map((_, index) => (
+      <MessageSkeleton
+        key={index}
+        from={index % 2 === 0 ? 'user' : 'assistant'}
+      />
+    ))}
   </div>
 );
