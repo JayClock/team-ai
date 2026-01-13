@@ -1,11 +1,11 @@
 spring:
   main:
     banner-mode: 'off'
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration
   jersey:
     application-path: /api
-  ai:
-    deepseek:
-      api-key: ${DEEPSEEK_API_KEY}
 
   security:
     oauth2:

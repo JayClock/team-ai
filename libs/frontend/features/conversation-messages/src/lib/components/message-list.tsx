@@ -39,6 +39,14 @@ const defaultSuggestions = [
   '给我一些代码审查建议',
 ];
 
+const API_KEY_STORAGE_KEY = 'api-key';
+const API_KEY_HEADER = 'X-Api-Key';
+
+function getApiKeyHeaders(): Record<string, string> {
+  const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+  return apiKey ? { [API_KEY_HEADER]: apiKey } : {};
+}
+
 export function MessageList({
   defaultMessages,
   conversationState,
@@ -46,6 +54,7 @@ export function MessageList({
   const { messages, sendMessage } = useChat({
     transport: new DefaultChatTransport({
       api: conversationState.getLink('send-message')?.href,
+      headers: getApiKeyHeaders,
       prepareSendMessagesRequest: ({ messages }) => {
         const lastMessage = messages.at(-1);
         const textPart = lastMessage?.parts.find((p) => p.type === 'text');

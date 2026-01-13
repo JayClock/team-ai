@@ -1,5 +1,6 @@
 import { Login } from '../features/auth/Login';
 import { ProtectedRoute } from '../features/auth/ProtectedRoute';
+import { SettingsDialog } from '../features/settings/SettingsDialog';
 import { AppRoutes } from '../routes/AppRoutes';
 import { Route, Routes } from 'react-router-dom';
 import { Suspense } from 'react';
@@ -74,6 +75,7 @@ function MainApp() {
         <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger className="-ml-1" />
           <div className="flex-1 truncate font-medium">{conversationTitle}</div>
+          <SettingsDialog />
         </header>
         <main className="flex flex-1 flex-col overflow-hidden">
           <ErrorBoundary FallbackComponent={ErrorFallback}>
@@ -91,7 +93,7 @@ export default function App() {
       <Route
         path="/login"
         element={
-          <ErrorBoundary FallbackComponent={ErrorFallback}>
+             <ErrorBoundary FallbackComponent={ErrorFallback}>
             <Suspense fallback={<AppLoading />}>
               <Login />
             </Suspense>
