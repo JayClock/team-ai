@@ -117,9 +117,12 @@ export class ResourceRelation<TEntity extends Entity> {
    *
    * This function will return the response as a State object.
    */
-  async post(options: PostRequestOptions, dedup = false): Promise<State> {
+  async post(
+    options: PostRequestOptions,
+    postOptions?: { dedup?: boolean },
+  ): Promise<State> {
     const resource = await this.getResource();
-    return resource.post(options, dedup);
+    return resource.post(options, postOptions);
   }
 
   /**

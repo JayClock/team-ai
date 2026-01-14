@@ -45,16 +45,10 @@ describe('Resource POST Requests', () => {
       json: vi.fn().mockResolvedValue(createdConversation),
     } as unknown as Response;
 
-    const customHeaders = {
-      'X-Custom-Header': 'custom-value',
-      Authorization: 'Bearer token123',
-    };
-
     const options: RequestInit = {
       method: 'POST',
       headers: new Headers({
         'Content-Type': 'application/json',
-        ...customHeaders,
       }),
       body: JSON.stringify(newConversationData),
     };
@@ -75,12 +69,9 @@ describe('Resource POST Requests', () => {
     );
     vi.spyOn(mockClient.cache, 'get').mockReturnValue(userState);
 
-    await userState.follow('create-conversation').post({
-      data: newConversationData,
-      headers: customHeaders,
-    });
-
     const form = userState.action('create-conversation');
+
+    await form.submit(newConversationData);
 
     expect(form?.uri).toEqual(halUser._templates['create-conversation'].target);
     expect(form?.method).toEqual(

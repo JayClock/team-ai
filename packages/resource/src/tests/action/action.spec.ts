@@ -36,7 +36,7 @@ describe('SimpleAction', () => {
         fetchOrThrow: vi.fn().mockResolvedValue(
           new Response(JSON.stringify({ id: '1', name: 'Created' }), {
             status: 201,
-            headers: { 'Content-Type': 'application/json' },
+            headers: new Headers({ 'Content-Type': 'application/json' }),
           }),
         ),
       },
@@ -178,9 +178,9 @@ describe('SimpleAction', () => {
           {
             method: 'POST',
             body: JSON.stringify(formData),
-            headers: {
+            headers: new Headers({
               'Content-Type': 'application/json',
-            },
+            }),
           },
         );
       });
@@ -234,9 +234,9 @@ describe('SimpleAction', () => {
           {
             method: 'POST',
             body: 'name=Test&value=123',
-            headers: {
+            headers: new Headers({
               'Content-Type': 'application/x-www-form-urlencoded',
-            },
+            }),
           },
         );
       });

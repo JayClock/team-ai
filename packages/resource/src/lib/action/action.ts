@@ -50,7 +50,7 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
   }
 
   async submit(formData: Record<string, SafeAny>): Promise<State<TEntity>> {
-    const uri = new URL(this.uri);
+    const uri = new URL(this.uri, this.client.bookmarkUri);
 
     if (this.method === 'GET') {
       uri.search = qs.stringify(formData);
@@ -73,9 +73,9 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
     const response = await this.client.fetcher.fetchOrThrow(uri.toString(), {
       method: this.method,
       body,
-      headers: {
+      headers: new Headers({
         'Content-Type': this.contentType,
-      },
+      }),
     });
 
     return this.client.getStateForResponse(
