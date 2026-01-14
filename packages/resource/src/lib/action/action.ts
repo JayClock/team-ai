@@ -55,7 +55,7 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
     if (this.method === 'GET') {
       uri.search = qs.stringify(formData);
       const resource = this.client.go<TEntity>(uri.toString());
-      return resource.withGet().request();
+      return resource.get();
     }
     let body;
     switch (this.contentType) {
@@ -86,5 +86,5 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
 }
 
 export class ActionNotFound extends Error {
-  override name = 'ActionNotFound';
+
 }

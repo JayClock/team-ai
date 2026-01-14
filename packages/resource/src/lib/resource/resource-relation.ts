@@ -1,6 +1,12 @@
 import { ClientInstance } from '../client-instance.js';
 import { Link, LinkVariables } from '../links/link.js';
-import { RequestOptions } from './interface.js';
+import {
+  GetRequestOptions,
+  PatchRequestOptions,
+  PostRequestOptions,
+  PutRequestOptions,
+  RequestOptions,
+} from './interface.js';
 import { Entity } from '../archtype/entity.js';
 import { HttpMethod } from '../http/util.js';
 import { State } from '../state/state.js';
@@ -52,13 +58,12 @@ export class ResourceRelation<TEntity extends Entity> {
   /**
    * Gets the form definition associated with the current resource
    * @returns Returns the form object or undefined
+   * @deprecated use state.action()
    */
-  async getForm(): Promise<Form | undefined> {
+  private async getForm(): Promise<Form | undefined> {
     const prevResource = await this.getResourceWithRels(this.rels.slice(0, -1));
     const { currentOptions } = this.getCurrentOptions();
-    const prevState = (await prevResource
-      .withGet()
-      .request()) as BaseState<TEntity>;
+    const prevState = (await prevResource.get()) as BaseState<TEntity>;
     return prevState.getForm(this.link.rel, currentOptions.method);
   }
 
@@ -83,8 +88,68 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
+   * Gets the current state of the resource.
+   *
+   * This function will return a State object.
+   */
+  async get(requestOptions?: GetRequestOptions): Promise<State<TEntity>> {
+    const resource = await this.getResource();
+    return resource.get(requestOptions);
+  }
+
+  /**
+   * Sends a PATCH request to the resource.
+   *
+   * This function defaults to a application/json content-type header.
+   *
+   * If the server responds with 200 Status code this will return a State object
+   */
+  async patch(requestOptions: PatchRequestOptions): Promise<State<TEntity>> {
+    const resource = await this.getResource();
+    return resource.patch(requestOptions);
+  }
+
+  /**
+   * Sends a POST request to the resource.
+   *
+   * See the documentation for PostRequestOptions for more details.
+   * This function is used for RPC-like endpoints and form submissions.
+   *
+   * This function will return the response as a State object.
+   */
+  async post(options: PostRequestOptions, dedup = false): Promise<State> {
+    const resource = await this.getResource();
+    return resource.post(options, dedup);
+  }
+
+  /**
+   * Sends a PUT request to the resource.
+   *
+   * This function defaults to a application/json content-type header.
+   *
+   * If the server responds with 200 Status code this will return a State object
+   * and update the cache.
+   *
+   * @param requestOptions Request options including request body, headers, etc.
+   * @returns Returns a Promise of the resource state
+   */
+  async put(requestOptions: PutRequestOptions): Promise<State<TEntity>> {
+    const resource = await this.getResource();
+    return resource.put(requestOptions);
+  }
+
+  /**
+   * Deletes the resource
+   */
+  async delete(): Promise<State<TEntity>> {
+    const resource = await this.getResource();
+    return resource.delete();
+  }
+
+  /**
    * Prepares a GET request to the resource.
    *
+   * @deprecated use get()
    * @returns Returns an object with a request method
    * - request: Executes the GET request with optional options
    */
@@ -97,6 +162,7 @@ export class ResourceRelation<TEntity extends Entity> {
   /**
    * Prepares a PATCH request to the resource.
    *
+   * @deprecated use patch()
    * @returns Returns an object with getForm and request methods
    * - getForm: Gets the form definition for PATCH requests
    * - request: Executes the PATCH request with the provided options
@@ -117,6 +183,7 @@ export class ResourceRelation<TEntity extends Entity> {
   /**
    * Prepares a POST request to the resource.
    *
+   * @deprecated use post()
    * @returns Returns an object with getForm and request methods
    * - getForm: Gets the form definition for POST requests
    * - request: Executes the POST request with the provided options
@@ -137,6 +204,7 @@ export class ResourceRelation<TEntity extends Entity> {
   /**
    * Prepares a PUT request to the resource.
    *
+   * @deprecated use put()
    * @returns Returns an object with getForm and request methods
    * - getForm: Gets the form definition for PUT requests
    * - request: Executes the PUT request with the provided options
@@ -157,6 +225,7 @@ export class ResourceRelation<TEntity extends Entity> {
   /**
    * Prepares a DELETE request to the resource.
    *
+   * @deprecated use delete()
    * @returns Returns an object with a request method
    * - request: Executes the DELETE request
    */
@@ -174,11 +243,11 @@ export class ResourceRelation<TEntity extends Entity> {
     rels: string[],
   ): Promise<Resource<TEntity>> {
     let resource: Resource<SafeAny> = this.client.go(this.link);
-    let state: State<SafeAny> = await resource.withGet().request();
+    let state: State<SafeAny> = await resource.get();
     for (const rel of rels) {
       const currentOptions = this.optionsMap.get(rel);
       resource = state.follow(rel, currentOptions?.query ?? {});
-      state = await resource.withGet().request();
+      state = await resource.get();
     }
     return resource;
   }

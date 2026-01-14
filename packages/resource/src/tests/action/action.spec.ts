@@ -27,11 +27,9 @@ describe('SimpleAction', () => {
     mockClient = {
       bookmarkUri: 'https://example.com/',
       go: vi.fn().mockReturnValue({
-        withGet: vi.fn().mockReturnValue({
-          request: vi.fn().mockResolvedValue({
-            uri: 'https://example.com/api/resources',
-            data: { id: '1', name: 'Test' },
-          }),
+        get: vi.fn().mockResolvedValue({
+          uri: 'https://example.com/api/resources',
+          data: { id: '1', name: 'Test' },
         }),
       }),
       fetcher: {
@@ -158,15 +156,14 @@ describe('SimpleAction', () => {
         );
       });
 
-      it('should call withGet().request() for GET method', async () => {
+      it('should call get() for GET method', async () => {
         const formData = { query: 'test' };
 
         await action.submit(formData);
 
         const goResult = (mockClient.go as ReturnType<typeof vi.fn>).mock
           .results[0].value;
-        expect(goResult.withGet).toHaveBeenCalled();
-        expect(goResult.withGet().request).toHaveBeenCalled();
+        expect(goResult.get).toHaveBeenCalled();
       });
     });
 

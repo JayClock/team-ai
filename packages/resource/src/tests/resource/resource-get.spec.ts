@@ -46,7 +46,7 @@ describe('Resource GET Requests', () => {
     vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(
       mockUserState,
     );
-    userState = await resource.withGet().request();
+    userState = await resource.get();
   });
 
   beforeEach(async () => {
@@ -93,8 +93,7 @@ describe('Resource GET Requests', () => {
 
     const state: State<Collection<Conversation>> = await userState
       .follow('conversations', variables)
-      .withGet()
-      .request();
+      .get();
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1/conversations?page=1&pageSize=10',
@@ -118,7 +117,7 @@ describe('Resource GET Requests', () => {
     vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
     vi.spyOn(mockClient.cache, 'get').mockReturnValueOnce(cacheState);
 
-    const state = await userState.follow('conversations').withGet().request();
+    const state = await userState.follow('conversations').get();
     expect(state).toBe(cacheState);
   });
 
@@ -147,8 +146,8 @@ describe('Resource GET Requests', () => {
       vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
         uri: resolve(mockClient.bookmarkUri, '/api/users/1/conversations'),
       } as State);
-      const request1 = userState.follow('conversations').withGet().request();
-      const request2 = userState.follow('conversations').withGet().request();
+      const request1 = userState.follow('conversations').get();
+      const request2 = userState.follow('conversations').get();
 
       const [result1, result2] = await Promise.all([request1, request2]);
 
@@ -163,11 +162,11 @@ describe('Resource GET Requests', () => {
       } as State);
       const resource = userState.follow('conversations');
 
-      const requestPromise = resource.withGet().request();
+      const requestPromise = resource.get();
 
       await requestPromise;
 
-      const secondRequest = resource.withGet().request();
+      const secondRequest = resource.get();
       await secondRequest;
 
       expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);

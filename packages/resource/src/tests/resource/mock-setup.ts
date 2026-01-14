@@ -46,7 +46,7 @@ export const setupUserState = async (): Promise<{
   vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(response);
   vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue(mockUserState);
 
-  const userState = await resource.withGet().request();
+  const userState = await resource.get();
 
   return { resource, userState, halStateFactory };
 };

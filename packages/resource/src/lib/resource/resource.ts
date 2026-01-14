@@ -121,7 +121,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    *
    * This function will return a State object.
    */
-  private async get(requestOptions?: RequestOptions): Promise<State<TEntity>> {
+  async get(requestOptions?: GetRequestOptions): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit('GET', requestOptions ?? {});
 
     const state = this.getCache();
@@ -163,7 +163,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    *
    * If the server responds with 200 Status code this will return a State object
    */
-  private async patch(requestOptions: RequestOptions): Promise<State<TEntity>> {
+  async patch(requestOptions: PatchRequestOptions): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit(
       'PATCH',
       requestOptions ?? {},
@@ -234,7 +234,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * @param requestOptions Request options including request body, headers, etc.
    * @returns Returns a Promise of the resource state
    */
-  private async put(requestOptions: RequestOptions): Promise<State<TEntity>> {
+  async put(requestOptions: PutRequestOptions): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit('PUT', requestOptions ?? {});
 
     const response = await this.client.fetcher.fetchOrThrow(
@@ -257,7 +257,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   /**
    * Deletes the resource
    */
-  private async delete(): Promise<State<TEntity>> {
+  async delete(): Promise<State<TEntity>> {
     const response = await this.fetchOrThrow(
       this.optionsToRequestInit('DELETE', {}),
     );
@@ -265,6 +265,9 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return this.client.getStateForResponse(this.link, response);
   }
 
+  /**
+   * @deprecated use get()
+   */
   withGet() {
     return {
       request: (getOptions?: GetRequestOptions) => this.get(getOptions),
@@ -274,6 +277,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   /**
    * Prepare a PATCH request to the resource.
    *
+   * @deprecated use patch()
    * @returns Returns an object with getForm and request methods
    * - getForm: Gets the form definition for PATCH requests
    * - request: Executes the PATCH request with the provided options
@@ -290,6 +294,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   /**
    * Prepare a POST request to the resource.
    *
+   * @deprecated use post()
    * @returns Returns an object with getForm and request methods
    * - getForm: Gets the form definition for POST requests
    * - request: Executes the POST request with the provided options
@@ -307,6 +312,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   /**
    * Prepare a PUT request to the resource.
    *
+   * @deprecated use put()
    * @returns Returns an object with getForm and request methods
    * - getForm: Gets the form definition for PUT requests
    * - request: Executes the PUT request with the provided options
@@ -320,6 +326,9 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     };
   }
 
+  /**
+   * @deprecated use delete()
+   */
   withDelete() {
     return {
       request: () => this.delete(),

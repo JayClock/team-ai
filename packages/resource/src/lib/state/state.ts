@@ -3,6 +3,7 @@ import { StateCollection } from './state-collection.js';
 import { ClientInstance } from '../client-instance.js';
 import { Resource } from '../index.js';
 import { Link, LinkVariables } from '../links/link.js';
+import { Action } from '../action/action.js';
 
 export type State<TEntity extends Entity = Entity> = {
   /**
@@ -69,6 +70,22 @@ export type State<TEntity extends Entity = Entity> = {
    * If no name is given, checks if _any_ action exists.
    */
   hasAction<K extends keyof TEntity['actions']>(name: K): boolean;
+
+  /**
+   * Return an action by name.
+   *
+   * If no name is given, the first action is returned. This is useful for
+   * formats that only supply 1 action, and no name.
+   */
+  /**
+   * Return an action by name.
+   *
+   * If no name is given, the first action is returned. This is useful for
+   * formats that only supply 1 action, and no name.
+   */
+  action<K extends keyof TEntity['actions']>(
+    name: K,
+  ): Action<TEntity['actions'][K]>;
 
   clone(): State<TEntity>;
 };
