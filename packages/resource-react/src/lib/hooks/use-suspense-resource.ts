@@ -25,7 +25,7 @@ export function useSuspenseResource<T extends Entity>(
 ): UseSuspenseResourceResponse<T> {
   const resource = useSuspenseResolveResource(resourceLike);
 
-  const promise = useMemo(() => resource.withGet().request(), [resource]);
+  const promise = useMemo(() => resource.get(), [resource]);
 
   const resourceState = use(promise);
 

@@ -32,10 +32,7 @@ export function useSuspenseInfiniteCollection<T extends Entity>(
 ): UseSuspenseInfiniteCollectionResponse<T> {
   const resource = useSuspenseResolveResource(resourceLike);
 
-  const initialPromise = useMemo(
-    () => resource.withGet().request(),
-    [resource],
-  );
+  const initialPromise = useMemo(() => resource.get(), [resource]);
 
   const initialState = use(initialPromise);
 
@@ -69,7 +66,7 @@ export function useSuspenseInfiniteCollection<T extends Entity>(
     setIsLoadingMore(true);
 
     try {
-      const nextPageState = await nextPageResource.current.withGet().request();
+      const nextPageState = await nextPageResource.current.get();
 
       nextPageResource.current = nextPageState.hasLink('next')
         ? nextPageState.follow('next')

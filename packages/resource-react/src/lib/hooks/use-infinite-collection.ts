@@ -51,7 +51,7 @@ export function useInfiniteCollection<T extends Entity>(
     setLoading(true);
 
     try {
-      const nextPageState = await nextPageResource.current.withGet().request();
+      const nextPageState = await nextPageResource.current.get();
 
       // Set up the next page.
       nextPageResource.current = nextPageState.hasLink('next')
