@@ -21,7 +21,8 @@ export function parseHalTemplates(
   links: Links<SafeAny>,
   templates: HalResource['_templates'] = {},
 ): Form[] {
-  return Object.values(templates).map((template) => ({
+  return Object.entries(templates).map(([key, template]) => ({
+    name: key,
     title: template.title,
     method: template.method as HttpMethod,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

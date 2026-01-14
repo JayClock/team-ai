@@ -63,6 +63,13 @@ export type State<TEntity extends Entity = Entity> = {
    */
   contentHeaders(): Headers;
 
+  /**
+   * Checks if the specified action exists.
+   *
+   * If no name is given, checks if _any_ action exists.
+   */
+  hasAction<K extends keyof TEntity['actions']>(name: K): boolean;
+
   clone(): State<TEntity>;
 };
 

@@ -72,12 +72,14 @@ describe('BaseState', () => {
     mockForms = [
       {
         uri: '/api/resources/123/edit',
+        name: 'edit',
         method: 'PUT',
         contentType: 'application/json',
         fields: [],
       },
       {
         uri: '/api/resources/123/delete',
+        name: 'delete',
         method: 'DELETE',
         contentType: 'application/json',
         fields: [],
@@ -471,6 +473,7 @@ describe('BaseState', () => {
     it('should default to GET method if not specified', () => {
       const getForm = {
         uri: '/api/resources/123',
+        name: 'get',
         method: 'GET' as const,
         contentType: 'application/json',
         fields: [],
@@ -503,18 +506,21 @@ describe('BaseState', () => {
       const formsForSameLink = [
         {
           uri: '/api/resources/123/edit',
+          name: 'update',
           method: 'PUT' as const,
           contentType: 'application/json',
           fields: [],
         },
         {
           uri: '/api/resources/123/edit',
+          name: 'patch',
           method: 'PATCH' as const,
           contentType: 'application/json',
           fields: [],
         },
         {
           uri: '/api/resources/123/edit',
+          name: 'delete',
           method: 'DELETE' as const,
           contentType: 'application/json',
           fields: [],
@@ -580,6 +586,71 @@ describe('BaseState', () => {
       });
 
       expect(stateWithoutEmbedded.getEmbedded('any' as never)).toBeUndefined();
+    });
+  });
+
+  describe('hasAction', () => {
+    it('should return true when action with matching name exists', () => {
+      expect(state.hasAction('edit' as never)).toBe(true);
+    });
+
+    it('should return false for non-existing action name', () => {
+      expect(state.hasAction('nonexistent' as never)).toBe(false);
+    });
+
+    it('should return true if any action exists when name is undefined', () => {
+      expect(state.hasAction(undefined as never)).toBe(true);
+    });
+
+    it('should return false when no actions exist and name is undefined', () => {
+      const stateWithoutForms = new BaseState<TestEntity>({
+        client: mockClient,
+        data: testData,
+        links: mockLinks,
+        headers: mockHeaders,
+        currentLink,
+        forms: [],
+      });
+
+      expect(stateWithoutForms.hasAction(undefined as never)).toBe(false);
+    });
+  });
+
+  describe('action', () => {
+    it('should return action for existing action name', () => {
+      const action = state.action('edit' as never);
+
+      expect(action).toBeDefined();
+      expect(action.name).toBe('edit');
+      expect(action.method).toBe('PUT');
+    });
+
+    it('should throw ActionNotFound for non-existing action name', () => {
+      expect(() => state.action('nonexistent' as never)).toThrow(
+        'This State defines no action with name nonexistent',
+      );
+    });
+
+    it('should throw ActionNotFound when no actions exist', () => {
+      const stateWithoutForms = new BaseState<TestEntity>({
+        client: mockClient,
+        data: testData,
+        links: mockLinks,
+        headers: mockHeaders,
+        currentLink,
+        forms: [],
+      });
+
+      expect(() => stateWithoutForms.action('any' as never)).toThrow(
+        'This State does not define any actions',
+      );
+    });
+
+    it('should return first action when name is undefined', () => {
+      const action = state.action(undefined as never);
+
+      expect(action).toBeDefined();
+      expect(action.name).toBe('edit');
     });
   });
 
