@@ -25,6 +25,7 @@ public class ConversationTest {
   private MessageDescription userMessage;
   private Message userMessageEntity;
   private Message assistantMessageEntity;
+  private String apiKey;
 
   @BeforeEach
   public void setUp() {
@@ -33,6 +34,7 @@ public class ConversationTest {
     userMessage = new MessageDescription("user", "Hello, AI!");
     userMessageEntity = new Message("1", userMessage);
     assistantMessageEntity = new Message("2", new MessageDescription("assistant", "Hello there!"));
+    apiKey = "test-api-key";
   }
 
   @Test
@@ -78,15 +80,15 @@ public class ConversationTest {
               }
             });
 
-    when(modelProvider.sendMessage(userMessage.content()))
+    when(modelProvider.sendMessage(userMessage.content(), apiKey))
         .thenReturn(Flux.just("Hello", " there", "!"));
 
-    Flux<String> response = conversation.sendMessage(userMessage, modelProvider);
+    Flux<String> response = conversation.sendMessage(userMessage, modelProvider, apiKey);
 
     response.collectList().block();
 
     verify(messages).saveMessage(userMessage);
-    verify(modelProvider).sendMessage(userMessage.content());
+    verify(modelProvider).sendMessage(userMessage.content(), apiKey);
   }
 
   @Test
@@ -102,10 +104,10 @@ public class ConversationTest {
               }
             });
 
-    when(modelProvider.sendMessage(userMessage.content()))
+    when(modelProvider.sendMessage(userMessage.content(), apiKey))
         .thenReturn(Flux.just("Hello", " there", "!"));
 
-    Flux<String> response = conversation.sendMessage(userMessage, modelProvider);
+    Flux<String> response = conversation.sendMessage(userMessage, modelProvider, apiKey);
 
     String result = response.collectList().block().stream().reduce("", (a, b) -> a + b);
     assert result.equals("Hello there!");
