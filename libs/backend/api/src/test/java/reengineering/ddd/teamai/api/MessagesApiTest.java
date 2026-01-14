@@ -70,9 +70,29 @@ public class MessagesApiTest extends ApiTest {
         .body("_embedded.messages[0].id", is(message.getIdentity()))
         .body("_embedded.messages[0].role", is(message.getDescription().role()))
         .body("_embedded.messages[0].content", is(message.getDescription().content()))
+        // MessageModel should have self link
+        .body(
+            "_embedded.messages[0]._links.self.href",
+            is(
+                "/api/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages/"
+                    + message.getIdentity()))
         .body("_embedded.messages[1].id", is(message2.getIdentity()))
         .body("_embedded.messages[1].role", is(message2.getDescription().role()))
-        .body("_embedded.messages[1].content", is(message2.getDescription().content()));
+        .body("_embedded.messages[1].content", is(message2.getDescription().content()))
+        // MessageModel should have self link
+        .body(
+            "_embedded.messages[1]._links.self.href",
+            is(
+                "/api/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages/"
+                    + message2.getIdentity()));
 
     verify(messages).findAll();
   }
@@ -89,7 +109,7 @@ public class MessagesApiTest extends ApiTest {
         .thenReturn(savedMessage)
         .thenReturn(assistantMessage);
 
-    when(modelProvider.sendMessage(eq("Hello, AI!")))
+    when(modelProvider.sendMessage(eq("Hello, AI!"), any(String.class)))
         .thenReturn(Flux.just("Hello", " there", "!", " How", " can", " I", " help", " you", "?"));
 
     String responseBody =
@@ -97,6 +117,7 @@ public class MessagesApiTest extends ApiTest {
             .urlEncodingEnabled(false)
             .accept(MediaType.SERVER_SENT_EVENTS)
             .contentType(MediaType.APPLICATION_JSON)
+            .header("X-Api-Key", "test-api-key")
             .body(userDescription)
             .when()
             .post(

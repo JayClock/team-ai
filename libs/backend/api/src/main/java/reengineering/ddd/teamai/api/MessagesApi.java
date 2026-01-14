@@ -1,6 +1,8 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.UriInfo;
 import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.MessageModel;
 import reengineering.ddd.teamai.model.Conversation;
@@ -16,8 +18,11 @@ public class MessagesApi {
   }
 
   @GET
-  public CollectionModel<MessageModel> findAll() {
-    var messages = conversation.messages().findAll().stream().map(MessageModel::new).toList();
+  public CollectionModel<MessageModel> findAll(@Context UriInfo uriInfo) {
+    var messages =
+        conversation.messages().findAll().stream()
+            .map(message -> new MessageModel(user, conversation, message, uriInfo))
+            .toList();
     return CollectionModel.of(messages);
   }
 }

@@ -1,15 +1,12 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-import jakarta.ws.rs.HttpMethod;
 import jakarta.ws.rs.core.MediaType;
 import java.util.Optional;
 import org.apache.http.HttpHeaders;
@@ -55,8 +52,9 @@ public class ConversationsApiTest extends ApiTest {
     when(userConversations.findAll()).thenReturn(conversations);
     when(conversations.size()).thenReturn(400);
     when(conversations.subCollection(eq(0), eq(40))).thenReturn(new EntityList<>(conversation));
+
     given()
-        .accept(MediaTypes.HAL_JSON.toString())
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
         .when()
         .get("/users/" + user.getIdentity() + "/conversations")
         .then()
@@ -77,7 +75,6 @@ public class ConversationsApiTest extends ApiTest {
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages"))
-        .body("_embedded.conversations[0]._links.messages.type", is(HttpMethod.GET))
         .body(
             "_embedded.conversations[0]._links.send-message.href",
             is(
@@ -86,11 +83,22 @@ public class ConversationsApiTest extends ApiTest {
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages/stream"))
-        .body("_embedded.conversations[0]._links.send-message.type", is(HttpMethod.POST))
+        .body("_embedded.conversations[0]._templates.default.method", is("PUT"))
+        .body("_embedded.conversations[0]._templates.default.properties", hasSize(1))
+        .body("_embedded.conversations[0]._templates.send-message.method", is("POST"))
         .body(
-            "_embedded.conversations[0]._links.delete.href",
+            "_embedded.conversations[0]._templates.send-message.target",
+            is(
+                "/api/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages/stream"))
+        .body("_embedded.conversations[0]._templates.send-message.properties", hasSize(2))
+        .body(
+            "_embedded.conversations[0]._links.delete-conversation.href",
             is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
-        .body("_embedded.conversations[0]._links.delete.type", is(HttpMethod.DELETE));
+        .body("_embedded.conversations[0]._templates.delete-conversation.method", is("DELETE"));
   }
 
   @Test
@@ -125,7 +133,7 @@ public class ConversationsApiTest extends ApiTest {
         .thenReturn(Optional.of(conversation));
 
     given()
-        .accept(MediaTypes.HAL_JSON.toString())
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
         .when()
         .get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
         .then()
@@ -143,7 +151,7 @@ public class ConversationsApiTest extends ApiTest {
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages"))
-        .body("_links.messages.type", is(HttpMethod.GET))
+        // send-message link with Template
         .body(
             "_links.send-message.href",
             is(
@@ -152,11 +160,23 @@ public class ConversationsApiTest extends ApiTest {
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages/stream"))
-        .body("_links.send-message.type", is(HttpMethod.POST))
+        .body("_templates.default.method", is("PUT"))
+        .body("_templates.default.properties", hasSize(1))
+        .body("_templates.send-message.method", is("POST"))
         .body(
-            "_links.delete.href",
+            "_templates.send-message.target",
+            is(
+                "/api/users/"
+                    + user.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages/stream"))
+        .body("_templates.send-message.properties", hasSize(2))
+        // delete link with Template
+        .body(
+            "_links.delete-conversation.href",
             is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
-        .body("_links.delete.type", is(HttpMethod.DELETE));
+        .body("_templates.delete-conversation.method", is("DELETE"));
 
     verify(userConversations, times(1)).findByIdentity(conversation.getIdentity());
   }

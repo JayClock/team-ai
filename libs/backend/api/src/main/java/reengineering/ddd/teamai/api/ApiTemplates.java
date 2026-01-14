@@ -23,4 +23,8 @@ public class ApiTemplates {
   public static UriBuilder messages(UriInfo uriInfo) {
     return conversation(uriInfo).path(ConversationApi.class, "messages");
   }
+
+  public static UriBuilder message(UriInfo uriInfo) {
+    return messages(uriInfo).path("{message-id}");
+  }
 }
