@@ -1,5 +1,5 @@
 import { Conversation, User } from '@shared/schema';
-import { Resource, State } from '@hateoas-ts/resource';
+import { State } from '@hateoas-ts/resource';
 import { useSuspenseInfiniteCollection } from '@hateoas-ts/resource-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useInView } from 'react-intersection-observer';
@@ -15,17 +15,17 @@ import {
 import { MessageSquareIcon } from 'lucide-react';
 
 interface Props {
-  resource: Resource<User>;
+  state: State<User>;
   onConversationChange: (conversationState: State<Conversation>) => void;
 }
 
 export function UserConversations(props: Props) {
-  const { resource, onConversationChange } = props;
+  const { state, onConversationChange } = props;
   const [activeConversationId, setActiveConversationId] = useState<string>();
 
   const conversationsResource = useMemo(
-    () => resource?.follow('conversations'),
-    [resource],
+    () => state.follow('conversations'),
+    [state],
   );
 
   const {

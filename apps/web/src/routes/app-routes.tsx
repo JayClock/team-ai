@@ -6,16 +6,15 @@ import { ConversationMessages } from '@features/conversation-messages';
 import { rootResource } from '../lib/api-client';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Button } from '@shared/ui/components/button';
-import { PlusIcon, MessageSquareIcon } from 'lucide-react';
+import { MessageSquareIcon, PlusIcon } from 'lucide-react';
 
 export function AppRoutes() {
   const [conversationState, setConversationState] =
     useState<State<Conversation>>();
 
-  // 使用 useMemo 缓存 ResourceRelation 引用，确保在 Suspense 期间引用稳定
   const meRelation = useMemo(() => rootResource.follow('me'), []);
 
-  const { resource } = useSuspenseResource(meRelation);
+  const { resourceState } = useSuspenseResource(meRelation);
 
   const sidebarHeader = (
     <div className="flex items-center justify-between w-full">
@@ -32,7 +31,7 @@ export function AppRoutes() {
 
   const sidebarContent = (
     <UserConversations
-      resource={resource}
+      state={resourceState}
       onConversationChange={setConversationState}
     />
   );

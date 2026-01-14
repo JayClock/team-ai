@@ -1,7 +1,7 @@
-import { Login } from '../features/auth/Login';
-import { ProtectedRoute } from '../features/auth/ProtectedRoute';
-import { SettingsDialog } from '../features/settings/SettingsDialog';
-import { AppRoutes } from '../routes/AppRoutes';
+import { Login } from '../features/auth/login';
+import { ProtectedRoute } from '../features/auth/protected-route';
+import { SettingsDialog } from '../features/settings/settings-dialog';
+import { AppRoutes } from '../routes/app-routes';
 import { Route, Routes } from 'react-router-dom';
 import { Suspense } from 'react';
 import {
@@ -93,7 +93,7 @@ export default function App() {
       <Route
         path="/login"
         element={
-             <ErrorBoundary FallbackComponent={ErrorFallback}>
+          <ErrorBoundary FallbackComponent={ErrorFallback}>
             <Suspense fallback={<AppLoading />}>
               <Login />
             </Suspense>
