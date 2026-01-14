@@ -62,6 +62,7 @@ describe('Resource POST Requests', () => {
     vi.spyOn(mockClient, 'go').mockReturnValue(
       new Resource(mockClient, link, [
         {
+          name:'',
           method: 'POST',
           uri: '/api/users/1/conversations',
           contentType: 'application/json',
@@ -121,6 +122,7 @@ describe('Resource POST Requests', () => {
       vi.spyOn(mockClient, 'go').mockReturnValue(
         new Resource(mockClient, link, [
           {
+            name:'',
             method: 'POST',
             uri: '/api/users/1/conversations',
             contentType: 'application/json',
