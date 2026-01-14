@@ -86,5 +86,5 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
 }
 
 export class ActionNotFound extends Error {
-
+  override name = 'ActionNotFound';
 }

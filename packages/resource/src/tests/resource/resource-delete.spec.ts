@@ -39,7 +39,7 @@ describe('Resource DELETE Requests', () => {
       mockResponse,
     );
 
-    await userState.follow('self').withDelete().request();
+    await userState.follow('self').delete();
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledWith(
       'https://www.test.com/api/users/1',

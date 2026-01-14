@@ -10,6 +10,9 @@ export type User = Entity<
     'create-conversation': Conversation;
     'latest-conversation': Conversation;
     file: Entity<Blob>;
+  },
+  {
+    'create-conversation': Conversation;
   }
 >;
 

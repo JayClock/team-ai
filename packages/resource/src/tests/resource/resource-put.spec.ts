@@ -65,7 +65,7 @@ describe('Resource PUT Requests', () => {
       mockResponse,
     );
 
-    await userState.follow('self').withPut().request({
+    await userState.follow('self').put({
       data: updatedUserData,
       headers: customHeaders,
     });

@@ -63,8 +63,7 @@ describe('Client', () => {
     const res = await userResource
       .follow('latest-conversation')
       .follow('user')
-      .withGet()
-      .request();
+      .get()
     expect(halUser).toEqual(expect.objectContaining(res.data));
   });
 
@@ -86,8 +85,7 @@ describe('Client', () => {
         page: 1,
         pageSize: 10,
       })
-      .withGet()
-      .request();
+      .get()
     expect(res.collection.length).toEqual(
       halConversations._embedded.conversations.length,
     );

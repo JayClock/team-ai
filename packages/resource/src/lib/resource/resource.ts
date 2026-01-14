@@ -194,11 +194,11 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    *
    * This function will return the response as a State object.
    */
-  async post(options: PostRequestOptions, dedup = false): Promise<State> {
-    const requestInit = this.optionsToRequestInit('POST', options);
+  async post(requestOptions: PostRequestOptions, options?: { dedup?: boolean }): Promise<State> {
+    const requestInit = this.optionsToRequestInit('POST', requestOptions);
 
-    if (dedup) {
-      const hash = this.requestHash(this.uri, options);
+    if (options?.dedup) {
+      const hash = this.requestHash(this.uri, requestOptions);
 
       if (!this.activeRefresh.has(hash)) {
         this.activeRefresh.set(
@@ -305,7 +305,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
         return this.forms.find((form) => form.method === 'POST');
       },
       request: (postOptions: PostRequestOptions) =>
-        this.post(postOptions, options?.dedup),
+        this.post(postOptions, options),
     };
   }
 
