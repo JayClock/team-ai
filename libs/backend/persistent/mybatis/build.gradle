@@ -2,7 +2,7 @@ dependencies {
     implementation project(':backend:domain')
     implementation project(':backend:infrastructure:spring-ai')
     implementation 'org.springframework.boot:spring-boot-starter'
-    implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
+    implementation 'jakarta.inject:jakarta.inject-api'
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.4'
     implementation 'org.mybatis.caches:mybatis-caffeine:1.0.0'
     implementation 'org.flywaydb:flyway-core'
@@ -13,8 +13,8 @@ dependencies {
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.4'
-    testImplementation 'org.testcontainers:postgresql:1.19.3'
-    testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'io.projectreactor:reactor-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

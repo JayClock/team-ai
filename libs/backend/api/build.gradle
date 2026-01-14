@@ -1,7 +1,7 @@
 dependencies {
     implementation project(':backend:domain')
-    implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
-    implementation 'jakarta.ws.rs:jakarta.ws.rs-api:3.1.0'
+    implementation 'jakarta.inject:jakarta.inject-api'
+    implementation 'jakarta.ws.rs:jakarta.ws.rs-api'
     implementation 'org.springframework.hateoas:spring-hateoas'
     implementation 'com.fasterxml.jackson.core:jackson-annotations'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
@@ -12,7 +12,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-hateoas'
     testImplementation 'org.springframework.boot:spring-boot-starter-jersey'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'io.rest-assured:rest-assured:5.3.0'
+    testImplementation 'io.rest-assured:rest-assured'
     testImplementation 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
