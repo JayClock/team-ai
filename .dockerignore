@@ -1,0 +1,98 @@
+# =============================================================================
+# Root .dockerignore - Optimize Docker build context for monorepo
+# =============================================================================
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Node modules (installed in Docker)
+node_modules/
+**/node_modules/
+
+# Build outputs (built in Docker)
+**/dist/
+**/build/
+**/.gradle/
+**/out/
+**/bin/
+
+# Test outputs
+**/test-output/
+**/test-results/
+**/coverage/
+**/playwright-report/
+**/.nyc_output/
+
+# Cache directories
+.nx/
+.vite/
+.cache/
+**/.cache/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Documentation (not needed for build)
+*.md
+!README.md
+docs/
+openspec/
+
+# Local environment files (inject at runtime)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# E2E tests
+apps/web-e2e/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Secrets and credentials
+*.pem
+*.key
+credentials.json
+secrets/
+
+# Docker files (avoid recursive context)
+Dockerfile*
+docker-compose*.yml
+.docker/
+
+# CI/CD
+.github/
+.gitlab/
+.circleci/
+
+# Nx cache
+.nx/cache/
+.nx/workspace-data/

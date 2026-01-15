@@ -1,0 +1,46 @@
+# =============================================================================
+# Frontend .dockerignore - Optimize Docker build context
+# =============================================================================
+
+# Build outputs (we build inside Docker)
+dist/
+.vite/
+node_modules/
+
+# Test outputs
+test-output/
+coverage/
+playwright-report/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# E2E tests (not needed for build)
+e2e/

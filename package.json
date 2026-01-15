@@ -49,6 +49,7 @@
     "@eslint/eslintrc": "^2.1.1",
     "@eslint/js": "^9.8.0",
     "@nx/devkit": "22.2.3",
+    "@nx/docker": "22.3.3",
     "@nx/eslint": "22.2.3",
     "@nx/eslint-plugin": "22.2.3",
     "@nx/gradle": "22.3.3",

@@ -75,6 +75,86 @@ npx nx build team-ai
 npx nx test
 ```
 
+### Docker 部署
+
+项目支持使用 Docker 进行容器化部署，前后端均已配置好 Dockerfile。
+
+#### 架构概览
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Docker Network                         │
+│                  (teamai-network)                        │
+├─────────────────────────────────────────────────────────┤
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
+│  │     web     │───▶│   server    │───▶│  postgres   │  │
+│  │   (Nginx)   │    │ (Spring Boot)│    │ (PostgreSQL)│  │
+│  │    :80      │    │    :8080    │    │    :5432    │  │
+│  └─────────────┘    └─────────────┘    └─────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 使用 Docker Compose
+
+```bash
+# 仅启动数据库 (本地开发)
+docker compose up postgres -d
+
+# 构建所有 Docker 镜像
+docker compose build
+
+# 启动完整服务栈 (postgres + server + web)
+docker compose --profile full up -d
+
+# 查看服务状态
+docker compose ps
+
+# 查看日志
+docker compose logs -f server
+docker compose logs -f web
+
+# 停止所有服务
+docker compose down
+
+# 停止并清理数据卷
+docker compose down -v
+```
+
+#### 使用 Nx 构建 Docker 镜像
+
+`@nx/docker` 插件已配置，可单独构建前后端镜像：
+
+```bash
+# 构建后端镜像
+npx nx docker:build :apps:server
+
+# 构建前端镜像
+npx nx docker:build @web/main
+
+# 运行后端容器
+npx nx docker:run :apps:server
+
+# 运行前端容器
+npx nx docker:run @web/main
+```
+
+#### 环境变量配置
+
+部署前请确保配置必要的环境变量，可参考 `.env.example`：
+
+```bash
+# 复制环境变量模板
+cp .env.example .env
+
+# 编辑配置
+vim .env
+```
+
+主要配置项：
+
+- `DB_*` - 数据库连接配置
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` - GitHub OAuth2 认证
+
 ### 数据库设置 (可选)
 
 如果需要运行持久化层示例，请参考 [数据库设置文档](docs/database-setup.md)

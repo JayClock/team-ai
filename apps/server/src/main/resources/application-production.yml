@@ -17,6 +17,33 @@ spring:
     baseline-on-migrate: true
     validate-on-migrate: true
 
+# Actuator configuration for Docker health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+
+# Server configuration
+server:
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 20s
+
+spring.lifecycle:
+  timeout-per-shutdown-phase: 30s
+
 logging:
   level:
     root: WARN

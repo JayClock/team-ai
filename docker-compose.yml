@@ -1,28 +1,146 @@
-version: '3.8'
+# =============================================================================
+# Team AI - Docker Compose Configuration
+# =============================================================================
+# Usage:
+#   Development:  docker-compose up postgres
+#   Full Stack:   docker-compose --profile full up
+#   Production:   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+# =============================================================================
 
 services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
   postgres:
     image: postgres:15-alpine
     container_name: teamai-postgres
     environment:
-      POSTGRES_DB: teamai_dev
-      POSTGRES_USER: teamai_dev
-      POSTGRES_PASSWORD: teamai_dev
+      POSTGRES_DB: ${DB_NAME:-teamai_dev}
+      POSTGRES_USER: ${DB_USERNAME:-teamai_dev}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-teamai_dev}
     ports:
-      - '5432:5432'
+      - '${DB_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U teamai_dev -d teamai_dev']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${DB_USERNAME:-teamai_dev} -d ${DB_NAME:-teamai_dev}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - teamai-network
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Spring Boot Backend Server
+  # ---------------------------------------------------------------------------
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    image: teamai/server:${VERSION:-latest}
+    container_name: teamai-server
+    profiles:
+      - full
+    environment:
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-teamai_dev}
+      DB_USERNAME: ${DB_USERNAME:-teamai_dev}
+      DB_PASSWORD: ${DB_PASSWORD:-teamai_dev}
+
+      # Spring Configuration
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
+
+      # GitHub OAuth2
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GITHUB_REDIRECT_URI: ${GITHUB_REDIRECT_URI:-http://localhost/login/oauth2/code/github}
+
+      # JVM tuning for containers
+      JAVA_OPTS: >-
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+        -XX:+ExitOnOutOfMemoryError
+        -Djava.security.egd=file:/dev/./urandom
+    ports:
+      - '8080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:8080/actuator/health',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
     networks:
       - teamai-network
+    restart: unless-stopped
+    # Graceful shutdown
+    stop_grace_period: 30s
 
+  # ---------------------------------------------------------------------------
+  # React Frontend (Nginx)
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: teamai/web:${VERSION:-latest}
+    container_name: teamai-web
+    profiles:
+      - full
+    ports:
+      - '80:80'
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--no-verbose',
+          '--tries=1',
+          '--spider',
+          'http://localhost:80/health',
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - teamai-network
+    restart: unless-stopped
+
+# =============================================================================
+# Volumes
+# =============================================================================
 volumes:
   postgres_data:
+    driver: local
 
+# =============================================================================
+# Networks
+# =============================================================================
 networks:
   teamai-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

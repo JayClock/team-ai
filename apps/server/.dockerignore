@@ -1,0 +1,41 @@
+# =============================================================================
+# Backend .dockerignore - Optimize Docker build context
+# =============================================================================
+
+# Build outputs (we build inside Docker)
+build/
+.gradle/
+bin/
+out/
+
+# Test outputs
+test-output/
+test-results/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Local environment files (secrets should be injected at runtime)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
