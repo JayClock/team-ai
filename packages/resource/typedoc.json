@@ -1,0 +1,32 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src/lib/index.ts"],
+  "out": "./docs",
+  "tsconfig": "./tsconfig.lib.json",
+  "name": "@hateoas-ts/resource",
+  "readme": "none",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Client",
+    "Resource",
+    "State",
+    "Entity Types",
+    "Middleware",
+    "Other"
+  ],
+  "navigationLinks": {
+    "npm": "https://www.npmjs.com/package/@hateoas-ts/resource",
+    "GitHub": "https://github.com/JayClock/team-ai/tree/main/packages/resource"
+  },
+  "plugin": ["typedoc-plugin-mdn-links"],
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}
