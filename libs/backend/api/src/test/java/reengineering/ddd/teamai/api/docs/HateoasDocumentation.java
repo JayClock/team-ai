@@ -45,7 +45,8 @@ public final class HateoasDocumentation {
 
   public static LinkDescriptor createConversationLink() {
     return linkWithRel("create-conversation")
-        .description("Action link to create a new conversation (see `_templates.create-conversation`)");
+        .description(
+            "Action link to create a new conversation (see `_templates.create-conversation`)");
   }
 
   public static LinkDescriptor messagesLink() {
@@ -59,7 +60,8 @@ public final class HateoasDocumentation {
 
   public static LinkDescriptor deleteConversationLink() {
     return linkWithRel("delete-conversation")
-        .description("Action link to delete this conversation (see `_templates.delete-conversation`)");
+        .description(
+            "Action link to delete this conversation (see `_templates.delete-conversation`)");
   }
 
   public static LinkDescriptor nextPageLink() {
@@ -147,7 +149,8 @@ public final class HateoasDocumentation {
 
   public static FieldDescriptor[] pagedConversationsResponseFields() {
     return new FieldDescriptor[] {
-      subsectionWithPath("_embedded.conversations[]").description("Array of conversation resources"),
+      subsectionWithPath("_embedded.conversations[]")
+          .description("Array of conversation resources"),
       fieldWithPath("_embedded.conversations[].id").description("Unique conversation identifier"),
       fieldWithPath("_embedded.conversations[].title").description("Conversation title"),
       subsectionWithPath("_embedded.conversations[]._links")

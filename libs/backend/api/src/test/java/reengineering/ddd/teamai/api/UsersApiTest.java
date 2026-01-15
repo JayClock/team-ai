@@ -5,12 +5,12 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.*;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
 
 import java.util.Optional;
 import org.junit.jupiter.api.Test;

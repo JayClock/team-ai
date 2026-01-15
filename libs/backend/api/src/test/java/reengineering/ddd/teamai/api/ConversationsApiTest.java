@@ -8,13 +8,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
 import static org.springframework.restdocs.headers.HeaderDocumentation.responseHeaders;
-import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.*;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
 
 import jakarta.ws.rs.core.MediaType;
 import java.util.Optional;
@@ -168,7 +168,8 @@ public class ConversationsApiTest extends ApiTest {
                     parameterWithName("conversationId")
                         .description("Unique identifier of the conversation")),
                 responseFields(conversationResponseFields()),
-                halLinksSnippet(selfLink(), messagesLink(), sendMessageLink(), deleteConversationLink())))
+                halLinksSnippet(
+                    selfLink(), messagesLink(), sendMessageLink(), deleteConversationLink())))
         .when()
         .get(
             "/users/{userId}/conversations/{conversationId}",
@@ -258,7 +259,8 @@ public class ConversationsApiTest extends ApiTest {
                     parameterWithName("conversationId")
                         .description("Unique identifier of the conversation"))))
         .when()
-        .delete("/users/{userId}/conversations/{conversationId}", user.getIdentity(), "non-existent")
+        .delete(
+            "/users/{userId}/conversations/{conversationId}", user.getIdentity(), "non-existent")
         .then()
         .statusCode(404);
   }

@@ -38,10 +38,7 @@ public class ApiTest {
                 documentationConfiguration(restDocumentation)
                     .operationPreprocessors()
                     .withRequestDefaults(
-                        modifyUris()
-                            .scheme("https")
-                            .host("api.team-ai.example.com")
-                            .removePort(),
+                        modifyUris().scheme("https").host("api.team-ai.example.com").removePort(),
                         prettyPrint())
                     .withResponseDefaults(
                         removeHeaders(
