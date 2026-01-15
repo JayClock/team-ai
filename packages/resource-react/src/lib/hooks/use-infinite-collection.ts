@@ -8,6 +8,48 @@ import { ResourceLike } from './use-resolve-resource';
 import { useEffect, useRef, useState } from 'react';
 import { useReadResource } from './use-read-resource';
 
+/**
+ * Hook for managing infinite scroll/pagination of HATEOAS collection resources.
+ *
+ * Automatically fetches the initial page and provides functions to load subsequent
+ * pages. Uses HAL "next" links for pagination. Items are accumulated across pages.
+ *
+ * @category Hooks
+ * @param resourceLike - A Resource, ResourceRelation, or URI string pointing to a collection
+ * @returns Collection items, loading state, pagination info, and loadNextPage function
+ *
+ * @example
+ * ```tsx
+ * import { useInfiniteCollection, useClient } from '@hateoas-ts/resource-react';
+ * import type { User, Conversation } from './types';
+ *
+ * function ConversationList({ userId }: { userId: string }) {
+ *   const client = useClient();
+ *   const userResource = client.go<User>(`/api/users/${userId}`);
+ *
+ *   const { items, loading, hasNextPage, error, loadNextPage } =
+ *     useInfiniteCollection(userResource.follow('conversations'));
+ *
+ *   return (
+ *     <div>
+ *       {items.map((item) => (
+ *         <div key={item.data.id}>{item.data.title}</div>
+ *       ))}
+ *
+ *       {loading && <div>Loading...</div>}
+ *
+ *       {hasNextPage && !loading && (
+ *         <button onClick={loadNextPage}>Load More</button>
+ *       )}
+ *     </div>
+ *   );
+ * }
+ * ```
+ *
+ * @remarks
+ * - Do not memoize or store the `loadNextPage` function reference
+ * - Always use the latest `loadNextPage` function returned by the hook
+ */
 export function useInfiniteCollection<T extends Entity>(
   resourceLike: ResourceLike<T>,
 ) {

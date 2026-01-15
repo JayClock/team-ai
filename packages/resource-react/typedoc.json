@@ -1,0 +1,25 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src/index.ts"],
+  "out": "./docs",
+  "tsconfig": "./tsconfig.lib.json",
+  "name": "@hateoas-ts/resource-react",
+  "readme": "none",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "categoryOrder": ["Provider", "Hooks", "Suspense Hooks", "Types", "Other"],
+  "navigationLinks": {
+    "npm": "https://www.npmjs.com/package/@hateoas-ts/resource-react",
+    "GitHub": "https://github.com/JayClock/team-ai/tree/main/packages/resource-react"
+  },
+  "plugin": ["typedoc-plugin-mdn-links"],
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}

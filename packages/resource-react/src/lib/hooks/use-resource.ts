@@ -4,52 +4,61 @@ import { useReadResource } from './use-read-resource';
 
 /**
  * The result of a useResource hook.
+ * @category Types
  */
 export type UseResourceResponse<T extends Entity> = {
-  // True if there is no data yet
+  /** True if there is no data yet */
   loading: boolean;
 
-  // Will contain an Error object, if an error occurred
+  /** Will contain an Error object if an error occurred */
   error: Error | null;
 
-  // A full Resource State object
+  /** A full Resource State object */
   resourceState: State<T>;
 
-  // The 'data' part of the state.
+  /** The 'data' part of the state */
   data: T['data'];
 
-  // The 'real' resource.
+  /** The resolved resource object */
   resource: Resource<T>;
 };
 
 /**
- * The useResource hook allows you to GET and PUT the state of
- * a resource.
+ * Hook for fetching and managing a single HATEOAS resource.
  *
- * Example call:
+ * Automatically fetches the resource on mount and returns loading/error states
+ * along with the resource data. Use this hook when you need to display a single
+ * entity (not a collection).
  *
- * <pre>
- *   const {
- *     loading,
- *     error,
- *     resourceState,
- *     setResourceState,
- *     submit
- *  } = useResource(resource);
- * </pre>
+ * @category Hooks
+ * @param resourceLike - A Resource, ResourceRelation, or URI string
+ * @returns Loading state, error, and resource data
  *
- * Returned properties:
+ * @example
+ * ```tsx
+ * import { useResource, useClient } from '@hateoas-ts/resource-react';
+ * import type { User } from './types';
  *
- * * loading - will be true as long as the result is still being fetched from
- *             the server.
- * * error - Will be null or an error object.
- * * resourceState - A state object. The `.data` property of this object will
- *                   contain the parsed JSON from the server.
- * * setResourceState - Update the local cache of the resource.
- * * submit - Send a PUT request to the server.
+ * function UserProfile({ userId }: { userId: string }) {
+ *   const client = useClient();
+ *   const userResource = client.go<User>(`/api/users/${userId}`);
  *
- * If you don't need the full resourceState, you can also use the `data` and
- * `setData` properties instead of `resourceState` or `useResourceState`.
+ *   const { loading, error, data, resourceState } = useResource(userResource);
+ *
+ *   if (loading) return <div>Loading...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return <div>Welcome, {data.name}!</div>;
+ * }
+ * ```
+ *
+ * @example Following relations
+ * ```tsx
+ * // Follow a HATEOAS link to get a related resource
+ * const { data: profile } = useResource(
+ *   userResource.follow('profile')
+ * );
+ * ```
  */
 export function useResource<T extends Entity>(
   resourceLike: ResourceLike<T>,

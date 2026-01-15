@@ -10,6 +10,6 @@ export default [
     rules: {},
   },
   {
-    ignores: ['**/out-tsc'],
+    ignores: ['**/out-tsc', '**/docs'],
   },
 ];

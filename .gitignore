@@ -62,3 +62,4 @@ build
 
 # TypeDoc output
 packages/resource/docs/
+packages/resource-react/docs/

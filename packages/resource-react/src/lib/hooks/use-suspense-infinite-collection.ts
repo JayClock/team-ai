@@ -8,24 +8,75 @@ import { use, useMemo, useRef, useState } from 'react';
 import { ResourceLike } from './use-resolve-resource';
 import { useSuspenseResolveResource } from './use-suspense-resolve-resource';
 
+/**
+ * The result of a useSuspenseInfiniteCollection hook.
+ * @category Types
+ */
 export type UseSuspenseInfiniteCollectionResponse<T extends Entity> = {
+  /** Array of collection item states */
   items: State<ExtractCollectionElement<T>>[];
+  /** Whether there's a next page available */
   hasNextPage: boolean;
+  /** Function to load the next page of items */
   loadNextPage: () => Promise<void>;
+  /** True when loading additional pages (not initial load) */
   isLoadingMore: boolean;
+  /** Error object if loading more pages failed */
   error: Error | null;
 };
 
 /**
  * Suspense-enabled hook for fetching a paginated collection.
  *
- * This hook uses React 19's `use()` hook to suspend rendering until
+ * Uses React 19's `use()` hook to suspend rendering until
  * the initial collection data is available. The promise is cached in useMemo
  * to ensure the same promise reference is used across React re-renders
  * during suspend (React 19 requirement).
  *
+ * @category Suspense Hooks
  * @param resourceLike - A Resource, ResourceRelation, or URI string pointing to a collection
  * @returns The collection items, pagination state, and loading functions
+ *
+ * @example
+ * ```tsx
+ * import { Suspense } from 'react';
+ * import { useSuspenseInfiniteCollection, useClient } from '@hateoas-ts/resource-react';
+ * import type { User } from './types';
+ *
+ * function ConversationList({ userId }: { userId: string }) {
+ *   const client = useClient();
+ *   const { items, hasNextPage, loadNextPage, isLoadingMore } =
+ *     useSuspenseInfiniteCollection(
+ *       client.go<User>(`/api/users/${userId}`).follow('conversations')
+ *     );
+ *
+ *   // No initial loading check - suspends until first page is ready
+ *   return (
+ *     <div>
+ *       {items.map((item) => (
+ *         <div key={item.data.id}>{item.data.title}</div>
+ *       ))}
+ *       {hasNextPage && (
+ *         <button onClick={loadNextPage} disabled={isLoadingMore}>
+ *           {isLoadingMore ? 'Loading...' : 'Load More'}
+ *         </button>
+ *       )}
+ *     </div>
+ *   );
+ * }
+ *
+ * // Wrap with Suspense boundary
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<div>Loading conversations...</div>}>
+ *       <ConversationList userId="123" />
+ *     </Suspense>
+ *   );
+ * }
+ * ```
+ *
+ * @remarks
+ * Requires React 19 or later. For React 18, use {@link useInfiniteCollection} instead.
  */
 export function useSuspenseInfiniteCollection<T extends Entity>(
   resourceLike: ResourceLike<T>,

@@ -97,7 +97,9 @@ jobs:
         run: npx nx run-many -t build --parallel=true
 
       - name: Validate TypeDoc
-        run: npx nx docs:validate @hateoas-ts/resource
+        run: |
+          npx nx docs:validate @hateoas-ts/resource
+          npx nx docs:validate @hateoas-ts/resource-react
 
       - name: Run all tests
         run: npx nx run-many -t test --parallel=true

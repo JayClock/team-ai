@@ -6,6 +6,8 @@ on:
     paths:
       - 'packages/resource/src/**'
       - 'packages/resource/typedoc.json'
+      - 'packages/resource-react/src/**'
+      - 'packages/resource-react/typedoc.json'
       - '.github/workflows/docs.yml'
 
 permissions:
@@ -39,10 +41,19 @@ jobs:
       - run: pnpm install
 
       - name: Build packages
-        run: npx nx build @hateoas-ts/resource
+        run: npx nx run-many -t build -p @hateoas-ts/resource @hateoas-ts/resource-react
 
       - name: Generate TypeDoc
-        run: npx nx docs @hateoas-ts/resource
+        run: |
+          npx nx docs @hateoas-ts/resource
+          npx nx docs @hateoas-ts/resource-react
+
+      - name: Prepare combined docs
+        run: |
+          mkdir -p docs
+          cp -r packages/resource/docs docs/resource
+          cp -r packages/resource-react/docs docs/resource-react
+          echo '<html><head><meta http-equiv="refresh" content="0; url=resource/"></head></html>' > docs/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -50,7 +61,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'packages/resource/docs'
+          path: 'docs'
 
       - name: Deploy to GitHub Pages
         id: deployment
