@@ -1,3 +1,11 @@
+plugins {
+    id 'org.asciidoctor.jvm.convert' version '4.0.4'
+}
+
+ext {
+    snippetsDir = file('build/generated-snippets')
+}
+
 dependencies {
     implementation project(':backend:domain')
     implementation 'jakarta.inject:jakarta.inject-api'
@@ -15,4 +23,41 @@ dependencies {
     testImplementation 'io.rest-assured:rest-assured'
     testImplementation 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Spring REST Docs with REST-assured
+    testImplementation 'org.springframework.restdocs:spring-restdocs-restassured'
+}
+
+test {
+    outputs.dir snippetsDir
+}
+
+asciidoctor {
+    inputs.dir snippetsDir
+    dependsOn test
+    baseDirFollowsSourceFile()
+
+    attributes(
+        'snippets': snippetsDir,
+        'project-version': project.version,
+        'source-highlighter': 'highlight.js',
+        'toc': 'left',
+        'toclevels': 3,
+        'sectlinks': true,
+        'sectanchors': true
+    )
+
+    sources {
+        include 'index.adoc'
+    }
+
+    outputDir = file('build/docs/api')
+}
+
+// Package docs into JAR
+jar {
+    dependsOn asciidoctor
+    from("${asciidoctor.outputDir}") {
+        into 'static/docs'
+    }
 }

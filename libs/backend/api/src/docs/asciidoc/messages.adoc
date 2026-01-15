@@ -1,0 +1,69 @@
+[[messages]]
+=== Messages
+
+Message resources represent individual messages within a conversation.
+
+[[messages-list]]
+==== List Messages
+
+Retrieves all messages in a conversation.
+
+===== Path Parameters
+
+include::{snippets}/messages/list/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/messages/list/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/messages/list/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/messages/list/response-fields.adoc[]
+
+[[messages-send-stream]]
+==== Send Message (Streaming)
+
+Sends a message and receives AI response as Server-Sent Events (SSE).
+The response follows the Vercel AI SDK Data Stream Protocol format.
+
+===== Path Parameters
+
+include::{snippets}/messages/send-stream/path-parameters.adoc[]
+
+===== Request Fields
+
+include::{snippets}/messages/send-stream/request-fields.adoc[]
+
+===== Example Request
+
+include::{snippets}/messages/send-stream/curl-request.adoc[]
+
+===== SSE Response Format
+
+The response is streamed as Server-Sent Events with the following event types:
+
+|===
+|Event Type |Description
+
+|`start`
+|Indicates the beginning of the response stream
+
+|`text-start`
+|Indicates the beginning of text content
+
+|`text-delta`
+|Contains a chunk of text content in the `delta` field
+
+|`text-end`
+|Indicates the end of text content
+
+|`finish`
+|Indicates the end of the response stream
+
+|`[DONE]`
+|Final marker indicating stream completion
+|===

@@ -1,0 +1,46 @@
+[[users]]
+=== Users
+
+User resources represent authenticated users in the system.
+
+[[users-get]]
+==== Get User
+
+Retrieves a single user by their unique identifier.
+
+===== Path Parameters
+
+include::{snippets}/users/get-user/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/users/get-user/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/users/get-user/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/users/get-user/response-fields.adoc[]
+
+===== HATEOAS Links
+
+include::{snippets}/users/get-user/links.adoc[]
+
+[[users-not-found]]
+==== User Not Found
+
+When a user does not exist, the API returns a 404 response.
+
+===== Path Parameters
+
+include::{snippets}/users/get-not-found/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/users/get-not-found/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/users/get-not-found/http-response.adoc[]

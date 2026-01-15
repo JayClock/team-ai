@@ -5,6 +5,12 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.*;
 
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -20,10 +26,16 @@ public class UsersApiTest extends ApiTest {
   @Test
   public void should_return_404_if_customer_not_exist() {
     when(users.findById(eq("not_exist"))).thenReturn(Optional.empty());
-    given()
+
+    given(documentationSpec)
         .accept(MediaTypes.HAL_JSON.toString())
+        .filter(
+            document(
+                "users/get-not-found",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user"))))
         .when()
-        .get("/users/not_exist")
+        .get("/users/{userId}", "not_exist")
         .then()
         .statusCode(404);
   }
@@ -40,10 +52,18 @@ public class UsersApiTest extends ApiTest {
             conversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
 
-    given()
+    given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .filter(
+            document(
+                "users/get-user",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user")),
+                responseFields(userResponseFields()),
+                halLinksSnippet(
+                    selfLink(), accountsLink(), conversationsLink(), createConversationLink())))
         .when()
-        .get("/users/" + user.getIdentity())
+        .get("/users/{userId}", user.getIdentity())
         .then()
         .statusCode(200)
         .body("id", is(user.getIdentity()))

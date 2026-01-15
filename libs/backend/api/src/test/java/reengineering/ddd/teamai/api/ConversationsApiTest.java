@@ -6,6 +6,15 @@ import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.responseHeaders;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
+import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.*;
 
 import jakarta.ws.rs.core.MediaType;
 import java.util.Optional;
@@ -53,10 +62,18 @@ public class ConversationsApiTest extends ApiTest {
     when(conversations.size()).thenReturn(400);
     when(conversations.subCollection(eq(0), eq(40))).thenReturn(new EntityList<>(conversation));
 
-    given()
+    given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .filter(
+            document(
+                "conversations/list-paginated",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user")),
+                paginationParameters(),
+                responseFields(pagedConversationsResponseFields()),
+                paginationLinks()))
         .when()
-        .get("/users/" + user.getIdentity() + "/conversations")
+        .get("/users/{userId}/conversations", user.getIdentity())
         .then()
         .statusCode(200)
         .body("_links.self.href", is("/api/users/" + user.getIdentity() + "/conversations?page=0"))
@@ -108,12 +125,21 @@ public class ConversationsApiTest extends ApiTest {
         new Conversation("2", description, mock(Conversation.Messages.class));
     when(user.add(any(ConversationDescription.class))).thenReturn(newConversation);
 
-    given()
+    given(documentationSpec)
         .accept(MediaTypes.HAL_JSON.toString())
         .contentType(MediaType.APPLICATION_JSON)
+        .filter(
+            document(
+                "conversations/create",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user")),
+                requestFields(createConversationRequestFields()),
+                responseFields(conversationResponseFields()),
+                responseHeaders(
+                    headerWithName("Location").description("URI of the created conversation"))))
         .body(description)
         .when()
-        .post("/users/" + user.getIdentity() + "/conversations")
+        .post("/users/{userId}/conversations", user.getIdentity())
         .then()
         .statusCode(201)
         .header(
@@ -132,10 +158,22 @@ public class ConversationsApiTest extends ApiTest {
     when(userConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.of(conversation));
 
-    given()
+    given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .filter(
+            document(
+                "conversations/get-single",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user"),
+                    parameterWithName("conversationId")
+                        .description("Unique identifier of the conversation")),
+                responseFields(conversationResponseFields()),
+                halLinksSnippet(selfLink(), messagesLink(), sendMessageLink(), deleteConversationLink())))
         .when()
-        .get("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
+        .get(
+            "/users/{userId}/conversations/{conversationId}",
+            user.getIdentity(),
+            conversation.getIdentity())
         .then()
         .statusCode(200)
         .body("id", is(conversation.getIdentity()))
@@ -186,10 +224,20 @@ public class ConversationsApiTest extends ApiTest {
     when(userConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.of(conversation));
 
-    given()
+    given(documentationSpec)
         .accept(MediaTypes.HAL_JSON.toString())
+        .filter(
+            document(
+                "conversations/delete",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user"),
+                    parameterWithName("conversationId")
+                        .description("Unique identifier of the conversation to delete"))))
         .when()
-        .delete("/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity())
+        .delete(
+            "/users/{userId}/conversations/{conversationId}",
+            user.getIdentity(),
+            conversation.getIdentity())
         .then()
         .statusCode(204);
 
@@ -200,10 +248,17 @@ public class ConversationsApiTest extends ApiTest {
   public void should_return_404_when_deleting_non_existent_conversation() {
     when(userConversations.findByIdentity("non-existent")).thenReturn(Optional.empty());
 
-    given()
+    given(documentationSpec)
         .accept(MediaTypes.HAL_JSON.toString())
+        .filter(
+            document(
+                "conversations/delete-not-found",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user"),
+                    parameterWithName("conversationId")
+                        .description("Unique identifier of the conversation"))))
         .when()
-        .delete("/users/" + user.getIdentity() + "/conversations/non-existent")
+        .delete("/users/{userId}/conversations/{conversationId}", user.getIdentity(), "non-existent")
         .then()
         .statusCode(404);
   }

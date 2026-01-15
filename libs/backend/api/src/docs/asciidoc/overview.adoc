@@ -1,0 +1,46 @@
+=== Introduction
+
+Team AI provides a HATEOAS-compliant REST API using HAL+JSON and HAL-FORMS media types.
+This documentation is automatically generated from tests using Spring REST Docs.
+
+==== Media Types
+
+|===
+|Media Type |Description |Use Case
+
+|`application/hal+json`
+|HAL format with `_links` for navigation
+|General API consumption
+
+|`application/prs.hal-forms+json`
+|HAL-FORMS with `_templates` for actions
+|AI agents, dynamic form generation
+|===
+
+==== HATEOAS-Driven Navigation
+
+Clients should navigate the API by following links rather than constructing URLs.
+All resources include `_links` with discoverable relationships.
+
+.Entry Point Discovery
+[source,bash]
+----
+curl -X GET https://api.team-ai.example.com/api/
+----
+
+==== Authentication
+
+The API uses OAuth2 with GitHub as the identity provider.
+Follow the `login` link from the root resource to authenticate.
+
+==== HAL-FORMS Templates
+
+Resources include `_templates` that describe available actions.
+Each template specifies:
+
+* `method` - HTTP method (GET, POST, PUT, DELETE)
+* `target` - Target URL (if different from self link)
+* `properties` - Required input fields
+* `contentType` - Expected Content-Type for request body
+
+This is particularly useful for AI agents that need to discover API capabilities dynamically.

@@ -1,0 +1,25 @@
+[[accounts]]
+=== Accounts
+
+Account resources represent OAuth provider accounts linked to a user.
+
+[[accounts-list]]
+==== List Accounts
+
+Retrieves all linked accounts for a user.
+
+===== Path Parameters
+
+include::{snippets}/accounts/list/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/accounts/list/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/accounts/list/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/accounts/list/response-fields.adoc[]

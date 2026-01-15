@@ -1,0 +1,25 @@
+[[root]]
+=== Root Resource
+
+The root resource is the entry point for API discovery.
+
+[[root-anonymous]]
+==== Anonymous Access
+
+For unauthenticated users, the root resource provides a login link.
+
+===== Example Request
+
+include::{snippets}/root/anonymous/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/root/anonymous/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/root/anonymous/response-fields.adoc[]
+
+===== HATEOAS Links
+
+include::{snippets}/root/anonymous/links.adoc[]

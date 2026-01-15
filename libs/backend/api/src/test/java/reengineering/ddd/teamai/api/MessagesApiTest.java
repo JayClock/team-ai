@@ -8,6 +8,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
+import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.*;
 
 import jakarta.ws.rs.core.MediaType;
 import java.util.Optional;
@@ -55,15 +62,21 @@ public class MessagesApiTest extends ApiTest {
 
     when(messages.findAll()).thenReturn(new EntityList<>(message, message2));
 
-    given()
+    given(documentationSpec)
         .accept(MediaTypes.HAL_JSON.toString())
+        .filter(
+            document(
+                "messages/list",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user"),
+                    parameterWithName("conversationId")
+                        .description("Unique identifier of the conversation")),
+                responseFields(messagesCollectionResponseFields())))
         .when()
         .get(
-            "/users/"
-                + user.getIdentity()
-                + "/conversations/"
-                + conversation.getIdentity()
-                + "/messages")
+            "/users/{userId}/conversations/{conversationId}/messages",
+            user.getIdentity(),
+            conversation.getIdentity())
         .then()
         .statusCode(200)
         .body("_embedded.messages.size()", is(2))
@@ -113,19 +126,25 @@ public class MessagesApiTest extends ApiTest {
         .thenReturn(Flux.just("Hello", " there", "!", " How", " can", " I", " help", " you", "?"));
 
     String responseBody =
-        given()
+        given(documentationSpec)
             .urlEncodingEnabled(false)
             .accept(MediaType.SERVER_SENT_EVENTS)
             .contentType(MediaType.APPLICATION_JSON)
             .header("X-Api-Key", "test-api-key")
+            .filter(
+                document(
+                    "messages/send-stream",
+                    pathParameters(
+                        parameterWithName("userId").description("Unique identifier of the user"),
+                        parameterWithName("conversationId")
+                            .description("Unique identifier of the conversation")),
+                    requestFields(sendMessageRequestFields())))
             .body(userDescription)
             .when()
             .post(
-                "/users/"
-                    + user.getIdentity()
-                    + "/conversations/"
-                    + conversation.getIdentity()
-                    + "/messages/stream")
+                "/users/{userId}/conversations/{conversationId}/messages/stream",
+                user.getIdentity(),
+                conversation.getIdentity())
             .then()
             .statusCode(200)
             .extract()

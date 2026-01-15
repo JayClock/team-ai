@@ -1,0 +1,31 @@
+= Team AI API Documentation
+:doctype: book
+:icons: font
+:source-highlighter: highlight.js
+:toc: left
+:toclevels: 3
+:sectlinks:
+:sectanchors:
+
+[[overview]]
+== Overview
+
+include::overview.adoc[]
+
+[[resources]]
+== Resources
+
+include::root.adoc[]
+
+include::users.adoc[]
+
+include::accounts.adoc[]
+
+include::conversations.adoc[]
+
+include::messages.adoc[]
+
+[[hateoas]]
+== HATEOAS Navigation Guide
+
+include::hateoas-guide.adoc[]

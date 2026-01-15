@@ -1,0 +1,113 @@
+[[conversations]]
+=== Conversations
+
+Conversation resources represent AI chat conversations.
+
+[[conversations-list]]
+==== List Conversations (Paginated)
+
+Retrieves all conversations for a user with pagination support.
+
+===== Path Parameters
+
+include::{snippets}/conversations/list-paginated/path-parameters.adoc[]
+
+===== Query Parameters
+
+include::{snippets}/conversations/list-paginated/query-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/conversations/list-paginated/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/conversations/list-paginated/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/conversations/list-paginated/response-fields.adoc[]
+
+===== Pagination Links
+
+include::{snippets}/conversations/list-paginated/links.adoc[]
+
+[[conversations-get]]
+==== Get Single Conversation
+
+Retrieves a single conversation by ID.
+
+===== Path Parameters
+
+include::{snippets}/conversations/get-single/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/conversations/get-single/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/conversations/get-single/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/conversations/get-single/response-fields.adoc[]
+
+===== HATEOAS Links
+
+include::{snippets}/conversations/get-single/links.adoc[]
+
+[[conversations-create]]
+==== Create Conversation
+
+Creates a new conversation for a user. Discover this action via the `create-conversation` link on the User resource.
+
+===== Path Parameters
+
+include::{snippets}/conversations/create/path-parameters.adoc[]
+
+===== Request Fields
+
+include::{snippets}/conversations/create/request-fields.adoc[]
+
+===== Example Request
+
+include::{snippets}/conversations/create/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/conversations/create/http-response.adoc[]
+
+===== Response Headers
+
+include::{snippets}/conversations/create/response-headers.adoc[]
+
+[[conversations-delete]]
+==== Delete Conversation
+
+Deletes a conversation. Discover this action via the `delete-conversation` link on the Conversation resource.
+
+===== Path Parameters
+
+include::{snippets}/conversations/delete/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/conversations/delete/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/conversations/delete/http-response.adoc[]
+
+[[conversations-delete-not-found]]
+==== Delete Non-Existent Conversation
+
+Returns 404 when trying to delete a conversation that doesn't exist.
+
+===== Path Parameters
+
+include::{snippets}/conversations/delete-not-found/path-parameters.adoc[]
+
+===== Example Response
+
+include::{snippets}/conversations/delete-not-found/http-response.adoc[]

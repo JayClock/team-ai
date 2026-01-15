@@ -6,6 +6,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
+import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.*;
 
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,10 +47,16 @@ public class AccountsApiTest extends ApiTest {
 
   @Test
   public void should_return_accounts_in_user() {
-    given()
+    given(documentationSpec)
         .accept(MediaTypes.HAL_JSON.toString())
+        .filter(
+            document(
+                "accounts/list",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user")),
+                responseFields(accountsCollectionResponseFields())))
         .when()
-        .get("/users/" + user.getIdentity() + "/accounts")
+        .get("/users/{userId}/accounts", user.getIdentity())
         .then()
         .statusCode(200)
         .body("_embedded.accounts.size()", is(1))

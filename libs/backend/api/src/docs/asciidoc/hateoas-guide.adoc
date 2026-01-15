@@ -1,0 +1,117 @@
+=== Understanding HAL-FORMS
+
+HAL-FORMS extends HAL with `_templates` that describe available actions. This is particularly useful for AI agents that need to discover API capabilities.
+
+==== Template Structure
+
+[source,json]
+----
+{
+  "_templates": {
+    "default": {
+      "method": "PUT",
+      "contentType": "application/json",
+      "properties": [
+        {"name": "title", "type": "text", "required": true}
+      ]
+    },
+    "send-message": {
+      "method": "POST",
+      "target": "/api/users/123/conversations/456/messages/stream",
+      "properties": [
+        {"name": "role", "type": "text"},
+        {"name": "content", "type": "text"}
+      ]
+    }
+  }
+}
+----
+
+==== For AI Agents
+
+1. **Discover capabilities**: Parse `_templates` to find available actions
+2. **Build requests**: Use `method`, `target`, and `properties` to construct requests
+3. **Follow links**: Use `_links` for navigation, never hardcode URLs
+
+==== Example: Creating a Conversation
+
+[source,bash]
+----
+# 1. Get user resource
+USER=$(curl -s https://api.team-ai.example.com/api/users/john)
+
+# 2. Extract create-conversation link
+CREATE_URL=$(echo $USER | jq -r '._links["create-conversation"].href')
+
+# 3. Get template properties
+TEMPLATE=$(echo $USER | jq '._templates["create-conversation"]')
+
+# 4. Build and send request
+curl -X POST "$CREATE_URL" \
+     -H "Content-Type: application/json" \
+     -d '{"title": "New Conversation"}'
+----
+
+==== Example: Navigating to Messages
+
+[source,bash]
+----
+# 1. Get conversation resource
+CONV=$(curl -s https://api.team-ai.example.com/api/users/john/conversations/1)
+
+# 2. Follow the messages link
+MESSAGES_URL=$(echo $CONV | jq -r '._links.messages.href')
+
+# 3. Fetch messages
+curl -s "$MESSAGES_URL"
+----
+
+==== Link Relations Reference
+
+|===
+|Relation |Description |Resource Type
+
+|`self`
+|Canonical link to current resource
+|All resources
+
+|`login`
+|OAuth2 login endpoint
+|Root (anonymous)
+
+|`user`
+|Link to authenticated user
+|Root (authenticated)
+
+|`accounts`
+|User's linked OAuth accounts
+|User
+
+|`conversations`
+|User's conversations collection
+|User
+
+|`create-conversation`
+|Action to create new conversation
+|User
+
+|`messages`
+|Conversation's messages collection
+|Conversation
+
+|`send-message`
+|SSE endpoint for sending messages
+|Conversation
+
+|`delete-conversation`
+|Action to delete conversation
+|Conversation
+
+|`next`
+|Next page (pagination)
+|Collections
+
+|`prev`
+|Previous page (pagination)
+|Collections
+|===
