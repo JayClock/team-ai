@@ -23,8 +23,7 @@
   </select>
 
   <insert id="insertConversation" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder"
-          flushCache="true">
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
     INSERT INTO conversations(title, user_id)
     VALUES (#{description.title}, #{user_id})
   </insert>
@@ -43,7 +42,7 @@
     limit #{size} offset #{from}
   </select>
 
-  <delete id="deleteConversation" flushCache="true">
+  <delete id="deleteConversation">
     DELETE FROM messages WHERE conversation_id = #{id};
     DELETE FROM conversations
     WHERE user_id = #{user_id} AND id = #{id}

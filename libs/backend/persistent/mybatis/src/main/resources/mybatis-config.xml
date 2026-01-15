@@ -3,7 +3,7 @@
         "https://mybatis.org/dtd/mybatis-3-config.dtd">
 <configuration>
     <settings>
-        <setting name="cacheEnabled" value="true"/>
+        <setting name="cacheEnabled" value="false"/>
     </settings>
     <objectFactory type="reengineering.ddd.mybatis.support.InjectableObjectFactory"/>
 </configuration>

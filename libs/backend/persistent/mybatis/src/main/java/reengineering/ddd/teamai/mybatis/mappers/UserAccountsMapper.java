@@ -1,6 +1,5 @@
 package reengineering.ddd.teamai.mybatis.mappers;
 
-import org.apache.ibatis.annotations.CacheNamespaceRef;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import reengineering.ddd.mybatis.support.IdHolder;
@@ -8,7 +7,6 @@ import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.model.Account;
 
 @Mapper
-@CacheNamespaceRef(UsersMapper.class)
 public interface UserAccountsMapper {
   Account findAccountByUserAndId(@Param("user_id") int userId, @Param("id") int id);
 

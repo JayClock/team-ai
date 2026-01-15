@@ -1,7 +1,6 @@
 package reengineering.ddd.teamai.mybatis.mappers;
 
 import java.util.List;
-import org.apache.ibatis.annotations.CacheNamespaceRef;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import reengineering.ddd.mybatis.support.IdHolder;
@@ -9,7 +8,6 @@ import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Message;
 
 @Mapper
-@CacheNamespaceRef(UsersMapper.class)
 public interface ConversationMessagesMapper {
   Message findMessageByConversationAndId(
       @Param("conversation_id") int conversationId, @Param("id") int id);

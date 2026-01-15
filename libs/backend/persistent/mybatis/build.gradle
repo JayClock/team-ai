@@ -2,9 +2,10 @@ dependencies {
     implementation project(':backend:domain')
     implementation project(':backend:infrastructure:spring-ai')
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
+    implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'
     implementation 'jakarta.inject:jakarta.inject-api'
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.4'
-    implementation 'org.mybatis.caches:mybatis-caffeine:1.0.0'
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.postgresql:postgresql'

@@ -8,18 +8,21 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
+import reengineering.ddd.teamai.mybatis.config.CacheConfig;
 
 @MybatisTest
-@Import({TestContainerConfig.class, FlywayConfig.class})
+@Import({TestContainerConfig.class, FlywayConfig.class, TestCacheConfig.class, CacheConfig.class})
 @ExtendWith(TestDataSetup.class)
 public class AssociationsTest {
   @Inject private Users users;
+  @Inject private CacheManager cacheManager;
 
   private User user;
 
@@ -27,6 +30,8 @@ public class AssociationsTest {
 
   @BeforeEach
   public void setup() {
+    // Clear all caches before each test
+    cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
     user = users.findById(userId).get();
   }
 

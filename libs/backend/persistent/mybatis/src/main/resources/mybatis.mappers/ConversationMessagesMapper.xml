@@ -27,8 +27,7 @@
   </select>
 
   <insert id="insertMessage" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder"
-          flushCache="true">
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
     insert into messages (conversation_id, role, content)
     values (#{conversation_id}, #{description.role}, #{description.content})
   </insert>
