@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.api;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
@@ -12,6 +13,7 @@ import static org.springframework.restdocs.restassured.RestAssuredRestDocumentat
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.*;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
 
+import io.restassured.http.ContentType;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.hateoas.MediaTypes;
@@ -83,5 +85,45 @@ public class UsersApiTest extends ApiTest {
         .body("_templates.create-conversation.properties", hasSize(1));
 
     verify(users, times(1)).findById(user.getIdentity());
+  }
+
+  @Test
+  public void should_update_user() {
+    User.Accounts accounts = mock(User.Accounts.class);
+    User.Conversations conversations = mock(User.Conversations.class);
+    User user =
+        new User(
+            "john.smith",
+            new UserDescription("John Smith", "john.smith@email.com"),
+            accounts,
+            conversations);
+    User updatedUser =
+        new User(
+            "john.smith",
+            new UserDescription("John Updated", "john.updated@email.com"),
+            accounts,
+            conversations);
+    when(users.findById(user.getIdentity()))
+        .thenReturn(Optional.of(user))
+        .thenReturn(Optional.of(updatedUser));
+    when(accounts.findAll()).thenReturn(new EntityList<>());
+
+    given(documentationSpec)
+        .contentType(ContentType.JSON)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .body("{\"name\": \"John Updated\", \"email\": \"john.updated@email.com\"}")
+        .filter(
+            document(
+                "users/update-user",
+                pathParameters(
+                    parameterWithName("userId").description("Unique identifier of the user"))))
+        .when()
+        .put("/users/{userId}", user.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("name", is("John Updated"))
+        .body("email", is("john.updated@email.com"));
+
+    verify(users).update(eq("john.smith"), any(User.UserChange.class));
   }
 }

@@ -1,5 +1,8 @@
 package reengineering.ddd.teamai.model;
 
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.AccountDescription;
@@ -63,5 +66,32 @@ public class User implements Entity<String, UserDescription> {
     Conversation add(ConversationDescription description);
 
     void delete(String id);
+  }
+
+  public static class UserChange {
+    @NotBlank
+    @Size(max = 255)
+    private String name;
+
+    @NotBlank
+    @Email
+    @Size(max = 255)
+    private String email;
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getEmail() {
+      return email;
+    }
+
+    public void setEmail(String email) {
+      this.email = email;
+    }
   }
 }

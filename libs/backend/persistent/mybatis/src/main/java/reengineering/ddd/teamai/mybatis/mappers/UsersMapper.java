@@ -12,4 +12,6 @@ public interface UsersMapper {
 
   int insertUser(
       @Param("holder") IdHolder id, @Param("description") UserDescription userDescription);
+
+  int updateUser(@Param("id") int id, @Param("request") User.UserChange request);
 }

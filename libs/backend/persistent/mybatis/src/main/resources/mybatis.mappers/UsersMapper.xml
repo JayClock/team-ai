@@ -39,4 +39,10 @@
     on conflict (email) do update set name = excluded.name
     returning id
   </insert>
+
+  <update id="updateUser">
+    update users
+    set name = #{request.name}, email = #{request.email}
+    where id = #{id}
+  </update>
 </mapper>

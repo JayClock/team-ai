@@ -35,4 +35,10 @@ public class Users implements reengineering.ddd.teamai.model.Users {
     mapper.insertUser(idHolder, description);
     return mapper.findUserById(idHolder.id());
   }
+
+  @Override
+  @CacheEvict(value = CACHE_NAME, key = "#id")
+  public void update(String id, User.UserChange request) {
+    mapper.updateUser(Integer.parseInt(id), request);
+  }
 }

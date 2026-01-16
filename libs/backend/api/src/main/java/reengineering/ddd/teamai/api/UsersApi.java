@@ -25,7 +25,7 @@ public class UsersApi {
         .findById(id)
         .map(
             (user) -> {
-              UserApi userApi = new UserApi(user);
+              UserApi userApi = new UserApi(user, users);
               return resourceContext.initResource(userApi);
             })
         .orElse(null);

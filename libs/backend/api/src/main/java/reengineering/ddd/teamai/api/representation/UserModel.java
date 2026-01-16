@@ -36,7 +36,7 @@ public class UserModel extends RepresentationModel<UserModel> {
     add(
         Affordances.of(selfRel)
             .afford(HttpMethod.PUT)
-            .withInput(UserDescription.class)
+            .withInput(User.UserChange.class)
             .withName("update-user")
             .toLink());
 
