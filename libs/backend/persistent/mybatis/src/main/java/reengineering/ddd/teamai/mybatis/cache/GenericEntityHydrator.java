@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,12 +22,12 @@ import reengineering.ddd.teamai.model.Message;
 @Component
 public class GenericEntityHydrator {
 
+  private static final String MEMORY_ENTITY_LIST_CLASS =
+      "reengineering.ddd.mybatis.memory.EntityList";
+
   private final Supplier<InjectableObjectFactory> objectFactorySupplier;
-
   private final Map<Class<?>, EntityMetadata> metadataCache = new ConcurrentHashMap<>();
-
   private final Map<Class<?>, List<AssociationConfig>> registry = new ConcurrentHashMap<>();
-
   private final Set<Class<?>> entityTypes = ConcurrentHashMap.newKeySet();
 
   public GenericEntityHydrator(Supplier<InjectableObjectFactory> objectFactorySupplier) {
@@ -54,7 +55,8 @@ public class GenericEntityHydrator {
         if (mapping != null) {
           Class<?> entityType = mapping.entity();
           AssociationConfig config =
-              new AssociationConfig(mapping.field(), associationClass, mapping.parentIdField());
+              new AssociationConfig(
+                  mapping.field(), associationClass, mapping.parentIdField(), mapping.eager());
 
           registry.computeIfAbsent(entityType, k -> new ArrayList<>()).add(config);
           entityTypes.add(entityType);
@@ -98,11 +100,47 @@ public class GenericEntityHydrator {
   }
 
   public <E extends Entity<ID, D>, ID, D> CacheEntry<ID, D> extract(E entity) {
+    Map<String, List<CacheEntry<?, ?>>> nestedCollections = extractNestedCollections(entity);
+
     return new CacheEntry<>(
         entity.getClass(),
         entity.getIdentity(),
         entity.getDescription(),
-        parseInternalId(entity.getIdentity()));
+        parseInternalId(entity.getIdentity()),
+        nestedCollections);
+  }
+
+  private Map<String, List<CacheEntry<?, ?>>> extractNestedCollections(Entity<?, ?> entity) {
+    List<AssociationConfig> configs = registry.getOrDefault(entity.getClass(), List.of());
+    Map<String, List<CacheEntry<?, ?>>> nestedCollections = new HashMap<>();
+
+    for (AssociationConfig config : configs) {
+      if (config.eager()) {
+        try {
+          Field field = entity.getClass().getDeclaredField(config.fieldName());
+          field.setAccessible(true);
+          Object association = field.get(entity);
+
+          if (isMemoryEntityList(association)) {
+            List<?> nestedEntities = extractListFromMemoryEntityList(association);
+            List<CacheEntry<?, ?>> nestedEntries = new ArrayList<>();
+
+            for (Object nestedEntity : nestedEntities) {
+              if (nestedEntity instanceof Entity<?, ?> e) {
+                nestedEntries.add(extract(e));
+              }
+            }
+
+            nestedCollections.put(config.fieldName(), nestedEntries);
+          }
+        } catch (ReflectiveOperationException e) {
+          throw new IllegalStateException(
+              "Failed to extract nested collection: " + config.fieldName(), e);
+        }
+      }
+    }
+
+    return nestedCollections;
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -126,7 +164,12 @@ public class GenericEntityHydrator {
 
       for (int i = 0; i < metadata.associations().size(); i++) {
         EntityMetadata.AssociationFieldMeta assocMeta = metadata.associations().get(i);
-        args[2 + i] = createAssociation(assocMeta, entry.internalId());
+
+        if (assocMeta.eager()) {
+          args[2 + i] = createEagerAssociation(assocMeta, entry.nestedCollections());
+        } else {
+          args[2 + i] = createLazyAssociation(assocMeta, entry.internalId());
+        }
       }
 
       return (E) metadata.constructor().newInstance(args);
@@ -135,10 +178,55 @@ public class GenericEntityHydrator {
     }
   }
 
-  /** 批量水合：List<CacheEntry> → List<Entity> */
   @SuppressWarnings("unchecked")
   public <E extends Entity<?, ?>> List<E> hydrateList(List<?> entries) {
     return entries.stream().map(e -> (E) hydrate((CacheEntry<?, ?>) e)).toList();
+  }
+
+  @SuppressWarnings("unchecked")
+  private Object createLazyAssociation(EntityMetadata.AssociationFieldMeta meta, Object parentId) {
+    try {
+      InjectableObjectFactory factory = objectFactorySupplier.get();
+      Object association = factory.create((Class<Object>) meta.associationType());
+
+      if (parentId instanceof Integer intId) {
+        meta.parentIdField().setInt(association, intId);
+      } else if (parentId instanceof Long longId) {
+        meta.parentIdField().setLong(association, longId);
+      } else {
+        meta.parentIdField().set(association, parentId);
+      }
+
+      return association;
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Failed to create lazy association", e);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private Object createEagerAssociation(
+      EntityMetadata.AssociationFieldMeta meta,
+      Map<String, List<CacheEntry<?, ?>>> nestedCollections) {
+    try {
+      InjectableObjectFactory factory = objectFactorySupplier.get();
+      Object association = factory.create((Class<Object>) meta.associationType());
+
+      List<CacheEntry<?, ?>> nestedEntries =
+          nestedCollections.getOrDefault(meta.fieldName(), List.of());
+
+      List<Object> hydratedEntities = new ArrayList<>();
+      for (CacheEntry<?, ?> nestedEntry : nestedEntries) {
+        hydratedEntities.add(hydrate(nestedEntry));
+      }
+
+      if (meta.listField() != null) {
+        meta.listField().set(association, hydratedEntities);
+      }
+
+      return association;
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Failed to create eager association", e);
+    }
   }
 
   private EntityMetadata getOrCreateMetadata(Class<?> entityType) {
@@ -162,8 +250,21 @@ public class GenericEntityHydrator {
         Field parentIdField = config.associationType().getDeclaredField(config.parentIdField());
         parentIdField.setAccessible(true);
 
+        Field listField = null;
+        if (config.eager()) {
+          listField = findListField(config.associationType());
+          if (listField != null) {
+            listField.setAccessible(true);
+          }
+        }
+
         assocMetas.add(
-            new EntityMetadata.AssociationFieldMeta(config.associationType(), parentIdField));
+            new EntityMetadata.AssociationFieldMeta(
+                config.fieldName(),
+                config.associationType(),
+                parentIdField,
+                config.eager(),
+                listField));
       }
 
       Constructor<?> constructor = entityType.getConstructor(paramTypes);
@@ -174,24 +275,43 @@ public class GenericEntityHydrator {
     }
   }
 
-  @SuppressWarnings("unchecked")
-  private Object createAssociation(EntityMetadata.AssociationFieldMeta meta, Object parentId) {
-    try {
-      InjectableObjectFactory factory = objectFactorySupplier.get();
-      Object association = factory.create((Class<Object>) meta.associationType());
+  private boolean isMemoryEntityList(Object obj) {
+    if (obj == null) return false;
 
-      if (parentId instanceof Integer intId) {
-        meta.parentIdField().setInt(association, intId);
-      } else if (parentId instanceof Long longId) {
-        meta.parentIdField().setLong(association, longId);
-      } else {
-        meta.parentIdField().set(association, parentId);
+    Class<?> clazz = obj.getClass();
+    while (clazz != null) {
+      if (clazz.getName().equals(MEMORY_ENTITY_LIST_CLASS)) {
+        return true;
       }
-
-      return association;
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException("Failed to create association", e);
+      clazz = clazz.getSuperclass();
     }
+    return false;
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<?> extractListFromMemoryEntityList(Object memoryEntityList) {
+    try {
+      Field listField = findListField(memoryEntityList.getClass());
+      if (listField != null) {
+        listField.setAccessible(true);
+        return (List<?>) listField.get(memoryEntityList);
+      }
+      return List.of();
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Failed to extract list from memory.EntityList", e);
+    }
+  }
+
+  private Field findListField(Class<?> clazz) {
+    Class<?> current = clazz;
+    while (current != null) {
+      try {
+        return current.getDeclaredField("list");
+      } catch (NoSuchFieldException e) {
+        current = current.getSuperclass();
+      }
+    }
+    return null;
   }
 
   private Object parseInternalId(Object identity) {

@@ -10,7 +10,7 @@ import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.cache.AssociationMapping;
 import reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper;
 
-@AssociationMapping(entity = User.class, field = "accounts", parentIdField = "userId")
+@AssociationMapping(entity = User.class, field = "accounts", parentIdField = "userId", eager = true)
 public class UserAccounts extends EntityList<String, Account> implements User.Accounts {
 
   private static final String CACHE_NAME = "userAccounts";

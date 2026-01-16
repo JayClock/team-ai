@@ -1,17 +1,25 @@
 package reengineering.ddd.teamai.mybatis.cache;
 
 import java.io.Serializable;
+import java.util.List;
+import java.util.Map;
 
 /**
- * 通用缓存条目，存储实体的原始数据。 支持泛型 ID 类型（String、Long、UUID 等）。
+ * Generic cache entry storing entity's raw data (without association dependencies).
  *
- * @param entityType 实体类型，用于水合时确定目标类
- * @param identity 泛型 ID，支持任意类型
- * @param description 实体描述数据
- * @param internalId 泛型内部 ID（可能是 int、long、String）
+ * @param entityType entity class type
+ * @param identity entity ID
+ * @param description entity description data
+ * @param internalId internal ID (for rebuilding associations)
+ * @param nestedCollections nested eager-loaded association data
  */
-public record CacheEntry<ID, D>(Class<?> entityType, ID identity, D description, Object internalId)
+public record CacheEntry<ID, D>(
+    Class<?> entityType,
+    ID identity,
+    D description,
+    Object internalId,
+    Map<String, List<CacheEntry<?, ?>>> nestedCollections)
     implements Serializable {
 
-  private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 2L;
 }

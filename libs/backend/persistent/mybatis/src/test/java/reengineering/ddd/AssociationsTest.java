@@ -204,6 +204,39 @@ public class AssociationsTest {
       public void should_not_find_account_by_user_and_id_if_not_exist() {
         assertTrue(user.accounts().findByIdentity("-1").isEmpty());
       }
+
+      @Test
+      public void should_preserve_eager_loaded_accounts_after_cache_hydration() {
+        // First access - loads from DB and caches
+        User firstUser = users.findById(userId).get();
+        int accountCount = firstUser.accounts().findAll().size();
+        assertTrue(accountCount > 0, "User should have at least one account");
+
+        // Get account details for later verification
+        String accountId = firstUser.accounts().findAll().iterator().next().getIdentity();
+        String accountProvider =
+            firstUser.accounts().findByIdentity(accountId).get().getDescription().provider();
+
+        // Clear the cache to force re-hydration from cached CacheEntry
+        cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
+
+        // Second access - should hydrate from cache with nested data intact
+        User cachedUser = users.findById(userId).get();
+
+        // Verify eager-loaded accounts are preserved after hydration
+        assertEquals(
+            accountCount,
+            cachedUser.accounts().findAll().size(),
+            "Eager-loaded accounts should be preserved after cache hydration");
+
+        // Verify account data is intact
+        var cachedAccount = cachedUser.accounts().findByIdentity(accountId);
+        assertTrue(cachedAccount.isPresent(), "Account should be found by identity");
+        assertEquals(
+            accountProvider,
+            cachedAccount.get().getDescription().provider(),
+            "Account data should be preserved after hydration");
+      }
     }
   }
 }

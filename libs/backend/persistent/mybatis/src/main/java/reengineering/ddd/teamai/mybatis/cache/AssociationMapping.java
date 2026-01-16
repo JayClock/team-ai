@@ -2,17 +2,30 @@ package reengineering.ddd.teamai.mybatis.cache;
 
 import java.lang.annotation.*;
 
-/** 标记 Association 类与 Entity 字段的映射关系。 替代硬编码的 REGISTRY Map，实现注解驱动的配置。 */
+/** Marks the mapping between Association class and Entity field. */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface AssociationMapping {
-  /** 目标实体类型 */
+  /** Target entity type */
   Class<?> entity();
 
-  /** 实体中的字段名 */
+  /** Field name in entity */
   String field();
 
-  /** Association 中存储父 ID 的字段名 */
+  /** Parent ID field name in Association */
   String parentIdField();
+
+  /**
+   * Whether eager loading.
+   *
+   * <p>Eager associations use memory.EntityList with data passed at construction. Cache requires
+   * recursive dehydration/hydration of nested entities.
+   *
+   * <p>Lazy associations use database.EntityList with data queried on demand. Cache only stores
+   * parentId and rebuilds association on hydration.
+   *
+   * @return true for eager loading, false for lazy loading (default)
+   */
+  boolean eager() default false;
 }

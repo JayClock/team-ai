@@ -5,20 +5,28 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
- * 缓存实体的反射元数据，避免重复反射查找。
+ * Cached reflection metadata for entities, avoiding repeated reflection lookups.
  *
- * @param entityType 实体类型
- * @param constructor 用于创建实体的构造函数
- * @param associations Association 字段元数据列表
+ * @param entityType entity class type
+ * @param constructor constructor for creating entity instances
+ * @param associations list of association field metadata
  */
 public record EntityMetadata(
     Class<?> entityType, Constructor<?> constructor, List<AssociationFieldMeta> associations) {
 
   /**
-   * Association 字段元数据。
+   * Association field metadata.
    *
-   * @param associationType Association 实现类
-   * @param parentIdField 已缓存的父 ID 字段（可直接设置值）
+   * @param fieldName field name in entity
+   * @param associationType association implementation class
+   * @param parentIdField parent ID field
+   * @param eager whether eager loading
+   * @param listField list field of memory.EntityList (only used when eager=true)
    */
-  public record AssociationFieldMeta(Class<?> associationType, Field parentIdField) {}
+  public record AssociationFieldMeta(
+      String fieldName,
+      Class<?> associationType,
+      Field parentIdField,
+      boolean eager,
+      Field listField) {}
 }
