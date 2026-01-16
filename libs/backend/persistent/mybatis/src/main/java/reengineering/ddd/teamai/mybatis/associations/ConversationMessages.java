@@ -1,7 +1,5 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
-import static reengineering.ddd.teamai.mybatis.config.CacheConfig.*;
-
 import jakarta.inject.Inject;
 import java.util.List;
 import org.springframework.cache.annotation.CacheEvict;
@@ -12,25 +10,33 @@ import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
+import reengineering.ddd.teamai.mybatis.cache.AssociationMapping;
 import reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper;
 
+@AssociationMapping(
+    entity = Conversation.class,
+    field = "messages",
+    parentIdField = "conversationId")
 public class ConversationMessages extends EntityList<String, Message>
     implements Conversation.Messages {
+
+  private static final String CACHE_NAME = "conversationMessages";
+  private static final String CACHE_LIST = "conversationMessagesList";
+  private static final String CACHE_COUNT = "conversationMessagesCount";
+
   private int conversationId;
 
   @Inject private ConversationMessagesMapper mapper;
 
   @Override
-  @Cacheable(
-      value = CACHE_CONVERSATION_MESSAGES_LIST,
-      key = "#root.target.conversationId + ':' + #from + ':' + #to")
+  @Cacheable(value = CACHE_LIST, key = "#root.target.conversationId + ':' + #from + ':' + #to")
   protected List<Message> findEntities(int from, int to) {
     return mapper.subMessagesByConversation(conversationId, from, to - from);
   }
 
   @Override
   @Cacheable(
-      value = CACHE_CONVERSATION_MESSAGES,
+      value = CACHE_NAME,
       key = "#root.target.conversationId + ':' + #id",
       unless = "#result == null")
   protected Message findEntity(String id) {
@@ -38,7 +44,7 @@ public class ConversationMessages extends EntityList<String, Message>
   }
 
   @Override
-  @Cacheable(value = CACHE_CONVERSATION_MESSAGES_COUNT, key = "#root.target.conversationId")
+  @Cacheable(value = CACHE_COUNT, key = "#root.target.conversationId")
   public int size() {
     return this.mapper.countMessagesByConversation(conversationId);
   }
@@ -46,22 +52,12 @@ public class ConversationMessages extends EntityList<String, Message>
   @Override
   @Caching(
       evict = {
-        @CacheEvict(value = CACHE_CONVERSATION_MESSAGES_LIST, allEntries = true),
-        @CacheEvict(value = CACHE_CONVERSATION_MESSAGES_COUNT, key = "#root.target.conversationId")
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_COUNT, key = "#root.target.conversationId")
       })
   public Message saveMessage(MessageDescription description) {
     IdHolder idHolder = new IdHolder();
     mapper.insertMessage(idHolder, conversationId, description);
-    return findEntityDirect(String.valueOf(idHolder.id()));
-  }
-
-  /** Direct DB access for post-insert lookup (avoids caching incomplete data) */
-  private Message findEntityDirect(String id) {
-    return mapper.findMessageByConversationAndId(conversationId, Integer.parseInt(id));
-  }
-
-  /** Getter for SpEL access to conversationId */
-  public int getConversationId() {
-    return conversationId;
+    return findEntity(String.valueOf(idHolder.id()));
   }
 }
