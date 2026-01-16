@@ -24,11 +24,7 @@ public class AccountsApi {
   public CollectionModel<AccountModel> findAll(@Context UriInfo uriInfo) {
     List<AccountModel> accounts =
         user.accounts().findAll().stream()
-            .map(
-                account ->
-                    new AccountModel(
-                        account,
-                        uriInfo.getAbsolutePathBuilder().path(AccountsApi.class, "findById")))
+            .map(account -> new AccountModel(user, account, uriInfo))
             .collect(Collectors.toList());
     return CollectionModel.of(accounts);
   }
@@ -38,7 +34,7 @@ public class AccountsApi {
   public AccountModel findById(@PathParam("account-id") String id, @Context UriInfo uriInfo) {
     return user.accounts()
         .findByIdentity(id)
-        .map(account -> new AccountModel(account, uriInfo.getAbsolutePathBuilder()))
+        .map(account -> new AccountModel(user, account, uriInfo))
         .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
   }
 }

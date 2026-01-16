@@ -12,6 +12,10 @@ public class ApiTemplates {
     return user(uriInfo).path(UserApi.class, "accounts");
   }
 
+  public static UriBuilder account(UriInfo uriInfo) {
+    return accounts(uriInfo).path(AccountsApi.class, "findById");
+  }
+
   public static UriBuilder conversations(UriInfo uriInfo) {
     return user(uriInfo).path(UserApi.class, "conversations");
   }
