@@ -6,6 +6,7 @@ spring:
       - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration
   jersey:
     application-path: /api
+    type: filter
 
   security:
     oauth2:
