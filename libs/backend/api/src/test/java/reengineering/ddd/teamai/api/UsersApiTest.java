@@ -51,6 +51,7 @@ public class UsersApiTest extends ApiTest {
             accounts,
             conversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
+    when(accounts.findAll()).thenReturn(new EntityList<>());
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
