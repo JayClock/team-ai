@@ -13,9 +13,6 @@
       "href": "/api/users/1/conversations{?page,pageSize}",
       "templated": true
     },
-    "create-conversation": {
-      "href": "/api/users/1/conversations"
-    },
     "latest-conversation": {
       "href": "/api/conversations/conv-456"
     },

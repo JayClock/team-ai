@@ -2,38 +2,49 @@
   "_embedded": {
     "conversations": [
       {
-        "id": "1",
-        "title": "Conversation Item 1",
-        "_links": {
-          "self": {
-            "href": "/api/users/1/conversations/1"
-          },
-          "messages": {
-            "href": "/api/users/1/conversations/1/messages"
-          },
-          "send-message": {
-            "href": "/api/users/1/conversations/1/messages/stream"
-          },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/1/chat-to-breakdown-epic"
-          }
-        }
-      },
-      {
         "id": "2",
         "title": "Conversation Item 2",
         "_links": {
           "self": {
             "href": "/api/users/1/conversations/2"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/2/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/2/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/2/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/2/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/2/messages/stream"
           }
         }
       },
@@ -44,14 +55,43 @@
           "self": {
             "href": "/api/users/1/conversations/3"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/3/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/3/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/3/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/3/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/3/messages/stream"
           }
         }
       },
@@ -62,14 +102,43 @@
           "self": {
             "href": "/api/users/1/conversations/4"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/4/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/4/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/4/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/4/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/4/messages/stream"
           }
         }
       },
@@ -80,14 +149,43 @@
           "self": {
             "href": "/api/users/1/conversations/5"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/5/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/5/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/5/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/5/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/5/messages/stream"
           }
         }
       },
@@ -98,14 +196,43 @@
           "self": {
             "href": "/api/users/1/conversations/6"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/6/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/6/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/6/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/6/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/6/messages/stream"
           }
         }
       },
@@ -116,14 +243,43 @@
           "self": {
             "href": "/api/users/1/conversations/7"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/7/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/7/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/7/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/7/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/7/messages/stream"
           }
         }
       },
@@ -134,14 +290,43 @@
           "self": {
             "href": "/api/users/1/conversations/8"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/8/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/8/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/8/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/8/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/8/messages/stream"
           }
         }
       },
@@ -152,14 +337,43 @@
           "self": {
             "href": "/api/users/1/conversations/9"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/9/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/9/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/9/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/9/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/9/messages/stream"
           }
         }
       },
@@ -170,14 +384,43 @@
           "self": {
             "href": "/api/users/1/conversations/10"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/10/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/10/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/10/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/10/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/10/messages/stream"
           }
         }
       },
@@ -188,14 +431,43 @@
           "self": {
             "href": "/api/users/1/conversations/11"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/11/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/11/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/11/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/11/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/11/messages/stream"
           }
         }
       },
@@ -206,14 +478,43 @@
           "self": {
             "href": "/api/users/1/conversations/12"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/12/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/12/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/12/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/12/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/12/messages/stream"
           }
         }
       },
@@ -224,14 +525,43 @@
           "self": {
             "href": "/api/users/1/conversations/13"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/13/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/13/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/13/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/13/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/13/messages/stream"
           }
         }
       },
@@ -242,14 +572,43 @@
           "self": {
             "href": "/api/users/1/conversations/14"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/14/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/14/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/14/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/14/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/14/messages/stream"
           }
         }
       },
@@ -260,14 +619,43 @@
           "self": {
             "href": "/api/users/1/conversations/15"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/15/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/15/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/15/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/15/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/15/messages/stream"
           }
         }
       },
@@ -278,14 +666,43 @@
           "self": {
             "href": "/api/users/1/conversations/16"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/16/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/16/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/16/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/16/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/16/messages/stream"
           }
         }
       },
@@ -296,14 +713,43 @@
           "self": {
             "href": "/api/users/1/conversations/17"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/17/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/17/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/17/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/17/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/17/messages/stream"
           }
         }
       },
@@ -314,14 +760,43 @@
           "self": {
             "href": "/api/users/1/conversations/18"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/18/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/18/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/18/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/18/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/18/messages/stream"
           }
         }
       },
@@ -332,14 +807,43 @@
           "self": {
             "href": "/api/users/1/conversations/19"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/19/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/19/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/19/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/19/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/19/messages/stream"
           }
         }
       },
@@ -349,14 +853,43 @@
           "self": {
             "href": "/api/users/1/conversations/20"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/20/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/20/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/20/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/20/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/20/messages/stream"
           }
         }
       },
@@ -367,14 +900,43 @@
           "self": {
             "href": "/api/users/1/conversations/21"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/21/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/21/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/21/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/21/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/21/messages/stream"
           }
         }
       },
@@ -385,14 +947,43 @@
           "self": {
             "href": "/api/users/1/conversations/22"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/22/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/22/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/22/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/22/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/22/messages/stream"
           }
         }
       },
@@ -403,14 +994,43 @@
           "self": {
             "href": "/api/users/1/conversations/23"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/23/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/23/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/23/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/23/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/23/messages/stream"
           }
         }
       },
@@ -421,14 +1041,43 @@
           "self": {
             "href": "/api/users/1/conversations/24"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/24/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/24/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/24/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/24/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/24/messages/stream"
           }
         }
       },
@@ -439,14 +1088,43 @@
           "self": {
             "href": "/api/users/1/conversations/25"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/25/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/25/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/25/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/25/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/25/messages/stream"
           }
         }
       },
@@ -457,14 +1135,43 @@
           "self": {
             "href": "/api/users/1/conversations/26"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/26/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/26/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/26/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/26/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/26/messages/stream"
           }
         }
       },
@@ -475,14 +1182,43 @@
           "self": {
             "href": "/api/users/1/conversations/27"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/27/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/27/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/27/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/27/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/27/messages/stream"
           }
         }
       },
@@ -493,14 +1229,43 @@
           "self": {
             "href": "/api/users/1/conversations/28"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/28/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/28/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/28/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/28/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/28/messages/stream"
           }
         }
       },
@@ -511,14 +1276,43 @@
           "self": {
             "href": "/api/users/1/conversations/29"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/29/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/29/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/29/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/29/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/29/messages/stream"
           }
         }
       },
@@ -529,14 +1323,43 @@
           "self": {
             "href": "/api/users/1/conversations/30"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/30/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/30/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/30/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/30/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/30/messages/stream"
           }
         }
       },
@@ -547,14 +1370,43 @@
           "self": {
             "href": "/api/users/1/conversations/31"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/31/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/31/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/31/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/31/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/31/messages/stream"
           }
         }
       },
@@ -565,14 +1417,43 @@
           "self": {
             "href": "/api/users/1/conversations/32"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/32/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/32/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/32/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/32/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/32/messages/stream"
           }
         }
       },
@@ -583,14 +1464,43 @@
           "self": {
             "href": "/api/users/1/conversations/33"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/33/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/33/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/33/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/33/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/33/messages/stream"
           }
         }
       },
@@ -601,14 +1511,43 @@
           "self": {
             "href": "/api/users/1/conversations/34"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/34/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/34/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/34/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/34/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/34/messages/stream"
           }
         }
       },
@@ -619,14 +1558,43 @@
           "self": {
             "href": "/api/users/1/conversations/35"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/35/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/35/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/35/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/35/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/35/messages/stream"
           }
         }
       },
@@ -637,14 +1605,43 @@
           "self": {
             "href": "/api/users/1/conversations/36"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/36/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/36/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/36/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/36/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/36/messages/stream"
           }
         }
       },
@@ -655,14 +1652,43 @@
           "self": {
             "href": "/api/users/1/conversations/37"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/37/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/37/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/37/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/37/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/37/messages/stream"
           }
         }
       },
@@ -673,14 +1699,43 @@
           "self": {
             "href": "/api/users/1/conversations/38"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/38/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/38/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/38/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/38/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/38/messages/stream"
           }
         }
       },
@@ -691,14 +1746,43 @@
           "self": {
             "href": "/api/users/1/conversations/39"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/39/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/39/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/39/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/39/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/39/messages/stream"
           }
         }
       },
@@ -709,14 +1793,90 @@
           "self": {
             "href": "/api/users/1/conversations/40"
           },
-          "messages": {
-            "href": "/api/users/1/conversations/40/messages"
-          },
-          "send-message": {
+          "chat": {
             "href": "/api/users/1/conversations/40/messages/stream"
           },
-          "chat-to-breakdown-epic": {
-            "href": "/api/users/1/conversations/40/chat-to-breakdown-epic"
+          "messages": {
+            "href": "/api/users/1/conversations/40/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/40/messages/stream"
+          }
+        }
+      },
+      {
+        "id": "41",
+        "title": "new conversation",
+        "_links": {
+          "self": {
+            "href": "/api/users/1/conversations/41"
+          },
+          "chat": {
+            "href": "/api/users/1/conversations/41/messages/stream"
+          },
+          "messages": {
+            "href": "/api/users/1/conversations/41/messages"
+          }
+        },
+        "_templates": {
+          "delete-conversation": {
+            "method": "DELETE",
+            "properties": []
+          },
+          "default": {
+            "method": "PUT",
+            "properties": [
+              {
+                "name": "title",
+                "required": true,
+                "type": "text"
+              }
+            ]
+          },
+          "chat": {
+            "method": "POST",
+            "properties": [
+              {
+                "name": "content",
+                "readOnly": true,
+                "type": "text"
+              },
+              {
+                "name": "role",
+                "readOnly": true,
+                "type": "text"
+              }
+            ],
+            "target": "/api/users/1/conversations/41/messages/stream"
           }
         }
       }
@@ -732,7 +1892,7 @@
   },
   "page": {
     "size": 40,
-    "totalElements": 63,
+    "totalElements": 62,
     "totalPages": 2,
     "number": 0
   }

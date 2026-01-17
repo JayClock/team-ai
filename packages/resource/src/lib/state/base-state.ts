@@ -143,7 +143,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     }
 
     const matches = this.forms.filter(
-      (f) => f.uri === link.href && (!method || f.method === method),
+      (f) => f.uri === expand(link, {}) && (!method || f.method === method),
     );
 
     if (matches.length === 0) {
@@ -155,7 +155,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     if (matches.length > 1 && !method) {
       throw new AmbiguousActionError(
         `Multiple actions found for '${rel as string}'. ` +
-          `Specify method: ${matches.map((f) => f.method).join(', ')}`,
+        `Specify method: ${matches.map((f) => f.method).join(', ')}`,
       );
     }
 

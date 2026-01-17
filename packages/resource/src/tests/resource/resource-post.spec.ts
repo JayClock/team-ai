@@ -22,9 +22,9 @@ describe('Resource POST Requests', () => {
 
   it('should send POST request with custom headers and not cache state', async () => {
     const link: Link = {
-      ...halUser._links['create-conversation'],
+      ...halUser._links['conversations'],
       context: mockClient.bookmarkUri,
-      rel: 'create-conversation',
+      rel: 'conversations',
     };
 
     const createdConversation = {
@@ -59,7 +59,7 @@ describe('Resource POST Requests', () => {
     );
     vi.spyOn(mockClient.cache, 'get').mockReturnValue(userState);
 
-    const form = userState.actionFor('create-conversation');
+    const form = userState.actionFor('conversations', 'POST');
 
     await form.submit(newConversationData);
 
@@ -78,9 +78,9 @@ describe('Resource POST Requests', () => {
 
   describe('activeRefresh', () => {
     const link: Link = {
-      ...halUser._links['create-conversation'],
+      ...halUser._links['conversations'],
       context: mockClient.bookmarkUri,
-      rel: 'create-conversation',
+      rel: 'conversations',
     };
 
     const mockResponse = {
@@ -110,14 +110,14 @@ describe('Resource POST Requests', () => {
         uri: 'https://www.test.com/api/users/1/conversations',
       } as State);
 
-      const request1 = userState.follow('create-conversation').post(
+      const request1 = userState.follow('conversations').post(
         {
           data: newConversationData,
         },
         { dedup: true },
       );
 
-      const request2 = userState.follow('create-conversation').post(
+      const request2 = userState.follow('conversations').post(
         {
           data: newConversationData,
         },
@@ -136,11 +136,11 @@ describe('Resource POST Requests', () => {
         uri: 'https://www.test.com/api/users/1/conversations',
       } as State);
 
-      const request1 = userState.follow('create-conversation').post({
+      const request1 = userState.follow('conversations').post({
         data: newConversationData,
       });
 
-      const request2 = userState.follow('create-conversation').post({
+      const request2 = userState.follow('conversations').post({
         data: newConversationData,
       });
 
@@ -154,14 +154,14 @@ describe('Resource POST Requests', () => {
         uri: 'https://www.test.com/api/users/1/conversations',
       } as State);
 
-      const request1 = userState.follow('create-conversation').post(
+      const request1 = userState.follow('conversations').post(
         {
           data: newConversationData,
         },
         { dedup: true },
       );
 
-      const request2 = userState.follow('create-conversation').post(
+      const request2 = userState.follow('conversations').post(
         {
           data: { title: 'Different Conversation' },
         },
@@ -177,7 +177,7 @@ describe('Resource POST Requests', () => {
       vi.spyOn(mockClient, 'getStateForResponse').mockResolvedValue({
         uri: 'https://www.test.com/api/users/1/conversations',
       } as State);
-      const resource = userState.follow('create-conversation');
+      const resource = userState.follow('conversations');
 
       const requestPromise = resource.post(
         {

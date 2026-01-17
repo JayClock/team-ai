@@ -20,5 +20,5 @@ export type Account = Entity<
 
 export type Conversation = Entity<
   { id: string; title: string },
-  { self: Conversation; user: User }
+  { self: Conversation; user: User, chat: Entity<ReadableStream<string>> }
 >;
