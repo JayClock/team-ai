@@ -7,22 +7,65 @@ import { ClientInstance } from '../client-instance.js';
 import * as qs from 'querystring';
 
 /**
- * An action represents a hypermedia form submission or action.
+ * Represents an executable hypermedia action (form submission).
+ *
+ * Actions are discovered from HAL-Forms templates and enable HATEOAS-driven
+ * state transitions. They encapsulate the HTTP method, target URI, content
+ * type, and available form fields.
+ *
+ * @typeParam TEntity - The expected entity type of the response
+ *
+ * @example
+ * ```typescript
+ * // Discover and execute an action
+ * if (state.hasActionFor('create-post')) {
+ *   const action = state.actionFor('create-post');
+ *
+ *   // Check available fields
+ *   const titleField = action.field('title');
+ *   console.log(titleField?.required);
+ *
+ *   // Submit the action
+ *   const result = await action.submit({
+ *     title: 'Hello World',
+ *     content: 'My first post'
+ *   });
+ * }
+ * ```
+ *
+ * @see {@link State.actionFor} for discovering actions
+ * @see {@link Form} for the underlying form structure
+ *
+ * @category Resource
  */
 export interface Action<TEntity extends Entity> extends Form {
   /**
-   * Execute the action or submit the form.
+   * Executes the action by submitting form data.
+   *
+   * @param formData - Key-value pairs for form fields
+   * @returns A Promise resolving to the response state
+   * @throws {@link HttpError} When the server returns an error response
    */
   submit(formData: Record<string, SafeAny>): Promise<State<TEntity>>;
 
   /**
-   * Return a field by name.
+   * Retrieves a form field by name.
+   *
+   * @param name - The field name
+   * @returns The Field object or `undefined` if not found
    */
   field(name: string): Field | undefined;
 }
 
 /**
- * An action represents a hypermedia form submission or action.
+ * Default implementation of the Action interface.
+ *
+ * Handles form submission with support for `application/json` and
+ * `application/x-www-form-urlencoded` content types.
+ *
+ * @typeParam TEntity - The expected entity type of the response
+ * @internal
+ * @category Resource
  */
 
 export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
@@ -85,10 +128,27 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
   }
 }
 
+/**
+ * Error thrown when a requested action cannot be found.
+ *
+ * This occurs when calling `state.actionFor(rel)` with a link relation
+ * that has no associated HAL-Forms template.
+ *
+ * @category Resource
+ */
 export class ActionNotFound extends Error {
   override name = 'ActionNotFound';
 }
 
+/**
+ * Error thrown when multiple actions match a request.
+ *
+ * This occurs when calling `state.actionFor(rel)` without specifying
+ * a method, and multiple forms exist for the same link relation.
+ * Resolve by specifying the HTTP method: `state.actionFor(rel, 'POST')`.
+ *
+ * @category Resource
+ */
 export class AmbiguousActionError extends Error {
   override name = 'AmbiguousActionError';
 }

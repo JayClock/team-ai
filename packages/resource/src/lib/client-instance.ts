@@ -18,18 +18,26 @@ import { acceptMiddleware } from './middlewares/accept-header.js';
 import { cacheMiddleware } from './middlewares/cache.js';
 import { warningMiddleware } from './middlewares/warning.js';
 
+/**
+ * Internal Client implementation with dependency injection.
+ *
+ * Manages resource creation, state caching, content-type negotiation,
+ * and middleware execution. This is the concrete implementation of
+ * the {@link Client} interface.
+ *
+ * @internal
+ * @category Client
+ */
 @injectable()
 export class ClientInstance implements Client {
   /**
-   * All relative urls will by default use the bookmarkUri to
-   * expand. It should usually be the starting point of your
-   * API
+   * Base URI for the API. All relative URIs are resolved against this.
    */
   readonly bookmarkUri: string;
 
   /**
-   * The cache for 'Resource' objects. Each unique uri should
-   * only ever get 1 associated resource.
+   * Cache of Resource instances keyed by absolute URI.
+   * Ensures each URI has only one Resource instance.
    */
   readonly resources = new Map<string, Resource<SafeAny>>();
 
@@ -66,24 +74,23 @@ export class ClientInstance implements Client {
   }
 
   /**
-   * Supported content types
+   * Content-type to StateFactory mapping.
    *
-   * Each content-type has a 'factory' that turns a HTTP response
-   * into a State object.
-   *
-   * The last value in the array is the 'q=' value, used in Accept
-   * headers. Higher means higher priority.
+   * Maps MIME types to their corresponding state factories and quality values.
+   * The quality value (0-1) is used in Accept header negotiation.
    */
   contentTypeMap: {
     [mimeType: string]: [StateFactory, string];
   } = {};
 
   /**
-   * Transforms a fetch Response to a State object.
+   * Navigates to a resource by URI or link.
+   *
+   * @typeParam TEntity - The entity type for the target resource
+   * @param uri - Path relative to baseURL or a NewLink object
+   * @returns A Resource instance (reused if already exists)
    */
-  go<TEntity extends Entity>(
-    uri?: string | NewLink,
-  ): Resource<TEntity> {
+  go<TEntity extends Entity>(uri?: string | NewLink): Resource<TEntity> {
     let link: Link;
     if (uri === undefined) {
       link = { rel: '', context: this.bookmarkUri, href: '' };
@@ -147,10 +154,12 @@ export class ClientInstance implements Client {
     );
   }
   /**
-   * Caches a State object
+   * Caches a State object and emits update events.
    *
-   * This function will also emit 'update' events to resources, and store all
-   * embedded states.
+   * Flattens embedded states, stores all in cache, and notifies
+   * any Resource instances listening for updates.
+   *
+   * @param state - The State object to cache
    */
   cacheState(state: State) {
     // Flatten the list of state objects.
@@ -187,13 +196,13 @@ export class ClientInstance implements Client {
   }
 
   /**
-   * Helper function for clearing the cache for a resource.
+   * Clears cache for specified resources and emits events.
    *
-   * This function will also emit the 'stale' event for resources that have
-   * subscribers, and handle any dependent resource caches.
+   * Emits 'stale' events for resources that need refetching,
+   * and 'delete' events for resources that were deleted.
    *
-   * If any resources are specified in deletedUris, those will not
-   * receive 'stale' events, but 'delete' events instead.
+   * @param staleUris - URIs that are stale and need refetching
+   * @param deletedUris - URIs that were deleted
    */
   clearResourceCache(staleUris: string[], deletedUris: string[]) {
     const stale = new Set<string>();

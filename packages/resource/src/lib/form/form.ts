@@ -1,37 +1,44 @@
 import { Field } from './field.js';
 
+/**
+ * Represents a hypermedia form (HAL-Forms template).
+ *
+ * Forms describe available actions on a resource, including the target URI,
+ * HTTP method, content type, and required/optional fields.
+ *
+ * @see {@link Action} for executable form wrapper
+ * @see {@link Field} for form field definitions
+ *
+ * @category Other
+ */
 export type Form = {
   /**
-   * What url to post the form to.
+   * Target URI for form submission.
    */
   uri: string;
 
   /**
-   * Action name.
-   *
-   * Some formats call this the 'rel'
+   * Form/action name (sometimes called 'rel').
    */
   name: string;
 
   /**
-   * Form title.
-   *
-   * Should be human-friendly.
+   * Human-readable form title.
    */
   title?: string;
 
   /**
-   * The HTTP method to use
+   * HTTP method for submission (e.g., 'POST', 'PUT', 'DELETE').
    */
   method: string;
 
   /**
-   * The contentType to use for the form submission
+   * Content-Type for the form submission body.
    */
   contentType: string;
 
   /**
-   * Returns the list of fields associated to an action
+   * Available form fields.
    */
   fields: Field[];
 };

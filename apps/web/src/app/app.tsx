@@ -25,6 +25,9 @@ function AppLoading() {
 }
 
 function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+  const errorMessage =
+    error instanceof Error ? error.message : 'An unexpected error occurred';
+
   return (
     <div className="flex flex-col items-center justify-center gap-4 p-6 text-center">
       <div className="rounded-full bg-destructive/10 p-3">
@@ -44,9 +47,7 @@ function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
       </div>
       <div className="space-y-2">
         <h3 className="text-lg font-semibold">Something went wrong</h3>
-        <p className="text-sm text-muted-foreground">
-          {error?.message || 'An unexpected error occurred'}
-        </p>
+        <p className="text-sm text-muted-foreground">{errorMessage}</p>
       </div>
       <Button variant="outline" onClick={resetErrorBoundary}>
         Try again

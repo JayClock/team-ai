@@ -3,29 +3,62 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from '../archtype/injection-types.js';
 import type { Config } from '../archtype/config.js';
 
+/**
+ * Middleware function for intercepting and modifying HTTP requests/responses.
+ *
+ * Middlewares form a chain where each can modify the request before passing
+ * to the next, and modify the response after receiving it.
+ *
+ * @param request - The outgoing Request object
+ * @param next - Function to pass control to the next middleware
+ * @returns A Promise resolving to the Response
+ *
+ * @example
+ * ```typescript
+ * const authMiddleware: FetchMiddleware = async (request, next) => {
+ *   request.headers.set('Authorization', `Bearer ${token}`);
+ *   const response = await next(request);
+ *   // Optionally transform response
+ *   return response;
+ * };
+ * ```
+ *
+ * @category Middleware
+ */
 export type FetchMiddleware = (
   request: Request,
   next: (request: Request) => Promise<Response>,
 ) => Promise<Response>;
 
 /**
- * The fetcher object is responsible for calling fetch()
+ * HTTP fetcher with middleware support.
  *
- * This is wrapped in an object because we want to support
- * 'fetch middlewares'. These middlewares are similar to server-side
- * middlewares and can intercept requests and alter requests/responses.
+ * Wraps the native `fetch()` API and provides a middleware chain for
+ * request/response interception. Used internally by the HATEOAS client.
+ *
+ * @internal
+ * @category Middleware
  */
 @injectable()
 export class Fetcher {
+  /**
+   * Registered middlewares as [pattern, middleware] pairs.
+   */
   middlewares: [RegExp, FetchMiddleware][] = [];
 
   constructor(@inject(TYPES.Config) private config: Config) {}
 
   /**
-   * A wrapper for MDN fetch()
+   * Performs an HTTP request with middleware processing.
    *
-   * This wrapper supports 'fetch middlewares'. It will call them
-   * in sequence.
+   * Middlewares are executed in registration order. The final middleware
+   * performs the actual `fetch()` call.
+   *
+   * @param resource - URL string or Request object
+   * @param init - Optional request initialization options
+   * @returns A Promise resolving to the Response
+   *
+   * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/fetch | MDN fetch() documentation}
    */
   fetch(resource: string | Request, init?: RequestInit): Promise<Response> {
     const request = new Request(resource, init);
@@ -50,8 +83,10 @@ export class Fetcher {
   }
 
   /**
-   * Returns the list of middlewares that are applicable to
-   * a specific origin
+   * Returns middlewares matching a specific origin.
+   *
+   * @param origin - The request origin (e.g., 'https://api.example.com')
+   * @returns Array of matching middleware functions
    */
   getMiddlewaresByOrigin(origin: string): FetchMiddleware[] {
     return this.middlewares
@@ -64,7 +99,11 @@ export class Fetcher {
   }
 
   /**
-   * Add a middleware
+   * Registers a middleware for request/response interception.
+   *
+   * @param mw - The middleware function
+   * @param origin - Origin pattern to match. Use '*' for all origins (default)
+   *                 Supports wildcards (e.g., 'https://*.example.com')
    */
   use(mw: FetchMiddleware, origin = '*'): void {
     const matchSplit = origin.split('*');
@@ -77,10 +116,17 @@ export class Fetcher {
   }
 
   /**
-   * Does a HTTP request and throws an exception if the server emitted
-   * a HTTP error.
+   * Performs an HTTP request and throws on error responses.
    *
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/Request/Request
+   * Similar to `fetch()`, but throws an exception if the response
+   * status indicates an error (4xx or 5xx).
+   *
+   * @param resource - URL string or Request object
+   * @param init - Optional request initialization options
+   * @returns A Promise resolving to a successful Response
+   * @throws {@link HttpError} When the response status is 4xx or 5xx
+   *
+   * @see {@link https://developer.mozilla.org/en-US/docs/Web/API/Request | MDN Request documentation}
    */
   async fetchOrThrow(
     resource: string | Request,

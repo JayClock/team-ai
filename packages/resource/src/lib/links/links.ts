@@ -4,11 +4,42 @@ import { Link, NewLink } from './link.js';
 import { resolve } from '../util/uri.js';
 
 /**
- * Links container, providing an easy way to manage a set of links.
+ * Container for managing a collection of hypermedia links.
+ *
+ * Provides methods for adding, retrieving, and querying links by their
+ * relation type. Supports multiple links per relation.
+ *
+ * @typeParam T - Record type defining available link relations
+ *
+ * @example
+ * ```typescript
+ * const links = new Links('https://api.example.com/users/123');
+ *
+ * // Add links
+ * links.add('self', '/users/123');
+ * links.add({ rel: 'posts', href: '/users/123/posts' });
+ *
+ * // Query links
+ * if (links.has('posts')) {
+ *   const postLink = links.get('posts');
+ *   console.log(postLink?.href);
+ * }
+ *
+ * // Multiple links with same rel
+ * const allItems = links.getMany('item');
+ * ```
+ *
+ * @category Resource
  */
 export class Links<T extends Record<string, SafeAny>> {
   private store = new Map<string, Link[]>();
 
+  /**
+   * Creates a new Links container.
+   *
+   * @param defaultContext - Base URI for resolving relative hrefs
+   * @param links - Optional initial links to add
+   */
   constructor(
     public defaultContext: string,
     links?: (Link | NewLink)[] | Links<T>,
@@ -27,9 +58,19 @@ export class Links<T extends Record<string, SafeAny>> {
   }
 
   /**
-   * Adds a link to the list
+   * Adds one or more links to the container.
+   *
+   * Multiple links with the same rel are stored as an array.
+   *
+   * @param links - Link objects to add
    */
   add(...links: NewLink[]): void;
+  /**
+   * Adds a link with rel and href strings.
+   *
+   * @param rel - The link relation type
+   * @param href - The link target URI
+   */
   add(rel: string, href: string): void;
   add(...args: SafeAny[]): void {
     let links: Link[];
@@ -58,9 +99,10 @@ export class Links<T extends Record<string, SafeAny>> {
   }
 
   /**
-   * Return a single link by its 'rel'.
+   * Returns the first link matching a relation.
    *
-   * If the link does not exist, undefined is returned.
+   * @param rel - The relation type to find
+   * @returns The first matching Link or `undefined`
    */
   get(rel: string): Link | undefined {
     const links = this.store.get(rel);
@@ -71,11 +113,17 @@ export class Links<T extends Record<string, SafeAny>> {
   }
 
   /**
-   * Set a link
+   * Sets a link, replacing any existing links with the same rel.
    *
-   * If a link with the provided 'rel' already existed, it will be overwritten.
+   * @param link - The link object to set
    */
   set(link: NewLink): void;
+  /**
+   * Sets a link using rel and href strings.
+   *
+   * @param rel - The link relation type
+   * @param href - The link target URI
+   */
   set(rel: string, href: string): void;
   set(arg1: SafeAny, arg2?: SafeAny): void {
     let link: Link;
@@ -95,10 +143,10 @@ export class Links<T extends Record<string, SafeAny>> {
   }
 
   /**
-   * Delete all links with the given 'rel'.
+   * Deletes links by relation and optionally by href.
    *
-   * If the second argument is provided, only links that match the href will
-   * be removed.
+   * @param rel - The relation type to delete
+   * @param href - Optional href to match; deletes all if not provided
    */
   delete(rel: string, href?: string): void {
     if (href === undefined) {
@@ -118,16 +166,19 @@ export class Links<T extends Record<string, SafeAny>> {
   }
 
   /**
-   * Return all links that have a given rel.
+   * Returns all links with a given relation.
    *
-   * If no links with the rel were found, an empty array is returned.
+   * @param rel - The relation type to find
+   * @returns Array of matching Links (empty if none found)
    */
   getMany(rel: keyof T): Link[] {
     return this.store.get(rel as string) || [];
   }
 
   /**
-   * Return all links.
+   * Returns all links in the container.
+   *
+   * @returns Flat array of all Link objects
    */
   getAll(): Link[] {
     const result = [];
@@ -138,7 +189,10 @@ export class Links<T extends Record<string, SafeAny>> {
   }
 
   /**
-   * Returns true if at least 1 link with the given rel exists.
+   * Checks if any links exist with the given relation.
+   *
+   * @param rel - The relation type to check
+   * @returns `true` if at least one link exists with the rel
    */
   has(rel: keyof T): boolean {
     return this.store.has(rel as string);

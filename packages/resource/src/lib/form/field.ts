@@ -1,3 +1,13 @@
+/**
+ * Union type of all supported form field types.
+ *
+ * Fields are used in HAL-Forms templates to describe input requirements.
+ * Each field type maps to HTML input types for automatic form generation.
+ *
+ * @see {@link Form} for the containing form structure
+ *
+ * @category Other
+ */
 export type Field =
   | BooleanField
   | BasicStringField
@@ -12,10 +22,14 @@ export type Field =
   | TextField;
 
 /**
- * A Field describes a single field in an action or form.
+ * Base interface for all form field types.
  *
- * Fields can be used to automatically render forms or other UIs based on
- * hypermedia actions.
+ * Defines common properties shared by all field types, including name,
+ * type, value, and validation constraints.
+ *
+ * @typeParam T - The value type for this field
+ *
+ * @category Other
  */
 interface BaseField<T> {
   /**

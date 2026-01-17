@@ -11,17 +11,52 @@ import { State } from '../state/state.js';
 import Resource from './resource.js';
 import { SafeAny } from '../archtype/safe-any.js';
 
+/**
+ * @internal
+ */
 interface ResourceOptions {
   query?: Record<string, SafeAny>;
 }
 
+/**
+ * Represents a deferred resource relationship for chained HATEOAS navigation.
+ *
+ * ResourceRelation enables lazy, chainable navigation through HATEOAS links
+ * without immediately fetching intermediate resources. This is useful for
+ * building navigation paths that can be executed as a single operation.
+ *
+ * @typeParam TEntity - The entity type of the target resource
+ *
+ * @example Chained navigation
+ * ```typescript
+ * // Navigate through multiple links
+ * const comments = await client.go<User>('/users/123')
+ *   .follow('posts')
+ *   .follow('items')
+ *   .follow('comments')
+ *   .get();
+ *
+ * // With template variables at each step
+ * const result = await resource
+ *   .follow('search', { q: 'hello' })
+ *   .follow('items')
+ *   .get();
+ * ```
+ *
+ * @see {@link Resource} for direct resource operations
+ * @see {@link Resource.follow} for creating ResourceRelation instances
+ *
+ * @category Resource
+ */
 export class ResourceRelation<TEntity extends Entity> {
   /**
-   * Creates a new ResourceRelation instance
-   * @param client The client instance used for handling requests and caching
-   * @param link The link object containing resource relationships and URI templates
-   * @param rels The relationship path array representing the relationship chain from root resource to target resource
-   * @param optionsMap The options map storing configuration parameters for each relationship
+   * Creates a new ResourceRelation instance.
+   *
+   * @param client - The client instance for handling requests and caching
+   * @param link - The root link object for URI resolution
+   * @param rels - The relationship path array from root to target
+   * @param optionsMap - Configuration options for each relationship step
+   * @internal
    */
   constructor(
     private readonly client: ClientInstance,
@@ -31,18 +66,25 @@ export class ResourceRelation<TEntity extends Entity> {
   ) {}
 
   /**
-   * Gets the resource instance
-   * @returns Returns a Promise of the resource instance
+   * Resolves the relationship chain and returns the target Resource.
+   *
+   * This method traverses all intermediate resources to reach the target.
+   *
+   * @returns A Promise resolving to the target Resource instance
    */
   async getResource(): Promise<Resource<TEntity>> {
     return this.getResourceWithRels(this.rels);
   }
 
   /**
-   * Follows a resource relationship based on its rel type
-   * @param rel The relationship type, must be a key defined in the entity links
-   * @param variables the template variables
-   * @returns Returns a new ResourceRelation instance representing the followed relationship
+   * Chains another relationship to follow.
+   *
+   * Appends a new link relation to the navigation path without fetching.
+   *
+   * @typeParam K - The link relation name
+   * @param rel - The relationship type to follow
+   * @param variables - Optional template variables for URI expansion
+   * @returns A new ResourceRelation with the extended path
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
@@ -59,9 +101,13 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
-   * Gets the current state of the resource.
+   * Fetches the target resource state.
    *
-   * This function will return a State object.
+   * Resolves all intermediate relationships and performs GET on the target.
+   *
+   * @param requestOptions - Optional request configuration
+   * @returns A Promise resolving to the target resource state
+   * @throws Throws `HttpError` When any request in the chain fails
    */
   async get(requestOptions?: GetRequestOptions): Promise<State<TEntity>> {
     const resource = await this.getResource();
@@ -69,11 +115,14 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
-   * Sends a PATCH request to the resource.
+   * Sends a PATCH request to the target resource.
    *
-   * This function defaults to a application/json content-type header.
+   * Resolves all intermediate relationships and performs PATCH on the target.
+   * Defaults to `application/json` content-type.
    *
-   * If the server responds with 200 Status code this will return a State object
+   * @param requestOptions - Request options including data payload and headers
+   * @returns A Promise resolving to the updated resource state
+   * @throws Throws `HttpError` When any request in the chain fails
    */
   async patch(requestOptions: PatchRequestOptions): Promise<State<TEntity>> {
     const resource = await this.getResource();
@@ -81,12 +130,15 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
-   * Sends a POST request to the resource.
+   * Sends a POST request to the target resource.
    *
-   * See the documentation for PostRequestOptions for more details.
-   * This function is used for RPC-like endpoints and form submissions.
+   * Resolves all intermediate relationships and performs POST on the target.
+   * Supports request deduplication via `postOptions.dedup`.
    *
-   * This function will return the response as a State object.
+   * @param options - Request options including data payload and headers
+   * @param postOptions - Additional options (e.g., `dedup: true`)
+   * @returns A Promise resolving to the response state
+   * @throws Throws `HttpError` When any request in the chain fails
    */
   async post(
     options: PostRequestOptions,
@@ -97,15 +149,14 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
-   * Sends a PUT request to the resource.
+   * Sends a PUT request to the target resource.
    *
-   * This function defaults to a application/json content-type header.
+   * Resolves all intermediate relationships and performs PUT on the target.
+   * Defaults to `application/json` content-type.
    *
-   * If the server responds with 200 Status code this will return a State object
-   * and update the cache.
-   *
-   * @param requestOptions Request options including request body, headers, etc.
-   * @returns Returns a Promise of the resource state
+   * @param requestOptions - Request options including complete data payload
+   * @returns A Promise resolving to the replaced resource state
+   * @throws Throws `HttpError` When any request in the chain fails
    */
   async put(requestOptions: PutRequestOptions): Promise<State<TEntity>> {
     const resource = await this.getResource();
@@ -113,7 +164,12 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
-   * Deletes the resource
+   * Deletes the target resource.
+   *
+   * Resolves all intermediate relationships and performs DELETE on the target.
+   *
+   * @returns A Promise resolving to the response state
+   * @throws Throws `HttpError` When any request in the chain fails
    */
   async delete(): Promise<State<TEntity>> {
     const resource = await this.getResource();

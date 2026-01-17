@@ -1,76 +1,95 @@
 import { LinkHints } from 'hal-types';
 
+/**
+ * Represents a hypermedia link in HAL format.
+ *
+ * Links are the foundation of HATEOAS navigation, connecting resources
+ * and enabling discovery of related resources and available actions.
+ *
+ * @see {@link https://datatracker.ietf.org/doc/html/draft-kelly-json-hal-06 | HAL Specification}
+ *
+ * @category Resource
+ */
 export type Link = {
   /**
-   * Target URI
+   * Target URI of the linked resource.
+   *
+   * May be a URI template if `templated` is true.
    */
   href: string;
 
   /**
-   * Context URI.
-   *
-   * Used to resolve relative URIs
+   * Context URI for resolving relative hrefs.
    */
   context: string;
 
   /**
-   * Relation type
+   * Link relation type (e.g., 'self', 'next', 'author').
+   *
+   * @see {@link https://www.iana.org/assignments/link-relations | IANA Link Relations}
    */
   rel: string;
 
   /**
-   * Link title
+   * Human-readable link title.
    */
   title?: string;
 
   /**
-   * Content type hint of the target resource
+   * Expected content type of the target resource.
    */
   type?: string;
 
   /**
-   * Anchor.
-   *
-   * This describes where the link is linked from, from for example
-   * a fragment in the current document
+   * Anchor for fragment-based links within a document.
    */
   anchor?: string;
 
   /**
-   * Language of the target resource
+   * Language of the target resource.
    */
   hreflang?: string;
 
   /**
-   * HTML5 media attribute
+   * Media query hint for the target resource.
    */
   media?: string;
 
   /**
-   * If templated is set to true, the href is a templated URI.
+   * Indicates if href is a URI Template (RFC 6570).
+   *
+   * When true, use template variables to expand the URI.
    */
   templated?: boolean;
 
   /**
-   * Link hints, as defined in draft-nottingham-link-hint
+   * Extended link hints per draft-nottingham-link-hint.
    */
   hints?: LinkHints;
 
   /**
-   * Link name
+   * Secondary identifier for the link.
    *
-   * This is sometimes used as a machine-readable secondary key for links.
+   * Used in HAL for distinguishing multiple links with the same rel.
    *
-   * This is at least used in HAL, but there may be other formats:
-   *
-   * @see https://datatracker.ietf.org/doc/html/draft-kelly-json-hal-06#section-5.5
+   * @see {@link https://datatracker.ietf.org/doc/html/draft-kelly-json-hal-06#section-5.5 | HAL name property}
    */
   name?: string;
 };
 
-export type NewLink = Omit<Link, 'context'>;
 /**
- * A key->value map of variables to place in a templated link
+ * Link without context (for creating new links).
+ *
+ * @category Resource
+ */
+export type NewLink = Omit<Link, 'context'>;
+
+/**
+ * Template variables for URI Template expansion.
+ *
+ * @see {@link https://datatracker.ietf.org/doc/html/rfc6570 | RFC 6570 URI Templates}
+ *
+ * @category Resource
  */
 export type LinkVariables = {
   [key: string]: string | number | string[] | number[];

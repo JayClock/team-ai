@@ -15,6 +15,49 @@ import { HttpMethod } from '../http/util.js';
 import { EventEmitter } from 'events';
 import { ResourceRelation } from './resource-relation.js';
 
+/**
+ * Represents a REST resource with HATEOAS navigation capabilities.
+ *
+ * Resource is the core class for interacting with HAL-compliant REST APIs.
+ * It provides methods for HTTP operations (GET, POST, PUT, PATCH, DELETE),
+ * caching, and following HATEOAS links to related resources.
+ *
+ * @typeParam TEntity - The entity type for this resource
+ *
+ * @example Basic resource operations
+ * ```typescript
+ * const client = createClient({ baseURL: 'https://api.example.com' });
+ * const userResource = client.go<User>('/users/123');
+ *
+ * // Fetch resource state
+ * const state = await userResource.get();
+ * console.log(state.data.name);
+ *
+ * // Update resource
+ * await userResource.patch({ data: { name: 'New Name' } });
+ *
+ * // Follow HATEOAS links
+ * const postsResource = state.follow('posts');
+ * const posts = await postsResource.get();
+ * ```
+ *
+ * @example Event handling
+ * ```typescript
+ * userResource.on('update', (state) => {
+ *   console.log('Resource updated:', state.data);
+ * });
+ *
+ * userResource.on('stale', () => {
+ *   console.log('Cache invalidated, refetch needed');
+ * });
+ * ```
+ *
+ * @see {@link State} for the resource state object
+ * @see {@link ResourceRelation} for chained link navigation
+ * @see {@link Client} for creating resources via `client.go()`
+ *
+ * @category Resource
+ */
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class Resource<TEntity extends Entity> extends EventEmitter {
   /**
@@ -116,7 +159,18 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   /**
    * Gets the current state of the resource.
    *
-   * This function will return a State object.
+   * Retrieves the resource state, using cached data if available.
+   * Implements request deduplication to prevent duplicate concurrent requests.
+   *
+   * @param requestOptions - Optional request configuration (headers, etc.)
+   * @returns A Promise resolving to the resource state
+   * @throws Throws `HttpError` when the server returns an error response
+   *
+   * @example
+   * ```typescript
+   * const state = await resource.get();
+   * console.log(state.data);
+   * ```
    */
   async get(requestOptions?: GetRequestOptions): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit('GET', requestOptions ?? {});
@@ -154,11 +208,21 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   /**
-   * Sends a PATCH request to the resource.
+   * Sends a PATCH request to update the resource partially.
    *
-   * This function defaults to a application/json content-type header.
+   * Defaults to `application/json` content-type header.
+   * On HTTP 200 response, updates the local cache with the returned state.
    *
-   * If the server responds with 200 Status code this will return a State object
+   * @param requestOptions - Request options including data payload and headers
+   * @returns A Promise resolving to the updated resource state
+   * @throws Throws `HttpError` when the server returns an error response
+   *
+   * @example
+   * ```typescript
+   * const updated = await resource.patch({
+   *   data: { name: 'Updated Name' }
+   * });
+   * ```
    */
   async patch(requestOptions: PatchRequestOptions): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit(
@@ -186,12 +250,31 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   /**
    * Sends a POST request to the resource.
    *
-   * See the documentation for PostRequestOptions for more details.
-   * This function is used for RPC-like endpoints and form submissions.
+   * Used for RPC-like endpoints, form submissions, and creating child resources.
+   * Supports request deduplication via the `options.dedup` parameter.
    *
-   * This function will return the response as a State object.
+   * @param requestOptions - Request options including data payload and headers
+   * @param options - Additional options (e.g., `dedup: true` for deduplication)
+   * @returns A Promise resolving to the response state
+   * @throws Throws `HttpError` When the server returns an error response
+   *
+   * @see {@link PostRequestOptions} for available request options
+   *
+   * @example
+   * ```typescript
+   * // Create a new resource
+   * const newPost = await userResource.follow('posts').post({
+   *   data: { title: 'Hello', content: 'World' }
+   * });
+   *
+   * // With deduplication (prevents duplicate requests)
+   * const result = await resource.post({ data }, { dedup: true });
+   * ```
    */
-  async post(requestOptions: PostRequestOptions, options?: { dedup?: boolean }): Promise<State> {
+  async post(
+    requestOptions: PostRequestOptions,
+    options?: { dedup?: boolean },
+  ): Promise<State> {
     const requestInit = this.optionsToRequestInit('POST', requestOptions);
 
     if (options?.dedup) {
@@ -221,15 +304,21 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   /**
-   * Sends a PUT request to the resource.
+   * Sends a PUT request to replace the resource.
    *
-   * This function defaults to a application/json content-type header.
+   * Defaults to `application/json` content-type header.
+   * On HTTP 200 response, updates the local cache with the returned state.
    *
-   * If the server responds with 200 Status code this will return a State object
-   * and update the cache.
+   * @param requestOptions - Request options including complete data payload and headers
+   * @returns A Promise resolving to the replaced resource state
+   * @throws Throws `HttpError` When the server returns an error response
    *
-   * @param requestOptions Request options including request body, headers, etc.
-   * @returns Returns a Promise of the resource state
+   * @example
+   * ```typescript
+   * const updated = await resource.put({
+   *   data: { id: '123', name: 'Complete Data', email: 'user@example.com' }
+   * });
+   * ```
    */
   async put(requestOptions: PutRequestOptions): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit('PUT', requestOptions ?? {});
@@ -252,7 +341,18 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   /**
-   * Deletes the resource
+   * Deletes the resource.
+   *
+   * Sends an HTTP DELETE request and returns the response state.
+   * Triggers the 'delete' event on successful deletion.
+   *
+   * @returns A Promise resolving to the response state
+   * @throws Throws `HttpError` When the server returns an error response
+   *
+   * @example
+   * ```typescript
+   * await resource.delete();
+   * ```
    */
   async delete(): Promise<State<TEntity>> {
     const response = await this.fetchOrThrow(
@@ -261,7 +361,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
 
     return this.client.getStateForResponse(this.link, response);
   }
-
 
   /**
    * Convert request options to RequestInit
@@ -393,72 +492,75 @@ export declare interface Resource<TEntity extends Entity> {
   once(event: 'update', listener: (state: State) => void): this;
 
   /**
-   * 订阅 'stale' 事件，并在首次触发后取消订阅
+   * Subscribe to the 'stale' event once, unsubscribing after first trigger.
    *
-   * @param event 事件名称，此处为 'stale'
-   * @param listener 事件监听器函数
-   * @returns 返回当前实例，支持链式调用
+   * @param event - The event name, 'stale' in this case
+   * @param listener - The event listener function
+   * @returns The current instance for method chaining
    */
   once(event: 'stale', listener: () => void): this;
 
   /**
-   * 订阅 'delete' 事件，并在首次触发后取消订阅
+   * Subscribe to the 'delete' event once, unsubscribing after first trigger.
    *
-   * @param event 事件名称，此处为 'delete'
-   * @param listener 事件监听器函数
-   * @returns 返回当前实例，支持链式调用
+   * @param event - The event name, 'delete' in this case
+   * @param listener - The event listener function
+   * @returns The current instance for method chaining
    */
   once(event: 'delete', listener: () => void): this;
 
   /**
-   * 取消订阅 'update' 事件
+   * Unsubscribe from the 'update' event.
    *
-   * @param event 事件名称，此处为 'update'
-   * @param listener 要取消订阅的事件监听器函数
-   * @returns 返回当前实例，支持链式调用
+   * @param event - The event name, 'update' in this case
+   * @param listener - The event listener function to remove
+   * @returns The current instance for method chaining
    */
   off(event: 'update', listener: (state: State) => void): this;
 
   /**
-   * 取消订阅 'stale' 事件
+   * Unsubscribe from the 'stale' event.
    *
-   * @param event 事件名称，此处为 'stale'
-   * @param listener 要取消订阅的事件监听器函数
-   * @returns 返回当前实例，支持链式调用
+   * @param event - The event name, 'stale' in this case
+   * @param listener - The event listener function to remove
+   * @returns The current instance for method chaining
    */
   off(event: 'stale', listener: () => void): this;
 
   /**
-   * 取消订阅 'delete' 事件
+   * Unsubscribe from the 'delete' event.
    *
-   * @param event 事件名称，此处为 'delete'
-   * @param listener 要取消订阅的事件监听器函数
-   * @returns 返回当前实例，支持链式调用
+   * @param event - The event name, 'delete' in this case
+   * @param listener - The event listener function to remove
+   * @returns The current instance for method chaining
    */
   off(event: 'delete', listener: () => void): this;
 
   /**
-   * 触发 'update' 事件
+   * Emit the 'update' event.
    *
-   * @param event 事件名称，此处为 'update'
-   * @param state 要传递给监听器的状态对象
-   * @returns 返回事件是否被处理
+   * @param event - The event name, 'update' in this case
+   * @param state - The state object to pass to listeners
+   * @returns Whether any listeners handled the event
+   * @internal
    */
   emit(event: 'update', state: State): boolean;
 
   /**
-   * 触发 'stale' 事件
+   * Emit the 'stale' event.
    *
-   * @param event 事件名称，此处为 'stale'
-   * @returns 返回事件是否被处理
+   * @param event - The event name, 'stale' in this case
+   * @returns Whether any listeners handled the event
+   * @internal
    */
   emit(event: 'stale'): boolean;
 
   /**
-   * 触发 'delete' 事件
+   * Emit the 'delete' event.
    *
-   * @param event 事件名称，此处为 'delete'
-   * @returns 返回事件是否被处理
+   * @param event - The event name, 'delete' in this case
+   * @returns Whether any listeners handled the event
+   * @internal
    */
   emit(event: 'delete'): boolean;
 }

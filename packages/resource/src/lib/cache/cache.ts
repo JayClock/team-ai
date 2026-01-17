@@ -2,35 +2,49 @@ import { State } from '../state/state.js';
 import { Entity } from '../archtype/entity.js';
 
 /**
- * Cache interface
+ * Interface for caching resource State objects.
  *
- * The cache is responsible for storing 'state' objects
+ * Implementations provide storage strategies (e.g., memory, persistent)
+ * for caching fetched resource states to improve performance.
+ *
+ * @category Other
  */
 export interface Cache {
   /**
-   * Store a State object.
+   * Stores a State object in the cache.
    *
-   * This function will clone the state object before storing
+   * The state will be cloned before storing to prevent mutation.
+   *
+   * @param state - The State object to cache
    */
   store: (state: State) => void;
 
   /**
-   * Retrieve a State object from the cache by its absolute uri
+   * Retrieves a cached State by its URI.
+   *
+   * @typeParam T - The entity type of the cached state
+   * @param uri - The absolute URI of the resource
+   * @returns The cached State or `null` if not found
    */
   get: <T extends Entity>(uri: string) => State<T> | null;
 
   /**
-   * Return true if a State object with the specified uri exists in the cache
+   * Checks if a State exists in the cache.
+   *
+   * @param uri - The absolute URI to check
+   * @returns `true` if the URI is cached
    */
   has: (uri: string) => boolean;
 
   /**
-   * Delete a State object from the cache, by its uri
+   * Removes a State from the cache.
+   *
+   * @param uri - The absolute URI to remove
    */
   delete: (uri: string) => void;
 
   /**
-   * Purge the entire cache
+   * Clears all entries from the cache.
    */
   clear: () => void;
 }

@@ -1,14 +1,29 @@
 import { SafeAny } from '../archtype/safe-any.js';
 
 /**
- * HttpError extends the Error object, and is thrown whenever servers emit
- * HTTP errors.
+ * HTTP error thrown when servers return error status codes (4xx, 5xx).
  *
- * It has a response property, allowing users to find out more about the
- * nature of the error.
+ * Contains the original Response object for accessing error details,
+ * headers, and body content.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await resource.get();
+ * } catch (error) {
+ *   if (error instanceof HttpError) {
+ *     console.log(error.status); // e.g., 404
+ *     console.log(error.response.statusText);
+ *   }
+ * }
+ * ```
+ *
+ * @category Other
  */
 export class HttpError extends Error {
+  /** The original fetch Response object */
   response: Response;
+  /** HTTP status code (e.g., 404, 500) */
   status: number;
 
   constructor(response: Response) {
@@ -19,11 +34,14 @@ export class HttpError extends Error {
 }
 
 /**
- * Problem extends the HttpError object. If a server emits a HTTP error, and
- * the response body's content-type is application/problem+json.
+ * RFC 7807 Problem Details error response.
  *
- * application/problem+json is defined in RFC7807 and provides a standardized
- * way to describe error conditions by a HTTP server.
+ * Extends HttpError for servers that return `application/problem+json`
+ * responses with structured error information.
+ *
+ * @see {@link https://datatracker.ietf.org/doc/html/rfc7807 | RFC 7807}
+ *
+ * @category Other
  */
 export class Problem extends HttpError {
   body: {

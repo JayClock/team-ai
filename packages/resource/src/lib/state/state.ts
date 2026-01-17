@@ -6,6 +6,44 @@ import { Link, LinkVariables } from '../links/link.js';
 import { Action } from '../action/action.js';
 import { HttpMethod } from '../http/util.js';
 
+/**
+ * Represents the state of a REST resource at a specific point in time.
+ *
+ * State is the result of fetching a resource and contains:
+ * - **data**: The resource's payload/properties
+ * - **collection**: Embedded collection items (for collection resources)
+ * - **links**: Available navigation links to related resources
+ * - **actions**: Executable forms/templates for state transitions
+ *
+ * State objects are immutable snapshots. Use Resource methods to modify
+ * the server state and obtain new State objects.
+ *
+ * @typeParam TEntity - The entity type defining data shape and available links
+ *
+ * @example
+ * ```typescript
+ * const state = await client.go<User>('/users/123').get();
+ *
+ * // Access data
+ * console.log(state.data.name);
+ *
+ * // Navigate via links
+ * const postsResource = state.follow('posts');
+ * const posts = await postsResource.get();
+ *
+ * // Execute actions
+ * if (state.hasActionFor('edit')) {
+ *   const action = state.actionFor('edit');
+ *   await action.submit({ name: 'New Name' });
+ * }
+ * ```
+ *
+ * @see {@link Resource} for fetching and modifying resources
+ * @see {@link Entity} for defining resource types
+ * @see {@link Action} for executable forms
+ *
+ * @category State
+ */
 export type State<TEntity extends Entity = Entity> = {
   /**
    * Timestamp of when the State was first generated
@@ -33,13 +71,46 @@ export type State<TEntity extends Entity = Entity> = {
    */
   collection: StateCollection<TEntity>;
 
+  /**
+   * Checks if a link with the given relation exists.
+   *
+   * @typeParam K - The link relation name
+   * @param rel - The relation type to check for
+   * @returns `true` if the link exists, `false` otherwise
+   */
   hasLink<K extends keyof TEntity['links']>(rel: K): boolean;
 
+  /**
+   * Gets the raw link object for a given relation.
+   *
+   * @typeParam K - The link relation name
+   * @param rel - The relation type to retrieve
+   * @returns The Link object or `undefined` if not found
+   *
+   * @see {@link follow} for navigating to linked resources
+   */
   getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined;
 
   /**
-   * Follows a relationship, based on its rel type. For example, this might be
-   * 'alternate', 'item', 'edit' or a custom url-based one.
+   * Follows a relationship to create a Resource for navigation.
+   *
+   * This is the primary method for HATEOAS-driven navigation.
+   * The returned Resource can be used to fetch the linked resource's state.
+   *
+   * @typeParam K - The link relation name (e.g., 'self', 'posts', 'author')
+   * @param rel - The relation type to follow
+   * @param variables - Optional template variables for URI expansion
+   * @returns A Resource instance for the linked resource
+   *
+   * @example
+   * ```typescript
+   * // Follow a simple link
+   * const authorResource = postState.follow('author');
+   * const author = await authorResource.get();
+   *
+   * // Follow with template variables
+   * const searchResource = state.follow('search', { q: 'hello' });
+   * ```
    */
   follow<K extends keyof TEntity['links']>(
     rel: K,
@@ -47,32 +118,46 @@ export type State<TEntity extends Entity = Entity> = {
   ): Resource<TEntity['links'][K]>;
 
   /**
-   * Returns a serialization of the state that can be used in a HTTP
-   * response.
+   * Serializes the state for use in HTTP request bodies.
    *
-   * For example, a JSON object might simply serialize using
-   * JSON.serialize().
+   * For JSON resources, this typically returns `JSON.stringify(data)`.
+   * The serialization format depends on the content type.
+   *
+   * @returns The serialized body as Buffer, Blob, or string
    */
   serializeBody(): Buffer | Blob | string;
 
   /**
-   * Content-headers are a subset of HTTP headers that related directly
-   * to the content. The obvious ones are Content-Type.
+   * Returns content-related HTTP headers for this state.
    *
-   * This set of headers will be sent by the server along with a GET
-   * response, but will also be sent back to the server in a PUT
-   * request.
+   * These headers (e.g., Content-Type, Content-Length) describe the
+   * resource content and are used when sending the state back to the server.
+   *
+   * @returns Headers object containing content-related headers
    */
   contentHeaders(): Headers;
 
   /**
    * Checks if an action exists for the specified link relation.
    *
-   * Matches forms where form.uri === link.href.
-   * If method is specified, also matches form.method === method.
+   * An action is a HAL-Forms template that enables state transitions.
+   * This method matches forms where `form.uri === link.href`.
    *
+   * @typeParam K - The link relation name
    * @param rel - The link relation name
    * @param method - Optional HTTP method to filter by (e.g., 'POST', 'PUT', 'DELETE')
+   * @returns `true` if a matching action exists, `false` otherwise
+   *
+   * @example
+   * ```typescript
+   * if (state.hasActionFor('edit')) {
+   *   // Show edit button
+   * }
+   *
+   * if (state.hasActionFor('item', 'DELETE')) {
+   *   // Show delete button
+   * }
+   * ```
    */
   hasActionFor<K extends keyof TEntity['links']>(
     rel: K,
@@ -111,14 +196,36 @@ export type State<TEntity extends Entity = Entity> = {
     method?: HttpMethod,
   ): Action<TEntity['links'][K]>;
 
+  /**
+   * Creates a deep clone of this state object.
+   *
+   * Useful for creating modified copies of state without affecting the original.
+   *
+   * @returns A new State instance with the same data
+   */
   clone(): State<TEntity>;
 };
 
 /**
- * A 'StateFactory' is responsible for taking a Fetch Response, and returning
- * an object that implements the State interface
+ * Factory for creating State objects from HTTP responses.
+ *
+ * StateFactory implementations handle specific content types (HAL, JSON-API, etc.)
+ * and convert HTTP responses into typed State objects.
+ *
+ * @internal
+ * @category State
  */
 export type StateFactory = {
+  /**
+   * Creates a State object from an HTTP response.
+   *
+   * @typeParam TEntity - The entity type for the resulting state
+   * @param client - The client instance for resource resolution
+   * @param link - The link that was followed to get this response
+   * @param response - The fetch Response object
+   * @param prevLink - Optional previous link for context
+   * @returns A Promise resolving to the typed State object
+   */
   create: <TEntity extends Entity>(
     client: ClientInstance,
     link: Link,
