@@ -1,37 +1,35 @@
 package reengineering.ddd.teamai.api;
 
-import java.util.Optional;
-
+import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.springframework.hateoas.MediaTypes;
 import static org.springframework.restdocs.payload.PayloadDocumentation.responseFields;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import static io.restassured.RestAssured.given;
-import io.restassured.http.ContentType;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.accountsLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.conversationsLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.selfLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.userResponseFields;
+
+import io.restassured.http.ContentType;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.springframework.hateoas.MediaTypes;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
 public class UsersApiTest extends ApiTest {
-  @MockitoBean
-  private Users users;
+  @MockitoBean private Users users;
 
   @Test
   public void should_return_404_if_customer_not_exist() {
@@ -54,11 +52,12 @@ public class UsersApiTest extends ApiTest {
   public void should_return_user_if_user_exists() {
     User.Accounts accounts = mock(User.Accounts.class);
     User.Conversations conversations = mock(User.Conversations.class);
-    User user = new User(
-        "john.smith",
-        new UserDescription("John Smith", "john.smith@email.com"),
-        accounts,
-        conversations);
+    User user =
+        new User(
+            "john.smith",
+            new UserDescription("John Smith", "john.smith@email.com"),
+            accounts,
+            conversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
     when(accounts.findAll()).thenReturn(new EntityList<>());
 
@@ -94,16 +93,18 @@ public class UsersApiTest extends ApiTest {
   public void should_update_user() {
     User.Accounts accounts = mock(User.Accounts.class);
     User.Conversations conversations = mock(User.Conversations.class);
-    User user = new User(
-        "john.smith",
-        new UserDescription("John Smith", "john.smith@email.com"),
-        accounts,
-        conversations);
-    User updatedUser = new User(
-        "john.smith",
-        new UserDescription("John Updated", "john.updated@email.com"),
-        accounts,
-        conversations);
+    User user =
+        new User(
+            "john.smith",
+            new UserDescription("John Smith", "john.smith@email.com"),
+            accounts,
+            conversations);
+    User updatedUser =
+        new User(
+            "john.smith",
+            new UserDescription("John Updated", "john.updated@email.com"),
+            accounts,
+            conversations);
     when(users.findById(user.getIdentity()))
         .thenReturn(Optional.of(user))
         .thenReturn(Optional.of(updatedUser));

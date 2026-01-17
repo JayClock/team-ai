@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.model;
 
+import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
@@ -57,5 +58,17 @@ public class Conversation implements Entity<String, ConversationDescription> {
      * @return Response stream from AI model
      */
     Flux<String> sendMessage(String message, String apiKey);
+  }
+
+  public static class ConversationChange {
+    @NotNull() private String title;
+
+    public String getTitle() {
+      return title;
+    }
+
+    public void setTitle(String title) {
+      this.title = title;
+    }
   }
 }

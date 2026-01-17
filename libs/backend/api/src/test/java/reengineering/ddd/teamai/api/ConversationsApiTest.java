@@ -1,20 +1,14 @@
 package reengineering.ddd.teamai.api;
 
-import java.util.Optional;
-
-import org.apache.http.HttpHeaders;
+import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import org.mockito.Mock;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.springframework.hateoas.MediaTypes;
 import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
 import static org.springframework.restdocs.headers.HeaderDocumentation.responseHeaders;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
@@ -22,11 +16,6 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import static io.restassured.RestAssured.given;
-import jakarta.ws.rs.core.MediaType;
-import reengineering.ddd.archtype.Many;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.conversationResponseFields;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.createConversationRequestFields;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
@@ -36,6 +25,16 @@ import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.paginationL
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.paginationParameters;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.selfLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.sendMessageLink;
+
+import jakarta.ws.rs.core.MediaType;
+import java.util.Optional;
+import org.apache.http.HttpHeaders;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.springframework.hateoas.MediaTypes;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import reengineering.ddd.archtype.Many;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Conversation;
@@ -43,28 +42,26 @@ import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
 public class ConversationsApiTest extends ApiTest {
-  @MockitoBean
-  private Users users;
-  @MockitoBean
-  private Conversation.ModelProvider modelProvider;
+  @MockitoBean private Users users;
+  @MockitoBean private Conversation.ModelProvider modelProvider;
   private User user;
 
-  @Mock
-  private Many<Conversation> conversations;
-  @Mock
-  private User.Conversations userConversations;
+  @Mock private Many<Conversation> conversations;
+  @Mock private User.Conversations userConversations;
   private Conversation conversation;
 
   @BeforeEach
   public void beforeEach() {
-    user = new User(
-        "JayClock",
-        new UserDescription("JayClock", "JayClock@email"),
-        mock(User.Accounts.class),
-        userConversations);
+    user =
+        new User(
+            "JayClock",
+            new UserDescription("JayClock", "JayClock@email"),
+            mock(User.Accounts.class),
+            userConversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
-    conversation = new Conversation(
-        "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
+    conversation =
+        new Conversation(
+            "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
     when(userConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.of(conversation));
   }
@@ -130,7 +127,8 @@ public class ConversationsApiTest extends ApiTest {
   @Test
   public void should_create_new_conversation() {
     ConversationDescription description = new ConversationDescription("New Conversation");
-    Conversation newConversation = new Conversation("2", description, mock(Conversation.Messages.class));
+    Conversation newConversation =
+        new Conversation("2", description, mock(Conversation.Messages.class));
     when(user.add(any(ConversationDescription.class))).thenReturn(newConversation);
 
     given(documentationSpec)
@@ -176,8 +174,7 @@ public class ConversationsApiTest extends ApiTest {
                     parameterWithName("conversationId")
                         .description("Unique identifier of the conversation")),
                 responseFields(conversationResponseFields()),
-                halLinksSnippet(
-                    selfLink(), messagesLink(), sendMessageLink())))
+                halLinksSnippet(selfLink(), messagesLink(), sendMessageLink())))
         .when()
         .get(
             "/users/{userId}/conversations/{conversationId}",

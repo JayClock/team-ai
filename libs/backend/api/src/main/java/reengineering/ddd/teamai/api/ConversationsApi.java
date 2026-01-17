@@ -1,6 +1,5 @@
 package reengineering.ddd.teamai.api;
 
-import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
@@ -49,7 +48,7 @@ public class ConversationsApi {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response create(CreateConversationRequestBody requestBody, @Context UriInfo uriInfo) {
+  public Response create(Conversation.ConversationChange requestBody, @Context UriInfo uriInfo) {
     ConversationDescription description = new ConversationDescription(requestBody.getTitle());
     Conversation conversation = user.add(description);
     ConversationModel conversationModel = new ConversationModel(user, conversation, uriInfo);
@@ -58,19 +57,5 @@ public class ConversationsApi {
                 .build(user.getIdentity(), conversation.getIdentity()))
         .entity(conversationModel)
         .build();
-  }
-
-  public static class CreateConversationRequestBody {
-    @NotNull() private String title;
-
-    public CreateConversationRequestBody() {}
-
-    public String getTitle() {
-      return title;
-    }
-
-    public void setTitle(String title) {
-      this.title = title;
-    }
   }
 }
