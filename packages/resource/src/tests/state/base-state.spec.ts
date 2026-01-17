@@ -135,17 +135,7 @@ describe('BaseState', () => {
       expect(stateWithoutForms['forms']).toEqual([]);
     });
 
-    it('should initialize with empty embedded state if not provided', () => {
-      const stateWithoutEmbedded = new BaseState<TestEntity>({
-        client: mockClient,
-        data: testData,
-        links: mockLinks,
-        headers: mockHeaders,
-        currentLink,
-      });
 
-      expect(stateWithoutEmbedded['embeddedState']).toEqual({});
-    });
   });
 
   describe('hasLink', () => {
@@ -396,6 +386,7 @@ describe('BaseState', () => {
       it('should replace rel with currentLink.rel for "self" when collection has items', () => {
         collectionState.follow('self');
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('self')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
@@ -403,6 +394,7 @@ describe('BaseState', () => {
       it('should replace rel with currentLink.rel for "first" when collection has items', () => {
         collectionState.follow('first');
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('first')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
@@ -410,6 +402,7 @@ describe('BaseState', () => {
       it('should replace rel with currentLink.rel for "last" when collection has items', () => {
         collectionState.follow('last');
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('last')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
@@ -417,6 +410,7 @@ describe('BaseState', () => {
       it('should replace rel with currentLink.rel for "prev" when collection has items', () => {
         collectionState.follow('prev');
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('prev')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
@@ -424,6 +418,7 @@ describe('BaseState', () => {
       it('should replace rel with currentLink.rel for "next" when collection has items', () => {
         collectionState.follow('next');
 
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('next')!, rel: 'item' };
         expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
@@ -547,45 +542,6 @@ describe('BaseState', () => {
       expect(putForm?.uri).toBe('/api/resources/123/edit');
       expect(patchForm?.uri).toBe('/api/resources/123/edit');
       expect(deleteForm?.uri).toBe('/api/resources/123/edit');
-    });
-  });
-
-  describe('getEmbedded', () => {
-    it('should return embedded state for existing rel', () => {
-      const mockEmbeddedState = {
-        self: {} as TestEntity,
-        related: {} as TestEntity,
-        edit: {} as TestEntity,
-      };
-
-      const stateWithEmbedded = new BaseState<TestEntity>({
-        client: mockClient,
-        data: testData,
-        links: mockLinks,
-        headers: mockHeaders,
-        currentLink,
-        embeddedState: mockEmbeddedState,
-      });
-
-      expect(stateWithEmbedded.getEmbedded('related')).toBe(
-        mockEmbeddedState.related,
-      );
-    });
-
-    it('should return undefined for non-existing embedded rel', () => {
-      expect(state.getEmbedded('unknown' as never)).toBeUndefined();
-    });
-
-    it('should return undefined if no embedded state exists', () => {
-      const stateWithoutEmbedded = new BaseState<TestEntity>({
-        client: mockClient,
-        data: testData,
-        links: mockLinks,
-        headers: mockHeaders,
-        currentLink,
-      });
-
-      expect(stateWithoutEmbedded.getEmbedded('any' as never)).toBeUndefined();
     });
   });
 

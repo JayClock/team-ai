@@ -44,7 +44,7 @@ export class ResourceRelation<TEntity extends Entity> {
     requestOptions?: RequestOptions,
   ): Promise<State<TEntity>> {
     const resource = await this.getResource();
-    return resource.withGet().request(requestOptions);
+    return resource.get(requestOptions);
   }
 
   /**

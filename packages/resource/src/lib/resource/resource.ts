@@ -9,7 +9,6 @@ import {
 import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
-import { Form } from '../form/form.js';
 import { needsJsonStringify } from '../util/fetch-body-helper.js';
 import { resolve } from '../util/uri.js';
 import { HttpMethod } from '../http/util.js';
@@ -30,15 +29,13 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * Creates a new Resource instance
    * @param client The client instance used for handling requests and caching
    * @param link The link object containing resource relationships and URI templates
-   * @param forms
    */
   constructor(
     private client: ClientInstance,
     private link: Link,
-    private forms: Form[] = [],
   ) {
     super();
-    this.link.rel = this.link.rel ?? 'ROOT_REL';
+    this.link.rel = this.link.rel ?? 'items';
   }
 
   /**
@@ -265,75 +262,6 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     return this.client.getStateForResponse(this.link, response);
   }
 
-  /**
-   * @deprecated use get()
-   */
-  withGet() {
-    return {
-      request: (getOptions?: GetRequestOptions) => this.get(getOptions),
-    };
-  }
-
-  /**
-   * Prepare a PATCH request to the resource.
-   *
-   * @deprecated use patch()
-   * @returns Returns an object with getForm and request methods
-   * - getForm: Gets the form definition for PATCH requests
-   * - request: Executes the PATCH request with the provided options
-   */
-  withPatch() {
-    return {
-      getForm: async () => {
-        return this.forms.find((form) => form.method === 'PATCH');
-      },
-      request: (patchOptions: PatchRequestOptions) => this.patch(patchOptions),
-    };
-  }
-
-  /**
-   * Prepare a POST request to the resource.
-   *
-   * @deprecated use post()
-   * @returns Returns an object with getForm and request methods
-   * - getForm: Gets the form definition for POST requests
-   * - request: Executes the POST request with the provided options
-   */
-  withPost(options?: { dedup?: boolean }) {
-    return {
-      getForm: async () => {
-        return this.forms.find((form) => form.method === 'POST');
-      },
-      request: (postOptions: PostRequestOptions) =>
-        this.post(postOptions, options),
-    };
-  }
-
-  /**
-   * Prepare a PUT request to the resource.
-   *
-   * @deprecated use put()
-   * @returns Returns an object with getForm and request methods
-   * - getForm: Gets the form definition for PUT requests
-   * - request: Executes the PUT request with the provided options
-   */
-  withPut() {
-    return {
-      getForm: async () => {
-        return this.forms.find((form) => form.method === 'PUT');
-      },
-      request: (putOptions: PutRequestOptions) => this.put(putOptions),
-    };
-  }
-
-  /**
-   * @deprecated use delete()
-   */
-  withDelete() {
-    return {
-      request: () => this.delete(),
-    };
-  }
 
   /**
    * Convert request options to RequestInit

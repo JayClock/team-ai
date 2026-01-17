@@ -34,7 +34,6 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
 
   private readonly forms: Form[];
   private readonly headers: Headers;
-  private readonly embeddedState: TEntity['links'];
 
   constructor(protected init: StateInit<TEntity>) {
     this.uri = resolve(this.init.currentLink);
@@ -44,7 +43,6 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     this.headers = init.headers;
     this.forms = init.forms ?? [];
     this.collection = init.collection ?? [];
-    this.embeddedState = init.embeddedState ?? {};
   }
 
   hasLink<K extends keyof TEntity['links']>(rel: K): boolean {
@@ -126,12 +124,6 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     return this.forms.find(
       (form) => form.uri === link.href && form.method === method,
     );
-  }
-
-  getEmbedded<K extends keyof TEntity['links']>(
-    rel: K,
-  ): TEntity['links'][K] | undefined {
-    return this.embeddedState[rel];
   }
 
   /**
