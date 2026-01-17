@@ -2,6 +2,8 @@ import { Login } from '../features/auth/login';
 import { ProtectedRoute } from '../features/auth/protected-route';
 import { SettingsDialog } from '../features/settings/settings-dialog';
 import { AppRoutes } from '../routes/app-routes';
+import Homepage from '../features/landing/homepage';
+import SmartDomainPage from '../features/landing/smart-domain-page';
 import { Route, Routes } from 'react-router-dom';
 import { Suspense } from 'react';
 import {
@@ -91,6 +93,26 @@ function MainApp() {
 export default function App() {
   return (
     <Routes>
+      <Route
+        path="/"
+        element={
+          <ErrorBoundary FallbackComponent={ErrorFallback}>
+            <Suspense fallback={<AppLoading />}>
+              <Homepage />
+            </Suspense>
+          </ErrorBoundary>
+        }
+      />
+      <Route
+        path="/smart-domain"
+        element={
+          <ErrorBoundary FallbackComponent={ErrorFallback}>
+            <Suspense fallback={<AppLoading />}>
+              <SmartDomainPage />
+            </Suspense>
+          </ErrorBoundary>
+        }
+      />
       <Route
         path="/login"
         element={
