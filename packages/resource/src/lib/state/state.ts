@@ -4,6 +4,7 @@ import { ClientInstance } from '../client-instance.js';
 import { Resource } from '../index.js';
 import { Link, LinkVariables } from '../links/link.js';
 import { Action } from '../action/action.js';
+import { HttpMethod } from '../http/util.js';
 
 export type State<TEntity extends Entity = Entity> = {
   /**
@@ -65,27 +66,50 @@ export type State<TEntity extends Entity = Entity> = {
   contentHeaders(): Headers;
 
   /**
-   * Checks if the specified action exists.
+   * Checks if an action exists for the specified link relation.
    *
-   * If no name is given, checks if _any_ action exists.
+   * Matches forms where form.uri === link.href.
+   * If method is specified, also matches form.method === method.
+   *
+   * @param rel - The link relation name
+   * @param method - Optional HTTP method to filter by (e.g., 'POST', 'PUT', 'DELETE')
    */
-  hasAction<K extends keyof TEntity['actions']>(name: K): boolean;
+  hasActionFor<K extends keyof TEntity['links']>(
+    rel: K,
+    method?: HttpMethod,
+  ): boolean;
 
   /**
-   * Return an action by name.
+   * Returns an action associated with the specified link relation.
    *
-   * If no name is given, the first action is returned. This is useful for
-   * formats that only supply 1 action, and no name.
-   */
-  /**
-   * Return an action by name.
+   * Matches forms where form.uri === link.href.
+   * If method is specified, also matches form.method === method.
    *
-   * If no name is given, the first action is returned. This is useful for
-   * formats that only supply 1 action, and no name.
+   * This follows HATEOAS principles by discovering actions through link relations
+   * rather than requiring clients to know template keys in advance.
+   *
+   * @param rel - The link relation name
+   * @param method - Optional HTTP method to filter by (e.g., 'POST', 'PUT', 'DELETE')
+   * @throws ActionNotFound - When link doesn't exist or no matching form is found
+   * @throws AmbiguousActionError - When multiple forms match and no method is specified
+   *
+   * @example
+   * ```typescript
+   * // Discover action through link relation
+   * if (state.hasActionFor('create-conversation')) {
+   *   const action = state.actionFor('create-conversation');
+   *   await action.submit({ title: 'New Chat' });
+   * }
+   *
+   * // Disambiguate when multiple methods exist for same URL
+   * const updateAction = state.actionFor('item', 'PUT');
+   * const deleteAction = state.actionFor('item', 'DELETE');
+   * ```
    */
-  action<K extends keyof TEntity['actions']>(
-    name: K,
-  ): Action<TEntity['actions'][K]>;
+  actionFor<K extends keyof TEntity['links']>(
+    rel: K,
+    method?: HttpMethod,
+  ): Action<TEntity['links'][K]>;
 
   clone(): State<TEntity>;
 };
