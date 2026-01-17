@@ -15,7 +15,7 @@ HAL-FORMS extends HAL with `_templates` that describe available actions. This is
         {"name": "title", "type": "text", "required": true}
       ]
     },
-    "send-message": {
+    "chat": {
       "method": "POST",
       "target": "/api/users/123/conversations/456/messages/stream",
       "properties": [
@@ -99,7 +99,7 @@ curl -s "$MESSAGES_URL"
 |Conversation's messages collection
 |Conversation
 
-|`send-message`
+|`chat`
 |SSE endpoint for sending messages
 |Conversation
 

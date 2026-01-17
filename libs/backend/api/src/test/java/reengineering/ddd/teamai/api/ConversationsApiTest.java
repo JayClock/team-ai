@@ -1,11 +1,20 @@
 package reengineering.ddd.teamai.api;
 
-import static io.restassured.RestAssured.given;
+import java.util.Optional;
+
+import org.apache.http.HttpHeaders;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import org.mockito.Mock;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.springframework.hateoas.MediaTypes;
 import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
 import static org.springframework.restdocs.headers.HeaderDocumentation.responseHeaders;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
@@ -13,18 +22,20 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.response
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
-import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.*;
-import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
-
-import jakarta.ws.rs.core.MediaType;
-import java.util.Optional;
-import org.apache.http.HttpHeaders;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.springframework.hateoas.MediaTypes;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import static io.restassured.RestAssured.given;
+import jakarta.ws.rs.core.MediaType;
 import reengineering.ddd.archtype.Many;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.conversationResponseFields;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.createConversationRequestFields;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.messagesLink;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.pagedConversationsResponseFields;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.paginationLinks;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.paginationParameters;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.selfLink;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.sendMessageLink;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Conversation;
@@ -32,26 +43,28 @@ import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
 public class ConversationsApiTest extends ApiTest {
-  @MockitoBean private Users users;
-  @MockitoBean private Conversation.ModelProvider modelProvider;
+  @MockitoBean
+  private Users users;
+  @MockitoBean
+  private Conversation.ModelProvider modelProvider;
   private User user;
 
-  @Mock private Many<Conversation> conversations;
-  @Mock private User.Conversations userConversations;
+  @Mock
+  private Many<Conversation> conversations;
+  @Mock
+  private User.Conversations userConversations;
   private Conversation conversation;
 
   @BeforeEach
   public void beforeEach() {
-    user =
-        new User(
-            "JayClock",
-            new UserDescription("JayClock", "JayClock@email"),
-            mock(User.Accounts.class),
-            userConversations);
+    user = new User(
+        "JayClock",
+        new UserDescription("JayClock", "JayClock@email"),
+        mock(User.Accounts.class),
+        userConversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
-    conversation =
-        new Conversation(
-            "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
+    conversation = new Conversation(
+        "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
     when(userConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.of(conversation));
   }
@@ -93,7 +106,7 @@ public class ConversationsApiTest extends ApiTest {
                     + conversation.getIdentity()
                     + "/messages"))
         .body(
-            "_embedded.conversations[0]._links.send-message.href",
+            "_embedded.conversations[0]._links.chat.href",
             is(
                 "/api/users/"
                     + user.getIdentity()
@@ -102,27 +115,22 @@ public class ConversationsApiTest extends ApiTest {
                     + "/messages/stream"))
         .body("_embedded.conversations[0]._templates.default.method", is("PUT"))
         .body("_embedded.conversations[0]._templates.default.properties", hasSize(1))
-        .body("_embedded.conversations[0]._templates.send-message.method", is("POST"))
+        .body("_embedded.conversations[0]._templates.chat.method", is("POST"))
         .body(
-            "_embedded.conversations[0]._templates.send-message.target",
+            "_embedded.conversations[0]._templates.chat.target",
             is(
                 "/api/users/"
                     + user.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages/stream"))
-        .body("_embedded.conversations[0]._templates.send-message.properties", hasSize(2))
-        .body(
-            "_embedded.conversations[0]._links.delete-conversation.href",
-            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
-        .body("_embedded.conversations[0]._templates.delete-conversation.method", is("DELETE"));
+        .body("_embedded.conversations[0]._templates.chat.properties", hasSize(2));
   }
 
   @Test
   public void should_create_new_conversation() {
     ConversationDescription description = new ConversationDescription("New Conversation");
-    Conversation newConversation =
-        new Conversation("2", description, mock(Conversation.Messages.class));
+    Conversation newConversation = new Conversation("2", description, mock(Conversation.Messages.class));
     when(user.add(any(ConversationDescription.class))).thenReturn(newConversation);
 
     given(documentationSpec)
@@ -169,7 +177,7 @@ public class ConversationsApiTest extends ApiTest {
                         .description("Unique identifier of the conversation")),
                 responseFields(conversationResponseFields()),
                 halLinksSnippet(
-                    selfLink(), messagesLink(), sendMessageLink(), deleteConversationLink())))
+                    selfLink(), messagesLink(), sendMessageLink())))
         .when()
         .get(
             "/users/{userId}/conversations/{conversationId}",
@@ -190,9 +198,9 @@ public class ConversationsApiTest extends ApiTest {
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages"))
-        // send-message link with Template
+        // chat link with Template
         .body(
-            "_links.send-message.href",
+            "_links.chat.href",
             is(
                 "/api/users/"
                     + user.getIdentity()
@@ -201,21 +209,16 @@ public class ConversationsApiTest extends ApiTest {
                     + "/messages/stream"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(1))
-        .body("_templates.send-message.method", is("POST"))
+        .body("_templates.chat.method", is("POST"))
         .body(
-            "_templates.send-message.target",
+            "_templates.chat.target",
             is(
                 "/api/users/"
                     + user.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages/stream"))
-        .body("_templates.send-message.properties", hasSize(2))
-        // delete link with Template
-        .body(
-            "_links.delete-conversation.href",
-            is("/api/users/" + user.getIdentity() + "/conversations/" + conversation.getIdentity()))
-        .body("_templates.delete-conversation.method", is("DELETE"));
+        .body("_templates.chat.properties", hasSize(2));
 
     verify(userConversations, times(1)).findByIdentity(conversation.getIdentity());
   }

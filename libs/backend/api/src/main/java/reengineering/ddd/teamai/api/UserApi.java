@@ -40,7 +40,8 @@ public class UserApi {
 
   @Path("accounts")
   public AccountsApi accounts() {
-    return new AccountsApi(user);
+    AccountsApi accountsApi = new AccountsApi(user);
+    return resourceContext.initResource(accountsApi);
   }
 
   @Path("conversations")
