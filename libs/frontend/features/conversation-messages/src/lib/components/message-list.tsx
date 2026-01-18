@@ -133,10 +133,11 @@ export function MessageList({
                 {(attachment) => <PromptInputAttachment data={attachment} />}
               </PromptInputAttachments>
             </PromptInputHeader>
-            <PromptInputBody className="rounded-xl border border-input bg-background shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+            <PromptInputBody className="rounded-xl border border-input bg-background shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
               <PromptInputTextarea
                 placeholder="输入消息..."
                 className="min-h-15 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                aria-label="输入消息内容"
               />
             </PromptInputBody>
             <PromptInputFooter className="mt-2 flex items-center justify-between">
@@ -150,7 +151,7 @@ export function MessageList({
               </PromptInputTools>
               <PromptInputSubmit
                 status={isLoading ? 'submitted' : undefined}
-                className="transition-all hover:scale-105"
+                className="transition-opacity duration-200 hover:opacity-90"
               />
             </PromptInputFooter>
           </PromptInput>

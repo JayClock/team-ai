@@ -10,6 +10,7 @@ import {
 import { State } from '@hateoas-ts/resource';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Project, User } from '@shared/schema';
+import { CheckIcon } from 'lucide-react';
 
 import { useEffect, useMemo, useState } from 'react';
 
@@ -43,7 +44,11 @@ export function UserProjects(props: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button
+          variant="outline"
+          size="sm"
+          className="cursor-pointer transition-colors duration-200"
+        >
           {selectedProject?.data.name}
         </Button>
       </DropdownMenuTrigger>
@@ -55,12 +60,14 @@ export function UserProjects(props: Props) {
             key={project.data.id}
             onClick={() => handleProjectChange(project)}
             className={
-              selectedProject?.data.id === project.data.id ? 'bg-accent' : ''
+              selectedProject?.data.id === project.data.id
+                ? 'bg-accent cursor-pointer'
+                : 'cursor-pointer'
             }
           >
-            {project.data.name}
+            <span className="flex-1">{project.data.name}</span>
             {selectedProject?.data.id === project.data.id && (
-              <span className="ml-auto text-xs">✓</span>
+              <CheckIcon className="h-4 w-4" aria-hidden="true" />
             )}
           </DropdownMenuItem>
         ))}

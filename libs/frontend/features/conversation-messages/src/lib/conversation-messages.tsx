@@ -24,7 +24,7 @@ function MessagesLoading() {
         <MessageListSkeleton count={4} />
       </div>
       <div className="border-t bg-background p-4">
-        <div className="h-24 animate-pulse rounded-lg bg-muted" />
+        <div className="h-24 rounded-lg bg-muted animate-pulse" />
       </div>
     </div>
   );

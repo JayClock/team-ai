@@ -73,9 +73,9 @@ const features = [
 export default function Homepage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-white/80 border-b border-gray-200/50">
+      <nav className="fixed top-4 left-4 right-4 z-50 backdrop-blur-md bg-white/90 border border-gray-200 rounded-2xl shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -89,14 +89,14 @@ export default function Homepage() {
             <div className="flex items-center gap-4">
               <Link
                 to="/login"
-                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors duration-200"
               >
                 登录
               </Link>
               <Button
                 variant="default"
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
               >
                 开始使用
               </Button>
@@ -105,7 +105,7 @@ export default function Homepage() {
         </div>
       </nav>
 
-      <main className="pt-24 pb-16">
+      <main className="pt-28 pb-16">
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
@@ -146,7 +146,7 @@ export default function Homepage() {
               {stages.map((stage, index) => (
                 <div
                   key={index}
-                  className="group relative backdrop-blur-md bg-white/70 border border-gray-200/50 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
+                  className="group relative backdrop-blur-md bg-white/80 border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300"
                 >
                   <div
                     className={`inline-flex p-3 rounded-xl ${stage.bgColor} ${stage.color} mb-4`}
@@ -184,7 +184,7 @@ export default function Homepage() {
               {features.map((feature, index) => (
                 <div
                   key={index}
-                  className="backdrop-blur-md bg-white/70 border border-gray-200/50 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300"
+                  className="backdrop-blur-md bg-white/80 border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300"
                 >
                   <div className="inline-flex p-3 rounded-xl bg-blue-500/10 text-blue-600 mb-4">
                     {feature.icon}
@@ -249,16 +249,16 @@ export default function Homepage() {
         </section>
       </main>
 
-      <footer className="border-t border-gray-200/50 bg-white/50 backdrop-blur-sm">
+      <footer className="border-t border-gray-200 bg-white/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 <BrainIcon className="h-4 w-4 text-white" />
               </div>
-              <span className="text-sm font-medium text-gray-600">Team AI</span>
+              <span className="text-sm font-medium text-gray-900">Team AI</span>
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-600">
               © 2026 Team AI. All rights reserved.
             </p>
           </div>

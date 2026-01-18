@@ -42,6 +42,7 @@ export default function ConversationList(props: Required<Props>) {
   const { ref: loadMoreRef } = useInView({
     threshold: 0,
     skip: isLoadingMore,
+    rootMargin: '100px',
     onChange: (inView) => {
       if (inView && hasNextPage && !loadingRef.current) {
         loadingRef.current = true;
@@ -74,9 +75,12 @@ export default function ConversationList(props: Required<Props>) {
                 isActive={activeConversationId === item.id}
                 onClick={() => handleConversationClick(item.id)}
                 tooltip={item.title}
-                className="px-4"
+                className="px-4 cursor-pointer transition-colors duration-200"
               >
-                <MessageSquareIcon className="h-4 w-4 shrink-0" />
+                <MessageSquareIcon
+                  className="h-4 w-4 shrink-0"
+                  aria-hidden="true"
+                />
                 <span className="truncate">{item.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>

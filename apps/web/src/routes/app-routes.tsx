@@ -22,12 +22,16 @@ export function AppRoutes() {
   const sidebarHeader = (
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center gap-2">
-        <MessageSquareIcon className="h-5 w-5" />
+        <MessageSquareIcon className="h-5 w-5" aria-hidden="true" />
         <UserProjects state={userState} onProjectChange={setProjectState} />
       </div>
-      <Button variant="ghost" size="icon" className="h-8 w-8">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 transition-colors duration-200"
+        aria-label="新建对话"
+      >
         <PlusIcon className="h-4 w-4" />
-        <span className="sr-only">新建对话</span>
       </Button>
     </div>
   );
