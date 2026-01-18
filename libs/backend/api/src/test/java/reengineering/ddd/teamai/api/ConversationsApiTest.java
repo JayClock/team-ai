@@ -57,7 +57,8 @@ public class ConversationsApiTest extends ApiTest {
             "JayClock",
             new UserDescription("JayClock", "JayClock@email"),
             mock(User.Accounts.class),
-            userConversations);
+            userConversations,
+            mock(User.Projects.class));
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     conversation =
         new Conversation(

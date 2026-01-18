@@ -10,7 +10,7 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.description.UserDescription;
-import reengineering.ddd.teamai.model.Conversation;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
 public class UserModel extends RepresentationModel<UserModel> {
@@ -29,7 +29,11 @@ public class UserModel extends RepresentationModel<UserModel> {
         user.accounts().findAll().stream()
             .map(account -> new AccountModel(user, account, uriInfo))
             .toList();
-    this.embedded = new EmbeddedResources(accounts);
+    List<ProjectModel> projects =
+        user.projects().findAll().stream()
+            .map(project -> new ProjectModel(user, project, uriInfo))
+            .toList();
+    this.embedded = new EmbeddedResources(accounts, projects);
     Link selfRel =
         Link.of(ApiTemplates.user(uriInfo).build(user.getIdentity()).getPath()).withSelfRel();
     Link accountsRel =
@@ -38,8 +42,12 @@ public class UserModel extends RepresentationModel<UserModel> {
     Link conversationsRel =
         Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath())
             .withRel("conversations");
+    Link projectsRel =
+        Link.of(ApiTemplates.projects(uriInfo).build(user.getIdentity()).getPath())
+            .withRel("projects");
 
     add(accountsRel);
+    add(conversationsRel);
     add(
         Affordances.of(selfRel)
             .afford(HttpMethod.PUT)
@@ -48,12 +56,14 @@ public class UserModel extends RepresentationModel<UserModel> {
             .toLink());
 
     add(
-        Affordances.of(conversationsRel)
+        Affordances.of(projectsRel)
             .afford(HttpMethod.POST)
-            .withInput(Conversation.ConversationChange.class)
-            .withName("create-conversation")
+            .withInput(Project.ProjectChange.class)
+            .withName("create-project")
             .toLink());
   }
 
-  public record EmbeddedResources(@JsonProperty("accounts") List<AccountModel> accounts) {}
+  public record EmbeddedResources(
+      @JsonProperty("accounts") List<AccountModel> accounts,
+      @JsonProperty("projects") List<ProjectModel> projects) {}
 }

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectConversationsMapper">
+
+  <select id="findConversationByProjectAndId" resultMap="reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.conversation">
+    SELECT c.id, c.title
+    FROM conversations c
+    WHERE c.project_id = #{project_id} AND c.id = #{id}
+  </select>
+
+  <insert id="insertConversation" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO conversations(title, project_id, user_id)
+    VALUES (#{description.title}, #{project_id},
+      (SELECT user_id FROM projects WHERE id = #{project_id}))
+  </insert>
+
+  <select id="findConversationsByProjectId" resultMap="reengineering.ddd.teamai.mybatis.mappers.UserConversationsMapper.conversation">
+    SELECT c.id, c.title
+    FROM conversations c
+    WHERE c.project_id = #{project_id}
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <select id="countConversationsByProject" resultType="int">
+    SELECT COUNT(id) FROM conversations WHERE project_id = #{project_id}
+  </select>
+ </mapper>

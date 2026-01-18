@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.UserProjectsMapper">
+
+  <resultMap id="project" type="reengineering.ddd.teamai.model.Project">
+    <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.ProjectDescription">
+      <constructor>
+        <arg column="name" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="domain_model" jdbcType="VARCHAR" javaType="String"/>
+      </constructor>
+    </association>
+    <association property="conversations" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectConversations">
+      <result column="id" property="projectId" javaType="int"/>
+    </association>
+  </resultMap>
+
+  <select id="findProjectByUserAndId" resultMap="project">
+    SELECT p.id, p.name, p.domain_model
+    FROM projects p
+    WHERE p.user_id = #{user_id} AND p.id = #{id}
+  </select>
+
+  <insert id="insertProject" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO projects(name, domain_model, user_id)
+    VALUES (#{description.name}, #{description.domainModel}, #{user_id})
+  </insert>
+
+  <select id="countProjectsByUser" resultType="int">
+    SELECT COUNT(id) FROM projects WHERE user_id = #{user_id}
+  </select>
+
+  <select id="findProjectsByUserId" resultMap="project">
+    SELECT p.id, p.name, p.domain_model
+    FROM projects p
+    WHERE p.user_id = #{user_id}
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <delete id="deleteProject">
+    DELETE FROM conversations WHERE project_id = #{id};
+    DELETE FROM projects WHERE user_id = #{user_id} AND id = #{id}
+  </delete>
+ </mapper>

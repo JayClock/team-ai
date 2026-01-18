@@ -1,0 +1,38 @@
+package reengineering.ddd.teamai.api;
+
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.container.ResourceContext;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import reengineering.ddd.teamai.api.representation.ProjectModel;
+import reengineering.ddd.teamai.model.Project;
+import reengineering.ddd.teamai.model.User;
+
+public class ProjectApi {
+  @Context ResourceContext resourceContext;
+
+  private final User user;
+  private final Project project;
+
+  public ProjectApi(User user, Project project) {
+    this.user = user;
+    this.project = project;
+  }
+
+  @GET
+  public ProjectModel find(@Context UriInfo uriInfo) {
+    return new ProjectModel(user, project, uriInfo);
+  }
+
+  @DELETE
+  public Response delete() {
+    user.deleteProject(project.getIdentity());
+    return Response.noContent().build();
+  }
+
+  @Path("conversations")
+  public ProjectConversationsApi conversations() {
+    return resourceContext.initResource(new ProjectConversationsApi(user, project));
+  }
+}

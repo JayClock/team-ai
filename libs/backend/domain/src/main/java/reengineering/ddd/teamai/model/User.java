@@ -7,6 +7,7 @@ import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
+import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 
 public class User implements Entity<String, UserDescription> {
@@ -14,16 +15,19 @@ public class User implements Entity<String, UserDescription> {
   private UserDescription description;
   private Accounts accounts;
   private Conversations conversations;
+  private Projects projects;
 
   public User(
       String identity,
       UserDescription description,
       Accounts accounts,
-      Conversations conversations) {
+      Conversations conversations,
+      Projects projects) {
     this.identity = identity;
     this.description = description;
     this.accounts = accounts;
     this.conversations = conversations;
+    this.projects = projects;
   }
 
   private User() {}
@@ -58,12 +62,30 @@ public class User implements Entity<String, UserDescription> {
     return conversations;
   }
 
+  public HasMany<String, Project> projects() {
+    return projects;
+  }
+
+  public Project add(ProjectDescription projectDescription) {
+    return projects.add(projectDescription);
+  }
+
+  public void deleteProject(String projectId) {
+    projects.delete(projectId);
+  }
+
   public interface Accounts extends HasMany<String, Account> {
     Account add(AccountDescription description);
   }
 
   public interface Conversations extends HasMany<String, Conversation> {
     Conversation add(ConversationDescription description);
+
+    void delete(String id);
+  }
+
+  public interface Projects extends HasMany<String, Project> {
+    Project add(ProjectDescription description);
 
     void delete(String id);
   }

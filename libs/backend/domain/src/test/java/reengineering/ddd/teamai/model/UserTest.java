@@ -24,7 +24,7 @@ public class UserTest {
   @BeforeEach
   public void setUp() {
     userDescription = new UserDescription("John Doe", "john@example.com");
-    user = new User("user-1", userDescription, accounts, conversations);
+    user = new User("user-1", userDescription, accounts, conversations, mock(User.Projects.class));
   }
 
   @Test

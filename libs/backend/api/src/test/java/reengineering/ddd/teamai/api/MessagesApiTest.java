@@ -45,7 +45,8 @@ public class MessagesApiTest extends ApiTest {
             "JayClock",
             new UserDescription("JayClock", "JayClock@email"),
             mock(User.Accounts.class),
-            mock(User.Conversations.class));
+            mock(User.Conversations.class),
+            mock(User.Projects.class));
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     messages = mock(Conversation.Messages.class);
     conversation = new Conversation("1", new ConversationDescription("title"), messages);
