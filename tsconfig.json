@@ -23,6 +23,9 @@
     },
     {
       "path": "./libs/frontend/shared/ui"
+    },
+    {
+      "path": "./libs/frontend/features/user-projects"
     }
   ]
 }

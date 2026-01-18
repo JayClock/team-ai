@@ -14,10 +14,19 @@ export type User = Entity<
   {
     self: User;
     accounts: Collection<Account>;
+    projects: Collection<Project>
     conversations: Collection<Conversation>;
     'create-conversation': Conversation;
   }
 >;
+
+export type Project = Entity<{
+  id: string
+  name: string
+}, {
+  conversations: Collection<Conversation>;
+}>
+
 
 export type Account = Entity<
   { id: string; provider: string; providerId: string },

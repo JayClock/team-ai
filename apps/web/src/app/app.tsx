@@ -94,7 +94,7 @@ export default function App() {
   return (
     <Routes>
       <Route
-        path="/"
+        path="/home"
         element={
           <ErrorBoundary FallbackComponent={ErrorFallback}>
             <Suspense fallback={<AppLoading />}>

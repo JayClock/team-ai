@@ -3,6 +3,7 @@ import { State } from '@hateoas-ts/resource';
 import { Conversation } from '@shared/schema';
 import { UserConversations } from '@features/user-conversations';
 import { ConversationMessages } from '@features/conversation-messages';
+import { UserProjects } from '@features/user-projects';
 import { rootResource } from '../lib/api-client';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Button } from '@shared/ui/components/button';
@@ -14,13 +15,13 @@ export function AppRoutes() {
 
   const meRelation = useMemo(() => rootResource.follow('me'), []);
 
-  const { resourceState } = useSuspenseResource(meRelation);
+  const { resourceState: userState } = useSuspenseResource(meRelation);
 
   const sidebarHeader = (
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center gap-2">
         <MessageSquareIcon className="h-5 w-5" />
-        <span className="font-semibold">Team AI</span>
+        <UserProjects state={userState} />
       </div>
       <Button variant="ghost" size="icon" className="h-8 w-8">
         <PlusIcon className="h-4 w-4" />
@@ -31,7 +32,7 @@ export function AppRoutes() {
 
   const sidebarContent = (
     <UserConversations
-      state={resourceState}
+      state={userState}
       onConversationChange={setConversationState}
     />
   );

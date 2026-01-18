@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "dependencies": {
+    "@features/user-projects": "workspace:*",
     "@features/conversation-messages": "workspace:*",
     "@features/user-conversations": "workspace:*",
     "@hateoas-ts/resource": "workspace:*",
