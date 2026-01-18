@@ -16,7 +16,7 @@
       "path": "./libs/frontend/shared/schema"
     },
     {
-      "path": "./libs/frontend/features/user-conversations"
+      "path": "./libs/frontend/features/project-conversations"
     },
     {
       "path": "./libs/frontend/features/conversation-messages"

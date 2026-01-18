@@ -13,7 +13,7 @@ Frontend feature modules implementing business logic using @shared packages for 
 ```
 libs/frontend/features/
 ├── conversation-messages/     # Message list and input feature
-├── user-conversations/        # User conversation list feature
+├── project-conversations/        # User conversation list feature
 └── [feature-name]/
     ├── src/components/         # Feature-specific components
     ├── src/lib/              # Feature business logic

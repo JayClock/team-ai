@@ -18,7 +18,7 @@ apps/web/src/
 ├── features/                # Feature modules
 │   ├── auth/               # Authentication (Login, ProtectedRoute)
 │   ├── layout/             # AppLayout component
-│   └── user-conversations/ # Conversation feature
+│   └── project-conversations/ # Conversation feature
 ├── config/app.config.ts    # Application configuration
 └── main.tsx               # Entry point (ResourceProvider + XProvider)
 ```

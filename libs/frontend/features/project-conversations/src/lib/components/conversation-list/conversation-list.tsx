@@ -1,9 +1,4 @@
-import { Conversation, User } from '@shared/schema';
-import { State } from '@hateoas-ts/resource';
 import { useSuspenseInfiniteCollection } from '@hateoas-ts/resource-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { useInView } from 'react-intersection-observer';
-
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -13,13 +8,11 @@ import {
   SidebarMenuSkeleton,
 } from '@shared/ui/components/sidebar';
 import { MessageSquareIcon } from 'lucide-react';
+import { useState, useMemo, useRef, useCallback } from 'react';
+import { useInView } from 'react-intersection-observer';
+import { Props } from '../../interface';
 
-interface Props {
-  state: State<User>;
-  onConversationChange: (conversationState: State<Conversation>) => void;
-}
-
-export function UserConversations(props: Props) {
+export default function ConversationList(props: Required<Props>) {
   const { state, onConversationChange } = props;
   const [activeConversationId, setActiveConversationId] = useState<string>();
 
@@ -116,5 +109,3 @@ export function UserConversations(props: Props) {
     </SidebarGroup>
   );
 }
-
-export default UserConversations;

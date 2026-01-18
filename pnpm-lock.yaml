@@ -297,9 +297,9 @@ importers:
       '@features/conversation-messages':
         specifier: workspace:*
         version: link:../../libs/frontend/features/conversation-messages
-      '@features/user-conversations':
+      '@features/project-conversations':
         specifier: workspace:*
-        version: link:../../libs/frontend/features/user-conversations
+        version: link:../../libs/frontend/features/project-conversations
       '@features/user-projects':
         specifier: workspace:*
         version: link:../../libs/frontend/features/user-projects
@@ -328,7 +328,7 @@ importers:
         specifier: workspace:*
         version: link:../../shared/ui
 
-  libs/frontend/features/user-conversations:
+  libs/frontend/features/project-conversations:
     dependencies:
       '@hateoas-ts/resource':
         specifier: workspace:*

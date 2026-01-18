@@ -4,14 +4,14 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir:
-    '../../../../node_modules/.vite/libs/frontend/features/user-conversations',
+    '../../../../node_modules/.vite/libs/frontend/features/project-conversations',
   plugins: [react()],
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [],
   // },
   test: {
-    name: '@features/user-conversations',
+    name: '@features/project-conversations',
     watch: false,
     globals: true,
     environment: 'jsdom',

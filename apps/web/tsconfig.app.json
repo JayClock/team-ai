@@ -47,7 +47,7 @@
       "path": "../../packages/resource/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/frontend/features/user-conversations/tsconfig.lib.json"
+      "path": "../../libs/frontend/features/project-conversations/tsconfig.lib.json"
     },
     {
       "path": "../../libs/frontend/features/conversation-messages/tsconfig.lib.json"

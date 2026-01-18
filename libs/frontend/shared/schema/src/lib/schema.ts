@@ -15,8 +15,6 @@ export type User = Entity<
     self: User;
     accounts: Collection<Account>;
     projects: Collection<Project>
-    conversations: Collection<Conversation>;
-    'create-conversation': Conversation;
   }
 >;
 
