@@ -17,9 +17,10 @@ public interface TestDataMapper {
       @Param("provider_id") String providerId,
       @Param("user_id") int userId);
 
-  @Insert("INSERT INTO conversations(id,title,user_id) VALUES ( #{id} ,#{title} ,#{user_id} )")
+  @Insert(
+      "INSERT INTO conversations(id,title,project_id) VALUES ( #{id} ,#{title} ,#{project_id} )")
   void insertConversation(
-      @Param("id") int id, @Param("title") String title, @Param("user_id") int userId);
+      @Param("id") int id, @Param("title") String title, @Param("project_id") int projectId);
 
   @Insert(
       "INSERT INTO messages(id,conversation_id,role,content) VALUES ( #{id} ,#{conversation_id} ,#{role} ,#{content} )")
@@ -28,4 +29,20 @@ public interface TestDataMapper {
       @Param("conversation_id") int conversationId,
       @Param("role") String role,
       @Param("content") String content);
+
+  @Insert(
+      "INSERT INTO projects(id,user_id,name,domain_model) VALUES ( #{id} ,#{user_id} ,#{name} ,#{domain_model} )")
+  void insertProject(
+      @Param("id") int id,
+      @Param("user_id") int userId,
+      @Param("name") String name,
+      @Param("domain_model") String domainModel);
+
+  @Insert(
+      "INSERT INTO conversations(id,title,user_id,project_id) VALUES ( #{id} ,#{title} ,#{user_id} ,#{project_id} )")
+  void insertConversationWithProject(
+      @Param("id") int id,
+      @Param("title") String title,
+      @Param("user_id") int userId,
+      @Param("project_id") int projectId);
 }

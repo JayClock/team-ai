@@ -16,7 +16,7 @@ import reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper;
 
 @MybatisTest
 @Import(TestContainerConfig.class)
-public class AccountsMapperTest {
+public class UserAccountsMapperTest {
   @Inject private reengineering.ddd.TestDataMapper testData;
   @Inject private UserAccountsMapper accountsMapper;
 

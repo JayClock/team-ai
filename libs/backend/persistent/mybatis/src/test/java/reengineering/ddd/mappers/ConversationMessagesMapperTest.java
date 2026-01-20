@@ -16,11 +16,12 @@ import reengineering.ddd.teamai.mybatis.mappers.ConversationMessagesMapper;
 
 @MybatisTest
 @Import(TestContainerConfig.class)
-public class MessagesMapperTest {
+public class ConversationMessagesMapperTest {
   @Inject private reengineering.ddd.TestDataMapper testData;
   @Inject private ConversationMessagesMapper messagesMapper;
 
   private final int userId = id();
+  private final int projectId = id();
   private final int conversationId = id();
   private final int messageId = id();
 
@@ -31,7 +32,8 @@ public class MessagesMapperTest {
   @BeforeEach
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
-    testData.insertConversation(conversationId, "title" + conversationId, userId);
+    testData.insertProject(projectId, userId, "name", "model");
+    testData.insertConversationWithProject(conversationId, "Conversation Title", userId, projectId);
     testData.insertMessage(messageId, conversationId, "role", "content");
   }
 
