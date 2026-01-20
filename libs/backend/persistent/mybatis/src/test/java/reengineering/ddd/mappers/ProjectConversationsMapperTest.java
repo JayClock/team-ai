@@ -33,7 +33,7 @@ public class ProjectConversationsMapperTest {
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
     testData.insertProject(projectId, userId, "Test Project" + projectId, "domain model content");
-    testData.insertConversationWithProject(conversationId, "Conversation Title", userId, projectId);
+    testData.insertConversation(conversationId, "Conversation Title", projectId);
   }
 
   @Test

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
- <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.UsersMapper">
-
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.UsersMapper">
   <resultMap id="user" type="reengineering.ddd.teamai.model.User">
     <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.UserDescription">
@@ -14,9 +13,6 @@
       <result column="id" property="userId" javaType="int"/>
       <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.account"
                   ofType="reengineering.ddd.teamai.model.Account"/>
-    </association>
-    <association property="conversations" javaType="reengineering.ddd.teamai.mybatis.associations.UserConversations">
-      <result column="id" property="userId" javaType="int"/>
     </association>
     <association property="projects" javaType="reengineering.ddd.teamai.mybatis.associations.UserProjects">
       <result column="id" property="userId" javaType="int"/>
@@ -49,7 +45,8 @@
 
   <update id="updateUser">
     update users
-    set name = #{request.name}, email = #{request.email}
+    set name  = #{request.name},
+        email = #{request.email}
     where id = #{id}
   </update>
 </mapper>

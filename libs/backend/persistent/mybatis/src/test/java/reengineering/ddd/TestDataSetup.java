@@ -45,7 +45,7 @@ public class TestDataSetup implements BeforeAllCallback, ExtensionContext.Store.
             project.add(description);
           }
 
-          Conversation conversation = user.conversations().findAll().stream().findFirst().get();
+          Conversation conversation = project.conversations().findAll().stream().findFirst().get();
 
           for (var i = 0; i < 100; i++) {
             var description = new MessageDescription("role", "content");

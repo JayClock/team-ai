@@ -37,12 +37,4 @@ public interface TestDataMapper {
       @Param("user_id") int userId,
       @Param("name") String name,
       @Param("domain_model") String domainModel);
-
-  @Insert(
-      "INSERT INTO conversations(id,title,user_id,project_id) VALUES ( #{id} ,#{title} ,#{user_id} ,#{project_id} )")
-  void insertConversationWithProject(
-      @Param("id") int id,
-      @Param("title") String title,
-      @Param("user_id") int userId,
-      @Param("project_id") int projectId);
 }
