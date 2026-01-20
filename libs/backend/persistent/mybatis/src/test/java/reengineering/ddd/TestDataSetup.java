@@ -7,7 +7,9 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
+import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.Conversation;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 
@@ -31,9 +33,16 @@ public class TestDataSetup implements BeforeAllCallback, ExtensionContext.Store.
 
           User user = users.findById(String.valueOf(userId)).get();
 
+          for (var project = 0; project < 5; project++) {
+            var description = new ProjectDescription("name", "model");
+            user.add(description);
+          }
+
+          Project project = user.projects().findAll().stream().findFirst().get();
+
           for (var conversation = 0; conversation < 100; conversation++) {
             var description = new ConversationDescription("title");
-            user.add(description);
+            project.add(description);
           }
 
           Conversation conversation = user.conversations().findAll().stream().findFirst().get();

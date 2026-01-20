@@ -16,6 +16,7 @@ import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 import reengineering.ddd.teamai.mybatis.config.CacheConfig;
@@ -34,10 +35,10 @@ public class ConversationMessagesTest {
 
   @BeforeEach
   public void setup() {
-    // Clear all caches before each test
     cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
     user = users.findById(userId).get();
-    conversation = user.conversations().findAll().stream().findFirst().get();
+    Project project = user.projects().findAll().stream().findFirst().get();
+    conversation = project.conversations().findAll().stream().findFirst().get();
   }
 
   @Test

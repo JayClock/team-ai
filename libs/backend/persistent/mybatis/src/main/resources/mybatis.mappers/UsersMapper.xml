@@ -20,8 +20,6 @@
     </association>
     <association property="projects" javaType="reengineering.ddd.teamai.mybatis.associations.UserProjects">
       <result column="id" property="userId" javaType="int"/>
-      <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.UserProjectsMapper.project"
-                  ofType="reengineering.ddd.teamai.model.Project"/>
     </association>
   </resultMap>
 
