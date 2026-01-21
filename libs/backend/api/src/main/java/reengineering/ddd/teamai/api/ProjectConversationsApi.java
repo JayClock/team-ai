@@ -31,7 +31,7 @@ public class ProjectConversationsApi {
         .findByIdentity(id)
         .map(
             conversation -> {
-              ConversationApi conversationApi = new ConversationApi(user, conversation);
+              ConversationApi conversationApi = new ConversationApi(user, project, conversation);
               return resourceContext.initResource(conversationApi);
             })
         .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
@@ -43,7 +43,7 @@ public class ProjectConversationsApi {
     return new Pagination<>(project.conversations().findAll(), 40)
         .page(
             page,
-            conversation -> new ConversationModel(user, conversation, uriInfo),
+            conversation -> new ConversationModel(user, project, conversation, uriInfo),
             p ->
                 ApiTemplates.projectConversations(uriInfo)
                     .queryParam("page", p)
@@ -54,10 +54,11 @@ public class ProjectConversationsApi {
   @Consumes(MediaType.APPLICATION_JSON)
   public Response create(ConversationDescription description, @Context UriInfo uriInfo) {
     Conversation conversation = project.add(description);
-    ConversationModel conversationModel = new ConversationModel(user, conversation, uriInfo);
+    ConversationModel conversationModel =
+        new ConversationModel(user, project, conversation, uriInfo);
     return Response.created(
-            ApiTemplates.conversation(uriInfo)
-                .build(user.getIdentity(), conversation.getIdentity()))
+            ApiTemplates.projectConversation(uriInfo)
+                .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity()))
         .entity(conversationModel)
         .build();
   }

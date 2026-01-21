@@ -28,19 +28,15 @@ public class ApiTemplates {
     return project(uriInfo).path(ProjectApi.class, "conversations");
   }
 
-  public static UriBuilder conversations(UriInfo uriInfo) {
-    return user(uriInfo).path(UserApi.class, "conversations");
+  public static UriBuilder projectConversation(UriInfo uriInfo) {
+    return projectConversations(uriInfo).path(ProjectConversationsApi.class, "findById");
   }
 
-  public static UriBuilder conversation(UriInfo uriInfo) {
-    return conversations(uriInfo).path(ConversationsApi.class, "findById");
-  }
-
-  public static UriBuilder messages(UriInfo uriInfo) {
-    return conversation(uriInfo).path(ConversationApi.class, "messages");
+  public static UriBuilder projectConversationMessages(UriInfo uriInfo) {
+    return projectConversation(uriInfo).path(ConversationApi.class, "messages");
   }
 
   public static UriBuilder message(UriInfo uriInfo) {
-    return messages(uriInfo).path("{message-id}");
+    return projectConversationMessages(uriInfo).path("{message-id}");
   }
 }

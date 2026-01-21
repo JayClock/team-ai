@@ -26,6 +26,11 @@
     VALUES (#{description.title}, #{project_id})
   </insert>
 
+  <delete id="deleteConversation">
+    DELETE FROM conversations
+    WHERE project_id = #{project_id} AND id = #{id}
+  </delete>
+
   <select id="findConversationsByProjectId" resultMap="conversation">
     SELECT c.id, c.title
     FROM conversations c
@@ -36,4 +41,4 @@
   <select id="countConversationsByProject" resultType="int">
     SELECT COUNT(id) FROM conversations WHERE project_id = #{project_id}
   </select>
- </mapper>
+</mapper>

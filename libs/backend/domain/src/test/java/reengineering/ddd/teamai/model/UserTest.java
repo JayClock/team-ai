@@ -10,13 +10,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.AccountDescription;
-import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 
 @ExtendWith(MockitoExtension.class)
 public class UserTest {
   @Mock private User.Accounts accounts;
-  @Mock private User.Conversations conversations;
+  @Mock private User.Projects projects;
 
   private User user;
   private UserDescription userDescription;
@@ -24,7 +23,7 @@ public class UserTest {
   @BeforeEach
   public void setUp() {
     userDescription = new UserDescription("John Doe", "john@example.com");
-    user = new User("user-1", userDescription, accounts, conversations, mock(User.Projects.class));
+    user = new User("user-1", userDescription, accounts, projects);
   }
 
   @Test
@@ -47,10 +46,10 @@ public class UserTest {
   }
 
   @Test
-  public void should_return_conversations_association() {
-    HasMany<String, Conversation> result = user.conversations();
+  public void should_return_projects_association() {
+    HasMany<String, Project> result = user.projects();
 
-    assertSame(conversations, result);
+    assertSame(projects, result);
   }
 
   @Test
@@ -63,27 +62,5 @@ public class UserTest {
 
     assertSame(expectedAccount, result);
     verify(accounts).add(accountDescription);
-  }
-
-  @Test
-  public void should_delegate_add_conversation_to_conversations_association() {
-    ConversationDescription conversationDescription =
-        new ConversationDescription("Test Conversation");
-    Conversation expectedConversation = mock(Conversation.class);
-    when(conversations.add(conversationDescription)).thenReturn(expectedConversation);
-
-    Conversation result = user.add(conversationDescription);
-
-    assertSame(expectedConversation, result);
-    verify(conversations).add(conversationDescription);
-  }
-
-  @Test
-  public void should_delegate_delete_conversation_to_conversations_association() {
-    String conversationId = "conversation-1";
-
-    user.deleteConversation(conversationId);
-
-    verify(conversations).delete(conversationId);
   }
 }

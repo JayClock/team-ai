@@ -38,7 +38,6 @@ public class AccountsApiTest extends ApiTest {
             "JayClock",
             new UserDescription("JayClock", "JayClock@email"),
             accounts,
-            mock(User.Conversations.class),
             mock(User.Projects.class));
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     account = new Account("2", new AccountDescription("github", "github02"));

@@ -36,8 +36,14 @@ public class Project implements Entity<String, ProjectDescription> {
     return conversations.add(description);
   }
 
+  public void deleteConversation(String conversationId) {
+    conversations.delete(conversationId);
+  }
+
   public interface Conversations extends HasMany<String, Conversation> {
     Conversation add(ConversationDescription description);
+
+    void delete(String id);
   }
 
   public static class ProjectChange {

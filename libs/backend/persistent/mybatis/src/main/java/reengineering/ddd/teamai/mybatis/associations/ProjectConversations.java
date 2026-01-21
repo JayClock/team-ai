@@ -50,11 +50,23 @@ public class ProjectConversations extends EntityList<String, Conversation>
   @Caching(
       evict = {
         @CacheEvict(value = CACHE_LIST, allEntries = true),
-        @CacheEvict(value = CACHE_COUNT, key = "#root.target.projectId")
+        @CacheEvict(value = CACHE_COUNT, key = "#root.target.projectId"),
+        @CacheEvict(value = CACHE_NAME, key = "#root.target.projectId + ':' + #id")
       })
   public Conversation add(ConversationDescription description) {
     IdHolder idHolder = new IdHolder();
     mapper.insertConversation(idHolder, projectId, description);
     return findEntity(String.valueOf(idHolder.id()));
+  }
+
+  @Override
+  @Caching(
+      evict = {
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_COUNT, key = "#root.target.projectId"),
+        @CacheEvict(value = CACHE_NAME, key = "#root.target.projectId + ':' + #id")
+      })
+  public void delete(String id) {
+    mapper.deleteConversation(projectId, Integer.parseInt(id));
   }
 }

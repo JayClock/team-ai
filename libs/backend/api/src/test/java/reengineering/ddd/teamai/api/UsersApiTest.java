@@ -14,7 +14,6 @@ import static org.springframework.restdocs.request.RequestDocumentation.paramete
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.accountsLink;
-import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.conversationsLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.projectsLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.selfLink;
@@ -52,14 +51,12 @@ public class UsersApiTest extends ApiTest {
   @Test
   public void should_return_user_if_user_exists() {
     User.Accounts accounts = mock(User.Accounts.class);
-    User.Conversations conversations = mock(User.Conversations.class);
     User.Projects projects = mock(User.Projects.class);
     User user =
         new User(
             "john.smith",
             new UserDescription("John Smith", "john.smith@email.com"),
             accounts,
-            conversations,
             projects);
     when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
     when(accounts.findAll()).thenReturn(new EntityList<>());
@@ -73,7 +70,7 @@ public class UsersApiTest extends ApiTest {
                 pathParameters(
                     parameterWithName("userId").description("Unique identifier of the user")),
                 responseFields(userResponseFields()),
-                halLinksSnippet(selfLink(), accountsLink(), conversationsLink(), projectsLink())))
+                halLinksSnippet(selfLink(), accountsLink(), projectsLink())))
         .when()
         .get("/users/{userId}", user.getIdentity())
         .then()
@@ -83,8 +80,6 @@ public class UsersApiTest extends ApiTest {
         .body("email", is(user.getDescription().email()))
         .body("_links.self.href", is("/api/users/" + user.getIdentity()))
         .body("_links.accounts.href", is("/api/users/" + user.getIdentity() + "/accounts"))
-        .body(
-            "_links.conversations.href", is("/api/users/" + user.getIdentity() + "/conversations"))
         .body("_links.projects.href", is("/api/users/" + user.getIdentity() + "/projects"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(2))
@@ -97,21 +92,18 @@ public class UsersApiTest extends ApiTest {
   @Test
   public void should_update_user() {
     User.Accounts accounts = mock(User.Accounts.class);
-    User.Conversations conversations = mock(User.Conversations.class);
     User.Projects projects = mock(User.Projects.class);
     User user =
         new User(
             "john.smith",
             new UserDescription("John Smith", "john.smith@email.com"),
             accounts,
-            conversations,
             projects);
     User updatedUser =
         new User(
             "john.smith",
             new UserDescription("John Updated", "john.updated@email.com"),
             accounts,
-            conversations,
             projects);
     when(users.findById(user.getIdentity()))
         .thenReturn(Optional.of(user))

@@ -22,8 +22,6 @@ class JwtUtilTest {
 
   @Mock private User.Accounts accounts;
 
-  @Mock private User.Conversations conversations;
-
   private JwtUtil jwtUtil;
 
   @BeforeEach

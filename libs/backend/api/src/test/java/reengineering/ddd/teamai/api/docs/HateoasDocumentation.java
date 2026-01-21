@@ -97,12 +97,14 @@ public final class HateoasDocumentation {
   public static PathParametersSnippet conversationPathParameters() {
     return pathParameters(
         parameterWithName("userId").description("Unique identifier of the user"),
+        parameterWithName("projectId").description("Unique identifier of the project"),
         parameterWithName("conversationId").description("Unique identifier of the conversation"));
   }
 
   public static PathParametersSnippet messagePathParameters() {
     return pathParameters(
         parameterWithName("userId").description("Unique identifier of the user"),
+        parameterWithName("projectId").description("Unique identifier of the project"),
         parameterWithName("conversationId").description("Unique identifier of the conversation"),
         parameterWithName("messageId").description("Unique identifier of the message"));
   }
@@ -138,6 +140,7 @@ public final class HateoasDocumentation {
   public static FieldDescriptor[] conversationResponseFields() {
     return new FieldDescriptor[] {
       fieldWithPath("id").description("Unique conversation identifier"),
+      fieldWithPath("projectId").description("Unique project identifier"),
       fieldWithPath("title").description("Conversation title"),
       subsectionWithPath("_links").description("HATEOAS navigation links"),
       subsectionWithPath("_templates").description("HAL-FORMS action templates")

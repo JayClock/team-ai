@@ -137,4 +137,33 @@ public class ProjectConversationsTest {
     int newSize = project.conversations().findAll().size();
     assertEquals(conversationCount + 1, newSize);
   }
+
+  @Test
+  public void should_delete_conversation() {
+    String conversationId = project.conversations().findAll().iterator().next().getIdentity();
+    int initialSize = project.conversations().findAll().size();
+
+    project.deleteConversation(conversationId);
+
+    int newSize = project.conversations().findAll().size();
+    assertEquals(initialSize - 1, newSize);
+
+    assertTrue(project.conversations().findByIdentity(conversationId).isEmpty());
+  }
+
+  @Test
+  public void should_evict_cache_on_delete_conversation() {
+    String conversationId = project.conversations().findAll().iterator().next().getIdentity();
+    int initialSize = project.conversations().findAll().size();
+
+    var cachedConversation = project.conversations().findByIdentity(conversationId);
+    assertTrue(cachedConversation.isPresent());
+
+    project.deleteConversation(conversationId);
+
+    assertTrue(project.conversations().findByIdentity(conversationId).isEmpty());
+
+    int newSize = project.conversations().findAll().size();
+    assertEquals(initialSize - 1, newSize);
+  }
 }

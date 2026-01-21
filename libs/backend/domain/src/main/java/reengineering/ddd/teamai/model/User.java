@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Size;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.AccountDescription;
-import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 
@@ -14,19 +13,12 @@ public class User implements Entity<String, UserDescription> {
   private String identity;
   private UserDescription description;
   private Accounts accounts;
-  private Conversations conversations;
   private Projects projects;
 
-  public User(
-      String identity,
-      UserDescription description,
-      Accounts accounts,
-      Conversations conversations,
-      Projects projects) {
+  public User(String identity, UserDescription description, Accounts accounts, Projects projects) {
     this.identity = identity;
     this.description = description;
     this.accounts = accounts;
-    this.conversations = conversations;
     this.projects = projects;
   }
 
@@ -46,20 +38,8 @@ public class User implements Entity<String, UserDescription> {
     return accounts.add(description);
   }
 
-  public Conversation add(ConversationDescription conversation) {
-    return conversations.add(conversation);
-  }
-
-  public void deleteConversation(String conversationId) {
-    conversations.delete(conversationId);
-  }
-
   public HasMany<String, Account> accounts() {
     return accounts;
-  }
-
-  public HasMany<String, Conversation> conversations() {
-    return conversations;
   }
 
   public HasMany<String, Project> projects() {
@@ -76,12 +56,6 @@ public class User implements Entity<String, UserDescription> {
 
   public interface Accounts extends HasMany<String, Account> {
     Account add(AccountDescription description);
-  }
-
-  public interface Conversations extends HasMany<String, Conversation> {
-    Conversation add(ConversationDescription description);
-
-    void delete(String id);
   }
 
   public interface Projects extends HasMany<String, Project> {

@@ -20,5 +20,7 @@ public interface ProjectConversationsMapper {
       @Param("project_id") int projectId,
       @Param("description") ConversationDescription description);
 
+  int deleteConversation(@Param("project_id") int projectId, @Param("id") int id);
+
   int countConversationsByProject(@Param("project_id") int projectId);
 }

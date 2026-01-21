@@ -19,33 +19,36 @@ import java.util.UUID;
 import reengineering.ddd.teamai.api.representation.ConversationModel;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
 public class ConversationApi {
   @Inject private Conversation.ModelProvider modelProvider;
 
   private final User user;
+  private final Project project;
   private final Conversation conversation;
 
-  public ConversationApi(User user, Conversation conversation) {
+  public ConversationApi(User user, Project project, Conversation conversation) {
     this.user = user;
+    this.project = project;
     this.conversation = conversation;
   }
 
   @GET
   public ConversationModel get(@Context UriInfo uriInfo) {
-    return new ConversationModel(user, conversation, uriInfo);
+    return new ConversationModel(user, project, conversation, uriInfo);
   }
 
   @DELETE
   public Response delete() {
-    user.deleteConversation(conversation.getIdentity());
+    project.deleteConversation(conversation.getIdentity());
     return Response.noContent().build();
   }
 
   @Path("messages")
   public MessagesApi messages() {
-    return new MessagesApi(user, conversation);
+    return new MessagesApi(user, project, conversation);
   }
 
   private static final String API_KEY_HEADER = "X-Api-Key";

@@ -44,12 +44,6 @@ public class UserApi {
     return resourceContext.initResource(accountsApi);
   }
 
-  @Path("conversations")
-  public ConversationsApi conversations() {
-    ConversationsApi conversationsApi = new ConversationsApi(user);
-    return resourceContext.initResource(conversationsApi);
-  }
-
   @Path("projects")
   public ProjectsApi projects() {
     ProjectsApi projectsApi = new ProjectsApi(user);

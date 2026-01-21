@@ -39,15 +39,10 @@ public class UserModel extends RepresentationModel<UserModel> {
     Link accountsRel =
         Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath())
             .withRel("accounts");
-    Link conversationsRel =
-        Link.of(ApiTemplates.conversations(uriInfo).build(user.getIdentity()).getPath())
-            .withRel("conversations");
     Link projectsRel =
         Link.of(ApiTemplates.projects(uriInfo).build(user.getIdentity()).getPath())
             .withRel("projects");
 
-    add(accountsRel);
-    add(conversationsRel);
     add(
         Affordances.of(selfRel)
             .afford(HttpMethod.PUT)
@@ -55,6 +50,7 @@ public class UserModel extends RepresentationModel<UserModel> {
             .withName("update-user")
             .toLink());
 
+    add(accountsRel);
     add(
         Affordances.of(projectsRel)
             .afford(HttpMethod.POST)

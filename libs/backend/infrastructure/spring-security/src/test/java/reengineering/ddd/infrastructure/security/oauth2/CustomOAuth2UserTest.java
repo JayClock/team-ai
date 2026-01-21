@@ -26,8 +26,6 @@ class CustomOAuth2UserTest {
 
   @Mock private User.Accounts accounts;
 
-  @Mock private User.Conversations conversations;
-
   private OAuth2UserService.CustomOAuth2User customOAuth2User;
 
   @BeforeEach

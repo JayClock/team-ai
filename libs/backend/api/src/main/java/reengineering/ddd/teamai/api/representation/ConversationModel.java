@@ -13,36 +13,39 @@ import reengineering.ddd.teamai.api.ConversationApi;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
 @Relation(collectionRelation = "conversations")
 public class ConversationModel extends RepresentationModel<ConversationModel> {
   @JsonProperty private String id;
   @JsonUnwrapped private ConversationDescription description;
+  @JsonProperty private String projectId;
 
-  public ConversationModel(User user, Conversation conversation, UriInfo uriInfo) {
+  public ConversationModel(User user, Project project, Conversation conversation, UriInfo uriInfo) {
     this.id = conversation.getIdentity();
     this.description = conversation.getDescription();
+    this.projectId = project.getIdentity();
 
     Link selfLink =
         Link.of(
-                ApiTemplates.conversation(uriInfo)
-                    .build(user.getIdentity(), conversation.getIdentity())
+                ApiTemplates.projectConversation(uriInfo)
+                    .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity())
                     .getPath())
             .withSelfRel();
 
     Link messagesLink =
         Link.of(
-                ApiTemplates.messages(uriInfo)
-                    .build(user.getIdentity(), conversation.getIdentity())
+                ApiTemplates.projectConversationMessages(uriInfo)
+                    .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity())
                     .getPath())
             .withRel("messages");
 
     Link chatLink =
         Link.of(
-                ApiTemplates.conversation(uriInfo)
+                ApiTemplates.projectConversation(uriInfo)
                     .path(ConversationApi.class, "chat")
-                    .build(user.getIdentity(), conversation.getIdentity())
+                    .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity())
                     .getPath())
             .withRel("chat");
 

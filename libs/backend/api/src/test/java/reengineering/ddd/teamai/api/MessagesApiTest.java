@@ -27,6 +27,7 @@ import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
@@ -35,22 +36,31 @@ public class MessagesApiTest extends ApiTest {
   @MockitoBean private Conversation.ModelProvider modelProvider;
 
   private User user;
+  private Project project;
   private Conversation conversation;
   private Conversation.Messages messages;
 
   @BeforeEach
   public void beforeEach() {
+    User.Projects userProjects = mock(User.Projects.class);
     user =
         new User(
             "JayClock",
             new UserDescription("JayClock", "JayClock@email"),
             mock(User.Accounts.class),
-            mock(User.Conversations.class),
-            mock(User.Projects.class));
+            userProjects);
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     messages = mock(Conversation.Messages.class);
+    Project.Conversations projectConversations = mock(Project.Conversations.class);
+    project =
+        new Project(
+            "project-1",
+            mock(reengineering.ddd.teamai.description.ProjectDescription.class),
+            projectConversations);
     conversation = new Conversation("1", new ConversationDescription("title"), messages);
-    when(user.conversations().findByIdentity(conversation.getIdentity()))
+    when(userProjects.findAll()).thenReturn(new EntityList<>(project));
+    when(userProjects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
+    when(projectConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.ofNullable(conversation));
   }
 
@@ -69,13 +79,15 @@ public class MessagesApiTest extends ApiTest {
                 "messages/list",
                 pathParameters(
                     parameterWithName("userId").description("Unique identifier of the user"),
+                    parameterWithName("projectId").description("Unique identifier of the project"),
                     parameterWithName("conversationId")
                         .description("Unique identifier of the conversation")),
                 responseFields(messagesCollectionResponseFields())))
         .when()
         .get(
-            "/users/{userId}/conversations/{conversationId}/messages",
+            "/users/{userId}/projects/{projectId}/conversations/{conversationId}/messages",
             user.getIdentity(),
+            project.getIdentity(),
             conversation.getIdentity())
         .then()
         .statusCode(200)
@@ -89,6 +101,8 @@ public class MessagesApiTest extends ApiTest {
             is(
                 "/api/users/"
                     + user.getIdentity()
+                    + "/projects/"
+                    + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages/"
@@ -102,6 +116,8 @@ public class MessagesApiTest extends ApiTest {
             is(
                 "/api/users/"
                     + user.getIdentity()
+                    + "/projects/"
+                    + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages/"
@@ -136,14 +152,17 @@ public class MessagesApiTest extends ApiTest {
                     "messages/send-stream",
                     pathParameters(
                         parameterWithName("userId").description("Unique identifier of the user"),
+                        parameterWithName("projectId")
+                            .description("Unique identifier of the project"),
                         parameterWithName("conversationId")
                             .description("Unique identifier of the conversation")),
                     requestFields(sendMessageRequestFields())))
             .body(userDescription)
             .when()
             .post(
-                "/users/{userId}/conversations/{conversationId}/messages/stream",
+                "/users/{userId}/projects/{projectId}/conversations/{conversationId}/messages/stream",
                 user.getIdentity(),
+                project.getIdentity(),
                 conversation.getIdentity())
             .then()
             .statusCode(200)
