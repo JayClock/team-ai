@@ -1,0 +1,117 @@
+[[biz-diagrams]]
+=== Business Diagrams
+
+Business diagram resources store PlantUML diagrams for project knowledge management.
+
+[[biz-diagrams-list]]
+==== List Business Diagrams (Paginated)
+
+Retrieves all business diagrams for a project with pagination support.
+
+===== Path Parameters
+
+include::{snippets}/biz-diagrams/list-paginated/path-parameters.adoc[]
+
+===== Query Parameters
+
+include::{snippets}/biz-diagrams/list-paginated/query-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/biz-diagrams/list-paginated/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/biz-diagrams/list-paginated/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/biz-diagrams/list-paginated/response-fields.adoc[]
+
+===== Pagination Links
+
+include::{snippets}/biz-diagrams/list-paginated/links.adoc[]
+
+[[biz-diagrams-get]]
+==== Get Single Business Diagram
+
+Retrieves a single business diagram by ID.
+
+===== Path Parameters
+
+include::{snippets}/biz-diagrams/get-single/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/biz-diagrams/get-single/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/biz-diagrams/get-single/http-response.adoc[]
+
+===== Response Fields
+
+include::{snippets}/biz-diagrams/get-single/response-fields.adoc[]
+
+===== HATEOAS Links
+
+include::{snippets}/biz-diagrams/get-single/links.adoc[]
+
+[[biz-diagrams-create]]
+==== Create Business Diagram
+
+Creates a new business diagram for a project. Discover this action via the `create-diagram` link on the Project resource.
+
+===== Path Parameters
+
+include::{snippets}/biz-diagrams/create/path-parameters.adoc[]
+
+===== Request Fields
+
+include::{snippets}/biz-diagrams/create/request-fields.adoc[]
+
+===== Example Request
+
+include::{snippets}/biz-diagrams/create/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/biz-diagrams/create/http-response.adoc[]
+
+===== Response Headers
+
+include::{snippets}/biz-diagrams/create/response-headers.adoc[]
+
+[[biz-diagrams-delete]]
+==== Delete Business Diagram
+
+Deletes a business diagram. Discover this action via the `delete-diagram` link on the BizDiagram resource.
+
+===== Path Parameters
+
+include::{snippets}/biz-diagrams/delete/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/biz-diagrams/delete/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/biz-diagrams/delete/http-response.adoc[]
+
+[[biz-diagrams-delete-not-found]]
+==== Delete Non-Existent Business Diagram
+
+Returns 404 when trying to delete a diagram that doesn't exist.
+
+===== Path Parameters
+
+include::{snippets}/biz-diagrams/delete-not-found/path-parameters.adoc[]
+
+===== Example Request
+
+include::{snippets}/biz-diagrams/delete-not-found/curl-request.adoc[]
+
+===== Example Response
+
+include::{snippets}/biz-diagrams/delete-not-found/http-response.adoc[]

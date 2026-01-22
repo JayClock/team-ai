@@ -9,6 +9,7 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
+import reengineering.ddd.teamai.description.BizDiagramDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.Project;
@@ -23,21 +24,13 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
     this.id = project.getIdentity();
     this.description = project.getDescription();
 
-    Link selfRel =
-        Link.of(
-                ApiTemplates.project(uriInfo)
-                    .build(user.getIdentity(), project.getIdentity())
-                    .getPath())
-            .withSelfRel();
-    Link conversationsRel =
-        Link.of(
-                ApiTemplates.projectConversations(uriInfo)
-                    .build(user.getIdentity(), project.getIdentity())
-                    .getPath())
-            .withRel("conversations");
-
     add(
-        Affordances.of(selfRel)
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.project(uriInfo)
+                            .build(user.getIdentity(), project.getIdentity())
+                            .getPath())
+                    .withSelfRel())
             .afford(HttpMethod.PUT)
             .withInput(Project.ProjectChange.class)
             .andAfford(HttpMethod.DELETE)
@@ -45,10 +38,27 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .toLink());
 
     add(
-        Affordances.of(conversationsRel)
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.projectConversations(uriInfo)
+                            .build(user.getIdentity(), project.getIdentity())
+                            .getPath())
+                    .withRel("conversations"))
             .afford(HttpMethod.POST)
             .withInput(ConversationDescription.class)
             .withName("create-conversation")
+            .toLink());
+
+    add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.projectBizDiagrams(uriInfo)
+                            .build(user.getIdentity(), project.getIdentity())
+                            .getPath())
+                    .withRel("bizDiagrams"))
+            .afford(HttpMethod.POST)
+            .withInput(BizDiagramDescription.class)
+            .withName("create-biz-diagram")
             .toLink());
   }
 }

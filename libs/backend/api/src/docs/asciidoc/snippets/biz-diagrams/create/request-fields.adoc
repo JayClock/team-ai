@@ -1,0 +1,9 @@
+[source, json]
+----
+{
+  "name": "Payment Flow",
+  "description": "Credit card payment process",
+  "plantumlCode": "@startuml\n@enduml",
+  "diagramType": "flowchart"
+}
+----

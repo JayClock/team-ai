@@ -1,0 +1,3 @@
+include::{snippets}/biz-diagrams/get-single/http-response.adoc[]
+include::{snippets}/common/self-link.adoc[]
+include::{snippets}/biz-diagrams/list-paginated/http-response.adoc[]

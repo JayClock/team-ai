@@ -1,0 +1,2 @@
+include::{snippets}/biz-diagrams/list-paginated/http-response.adoc[]
+include::{snippets}/common/pagination-links.adoc[]

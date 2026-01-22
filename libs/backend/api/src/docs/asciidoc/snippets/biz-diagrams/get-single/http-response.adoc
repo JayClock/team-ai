@@ -1,0 +1,21 @@
+[source,json,linenums]
+----
+{
+  "id": "1",
+  "name": "Order Process",
+  "description": "Customer order workflow",
+  "plantumlCode": "@startuml\n@enduml",
+  "diagramType": "sequence",
+  "version": 1,
+  "createdAt": "2024-01-01T00:00:00.000000",
+  "updatedAt": "2024-01-01T00:00:00.000000",
+  "_links": {
+    "self": {
+      "href": "/users/JayClock/projects/project-1/biz-diagrams/1"
+    },
+    "project": {
+      "href": "/users/JayClock/projects/project-1"
+    }
+  }
+}
+----

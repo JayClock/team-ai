@@ -1,0 +1,1 @@
+include::{snippets}/common/query-parameters.adoc[]

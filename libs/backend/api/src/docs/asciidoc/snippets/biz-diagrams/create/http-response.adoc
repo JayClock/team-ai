@@ -1,0 +1,21 @@
+[source,json,linenums]
+----
+{
+  "id": "2",
+  "name": "Payment Flow",
+  "description": "Credit card payment process",
+  "plantumlCode": "@startuml\n@enduml",
+  "diagramType": "flowchart",
+  "version": 1,
+  "createdAt": "2024-01-01T00:00:00.000000",
+  "updatedAt": "2024-01-01T00:00:00.000000",
+  "_links": {
+    "self": {
+      "href": "/users/JayClock/projects/project-1/biz-diagrams/2"
+    },
+    "project": {
+      "href": "/users/JayClock/projects/project-1"
+    }
+  }
+}
+----
