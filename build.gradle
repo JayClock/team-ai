@@ -8,6 +8,13 @@ allprojects {
     group = 'com.example'
     version = '0.0.1-SNAPSHOT'
 
+    configurations.all {
+        resolutionStrategy {
+            cacheChangingModulesFor 10, 'minutes'
+            cacheDynamicVersionsFor 10, 'minutes'
+        }
+    }
+
     repositories {
         mavenLocal()
         maven { url 'https://maven.aliyun.com/repository/public/' }
@@ -31,6 +38,11 @@ subprojects {
             importOrder()
             removeUnusedImports()
         }
+        lineEndings 'UNIX'
+    }
+
+    tasks.named('check').configure {
+        dependsOn tasks.named('spotlessCheck')
     }
 
     java {
@@ -41,6 +53,10 @@ subprojects {
 
     tasks.withType(JavaCompile).configureEach {
         options.compilerArgs.add('-parameters')
+        options.incremental = true
+        options.encoding = 'UTF-8'
+        options.fork = true
+        options.forkOptions.jvmArgs += ['-Xmx512m']
     }
 
     dependencyManagement {
@@ -51,6 +67,9 @@ subprojects {
 
     tasks.named('test') {
         useJUnitPlatform()
+        maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+
+        systemProperty 'java.util.logging.config.file', "${projectDir}/src/test/resources/logging.properties"
     }
 
     tasks.withType(GenerateModuleMetadata) {

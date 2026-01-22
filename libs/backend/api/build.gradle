@@ -30,6 +30,7 @@ dependencies {
 
 test {
     outputs.dir snippetsDir
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
 }
 
 asciidoctor {
@@ -54,10 +55,17 @@ asciidoctor {
     outputDir = file('build/docs/api')
 }
 
-// Package docs into JAR
-jar {
+tasks.register('packageDocs', Copy) {
     dependsOn asciidoctor
     from("${asciidoctor.outputDir}") {
         into 'static/docs'
+    }
+    into layout.buildDirectory.dir('resources/main')
+}
+
+// Only package docs when explicitly requested
+tasks.named('jar').configure {
+    if (project.hasProperty('includeDocs')) {
+        dependsOn 'packageDocs'
     }
 }
