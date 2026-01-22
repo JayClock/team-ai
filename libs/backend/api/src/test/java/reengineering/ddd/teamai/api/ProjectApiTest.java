@@ -83,7 +83,7 @@ public class ProjectApiTest extends ApiTest {
                     + project.getIdentity()
                     + "/conversations"))
         .body(
-            "_links.bizDiagrams.href",
+            "_links.biz-diagrams.href",
             is(
                 "/api/users/"
                     + user.getIdentity()

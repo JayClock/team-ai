@@ -55,7 +55,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
                         ApiTemplates.projectBizDiagrams(uriInfo)
                             .build(user.getIdentity(), project.getIdentity())
                             .getPath())
-                    .withRel("bizDiagrams"))
+                    .withRel("biz-diagrams"))
             .afford(HttpMethod.POST)
             .withInput(BizDiagramDescription.class)
             .withName("create-biz-diagram")

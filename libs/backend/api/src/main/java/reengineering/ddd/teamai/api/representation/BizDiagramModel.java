@@ -14,7 +14,7 @@ import reengineering.ddd.teamai.model.BizDiagram;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
-@Relation(collectionRelation = "bizDiagrams")
+@Relation(collectionRelation = "biz-diagrams")
 public class BizDiagramModel extends RepresentationModel<BizDiagramModel> {
   @JsonProperty private String id;
   @JsonUnwrapped private BizDiagramDescription description;

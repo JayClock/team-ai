@@ -51,7 +51,8 @@ public final class HateoasDocumentation {
   }
 
   public static LinkDescriptor bizDiagramsLink() {
-    return linkWithRel("bizDiagrams").description("Link to project's business diagrams collection");
+    return linkWithRel("biz-diagrams")
+        .description("Link to project's business diagrams collection");
   }
 
   public static LinkDescriptor bizDiagramLink() {
@@ -259,11 +260,11 @@ public final class HateoasDocumentation {
 
   public static FieldDescriptor[] pagedBizDiagramsResponseFields() {
     return new FieldDescriptor[] {
-      subsectionWithPath("_embedded.bizDiagrams[]")
+      subsectionWithPath("_embedded.biz-diagrams[]")
           .description("Array of business diagram resources"),
-      fieldWithPath("_embedded.bizDiagrams[].id").description("Unique diagram identifier"),
-      fieldWithPath("_embedded.bizDiagrams[].name").description("Diagram name"),
-      subsectionWithPath("_embedded.bizDiagrams[]._links").description("Links for each diagram"),
+      fieldWithPath("_embedded.biz-diagrams[].id").description("Unique diagram identifier"),
+      fieldWithPath("_embedded.biz-diagrams[].name").description("Diagram name"),
+      subsectionWithPath("_embedded.biz-diagrams[]._links").description("Links for each diagram"),
       subsectionWithPath("_links").description("Pagination navigation links"),
       subsectionWithPath("page").description("Pagination metadata"),
       fieldWithPath("page.size").description("Number of items per page"),

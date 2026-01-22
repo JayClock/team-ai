@@ -104,7 +104,7 @@ public class BizDiagramsApiTest extends ApiTest {
             project.getIdentity())
         .then()
         .statusCode(200)
-        .body("_embedded.bizDiagrams", hasSize(1))
+        .body("_embedded.biz-diagrams", hasSize(1))
         .body("_links.self.href", is(not(nullValue())));
   }
 
