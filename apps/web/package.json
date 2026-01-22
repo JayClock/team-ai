@@ -6,11 +6,7 @@
   "dependencies": {
     "@features/user-projects": "workspace:*",
     "@features/conversation-messages": "workspace:*",
-    "@features/project-conversations": "workspace:*",
-    "@hateoas-ts/resource": "workspace:*",
-    "@hateoas-ts/resource-react": "workspace:*",
-    "@shared/schema": "workspace:*",
-    "@shared/ui": "workspace:*"
+    "@features/project-conversations": "workspace:*"
   },
   "nx": {
     "projectType": "application",

@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@hateoas-ts/resource':
+        specifier: workspace:*
+        version: link:packages/resource
+      '@hateoas-ts/resource-react':
+        specifier: workspace:*
+        version: link:packages/resource-react
       '@preact/signals-react':
         specifier: ^3.3.0
         version: 3.6.1(react@19.0.0)
@@ -38,6 +44,12 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      '@shared/schema':
+        specifier: workspace:*
+        version: link:libs/frontend/shared/schema
+      '@shared/ui':
+        specifier: workspace:*
+        version: link:libs/frontend/shared/ui
       '@tailwindcss/vite':
         specifier: ^4.1.12
         version: 4.1.18(vite@7.2.7(@types/node@20.19.9)(jiti@2.4.2)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.62.1)(terser@5.44.1)(yaml@2.8.2))
@@ -303,57 +315,12 @@ importers:
       '@features/user-projects':
         specifier: workspace:*
         version: link:../../libs/frontend/features/user-projects
-      '@hateoas-ts/resource':
-        specifier: workspace:*
-        version: link:../../packages/resource
-      '@hateoas-ts/resource-react':
-        specifier: workspace:*
-        version: link:../../packages/resource-react
-      '@shared/schema':
-        specifier: workspace:*
-        version: link:../../libs/frontend/shared/schema
-      '@shared/ui':
-        specifier: workspace:*
-        version: link:../../libs/frontend/shared/ui
 
-  libs/frontend/features/conversation-messages:
-    dependencies:
-      '@hateoas-ts/resource-react':
-        specifier: workspace:*
-        version: link:../../../../packages/resource-react
-      '@shared/schema':
-        specifier: workspace:*
-        version: link:../../shared/schema
-      '@shared/ui':
-        specifier: workspace:*
-        version: link:../../shared/ui
+  libs/frontend/features/conversation-messages: {}
 
-  libs/frontend/features/project-conversations:
-    dependencies:
-      '@hateoas-ts/resource':
-        specifier: workspace:*
-        version: link:../../../../packages/resource
-      '@hateoas-ts/resource-react':
-        specifier: workspace:*
-        version: link:../../../../packages/resource-react
-      '@shared/schema':
-        specifier: workspace:*
-        version: link:../../shared/schema
+  libs/frontend/features/project-conversations: {}
 
-  libs/frontend/features/user-projects:
-    dependencies:
-      '@hateoas-ts/resource':
-        specifier: workspace:*
-        version: link:../../../../packages/resource
-      '@hateoas-ts/resource-react':
-        specifier: workspace:*
-        version: link:../../../../packages/resource-react
-      '@shared/schema':
-        specifier: workspace:*
-        version: link:../../shared/schema
-      '@shared/ui':
-        specifier: workspace:*
-        version: link:../../shared/ui
+  libs/frontend/features/user-projects: {}
 
   libs/frontend/shared/schema:
     dependencies:

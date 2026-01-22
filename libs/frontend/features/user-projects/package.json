@@ -10,11 +10,5 @@
       "default": "./src/index.ts"
     },
     "./package.json": "./package.json"
-  },
-  "dependencies": {
-    "@hateoas-ts/resource": "workspace:*",
-    "@hateoas-ts/resource-react": "workspace:*",
-    "@shared/schema": "workspace:*",
-    "@shared/ui": "workspace:*"
   }
 }

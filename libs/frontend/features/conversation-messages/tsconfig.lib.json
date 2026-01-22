@@ -42,13 +42,13 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../shared/schema/tsconfig.lib.json"
-    },
-    {
       "path": "../../shared/ui/tsconfig.lib.json"
     },
     {
       "path": "../../../../packages/resource-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/schema/tsconfig.lib.json"
     }
   ]
 }
