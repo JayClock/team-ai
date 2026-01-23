@@ -58,7 +58,10 @@ export interface Action<TEntity extends Entity> extends Form {
    */
   field(name: string): Field | undefined;
 
-  formSchema(): z.ZodType<Record<string, unknown>>
+    /**
+   * schema generated form fields with zod
+   */
+  formSchema: z.ZodType<Record<string, unknown>>
 }
 
 /**
@@ -79,6 +82,7 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
   method: string;
   contentType: string;
   fields: Field[];
+  formSchema: z.ZodType<Record<string, unknown>>
 
   constructor(
     private client: ClientInstance,
@@ -90,9 +94,49 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
     this.method = this.form.method;
     this.contentType = this.form.contentType;
     this.fields = this.form.fields;
+    this.formSchema = this.generateFormSchema()
   }
 
-  formSchema(): z.ZodType<Record<string, unknown>> {
+  field(name: string): Field | undefined {
+    return this.fields.find((field) => field.name === name);
+  }
+
+  async submit(formData: Record<string, SafeAny>): Promise<State<TEntity>> {
+    const uri = new URL(this.uri, this.client.bookmarkUri);
+
+    if (this.method === 'GET') {
+      uri.search = qs.stringify(formData);
+      const resource = this.client.go<TEntity>(uri.toString());
+      return resource.get();
+    }
+    let body;
+    switch (this.contentType) {
+      case 'application/x-www-form-urlencoded':
+        body = qs.stringify(formData);
+        break;
+      case 'application/json':
+        body = JSON.stringify(formData);
+        break;
+      default:
+        throw new Error(
+          `Serializing mimetype ${this.form.contentType} is not yet supported in actions`,
+        );
+    }
+    const response = await this.client.fetcher.fetchOrThrow(uri.toString(), {
+      method: this.method,
+      body,
+      headers: new Headers({
+        'Content-Type': this.contentType,
+      }),
+    });
+
+    return this.client.getStateForResponse(
+      { rel: '', href: uri.toString(), context: this.client.bookmarkUri },
+      response,
+    );
+  }
+
+  private generateFormSchema(): z.ZodType<Record<string, unknown>> {
     const shape: Record<string, z.ZodTypeAny> = {};
 
     for (const field of this.fields) {
@@ -169,45 +213,6 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
     }
 
     return z.object(shape);
-  }
-
-  field(name: string): Field | undefined {
-    return this.fields.find((field) => field.name === name);
-  }
-
-  async submit(formData: Record<string, SafeAny>): Promise<State<TEntity>> {
-    const uri = new URL(this.uri, this.client.bookmarkUri);
-
-    if (this.method === 'GET') {
-      uri.search = qs.stringify(formData);
-      const resource = this.client.go<TEntity>(uri.toString());
-      return resource.get();
-    }
-    let body;
-    switch (this.contentType) {
-      case 'application/x-www-form-urlencoded':
-        body = qs.stringify(formData);
-        break;
-      case 'application/json':
-        body = JSON.stringify(formData);
-        break;
-      default:
-        throw new Error(
-          `Serializing mimetype ${this.form.contentType} is not yet supported in actions`,
-        );
-    }
-    const response = await this.client.fetcher.fetchOrThrow(uri.toString(), {
-      method: this.method,
-      body,
-      headers: new Headers({
-        'Content-Type': this.contentType,
-      }),
-    });
-
-    return this.client.getStateForResponse(
-      { rel: '', href: uri.toString(), context: this.client.bookmarkUri },
-      response,
-    );
   }
 }
 

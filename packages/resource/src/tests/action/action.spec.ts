@@ -12,8 +12,6 @@ type TestEntity = Entity<
   },
   {
     self: TestEntity;
-  },
-  {
     create: TestEntity;
   }
 >;
@@ -152,7 +150,7 @@ describe('SimpleAction', () => {
       };
 
       const textAction = new SimpleAction<TestEntity>(mockClient, formWithTextField);
-      const schema = textAction.formSchema();
+      const schema = textAction.formSchema;
 
       // Should validate required field
       expect(() => schema.parse({ title: 'Test' })).not.toThrow();
@@ -182,7 +180,7 @@ describe('SimpleAction', () => {
       };
 
       const numberAction = new SimpleAction<TestEntity>(mockClient, formWithNumberField);
-      const schema = numberAction.formSchema();
+      const schema = numberAction.formSchema;
 
       // Should validate number constraints
       expect(() => schema.parse({ age: 25 })).not.toThrow();
@@ -209,7 +207,7 @@ describe('SimpleAction', () => {
       };
 
       const booleanAction = new SimpleAction<TestEntity>(mockClient, formWithBooleanField);
-      const schema = booleanAction.formSchema();
+      const schema = booleanAction.formSchema;
 
       // Should validate boolean values
       expect(() => schema.parse({ isActive: true })).not.toThrow();
@@ -246,7 +244,7 @@ describe('SimpleAction', () => {
       };
 
       const selectAction = new SimpleAction<TestEntity>(mockClient, formWithSelectField);
-      const schema = selectAction.formSchema();
+      const schema = selectAction.formSchema;
 
       // Should validate single select
       expect(() => schema.parse({ category: 'A' })).not.toThrow();
@@ -277,7 +275,7 @@ describe('SimpleAction', () => {
       };
 
       const textAreaAction = new SimpleAction<TestEntity>(mockClient, formWithTextArea);
-      const schema = textAreaAction.formSchema();
+      const schema = textAreaAction.formSchema;
 
       // Should validate length constraints
       expect(() => schema.parse({ content: 'This is a valid content' })).not.toThrow();
@@ -304,7 +302,7 @@ describe('SimpleAction', () => {
       };
 
       const patternAction = new SimpleAction<TestEntity>(mockClient, formWithPattern);
-      const schema = patternAction.formSchema();
+      const schema = patternAction.formSchema;
 
       // Should validate pattern
       expect(() => schema.parse({ email: 'test@example.com' })).not.toThrow();
@@ -329,7 +327,7 @@ describe('SimpleAction', () => {
       };
 
       const dateAction = new SimpleAction<TestEntity>(mockClient, formWithDateField);
-      const schema = dateAction.formSchema();
+      const schema = dateAction.formSchema;
 
       // Should validate date as string
       expect(() => schema.parse({ birthDate: '2023-01-01' })).not.toThrow();
@@ -354,7 +352,7 @@ describe('SimpleAction', () => {
       };
 
       const hiddenAction = new SimpleAction<TestEntity>(mockClient, formWithHiddenField);
-      const schema = hiddenAction.formSchema();
+      const schema = hiddenAction.formSchema;
 
       // Should accept various types for hidden fields
       expect(() => schema.parse({ id: '123' })).not.toThrow();
@@ -403,7 +401,7 @@ describe('SimpleAction', () => {
       };
 
       const mixedAction = new SimpleAction<TestEntity>(mockClient, formWithMixedFields);
-      const schema = mixedAction.formSchema();
+      const schema = mixedAction.formSchema;
 
       // Should validate all fields correctly
       expect(() => schema.parse({ name: 'John', age: 30, active: true, description: 'Test' })).not.toThrow();
@@ -422,7 +420,7 @@ describe('SimpleAction', () => {
       };
 
       const noFieldsAction = new SimpleAction<TestEntity>(mockClient, formWithNoFields);
-      const schema = noFieldsAction.formSchema();
+      const schema = noFieldsAction.formSchema;
 
       // Should accept empty object
       expect(() => schema.parse({})).not.toThrow();

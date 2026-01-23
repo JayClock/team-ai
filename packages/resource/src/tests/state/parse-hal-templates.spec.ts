@@ -6,8 +6,7 @@ import type { HalFormsProperty, HalFormsTemplate } from 'hal-types';
 
 type TestEntity = Entity<
   { id: string },
-  { self: TestEntity },
-  { create: TestEntity; update: TestEntity }
+  { self: TestEntity, create: TestEntity; update: TestEntity }
 >;
 
 describe('parseHalTemplates', () => {
