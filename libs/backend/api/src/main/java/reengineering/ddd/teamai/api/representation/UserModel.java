@@ -25,38 +25,36 @@ public class UserModel extends RepresentationModel<UserModel> {
     this.id = user.getIdentity();
     this.description = user.getDescription();
 
-    List<AccountModel> accounts =
-        user.accounts().findAll().stream()
-            .map(account -> new AccountModel(user, account, uriInfo))
-            .toList();
-    List<ProjectModel> projects =
-        user.projects().findAll().stream()
-            .map(project -> new ProjectModel(user, project, uriInfo))
-            .toList();
-    this.embedded = new EmbeddedResources(accounts, projects);
-    Link selfRel =
-        Link.of(ApiTemplates.user(uriInfo).build(user.getIdentity()).getPath()).withSelfRel();
-    Link accountsRel =
-        Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath())
-            .withRel("accounts");
-    Link projectsRel =
-        Link.of(ApiTemplates.projects(uriInfo).build(user.getIdentity()).getPath())
-            .withRel("projects");
-
     add(
-        Affordances.of(selfRel)
+        Affordances.of(
+                Link.of(ApiTemplates.user(uriInfo).build(user.getIdentity()).getPath())
+                    .withSelfRel())
             .afford(HttpMethod.PUT)
             .withInput(User.UserChange.class)
             .withName("update-user")
             .toLink());
 
-    add(accountsRel);
     add(
-        Affordances.of(projectsRel)
+        Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath())
+            .withRel("accounts"));
+
+    add(
+        Affordances.of(
+                Link.of(ApiTemplates.projects(uriInfo).build(user.getIdentity()).getPath())
+                    .withRel("projects"))
             .afford(HttpMethod.POST)
             .withInput(Project.ProjectChange.class)
             .withName("create-project")
             .toLink());
+
+    this.embedded =
+        new EmbeddedResources(
+            user.accounts().findAll().stream()
+                .map(account -> new AccountModel(user, account, uriInfo))
+                .toList(),
+            user.projects().findAll().stream()
+                .map(project -> new ProjectModel(user, project, uriInfo))
+                .toList());
   }
 
   public record EmbeddedResources(

@@ -19,12 +19,11 @@ public class AccountModel extends RepresentationModel<AccountModel> {
   public AccountModel(User user, Account account, UriInfo uriInfo) {
     this.id = account.getIdentity();
     this.description = account.getDescription();
-    Link selfLink =
+    add(
         Link.of(
                 ApiTemplates.account(uriInfo)
                     .build(user.getIdentity(), account.getIdentity())
                     .getPath())
-            .withSelfRel();
-    add(selfLink);
+            .withSelfRel());
   }
 }

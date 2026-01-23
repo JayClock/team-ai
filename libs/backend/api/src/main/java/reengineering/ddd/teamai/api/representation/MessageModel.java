@@ -22,7 +22,7 @@ public class MessageModel extends RepresentationModel<MessageModel> {
       User user, Project project, Conversation conversation, Message message, UriInfo uriInfo) {
     this.id = message.getIdentity();
     this.description = message.getDescription();
-    Link selfLink =
+    add(
         Link.of(
                 ApiTemplates.message(uriInfo)
                     .build(
@@ -31,7 +31,6 @@ public class MessageModel extends RepresentationModel<MessageModel> {
                         conversation.getIdentity(),
                         message.getIdentity())
                     .getPath())
-            .withSelfRel();
-    add(selfLink);
+            .withSelfRel());
   }
 }

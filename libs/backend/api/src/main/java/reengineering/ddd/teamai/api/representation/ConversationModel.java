@@ -27,42 +27,42 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
     this.description = conversation.getDescription();
     this.projectId = project.getIdentity();
 
-    Link selfLink =
-        Link.of(
-                ApiTemplates.projectConversation(uriInfo)
-                    .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity())
-                    .getPath())
-            .withSelfRel();
-
-    Link messagesLink =
-        Link.of(
-                ApiTemplates.projectConversationMessages(uriInfo)
-                    .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity())
-                    .getPath())
-            .withRel("messages");
-
-    Link chatLink =
-        Link.of(
-                ApiTemplates.projectConversation(uriInfo)
-                    .path(ConversationApi.class, "chat")
-                    .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity())
-                    .getPath())
-            .withRel("chat");
-
     add(
-        Affordances.of(selfLink)
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.projectConversation(uriInfo)
+                            .build(
+                                user.getIdentity(),
+                                project.getIdentity(),
+                                conversation.getIdentity())
+                            .getPath())
+                    .withSelfRel())
             .afford(HttpMethod.PUT)
             .withInput(Conversation.ConversationChange.class)
             .andAfford(HttpMethod.DELETE)
             .withName("delete-conversation")
             .toLink());
     add(
-        Affordances.of(chatLink)
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.projectConversation(uriInfo)
+                            .path(ConversationApi.class, "chat")
+                            .build(
+                                user.getIdentity(),
+                                project.getIdentity(),
+                                conversation.getIdentity())
+                            .getPath())
+                    .withRel("chat"))
             .afford(HttpMethod.POST)
             .withInput(MessageDescription.class)
             .withName("chat")
             .toLink());
 
-    add(messagesLink);
+    add(
+        Link.of(
+                ApiTemplates.projectConversationMessages(uriInfo)
+                    .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity())
+                    .getPath())
+            .withRel("messages"));
   }
 }

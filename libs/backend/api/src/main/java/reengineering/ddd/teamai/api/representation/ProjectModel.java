@@ -9,9 +9,9 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
-import reengineering.ddd.teamai.description.BizDiagramDescription;
-import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
+import reengineering.ddd.teamai.model.BizDiagram;
+import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
@@ -45,7 +45,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
                             .getPath())
                     .withRel("conversations"))
             .afford(HttpMethod.POST)
-            .withInput(ConversationDescription.class)
+            .withInput(Conversation.ConversationChange.class)
             .withName("create-conversation")
             .toLink());
 
@@ -57,7 +57,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
                             .getPath())
                     .withRel("biz-diagrams"))
             .afford(HttpMethod.POST)
-            .withInput(BizDiagramDescription.class)
+            .withInput(BizDiagram.BizDiagramChange.class)
             .withName("create-biz-diagram")
             .toLink());
   }
