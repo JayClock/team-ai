@@ -20,7 +20,6 @@ type StateInit<TEntity extends Entity> = {
   currentLink: Link;
   forms?: Form[];
   collection?: StateCollection<TEntity>;
-  prevLink?: Link;
   embeddedState?: TEntity['links'];
 };
 
@@ -46,7 +45,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   }
 
   hasLink<K extends keyof TEntity['links']>(rel: K): boolean {
-    return this.links.has(rel);
+    return this.links.has(rel) || this.hasAction(rel);
   }
 
   getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined {
@@ -98,20 +97,26 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     rel: K,
     variables?: LinkVariables,
   ): Resource<TEntity['links'][K]> {
-    const link = this.links.get(rel as string);
-    if (link) {
-      if (
-        ['self', 'first', 'last', 'prev', 'next'].includes(link.rel) &&
-        this.collection.length > 0
-      ) {
-        return this.client.go(
-          { ...link, rel: this.init.currentLink.rel },
-        );
-      }
-      const expandedHref = expand(link, variables);
-      return this.client.go({ ...link, href: expandedHref });
+    if (!this.hasLink(rel)) {
+      throw new Error(`rel ${rel as string} is not exited`);
     }
-    throw new Error(`rel ${rel as string} is not exited`);
+
+    const link = this.links.get(rel as string) ?? {
+      rel: rel as string,
+      href: this.action(rel).uri,
+      context: this.client.bookmarkUri,
+    }
+
+    if (
+      ['self', 'first', 'last', 'prev', 'next'].includes(link.rel) &&
+      this.collection.length > 0
+    ) {
+      return this.client.go(
+        { ...link, rel: this.init.currentLink.rel },
+      );
+    }
+    const expandedHref = expand(link, variables);
+    return this.client.go({ ...link, href: expandedHref });
   }
 
   getForm<K extends keyof TEntity['links']>(rel: K, method = 'GET') {
@@ -129,7 +134,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
    *
    * If no name is given, checks if _any_ action exists.
    */
-  hasAction<K extends keyof TEntity['actions']>(name: K): boolean {
+  private hasAction<K extends keyof TEntity['links']>(name: K): boolean {
     if (name === undefined) return this.forms.length > 0;
     for (const form of this.forms) {
       if (name === form.name) {
@@ -145,15 +150,15 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
    * If no name is given, the first action is returned. This is useful for
    * formats that only supply 1 action, and no name.
    */
-  action<K extends keyof TEntity['actions']>(
+  action<K extends keyof TEntity['links']>(
     name: K,
-  ): Action<TEntity['actions'][K]> {
+  ): Action<TEntity['links'][K]> {
     if (!this.forms.length) {
       throw new ActionNotFound('This State does not define any actions');
     }
 
     if (name === undefined) {
-      return new SimpleAction<TEntity['actions'][K]>(
+      return new SimpleAction<TEntity['links'][K]>(
         this.client,
         this.forms[0],
       );

@@ -19,15 +19,13 @@ export class HalStateFactory implements StateFactory {
     client: ClientInstance,
     currentLink: Link,
     response: Response,
-    prevLink?: Link,
   ): Promise<State<TEntity>> {
     const halResource = (await response.json()) as HalResource;
     return this.createHalStateFromResource(
       halResource,
       client,
       response.headers,
-      currentLink,
-      prevLink,
+      currentLink
     );
   }
 
@@ -36,7 +34,6 @@ export class HalStateFactory implements StateFactory {
     client: ClientInstance,
     headers: Headers,
     currentLink: Link,
-    prevLink?: Link,
   ): State<SafeAny> {
     const { _links, _embedded, _templates, ...pureData } = halResource;
     const links = new Links(client.bookmarkUri, parseHalLinks(_links));
@@ -45,7 +42,6 @@ export class HalStateFactory implements StateFactory {
       _embedded,
       links,
       client,
-      currentLink,
     );
 
     const collection = this.getCollection(currentLink, _embedded, client);
@@ -58,7 +54,6 @@ export class HalStateFactory implements StateFactory {
       forms: forms,
       collection,
       currentLink,
-      prevLink,
       embeddedState,
     });
   }
@@ -92,7 +87,6 @@ export class HalStateFactory implements StateFactory {
     _embedded: HalResource['_embedded'],
     links: Links<Record<string, SafeAny>>,
     client: ClientInstance,
-    prevLink: Link,
   ) {
     const embeddedState: Record<string, State<SafeAny>> = {};
     for (const [key, value] of Object.entries(_embedded ?? {})) {
@@ -121,7 +115,6 @@ export class HalStateFactory implements StateFactory {
           links: new Links(client.bookmarkUri),
           headers: new Headers(),
           currentLink: link,
-          prevLink: prevLink,
         });
       } else {
         const sefHalLink = value._links?.self as HalLink;
@@ -135,7 +128,6 @@ export class HalStateFactory implements StateFactory {
           client,
           new Headers(),
           selfLink,
-          prevLink,
         );
       }
     }

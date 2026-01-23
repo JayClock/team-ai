@@ -136,12 +136,6 @@ export type State<TEntity extends Entity = Entity> = {
    */
   contentHeaders(): Headers;
 
-  /**
-   * Checks if the specified action exists.
-   *
-   * If no name is given, checks if _any_ action exists.
-   */
-  hasAction<K extends keyof TEntity['actions']>(name: K): boolean;
 
   /**
    * Return an action by name.
@@ -155,9 +149,9 @@ export type State<TEntity extends Entity = Entity> = {
    * If no name is given, the first action is returned. This is useful for
    * formats that only supply 1 action, and no name.
    */
-  action<K extends keyof TEntity['actions']>(
+  action<K extends keyof TEntity['links']>(
     name: K,
-  ): Action<TEntity['actions'][K]>;
+  ): Action<TEntity['links'][K]>;
 
   /**
    * Creates a deep clone of this state object.
@@ -186,13 +180,11 @@ export type StateFactory = {
    * @param client - The client instance for resource resolution
    * @param link - The link that was followed to get this response
    * @param response - The fetch Response object
-   * @param prevLink - Optional previous link for context
    * @returns A Promise resolving to the typed State object
    */
   create: <TEntity extends Entity>(
     client: ClientInstance,
     link: Link,
     response: Response,
-    prevLink?: Link,
   ) => Promise<State<TEntity>>;
 };

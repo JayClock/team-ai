@@ -12,7 +12,6 @@ export class BinaryStateFactory implements StateFactory {
     client: ClientInstance,
     currentLink: Link,
     response: Response,
-    prevLink?: Link,
   ): Promise<State<TEntity>> {
     return new BaseState({
       client,
@@ -20,7 +19,6 @@ export class BinaryStateFactory implements StateFactory {
       headers: response.headers,
       links: parseHeaderLink(client.bookmarkUri, response.headers),
       currentLink,
-      prevLink,
     });
   }
 }

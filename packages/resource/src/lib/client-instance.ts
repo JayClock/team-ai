@@ -17,7 +17,6 @@ import { StreamStateFactory } from './state/stream-state/stream-state.factory.js
 import { acceptMiddleware } from './middlewares/accept-header.js';
 import { cacheMiddleware } from './middlewares/cache.js';
 import { warningMiddleware } from './middlewares/warning.js';
-import { Form } from './form/form.js';
 
 /**
  * Internal Client implementation with dependency injection.
@@ -117,7 +116,6 @@ export class ClientInstance implements Client {
   async getStateForResponse<TEntity extends Entity>(
     link: Link,
     response: Response,
-    prevLink?: Link,
   ) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const contentType = parseContentType(response.headers.get('Content-Type')!);
@@ -127,7 +125,6 @@ export class ClientInstance implements Client {
         this,
         link,
         response,
-        prevLink,
       );
     }
 
@@ -136,14 +133,12 @@ export class ClientInstance implements Client {
         this,
         link,
         response,
-        prevLink,
       );
     } else if (contentType.match(/^application\/[A-Za-z-.]+\+json/)) {
       return this.halStateFactory.create<TEntity>(
         this,
         link,
         response,
-        prevLink,
       );
     }
 
@@ -151,7 +146,6 @@ export class ClientInstance implements Client {
       this,
       link,
       response,
-      prevLink,
     );
   }
   /**

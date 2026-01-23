@@ -305,9 +305,7 @@ describe('BaseState', () => {
     it('should call client.go with the correct link and forms', () => {
       state.follow('edit');
 
-      expect(mockClient.go).toHaveBeenCalledWith(mockLinks.get('edit'), [
-        mockForms[0],
-      ]);
+      expect(mockClient.go).toHaveBeenCalledWith(mockLinks.get('edit'));
     });
 
     it('should throw error if link does not exist', () => {
@@ -388,7 +386,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('self')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
       });
 
       it('should replace rel with currentLink.rel for "first" when collection has items', () => {
@@ -396,7 +394,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('first')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
       });
 
       it('should replace rel with currentLink.rel for "last" when collection has items', () => {
@@ -404,7 +402,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('last')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
       });
 
       it('should replace rel with currentLink.rel for "prev" when collection has items', () => {
@@ -412,7 +410,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('prev')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
       });
 
       it('should replace rel with currentLink.rel for "next" when collection has items', () => {
@@ -420,7 +418,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('next')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
       });
 
       it('should not replace rel for non-pagination links even when collection has items', () => {
@@ -428,7 +426,6 @@ describe('BaseState', () => {
 
         expect(mockClient.go).toHaveBeenCalledWith(
           collectionLinks.get('item'),
-          [],
         );
       });
 
@@ -450,7 +447,6 @@ describe('BaseState', () => {
 
         expect(mockClient.go).toHaveBeenCalledWith(
           collectionLinks.get('self'),
-          [],
         );
       });
     });
@@ -542,33 +538,6 @@ describe('BaseState', () => {
       expect(putForm?.uri).toBe('/api/resources/123/edit');
       expect(patchForm?.uri).toBe('/api/resources/123/edit');
       expect(deleteForm?.uri).toBe('/api/resources/123/edit');
-    });
-  });
-
-  describe('hasAction', () => {
-    it('should return true when action with matching name exists', () => {
-      expect(state.hasAction('edit' as never)).toBe(true);
-    });
-
-    it('should return false for non-existing action name', () => {
-      expect(state.hasAction('nonexistent' as never)).toBe(false);
-    });
-
-    it('should return true if any action exists when name is undefined', () => {
-      expect(state.hasAction(undefined as never)).toBe(true);
-    });
-
-    it('should return false when no actions exist and name is undefined', () => {
-      const stateWithoutForms = new BaseState<TestEntity>({
-        client: mockClient,
-        data: testData,
-        links: mockLinks,
-        headers: mockHeaders,
-        currentLink,
-        forms: [],
-      });
-
-      expect(stateWithoutForms.hasAction(undefined as never)).toBe(false);
     });
   });
 
