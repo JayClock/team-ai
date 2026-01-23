@@ -53,13 +53,15 @@ describe('Resource POST Requests', () => {
       body: JSON.stringify(newConversationData),
     };
 
-    vi.spyOn(mockClient, 'go').mockReturnValue(new Resource(mockClient, link));
+    vi.spyOn(mockClient, 'go').mockReturnValue(
+      new Resource(mockClient, link),
+    );
     vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
       mockResponse,
     );
     vi.spyOn(mockClient.cache, 'get').mockReturnValue(userState);
 
-    const form = userState.actionFor('conversations', 'POST');
+    const form = userState.action('create-conversation');
 
     await form.submit(newConversationData);
 
@@ -110,19 +112,17 @@ describe('Resource POST Requests', () => {
         uri: 'https://www.test.com/api/users/1/conversations',
       } as State);
 
-      const request1 = userState.follow('conversations').post(
-        {
+      const request1 = userState
+        .follow('create-conversation')
+        .post({
           data: newConversationData,
-        },
-        { dedup: true },
-      );
+        }, { dedup: true });
 
-      const request2 = userState.follow('conversations').post(
-        {
+      const request2 = userState
+        .follow('create-conversation')
+        .post({
           data: newConversationData,
-        },
-        { dedup: true },
-      );
+        }, { dedup: true });
 
       const [result1, result2] = await Promise.all([request1, request2]);
 
@@ -136,13 +136,17 @@ describe('Resource POST Requests', () => {
         uri: 'https://www.test.com/api/users/1/conversations',
       } as State);
 
-      const request1 = userState.follow('conversations').post({
-        data: newConversationData,
-      });
+      const request1 = userState
+        .follow('create-conversation')
+        .post({
+          data: newConversationData,
+        });
 
-      const request2 = userState.follow('conversations').post({
-        data: newConversationData,
-      });
+      const request2 = userState
+        .follow('create-conversation')
+        .post({
+          data: newConversationData,
+        });
 
       await Promise.all([request1, request2]);
 
@@ -154,19 +158,17 @@ describe('Resource POST Requests', () => {
         uri: 'https://www.test.com/api/users/1/conversations',
       } as State);
 
-      const request1 = userState.follow('conversations').post(
-        {
+      const request1 = userState
+        .follow('create-conversation')
+        .post({
           data: newConversationData,
-        },
-        { dedup: true },
-      );
+        }, { dedup: true });
 
-      const request2 = userState.follow('conversations').post(
-        {
+      const request2 = userState
+        .follow('create-conversation')
+        .post({
           data: { title: 'Different Conversation' },
-        },
-        { dedup: true },
-      );
+        }, { dedup: true });
 
       await Promise.all([request1, request2]);
 
@@ -179,21 +181,15 @@ describe('Resource POST Requests', () => {
       } as State);
       const resource = userState.follow('conversations');
 
-      const requestPromise = resource.post(
-        {
-          data: newConversationData,
-        },
-        { dedup: true },
-      );
+      const requestPromise = resource.post({
+        data: newConversationData,
+      }, { dedup: true });
 
       await requestPromise;
 
-      const secondRequest = resource.post(
-        {
-          data: newConversationData,
-        },
-        { dedup: true },
-      );
+      const secondRequest = resource.post({
+        data: newConversationData,
+      }, { dedup: true });
       await secondRequest;
 
       expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);

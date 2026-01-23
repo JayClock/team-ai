@@ -4,7 +4,6 @@ import { ClientInstance } from '../client-instance.js';
 import { Resource } from '../index.js';
 import { Link, LinkVariables } from '../links/link.js';
 import { Action } from '../action/action.js';
-import { HttpMethod } from '../http/util.js';
 
 /**
  * Represents the state of a REST resource at a specific point in time.
@@ -138,63 +137,27 @@ export type State<TEntity extends Entity = Entity> = {
   contentHeaders(): Headers;
 
   /**
-   * Checks if an action exists for the specified link relation.
+   * Checks if the specified action exists.
    *
-   * An action is a HAL-Forms template that enables state transitions.
-   * This method matches forms where `form.uri === link.href`.
-   *
-   * @typeParam K - The link relation name
-   * @param rel - The link relation name
-   * @param method - Optional HTTP method to filter by (e.g., 'POST', 'PUT', 'DELETE')
-   * @returns `true` if a matching action exists, `false` otherwise
-   *
-   * @example
-   * ```typescript
-   * if (state.hasActionFor('edit')) {
-   *   // Show edit button
-   * }
-   *
-   * if (state.hasActionFor('item', 'DELETE')) {
-   *   // Show delete button
-   * }
-   * ```
+   * If no name is given, checks if _any_ action exists.
    */
-  hasActionFor<K extends keyof TEntity['links']>(
-    rel: K,
-    method?: HttpMethod,
-  ): boolean;
+  hasAction<K extends keyof TEntity['actions']>(name: K): boolean;
 
   /**
-   * Returns an action associated with the specified link relation.
+   * Return an action by name.
    *
-   * Matches forms where form.uri === link.href.
-   * If method is specified, also matches form.method === method.
-   *
-   * This follows HATEOAS principles by discovering actions through link relations
-   * rather than requiring clients to know template keys in advance.
-   *
-   * @param rel - The link relation name
-   * @param method - Optional HTTP method to filter by (e.g., 'POST', 'PUT', 'DELETE')
-   * @throws ActionNotFound - When link doesn't exist or no matching form is found
-   * @throws AmbiguousActionError - When multiple forms match and no method is specified
-   *
-   * @example
-   * ```typescript
-   * // Discover action through link relation
-   * if (state.hasActionFor('create-conversation')) {
-   *   const action = state.actionFor('create-conversation');
-   *   await action.submit({ title: 'New Chat' });
-   * }
-   *
-   * // Disambiguate when multiple methods exist for same URL
-   * const updateAction = state.actionFor('item', 'PUT');
-   * const deleteAction = state.actionFor('item', 'DELETE');
-   * ```
+   * If no name is given, the first action is returned. This is useful for
+   * formats that only supply 1 action, and no name.
    */
-  actionFor<K extends keyof TEntity['links']>(
-    rel: K,
-    method?: HttpMethod,
-  ): Action<TEntity['links'][K]>;
+  /**
+   * Return an action by name.
+   *
+   * If no name is given, the first action is returned. This is useful for
+   * formats that only supply 1 action, and no name.
+   */
+  action<K extends keyof TEntity['actions']>(
+    name: K,
+  ): Action<TEntity['actions'][K]>;
 
   /**
    * Creates a deep clone of this state object.

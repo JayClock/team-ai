@@ -17,6 +17,7 @@ import { StreamStateFactory } from './state/stream-state/stream-state.factory.js
 import { acceptMiddleware } from './middlewares/accept-header.js';
 import { cacheMiddleware } from './middlewares/cache.js';
 import { warningMiddleware } from './middlewares/warning.js';
+import { Form } from './form/form.js';
 
 /**
  * Internal Client implementation with dependency injection.

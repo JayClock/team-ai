@@ -134,6 +134,8 @@ describe('BaseState', () => {
 
       expect(stateWithoutForms['forms']).toEqual([]);
     });
+
+
   });
 
   describe('hasLink', () => {
@@ -300,6 +302,14 @@ describe('BaseState', () => {
   });
 
   describe('follow', () => {
+    it('should call client.go with the correct link and forms', () => {
+      state.follow('edit');
+
+      expect(mockClient.go).toHaveBeenCalledWith(mockLinks.get('edit'), [
+        mockForms[0],
+      ]);
+    });
+
     it('should throw error if link does not exist', () => {
       expect(() => state.follow('unknown' as never)).toThrow(
         'rel unknown is not exited',
@@ -378,7 +388,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('self')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should replace rel with currentLink.rel for "first" when collection has items', () => {
@@ -386,7 +396,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('first')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should replace rel with currentLink.rel for "last" when collection has items', () => {
@@ -394,7 +404,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('last')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should replace rel with currentLink.rel for "prev" when collection has items', () => {
@@ -402,7 +412,7 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('prev')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should replace rel with currentLink.rel for "next" when collection has items', () => {
@@ -410,13 +420,16 @@ describe('BaseState', () => {
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const expectedLink = { ...collectionLinks.get('next')!, rel: 'item' };
-        expect(mockClient.go).toHaveBeenCalledWith(expectedLink);
+        expect(mockClient.go).toHaveBeenCalledWith(expectedLink, []);
       });
 
       it('should not replace rel for non-pagination links even when collection has items', () => {
         collectionState.follow('item');
 
-        expect(mockClient.go).toHaveBeenCalledWith(collectionLinks.get('item'));
+        expect(mockClient.go).toHaveBeenCalledWith(
+          collectionLinks.get('item'),
+          [],
+        );
       });
 
       it('should not replace rel for pagination links when collection is empty', () => {
@@ -435,165 +448,165 @@ describe('BaseState', () => {
 
         emptyCollectionState.follow('self');
 
-        expect(mockClient.go).toHaveBeenCalledWith(collectionLinks.get('self'));
+        expect(mockClient.go).toHaveBeenCalledWith(
+          collectionLinks.get('self'),
+          [],
+        );
       });
     });
   });
 
-  describe('hasActionFor', () => {
-    it('should return true when action exists for link relation', () => {
-      expect(state.hasActionFor('edit')).toBe(true);
+  describe('getForm', () => {
+    it('should return the form matching rel and method', () => {
+      const form = state.getForm('edit', 'PUT');
+
+      expect(form).toBeDefined();
+      expect(form?.method).toBe('PUT');
+      expect(form?.uri).toBe('/api/resources/123/edit');
     });
 
-    it('should return false when link does not exist', () => {
-      expect(state.hasActionFor('nonexistent' as never)).toBe(false);
+    it('should default to GET method if not specified', () => {
+      const getForm = {
+        uri: '/api/resources/123',
+        name: 'get',
+        method: 'GET' as const,
+        contentType: 'application/json',
+        fields: [],
+      };
+
+      const stateWithGetForm = new BaseState<TestEntity>({
+        client: mockClient,
+        data: testData,
+        links: mockLinks,
+        headers: mockHeaders,
+        currentLink,
+        forms: [getForm],
+      });
+
+      const form = stateWithGetForm.getForm('self');
+      expect(form).toBe(getForm);
     });
 
-    it('should return false when link exists but no matching form', () => {
-      expect(state.hasActionFor('self')).toBe(false);
+    it('should return undefined if link does not exist', () => {
+      const form = state.getForm('unknown' as never, 'GET');
+      expect(form).toBeUndefined();
     });
 
-    it('should return true when matching method is specified', () => {
-      expect(state.hasActionFor('edit', 'PUT')).toBe(true);
+    it('should return undefined if no form matches the uri and method', () => {
+      const form = state.getForm('self', 'POST');
+      expect(form).toBeUndefined();
     });
 
-    it('should return false when non-matching method is specified', () => {
-      expect(state.hasActionFor('edit', 'DELETE')).toBe(false);
-    });
-
-    it('should return true when multiple actions exist and one matches method', () => {
-      const multiMethodLinks = new Links<SafeAny>(mockClient.bookmarkUri, [
-        { rel: 'item', href: '/api/items/1' },
-      ]);
-      const multiMethodForms: Form[] = [
+    it('should match different forms for the same link by method', () => {
+      const formsForSameLink = [
         {
-          uri: '/api/items/1',
+          uri: '/api/resources/123/edit',
           name: 'update',
-          method: 'PUT',
+          method: 'PUT' as const,
           contentType: 'application/json',
           fields: [],
         },
         {
-          uri: '/api/items/1',
-          name: 'remove',
-          method: 'DELETE',
+          uri: '/api/resources/123/edit',
+          name: 'patch',
+          method: 'PATCH' as const,
+          contentType: 'application/json',
+          fields: [],
+        },
+        {
+          uri: '/api/resources/123/edit',
+          name: 'delete',
+          method: 'DELETE' as const,
           contentType: 'application/json',
           fields: [],
         },
       ];
-      const multiMethodState = new BaseState<SafeAny>({
+
+      const stateWithMultipleForms = new BaseState<TestEntity>({
         client: mockClient,
-        data: {},
-        links: multiMethodLinks,
+        data: testData,
+        links: mockLinks,
         headers: mockHeaders,
         currentLink,
-        forms: multiMethodForms,
+        forms: formsForSameLink,
       });
 
-      expect(multiMethodState.hasActionFor('item')).toBe(true);
-      expect(multiMethodState.hasActionFor('item', 'PUT')).toBe(true);
-      expect(multiMethodState.hasActionFor('item', 'DELETE')).toBe(true);
-      expect(multiMethodState.hasActionFor('item', 'POST')).toBe(false);
+      const putForm = stateWithMultipleForms.getForm('edit', 'PUT');
+      const patchForm = stateWithMultipleForms.getForm('edit', 'PATCH');
+      const deleteForm = stateWithMultipleForms.getForm('edit', 'DELETE');
+
+      expect(putForm?.method).toBe('PUT');
+      expect(patchForm?.method).toBe('PATCH');
+      expect(deleteForm?.method).toBe('DELETE');
+
+      expect(putForm?.uri).toBe('/api/resources/123/edit');
+      expect(patchForm?.uri).toBe('/api/resources/123/edit');
+      expect(deleteForm?.uri).toBe('/api/resources/123/edit');
     });
   });
 
-  describe('actionFor', () => {
-    it('should return action for matching link relation', () => {
-      const action = state.actionFor('edit');
+  describe('hasAction', () => {
+    it('should return true when action with matching name exists', () => {
+      expect(state.hasAction('edit' as never)).toBe(true);
+    });
+
+    it('should return false for non-existing action name', () => {
+      expect(state.hasAction('nonexistent' as never)).toBe(false);
+    });
+
+    it('should return true if any action exists when name is undefined', () => {
+      expect(state.hasAction(undefined as never)).toBe(true);
+    });
+
+    it('should return false when no actions exist and name is undefined', () => {
+      const stateWithoutForms = new BaseState<TestEntity>({
+        client: mockClient,
+        data: testData,
+        links: mockLinks,
+        headers: mockHeaders,
+        currentLink,
+        forms: [],
+      });
+
+      expect(stateWithoutForms.hasAction(undefined as never)).toBe(false);
+    });
+  });
+
+  describe('action', () => {
+    it('should return action for existing action name', () => {
+      const action = state.action('edit' as never);
 
       expect(action).toBeDefined();
+      expect(action.name).toBe('edit');
       expect(action.method).toBe('PUT');
-      expect(action.uri).toBe('/api/resources/123/edit');
     });
 
-    it('should throw ActionNotFound when link does not exist', () => {
-      expect(() => state.actionFor('nonexistent' as never)).toThrow(
-        "Link relation 'nonexistent' not found",
+    it('should throw ActionNotFound for non-existing action name', () => {
+      expect(() => state.action('nonexistent' as never)).toThrow(
+        'This State defines no action with name nonexistent',
       );
     });
 
-    it('should throw ActionNotFound when link exists but no matching form', () => {
-      expect(() => state.actionFor('self')).toThrow(
-        "No action found for link 'self' (href: /api/resources/123)",
-      );
-    });
-
-    it('should return action matching specified method', () => {
-      const multiMethodLinks = new Links<SafeAny>(mockClient.bookmarkUri, [
-        { rel: 'item', href: '/api/items/1' },
-      ]);
-      const multiMethodForms: Form[] = [
-        {
-          uri: '/api/items/1',
-          name: 'update',
-          method: 'PUT',
-          contentType: 'application/json',
-          fields: [],
-        },
-        {
-          uri: '/api/items/1',
-          name: 'remove',
-          method: 'DELETE',
-          contentType: 'application/json',
-          fields: [],
-        },
-      ];
-      const multiMethodState = new BaseState<SafeAny>({
+    it('should throw ActionNotFound when no actions exist', () => {
+      const stateWithoutForms = new BaseState<TestEntity>({
         client: mockClient,
-        data: {},
-        links: multiMethodLinks,
+        data: testData,
+        links: mockLinks,
         headers: mockHeaders,
         currentLink,
-        forms: multiMethodForms,
+        forms: [],
       });
 
-      const putAction = multiMethodState.actionFor('item', 'PUT');
-      expect(putAction.method).toBe('PUT');
-      expect(putAction.name).toBe('update');
-
-      const deleteAction = multiMethodState.actionFor('item', 'DELETE');
-      expect(deleteAction.method).toBe('DELETE');
-      expect(deleteAction.name).toBe('remove');
-    });
-
-    it('should throw AmbiguousActionError when multiple actions match and no method specified', () => {
-      const multiMethodLinks = new Links<SafeAny>(mockClient.bookmarkUri, [
-        { rel: 'item', href: '/api/items/1' },
-      ]);
-      const multiMethodForms: Form[] = [
-        {
-          uri: '/api/items/1',
-          name: 'update',
-          method: 'PUT',
-          contentType: 'application/json',
-          fields: [],
-        },
-        {
-          uri: '/api/items/1',
-          name: 'remove',
-          method: 'DELETE',
-          contentType: 'application/json',
-          fields: [],
-        },
-      ];
-      const multiMethodState = new BaseState<SafeAny>({
-        client: mockClient,
-        data: {},
-        links: multiMethodLinks,
-        headers: mockHeaders,
-        currentLink,
-        forms: multiMethodForms,
-      });
-
-      expect(() => multiMethodState.actionFor('item')).toThrow(
-        "Multiple actions found for 'item'. Specify method: PUT, DELETE",
+      expect(() => stateWithoutForms.action('any' as never)).toThrow(
+        'This State does not define any actions',
       );
     });
 
-    it('should throw ActionNotFound when method does not match any form', () => {
-      expect(() => state.actionFor('edit', 'DELETE')).toThrow(
-        "No action found for link 'edit' (href: /api/resources/123/edit)",
-      );
+    it('should return first action when name is undefined', () => {
+      const action = state.action(undefined as never);
+
+      expect(action).toBeDefined();
+      expect(action.name).toBe('edit');
     });
   });
 

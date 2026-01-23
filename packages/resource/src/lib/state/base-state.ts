@@ -10,13 +10,7 @@ import { Resource } from '../index.js';
 import { Link, LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
 import { expand } from '../util/uri-template.js';
-import {
-  Action,
-  ActionNotFound,
-  AmbiguousActionError,
-  SimpleAction,
-} from '../action/action.js';
-import { HttpMethod } from '../http/util.js';
+import { Action, ActionNotFound, SimpleAction } from '../action/action.js';
 
 type StateInit<TEntity extends Entity> = {
   client: ClientInstance;
@@ -110,7 +104,9 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
         ['self', 'first', 'last', 'prev', 'next'].includes(link.rel) &&
         this.collection.length > 0
       ) {
-        return this.client.go({ ...link, rel: this.init.currentLink.rel });
+        return this.client.go(
+          { ...link, rel: this.init.currentLink.rel },
+        );
       }
       const expandedHref = expand(link, variables);
       return this.client.go({ ...link, href: expandedHref });
@@ -118,48 +114,60 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     throw new Error(`rel ${rel as string} is not exited`);
   }
 
-  hasActionFor<K extends keyof TEntity['links']>(
-    rel: K,
-    method?: HttpMethod,
-  ): boolean {
+  getForm<K extends keyof TEntity['links']>(rel: K, method = 'GET') {
     const link = this.links.get(rel as string);
     if (!link) {
-      return false;
+      return undefined;
     }
-
-    const matches = this.forms.filter(
-      (f) => f.uri === link.href && (!method || f.method === method),
+    return this.forms.find(
+      (form) => form.uri === link.href && form.method === method,
     );
-    return matches.length > 0;
   }
 
-  actionFor<K extends keyof TEntity['links']>(
-    rel: K,
-    method?: HttpMethod,
-  ): Action<TEntity['links'][K]> {
-    const link = this.links.get(rel as string);
-    if (!link) {
-      throw new ActionNotFound(`Link relation '${rel as string}' not found`);
+  /**
+   * Checks if the specified action exists.
+   *
+   * If no name is given, checks if _any_ action exists.
+   */
+  hasAction<K extends keyof TEntity['actions']>(name: K): boolean {
+    if (name === undefined) return this.forms.length > 0;
+    for (const form of this.forms) {
+      if (name === form.name) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Return an action by name.
+   *
+   * If no name is given, the first action is returned. This is useful for
+   * formats that only supply 1 action, and no name.
+   */
+  action<K extends keyof TEntity['actions']>(
+    name: K,
+  ): Action<TEntity['actions'][K]> {
+    if (!this.forms.length) {
+      throw new ActionNotFound('This State does not define any actions');
     }
 
-    const matches = this.forms.filter(
-      (f) => f.uri === expand(link, {}) && (!method || f.method === method),
+    if (name === undefined) {
+      return new SimpleAction<TEntity['actions'][K]>(
+        this.client,
+        this.forms[0],
+      );
+    }
+
+    for (const form of this.forms) {
+      if (form.name === name) {
+        return new SimpleAction(this.client, form);
+      }
+    }
+
+    throw new ActionNotFound(
+      `This State defines no action with name ${name as string}`,
     );
-
-    if (matches.length === 0) {
-      throw new ActionNotFound(
-        `No action found for link '${rel as string}' (href: ${link.href})`,
-      );
-    }
-
-    if (matches.length > 1 && !method) {
-      throw new AmbiguousActionError(
-        `Multiple actions found for '${rel as string}'. ` +
-        `Specify method: ${matches.map((f) => f.method).join(', ')}`,
-      );
-    }
-
-    return new SimpleAction(this.client, matches[0]);
   }
 
   clone(): State<TEntity> {

@@ -36,5 +36,3 @@ export type { ExtractCollectionElement } from './state/state-collection.js';
 export * from './resource/resource.js';
 export * from './resource/resource-relation.js';
 export type { FetchMiddleware } from './http/fetcher.js';
-export { ActionNotFound, AmbiguousActionError } from './action/action.js';
-export type { HttpMethod } from './http/util.js';

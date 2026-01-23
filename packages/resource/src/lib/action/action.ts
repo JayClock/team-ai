@@ -222,16 +222,3 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
 export class ActionNotFound extends Error {
   override name = 'ActionNotFound';
 }
-
-/**
- * Error thrown when multiple actions match a request.
- *
- * This occurs when calling `state.actionFor(rel)` without specifying
- * a method, and multiple forms exist for the same link relation.
- * Resolve by specifying the HTTP method: `state.actionFor(rel, 'POST')`.
- *
- * @category Resource
- */
-export class AmbiguousActionError extends Error {
-  override name = 'AmbiguousActionError';
-}

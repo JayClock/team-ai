@@ -12,6 +12,9 @@ type TestEntity = Entity<
   },
   {
     self: TestEntity;
+  },
+  {
+    create: TestEntity;
   }
 >;
 
