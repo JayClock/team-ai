@@ -5,6 +5,8 @@ import { Field } from '../form/field.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { ClientInstance } from '../client-instance.js';
 import * as qs from 'querystring';
+import * as z from "zod";
+
 
 /**
  * Represents an executable hypermedia action (form submission).
@@ -55,6 +57,8 @@ export interface Action<TEntity extends Entity> extends Form {
    * @returns The Field object or `undefined` if not found
    */
   field(name: string): Field | undefined;
+
+  formSchema(): z.ZodType<Record<string, unknown>>
 }
 
 /**
@@ -86,6 +90,85 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
     this.method = this.form.method;
     this.contentType = this.form.contentType;
     this.fields = this.form.fields;
+  }
+
+  formSchema(): z.ZodType<Record<string, unknown>> {
+    const shape: Record<string, z.ZodTypeAny> = {};
+
+    for (const field of this.fields) {
+      let schema: z.ZodTypeAny;
+
+      // Map field types to Zod schemas
+      switch (field.type) {
+        case 'checkbox':
+        case 'radio':
+          schema = z.boolean();
+          break;
+
+        case 'number':
+        case 'range':
+          schema = z.number();
+          if ('min' in field && field.min !== undefined) {
+            schema = (schema as z.ZodNumber).min(field.min);
+          }
+          if ('max' in field && field.max !== undefined) {
+            schema = (schema as z.ZodNumber).max(field.max);
+          }
+          break;
+
+        case 'date':
+        case 'month':
+        case 'time':
+        case 'week':
+        case 'datetime':
+        case 'datetime-local':
+          schema = z.string();
+          if ('min' in field && field.min !== undefined) {
+            schema = (schema as z.ZodString).min(field.min);
+          }
+          if ('max' in field && field.max !== undefined) {
+            schema = (schema as z.ZodString).max(field.max);
+          }
+          break;
+
+        case 'hidden':
+          schema = z.union([z.string(), z.number(), z.null(), z.boolean()]);
+          break;
+
+        case 'select':
+          if ('multiple' in field && field.multiple === true) {
+            schema = z.array(z.string());
+          } else {
+            schema = z.string();
+          }
+          break;
+
+        case 'text':
+        case 'textarea':
+        case 'color':
+        case 'email':
+        case 'password':
+        case 'search':
+        case 'tel':
+        case 'url':
+        default:
+          schema = z.string();
+          if ('minLength' in field && field.minLength !== undefined) {
+            schema = (schema as z.ZodString).min(field.minLength);
+          }
+          if ('maxLength' in field && field.maxLength !== undefined) {
+            schema = (schema as z.ZodString).max(field.maxLength);
+          }
+          if ('pattern' in field && field.pattern !== undefined) {
+            schema = (schema as z.ZodString).regex(field.pattern);
+          }
+          break;
+      }
+
+      shape[field.name] = field.required ? schema : schema.optional();
+    }
+
+    return z.object(shape);
   }
 
   field(name: string): Field | undefined {

@@ -123,6 +123,309 @@ describe('SimpleAction', () => {
     });
   });
 
+  describe('formSchema', () => {
+    it('should generate schema for text fields', () => {
+      const formWithTextField: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'title',
+            type: 'text',
+            required: true,
+            readOnly: false,
+            label: 'Title',
+          } as Field,
+          {
+            name: 'subtitle',
+            type: 'text',
+            required: false,
+            readOnly: false,
+            label: 'Subtitle',
+          } as Field,
+        ],
+      };
+
+      const textAction = new SimpleAction<TestEntity>(mockClient, formWithTextField);
+      const schema = textAction.formSchema();
+
+      // Should validate required field
+      expect(() => schema.parse({ title: 'Test' })).not.toThrow();
+      expect(() => schema.parse({})).toThrow();
+
+      // Should handle optional field
+      expect(() => schema.parse({ title: 'Test', subtitle: 'Subtitle' })).not.toThrow();
+    });
+
+    it('should generate schema for number fields with constraints', () => {
+      const formWithNumberField: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'age',
+            type: 'number',
+            required: true,
+            readOnly: false,
+            min: 0,
+            max: 120,
+            label: 'Age',
+          } as Field,
+        ],
+      };
+
+      const numberAction = new SimpleAction<TestEntity>(mockClient, formWithNumberField);
+      const schema = numberAction.formSchema();
+
+      // Should validate number constraints
+      expect(() => schema.parse({ age: 25 })).not.toThrow();
+      expect(() => schema.parse({ age: -1 })).toThrow();
+      expect(() => schema.parse({ age: 150 })).toThrow();
+      expect(() => schema.parse({ age: '25' as unknown as number })).toThrow();
+    });
+
+    it('should generate schema for boolean fields', () => {
+      const formWithBooleanField: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'isActive',
+            type: 'checkbox',
+            required: true,
+            readOnly: false,
+            label: 'Active',
+          } as Field,
+        ],
+      };
+
+      const booleanAction = new SimpleAction<TestEntity>(mockClient, formWithBooleanField);
+      const schema = booleanAction.formSchema();
+
+      // Should validate boolean values
+      expect(() => schema.parse({ isActive: true })).not.toThrow();
+      expect(() => schema.parse({ isActive: false })).not.toThrow();
+      expect(() => schema.parse({ isActive: 'true' as unknown as boolean })).toThrow();
+    });
+
+    it('should generate schema for select fields', () => {
+      const formWithSelectField: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'category',
+            type: 'select',
+            required: true,
+            readOnly: false,
+            multiple: false,
+            options: ['A', 'B', 'C'],
+            label: 'Category',
+          } as Field,
+          {
+            name: 'tags',
+            type: 'select',
+            required: false,
+            readOnly: false,
+            multiple: true,
+            options: ['tag1', 'tag2', 'tag3'],
+            label: 'Tags',
+          } as Field,
+        ],
+      };
+
+      const selectAction = new SimpleAction<TestEntity>(mockClient, formWithSelectField);
+      const schema = selectAction.formSchema();
+
+      // Should validate single select
+      expect(() => schema.parse({ category: 'A' })).not.toThrow();
+      expect(() => schema.parse({ category: 1 as unknown as string })).toThrow();
+
+      // Should validate multi-select
+      expect(() => schema.parse({ category: 'A', tags: ['tag1', 'tag2'] })).not.toThrow();
+      expect(() => schema.parse({ category: 'A', tags: 'tag1' as unknown as string[] })).toThrow();
+    });
+
+    it('should generate schema for textarea with length constraints', () => {
+      const formWithTextArea: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'content',
+            type: 'textarea',
+            required: true,
+            readOnly: false,
+            minLength: 10,
+            maxLength: 500,
+            label: 'Content',
+          } as Field,
+        ],
+      };
+
+      const textAreaAction = new SimpleAction<TestEntity>(mockClient, formWithTextArea);
+      const schema = textAreaAction.formSchema();
+
+      // Should validate length constraints
+      expect(() => schema.parse({ content: 'This is a valid content' })).not.toThrow();
+      expect(() => schema.parse({ content: 'Short' })).toThrow();
+      expect(() => schema.parse({ content: 'x'.repeat(501) })).toThrow();
+    });
+
+    it('should generate schema for text field with pattern', () => {
+      const formWithPattern: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'email',
+            type: 'email',
+            required: true,
+            readOnly: false,
+            pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+            label: 'Email',
+          } as Field,
+        ],
+      };
+
+      const patternAction = new SimpleAction<TestEntity>(mockClient, formWithPattern);
+      const schema = patternAction.formSchema();
+
+      // Should validate pattern
+      expect(() => schema.parse({ email: 'test@example.com' })).not.toThrow();
+      expect(() => schema.parse({ email: 'invalid-email' })).toThrow();
+    });
+
+    it('should generate schema for date fields', () => {
+      const formWithDateField: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'birthDate',
+            type: 'date',
+            required: true,
+            readOnly: false,
+            label: 'Birth Date',
+          } as Field,
+        ],
+      };
+
+      const dateAction = new SimpleAction<TestEntity>(mockClient, formWithDateField);
+      const schema = dateAction.formSchema();
+
+      // Should validate date as string
+      expect(() => schema.parse({ birthDate: '2023-01-01' })).not.toThrow();
+      expect(() => schema.parse({ birthDate: new Date() as unknown as string })).toThrow();
+    });
+
+    it('should generate schema for hidden fields', () => {
+      const formWithHiddenField: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'id',
+            type: 'hidden',
+            required: true,
+            readOnly: false,
+            label: 'ID',
+          } as Field,
+        ],
+      };
+
+      const hiddenAction = new SimpleAction<TestEntity>(mockClient, formWithHiddenField);
+      const schema = hiddenAction.formSchema();
+
+      // Should accept various types for hidden fields
+      expect(() => schema.parse({ id: '123' })).not.toThrow();
+      expect(() => schema.parse({ id: 123 })).not.toThrow();
+      expect(() => schema.parse({ id: true })).not.toThrow();
+      expect(() => schema.parse({ id: null })).not.toThrow();
+    });
+
+    it('should generate schema for mixed field types', () => {
+      const formWithMixedFields: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [
+          {
+            name: 'name',
+            type: 'text',
+            required: true,
+            readOnly: false,
+            label: 'Name',
+          } as Field,
+          {
+            name: 'age',
+            type: 'number',
+            required: true,
+            readOnly: false,
+            min: 0,
+            label: 'Age',
+          } as Field,
+          {
+            name: 'active',
+            type: 'checkbox',
+            required: false,
+            readOnly: false,
+            label: 'Active',
+          } as Field,
+          {
+            name: 'description',
+            type: 'textarea',
+            required: false,
+            readOnly: false,
+            label: 'Description',
+          } as Field,
+        ],
+      };
+
+      const mixedAction = new SimpleAction<TestEntity>(mockClient, formWithMixedFields);
+      const schema = mixedAction.formSchema();
+
+      // Should validate all fields correctly
+      expect(() => schema.parse({ name: 'John', age: 30, active: true, description: 'Test' })).not.toThrow();
+      expect(() => schema.parse({ name: 'John', age: 30 })).not.toThrow();
+      expect(() => schema.parse({ name: 'John', age: -1 })).toThrow();
+      expect(() => schema.parse({ age: 30 })).toThrow();
+    });
+
+    it('should handle empty fields array', () => {
+      const formWithNoFields: Form = {
+        uri: 'https://example.com/api/resources',
+        name: 'create',
+        method: 'POST',
+        contentType: 'application/json',
+        fields: [],
+      };
+
+      const noFieldsAction = new SimpleAction<TestEntity>(mockClient, formWithNoFields);
+      const schema = noFieldsAction.formSchema();
+
+      // Should accept empty object
+      expect(() => schema.parse({})).not.toThrow();
+    });
+  });
+
   describe('submit', () => {
     describe('with GET method', () => {
       beforeEach(() => {
