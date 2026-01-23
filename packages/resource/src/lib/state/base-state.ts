@@ -119,15 +119,6 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     return this.client.go({ ...link, href: expandedHref });
   }
 
-  getForm<K extends keyof TEntity['links']>(rel: K, method = 'GET') {
-    const link = this.links.get(rel as string);
-    if (!link) {
-      return undefined;
-    }
-    return this.forms.find(
-      (form) => form.uri === link.href && form.method === method,
-    );
-  }
 
   /**
    * Checks if the specified action exists.
