@@ -35,6 +35,9 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../../libs/frontend/features/project-biz-diagrams/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/frontend/shared/schema/tsconfig.lib.json"
     },
     {

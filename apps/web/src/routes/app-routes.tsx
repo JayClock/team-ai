@@ -4,12 +4,20 @@ import { Conversation, Project } from '@shared/schema';
 import { ProjectConversations } from '@features/project-conversations';
 import { ConversationMessages } from '@features/conversation-messages';
 import { UserProjects } from '@features/user-projects';
+import { ProjectBizDiagrams } from '@features/project-biz-diagrams';
 import { rootResource } from '../lib/api-client';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Button } from '@shared/ui/components/button';
-import { MessageSquareIcon, PlusIcon } from 'lucide-react';
+import { MessageSquareIcon, PlusIcon, BookOpenIcon } from 'lucide-react';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@shared/ui/components/tabs';
 
 export function AppRoutes() {
+  const [activeTab, setActiveTab] = useState('chat');
   const [conversationState, setConversationState] =
     useState<State<Conversation>>();
 
@@ -44,13 +52,47 @@ export function AppRoutes() {
   );
 
   const mainContent = (
-    <ConversationMessages
-      conversationState={conversationState}
-      key={conversationState?.data.id}
-    />
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="h-full flex flex-col"
+    >
+      <TabsList className="w-full justify-start mb-4">
+        <TabsTrigger value="chat" className="gap-2">
+          <MessageSquareIcon className="h-4 w-4" />
+          聊天
+        </TabsTrigger>
+        <TabsTrigger value="knowledge" className="gap-2">
+          <BookOpenIcon className="h-4 w-4" />
+          知识库
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent
+        value="chat"
+        className="flex-1 overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+      >
+        <ConversationMessages
+          conversationState={conversationState}
+          key={conversationState?.data.id}
+        />
+      </TabsContent>
+
+      <TabsContent
+        value="knowledge"
+        className="flex-1 overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+      >
+        <ProjectBizDiagrams state={projectState} />
+      </TabsContent>
+    </Tabs>
   );
 
-  const conversationTitle = conversationState?.data.title || '选择一个对话';
+  const conversationTitle =
+    activeTab === 'chat'
+      ? conversationState?.data.title || '选择一个对话'
+      : projectState?.data.name
+        ? `${projectState.data.name} - 知识库`
+        : '知识库';
 
   return { sidebarHeader, sidebarContent, mainContent, conversationTitle };
 }

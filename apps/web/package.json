@@ -6,7 +6,8 @@
   "dependencies": {
     "@features/user-projects": "workspace:*",
     "@features/conversation-messages": "workspace:*",
-    "@features/project-conversations": "workspace:*"
+    "@features/project-conversations": "workspace:*",
+    "@features/project-biz-diagrams": "workspace:*"
   },
   "nx": {
     "projectType": "application",

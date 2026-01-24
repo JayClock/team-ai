@@ -58,10 +58,10 @@ export interface Action<TEntity extends Entity> extends Form {
    */
   field(name: string): Field | undefined;
 
-    /**
-   * schema generated form fields with zod
-   */
-  formSchema: z.ZodType<Record<string, unknown>>
+  /**
+ * schema generated form fields with zod
+ */
+  formSchema: z.ZodType<SafeAny, SafeAny>
 }
 
 /**
@@ -82,7 +82,7 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
   method: string;
   contentType: string;
   fields: Field[];
-  formSchema: z.ZodType<Record<string, unknown>>
+  formSchema: z.ZodType<SafeAny, SafeAny>
 
   constructor(
     private client: ClientInstance,
@@ -136,7 +136,7 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
     );
   }
 
-  private generateFormSchema(): z.ZodType<Record<string, unknown>> {
+  private generateFormSchema(): z.ZodType<SafeAny, SafeAny> {
     const shape: Record<string, z.ZodTypeAny> = {};
 
     for (const field of this.fields) {

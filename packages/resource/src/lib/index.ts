@@ -36,3 +36,4 @@ export type { ExtractCollectionElement } from './state/state-collection.js';
 export * from './resource/resource.js';
 export * from './resource/resource-relation.js';
 export type { FetchMiddleware } from './http/fetcher.js';
+export type { Action } from '../lib/action/action.js'

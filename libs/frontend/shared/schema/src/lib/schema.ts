@@ -14,17 +14,22 @@ export type User = Entity<
   {
     self: User;
     accounts: Collection<Account>;
-    projects: Collection<Project>
+    projects: Collection<Project>;
   }
 >;
 
-export type Project = Entity<{
-  id: string
-  name: string
-}, {
-  conversations: Collection<Conversation>;
-}>
-
+export type Project = Entity<
+  {
+    id: string;
+    name: string;
+  },
+  {
+    conversations: Collection<Conversation>;
+    'biz-diagrams': Collection<BizDiagram>;
+    default: Project;
+    'create-biz-diagram': BizDiagram
+  }
+>;
 
 export type Account = Entity<
   { id: string; provider: string; providerId: string },
@@ -41,3 +46,17 @@ export type Message = Entity<{
   role: 'user' | 'assistant';
   content: string;
 }>;
+
+export type BizDiagram = Entity<
+  {
+    id: string;
+    name: string;
+    description?: string;
+    plantumlCode: string;
+    diagramType: string;
+    version: number;
+  },
+  {
+    self: BizDiagram;
+  }
+>;

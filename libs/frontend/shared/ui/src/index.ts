@@ -10,6 +10,7 @@ export * from './components/command';
 export * from './components/dialog';
 export * from './components/dropdown-menu';
 export * from './components/empty';
+export * from './components/field';
 export * from './components/hover-card';
 export * from './components/input';
 export * from './components/input-group';
