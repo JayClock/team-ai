@@ -28,7 +28,7 @@ public class BizDiagram implements Entity<String, BizDiagramDescription> {
     private String name;
     private String description;
     private String plantumlCode;
-    private String diagramType;
+    private DiagramType diagramType;
 
     public String getName() {
       return name;
@@ -54,11 +54,11 @@ public class BizDiagram implements Entity<String, BizDiagramDescription> {
       this.plantumlCode = plantumlCode;
     }
 
-    public String getDiagramType() {
+    public DiagramType getDiagramType() {
       return diagramType;
     }
 
-    public void setDiagramType(String diagramType) {
+    public void setDiagramType(DiagramType diagramType) {
       this.diagramType = diagramType;
     }
   }

@@ -27,7 +27,7 @@ export type Project = Entity<
     conversations: Collection<Conversation>;
     'biz-diagrams': Collection<BizDiagram>;
     default: Project;
-    'create-biz-diagram': BizDiagram
+    'create-biz-diagram': BizDiagram;
   }
 >;
 
@@ -47,13 +47,21 @@ export type Message = Entity<{
   content: string;
 }>;
 
+export type DiagramType =
+  | 'flowchart'
+  | 'sequence'
+  | 'class'
+  | 'component'
+  | 'state'
+  | 'activity';
+
 export type BizDiagram = Entity<
   {
     id: string;
     name: string;
     description?: string;
     plantumlCode: string;
-    diagramType: string;
+    diagramType: DiagramType;
     version: number;
   },
   {

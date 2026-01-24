@@ -14,7 +14,7 @@ public class BizDiagramTest {
   public void setUp() {
     bizDiagramDescription =
         new BizDiagramDescription(
-            "Test Diagram", "Test Description", "@startuml\n@enduml", "sequence");
+            "Test Diagram", "Test Description", "@startuml\n@enduml", DiagramType.SEQUENCE);
     bizDiagram = new BizDiagram("diag-1", bizDiagramDescription);
   }
 
@@ -45,19 +45,19 @@ public class BizDiagramTest {
 
   @Test
   public void should_return_diagram_type_from_description() {
-    assertEquals("sequence", bizDiagram.getDescription().diagramType());
+    assertEquals(DiagramType.SEQUENCE, bizDiagram.getDescription().diagramType());
   }
 
   @Test
   public void should_create_biz_diagram_with_different_types() {
     BizDiagramDescription classDiagramDescription =
         new BizDiagramDescription(
-            "Class Diagram", "Class diagram description", "class Main{}", "class");
+            "Class Diagram", "Class diagram description", "class Main{}", DiagramType.CLASS);
     BizDiagram classDiagram = new BizDiagram("diag-2", classDiagramDescription);
 
     assertEquals("diag-2", classDiagram.getIdentity());
     assertEquals("Class Diagram", classDiagram.getDescription().name());
-    assertEquals("class", classDiagram.getDescription().diagramType());
+    assertEquals(DiagramType.CLASS, classDiagram.getDescription().diagramType());
   }
 
   @Test
@@ -67,7 +67,7 @@ public class BizDiagramTest {
             "Complex Diagram",
             "Complex diagram description",
             "@startuml\nclass User\nclass Admin\nUser --|> Admin\n@enduml",
-            "class");
+            DiagramType.CLASS);
     BizDiagram complexDiagram = new BizDiagram("diag-3", complexDiagramDescription);
 
     assertTrue(complexDiagram.getDescription().plantumlCode().contains("class User"));

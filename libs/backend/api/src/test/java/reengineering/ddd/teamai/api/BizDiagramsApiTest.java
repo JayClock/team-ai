@@ -41,6 +41,7 @@ import reengineering.ddd.teamai.description.BizDiagramDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.BizDiagram;
+import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
@@ -76,7 +77,10 @@ public class BizDiagramsApiTest extends ApiTest {
         new BizDiagram(
             "1",
             new BizDiagramDescription(
-                "Order Process", "Customer order workflow", "@startuml\n@enduml", "sequence"));
+                "Order Process",
+                "Customer order workflow",
+                "@startuml\n@enduml",
+                DiagramType.SEQUENCE));
     when(projectBizDiagrams.findByIdentity(diagram.getIdentity())).thenReturn(Optional.of(diagram));
   }
 
@@ -114,7 +118,7 @@ public class BizDiagramsApiTest extends ApiTest {
     request.setName("Payment Flow");
     request.setDescription("Credit card payment process");
     request.setPlantumlCode("@startuml\n@enduml");
-    request.setDiagramType("flowchart");
+    request.setDiagramType(DiagramType.FLOWCHART);
 
     Answer<BizDiagram> answer =
         invocation -> {

@@ -64,7 +64,7 @@ public class ProjectTest {
   public void should_delegate_add_biz_diagram_to_biz_diagrams_association() {
     reengineering.ddd.teamai.description.BizDiagramDescription bizDiagramDescription =
         new reengineering.ddd.teamai.description.BizDiagramDescription(
-            "Test Diagram", "Test Description", "@startuml\n@enduml", "sequence");
+            "Test Diagram", "Test Description", "@startuml\n@enduml", DiagramType.SEQUENCE);
     BizDiagram expectedBizDiagram = new BizDiagram("diag-1", bizDiagramDescription);
     when(bizDiagrams.add(bizDiagramDescription)).thenReturn(expectedBizDiagram);
 

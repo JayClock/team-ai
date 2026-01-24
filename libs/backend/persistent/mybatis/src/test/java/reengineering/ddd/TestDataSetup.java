@@ -10,6 +10,7 @@ import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.Conversation;
+import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
@@ -59,7 +60,7 @@ public class TestDataSetup implements BeforeAllCallback, ExtensionContext.Store.
                     "Diagram " + i,
                     "Description " + i,
                     "@startuml\ndiagram " + i + "\n@enduml",
-                    "flowchart");
+                    DiagramType.FLOWCHART);
             project.addBizDiagram(description);
           }
 

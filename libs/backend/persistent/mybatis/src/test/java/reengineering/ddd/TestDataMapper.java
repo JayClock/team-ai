@@ -39,7 +39,7 @@ public interface TestDataMapper {
       @Param("domain_model") String domainModel);
 
   @Insert(
-      "INSERT INTO biz_diagrams(id,project_id,name,description,plantuml_code,diagram_type) VALUES ( #{id} ,#{project_id} ,#{name} ,#{description} ,#{plantuml_code} ,#{diagram_type} )")
+      "INSERT INTO biz_diagrams(id,project_id,name,description,plantuml_code,diagram_type) VALUES ( #{id} ,#{project_id} ,#{name} ,#{description} ,#{plantuml_code} ,#{diagram_type}::diagram_type_enum )")
   void insertBizDiagram(
       @Param("id") int id,
       @Param("project_id") int projectId,

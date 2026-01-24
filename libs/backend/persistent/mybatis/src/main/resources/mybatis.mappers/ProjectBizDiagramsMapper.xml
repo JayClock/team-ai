@@ -9,7 +9,7 @@
         <arg column="name" jdbcType="VARCHAR" javaType="String"/>
         <arg column="description" jdbcType="VARCHAR" javaType="String"/>
         <arg column="plantuml_code" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="diagram_type" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="diagram_type" jdbcType="VARCHAR" javaType="reengineering.ddd.teamai.model.DiagramType" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler"/>
       </constructor>
     </association>
   </resultMap>
@@ -24,7 +24,7 @@
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
     INSERT INTO biz_diagrams(name, description, plantuml_code, diagram_type, project_id)
     VALUES (#{description.name}, #{description.description},
-            #{description.plantumlCode}, #{description.diagramType}, #{project_id})
+            #{description.plantumlCode}, #{description.diagramType, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler}::diagram_type_enum, #{project_id})
   </insert>
 
   <select id="findDiagramsByProjectId" resultMap="bizDiagram">

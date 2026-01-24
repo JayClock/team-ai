@@ -13,6 +13,7 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.BizDiagramDescription;
 import reengineering.ddd.teamai.model.BizDiagram;
+import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectBizDiagramsMapper;
 
 @MybatisTest
@@ -56,12 +57,12 @@ public class ProjectBizDiagramsMapperTest {
         idHolder,
         projectId,
         new BizDiagramDescription(
-            "New Diagram", "New description", "@startuml\nnew\n@enduml", "sequence"));
+            "New Diagram", "New description", "@startuml\nnew\n@enduml", DiagramType.SEQUENCE));
     BizDiagram bizDiagram = bizDiagramsMapper.findDiagramByProjectAndId(projectId, idHolder.id());
     assertEquals("New Diagram", bizDiagram.getDescription().name());
     assertEquals("New description", bizDiagram.getDescription().description());
     assertEquals("@startuml\nnew\n@enduml", bizDiagram.getDescription().plantumlCode());
-    assertEquals("sequence", bizDiagram.getDescription().diagramType());
+    assertEquals(DiagramType.SEQUENCE, bizDiagram.getDescription().diagramType());
   }
 
   @Test

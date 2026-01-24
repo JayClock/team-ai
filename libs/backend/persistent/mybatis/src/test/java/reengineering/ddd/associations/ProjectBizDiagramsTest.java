@@ -16,6 +16,7 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.teamai.description.BizDiagramDescription;
 import reengineering.ddd.teamai.model.BizDiagram;
+import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
@@ -97,7 +98,7 @@ public class ProjectBizDiagramsTest {
   public void should_add_bizDiagram_and_return_saved_bizDiagram() {
     var description =
         new BizDiagramDescription(
-            "New Diagram", "New description", "@startuml\nnew\n@enduml", "sequence");
+            "New Diagram", "New description", "@startuml\nnew\n@enduml", DiagramType.SEQUENCE);
     BizDiagram savedBizDiagram = project.addBizDiagram(description);
 
     assertEquals("New Diagram", savedBizDiagram.getDescription().name());
@@ -113,7 +114,7 @@ public class ProjectBizDiagramsTest {
   public void should_add_bizDiagram_via_project_method_and_return_saved_bizDiagram() {
     var description =
         new BizDiagramDescription(
-            "New Diagram", "New description", "@startuml\nnew\n@enduml", "sequence");
+            "New Diagram", "New description", "@startuml\nnew\n@enduml", DiagramType.SEQUENCE);
     BizDiagram savedBizDiagram = project.addBizDiagram(description);
 
     assertEquals("New Diagram", savedBizDiagram.getDescription().name());
@@ -150,7 +151,7 @@ public class ProjectBizDiagramsTest {
 
     var description =
         new BizDiagramDescription(
-            "New Diagram", "New description", "@startuml\nnew\n@enduml", "sequence");
+            "New Diagram", "New description", "@startuml\nnew\n@enduml", DiagramType.SEQUENCE);
     project.addBizDiagram(description);
 
     int newSize = project.bizDiagrams().findAll().size();
@@ -164,7 +165,7 @@ public class ProjectBizDiagramsTest {
 
     var description =
         new BizDiagramDescription(
-            "New Diagram", "New description", "@startuml\nnew\n@enduml", "sequence");
+            "New Diagram", "New description", "@startuml\nnew\n@enduml", DiagramType.SEQUENCE);
     project.addBizDiagram(description);
 
     int newSize = project.bizDiagrams().findAll().size();
