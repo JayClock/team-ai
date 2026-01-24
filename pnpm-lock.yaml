@@ -350,6 +350,15 @@ importers:
 
   libs/frontend/shared/ui: {}
 
+  libs/frontend/shells/cockpit:
+    dependencies:
+      '@features/conversation-messages':
+        specifier: workspace:*
+        version: link:../../features/conversation-messages
+      '@features/project-conversations':
+        specifier: workspace:*
+        version: link:../../features/project-conversations
+
   packages/resource:
     dependencies:
       hal-types:

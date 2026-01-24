@@ -1,9 +1,9 @@
 packages:
-  - apps/*
-  - libs/*
-  - packages/*
-  - libs/frontend/shared/*
-  - libs/frontend/features/*
-
+  - 'apps/*'
+  - 'libs/*'
+  - 'packages/*'
+  - 'libs/frontend/shared/*'
+  - 'libs/frontend/features/*'
+  - 'libs/frontend/shells/*'
 onlyBuiltDependencies:
   - '@parcel/watcher'
