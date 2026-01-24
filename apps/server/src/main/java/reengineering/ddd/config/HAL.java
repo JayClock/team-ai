@@ -2,8 +2,9 @@ package reengineering.ddd.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
-import java.util.Arrays;
+import java.util.List;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,11 +13,9 @@ import org.springframework.hateoas.mediatype.hal.CurieProvider;
 import org.springframework.hateoas.mediatype.hal.HalConfiguration;
 import org.springframework.hateoas.mediatype.hal.Jackson2HalModule;
 import org.springframework.hateoas.mediatype.hal.forms.HalFormsConfiguration;
-import org.springframework.hateoas.mediatype.hal.forms.HalFormsOptions;
 import org.springframework.hateoas.mediatype.hal.forms.Jackson2HalFormsModule;
 import org.springframework.hateoas.server.LinkRelationProvider;
-import reengineering.ddd.teamai.model.BizDiagram;
-import reengineering.ddd.teamai.model.DiagramType;
+import reengineering.ddd.teamai.api.options.HalFormsOptionsCustomizer;
 
 @Configuration
 public class HAL implements InitializingBean {
@@ -50,15 +49,15 @@ public class HAL implements InitializingBean {
   }
 
   @Bean
-  HalFormsConfiguration halFormsConfiguration() {
-    return new HalFormsConfiguration()
-        .withOptions(
-            BizDiagram.BizDiagramChange.class,
-            "diagramType",
-            metadata ->
-                HalFormsOptions.inline(
-                        Arrays.stream(DiagramType.values()).toArray(DiagramType[]::new))
-                    .withMaxItems(1L)
-                    .withMinItems(1L));
+  HalFormsConfiguration halFormsConfiguration(
+      @Autowired(required = false) List<HalFormsOptionsCustomizer> customizers) {
+    HalFormsConfiguration config = new HalFormsConfiguration();
+
+    if (customizers != null) {
+      for (HalFormsOptionsCustomizer customizer : customizers) {
+        config = customizer.customize(config);
+      }
+    }
+    return config;
   }
 }
