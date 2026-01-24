@@ -85,86 +85,86 @@ export function BizDiagramUpload({ action }: BizDiagramUploadProps) {
             </DialogDescription>
           </DialogHeader>
           <FieldGroup className="py-4">
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="name">图表名称 *</FieldLabel>
-                  <Input
-                    {...field}
-                    id="name"
-                    aria-invalid={fieldState.invalid}
-                    placeholder="例如：订单支付流程"
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
+            {action.fields.map((fieldConfig) => (
+              <Controller
+                key={fieldConfig.name}
+                name={fieldConfig.name as never}
+                control={form.control}
+                render={({ field, fieldState }) => {
+                  const renderField = () => {
+                    switch (fieldConfig.type) {
+                      case 'select': {
+                        const options =
+                          'options' in fieldConfig ? fieldConfig.options : [];
+                        return (
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger id={fieldConfig.name}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.isArray(options)
+                                ? options.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>
+                                      {opt}
+                                    </SelectItem>
+                                  ))
+                                : Object.entries(options).map(
+                                    ([value, label]) => (
+                                      <SelectItem key={value} value={value}>
+                                        {label}
+                                      </SelectItem>
+                                    ),
+                                  )}
+                            </SelectContent>
+                          </Select>
+                        );
+                      }
 
-            <Controller
-              name="description"
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor="description">描述</FieldLabel>
-                  <Textarea
-                    {...field}
-                    id="description"
-                    placeholder="描述此业务流程的用途"
-                    rows={3}
-                  />
-                </Field>
-              )}
-            />
+                      case 'textarea':
+                        return (
+                          <Textarea
+                            {...field}
+                            id={fieldConfig.name}
+                            placeholder={String(fieldConfig.placeholder ?? '')}
+                            rows={'rows' in fieldConfig ? fieldConfig.rows : 3}
+                            className={
+                              fieldConfig.name === 'plantumlCode'
+                                ? 'font-mono text-sm'
+                                : undefined
+                            }
+                          />
+                        );
 
-            <Controller
-              name="diagramType"
-              control={form.control}
-              render={({ field }) => (
-                <Field>
-                  <FieldLabel htmlFor="diagramType">图表类型</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger id="diagramType">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="flowchart">流程图</SelectItem>
-                      <SelectItem value="sequence">时序图</SelectItem>
-                      <SelectItem value="class">类图</SelectItem>
-                      <SelectItem value="component">组件图</SelectItem>
-                      <SelectItem value="state">状态图</SelectItem>
-                      <SelectItem value="activity">活动图</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
-            />
+                      case 'text':
+                      default:
+                        return (
+                          <Input
+                            {...field}
+                            id={fieldConfig.name}
+                            placeholder={String(fieldConfig.placeholder ?? '')}
+                          />
+                        );
+                    }
+                  };
 
-            <Controller
-              name="plantumlCode"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="plantumlCode">
-                    PlantUML 代码 *
-                  </FieldLabel>
-                  <Textarea
-                    {...field}
-                    id="plantumlCode"
-                    aria-invalid={fieldState.invalid}
-                    placeholder="@startuml&#10;A -> B: Hello&#10;B -> A: Hi&#10;@enduml"
-                    rows={8}
-                    className="font-mono text-sm"
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
+                  return (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={fieldConfig.name}>
+                        {fieldConfig.label}
+                        {fieldConfig.required && ' *'}
+                      </FieldLabel>
+                      {renderField()}
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  );
+                }}
+              />
+            ))}
           </FieldGroup>
           <DialogFooter>
             <Button

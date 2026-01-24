@@ -9,7 +9,6 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
-import org.springframework.hateoas.InputType;
 import reengineering.ddd.teamai.api.representation.BizDiagramModel;
 import reengineering.ddd.teamai.model.BizDiagram;
 import reengineering.ddd.teamai.model.DiagramType;
@@ -50,8 +49,6 @@ public class BizDiagramApi {
     private String name;
     private String description;
     private String plantumlCode;
-
-    @InputType("select")
     private DiagramType diagramType;
 
     public String getName() {
