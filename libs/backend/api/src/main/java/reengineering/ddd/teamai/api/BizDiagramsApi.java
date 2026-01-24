@@ -1,8 +1,18 @@
 package reengineering.ddd.teamai.api;
 
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.ResourceContext;
-import jakarta.ws.rs.core.*;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.BizDiagramModel;
 import reengineering.ddd.teamai.description.BizDiagramDescription;
@@ -53,7 +63,7 @@ public class BizDiagramsApi {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response create(BizDiagram.BizDiagramChange requestBody, @Context UriInfo uriInfo) {
+  public Response create(BizDiagramApi.BizDiagramChange requestBody, @Context UriInfo uriInfo) {
     BizDiagramDescription description =
         new BizDiagramDescription(
             requestBody.getName(),

@@ -109,6 +109,7 @@ public class ProjectApiTest extends ApiTest {
         .statusCode(200)
         // The diagramType property (2nd property, index 1) should have options
         .body("_templates.'create-biz-diagram'.properties[1].name", is("diagramType"))
+        .body("_templates.'create-biz-diagram'.properties[1].type", is("select"))
         .body("_templates.'create-biz-diagram'.properties[1].options.inline", hasSize(6))
         .body(
             "_templates.'create-biz-diagram'.properties[1].options.inline",

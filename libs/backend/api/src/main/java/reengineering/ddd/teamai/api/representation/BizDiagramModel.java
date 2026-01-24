@@ -9,6 +9,7 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
+import reengineering.ddd.teamai.api.BizDiagramApi;
 import reengineering.ddd.teamai.description.BizDiagramDescription;
 import reengineering.ddd.teamai.model.BizDiagram;
 import reengineering.ddd.teamai.model.Project;
@@ -35,7 +36,7 @@ public class BizDiagramModel extends RepresentationModel<BizDiagramModel> {
                             .getPath())
                     .withSelfRel())
             .afford(HttpMethod.PUT)
-            .withInput(BizDiagram.BizDiagramChange.class)
+            .withInput(BizDiagramApi.BizDiagramChange.class)
             .andAfford(HttpMethod.DELETE)
             .withName("delete-diagram")
             .toLink());

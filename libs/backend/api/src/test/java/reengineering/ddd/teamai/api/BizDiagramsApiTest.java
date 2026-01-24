@@ -114,7 +114,7 @@ public class BizDiagramsApiTest extends ApiTest {
 
   @Test
   public void should_create_biz_diagram() {
-    BizDiagram.BizDiagramChange request = new BizDiagram.BizDiagramChange();
+    BizDiagramApi.BizDiagramChange request = new BizDiagramApi.BizDiagramChange();
     request.setName("Payment Flow");
     request.setDescription("Credit card payment process");
     request.setPlantumlCode("@startuml\n@enduml");
