@@ -98,4 +98,23 @@ public class ProjectApiTest extends ApiTest {
         .body("_templates.create-biz-diagram.method", is("POST"))
         .body("_templates.create-biz-diagram.properties", hasSize(4));
   }
+
+  @Test
+  public void should_return_diagram_type_options() {
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .when()
+        .get("/users/{userId}/projects/{projectId}", user.getIdentity(), project.getIdentity())
+        .then()
+        .statusCode(200)
+        // The diagramType property (2nd property, index 1) should have options
+        .body("_templates.'create-biz-diagram'.properties[1].name", is("diagramType"))
+        .body("_templates.'create-biz-diagram'.properties[1].options.inline", hasSize(6))
+        .body(
+            "_templates.'create-biz-diagram'.properties[1].options.inline",
+            org.hamcrest.Matchers.containsInAnyOrder(
+                "FLOWCHART", "SEQUENCE", "CLASS", "COMPONENT", "STATE", "ACTIVITY"))
+        .body("_templates.'create-biz-diagram'.properties[1].options.minItems", is(1))
+        .body("_templates.'create-biz-diagram'.properties[1].options.maxItems", is(1));
+  }
 }

@@ -1,7 +1,5 @@
 package reengineering.ddd.config;
 
-import static org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType.HAL_FORMS;
-
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Map;
@@ -11,6 +9,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.hateoas.config.EnableHypermediaSupport;
+import org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
@@ -18,7 +17,7 @@ import reengineering.ddd.teamai.api.RootApi;
 import reengineering.ddd.teamai.api.UsersApi;
 
 @Configuration
-@EnableHypermediaSupport(type = HAL_FORMS)
+@EnableHypermediaSupport(type = {HypermediaType.HAL, HypermediaType.HAL_FORMS})
 public class Jersey extends ResourceConfig {
   public Jersey() {
     setProperties(Map.of(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, true));
