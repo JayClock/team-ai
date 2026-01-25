@@ -35,6 +35,9 @@
     },
     {
       "path": "./libs/frontend/shells/layout"
+    },
+    {
+      "path": "./libs/frontend/shared/util-http"
     }
   ]
 }

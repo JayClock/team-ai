@@ -359,6 +359,8 @@ importers:
 
   libs/frontend/shared/ui: {}
 
+  libs/frontend/shared/util-http: {}
+
   libs/frontend/shells/cockpit:
     dependencies:
       '@features/conversation-messages':
