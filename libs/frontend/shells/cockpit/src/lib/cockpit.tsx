@@ -5,7 +5,7 @@ import { ConversationMessages } from '@features/conversation-messages';
 import { useState } from 'react';
 
 interface Props {
-  projectState: State<Project>;
+  projectState?: State<Project>;
 }
 
 export function Cockpit(props: Props) {

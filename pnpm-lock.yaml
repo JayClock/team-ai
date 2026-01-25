@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@features/user-projects':
+        specifier: workspace:*
+        version: link:libs/frontend/features/user-projects
       '@hateoas-ts/resource':
         specifier: workspace:*
         version: link:packages/resource
@@ -56,6 +59,9 @@ importers:
       '@shared/ui':
         specifier: workspace:*
         version: link:libs/frontend/shared/ui
+      '@shells/cockpit':
+        specifier: workspace:*
+        version: link:libs/frontend/shells/cockpit
       '@tailwindcss/vite':
         specifier: ^4.1.12
         version: 4.1.18(vite@7.2.7(@types/node@20.19.9)(jiti@2.4.2)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.62.1)(terser@5.44.1)(yaml@2.8.2))
@@ -333,6 +339,9 @@ importers:
       '@features/user-projects':
         specifier: workspace:*
         version: link:../../libs/frontend/features/user-projects
+      '@shells/cockpit':
+        specifier: workspace:*
+        version: link:../../libs/frontend/shells/cockpit
 
   libs/frontend/features/conversation-messages: {}
 
@@ -341,6 +350,8 @@ importers:
   libs/frontend/features/project-conversations: {}
 
   libs/frontend/features/user-projects: {}
+
+  libs/frontend/layout: {}
 
   libs/frontend/shared/schema:
     dependencies:
