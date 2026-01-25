@@ -4,10 +4,11 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "@features/user-projects": "workspace:*",
     "@features/conversation-messages": "workspace:*",
+    "@features/project-biz-diagrams": "workspace:*",
     "@features/project-conversations": "workspace:*",
-    "@features/project-biz-diagrams": "workspace:*"
+    "@features/user-projects": "workspace:*",
+    "@shells/layout": "workspace:*"
   },
   "nx": {
     "projectType": "application",

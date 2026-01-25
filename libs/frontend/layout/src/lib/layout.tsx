@@ -1,7 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { Project, User } from '@shared/schema';
 import { UserProjects } from '@features/user-projects';
-import { Cockpit } from '@shells/cockpit';
+import { Outlet } from 'react-router-dom';
 import { useState } from 'react';
 interface Props {
   userState: State<User>;
@@ -16,7 +16,9 @@ export function Layout(props: Props) {
         state={userState}
         onProjectChange={setProjectState}
       ></UserProjects>
-      <Cockpit projectState={projectState}></Cockpit>
+      <main>
+        <Outlet context={{ projectState }}></Outlet>
+      </main>
     </div>
   );
 }

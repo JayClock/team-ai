@@ -35,9 +35,6 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../libs/frontend/features/project-biz-diagrams/tsconfig.lib.json"
-    },
-    {
       "path": "../../libs/frontend/shared/schema/tsconfig.lib.json"
     },
     {
@@ -48,6 +45,12 @@
     },
     {
       "path": "../../libs/frontend/shared/ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/frontend/layout/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/frontend/features/project-biz-diagrams/tsconfig.lib.json"
     },
     {
       "path": "../../libs/frontend/features/project-conversations/tsconfig.lib.json"

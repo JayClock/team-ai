@@ -1,6 +1,5 @@
 import { StrictMode } from 'react';
 import * as ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
 import App from './app/app';
 import { ResourceProvider } from '@hateoas-ts/resource-react';
 import { apiClient } from './lib/api-client';
@@ -12,9 +11,7 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <ResourceProvider client={apiClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <App />
     </ResourceProvider>
   </StrictMode>,
 );

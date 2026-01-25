@@ -339,9 +339,9 @@ importers:
       '@features/user-projects':
         specifier: workspace:*
         version: link:../../libs/frontend/features/user-projects
-      '@shells/cockpit':
+      '@shells/layout':
         specifier: workspace:*
-        version: link:../../libs/frontend/shells/cockpit
+        version: link:../../libs/frontend/layout
 
   libs/frontend/features/conversation-messages: {}
 
