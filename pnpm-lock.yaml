@@ -341,7 +341,7 @@ importers:
         version: link:../../libs/frontend/features/user-projects
       '@shells/layout':
         specifier: workspace:*
-        version: link:../../libs/frontend/layout
+        version: link:../../libs/frontend/shells/layout
 
   libs/frontend/features/conversation-messages: {}
 
@@ -350,8 +350,6 @@ importers:
   libs/frontend/features/project-conversations: {}
 
   libs/frontend/features/user-projects: {}
-
-  libs/frontend/layout: {}
 
   libs/frontend/shared/schema:
     dependencies:
@@ -369,6 +367,8 @@ importers:
       '@features/project-conversations':
         specifier: workspace:*
         version: link:../../features/project-conversations
+
+  libs/frontend/shells/layout: {}
 
   packages/resource:
     dependencies:

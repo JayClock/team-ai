@@ -22,9 +22,7 @@
     "emitDecoratorMetadata": true,
     "paths": {
       "@shared/ui": ["libs/frontend/shared/ui/src/index.ts"],
-      "@shared/ui/*": ["libs/frontend/shared/ui/src/*"],
-      "@shells/layout": ["libs/frontend/layout/src/index.ts"],
-      "@shells/layout/*": ["libs/frontend/layout/src/*"]
+      "@shared/ui/*": ["libs/frontend/shared/ui/src/*"]
     }
   }
 }

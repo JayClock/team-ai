@@ -47,19 +47,19 @@
       "path": "../../libs/frontend/shared/ui/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/frontend/layout/tsconfig.lib.json"
+      "path": "../../libs/frontend/shells/layout/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/frontend/features/project-biz-diagrams/tsconfig.lib.json"
+      "path": "../../libs/frontend/features/user-projects/tsconfig.lib.json"
     },
     {
       "path": "../../libs/frontend/features/project-conversations/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/frontend/features/conversation-messages/tsconfig.lib.json"
+      "path": "../../libs/frontend/features/project-biz-diagrams/tsconfig.lib.json"
     },
     {
-      "path": "../../libs/frontend/features/user-projects/tsconfig.lib.json"
+      "path": "../../libs/frontend/features/conversation-messages/tsconfig.lib.json"
     }
   ]
 }

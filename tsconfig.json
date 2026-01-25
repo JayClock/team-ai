@@ -34,7 +34,7 @@
       "path": "./libs/frontend/shells/cockpit"
     },
     {
-      "path": "./libs/frontend/layout"
+      "path": "./libs/frontend/shells/layout"
     }
   ]
 }

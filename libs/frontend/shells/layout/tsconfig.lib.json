@@ -1,5 +1,5 @@
 {
-  "extends": "../../../tsconfig.base.json",
+  "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
     "types": [
@@ -41,13 +41,13 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../features/user-projects/tsconfig.lib.json"
+      "path": "../../features/user-projects/tsconfig.lib.json"
     },
     {
-      "path": "../shared/schema/tsconfig.lib.json"
+      "path": "../../shared/schema/tsconfig.lib.json"
     },
     {
-      "path": "../../../packages/resource/tsconfig.lib.json"
+      "path": "../../../../packages/resource/tsconfig.lib.json"
     }
   ]
 }
