@@ -1,14 +1,17 @@
 import { State } from '@hateoas-ts/resource';
-import { Project, User } from '@shared/schema';
+import { Project, Root } from '@shared/schema';
 import { UserProjects } from '@features/user-projects';
 import { Outlet } from 'react-router-dom';
-import { useState } from 'react';
-interface Props {
-  userState: State<User>;
-}
+import { useMemo, useState } from 'react';
+import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 
-export function Layout(props: Props) {
-  const { userState } = props;
+export function Layout() {
+  const client = useClient();
+  const resource = useMemo(
+    () => client.go<Root>('/api').follow('me'),
+    [client],
+  );
+  const { resourceState: userState } = useSuspenseResource(resource);
   const [projectState, setProjectState] = useState<State<Project>>();
   return (
     <div>

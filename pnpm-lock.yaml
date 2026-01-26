@@ -370,7 +370,11 @@ importers:
         specifier: workspace:*
         version: link:../../features/project-conversations
 
-  libs/frontend/shells/layout: {}
+  libs/frontend/shells/layout:
+    dependencies:
+      '@shared/util-http':
+        specifier: workspace:*
+        version: link:../../shared/util-http
 
   packages/resource:
     dependencies:
