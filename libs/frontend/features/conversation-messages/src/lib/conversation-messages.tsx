@@ -37,41 +37,45 @@ export function ConversationMessages(props: {
 
   if (!conversationState) {
     return (
-      <ConversationEmptyState
-        title="欢迎使用 Team AI"
-        description="选择一个对话开始聊天，或者从下面的建议开始"
-        icon={
-          <MessageSquareIcon className="h-12 w-12 text-muted-foreground/50" />
-        }
-      >
-        <div className="flex flex-col items-center gap-6">
-          <div className="space-y-1 text-center">
-            <h3 className="text-lg font-medium">欢迎使用 Team AI</h3>
-            <p className="text-sm text-muted-foreground">
-              选择一个对话开始聊天，或者从下面的建议开始
-            </p>
+      <div className="flex h-full flex-col">
+        <ConversationEmptyState
+          title="欢迎使用 Team AI"
+          description="选择一个对话开始聊天，或者从下面的建议开始"
+          icon={
+            <MessageSquareIcon className="h-12 w-12 text-muted-foreground/50" />
+          }
+        >
+          <div className="flex flex-col items-center gap-6">
+            <div className="space-y-1 text-center">
+              <h3 className="text-lg font-medium">欢迎使用 Team AI</h3>
+              <p className="text-sm text-muted-foreground">
+                选择一个对话开始聊天，或者从下面的建议开始
+              </p>
+            </div>
+            <MessageSquareIcon className="h-16 w-16 text-muted-foreground/30" />
+            <Suggestions className="justify-center">
+              {defaultSuggestions.map((suggestion) => (
+                <Suggestion
+                  key={suggestion}
+                  suggestion={suggestion}
+                  onClick={() => {
+                    // TODO: Create new conversation with this suggestion
+                  }}
+                />
+              ))}
+            </Suggestions>
           </div>
-          <MessageSquareIcon className="h-16 w-16 text-muted-foreground/30" />
-          <Suggestions className="justify-center">
-            {defaultSuggestions.map((suggestion) => (
-              <Suggestion
-                key={suggestion}
-                suggestion={suggestion}
-                onClick={() => {
-                  // TODO: Create new conversation with this suggestion
-                }}
-              />
-            ))}
-          </Suggestions>
-        </div>
-      </ConversationEmptyState>
+        </ConversationEmptyState>
+      </div>
     );
   }
 
   return (
-    <Suspense fallback={<MessagesLoading />}>
-      <ConversationMessagesInner conversationState={conversationState} />
-    </Suspense>
+    <div className="h-full">
+      <Suspense fallback={<MessagesLoading />}>
+        <ConversationMessagesInner conversationState={conversationState} />
+      </Suspense>
+    </div>
   );
 }
 

@@ -1,6 +1,7 @@
 import { RouteObject } from 'react-router-dom';
 import { Layout } from './layout';
 import { Suspense } from 'react';
+import { Cockpit } from '@shells/cockpit';
 
 export const layoutRoutes: RouteObject[] = [
   {
@@ -10,5 +11,15 @@ export const layoutRoutes: RouteObject[] = [
         <Layout />
       </Suspense>
     ),
+    children: [
+      {
+        path: 'cockpit',
+        element: (
+          <Suspense>
+            <Cockpit />
+          </Suspense>
+        ),
+      },
+    ],
   },
 ];
