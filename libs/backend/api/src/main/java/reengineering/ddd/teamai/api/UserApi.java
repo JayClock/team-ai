@@ -26,6 +26,7 @@ public class UserApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.USER)
   public UserModel get(@Context UriInfo uriInfo) {
     return new UserModel(user, uriInfo);
   }

@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.api;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -75,6 +76,7 @@ public class UsersApiTest extends ApiTest {
         .get("/users/{userId}", user.getIdentity())
         .then()
         .statusCode(200)
+        .contentType(startsWith(ResourceTypes.USER))
         .body("id", is(user.getIdentity()))
         .body("name", is(user.getDescription().name()))
         .body("email", is(user.getDescription().email()))
