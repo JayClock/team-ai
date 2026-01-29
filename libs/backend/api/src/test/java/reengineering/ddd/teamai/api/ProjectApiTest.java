@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.api;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
@@ -68,6 +69,7 @@ public class ProjectApiTest extends ApiTest {
         .get("/users/{userId}/projects/{projectId}", user.getIdentity(), project.getIdentity())
         .then()
         .statusCode(200)
+        .contentType(startsWith(ResourceTypes.PROJECT))
         .body("id", is(project.getIdentity()))
         .body("name", is(project.getDescription().name()))
         .body("domainModel", is(project.getDescription().domainModel()))

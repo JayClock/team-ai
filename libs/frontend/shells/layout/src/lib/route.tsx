@@ -1,7 +1,9 @@
 import { RouteObject } from 'react-router-dom';
 import { Layout } from './layout';
 import { Suspense } from 'react';
-import { Cockpit } from '@shells/cockpit';
+import { genericLoader } from './generic-loader';
+import { ResourceRenderer } from './resource-rendener';
+
 
 export const layoutRoutes: RouteObject[] = [
   {
@@ -13,12 +15,9 @@ export const layoutRoutes: RouteObject[] = [
     ),
     children: [
       {
-        path: 'cockpit',
-        element: (
-          <Suspense>
-            <Cockpit />
-          </Suspense>
-        ),
+        path: '*',
+        loader: genericLoader,
+        element: <ResourceRenderer />,
       },
     ],
   },

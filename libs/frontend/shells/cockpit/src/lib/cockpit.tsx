@@ -3,14 +3,13 @@ import { Conversation, Project } from '@shared/schema';
 import { ProjectConversations } from '@features/project-conversations';
 import { ConversationMessages } from '@features/conversation-messages';
 import { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
 
-interface OutletContext {
-  projectState?: State<Project>;
+interface Props {
+  state?: State<Project>;
 }
 
-export function Cockpit() {
-  const { projectState } = useOutletContext<OutletContext>();
+export function Cockpit(props: Props) {
+  const { state: projectState } = props;
   const [conversationState, setConversationState] =
     useState<State<Conversation>>();
 

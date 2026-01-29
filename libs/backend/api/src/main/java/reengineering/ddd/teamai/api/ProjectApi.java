@@ -1,6 +1,8 @@
 package reengineering.ddd.teamai.api;
 
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
@@ -21,6 +23,7 @@ public class ProjectApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.PROJECT)
   public ProjectModel find(@Context UriInfo uriInfo) {
     return new ProjectModel(user, project, uriInfo);
   }

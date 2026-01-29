@@ -1,18 +1,6 @@
-import { State } from '@hateoas-ts/resource';
-import { Project, Root } from '@shared/schema';
-import { UserProjects } from '@features/user-projects';
 import { Outlet } from 'react-router-dom';
-import { useMemo, useState } from 'react';
-import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 
 export function Layout() {
-  const client = useClient();
-  const resource = useMemo(
-    () => client.go<Root>('/api').follow('me'),
-    [client],
-  );
-  const { resourceState: userState } = useSuspenseResource(resource);
-  const [projectState, setProjectState] = useState<State<Project>>();
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <header className="shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -35,13 +23,10 @@ export function Layout() {
               Team AI
             </span>
           </div>
-          <div className="ml-auto">
-            <UserProjects state={userState} onProjectChange={setProjectState} />
-          </div>
         </div>
       </header>
       <main className="flex-1 overflow-hidden">
-        <Outlet context={{ projectState }} />
+        <Outlet />
       </main>
     </div>
   );
