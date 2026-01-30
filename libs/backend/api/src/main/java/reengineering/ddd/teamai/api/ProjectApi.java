@@ -25,7 +25,7 @@ public class ProjectApi {
   @GET
   @VendorMediaType(ResourceTypes.PROJECT)
   public ProjectModel find(@Context UriInfo uriInfo) {
-    return new ProjectModel(user, project, uriInfo);
+    return ProjectModel.of(user, project, uriInfo);
   }
 
   @DELETE

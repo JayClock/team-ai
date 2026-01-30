@@ -53,7 +53,7 @@ public class UserModel extends RepresentationModel<UserModel> {
                 .map(account -> new AccountModel(user, account, uriInfo))
                 .toList(),
             user.projects().findAll().stream()
-                .map(project -> new ProjectModel(user, project, uriInfo))
+                .map(project -> ProjectModel.simple(user, project, uriInfo))
                 .toList());
   }
 

@@ -23,8 +23,11 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
   public ProjectModel(User user, Project project, UriInfo uriInfo) {
     this.id = project.getIdentity();
     this.description = project.getDescription();
+  }
 
-    add(
+  public static ProjectModel of(User user, Project project, UriInfo uriInfo) {
+    ProjectModel model = new ProjectModel(user, project, uriInfo);
+    model.add(
         Affordances.of(
                 Link.of(
                         ApiTemplates.project(uriInfo)
@@ -37,7 +40,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .withName("delete-project")
             .toLink());
 
-    add(
+    model.add(
         Affordances.of(
                 Link.of(
                         ApiTemplates.projectConversations(uriInfo)
@@ -49,7 +52,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .withName("create-conversation")
             .toLink());
 
-    add(
+    model.add(
         Affordances.of(
                 Link.of(
                         ApiTemplates.projectBizDiagrams(uriInfo)
@@ -60,5 +63,18 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .withInput(BizDiagramApi.BizDiagramChange.class)
             .withName("create-biz-diagram")
             .toLink());
+
+    return model;
+  }
+
+  public static ProjectModel simple(User user, Project project, UriInfo uriInfo) {
+    ProjectModel model = new ProjectModel(user, project, uriInfo);
+    model.add(
+        Link.of(
+                ApiTemplates.project(uriInfo)
+                    .build(user.getIdentity(), project.getIdentity())
+                    .getPath())
+            .withSelfRel());
+    return model;
   }
 }

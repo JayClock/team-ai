@@ -1,6 +1,13 @@
 package reengineering.ddd.teamai.api;
 
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -40,7 +47,7 @@ public class ProjectsApi {
     return new Pagination<>(user.projects().findAll(), 40)
         .page(
             page,
-            project -> new ProjectModel(user, project, uriInfo),
+            project -> ProjectModel.simple(user, project, uriInfo),
             p -> ApiTemplates.projects(uriInfo).queryParam("page", p).build(user.getIdentity()));
   }
 
@@ -50,7 +57,7 @@ public class ProjectsApi {
     ProjectDescription description =
         new ProjectDescription(requestBody.getName(), requestBody.getDomainModel());
     Project project = user.add(description);
-    ProjectModel projectModel = new ProjectModel(user, project, uriInfo);
+    ProjectModel projectModel = ProjectModel.of(user, project, uriInfo);
     return Response.created(
             ApiTemplates.project(uriInfo).build(user.getIdentity(), project.getIdentity()))
         .entity(projectModel)
