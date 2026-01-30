@@ -1,14 +1,32 @@
+import { lazy, Suspense } from 'react';
 import { useLoaderData } from 'react-router-dom';
 import { LoaderType } from './generic-loader';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
-import { Cockpit } from '@shells/cockpit';
-import { Entity } from '@hateoas-ts/resource';
+import { Entity, State } from '@hateoas-ts/resource';
+
+const Cockpit = lazy(() =>
+  import('@shells/cockpit').then((m) => ({ default: m.Cockpit })),
+);
 
 export function ResourceRenderer() {
   const client = useClient();
-  const { apiUrl } = useLoaderData<LoaderType>();
+  const { apiUrl, contentType } = useLoaderData<LoaderType>();
   const { resourceState } = useSuspenseResource<Entity<never, never>>(
     client.go(apiUrl),
   );
-  return <Cockpit state={resourceState}></Cockpit>;
+  const Component = COMPONENT_MAP[contentType];
+  return (
+    <Suspense>
+      <Component state={resourceState}></Component>
+    </Suspense>
+  );
 }
+
+const COMPONENT_MAP: Record<
+  string,
+  React.LazyExoticComponent<
+    React.ComponentType<{ state: State<Entity<never, never>> }>
+  >
+> = {
+  'application/vnd.business-driven-ai.project+json': Cockpit,
+};
