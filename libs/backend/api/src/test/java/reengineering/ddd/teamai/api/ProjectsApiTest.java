@@ -26,7 +26,7 @@ import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
-public class ProjectApiTest extends ApiTest {
+public class ProjectsApiTest extends ApiTest {
   @MockitoBean private Users users;
   private User user;
   private Project project;

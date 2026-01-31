@@ -43,7 +43,7 @@ import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
-public class ProjectConversationsApiTest extends ApiTest {
+public class ConversationsApiTest extends ApiTest {
   @MockitoBean private Users users;
   @MockitoBean private Conversation.ModelProvider modelProvider;
   private User user;
