@@ -56,7 +56,7 @@ public class BizDiagramsApi {
             page,
             diagram -> new BizDiagramModel(user, project, diagram, uriInfo),
             p ->
-                ApiTemplates.projectBizDiagrams(uriInfo)
+                ApiTemplates.bizDiagrams(uriInfo)
                     .queryParam("page", p)
                     .build(user.getIdentity(), project.getIdentity()));
   }

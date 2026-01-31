@@ -43,7 +43,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
     model.add(
         Affordances.of(
                 Link.of(
-                        ApiTemplates.projectConversations(uriInfo)
+                        ApiTemplates.conversations(uriInfo)
                             .build(user.getIdentity(), project.getIdentity())
                             .getPath())
                     .withRel("conversations"))
@@ -55,7 +55,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
     model.add(
         Affordances.of(
                 Link.of(
-                        ApiTemplates.projectBizDiagrams(uriInfo)
+                        ApiTemplates.bizDiagrams(uriInfo)
                             .build(user.getIdentity(), project.getIdentity())
                             .getPath())
                     .withRel("biz-diagrams"))

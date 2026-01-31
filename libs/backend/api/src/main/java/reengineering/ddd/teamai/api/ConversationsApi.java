@@ -13,13 +13,13 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
-public class ProjectConversationsApi {
+public class ConversationsApi {
   @Context ResourceContext resourceContext;
 
   private final User user;
   private final Project project;
 
-  public ProjectConversationsApi(User user, Project project) {
+  public ConversationsApi(User user, Project project) {
     this.user = user;
     this.project = project;
   }
@@ -45,7 +45,7 @@ public class ProjectConversationsApi {
             page,
             conversation -> new ConversationModel(user, project, conversation, uriInfo),
             p ->
-                ApiTemplates.projectConversations(uriInfo)
+                ApiTemplates.conversations(uriInfo)
                     .queryParam("page", p)
                     .build(user.getIdentity(), project.getIdentity()));
   }
@@ -57,7 +57,7 @@ public class ProjectConversationsApi {
     ConversationModel conversationModel =
         new ConversationModel(user, project, conversation, uriInfo);
     return Response.created(
-            ApiTemplates.projectConversation(uriInfo)
+            ApiTemplates.conversation(uriInfo)
                 .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity()))
         .entity(conversationModel)
         .build();

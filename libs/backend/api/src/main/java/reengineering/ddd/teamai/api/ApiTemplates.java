@@ -24,27 +24,27 @@ public class ApiTemplates {
     return projects(uriInfo).path(ProjectsApi.class, "findById");
   }
 
-  public static UriBuilder projectConversations(UriInfo uriInfo) {
+  public static UriBuilder conversations(UriInfo uriInfo) {
     return project(uriInfo).path(ProjectApi.class, "conversations");
   }
 
-  public static UriBuilder projectConversation(UriInfo uriInfo) {
-    return projectConversations(uriInfo).path(ProjectConversationsApi.class, "findById");
+  public static UriBuilder conversation(UriInfo uriInfo) {
+    return conversations(uriInfo).path(ConversationsApi.class, "findById");
   }
 
-  public static UriBuilder projectConversationMessages(UriInfo uriInfo) {
-    return projectConversation(uriInfo).path(ConversationApi.class, "messages");
+  public static UriBuilder messages(UriInfo uriInfo) {
+    return conversation(uriInfo).path(ConversationApi.class, "messages");
   }
 
   public static UriBuilder message(UriInfo uriInfo) {
-    return projectConversationMessages(uriInfo).path("{message-id}");
+    return messages(uriInfo).path("{message-id}");
   }
 
-  public static UriBuilder projectBizDiagrams(UriInfo uriInfo) {
+  public static UriBuilder bizDiagrams(UriInfo uriInfo) {
     return project(uriInfo).path(ProjectApi.class, "bizDiagrams");
   }
 
   public static UriBuilder bizDiagram(UriInfo uriInfo) {
-    return projectBizDiagrams(uriInfo).path(BizDiagramsApi.class, "findById");
+    return bizDiagrams(uriInfo).path(BizDiagramsApi.class, "findById");
   }
 }
