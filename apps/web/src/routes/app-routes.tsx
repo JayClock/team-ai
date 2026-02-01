@@ -4,7 +4,6 @@ import { Conversation, Project } from '@shared/schema';
 import { ProjectConversations } from '@features/project-conversations';
 import { ConversationMessages } from '@features/conversation-messages';
 import { UserProjects } from '@features/user-projects';
-import { ProjectBizDiagrams } from '@features/project-biz-diagrams';
 import { rootResource } from '../lib/api-client';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Button } from '@shared/ui/components/button';
@@ -82,7 +81,9 @@ export function AppRoutes() {
         value="knowledge"
         className="flex-1 overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
       >
-        <ProjectBizDiagrams state={projectState} />
+        <div className="flex items-center justify-center h-full text-gray-500">
+          知识库功能开发中...
+        </div>
       </TabsContent>
     </Tabs>
   );

@@ -37,14 +37,4 @@ public interface TestDataMapper {
       @Param("user_id") int userId,
       @Param("name") String name,
       @Param("domain_model") String domainModel);
-
-  @Insert(
-      "INSERT INTO biz_diagrams(id,project_id,name,description,plantuml_code,diagram_type) VALUES ( #{id} ,#{project_id} ,#{name} ,#{description} ,#{plantuml_code} ,#{diagram_type}::diagram_type_enum )")
-  void insertBizDiagram(
-      @Param("id") int id,
-      @Param("project_id") int projectId,
-      @Param("name") String name,
-      @Param("description") String description,
-      @Param("plantuml_code") String plantumlCode,
-      @Param("diagram_type") String diagramType);
 }

@@ -14,7 +14,6 @@ import reengineering.ddd.teamai.description.ProjectDescription;
 @ExtendWith(MockitoExtension.class)
 public class ProjectTest {
   @Mock private Project.Conversations conversations;
-  @Mock private Project.BizDiagrams bizDiagrams;
 
   private Project project;
   private ProjectDescription projectDescription;
@@ -22,7 +21,7 @@ public class ProjectTest {
   @BeforeEach
   public void setUp() {
     projectDescription = new ProjectDescription("Test Project", "Test Domain Model");
-    project = new Project("project-1", projectDescription, conversations, bizDiagrams);
+    project = new Project("project-1", projectDescription, conversations);
   }
 
   @Test
@@ -43,11 +42,6 @@ public class ProjectTest {
   }
 
   @Test
-  public void should_return_biz_diagrams_association() {
-    assertSame(bizDiagrams, project.bizDiagrams());
-  }
-
-  @Test
   public void should_delegate_add_conversation_to_conversations_association() {
     ConversationDescription conversationDescription =
         new ConversationDescription("Test Conversation");
@@ -61,20 +55,6 @@ public class ProjectTest {
   }
 
   @Test
-  public void should_delegate_add_biz_diagram_to_biz_diagrams_association() {
-    reengineering.ddd.teamai.description.BizDiagramDescription bizDiagramDescription =
-        new reengineering.ddd.teamai.description.BizDiagramDescription(
-            "Test Diagram", "Test Description", "@startuml\n@enduml", DiagramType.SEQUENCE);
-    BizDiagram expectedBizDiagram = new BizDiagram("diag-1", bizDiagramDescription);
-    when(bizDiagrams.add(bizDiagramDescription)).thenReturn(expectedBizDiagram);
-
-    BizDiagram result = project.addBizDiagram(bizDiagramDescription);
-
-    assertSame(expectedBizDiagram, result);
-    verify(bizDiagrams).add(bizDiagramDescription);
-  }
-
-  @Test
   public void should_delegate_delete_conversation_to_conversations_association() {
     String conversationId = "conv-1";
 
@@ -84,19 +64,11 @@ public class ProjectTest {
   }
 
   @Test
-  public void should_delegate_delete_biz_diagram_to_biz_diagrams_association() {
-    String bizDiagramId = "diag-1";
+  public void should_create_project_with_conversations_only() {
+    Project projectWithConversationsOnly =
+        new Project("project-2", projectDescription, conversations);
 
-    project.deleteBizDiagram(bizDiagramId);
-
-    verify(bizDiagrams).delete(bizDiagramId);
-  }
-
-  @Test
-  public void should_create_project_without_biz_diagrams() {
-    Project projectWithoutBizDiagrams = new Project("project-2", projectDescription, conversations);
-
-    assertEquals("project-2", projectWithoutBizDiagrams.getIdentity());
-    assertSame(conversations, projectWithoutBizDiagrams.conversations());
+    assertEquals("project-2", projectWithConversationsOnly.getIdentity());
+    assertSame(conversations, projectWithConversationsOnly.conversations());
   }
 }

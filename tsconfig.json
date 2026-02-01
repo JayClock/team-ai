@@ -28,9 +28,6 @@
       "path": "./libs/frontend/features/user-projects"
     },
     {
-      "path": "./libs/frontend/features/project-biz-diagrams"
-    },
-    {
       "path": "./libs/frontend/shells/cockpit"
     },
     {

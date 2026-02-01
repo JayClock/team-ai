@@ -2,7 +2,6 @@ package reengineering.ddd.teamai.model;
 
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
-import reengineering.ddd.teamai.description.BizDiagramDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 
@@ -10,21 +9,11 @@ public class Project implements Entity<String, ProjectDescription> {
   private String identity;
   private ProjectDescription description;
   private Conversations conversations;
-  private BizDiagrams bizDiagrams;
 
-  public Project(
-      String identity,
-      ProjectDescription description,
-      Conversations conversations,
-      BizDiagrams bizDiagrams) {
+  public Project(String identity, ProjectDescription description, Conversations conversations) {
     this.identity = identity;
     this.description = description;
     this.conversations = conversations;
-    this.bizDiagrams = bizDiagrams;
-  }
-
-  public Project(String identity, ProjectDescription description, Conversations conversations) {
-    this(identity, description, conversations, null);
   }
 
   private Project() {}
@@ -47,30 +36,12 @@ public class Project implements Entity<String, ProjectDescription> {
     return conversations.add(description);
   }
 
-  public BizDiagram addBizDiagram(BizDiagramDescription description) {
-    return bizDiagrams.add(description);
-  }
-
   public void deleteConversation(String conversationId) {
     conversations.delete(conversationId);
   }
 
-  public void deleteBizDiagram(String bizDiagramId) {
-    bizDiagrams.delete(bizDiagramId);
-  }
-
-  public HasMany<String, BizDiagram> bizDiagrams() {
-    return bizDiagrams;
-  }
-
   public interface Conversations extends HasMany<String, Conversation> {
     Conversation add(ConversationDescription description);
-
-    void delete(String id);
-  }
-
-  public interface BizDiagrams extends HasMany<String, BizDiagram> {
-    BizDiagram add(BizDiagramDescription description);
 
     void delete(String id);
   }

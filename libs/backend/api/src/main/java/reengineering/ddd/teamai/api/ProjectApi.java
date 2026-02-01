@@ -38,9 +38,4 @@ public class ProjectApi {
   public ConversationsApi conversations() {
     return resourceContext.initResource(new ConversationsApi(user, project));
   }
-
-  @Path("biz-diagrams")
-  public BizDiagramsApi bizDiagrams() {
-    return resourceContext.initResource(new BizDiagramsApi(user, project));
-  }
 }

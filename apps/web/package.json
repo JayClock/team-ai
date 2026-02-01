@@ -5,7 +5,6 @@
   "private": true,
   "dependencies": {
     "@features/conversation-messages": "workspace:*",
-    "@features/project-biz-diagrams": "workspace:*",
     "@features/project-conversations": "workspace:*",
     "@features/user-projects": "workspace:*",
     "@shells/layout": "workspace:*"

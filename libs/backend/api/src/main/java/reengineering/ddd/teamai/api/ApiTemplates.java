@@ -39,12 +39,4 @@ public class ApiTemplates {
   public static UriBuilder message(UriInfo uriInfo) {
     return messages(uriInfo).path("{message-id}");
   }
-
-  public static UriBuilder bizDiagrams(UriInfo uriInfo) {
-    return project(uriInfo).path(ProjectApi.class, "bizDiagrams");
-  }
-
-  public static UriBuilder bizDiagram(UriInfo uriInfo) {
-    return bizDiagrams(uriInfo).path(BizDiagramsApi.class, "findById");
-  }
 }

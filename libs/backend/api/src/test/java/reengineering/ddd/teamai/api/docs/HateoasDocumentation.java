@@ -50,15 +50,6 @@ public final class HateoasDocumentation {
     return linkWithRel("projects").description("Link to user's projects collection");
   }
 
-  public static LinkDescriptor bizDiagramsLink() {
-    return linkWithRel("biz-diagrams")
-        .description("Link to project's business diagrams collection");
-  }
-
-  public static LinkDescriptor bizDiagramLink() {
-    return linkWithRel("self").description("Canonical link to this resource");
-  }
-
   public static LinkDescriptor messagesLink() {
     return linkWithRel("messages").description("Link to conversation messages collection");
   }
@@ -231,46 +222,6 @@ public final class HateoasDocumentation {
     return new FieldDescriptor[] {
       fieldWithPath("role").description("Message role: `user` (for user input)"),
       fieldWithPath("content").description("Message content text to send to AI")
-    };
-  }
-
-  public static FieldDescriptor[] bizDiagramResponseFields() {
-    return new FieldDescriptor[] {
-      fieldWithPath("id").description("Unique diagram identifier"),
-      fieldWithPath("projectId").description("Unique project identifier"),
-      fieldWithPath("name").description("Diagram name"),
-      fieldWithPath("description").description("Diagram description"),
-      fieldWithPath("plantumlCode").description("PlantUML code"),
-      fieldWithPath("diagramType").description("Diagram type (sequence, flowchart, etc.)"),
-      fieldWithPath("createdAt").description("Creation timestamp"),
-      fieldWithPath("updatedAt").description("Last update timestamp"),
-      subsectionWithPath("_links").description("HATEOAS navigation links"),
-      subsectionWithPath("_templates").description("HAL-FORMS action templates")
-    };
-  }
-
-  public static FieldDescriptor[] createBizDiagramRequestFields() {
-    return new FieldDescriptor[] {
-      fieldWithPath("name").description("Name for the diagram"),
-      fieldWithPath("description").description("Description of the diagram"),
-      fieldWithPath("plantumlCode").description("PlantUML code for the diagram"),
-      fieldWithPath("diagramType").description("Type of diagram (sequence, flowchart, etc.)")
-    };
-  }
-
-  public static FieldDescriptor[] pagedBizDiagramsResponseFields() {
-    return new FieldDescriptor[] {
-      subsectionWithPath("_embedded.biz-diagrams[]")
-          .description("Array of business diagram resources"),
-      fieldWithPath("_embedded.biz-diagrams[].id").description("Unique diagram identifier"),
-      fieldWithPath("_embedded.biz-diagrams[].name").description("Diagram name"),
-      subsectionWithPath("_embedded.biz-diagrams[]._links").description("Links for each diagram"),
-      subsectionWithPath("_links").description("Pagination navigation links"),
-      subsectionWithPath("page").description("Pagination metadata"),
-      fieldWithPath("page.size").description("Number of items per page"),
-      fieldWithPath("page.totalElements").description("Total number of items"),
-      fieldWithPath("page.totalPages").description("Total number of pages"),
-      fieldWithPath("page.number").description("Current page number (zero-based)")
     };
   }
 }

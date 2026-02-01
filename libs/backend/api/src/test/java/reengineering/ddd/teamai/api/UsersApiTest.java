@@ -71,22 +71,18 @@ public class UsersApiTest extends ApiTest {
         new Account("account-2", new AccountDescription("google", "google-user-456"));
 
     Project.Conversations conversations1 = mock(Project.Conversations.class);
-    Project.BizDiagrams bizDiagrams1 = mock(Project.BizDiagrams.class);
     Project.Conversations conversations2 = mock(Project.Conversations.class);
-    Project.BizDiagrams bizDiagrams2 = mock(Project.BizDiagrams.class);
 
     Project project1 =
         new Project(
             "project-1",
             new ProjectDescription("Project One", "First project description"),
-            conversations1,
-            bizDiagrams1);
+            conversations1);
     Project project2 =
         new Project(
             "project-2",
             new ProjectDescription("Project Two", "Second project description"),
-            conversations2,
-            bizDiagrams2);
+            conversations2);
 
     when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
     when(accounts.findAll()).thenReturn(new EntityList<>(List.of(account1, account2)));
