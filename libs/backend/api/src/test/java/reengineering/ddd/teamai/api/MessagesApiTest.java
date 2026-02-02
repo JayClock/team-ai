@@ -51,11 +51,13 @@ public class MessagesApiTest extends ApiTest {
             userProjects);
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     messages = mock(Conversation.Messages.class);
+    Project.Members projectMembers = mock(Project.Members.class);
     Project.Conversations projectConversations = mock(Project.Conversations.class);
     project =
         new Project(
             "project-1",
             mock(reengineering.ddd.teamai.description.ProjectDescription.class),
+            projectMembers,
             projectConversations);
     conversation = new Conversation("1", new ConversationDescription("title"), messages);
     when(userProjects.findAll()).thenReturn(new EntityList<>(project));

@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -13,6 +15,7 @@ import reengineering.ddd.teamai.description.ProjectDescription;
 
 @ExtendWith(MockitoExtension.class)
 public class ProjectTest {
+  @Mock private Project.Members members;
   @Mock private Project.Conversations conversations;
 
   private Project project;
@@ -21,7 +24,7 @@ public class ProjectTest {
   @BeforeEach
   public void setUp() {
     projectDescription = new ProjectDescription("Test Project", "Test Domain Model");
-    project = new Project("project-1", projectDescription, conversations);
+    project = new Project("project-1", projectDescription, members, conversations);
   }
 
   @Test
@@ -36,39 +39,68 @@ public class ProjectTest {
     assertEquals("Test Domain Model", project.getDescription().domainModel());
   }
 
-  @Test
-  public void should_return_conversations_association() {
-    assertSame(conversations, project.conversations());
+  @Nested
+  @DisplayName("Members association")
+  class MembersAssociation {
+
+    @Test
+    @DisplayName("should return Members association object")
+    void shouldReturnMembersAssociation() {
+      var result = project.members();
+
+      assertSame(members, result);
+    }
+
+    @Test
+    @DisplayName("should delegate invite to members association")
+    void shouldDelegateInvite() {
+      String userId = "user-123";
+      Project.Role role = Project.Role.EDITOR;
+      Member expectedMember = mock(Member.class);
+
+      when(members.invite(userId, role.name())).thenReturn(expectedMember);
+
+      Member result = project.invite(userId, role);
+
+      assertSame(expectedMember, result);
+      verify(members).invite(userId, role.name());
+    }
   }
 
-  @Test
-  public void should_delegate_add_conversation_to_conversations_association() {
-    ConversationDescription conversationDescription =
-        new ConversationDescription("Test Conversation");
-    Conversation expectedConversation = new Conversation("conv-1", conversationDescription, null);
-    when(conversations.add(conversationDescription)).thenReturn(expectedConversation);
+  @Nested
+  @DisplayName("Conversations association")
+  class ConversationsAssociation {
 
-    Conversation result = project.add(conversationDescription);
+    @Test
+    @DisplayName("should return Conversations association object")
+    void shouldReturnConversationsAssociation() {
+      var result = project.conversations();
 
-    assertSame(expectedConversation, result);
-    verify(conversations).add(conversationDescription);
-  }
+      assertSame(conversations, result);
+    }
 
-  @Test
-  public void should_delegate_delete_conversation_to_conversations_association() {
-    String conversationId = "conv-1";
+    @Test
+    @DisplayName("should delegate add conversation to conversations association")
+    void shouldDelegateAddConversation() {
+      ConversationDescription conversationDescription =
+          new ConversationDescription("Test Conversation");
+      Conversation expectedConversation = new Conversation("conv-1", conversationDescription, null);
+      when(conversations.add(conversationDescription)).thenReturn(expectedConversation);
 
-    project.deleteConversation(conversationId);
+      Conversation result = project.add(conversationDescription);
 
-    verify(conversations).delete(conversationId);
-  }
+      assertSame(expectedConversation, result);
+      verify(conversations).add(conversationDescription);
+    }
 
-  @Test
-  public void should_create_project_with_conversations_only() {
-    Project projectWithConversationsOnly =
-        new Project("project-2", projectDescription, conversations);
+    @Test
+    @DisplayName("should delegate delete conversation to conversations association")
+    void shouldDelegateDeleteConversation() {
+      String conversationId = "conv-1";
 
-    assertEquals("project-2", projectWithConversationsOnly.getIdentity());
-    assertSame(conversations, projectWithConversationsOnly.conversations());
+      project.deleteConversation(conversationId);
+
+      verify(conversations).delete(conversationId);
+    }
   }
 }

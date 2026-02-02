@@ -8,11 +8,17 @@ import reengineering.ddd.teamai.description.ProjectDescription;
 public class Project implements Entity<String, ProjectDescription> {
   private String identity;
   private ProjectDescription description;
+  private Members members;
   private Conversations conversations;
 
-  public Project(String identity, ProjectDescription description, Conversations conversations) {
+  public Project(
+      String identity,
+      ProjectDescription description,
+      Members members,
+      Conversations conversations) {
     this.identity = identity;
     this.description = description;
+    this.members = members;
     this.conversations = conversations;
   }
 
@@ -28,6 +34,14 @@ public class Project implements Entity<String, ProjectDescription> {
     return description;
   }
 
+  public HasMany<String, Member> members() {
+    return members;
+  }
+
+  public Member invite(String userId, Role role) {
+    return members.invite(userId, role.name());
+  }
+
   public HasMany<String, Conversation> conversations() {
     return conversations;
   }
@@ -38,6 +52,16 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public void deleteConversation(String conversationId) {
     conversations.delete(conversationId);
+  }
+
+  public interface Members extends HasMany<String, Member> {
+    Member invite(String userId, String role);
+  }
+
+  public enum Role {
+    OWNER,
+    EDITOR,
+    VIEWER
   }
 
   public interface Conversations extends HasMany<String, Conversation> {

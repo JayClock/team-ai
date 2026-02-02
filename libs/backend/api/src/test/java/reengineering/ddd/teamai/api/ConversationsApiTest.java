@@ -50,6 +50,7 @@ public class ConversationsApiTest extends ApiTest {
   private Project project;
 
   @Mock private Many<Conversation> conversations;
+  @Mock private Project.Members projectMembers;
   @Mock private Project.Conversations projectConversations;
   private Conversation conversation;
 
@@ -66,6 +67,7 @@ public class ConversationsApiTest extends ApiTest {
         new Project(
             "project-1",
             new ProjectDescription("Test Project", "domain-model"),
+            projectMembers,
             projectConversations);
     when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     when(userProjects.findAll()).thenReturn(new EntityList<>(project));
