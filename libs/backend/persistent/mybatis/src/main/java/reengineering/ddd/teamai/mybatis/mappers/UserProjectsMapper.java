@@ -19,7 +19,10 @@ public interface UserProjectsMapper {
       @Param("user_id") int userId,
       @Param("description") ProjectDescription description);
 
+  void addMember(
+      @Param("project_id") int projectId, @Param("user_id") int userId, @Param("role") String role);
+
   int countProjectsByUser(@Param("user_id") int userId);
 
-  int deleteProject(@Param("user_id") int userId, @Param("id") int id);
+  void deleteProject(@Param("user_id") int userId, @Param("id") int id);
 }

@@ -33,6 +33,7 @@ public class UserProjectsMapperTest {
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
     testData.insertProject(projectId, userId, "Test Project" + projectId, "domain model content");
+    testData.insertProjectMember(projectId, userId);
   }
 
   @Test
@@ -53,6 +54,7 @@ public class UserProjectsMapperTest {
     IdHolder idHolder = new IdHolder();
     projectsMapper.insertProject(
         idHolder, userId, new ProjectDescription("New Project", "new domain model"));
+    projectsMapper.addMember(idHolder.id(), userId, "OWNER");
     Project project = projectsMapper.findProjectByUserAndId(userId, idHolder.id());
     assertEquals("New Project", project.getDescription().name());
     assertEquals("new domain model", project.getDescription().domainModel());
@@ -73,8 +75,7 @@ public class UserProjectsMapperTest {
 
   @Test
   public void should_delete_project() {
-    int result = projectsMapper.deleteProject(userId, projectId);
-    assertEquals(0, result);
+    projectsMapper.deleteProject(userId, projectId);
     Project project = projectsMapper.findProjectByUserAndId(userId, projectId);
     assertEquals(null, project);
   }

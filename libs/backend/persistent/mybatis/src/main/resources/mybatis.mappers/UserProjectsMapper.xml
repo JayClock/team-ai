@@ -10,6 +10,9 @@
           <arg column="domain_model" jdbcType="VARCHAR" javaType="String"/>
         </constructor>
       </association>
+      <association property="members" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectMembers">
+        <result column="id" property="projectId" javaType="int"/>
+      </association>
       <association property="conversations" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectConversations">
         <result column="id" property="projectId" javaType="int"/>
       </association>
@@ -18,28 +21,40 @@
   <select id="findProjectByUserAndId" resultMap="project">
     SELECT p.id, p.name, p.domain_model
     FROM projects p
-    WHERE p.user_id = #{user_id} AND p.id = #{id}
+    WHERE p.id = #{id}
+    AND EXISTS (
+      SELECT 1 FROM project_members pm
+      WHERE pm.project_id = p.id AND pm.user_id = #{user_id}
+    )
   </select>
 
   <insert id="insertProject" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
-    INSERT INTO projects(name, domain_model, user_id)
+    INSERT INTO projects(name, domain_model, creator_id)
     VALUES (#{description.name}, #{description.domainModel}, #{user_id})
   </insert>
 
+  <insert id="addMember">
+    INSERT INTO project_members(project_id, user_id, role)
+    VALUES (#{project_id}, #{user_id}, #{role})
+  </insert>
+
   <select id="countProjectsByUser" resultType="int">
-    SELECT COUNT(id) FROM projects WHERE user_id = #{user_id}
+    SELECT COUNT(*) FROM project_members WHERE user_id = #{user_id}
   </select>
 
   <select id="findProjectsByUserId" resultMap="project">
     SELECT p.id, p.name, p.domain_model
     FROM projects p
-    WHERE p.user_id = #{user_id}
+    INNER JOIN project_members pm ON p.id = pm.project_id
+    WHERE pm.user_id = #{user_id}
+    ORDER BY pm.joined_at DESC
     LIMIT #{size} OFFSET #{from}
   </select>
 
   <delete id="deleteProject">
+    DELETE FROM project_members WHERE project_id = #{id} AND user_id = #{user_id};
     DELETE FROM conversations WHERE project_id = #{id};
-    DELETE FROM projects WHERE user_id = #{user_id} AND id = #{id}
+    DELETE FROM projects WHERE id = #{id}
   </delete>
  </mapper>

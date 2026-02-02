@@ -40,6 +40,7 @@ public class UserProjects extends EntityList<String, Project> implements User.Pr
   public Project add(ProjectDescription description) {
     IdHolder idHolder = new IdHolder();
     mapper.insertProject(idHolder, userId, description);
+    mapper.addMember(idHolder.id(), userId, "OWNER");
     return mapper.findProjectByUserAndId(userId, idHolder.id());
   }
 

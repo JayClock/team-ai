@@ -31,10 +31,14 @@ public interface TestDataMapper {
       @Param("content") String content);
 
   @Insert(
-      "INSERT INTO projects(id,user_id,name,domain_model) VALUES ( #{id} ,#{user_id} ,#{name} ,#{domain_model} )")
+      "INSERT INTO projects(id,creator_id,name,domain_model) VALUES ( #{id} ,#{user_id} ,#{name} ,#{domain_model} )")
   void insertProject(
       @Param("id") int id,
       @Param("user_id") int userId,
       @Param("name") String name,
       @Param("domain_model") String domainModel);
+
+  @Insert(
+      "INSERT INTO project_members(project_id,user_id,role) VALUES ( #{project_id} ,#{user_id} ,'OWNER' )")
+  void insertProjectMember(@Param("project_id") int projectId, @Param("user_id") int userId);
 }
