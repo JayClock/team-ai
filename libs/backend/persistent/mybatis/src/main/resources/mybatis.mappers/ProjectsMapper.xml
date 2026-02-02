@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectsMapper">
+
+  <resultMap id="project" type="reengineering.ddd.teamai.model.Project">
+    <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.ProjectDescription">
+      <constructor>
+        <arg column="name" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="domain_model" jdbcType="VARCHAR" javaType="String"/>
+      </constructor>
+    </association>
+    <association property="members" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectMembers">
+      <result column="id" property="projectId" javaType="int"/>
+    </association>
+    <association property="conversations" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectConversations">
+      <result column="id" property="projectId" javaType="int"/>
+    </association>
+  </resultMap>
+
+  <select id="findProjectById" resultMap="project">
+    SELECT p.id, p.name, p.domain_model
+    FROM projects p
+    WHERE p.id = #{id}
+  </select>
+
+</mapper>
