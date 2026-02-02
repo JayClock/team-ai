@@ -22,7 +22,7 @@ public class UsersApi {
   @Path("{id}")
   public UserApi findById(@PathParam("id") String id) {
     return users
-        .findById(id)
+        .findByIdentity(id)
         .map(
             (user) -> {
               UserApi userApi = new UserApi(user, users);

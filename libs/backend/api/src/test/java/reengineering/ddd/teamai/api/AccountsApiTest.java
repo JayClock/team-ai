@@ -39,7 +39,7 @@ public class AccountsApiTest extends ApiTest {
             new UserDescription("JayClock", "JayClock@email"),
             accounts,
             mock(User.Projects.class));
-    when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
+    when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     account = new Account("2", new AccountDescription("github", "github02"));
     when(user.accounts().findAll()).thenReturn(new EntityList<>(account));
   }

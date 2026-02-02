@@ -35,7 +35,7 @@ public class UserApi {
   @Consumes(MediaType.APPLICATION_JSON)
   public Response update(@Valid User.UserChange change, @Context UriInfo uriInfo) {
     users.update(user.getIdentity(), change);
-    User updated = users.findById(user.getIdentity()).orElseThrow();
+    User updated = users.findByIdentity(user.getIdentity()).orElseThrow();
     return Response.ok(new UserModel(updated, uriInfo)).build();
   }
 

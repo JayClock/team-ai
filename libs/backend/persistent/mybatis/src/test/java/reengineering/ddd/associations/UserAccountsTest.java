@@ -32,7 +32,7 @@ public class UserAccountsTest {
   public void setup() {
     // Clear all caches before each test
     cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
-    user = users.findById(userId).get();
+    user = users.findByIdentity(userId).get();
   }
 
   @Test
@@ -62,7 +62,7 @@ public class UserAccountsTest {
   @Test
   public void should_preserve_eager_loaded_accounts_after_cache_hydration() {
     // First access - loads from DB and caches
-    User firstUser = users.findById(userId).get();
+    User firstUser = users.findByIdentity(userId).get();
     int accountCount = firstUser.accounts().findAll().size();
     assertTrue(accountCount > 0, "User should have at least one account");
 
@@ -75,7 +75,7 @@ public class UserAccountsTest {
     cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
 
     // Second access - should hydrate from cache with nested data intact
-    User cachedUser = users.findById(userId).get();
+    User cachedUser = users.findByIdentity(userId).get();
 
     // Verify eager-loaded accounts are preserved after hydration
     assertEquals(

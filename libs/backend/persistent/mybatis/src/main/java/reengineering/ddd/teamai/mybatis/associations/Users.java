@@ -24,7 +24,7 @@ public class Users implements reengineering.ddd.teamai.model.Users {
 
   @Override
   @Cacheable(value = CACHE_NAME, key = "#id", unless = "#result == null")
-  public Optional<User> findById(String id) {
+  public Optional<User> findByIdentity(String id) {
     return Optional.ofNullable(mapper.findUserById(Integer.parseInt(id)));
   }
 

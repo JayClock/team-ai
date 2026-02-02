@@ -36,7 +36,7 @@ public class ProjectConversationsTest {
   @BeforeEach
   public void setup() {
     cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
-    user = users.findById(userId).get();
+    user = users.findByIdentity(userId).get();
     project = user.projects().findAll().stream().findFirst().get();
   }
 

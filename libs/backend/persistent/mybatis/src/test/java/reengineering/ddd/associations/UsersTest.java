@@ -33,7 +33,7 @@ public class UsersTest {
   public void setup() {
     // Clear all caches before each test
     cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
-    user = users.findById(userId).get();
+    user = users.findByIdentity(userId).get();
   }
 
   @Test
@@ -42,7 +42,7 @@ public class UsersTest {
     assertEquals("John Smith", user.getDescription().name());
     assertEquals("john.smith@email.com", user.getDescription().email());
 
-    User cachedUser = users.findById(String.valueOf(userId)).get();
+    User cachedUser = users.findByIdentity(String.valueOf(userId)).get();
     assertEquals(user.getIdentity(), cachedUser.getIdentity());
     assertEquals(user.getDescription().name(), cachedUser.getDescription().name());
     assertEquals(user.getDescription().email(), cachedUser.getDescription().email());
@@ -51,6 +51,6 @@ public class UsersTest {
 
   @Test
   public void should_not_find_user_if_not_exist() {
-    assertTrue(users.findById("-1").isEmpty());
+    assertTrue(users.findByIdentity("-1").isEmpty());
   }
 }

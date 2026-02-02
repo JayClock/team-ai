@@ -39,7 +39,7 @@ public class UserProjectsTest {
 
   @Test
   public void should_get_projects_association_of_user() {
-    User user = users.findById(userId).get();
+    User user = users.findByIdentity(userId).get();
     assertEquals(projectCount, user.projects().findAll().size());
 
     var firstResult = user.projects().findAll();
@@ -50,7 +50,7 @@ public class UserProjectsTest {
 
   @Test
   public void should_find_project_by_user_and_id() {
-    User user = users.findById(userId).get();
+    User user = users.findByIdentity(userId).get();
     String identity = user.projects().findAll().iterator().next().getIdentity();
     assertEquals(identity, user.projects().findByIdentity(identity).get().getIdentity());
 
@@ -60,13 +60,13 @@ public class UserProjectsTest {
 
   @Test
   public void should_not_find_project_by_user_and_id_if_not_exist() {
-    User user = users.findById(userId).get();
+    User user = users.findByIdentity(userId).get();
     assertTrue(user.projects().findByIdentity("-1").isEmpty());
   }
 
   @Test
   public void should_add_project_and_return_saved_project() {
-    User user = users.findById(userId).get();
+    User user = users.findByIdentity(userId).get();
     var description = new ProjectDescription("New Project", "New Model");
     Project savedProject = user.add(description);
 
@@ -83,7 +83,7 @@ public class UserProjectsTest {
 
   @Test
   public void should_delete_project() {
-    User user = users.findById(userId).get();
+    User user = users.findByIdentity(userId).get();
     var description = new ProjectDescription("Project to Delete", "Model");
     Project savedProject = user.add(description);
 
@@ -95,7 +95,7 @@ public class UserProjectsTest {
 
   @Test
   public void should_preserve_eager_loaded_projects_after_cache_hydration() {
-    User firstUser = users.findById(userId).get();
+    User firstUser = users.findByIdentity(userId).get();
     int projectsCount = firstUser.projects().findAll().size();
     assertTrue(projectsCount > 0, "User should have at least one project");
 
@@ -104,7 +104,7 @@ public class UserProjectsTest {
 
     cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
 
-    User cachedUser = users.findById(userId).get();
+    User cachedUser = users.findByIdentity(userId).get();
 
     assertEquals(
         projectsCount,

@@ -69,7 +69,7 @@ public class ConversationsApiTest extends ApiTest {
             new ProjectDescription("Test Project", "domain-model"),
             projectMembers,
             projectConversations);
-    when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
+    when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     when(userProjects.findAll()).thenReturn(new EntityList<>(project));
     when(userProjects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     conversation =

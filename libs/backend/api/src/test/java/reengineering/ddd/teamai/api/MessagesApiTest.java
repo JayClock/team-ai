@@ -49,7 +49,7 @@ public class MessagesApiTest extends ApiTest {
             new UserDescription("JayClock", "JayClock@email"),
             mock(User.Accounts.class),
             userProjects);
-    when(users.findById(user.getIdentity())).thenReturn(Optional.ofNullable(user));
+    when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     messages = mock(Conversation.Messages.class);
     Project.Members projectMembers = mock(Project.Members.class);
     Project.Conversations projectConversations = mock(Project.Conversations.class);

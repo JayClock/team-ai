@@ -4,7 +4,7 @@ import java.util.Optional;
 import reengineering.ddd.teamai.description.UserDescription;
 
 public interface Users {
-  Optional<User> findById(String id);
+  Optional<User> findByIdentity(String id);
 
   User createUser(UserDescription description);
 

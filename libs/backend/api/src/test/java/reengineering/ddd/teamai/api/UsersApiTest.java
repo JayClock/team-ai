@@ -39,7 +39,7 @@ public class UsersApiTest extends ApiTest {
 
   @Test
   public void should_return_404_if_customer_not_exist() {
-    when(users.findById(eq("not_exist"))).thenReturn(Optional.empty());
+    when(users.findByIdentity(eq("not_exist"))).thenReturn(Optional.empty());
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_JSON.toString())
@@ -88,7 +88,7 @@ public class UsersApiTest extends ApiTest {
             members2,
             conversations2);
 
-    when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
+    when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.of(user));
     when(accounts.findAll()).thenReturn(new EntityList<>(List.of(account1, account2)));
     when(projects.findAll()).thenReturn(new EntityList<>(List.of(project1, project2)));
 
@@ -147,7 +147,7 @@ public class UsersApiTest extends ApiTest {
         .body("_templates.create-project.properties[0].name", is("domainModel"))
         .body("_templates.create-project.properties[1].name", is("name"));
 
-    verify(users, times(1)).findById(user.getIdentity());
+    verify(users, times(1)).findByIdentity(user.getIdentity());
   }
 
   @Test
@@ -166,7 +166,7 @@ public class UsersApiTest extends ApiTest {
             new UserDescription("John Updated", "john.updated@email.com"),
             accounts,
             projects);
-    when(users.findById(user.getIdentity()))
+    when(users.findByIdentity(user.getIdentity()))
         .thenReturn(Optional.of(user))
         .thenReturn(Optional.of(updatedUser));
     when(accounts.findAll()).thenReturn(new EntityList<>());

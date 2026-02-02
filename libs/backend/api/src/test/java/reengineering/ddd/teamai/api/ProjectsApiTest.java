@@ -48,7 +48,7 @@ public class ProjectsApiTest extends ApiTest {
             new ProjectDescription("Test Project", "domain-model"),
             projectMembers,
             projectConversations);
-    when(users.findById(user.getIdentity())).thenReturn(Optional.of(user));
+    when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.of(user));
     when(userProjects.findAll()).thenReturn(new EntityList<>(project));
     when(userProjects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
   }

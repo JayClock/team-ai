@@ -31,7 +31,7 @@ public class TestDataSetup implements BeforeAllCallback, ExtensionContext.Store.
           int userId = 1;
           testData.insertUser(userId, "John Smith", "john.smith@email.com");
 
-          User user = users.findById(String.valueOf(userId)).get();
+          User user = users.findByIdentity(String.valueOf(userId)).get();
 
           for (var project = 0; project < 5; project++) {
             var description = new ProjectDescription("name", "model");
