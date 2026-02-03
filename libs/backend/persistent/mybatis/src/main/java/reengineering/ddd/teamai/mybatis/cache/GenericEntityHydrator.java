@@ -237,13 +237,16 @@ public class GenericEntityHydrator {
     List<AssociationConfig> configs = registry.getOrDefault(entityType, List.of());
 
     try {
-      Class<?>[] paramTypes = new Class<?>[2 + configs.size()];
+      // Sort configs by constructor parameter order to ensure correct hydration
+      List<AssociationConfig> sortedConfigs = sortConfigsByConstructorOrder(entityType, configs);
+
+      Class<?>[] paramTypes = new Class<?>[2 + sortedConfigs.size()];
       paramTypes[0] = String.class;
       paramTypes[1] = entityType.getMethod("getDescription").getReturnType();
 
       List<EntityMetadata.AssociationFieldMeta> assocMetas = new ArrayList<>();
-      for (int i = 0; i < configs.size(); i++) {
-        AssociationConfig config = configs.get(i);
+      for (int i = 0; i < sortedConfigs.size(); i++) {
+        AssociationConfig config = sortedConfigs.get(i);
         Field entityField = entityType.getDeclaredField(config.fieldName());
         paramTypes[2 + i] = entityField.getType();
 
@@ -273,6 +276,66 @@ public class GenericEntityHydrator {
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException("Failed to build metadata for: " + entityType.getName(), e);
     }
+  }
+
+  /**
+   * Sort association configs to match the constructor parameter order.
+   *
+   * <p>This is necessary because classpath scanning order is non-deterministic (depends on
+   * filesystem order), but constructor parameters have a fixed order. Without sorting, hydration
+   * would fail with wrong argument types or create incorrectly initialized objects.
+   */
+  private List<AssociationConfig> sortConfigsByConstructorOrder(
+      Class<?> entityType, List<AssociationConfig> configs) throws NoSuchMethodException {
+    if (configs.isEmpty()) {
+      return configs;
+    }
+
+    Class<?> descriptionType = entityType.getMethod("getDescription").getReturnType();
+    int expectedParamCount = 2 + configs.size();
+
+    Constructor<?> targetConstructor = null;
+    for (Constructor<?> ctor : entityType.getConstructors()) {
+      if (ctor.getParameterCount() == expectedParamCount) {
+        Class<?>[] paramTypes = ctor.getParameterTypes();
+        if (paramTypes[0] == String.class && paramTypes[1] == descriptionType) {
+          targetConstructor = ctor;
+          break;
+        }
+      }
+    }
+
+    if (targetConstructor == null) {
+      throw new NoSuchMethodException(
+          "No matching constructor found for "
+              + entityType.getName()
+              + " with "
+              + expectedParamCount
+              + " parameters");
+    }
+
+    Map<Class<?>, AssociationConfig> configByFieldType = new HashMap<>();
+    for (AssociationConfig config : configs) {
+      try {
+        Field field = entityType.getDeclaredField(config.fieldName());
+        configByFieldType.put(field.getType(), config);
+      } catch (NoSuchFieldException e) {
+        throw new IllegalStateException("Field not found: " + config.fieldName(), e);
+      }
+    }
+
+    List<AssociationConfig> sortedConfigs = new ArrayList<>();
+    Class<?>[] paramTypes = targetConstructor.getParameterTypes();
+    for (int i = 2; i < paramTypes.length; i++) {
+      AssociationConfig config = configByFieldType.get(paramTypes[i]);
+      if (config == null) {
+        throw new IllegalStateException(
+            "No association config found for parameter type: " + paramTypes[i].getName());
+      }
+      sortedConfigs.add(config);
+    }
+
+    return sortedConfigs;
   }
 
   private boolean isMemoryEntityList(Object obj) {

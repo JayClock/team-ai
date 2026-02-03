@@ -22,6 +22,6 @@ public class Projects implements reengineering.ddd.teamai.model.Projects {
   @Override
   @Cacheable(value = CACHE_NAME, key = "#id", unless = "#result == null")
   public Optional<Project> findByIdentity(String id) {
-    return mapper.findProjectById(Integer.parseInt(id));
+    return Optional.ofNullable(mapper.findProjectById(Integer.parseInt(id)));
   }
 }

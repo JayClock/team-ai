@@ -2,8 +2,10 @@ package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
 import reengineering.ddd.teamai.model.Projects;
 
 public class GlobalProjectsApi {
@@ -25,6 +27,6 @@ public class GlobalProjectsApi {
               GlobalProjectApi projectApi = new GlobalProjectApi(project);
               return resourceContext.initResource(projectApi);
             })
-        .orElse(null);
+        .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
   }
 }
