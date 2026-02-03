@@ -10,8 +10,11 @@ import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSni
 
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import reengineering.ddd.teamai.model.Users;
 
 public class RootApiTest extends ApiTest {
+  @MockitoBean private Users users;
 
   @Test
   public void should_return_anonymous_root_model_for_unauthenticated_user() {

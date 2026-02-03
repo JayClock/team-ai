@@ -5,7 +5,10 @@ import jakarta.ws.rs.core.UriInfo;
 
 public class ApiTemplates {
   public static UriBuilder user(UriInfo uriInfo) {
-    return uriInfo.getBaseUriBuilder().path(UsersApi.class).path(UsersApi.class, "findById");
+    return uriInfo
+        .getBaseUriBuilder()
+        .path(RootApi.class, "users")
+        .path(UsersApi.class, "findById");
   }
 
   public static UriBuilder accounts(UriInfo uriInfo) {

@@ -1,8 +1,10 @@
 package reengineering.ddd.teamai.api;
 
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.SecurityContext;
@@ -10,10 +12,14 @@ import jakarta.ws.rs.core.UriInfo;
 import java.security.Principal;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.teamai.api.representation.RootModel;
+import reengineering.ddd.teamai.model.Users;
 
 @Component
 @Path("/")
 public class RootApi {
+  @Inject Users users;
+
+  @Context private ResourceContext resourceContext;
 
   @GET
   @Produces(MediaType.APPLICATION_JSON)
@@ -26,5 +32,11 @@ public class RootApi {
       String userId = principal.getName();
       return RootModel.authenticated(userId, uriInfo);
     }
+  }
+
+  @Path("users")
+  public UsersApi users() {
+    UsersApi usersApi = new UsersApi(users);
+    return resourceContext.initResource(usersApi);
   }
 }
