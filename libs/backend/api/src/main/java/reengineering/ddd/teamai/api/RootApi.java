@@ -12,12 +12,14 @@ import jakarta.ws.rs.core.UriInfo;
 import java.security.Principal;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.teamai.api.representation.RootModel;
+import reengineering.ddd.teamai.model.Projects;
 import reengineering.ddd.teamai.model.Users;
 
 @Component
 @Path("/")
 public class RootApi {
   @Inject Users users;
+  @Inject Projects projects;
 
   @Context private ResourceContext resourceContext;
 
@@ -38,5 +40,11 @@ public class RootApi {
   public UsersApi users() {
     UsersApi usersApi = new UsersApi(users);
     return resourceContext.initResource(usersApi);
+  }
+
+  @Path("projects")
+  public GlobalProjectsApi globalProjects() {
+    GlobalProjectsApi globalProjectsApi = new GlobalProjectsApi(projects);
+    return resourceContext.initResource(globalProjectsApi);
   }
 }

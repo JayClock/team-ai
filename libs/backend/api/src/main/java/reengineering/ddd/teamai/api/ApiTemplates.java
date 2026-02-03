@@ -27,6 +27,18 @@ public class ApiTemplates {
     return projects(uriInfo).path(ProjectsApi.class, "findById");
   }
 
+  public static UriBuilder globalProjects(UriInfo uriInfo) {
+    return uriInfo.getBaseUriBuilder().path(RootApi.class, "globalProjects");
+  }
+
+  public static UriBuilder globalProject(UriInfo uriInfo) {
+    return globalProjects(uriInfo).path(GlobalProjectsApi.class, "findById");
+  }
+
+  public static UriBuilder globalConversations(UriInfo uriInfo) {
+    return globalProject(uriInfo).path(GlobalProjectApi.class, "conversations");
+  }
+
   public static UriBuilder conversations(UriInfo uriInfo) {
     return project(uriInfo).path(ProjectApi.class, "conversations");
   }

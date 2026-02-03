@@ -29,10 +29,8 @@ import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
-import reengineering.ddd.teamai.model.Users;
 
 public class MessagesApiTest extends ApiTest {
-  @MockitoBean private Users users;
   @MockitoBean private Conversation.ModelProvider modelProvider;
 
   private User user;

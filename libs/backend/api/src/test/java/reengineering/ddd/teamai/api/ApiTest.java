@@ -13,11 +13,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.teamai.api.config.TestApplication;
+import reengineering.ddd.teamai.model.Projects;
+import reengineering.ddd.teamai.model.Users;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT, classes = TestApplication.class)
 @ExtendWith(RestDocumentationExtension.class)
 public class ApiTest {
+  @MockitoBean protected Users users;
+  @MockitoBean protected Projects projects;
+
   @Value("${local.server.port}")
   private int port;
 

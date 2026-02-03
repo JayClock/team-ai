@@ -64,4 +64,31 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .withSelfRel());
     return model;
   }
+
+  public static ProjectModel global(Project project, UriInfo uriInfo) {
+    ProjectModel model = new ProjectModel(null, project, uriInfo);
+    model.add(
+        Affordances.of(
+                Link.of(ApiTemplates.globalProject(uriInfo).build(project.getIdentity()).getPath())
+                    .withSelfRel())
+            .afford(HttpMethod.PUT)
+            .withInput(Project.ProjectChange.class)
+            .andAfford(HttpMethod.DELETE)
+            .withName("delete-project")
+            .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.globalConversations(uriInfo)
+                            .build(project.getIdentity())
+                            .getPath())
+                    .withRel("conversations"))
+            .afford(HttpMethod.POST)
+            .withInput(Conversation.ConversationChange.class)
+            .withName("create-conversation")
+            .toLink());
+
+    return model;
+  }
 }

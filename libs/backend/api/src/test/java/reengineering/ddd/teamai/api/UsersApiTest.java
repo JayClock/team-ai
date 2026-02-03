@@ -25,17 +25,14 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.hateoas.MediaTypes;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
-import reengineering.ddd.teamai.model.Users;
 
 public class UsersApiTest extends ApiTest {
-  @MockitoBean private Users users;
 
   @Test
   public void should_return_404_if_customer_not_exist() {

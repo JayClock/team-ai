@@ -17,15 +17,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.User;
-import reengineering.ddd.teamai.model.Users;
 
 public class AccountsApiTest extends ApiTest {
-  @MockitoBean private Users users;
   private User user;
 
   @Mock private User.Accounts accounts;
