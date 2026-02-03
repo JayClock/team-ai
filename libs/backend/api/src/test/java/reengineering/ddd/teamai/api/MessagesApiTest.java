@@ -24,30 +24,19 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reactor.core.publisher.Flux;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
-import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.Project;
-import reengineering.ddd.teamai.model.User;
 
 public class MessagesApiTest extends ApiTest {
   @MockitoBean private Conversation.ModelProvider modelProvider;
 
-  private User user;
   private Project project;
   private Conversation conversation;
   private Conversation.Messages messages;
 
   @BeforeEach
   public void beforeEach() {
-    User.Projects userProjects = mock(User.Projects.class);
-    user =
-        new User(
-            "JayClock",
-            new UserDescription("JayClock", "JayClock@email"),
-            mock(User.Accounts.class),
-            userProjects);
-    when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     messages = mock(Conversation.Messages.class);
     Project.Members projectMembers = mock(Project.Members.class);
     Project.Conversations projectConversations = mock(Project.Conversations.class);
@@ -58,8 +47,7 @@ public class MessagesApiTest extends ApiTest {
             projectMembers,
             projectConversations);
     conversation = new Conversation("1", new ConversationDescription("title"), messages);
-    when(userProjects.findAll()).thenReturn(new EntityList<>(project));
-    when(userProjects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
+    when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.ofNullable(project));
     when(projectConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.ofNullable(conversation));
   }
@@ -78,15 +66,13 @@ public class MessagesApiTest extends ApiTest {
             document(
                 "messages/list",
                 pathParameters(
-                    parameterWithName("userId").description("Unique identifier of the user"),
                     parameterWithName("projectId").description("Unique identifier of the project"),
                     parameterWithName("conversationId")
                         .description("Unique identifier of the conversation")),
                 responseFields(messagesCollectionResponseFields())))
         .when()
         .get(
-            "/users/{userId}/projects/{projectId}/conversations/{conversationId}/messages",
-            user.getIdentity(),
+            "/projects/{projectId}/conversations/{conversationId}/messages",
             project.getIdentity(),
             conversation.getIdentity())
         .then()
@@ -95,13 +81,10 @@ public class MessagesApiTest extends ApiTest {
         .body("_embedded.messages[0].id", is(message.getIdentity()))
         .body("_embedded.messages[0].role", is(message.getDescription().role()))
         .body("_embedded.messages[0].content", is(message.getDescription().content()))
-        // MessageModel should have self link
         .body(
             "_embedded.messages[0]._links.self.href",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
@@ -110,13 +93,10 @@ public class MessagesApiTest extends ApiTest {
         .body("_embedded.messages[1].id", is(message2.getIdentity()))
         .body("_embedded.messages[1].role", is(message2.getDescription().role()))
         .body("_embedded.messages[1].content", is(message2.getDescription().content()))
-        // MessageModel should have self link
         .body(
             "_embedded.messages[1]._links.self.href",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
@@ -151,7 +131,6 @@ public class MessagesApiTest extends ApiTest {
                 document(
                     "messages/send-stream",
                     pathParameters(
-                        parameterWithName("userId").description("Unique identifier of the user"),
                         parameterWithName("projectId")
                             .description("Unique identifier of the project"),
                         parameterWithName("conversationId")
@@ -160,8 +139,7 @@ public class MessagesApiTest extends ApiTest {
             .body(userDescription)
             .when()
             .post(
-                "/users/{userId}/projects/{projectId}/conversations/{conversationId}/messages/stream",
-                user.getIdentity(),
+                "/projects/{projectId}/conversations/{conversationId}/messages/stream",
                 project.getIdentity(),
                 conversation.getIdentity())
             .then()
@@ -169,7 +147,6 @@ public class MessagesApiTest extends ApiTest {
             .extract()
             .asString();
 
-    // Verify Vercel AI SDK Data Stream Protocol format
     assertThat(responseBody).contains("\"type\":\"start\"");
     assertThat(responseBody).contains("\"type\":\"text-start\"");
     assertThat(responseBody).contains("\"type\":\"text-delta\"");

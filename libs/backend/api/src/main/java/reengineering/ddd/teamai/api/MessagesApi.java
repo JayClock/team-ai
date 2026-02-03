@@ -7,15 +7,12 @@ import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.MessageModel;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
-import reengineering.ddd.teamai.model.User;
 
 public class MessagesApi {
-  private final User user;
   private final Project project;
   private final Conversation conversation;
 
-  public MessagesApi(User user, Project project, Conversation conversation) {
-    this.user = user;
+  public MessagesApi(Project project, Conversation conversation) {
     this.project = project;
     this.conversation = conversation;
   }
@@ -24,7 +21,7 @@ public class MessagesApi {
   public CollectionModel<MessageModel> findAll(@Context UriInfo uriInfo) {
     var messages =
         conversation.messages().findAll().stream()
-            .map(message -> new MessageModel(user, project, conversation, message, uriInfo))
+            .map(message -> new MessageModel(project, conversation, message, uriInfo))
             .toList();
     return CollectionModel.of(messages);
   }

@@ -11,16 +11,13 @@ import reengineering.ddd.teamai.api.representation.ConversationModel;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
-import reengineering.ddd.teamai.model.User;
 
 public class ConversationsApi {
   @Context ResourceContext resourceContext;
 
-  private final User user;
   private final Project project;
 
-  public ConversationsApi(User user, Project project) {
-    this.user = user;
+  public ConversationsApi(Project project) {
     this.project = project;
   }
 
@@ -31,7 +28,7 @@ public class ConversationsApi {
         .findByIdentity(id)
         .map(
             conversation -> {
-              ConversationApi conversationApi = new ConversationApi(user, project, conversation);
+              ConversationApi conversationApi = new ConversationApi(project, conversation);
               return resourceContext.initResource(conversationApi);
             })
         .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
@@ -43,22 +40,21 @@ public class ConversationsApi {
     return new Pagination<>(project.conversations().findAll(), 40)
         .page(
             page,
-            conversation -> new ConversationModel(user, project, conversation, uriInfo),
+            conversation -> new ConversationModel(project, conversation, uriInfo),
             p ->
-                ApiTemplates.conversations(uriInfo)
+                ApiTemplates.globalConversations(uriInfo)
                     .queryParam("page", p)
-                    .build(user.getIdentity(), project.getIdentity()));
+                    .build(project.getIdentity()));
   }
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   public Response create(ConversationDescription description, @Context UriInfo uriInfo) {
     Conversation conversation = project.add(description);
-    ConversationModel conversationModel =
-        new ConversationModel(user, project, conversation, uriInfo);
+    ConversationModel conversationModel = new ConversationModel(project, conversation, uriInfo);
     return Response.created(
-            ApiTemplates.conversation(uriInfo)
-                .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity()))
+            ApiTemplates.globalConversation(uriInfo)
+                .build(project.getIdentity(), conversation.getIdentity()))
         .entity(conversationModel)
         .build();
   }

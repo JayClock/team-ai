@@ -14,7 +14,6 @@ import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
-import reengineering.ddd.teamai.model.User;
 
 @Relation(collectionRelation = "conversations")
 public class ConversationModel extends RepresentationModel<ConversationModel> {
@@ -22,7 +21,7 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
   @JsonUnwrapped private ConversationDescription description;
   @JsonProperty private String projectId;
 
-  public ConversationModel(User user, Project project, Conversation conversation, UriInfo uriInfo) {
+  public ConversationModel(Project project, Conversation conversation, UriInfo uriInfo) {
     this.id = conversation.getIdentity();
     this.description = conversation.getDescription();
     this.projectId = project.getIdentity();
@@ -30,11 +29,8 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
     add(
         Affordances.of(
                 Link.of(
-                        ApiTemplates.conversation(uriInfo)
-                            .build(
-                                user.getIdentity(),
-                                project.getIdentity(),
-                                conversation.getIdentity())
+                        ApiTemplates.globalConversation(uriInfo)
+                            .build(project.getIdentity(), conversation.getIdentity())
                             .getPath())
                     .withSelfRel())
             .afford(HttpMethod.PUT)
@@ -45,12 +41,9 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
     add(
         Affordances.of(
                 Link.of(
-                        ApiTemplates.conversation(uriInfo)
+                        ApiTemplates.globalConversation(uriInfo)
                             .path(ConversationApi.class, "chat")
-                            .build(
-                                user.getIdentity(),
-                                project.getIdentity(),
-                                conversation.getIdentity())
+                            .build(project.getIdentity(), conversation.getIdentity())
                             .getPath())
                     .withRel("chat"))
             .afford(HttpMethod.POST)
@@ -60,8 +53,8 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
 
     add(
         Link.of(
-                ApiTemplates.messages(uriInfo)
-                    .build(user.getIdentity(), project.getIdentity(), conversation.getIdentity())
+                ApiTemplates.globalMessages(uriInfo)
+                    .build(project.getIdentity(), conversation.getIdentity())
                     .getPath())
             .withRel("messages"));
   }

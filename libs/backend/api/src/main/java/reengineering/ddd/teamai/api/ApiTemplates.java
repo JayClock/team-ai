@@ -39,6 +39,18 @@ public class ApiTemplates {
     return globalProject(uriInfo).path(GlobalProjectApi.class, "conversations");
   }
 
+  public static UriBuilder globalConversation(UriInfo uriInfo) {
+    return globalConversations(uriInfo).path(ConversationsApi.class, "findById");
+  }
+
+  public static UriBuilder globalMessages(UriInfo uriInfo) {
+    return globalConversation(uriInfo).path(ConversationApi.class, "messages");
+  }
+
+  public static UriBuilder globalMessage(UriInfo uriInfo) {
+    return globalMessages(uriInfo).path("{message-id}");
+  }
+
   public static UriBuilder conversations(UriInfo uriInfo) {
     return project(uriInfo).path(ProjectApi.class, "conversations");
   }

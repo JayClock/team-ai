@@ -35,7 +35,7 @@ public class ProjectsApi {
         .findFirst()
         .map(
             project -> {
-              ProjectApi projectApi = new ProjectApi(user, project);
+              ProjectApi projectApi = new ProjectApi(project);
               return resourceContext.initResource(projectApi);
             })
         .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
@@ -47,7 +47,7 @@ public class ProjectsApi {
     return new Pagination<>(user.projects().findAll(), 40)
         .page(
             page,
-            project -> ProjectModel.simple(user, project, uriInfo),
+            project -> ProjectModel.global(project, uriInfo),
             p -> ApiTemplates.projects(uriInfo).queryParam("page", p).build(user.getIdentity()));
   }
 
@@ -57,7 +57,7 @@ public class ProjectsApi {
     ProjectDescription description =
         new ProjectDescription(requestBody.getName(), requestBody.getDomainModel());
     Project project = user.add(description);
-    ProjectModel projectModel = ProjectModel.of(user, project, uriInfo);
+    ProjectModel projectModel = ProjectModel.global(project, uriInfo);
     return Response.created(
             ApiTemplates.project(uriInfo).build(user.getIdentity(), project.getIdentity()))
         .entity(projectModel)

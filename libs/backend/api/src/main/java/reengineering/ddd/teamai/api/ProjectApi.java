@@ -9,33 +9,29 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import reengineering.ddd.teamai.api.representation.ProjectModel;
 import reengineering.ddd.teamai.model.Project;
-import reengineering.ddd.teamai.model.User;
 
 public class ProjectApi {
   @Context ResourceContext resourceContext;
 
-  private final User user;
   private final Project project;
 
-  public ProjectApi(User user, Project project) {
-    this.user = user;
+  public ProjectApi(Project project) {
     this.project = project;
   }
 
   @GET
   @VendorMediaType(ResourceTypes.PROJECT)
   public ProjectModel find(@Context UriInfo uriInfo) {
-    return ProjectModel.of(user, project, uriInfo);
+    return ProjectModel.global(project, uriInfo);
   }
 
   @DELETE
   public Response delete() {
-    user.deleteProject(project.getIdentity());
     return Response.noContent().build();
   }
 
   @Path("conversations")
   public ConversationsApi conversations() {
-    return resourceContext.initResource(new ConversationsApi(user, project));
+    return resourceContext.initResource(new ConversationsApi(project));
   }
 }

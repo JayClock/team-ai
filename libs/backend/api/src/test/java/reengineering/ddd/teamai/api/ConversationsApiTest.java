@@ -37,14 +37,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
-import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
-import reengineering.ddd.teamai.model.User;
 
 public class ConversationsApiTest extends ApiTest {
   @MockitoBean private Conversation.ModelProvider modelProvider;
-  private User user;
   private Project project;
 
   @Mock private Many<Conversation> conversations;
@@ -54,25 +51,17 @@ public class ConversationsApiTest extends ApiTest {
 
   @BeforeEach
   public void beforeEach() {
-    User.Projects userProjects = mock(User.Projects.class);
-    user =
-        new User(
-            "JayClock",
-            new UserDescription("JayClock", "JayClock@email"),
-            mock(User.Accounts.class),
-            userProjects);
     project =
         new Project(
             "project-1",
             new ProjectDescription("Test Project", "domain-model"),
             projectMembers,
             projectConversations);
-    when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.ofNullable(user));
-    when(userProjects.findAll()).thenReturn(new EntityList<>(project));
-    when(userProjects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     conversation =
         new Conversation(
             "1", new ConversationDescription("title"), mock(Conversation.Messages.class));
+    when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.ofNullable(project));
+    when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.ofNullable(project));
     when(projectConversations.findByIdentity(conversation.getIdentity()))
         .thenReturn(Optional.of(conversation));
   }
@@ -89,52 +78,34 @@ public class ConversationsApiTest extends ApiTest {
             document(
                 "project-conversations/list-paginated",
                 pathParameters(
-                    parameterWithName("userId").description("Unique identifier of the user"),
                     parameterWithName("projectId").description("Unique identifier of the project")),
                 paginationParameters(),
                 responseFields(pagedConversationsResponseFields()),
                 paginationLinks()))
         .when()
-        .get(
-            "/users/{userId}/projects/{projectId}/conversations",
-            user.getIdentity(),
-            project.getIdentity())
+        .get("/projects/{projectId}/conversations", project.getIdentity())
         .then()
         .statusCode(200)
         .body(
             "_links.self.href",
-            is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
-                    + project.getIdentity()
-                    + "/conversations?page=0"))
+            is("/api/projects/" + project.getIdentity() + "/conversations?page=0"))
         .body(
             "_links.next.href",
-            is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
-                    + project.getIdentity()
-                    + "/conversations?page=1"))
+            is("/api/projects/" + project.getIdentity() + "/conversations?page=1"))
         .body("_embedded.conversations.size()", is(1))
         .body("_embedded.conversations[0].id", is(conversation.getIdentity()))
         .body("_embedded.conversations[0].title", is(conversation.getDescription().title()))
         .body(
             "_embedded.conversations[0]._links.self.href",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()))
         .body(
             "_embedded.conversations[0]._links.messages.href",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
@@ -142,9 +113,7 @@ public class ConversationsApiTest extends ApiTest {
         .body(
             "_embedded.conversations[0]._links.chat.href",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
@@ -155,9 +124,7 @@ public class ConversationsApiTest extends ApiTest {
         .body(
             "_embedded.conversations[0]._templates.chat.target",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
@@ -179,7 +146,6 @@ public class ConversationsApiTest extends ApiTest {
             document(
                 "project-conversations/create",
                 pathParameters(
-                    parameterWithName("userId").description("Unique identifier of the user"),
                     parameterWithName("projectId").description("Unique identifier of the project")),
                 requestFields(createConversationRequestFields()),
                 responseFields(conversationResponseFields()),
@@ -187,19 +153,14 @@ public class ConversationsApiTest extends ApiTest {
                     headerWithName("Location").description("URI of the created conversation"))))
         .body(description)
         .when()
-        .post(
-            "/users/{userId}/projects/{projectId}/conversations",
-            user.getIdentity(),
-            project.getIdentity())
+        .post("/projects/{projectId}/conversations", project.getIdentity())
         .then()
         .statusCode(201)
         .header(
             HttpHeaders.LOCATION,
             is(
                 uri(
-                    "/api/users/"
-                        + user.getIdentity()
-                        + "/projects/"
+                    "/api/projects/"
                         + project.getIdentity()
                         + "/conversations/"
                         + newConversation.getIdentity())))
@@ -218,7 +179,6 @@ public class ConversationsApiTest extends ApiTest {
             document(
                 "project-conversations/get-single",
                 pathParameters(
-                    parameterWithName("userId").description("Unique identifier of the user"),
                     parameterWithName("projectId").description("Unique identifier of the project"),
                     parameterWithName("conversationId")
                         .description("Unique identifier of the conversation")),
@@ -226,8 +186,7 @@ public class ConversationsApiTest extends ApiTest {
                 halLinksSnippet(selfLink(), messagesLink(), sendMessageLink())))
         .when()
         .get(
-            "/users/{userId}/projects/{projectId}/conversations/{conversationId}",
-            user.getIdentity(),
+            "/projects/{projectId}/conversations/{conversationId}",
             project.getIdentity(),
             conversation.getIdentity())
         .then()
@@ -238,18 +197,14 @@ public class ConversationsApiTest extends ApiTest {
         .body(
             "_links.self.href",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()))
         .body(
             "_links.messages.href",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
@@ -257,9 +212,7 @@ public class ConversationsApiTest extends ApiTest {
         .body(
             "_links.chat.href",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
@@ -270,9 +223,7 @@ public class ConversationsApiTest extends ApiTest {
         .body(
             "_templates.chat.target",
             is(
-                "/api/users/"
-                    + user.getIdentity()
-                    + "/projects/"
+                "/api/projects/"
                     + project.getIdentity()
                     + "/conversations/"
                     + conversation.getIdentity()
@@ -293,14 +244,12 @@ public class ConversationsApiTest extends ApiTest {
             document(
                 "project-conversations/delete",
                 pathParameters(
-                    parameterWithName("userId").description("Unique identifier of the user"),
                     parameterWithName("projectId").description("Unique identifier of the project"),
                     parameterWithName("conversationId")
                         .description("Unique identifier of the conversation to delete"))))
         .when()
         .delete(
-            "/users/{userId}/projects/{projectId}/conversations/{conversationId}",
-            user.getIdentity(),
+            "/projects/{projectId}/conversations/{conversationId}",
             project.getIdentity(),
             conversation.getIdentity())
         .then()
@@ -319,14 +268,12 @@ public class ConversationsApiTest extends ApiTest {
             document(
                 "project-conversations/delete-not-found",
                 pathParameters(
-                    parameterWithName("userId").description("Unique identifier of the user"),
                     parameterWithName("projectId").description("Unique identifier of the project"),
                     parameterWithName("conversationId")
                         .description("Unique identifier of the conversation"))))
         .when()
         .delete(
-            "/users/{userId}/projects/{projectId}/conversations/{conversationId}",
-            user.getIdentity(),
+            "/projects/{projectId}/conversations/{conversationId}",
             project.getIdentity(),
             "non-existent")
         .then()

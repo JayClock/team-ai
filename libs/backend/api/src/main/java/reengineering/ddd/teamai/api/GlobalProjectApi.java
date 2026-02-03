@@ -25,6 +25,6 @@ public class GlobalProjectApi {
 
   @Path("conversations")
   public ConversationsApi conversations() {
-    return resourceContext.initResource(new ConversationsApi(null, project));
+    return resourceContext.initResource(new ConversationsApi(project));
   }
 }

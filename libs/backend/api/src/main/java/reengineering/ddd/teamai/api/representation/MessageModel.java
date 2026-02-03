@@ -11,7 +11,6 @@ import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.Project;
-import reengineering.ddd.teamai.model.User;
 
 @Relation(collectionRelation = "messages")
 public class MessageModel extends RepresentationModel<MessageModel> {
@@ -19,17 +18,13 @@ public class MessageModel extends RepresentationModel<MessageModel> {
   @JsonUnwrapped private MessageDescription description;
 
   public MessageModel(
-      User user, Project project, Conversation conversation, Message message, UriInfo uriInfo) {
+      Project project, Conversation conversation, Message message, UriInfo uriInfo) {
     this.id = message.getIdentity();
     this.description = message.getDescription();
     add(
         Link.of(
-                ApiTemplates.message(uriInfo)
-                    .build(
-                        user.getIdentity(),
-                        project.getIdentity(),
-                        conversation.getIdentity(),
-                        message.getIdentity())
+                ApiTemplates.globalMessage(uriInfo)
+                    .build(project.getIdentity(), conversation.getIdentity(), message.getIdentity())
                     .getPath())
             .withSelfRel());
   }
