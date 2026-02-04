@@ -131,7 +131,6 @@ public final class HateoasDocumentation {
       fieldWithPath("name").description("User's display name"),
       fieldWithPath("email").description("User's email address"),
       subsectionWithPath("_embedded.accounts[]").description("Embedded accounts collection"),
-      subsectionWithPath("_embedded.projects[]").description("Embedded projects collection"),
       subsectionWithPath("_links").description("HATEOAS navigation links"),
       subsectionWithPath("_templates").description("HAL-FORMS action templates for AI agents")
     };

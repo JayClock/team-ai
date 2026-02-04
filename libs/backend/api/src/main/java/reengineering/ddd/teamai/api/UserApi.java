@@ -15,7 +15,8 @@ import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.model.Users;
 
 public class UserApi {
-  @Context ResourceContext resourceContext;
+  @Context
+  ResourceContext resourceContext;
 
   private final User user;
   private final Users users;
@@ -43,11 +44,5 @@ public class UserApi {
   public AccountsApi accounts() {
     AccountsApi accountsApi = new AccountsApi(user);
     return resourceContext.initResource(accountsApi);
-  }
-
-  @Path("projects")
-  public ProjectsApi projects() {
-    ProjectsApi projectsApi = new ProjectsApi(user);
-    return resourceContext.initResource(projectsApi);
   }
 }

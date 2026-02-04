@@ -10,7 +10,6 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.description.UserDescription;
-import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
 public class UserModel extends RepresentationModel<UserModel> {
@@ -38,26 +37,12 @@ public class UserModel extends RepresentationModel<UserModel> {
         Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath())
             .withRel("accounts"));
 
-    add(
-        Affordances.of(
-                Link.of(ApiTemplates.projects(uriInfo).build(user.getIdentity()).getPath())
-                    .withRel("projects"))
-            .afford(HttpMethod.POST)
-            .withInput(Project.ProjectChange.class)
-            .withName("create-project")
-            .toLink());
-
     this.embedded =
         new EmbeddedResources(
             user.accounts().findAll().stream()
                 .map(account -> new AccountModel(user, account, uriInfo))
-                .toList(),
-            user.projects().findAll().stream()
-                .map(project -> ProjectModel.simple(user, project, uriInfo))
                 .toList());
   }
 
-  public record EmbeddedResources(
-      @JsonProperty("accounts") List<AccountModel> accounts,
-      @JsonProperty("projects") List<ProjectModel> projects) {}
+  public record EmbeddedResources(@JsonProperty("accounts") List<AccountModel> accounts) {}
 }
