@@ -23,7 +23,7 @@ public class MessageModel extends RepresentationModel<MessageModel> {
     this.description = message.getDescription();
     add(
         Link.of(
-                ApiTemplates.globalMessage(uriInfo)
+                ApiTemplates.message(uriInfo)
                     .build(project.getIdentity(), conversation.getIdentity(), message.getIdentity())
                     .getPath())
             .withSelfRel());

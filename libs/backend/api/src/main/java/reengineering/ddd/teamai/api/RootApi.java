@@ -43,8 +43,8 @@ public class RootApi {
   }
 
   @Path("projects")
-  public GlobalProjectsApi globalProjects() {
-    GlobalProjectsApi globalProjectsApi = new GlobalProjectsApi(projects);
+  public ProjectsApi globalProjects() {
+    ProjectsApi globalProjectsApi = new ProjectsApi(projects);
     return resourceContext.initResource(globalProjectsApi);
   }
 }

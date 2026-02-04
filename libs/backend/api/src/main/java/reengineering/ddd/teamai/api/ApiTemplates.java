@@ -20,35 +20,11 @@ public class ApiTemplates {
   }
 
   public static UriBuilder projects(UriInfo uriInfo) {
-    return user(uriInfo).path(UserApi.class, "projects");
+    return uriInfo.getBaseUriBuilder().path(RootApi.class, "globalProjects");
   }
 
   public static UriBuilder project(UriInfo uriInfo) {
     return projects(uriInfo).path(ProjectsApi.class, "findById");
-  }
-
-  public static UriBuilder globalProjects(UriInfo uriInfo) {
-    return uriInfo.getBaseUriBuilder().path(RootApi.class, "globalProjects");
-  }
-
-  public static UriBuilder globalProject(UriInfo uriInfo) {
-    return globalProjects(uriInfo).path(GlobalProjectsApi.class, "findById");
-  }
-
-  public static UriBuilder globalConversations(UriInfo uriInfo) {
-    return globalProject(uriInfo).path(GlobalProjectApi.class, "conversations");
-  }
-
-  public static UriBuilder globalConversation(UriInfo uriInfo) {
-    return globalConversations(uriInfo).path(ConversationsApi.class, "findById");
-  }
-
-  public static UriBuilder globalMessages(UriInfo uriInfo) {
-    return globalConversation(uriInfo).path(ConversationApi.class, "messages");
-  }
-
-  public static UriBuilder globalMessage(UriInfo uriInfo) {
-    return globalMessages(uriInfo).path("{message-id}");
   }
 
   public static UriBuilder conversations(UriInfo uriInfo) {

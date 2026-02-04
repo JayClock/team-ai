@@ -29,7 +29,7 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
     add(
         Affordances.of(
                 Link.of(
-                        ApiTemplates.globalConversation(uriInfo)
+                        ApiTemplates.conversation(uriInfo)
                             .build(project.getIdentity(), conversation.getIdentity())
                             .getPath())
                     .withSelfRel())
@@ -41,7 +41,7 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
     add(
         Affordances.of(
                 Link.of(
-                        ApiTemplates.globalConversation(uriInfo)
+                        ApiTemplates.conversation(uriInfo)
                             .path(ConversationApi.class, "chat")
                             .build(project.getIdentity(), conversation.getIdentity())
                             .getPath())
@@ -53,7 +53,7 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
 
     add(
         Link.of(
-                ApiTemplates.globalMessages(uriInfo)
+                ApiTemplates.messages(uriInfo)
                     .build(project.getIdentity(), conversation.getIdentity())
                     .getPath())
             .withRel("messages"));

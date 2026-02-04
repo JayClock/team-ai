@@ -69,7 +69,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
     ProjectModel model = new ProjectModel(null, project, uriInfo);
     model.add(
         Affordances.of(
-                Link.of(ApiTemplates.globalProject(uriInfo).build(project.getIdentity()).getPath())
+                Link.of(ApiTemplates.project(uriInfo).build(project.getIdentity()).getPath())
                     .withSelfRel())
             .afford(HttpMethod.PUT)
             .withInput(Project.ProjectChange.class)
@@ -79,10 +79,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
 
     model.add(
         Affordances.of(
-                Link.of(
-                        ApiTemplates.globalConversations(uriInfo)
-                            .build(project.getIdentity())
-                            .getPath())
+                Link.of(ApiTemplates.conversations(uriInfo).build(project.getIdentity()).getPath())
                     .withRel("conversations"))
             .afford(HttpMethod.POST)
             .withInput(Conversation.ConversationChange.class)

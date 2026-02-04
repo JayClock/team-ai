@@ -42,7 +42,7 @@ public class ConversationsApi {
             page,
             conversation -> new ConversationModel(project, conversation, uriInfo),
             p ->
-                ApiTemplates.globalConversations(uriInfo)
+                ApiTemplates.conversations(uriInfo)
                     .queryParam("page", p)
                     .build(project.getIdentity()));
   }
@@ -53,7 +53,7 @@ public class ConversationsApi {
     Conversation conversation = project.add(description);
     ConversationModel conversationModel = new ConversationModel(project, conversation, uriInfo);
     return Response.created(
-            ApiTemplates.globalConversation(uriInfo)
+            ApiTemplates.conversation(uriInfo)
                 .build(project.getIdentity(), conversation.getIdentity()))
         .entity(conversationModel)
         .build();
