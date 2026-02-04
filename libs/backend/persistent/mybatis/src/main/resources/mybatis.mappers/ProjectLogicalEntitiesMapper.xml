@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectLogicalEntitiesMapper">
+
+  <resultMap id="logicalEntity" type="reengineering.ddd.teamai.model.LogicalEntity">
+    <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription">
+      <constructor>
+        <arg column="type" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="name" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="label" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>
+        <arg column="status" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="project_id" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.RefHandler" javaType="reengineering.ddd.archtype.Ref"/>
+      </constructor>
+    </association>
+  </resultMap>
+
+  <select id="findLogicalEntityByProjectAndId" resultMap="logicalEntity">
+    SELECT id, project_id, type, name, label, definition, status
+    FROM logical_entities
+    WHERE project_id = #{project_id} AND id = #{id}
+  </select>
+
+  <select id="findLogicalEntitiesByProjectId" resultMap="logicalEntity">
+    SELECT id, project_id, type, name, label, definition, status
+    FROM logical_entities
+    WHERE project_id = #{project_id}
+    ORDER BY updated_at DESC
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <insert id="insertLogicalEntity" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO logical_entities(project_id, type, name, label, definition, status)
+    VALUES (#{project_id}, #{description.type}, #{description.name}, #{description.label},
+            #{description.definition, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler},
+            #{description.status})
+  </insert>
+
+  <select id="countLogicalEntitiesByProject" resultType="int">
+    SELECT COUNT(id) FROM logical_entities WHERE project_id = #{project_id}
+  </select>
+
+</mapper>

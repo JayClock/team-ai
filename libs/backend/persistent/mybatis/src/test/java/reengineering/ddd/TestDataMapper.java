@@ -41,4 +41,15 @@ public interface TestDataMapper {
   @Insert(
       "INSERT INTO project_members(project_id,user_id,role) VALUES ( #{project_id} ,#{user_id} ,'OWNER' )")
   void insertProjectMember(@Param("project_id") int projectId, @Param("user_id") int userId);
+
+  @Insert(
+      "INSERT INTO logical_entities(id, project_id, type, name, label, definition, status) VALUES (#{id}, #{project_id}, #{type}, #{name}, #{label}, CAST(#{definition} AS jsonb), #{status})")
+  void insertLogicalEntity(
+      @Param("id") int id,
+      @Param("project_id") int projectId,
+      @Param("type") String type,
+      @Param("name") String name,
+      @Param("label") String label,
+      @Param("definition") String definition,
+      @Param("status") String status);
 }
