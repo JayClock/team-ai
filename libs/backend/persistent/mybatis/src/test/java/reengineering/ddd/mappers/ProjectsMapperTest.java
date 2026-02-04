@@ -1,7 +1,8 @@
 package reengineering.ddd.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import jakarta.inject.Inject;
 import java.util.Random;
@@ -11,6 +12,7 @@ import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.context.annotation.Import;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataMapper;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectsMapper;
 
 @MybatisTest
@@ -34,16 +36,16 @@ public class ProjectsMapperTest {
 
   @Test
   public void should_find_project_by_id() {
-    var foundProject = mapper.findProjectById(projectId);
-    assertTrue(foundProject.isPresent());
-    assertEquals(String.valueOf(projectId), foundProject.get().getIdentity());
-    assertEquals("Test Project", foundProject.get().getDescription().name());
-    assertEquals("test model", foundProject.get().getDescription().domainModel());
+    Project foundProject = mapper.findProjectById(projectId);
+    assertNotNull(foundProject);
+    assertEquals(String.valueOf(projectId), foundProject.getIdentity());
+    assertEquals("Test Project", foundProject.getDescription().name());
+    assertEquals("test model", foundProject.getDescription().domainModel());
   }
 
   @Test
   public void should_return_empty_when_project_not_found() {
-    var foundProject = mapper.findProjectById(-1);
-    assertTrue(foundProject.isEmpty());
+    Project notFoundProject = mapper.findProjectById(-1);
+    assertNull(notFoundProject);
   }
 }

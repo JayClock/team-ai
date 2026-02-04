@@ -25,6 +25,7 @@ public class ProjectsApiTest extends ApiTest {
 
   @Mock private Project.Members projectMembers;
   @Mock private Project.Conversations projectConversations;
+  @Mock private Project.LogicalEntities logicalEntities;
 
   @BeforeEach
   public void beforeEach() {
@@ -33,7 +34,8 @@ public class ProjectsApiTest extends ApiTest {
             "project-1",
             new ProjectDescription("Test Project", "domain-model"),
             projectMembers,
-            projectConversations);
+            projectConversations,
+            logicalEntities);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
   }
 

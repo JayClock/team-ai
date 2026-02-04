@@ -40,12 +40,15 @@ public class MessagesApiTest extends ApiTest {
     messages = mock(Conversation.Messages.class);
     Project.Members projectMembers = mock(Project.Members.class);
     Project.Conversations projectConversations = mock(Project.Conversations.class);
+    Project.LogicalEntities logicalEntities = mock(Project.LogicalEntities.class);
+
     project =
         new Project(
             "project-1",
             mock(reengineering.ddd.teamai.description.ProjectDescription.class),
             projectMembers,
-            projectConversations);
+            projectConversations,
+            logicalEntities);
     conversation = new Conversation("1", new ConversationDescription("title"), messages);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.ofNullable(project));
     when(projectConversations.findByIdentity(conversation.getIdentity()))

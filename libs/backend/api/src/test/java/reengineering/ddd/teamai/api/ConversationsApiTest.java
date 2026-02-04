@@ -47,6 +47,7 @@ public class ConversationsApiTest extends ApiTest {
   @Mock private Many<Conversation> conversations;
   @Mock private Project.Members projectMembers;
   @Mock private Project.Conversations projectConversations;
+  @Mock private Project.LogicalEntities logicalEntities;
   private Conversation conversation;
 
   @BeforeEach
@@ -56,7 +57,8 @@ public class ConversationsApiTest extends ApiTest {
             "project-1",
             new ProjectDescription("Test Project", "domain-model"),
             projectMembers,
-            projectConversations);
+            projectConversations,
+            logicalEntities);
     conversation =
         new Conversation(
             "1", new ConversationDescription("title"), mock(Conversation.Messages.class));

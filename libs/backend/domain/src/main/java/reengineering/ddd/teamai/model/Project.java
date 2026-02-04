@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.model;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
+import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 
 public class Project implements Entity<String, ProjectDescription> {
@@ -10,16 +11,19 @@ public class Project implements Entity<String, ProjectDescription> {
   private ProjectDescription description;
   private Members members;
   private Conversations conversations;
+  private LogicalEntities logicalEntities;
 
   public Project(
       String identity,
       ProjectDescription description,
       Members members,
-      Conversations conversations) {
+      Conversations conversations,
+      LogicalEntities logicalEntities) {
     this.identity = identity;
     this.description = description;
     this.members = members;
     this.conversations = conversations;
+    this.logicalEntities = logicalEntities;
   }
 
   private Project() {}
@@ -54,8 +58,20 @@ public class Project implements Entity<String, ProjectDescription> {
     conversations.delete(conversationId);
   }
 
+  public HasMany<String, LogicalEntity> logicalEntities() {
+    return logicalEntities;
+  }
+
+  public LogicalEntity addLogicalEntity(LogicalEntityDescription description) {
+    return logicalEntities.add(description);
+  }
+
   public interface Members extends HasMany<String, Member> {
     Member invite(String userId, String role);
+  }
+
+  public interface LogicalEntities extends HasMany<String, LogicalEntity> {
+    LogicalEntity add(LogicalEntityDescription description);
   }
 
   public enum Role {

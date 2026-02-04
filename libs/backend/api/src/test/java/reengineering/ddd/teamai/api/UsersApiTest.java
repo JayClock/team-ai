@@ -44,7 +44,7 @@ public class UsersApiTest extends ApiTest {
             document(
                 "users/get-not-found",
                 pathParameters(
-                    parameterWithName("userId").description("Unique identifier of the user"))))
+                    parameterWithName("userId").description("Unique identifier of user"))))
         .when()
         .get("/users/{userId}", "not_exist")
         .then()
@@ -71,19 +71,23 @@ public class UsersApiTest extends ApiTest {
     Project.Members members2 = mock(Project.Members.class);
     Project.Conversations conversations1 = mock(Project.Conversations.class);
     Project.Conversations conversations2 = mock(Project.Conversations.class);
+    Project.LogicalEntities logicalEntities1 = mock(Project.LogicalEntities.class);
+    Project.LogicalEntities logicalEntities2 = mock(Project.LogicalEntities.class);
 
     Project project1 =
         new Project(
             "project-1",
             new ProjectDescription("Project One", "First project description"),
             members1,
-            conversations1);
+            conversations1,
+            logicalEntities1);
     Project project2 =
         new Project(
             "project-2",
             new ProjectDescription("Project Two", "Second project description"),
             members2,
-            conversations2);
+            conversations2,
+            logicalEntities2);
 
     when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.of(user));
     when(accounts.findAll()).thenReturn(new EntityList<>(List.of(account1, account2)));

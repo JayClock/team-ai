@@ -11,12 +11,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reengineering.ddd.teamai.description.ConversationDescription;
+import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 
 @ExtendWith(MockitoExtension.class)
 public class ProjectTest {
   @Mock private Project.Members members;
   @Mock private Project.Conversations conversations;
+  @Mock private Project.LogicalEntities logicalEntities;
 
   private Project project;
   private ProjectDescription projectDescription;
@@ -24,7 +26,7 @@ public class ProjectTest {
   @BeforeEach
   public void setUp() {
     projectDescription = new ProjectDescription("Test Project", "Test Domain Model");
-    project = new Project("project-1", projectDescription, members, conversations);
+    project = new Project("project-1", projectDescription, members, conversations, logicalEntities);
   }
 
   @Test
@@ -101,6 +103,33 @@ public class ProjectTest {
       project.deleteConversation(conversationId);
 
       verify(conversations).delete(conversationId);
+    }
+  }
+
+  @Nested
+  @DisplayName("LogicalEntities association")
+  class LogicalEntitiesAssociation {
+
+    @Test
+    @DisplayName("should return LogicalEntities association object")
+    void shouldReturnLogicalEntitiesAssociation() {
+      var result = project.logicalEntities();
+
+      assertSame(logicalEntities, result);
+    }
+
+    @Test
+    @DisplayName("should delegate add logical entity to logical entities association")
+    void shouldDelegateAddLogicalEntity() {
+      LogicalEntityDescription entityDescription = mock(LogicalEntityDescription.class);
+      LogicalEntity expectedEntity = mock(LogicalEntity.class);
+
+      when(logicalEntities.add(entityDescription)).thenReturn(expectedEntity);
+
+      LogicalEntity result = project.addLogicalEntity(entityDescription);
+
+      assertSame(expectedEntity, result);
+      verify(logicalEntities).add(entityDescription);
     }
   }
 }
