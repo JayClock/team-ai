@@ -74,7 +74,7 @@ public class ProjectLogicalEntitiesMapperTest {
     LogicalEntityDescription description =
         new LogicalEntityDescription(
             "ENTITY", "Customer", "客户", definition, "DRAFT", new Ref<>(String.valueOf(projectId)));
-    logicalEntitiesMapper.insertLogicalEntity(idHolder, projectId, description);
+    logicalEntitiesMapper.insertLogicalEntity(idHolder, description);
 
     LogicalEntity entity =
         logicalEntitiesMapper.findLogicalEntityByProjectAndId(projectId, idHolder.id());

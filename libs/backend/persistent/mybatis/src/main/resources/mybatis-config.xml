@@ -7,7 +7,6 @@
     </settings>
     <typeHandlers>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler"/>
-        <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.RefHandler"/>
     </typeHandlers>
     <objectFactory type="reengineering.ddd.mybatis.support.InjectableObjectFactory"/>
 </configuration>
