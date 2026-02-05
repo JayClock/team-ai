@@ -27,6 +27,8 @@ public class DiagramsApiTest extends ApiTest {
   @Mock private Project.Conversations projectConversations;
   @Mock private Project.LogicalEntities projectLogicalEntities;
   @Mock private Project.Diagrams diagrams;
+  @Mock private Diagram.Nodes diagramNodes;
+  @Mock private Diagram.Edges diagramEdges;
 
   @BeforeEach
   public void beforeEach() {
@@ -48,7 +50,9 @@ public class DiagramsApiTest extends ApiTest {
                 "下单流程上下文图",
                 DiagramType.CLASS,
                 viewport,
-                new reengineering.ddd.archtype.Ref<>(project.getIdentity())));
+                new reengineering.ddd.archtype.Ref<>(project.getIdentity())),
+            diagramNodes,
+            diagramEdges);
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(diagrams.findByIdentity(diagram.getIdentity())).thenReturn(Optional.of(diagram));
