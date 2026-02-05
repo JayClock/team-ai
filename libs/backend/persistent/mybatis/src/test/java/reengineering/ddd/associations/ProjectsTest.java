@@ -38,13 +38,10 @@ public class ProjectsTest {
   public void should_find_project_by_id() {
     assertEquals(projectId, project.getIdentity());
     assertEquals("name", project.getDescription().name());
-    assertEquals("model", project.getDescription().domainModel());
 
     Project cachedProject = projects.findByIdentity(projectId).get();
     assertEquals(project.getIdentity(), cachedProject.getIdentity());
     assertEquals(project.getDescription().name(), cachedProject.getDescription().name());
-    assertEquals(
-        project.getDescription().domainModel(), cachedProject.getDescription().domainModel());
   }
 
   @Test

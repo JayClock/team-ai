@@ -104,7 +104,6 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public static class ProjectChange {
     private String name;
-    private String domainModel;
 
     public String getName() {
       return name;
@@ -112,14 +111,6 @@ public class Project implements Entity<String, ProjectDescription> {
 
     public void setName(String name) {
       this.name = name;
-    }
-
-    public String getDomainModel() {
-      return domainModel;
-    }
-
-    public void setDomainModel(String domainModel) {
-      this.domainModel = domainModel;
     }
   }
 }

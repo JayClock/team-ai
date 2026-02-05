@@ -41,7 +41,7 @@ public class NodesApiTest extends ApiTest {
     project =
         new Project(
             "project-1",
-            new ProjectDescription("Test Project", "domain-model"),
+            new ProjectDescription("Test Project"),
             projectMembers,
             projectConversations,
             projectLogicalEntities,

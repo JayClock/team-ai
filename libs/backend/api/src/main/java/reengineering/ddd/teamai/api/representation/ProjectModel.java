@@ -12,61 +12,27 @@ import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
-import reengineering.ddd.teamai.model.User;
 
 @Relation(collectionRelation = "projects")
 public class ProjectModel extends RepresentationModel<ProjectModel> {
   @JsonProperty private String id;
   @JsonUnwrapped private ProjectDescription description;
 
-  public ProjectModel(User user, Project project, UriInfo uriInfo) {
+  public ProjectModel(Project project, UriInfo uriInfo) {
     this.id = project.getIdentity();
     this.description = project.getDescription();
   }
 
-  public static ProjectModel of(User user, Project project, UriInfo uriInfo) {
-    ProjectModel model = new ProjectModel(user, project, uriInfo);
+  public static ProjectModel simple(Project project, UriInfo uriInfo) {
+    ProjectModel model = new ProjectModel(project, uriInfo);
     model.add(
-        Affordances.of(
-                Link.of(
-                        ApiTemplates.project(uriInfo)
-                            .build(user.getIdentity(), project.getIdentity())
-                            .getPath())
-                    .withSelfRel())
-            .afford(HttpMethod.PUT)
-            .withInput(Project.ProjectChange.class)
-            .andAfford(HttpMethod.DELETE)
-            .withName("delete-project")
-            .toLink());
-
-    model.add(
-        Affordances.of(
-                Link.of(
-                        ApiTemplates.conversations(uriInfo)
-                            .build(user.getIdentity(), project.getIdentity())
-                            .getPath())
-                    .withRel("conversations"))
-            .afford(HttpMethod.POST)
-            .withInput(Conversation.ConversationChange.class)
-            .withName("create-conversation")
-            .toLink());
-
-    return model;
-  }
-
-  public static ProjectModel simple(User user, Project project, UriInfo uriInfo) {
-    ProjectModel model = new ProjectModel(user, project, uriInfo);
-    model.add(
-        Link.of(
-                ApiTemplates.project(uriInfo)
-                    .build(user.getIdentity(), project.getIdentity())
-                    .getPath())
+        Link.of(ApiTemplates.project(uriInfo).build(project.getIdentity()).getPath())
             .withSelfRel());
     return model;
   }
 
-  public static ProjectModel global(Project project, UriInfo uriInfo) {
-    ProjectModel model = new ProjectModel(null, project, uriInfo);
+  public static ProjectModel of(Project project, UriInfo uriInfo) {
+    ProjectModel model = new ProjectModel(project, uriInfo);
     model.add(
         Affordances.of(
                 Link.of(ApiTemplates.project(uriInfo).build(project.getIdentity()).getPath())

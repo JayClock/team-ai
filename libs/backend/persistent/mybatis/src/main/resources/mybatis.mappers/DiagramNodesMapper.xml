@@ -22,8 +22,8 @@
         <arg column="type" jdbcType="VARCHAR" javaType="String"/>
         <arg resultMap="logicalEntityRef" javaType="reengineering.ddd.archtype.Ref"/>
         <arg resultMap="parentRef" javaType="reengineering.ddd.archtype.Ref"/>
-        <arg column="position_x" jdbcType="NUMERIC" javaType="double"/>
-        <arg column="position_y" jdbcType="NUMERIC" javaType="double"/>
+        <arg column="position_x" jdbcType="NUMERIC" javaType="_double"/>
+        <arg column="position_y" jdbcType="NUMERIC" javaType="_double"/>
         <arg column="width" jdbcType="INTEGER" javaType="Integer"/>
         <arg column="height" jdbcType="INTEGER" javaType="Integer"/>
         <arg column="style_config" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.NodeStyleConfigHandler" javaType="reengineering.ddd.teamai.description.NodeStyleConfig"/>
@@ -51,8 +51,8 @@
     INSERT INTO diagram_nodes(diagram_id, type, logical_entity_id, parent_id, position_x, position_y, width, height, style_config, local_data)
     VALUES (#{diagram_id},
             #{description.type},
-            #{description.logicalEntity.id, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
-            #{description.parent.id, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.logicalEntity, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.parent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
             #{description.positionX},
             #{description.positionY},
             #{description.width},

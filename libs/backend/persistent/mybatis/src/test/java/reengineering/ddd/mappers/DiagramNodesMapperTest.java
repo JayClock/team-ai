@@ -37,7 +37,7 @@ public class DiagramNodesMapperTest {
   @BeforeEach
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
-    testData.insertProject(projectId, userId, "Test Project" + projectId, "domain model content");
+    testData.insertProject(projectId, userId, "Test Project" + projectId);
     testData.insertDiagram(
         diagramId,
         projectId,

@@ -29,7 +29,7 @@ public class ProjectTest {
 
   @BeforeEach
   public void setUp() {
-    projectDescription = new ProjectDescription("Test Project", "Test Domain Model");
+    projectDescription = new ProjectDescription("Test Project");
     project =
         new Project(
             "project-1", projectDescription, members, conversations, logicalEntities, diagrams);
@@ -44,7 +44,6 @@ public class ProjectTest {
   public void should_return_description() {
     assertEquals(projectDescription, project.getDescription());
     assertEquals("Test Project", project.getDescription().name());
-    assertEquals("Test Domain Model", project.getDescription().domainModel());
   }
 
   @Nested

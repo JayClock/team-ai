@@ -30,13 +30,8 @@ public interface TestDataMapper {
       @Param("role") String role,
       @Param("content") String content);
 
-  @Insert(
-      "INSERT INTO projects(id,creator_id,name,domain_model) VALUES ( #{id} ,#{user_id} ,#{name} ,#{domain_model} )")
-  void insertProject(
-      @Param("id") int id,
-      @Param("user_id") int userId,
-      @Param("name") String name,
-      @Param("domain_model") String domainModel);
+  @Insert("INSERT INTO projects(id,creator_id,name) VALUES ( #{id} ,#{user_id} ,#{name} )")
+  void insertProject(@Param("id") int id, @Param("user_id") int userId, @Param("name") String name);
 
   @Insert(
       "INSERT INTO project_members(project_id,user_id,role) VALUES ( #{project_id} ,#{user_id} ,'OWNER' )")

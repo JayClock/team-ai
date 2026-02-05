@@ -55,8 +55,8 @@
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
     INSERT INTO diagram_edges(diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props)
     VALUES (#{diagram_id},
-            #{description.sourceNode.id, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
-            #{description.targetNode.id, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.sourceNode, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.targetNode, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
             #{description.sourceHandle},
             #{description.targetHandle},
             #{description.relationType},

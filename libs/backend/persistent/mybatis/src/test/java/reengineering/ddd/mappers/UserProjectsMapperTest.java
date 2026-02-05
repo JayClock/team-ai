@@ -32,7 +32,7 @@ public class UserProjectsMapperTest {
   @BeforeEach
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
-    testData.insertProject(projectId, userId, "Test Project" + projectId, "domain model content");
+    testData.insertProject(projectId, userId, "Test Project" + projectId);
     testData.insertProjectMember(projectId, userId);
   }
 
@@ -52,12 +52,10 @@ public class UserProjectsMapperTest {
   @Test
   public void should_add_project_to_database() {
     IdHolder idHolder = new IdHolder();
-    projectsMapper.insertProject(
-        idHolder, userId, new ProjectDescription("New Project", "new domain model"));
+    projectsMapper.insertProject(idHolder, userId, new ProjectDescription("New Project"));
     projectsMapper.addMember(idHolder.id(), userId, "OWNER");
     Project project = projectsMapper.findProjectByUserAndId(userId, idHolder.id());
     assertEquals("New Project", project.getDescription().name());
-    assertEquals("new domain model", project.getDescription().domainModel());
   }
 
   @Test

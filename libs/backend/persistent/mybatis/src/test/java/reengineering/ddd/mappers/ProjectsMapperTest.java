@@ -31,7 +31,7 @@ public class ProjectsMapperTest {
   public void setup() {
     int userId = id();
     testData.insertUser(userId, "Test User", "test@example.com");
-    testData.insertProject(projectId, userId, "Test Project", "test model");
+    testData.insertProject(projectId, userId, "Test Project");
   }
 
   @Test
@@ -40,7 +40,6 @@ public class ProjectsMapperTest {
     assertNotNull(foundProject);
     assertEquals(String.valueOf(projectId), foundProject.getIdentity());
     assertEquals("Test Project", foundProject.getDescription().name());
-    assertEquals("test model", foundProject.getDescription().domainModel());
   }
 
   @Test

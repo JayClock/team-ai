@@ -38,7 +38,7 @@ public class DiagramEdgesMapperTest {
   @BeforeEach
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
-    testData.insertProject(projectId, userId, "Test Project" + projectId, "domain model content");
+    testData.insertProject(projectId, userId, "Test Project" + projectId);
     testData.insertDiagram(
         diagramId,
         projectId,
@@ -86,8 +86,10 @@ public class DiagramEdgesMapperTest {
     DiagramEdge edge = edgesMapper.findEdgeByDiagramAndId(diagramId, edgeId);
     assertNotNull(edge.getDescription().sourceNode());
     assertNotNull(edge.getDescription().targetNode());
-    assertEquals(String.valueOf(sourceNodeId), edge.getDescription().sourceNode().id());
-    assertEquals(String.valueOf(targetNodeId), edge.getDescription().targetNode().id());
+    assertEquals(
+        String.valueOf(sourceNodeId), String.valueOf(edge.getDescription().sourceNode().id()));
+    assertEquals(
+        String.valueOf(targetNodeId), String.valueOf(edge.getDescription().targetNode().id()));
   }
 
   @Test

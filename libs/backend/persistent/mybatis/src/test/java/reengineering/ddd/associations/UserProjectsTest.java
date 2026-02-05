@@ -67,24 +67,20 @@ public class UserProjectsTest {
   @Test
   public void should_add_project_and_return_saved_project() {
     User user = users.findByIdentity(userId).get();
-    var description = new ProjectDescription("New Project", "New Model");
+    var description = new ProjectDescription("New Project");
     Project savedProject = user.add(description);
 
     assertNotNull(savedProject.getDescription().name());
-    assertNotNull(savedProject.getDescription().domainModel());
 
     var retrievedProject = user.projects().findByIdentity(savedProject.getIdentity()).get();
     assertEquals(savedProject.getIdentity(), retrievedProject.getIdentity());
     assertEquals(savedProject.getDescription().name(), retrievedProject.getDescription().name());
-    assertEquals(
-        savedProject.getDescription().domainModel(),
-        retrievedProject.getDescription().domainModel());
   }
 
   @Test
   public void should_delete_project() {
     User user = users.findByIdentity(userId).get();
-    var description = new ProjectDescription("Project to Delete", "Model");
+    var description = new ProjectDescription("Project to Delete");
     Project savedProject = user.add(description);
 
     assertTrue(user.projects().findByIdentity(savedProject.getIdentity()).isPresent());

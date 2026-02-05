@@ -33,7 +33,7 @@ public class ProjectsApiTest extends ApiTest {
     project =
         new Project(
             "project-1",
-            new ProjectDescription("Test Project", "domain-model"),
+            new ProjectDescription("Test Project"),
             projectMembers,
             projectConversations,
             logicalEntities,
@@ -58,13 +58,10 @@ public class ProjectsApiTest extends ApiTest {
         .contentType(startsWith(ResourceTypes.PROJECT))
         .body("id", is(project.getIdentity()))
         .body("name", is(project.getDescription().name()))
-        .body("domainModel", is(project.getDescription().domainModel()))
         .body("_links.self.href", is("/api/projects/" + project.getIdentity()))
         .body(
             "_links.conversations.href",
             is("/api/projects/" + project.getIdentity() + "/conversations"))
-        .body("_templates.default.method", is("PUT"))
-        .body("_templates.default.properties", hasSize(2))
         .body("_templates.delete-project.method", is("DELETE"))
         .body("_templates.create-conversation.method", is("POST"))
         .body("_templates.create-conversation.properties", hasSize(1));

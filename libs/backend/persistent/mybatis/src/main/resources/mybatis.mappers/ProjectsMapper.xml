@@ -7,7 +7,6 @@
     <association property="description" javaType="reengineering.ddd.teamai.description.ProjectDescription">
       <constructor>
         <arg column="name" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="domain_model" jdbcType="VARCHAR" javaType="String"/>
       </constructor>
     </association>
     <association property="members" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectMembers">
@@ -25,7 +24,7 @@
   </resultMap>
 
   <select id="findProjectById" resultMap="project">
-    SELECT p.id, p.name, p.domain_model
+    SELECT p.id, p.name
     FROM projects p
     WHERE p.id = #{id}
   </select>

@@ -7,7 +7,6 @@
       <association property="description" javaType="reengineering.ddd.teamai.description.ProjectDescription">
         <constructor>
           <arg column="name" jdbcType="VARCHAR" javaType="String"/>
-          <arg column="domain_model" jdbcType="VARCHAR" javaType="String"/>
         </constructor>
       </association>
       <association property="members" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectMembers">
@@ -25,7 +24,7 @@
     </resultMap>
 
   <select id="findProjectByUserAndId" resultMap="project">
-    SELECT p.id, p.name, p.domain_model
+    SELECT p.id, p.name
     FROM projects p
     WHERE p.id = #{id}
     AND EXISTS (
@@ -36,8 +35,8 @@
 
   <insert id="insertProject" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
-    INSERT INTO projects(name, domain_model, creator_id)
-    VALUES (#{description.name}, #{description.domainModel}, #{user_id})
+    INSERT INTO projects(name, creator_id)
+    VALUES (#{description.name}, #{user_id})
   </insert>
 
   <insert id="addMember">
@@ -50,7 +49,7 @@
   </select>
 
   <select id="findProjectsByUserId" resultMap="project">
-    SELECT p.id, p.name, p.domain_model
+    SELECT p.id, p.name
     FROM projects p
     INNER JOIN project_members pm ON p.id = pm.project_id
     WHERE pm.user_id = #{user_id}

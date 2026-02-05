@@ -27,8 +27,7 @@
            a.provider,
            a.provider_id,
            p.id as project_id,
-           p.name,
-           p.domain_model
+           p.name
     from users u
            left join accounts a on u.id = a.user_id
            left join project_members pm on u.id = pm.user_id

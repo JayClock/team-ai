@@ -20,7 +20,7 @@ public class ProjectApi {
   @GET
   @VendorMediaType(ResourceTypes.PROJECT)
   public ProjectModel find(@Context UriInfo uriInfo) {
-    return ProjectModel.global(project, uriInfo);
+    return ProjectModel.of(project, uriInfo);
   }
 
   @Path("conversations")
