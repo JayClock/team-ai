@@ -18,8 +18,8 @@ public class ProjectsApi {
     this.projects = projects;
   }
 
-  @Path("{id}")
-  public ProjectApi findById(@PathParam("id") String id) {
+  @Path("{projectId}")
+  public ProjectApi findById(@PathParam("projectId") String id) {
     return projects
         .findByIdentity(id)
         .map(

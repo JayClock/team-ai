@@ -30,7 +30,6 @@ public class ProjectApi {
 
   @Path("logical-entities")
   public LogicalEntitiesApi logicalEntities() {
-    return resourceContext.initResource(
-        new LogicalEntitiesApi(project, (Project.LogicalEntities) project.logicalEntities()));
+    return resourceContext.initResource(new LogicalEntitiesApi(project));
   }
 }

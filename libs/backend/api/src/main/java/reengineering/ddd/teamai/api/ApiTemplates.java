@@ -44,7 +44,7 @@ public class ApiTemplates {
   }
 
   public static UriBuilder logicalEntities(UriInfo uriInfo) {
-    return project(uriInfo).path(ProjectApi.class, "logical-entities");
+    return project(uriInfo).path(ProjectApi.class, "logicalEntities");
   }
 
   public static UriBuilder logicalEntity(UriInfo uriInfo) {

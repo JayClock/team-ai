@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
-import reengineering.ddd.archtype.Many;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.EntityAttribute;
 import reengineering.ddd.teamai.description.EntityBehavior;
 import reengineering.ddd.teamai.description.EntityDefinition;
@@ -26,7 +26,6 @@ public class LogicalEntitiesApiTest extends ApiTest {
   private Project project;
   private LogicalEntity logicalEntity;
 
-  @Mock private Many<LogicalEntity> logicalEntities;
   @Mock private Project.Members projectMembers;
   @Mock private Project.Conversations projectConversations;
   @Mock private Project.LogicalEntities projectLogicalEntities;
@@ -52,12 +51,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
         new LogicalEntity(
             "entity-1",
             new LogicalEntityDescription(
-                "AGGREGATE",
-                "Order",
-                "订单",
-                definition,
-                "DRAFT",
-                new reengineering.ddd.archtype.Ref<>(project.getIdentity())));
+                "AGGREGATE", "Order", "订单", definition, "DRAFT", new Ref<>(project.getIdentity())));
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(projectLogicalEntities.findByIdentity(logicalEntity.getIdentity()))
@@ -94,7 +88,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
         .body("_templates.default.method", is("PUT"))
-        .body("_templates.default.properties", hasSize(5))
+        .body("_templates.default.properties", hasSize(6))
         .body("_templates.delete-logical-entity.method", is("DELETE"));
 
     verify(projectLogicalEntities, times(1)).findByIdentity(logicalEntity.getIdentity());
