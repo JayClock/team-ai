@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.model;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
+import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 
@@ -12,18 +13,21 @@ public class Project implements Entity<String, ProjectDescription> {
   private Members members;
   private Conversations conversations;
   private LogicalEntities logicalEntities;
+  private Diagrams diagrams;
 
   public Project(
       String identity,
       ProjectDescription description,
       Members members,
       Conversations conversations,
-      LogicalEntities logicalEntities) {
+      LogicalEntities logicalEntities,
+      Diagrams diagrams) {
     this.identity = identity;
     this.description = description;
     this.members = members;
     this.conversations = conversations;
     this.logicalEntities = logicalEntities;
+    this.diagrams = diagrams;
   }
 
   private Project() {}
@@ -66,12 +70,24 @@ public class Project implements Entity<String, ProjectDescription> {
     return logicalEntities.add(description);
   }
 
+  public HasMany<String, Diagram> diagrams() {
+    return diagrams;
+  }
+
+  public Diagram addDiagram(DiagramDescription description) {
+    return diagrams.add(description);
+  }
+
   public interface Members extends HasMany<String, Member> {
     Member invite(String userId, String role);
   }
 
   public interface LogicalEntities extends HasMany<String, LogicalEntity> {
     LogicalEntity add(LogicalEntityDescription description);
+  }
+
+  public interface Diagrams extends HasMany<String, Diagram> {
+    Diagram add(DiagramDescription description);
   }
 
   public enum Role {

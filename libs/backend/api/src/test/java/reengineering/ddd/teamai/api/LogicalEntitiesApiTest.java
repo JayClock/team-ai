@@ -29,6 +29,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
   @Mock private Project.Members projectMembers;
   @Mock private Project.Conversations projectConversations;
   @Mock private Project.LogicalEntities projectLogicalEntities;
+  @Mock private Project.Diagrams diagrams;
 
   @BeforeEach
   public void beforeEach() {
@@ -45,7 +46,8 @@ public class LogicalEntitiesApiTest extends ApiTest {
             new ProjectDescription("Test Project", "domain-model"),
             projectMembers,
             projectConversations,
-            projectLogicalEntities);
+            projectLogicalEntities,
+            diagrams);
 
     logicalEntity =
         new LogicalEntity(
@@ -60,8 +62,6 @@ public class LogicalEntitiesApiTest extends ApiTest {
 
   @Test
   public void should_return_single_logical_entity() {
-    when(projectLogicalEntities.findByIdentity(logicalEntity.getIdentity()))
-        .thenReturn(Optional.of(logicalEntity));
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
