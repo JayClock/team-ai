@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.DiagramEdgesMapper">
+
+  <resultMap id="diagramRef" type="reengineering.ddd.archtype.Ref">
+    <constructor>
+      <arg column="diagram_id" javaType="Object"/>
+    </constructor>
+  </resultMap>
+
+  <resultMap id="sourceNodeRef" type="reengineering.ddd.archtype.Ref">
+    <constructor>
+      <arg column="source_node_id" javaType="Object"/>
+    </constructor>
+  </resultMap>
+
+  <resultMap id="targetNodeRef" type="reengineering.ddd.archtype.Ref">
+    <constructor>
+      <arg column="target_node_id" javaType="Object"/>
+    </constructor>
+  </resultMap>
+
+  <resultMap id="edge" type="reengineering.ddd.teamai.model.DiagramEdge">
+    <id property="identity" column="id" jdbcType="INTEGER" javaType="String"/>
+    <result property="diagramId" column="diagram_id" jdbcType="INTEGER" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.EdgeDescription">
+      <constructor>
+        <arg resultMap="diagramRef" javaType="reengineering.ddd.archtype.Ref"/>
+        <arg resultMap="sourceNodeRef" javaType="reengineering.ddd.archtype.Ref"/>
+        <arg resultMap="targetNodeRef" javaType="reengineering.ddd.archtype.Ref"/>
+        <arg column="source_handle" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="target_handle" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="relation_type" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="label" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="style_props" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EdgeStylePropsHandler" javaType="reengineering.ddd.teamai.description.EdgeStyleProps"/>
+      </constructor>
+    </association>
+  </resultMap>
+
+  <select id="findEdgeByDiagramAndId" resultMap="edge">
+    SELECT id, diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props
+    FROM diagram_edges
+    WHERE diagram_id = #{diagram_id} AND id = #{id}
+  </select>
+
+  <select id="findEdgesByDiagramId" resultMap="edge">
+    SELECT id, diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props
+    FROM diagram_edges
+    WHERE diagram_id = #{diagram_id}
+    ORDER BY updated_at DESC
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <insert id="insertEdge" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO diagram_edges(diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props)
+    VALUES (#{diagram_id},
+            #{description.sourceNode.id, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.targetNode.id, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.sourceHandle},
+            #{description.targetHandle},
+            #{description.relationType},
+            #{description.label},
+            #{description.styleProps, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.EdgeStylePropsHandler})
+  </insert>
+
+  <select id="countEdgesByDiagram" resultType="int">
+    SELECT COUNT(id) FROM diagram_edges WHERE diagram_id = #{diagram_id}
+  </select>
+
+</mapper>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.DiagramNodesMapper">
+
+  <resultMap id="logicalEntityRef" type="reengineering.ddd.archtype.Ref">
+    <constructor>
+      <arg column="logical_entity_id" javaType="Object"/>
+    </constructor>
+  </resultMap>
+
+  <resultMap id="parentRef" type="reengineering.ddd.archtype.Ref">
+    <constructor>
+      <arg column="parent_id" javaType="Object"/>
+    </constructor>
+  </resultMap>
+
+  <resultMap id="node" type="reengineering.ddd.teamai.model.DiagramNode">
+    <id property="identity" column="id" jdbcType="INTEGER" javaType="String"/>
+    <result property="diagramId" column="diagram_id" jdbcType="INTEGER" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.NodeDescription">
+      <constructor>
+        <arg column="type" jdbcType="VARCHAR" javaType="String"/>
+        <arg resultMap="logicalEntityRef" javaType="reengineering.ddd.archtype.Ref"/>
+        <arg resultMap="parentRef" javaType="reengineering.ddd.archtype.Ref"/>
+        <arg column="position_x" jdbcType="NUMERIC" javaType="double"/>
+        <arg column="position_y" jdbcType="NUMERIC" javaType="double"/>
+        <arg column="width" jdbcType="INTEGER" javaType="Integer"/>
+        <arg column="height" jdbcType="INTEGER" javaType="Integer"/>
+        <arg column="style_config" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.NodeStyleConfigHandler" javaType="reengineering.ddd.teamai.description.NodeStyleConfig"/>
+        <arg column="local_data" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.LocalNodeDataHandler" javaType="reengineering.ddd.teamai.description.LocalNodeData"/>
+      </constructor>
+    </association>
+  </resultMap>
+
+  <select id="findNodeByDiagramAndId" resultMap="node">
+    SELECT id, diagram_id, type, logical_entity_id, parent_id, position_x, position_y, width, height, style_config, local_data
+    FROM diagram_nodes
+    WHERE diagram_id = #{diagram_id} AND id = #{id}
+  </select>
+
+  <select id="findNodesByDiagramId" resultMap="node">
+    SELECT id, diagram_id, type, logical_entity_id, parent_id, position_x, position_y, width, height, style_config, local_data
+    FROM diagram_nodes
+    WHERE diagram_id = #{diagram_id}
+    ORDER BY updated_at DESC
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <insert id="insertNode" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO diagram_nodes(diagram_id, type, logical_entity_id, parent_id, position_x, position_y, width, height, style_config, local_data)
+    VALUES (#{diagram_id},
+            #{description.type},
+            #{description.logicalEntity.id, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.parent.id, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.positionX},
+            #{description.positionY},
+            #{description.width},
+            #{description.height},
+            #{description.styleConfig, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.NodeStyleConfigHandler},
+            #{description.localData, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.LocalNodeDataHandler})
+  </insert>
+
+  <select id="countNodesByDiagram" resultType="int">
+    SELECT COUNT(id) FROM diagram_nodes WHERE diagram_id = #{diagram_id}
+  </select>
+
+</mapper>
