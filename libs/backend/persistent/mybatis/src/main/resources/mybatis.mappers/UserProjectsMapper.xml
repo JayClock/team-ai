@@ -19,6 +19,9 @@
       <association property="logicalEntities" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectLogicalEntities">
         <result column="id" property="projectId" javaType="int"/>
       </association>
+      <association property="diagrams" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectDiagrams">
+        <result column="id" property="projectId" javaType="int"/>
+      </association>
     </resultMap>
 
   <select id="findProjectByUserAndId" resultMap="project">
