@@ -27,4 +27,10 @@ public class ProjectApi {
   public ConversationsApi conversations() {
     return resourceContext.initResource(new ConversationsApi(project));
   }
+
+  @Path("logical-entities")
+  public LogicalEntitiesApi logicalEntities() {
+    return resourceContext.initResource(
+        new LogicalEntitiesApi(project, (Project.LogicalEntities) project.logicalEntities()));
+  }
 }

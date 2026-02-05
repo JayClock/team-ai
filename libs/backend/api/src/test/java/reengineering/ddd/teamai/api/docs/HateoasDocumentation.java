@@ -59,6 +59,11 @@ public final class HateoasDocumentation {
         .description("SSE streaming endpoint for sending messages (see `_templates.chat`)");
   }
 
+  public static LinkDescriptor logicalEntitiesLink() {
+    return linkWithRel("logical-entities")
+        .description("Link to project's logical entities collection");
+  }
+
   public static LinkDescriptor nextPageLink() {
     return linkWithRel("next").optional().description("Link to next page (if available)");
   }
@@ -221,6 +226,48 @@ public final class HateoasDocumentation {
     return new FieldDescriptor[] {
       fieldWithPath("role").description("Message role: `user` (for user input)"),
       fieldWithPath("content").description("Message content text to send to AI")
+    };
+  }
+
+  // ===== Logical Entity Documentation =====
+
+  public static FieldDescriptor[] logicalEntityResponseFields() {
+    return new FieldDescriptor[] {
+      fieldWithPath("id").description("Unique logical entity identifier"),
+      fieldWithPath("type")
+          .description("Entity type: AGGREGATE, ENTITY, VALUE_OBJECT, EVENT, COMMAND, or ACTOR"),
+      fieldWithPath("name").description("English name for code generation (e.g., 'Order')"),
+      fieldWithPath("label").description("Chinese name for product managers (e.g., '订单')"),
+      fieldWithPath("status").description("Status: DRAFT, REVIEWED, or DEPRECATED"),
+      subsectionWithPath("definition")
+          .description("Entity definition with business meaning, attributes, and behaviors"),
+      fieldWithPath("definition.description").description("Business meaning description"),
+      fieldWithPath("definition.tags").description("Tags for categorization (e.g., Core Domain)"),
+      fieldWithPath("definition.attributes").description("Array of entity attributes"),
+      fieldWithPath("definition.behaviors").description("Array of entity behaviors/methods"),
+      subsectionWithPath("_links").description("HATEOAS navigation links"),
+      subsectionWithPath("_templates").description("HAL-FORMS action templates")
+    };
+  }
+
+  public static FieldDescriptor[] createLogicalEntityRequestFields() {
+    return new FieldDescriptor[] {
+      fieldWithPath("type")
+          .description("Entity type: AGGREGATE, ENTITY, VALUE_OBJECT, EVENT, COMMAND, or ACTOR"),
+      fieldWithPath("name").description("English name for code generation"),
+      fieldWithPath("label").description("Chinese name for product managers"),
+      fieldWithPath("definition").description("Entity definition with attributes and behaviors"),
+      fieldWithPath("status").description("Status: DRAFT, REVIEWED, or DEPRECATED")
+    };
+  }
+
+  public static FieldDescriptor[] updateLogicalEntityRequestFields() {
+    return new FieldDescriptor[] {
+      fieldWithPath("type").description("Updated entity type"),
+      fieldWithPath("name").description("Updated English name"),
+      fieldWithPath("label").description("Updated Chinese name"),
+      fieldWithPath("definition").description("Updated entity definition"),
+      fieldWithPath("status").description("Updated status")
     };
   }
 }

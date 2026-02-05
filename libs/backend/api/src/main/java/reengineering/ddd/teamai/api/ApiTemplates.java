@@ -42,4 +42,12 @@ public class ApiTemplates {
   public static UriBuilder message(UriInfo uriInfo) {
     return messages(uriInfo).path("{message-id}");
   }
+
+  public static UriBuilder logicalEntities(UriInfo uriInfo) {
+    return project(uriInfo).path(ProjectApi.class, "logical-entities");
+  }
+
+  public static UriBuilder logicalEntity(UriInfo uriInfo) {
+    return logicalEntities(uriInfo).path(LogicalEntitiesApi.class, "findById");
+  }
 }
