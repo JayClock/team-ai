@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.UriInfo;
@@ -23,5 +24,15 @@ public class DiagramApi {
   @VendorMediaType(ResourceTypes.DIAGRAM)
   public DiagramModel get(@Context UriInfo uriInfo) {
     return new DiagramModel(project, entity, uriInfo);
+  }
+
+  @Path("nodes")
+  public NodesApi nodes() {
+    return resourceContext.initResource(new NodesApi(project, entity));
+  }
+
+  @Path("edges")
+  public EdgesApi edges() {
+    return resourceContext.initResource(new EdgesApi(project, entity));
   }
 }

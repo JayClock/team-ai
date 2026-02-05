@@ -83,6 +83,20 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
     add(
         Link.of(ApiTemplates.diagrams(uriInfo).build(project.getIdentity()).getPath())
             .withRel("diagrams"));
+
+    add(
+        Link.of(
+                ApiTemplates.nodes(uriInfo)
+                    .build(project.getIdentity(), entity.getIdentity())
+                    .getPath())
+            .withRel("nodes"));
+
+    add(
+        Link.of(
+                ApiTemplates.edges(uriInfo)
+                    .build(project.getIdentity(), entity.getIdentity())
+                    .getPath())
+            .withRel("edges"));
   }
 
   public static DiagramModel simple(Project project, Diagram entity, UriInfo uriInfo) {

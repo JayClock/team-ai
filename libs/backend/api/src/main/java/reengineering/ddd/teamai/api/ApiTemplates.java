@@ -58,4 +58,20 @@ public class ApiTemplates {
   public static UriBuilder diagram(UriInfo uriInfo) {
     return diagrams(uriInfo).path(DiagramsApi.class, "findById");
   }
+
+  public static UriBuilder nodes(UriInfo uriInfo) {
+    return diagram(uriInfo).path(DiagramApi.class, "nodes");
+  }
+
+  public static UriBuilder node(UriInfo uriInfo) {
+    return nodes(uriInfo).path(NodesApi.class, "findById");
+  }
+
+  public static UriBuilder edges(UriInfo uriInfo) {
+    return diagram(uriInfo).path(DiagramApi.class, "edges");
+  }
+
+  public static UriBuilder edge(UriInfo uriInfo) {
+    return edges(uriInfo).path(EdgesApi.class, "findById");
+  }
 }
