@@ -50,4 +50,12 @@ public class ApiTemplates {
   public static UriBuilder logicalEntity(UriInfo uriInfo) {
     return logicalEntities(uriInfo).path(LogicalEntitiesApi.class, "findById");
   }
+
+  public static UriBuilder diagrams(UriInfo uriInfo) {
+    return project(uriInfo).path(ProjectApi.class, "diagrams");
+  }
+
+  public static UriBuilder diagram(UriInfo uriInfo) {
+    return diagrams(uriInfo).path(DiagramsApi.class, "findById");
+  }
 }

@@ -32,4 +32,9 @@ public class ProjectApi {
   public LogicalEntitiesApi logicalEntities() {
     return resourceContext.initResource(new LogicalEntitiesApi(project));
   }
+
+  @Path("diagrams")
+  public DiagramsApi diagrams() {
+    return resourceContext.initResource(new DiagramsApi(project));
+  }
 }
