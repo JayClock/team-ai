@@ -234,8 +234,7 @@ public final class HateoasDocumentation {
   public static FieldDescriptor[] logicalEntityResponseFields() {
     return new FieldDescriptor[] {
       fieldWithPath("id").description("Unique logical entity identifier"),
-      fieldWithPath("type")
-          .description("Entity type: AGGREGATE, ENTITY, VALUE_OBJECT, EVENT, COMMAND, or ACTOR"),
+      fieldWithPath("type").description("Entity type: Evidence, Participant, Role, or Context"),
       fieldWithPath("name").description("English name for code generation (e.g., 'Order')"),
       fieldWithPath("label").description("Chinese name for product managers (e.g., '订单')"),
       fieldWithPath("status").description("Status: DRAFT, REVIEWED, or DEPRECATED"),
@@ -252,8 +251,7 @@ public final class HateoasDocumentation {
 
   public static FieldDescriptor[] createLogicalEntityRequestFields() {
     return new FieldDescriptor[] {
-      fieldWithPath("type")
-          .description("Entity type: AGGREGATE, ENTITY, VALUE_OBJECT, EVENT, COMMAND, or ACTOR"),
+      fieldWithPath("type").description("Entity type: Evidence, Participant, Role, or Context"),
       fieldWithPath("name").description("English name for code generation"),
       fieldWithPath("label").description("Chinese name for product managers"),
       fieldWithPath("definition").description("Entity definition with attributes and behaviors"),

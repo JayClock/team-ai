@@ -18,6 +18,7 @@ import reengineering.ddd.teamai.description.EntityAttribute;
 import reengineering.ddd.teamai.description.EntityBehavior;
 import reengineering.ddd.teamai.description.EntityDefinition;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
@@ -53,7 +54,12 @@ public class LogicalEntitiesApiTest extends ApiTest {
         new LogicalEntity(
             "entity-1",
             new LogicalEntityDescription(
-                "AGGREGATE", "Order", "订单", definition, "DRAFT", new Ref<>(project.getIdentity())));
+                Type.EVIDENCE,
+                "Order",
+                "订单",
+                definition,
+                "DRAFT",
+                new Ref<>(project.getIdentity())));
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(projectLogicalEntities.findByIdentity(logicalEntity.getIdentity()))

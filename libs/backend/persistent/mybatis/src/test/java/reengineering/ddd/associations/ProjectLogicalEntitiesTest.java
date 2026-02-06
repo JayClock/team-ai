@@ -19,6 +19,7 @@ import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.EntityDefinition;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
@@ -55,13 +56,13 @@ public class ProjectLogicalEntitiesTest {
         new EntityDefinition("订单业务定义", List.of("Core"), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            "AGGREGATE", "Order", "订单", definition, "DRAFT", new Ref<>(project.getIdentity()));
+            Type.EVIDENCE, "Order", "订单", definition, "DRAFT", new Ref<>(project.getIdentity()));
 
     LogicalEntity savedEntity = project.addLogicalEntity(description);
 
     assertEquals("Order", savedEntity.getDescription().name());
     assertEquals("订单", savedEntity.getDescription().label());
-    assertEquals("AGGREGATE", savedEntity.getDescription().type());
+    assertEquals(Type.EVIDENCE, savedEntity.getDescription().type());
     assertEquals("订单业务定义", savedEntity.getDescription().definition().description());
 
     var retrievedEntity = project.logicalEntities().findByIdentity(savedEntity.getIdentity()).get();
@@ -74,7 +75,12 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition = new EntityDefinition("测试定义", List.of(), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            "ENTITY", "Customer", "客户", definition, "DRAFT", new Ref<>(project.getIdentity()));
+            Type.PARTICIPANT,
+            "Customer",
+            "客户",
+            definition,
+            "DRAFT",
+            new Ref<>(project.getIdentity()));
     LogicalEntity savedEntity = project.addLogicalEntity(description);
 
     LogicalEntity entity =
@@ -99,7 +105,7 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            "AGGREGATE", "Product", "产品", definition, "DRAFT", new Ref<>(project.getIdentity()));
+            Type.EVIDENCE, "Product", "产品", definition, "DRAFT", new Ref<>(project.getIdentity()));
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();
@@ -113,7 +119,7 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            "VALUE_OBJECT", "Money", "金额", definition, "DRAFT", new Ref<>(project.getIdentity()));
+            Type.ROLE, "Money", "金额", definition, "DRAFT", new Ref<>(project.getIdentity()));
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();
@@ -126,7 +132,7 @@ public class ProjectLogicalEntitiesTest {
     for (int i = 0; i < 5; i++) {
       var description =
           new LogicalEntityDescription(
-              "ENTITY",
+              Type.PARTICIPANT,
               "Entity" + i,
               "实体" + i,
               definition,

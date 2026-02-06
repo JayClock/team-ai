@@ -12,6 +12,7 @@ import reengineering.ddd.teamai.description.EntityAttribute;
 import reengineering.ddd.teamai.description.EntityBehavior;
 import reengineering.ddd.teamai.description.EntityDefinition;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
 
 @ExtendWith(MockitoExtension.class)
 public class LogicalEntityTest {
@@ -37,7 +38,7 @@ public class LogicalEntityTest {
 
     description =
         new LogicalEntityDescription(
-            "AGGREGATE", "Order", "销售订单", entityDefinition, "DRAFT", projectRef);
+            Type.EVIDENCE, "Order", "销售订单", entityDefinition, "DRAFT", projectRef);
 
     entity = new LogicalEntity("entity-1", description);
   }
@@ -54,7 +55,7 @@ public class LogicalEntityTest {
 
   @Test
   public void should_return_entity_type() {
-    assertEquals("AGGREGATE", entity.getDescription().type());
+    assertEquals(Type.EVIDENCE, entity.getDescription().type());
   }
 
   @Test

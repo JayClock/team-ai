@@ -16,6 +16,7 @@ import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.EntityDefinition;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectLogicalEntitiesMapper;
 
@@ -40,7 +41,7 @@ public class ProjectLogicalEntitiesMapperTest {
     testData.insertLogicalEntity(
         entityId,
         projectId,
-        "AGGREGATE",
+        "EVIDENCE",
         "Order",
         "订单",
         "{\"description\":\"测试实体\",\"tags\":[],\"attributes\":[],\"behaviors\":[]}",
@@ -54,7 +55,7 @@ public class ProjectLogicalEntitiesMapperTest {
     assertEquals(String.valueOf(entityId), entity.getIdentity());
     assertEquals("Order", entity.getDescription().name());
     assertEquals("订单", entity.getDescription().label());
-    assertEquals("AGGREGATE", entity.getDescription().type());
+    assertEquals(Type.EVIDENCE, entity.getDescription().type());
     assertEquals("DRAFT", entity.getDescription().status());
   }
 
@@ -73,7 +74,12 @@ public class ProjectLogicalEntitiesMapperTest {
         new EntityDefinition("业务描述", List.of("Core"), List.of(), List.of());
     LogicalEntityDescription description =
         new LogicalEntityDescription(
-            "ENTITY", "Customer", "客户", definition, "DRAFT", new Ref<>(String.valueOf(projectId)));
+            Type.PARTICIPANT,
+            "Customer",
+            "客户",
+            definition,
+            "DRAFT",
+            new Ref<>(String.valueOf(projectId)));
     logicalEntitiesMapper.insertLogicalEntity(idHolder, description);
 
     LogicalEntity entity =

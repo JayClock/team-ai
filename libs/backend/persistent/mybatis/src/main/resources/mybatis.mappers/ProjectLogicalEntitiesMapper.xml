@@ -12,7 +12,7 @@
     <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription">
       <constructor>
-        <arg column="type" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="type" jdbcType="VARCHAR" typeHandler="org.apache.ibatis.type.EnumTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$Type"/>
         <arg column="name" jdbcType="VARCHAR" javaType="String"/>
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
         <arg column="definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>
