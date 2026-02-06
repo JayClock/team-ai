@@ -59,11 +59,20 @@ public class ProjectsApiTest extends ApiTest {
         .body("id", is(project.getIdentity()))
         .body("name", is(project.getDescription().name()))
         .body("_links.self.href", is("/api/projects/" + project.getIdentity()))
+        .body("_templates.delete-project.method", is("DELETE"))
         .body(
             "_links.conversations.href",
             is("/api/projects/" + project.getIdentity() + "/conversations"))
-        .body("_templates.delete-project.method", is("DELETE"))
         .body("_templates.create-conversation.method", is("POST"))
-        .body("_templates.create-conversation.properties", hasSize(1));
+        .body("_templates.create-conversation.properties", hasSize(1))
+        .body("_templates.create-conversation.properties[0].name", is("title"))
+        .body("_templates.create-conversation.properties[0].required", is(true))
+        .body("_templates.create-conversation.properties[0].type", is("text"))
+        .body("_links.diagrams.href", is("/api/projects/" + project.getIdentity() + "/diagrams"))
+        .body("_templates.create-diagram.method", is("POST"))
+        .body("_templates.create-diagram.properties", hasSize(1))
+        .body("_templates.create-diagram.properties[0].name", is("title"))
+        .body("_templates.create-diagram.properties[0].required", is(true))
+        .body("_templates.create-diagram.properties[0].type", is("text"));
   }
 }

@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -14,6 +15,8 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.description.DiagramDescription;
@@ -61,5 +64,11 @@ public class DiagramsApi {
             ApiTemplates.diagram(uriInfo).build(project.getIdentity(), created.getIdentity()))
         .entity(model)
         .build();
+  }
+
+  @Data
+  @NoArgsConstructor
+  public static class CreateDiagramRequest {
+    @NotNull private String title;
   }
 }
