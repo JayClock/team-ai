@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -89,7 +90,20 @@ public class DiagramsApiTest extends ApiTest {
                     + project.getIdentity()
                     + "/diagrams/"
                     + diagram.getIdentity()
-                    + "/nodes"));
+                    + "/nodes"))
+        .body("_templates.default.method", is("PUT"))
+        .body("_templates.default.properties", hasSize(4))
+        .body("_templates.default.properties[0].name", is("title"))
+        .body("_templates.default.properties[0].required", is(true))
+        .body("_templates.default.properties[0].type", is("text"))
+        .body("_templates.default.properties[1].name", is("viewport.x"))
+        .body("_templates.default.properties[1].type", is("number"))
+        .body("_templates.default.properties[2].name", is("viewport.y"))
+        .body("_templates.default.properties[2].type", is("number"))
+        .body("_templates.default.properties[3].name", is("viewport.zoom"))
+        .body("_templates.default.properties[3].type", is("number"))
+        .body("_templates.delete-diagram.method", is("DELETE"))
+        .body("_templates.delete-diagram.properties", hasSize(0));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
   }

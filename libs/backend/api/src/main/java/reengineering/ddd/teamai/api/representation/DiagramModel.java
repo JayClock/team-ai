@@ -4,8 +4,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.ws.rs.core.UriInfo;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
+import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
+import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
+import reengineering.ddd.teamai.api.DiagramApi;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Project;
@@ -26,12 +29,19 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
 
   public static DiagramModel of(Project project, Diagram diagram, UriInfo uriInfo) {
     DiagramModel model = new DiagramModel(project, diagram, uriInfo);
+
     model.add(
-        Link.of(
-                ApiTemplates.diagram(uriInfo)
-                    .build(project.getIdentity(), diagram.getIdentity())
-                    .getPath())
-            .withSelfRel());
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.diagram(uriInfo)
+                            .build(project.getIdentity(), diagram.getIdentity())
+                            .getPath())
+                    .withSelfRel())
+            .afford(HttpMethod.PUT)
+            .withInput(DiagramApi.UpdateDiagramApi.class)
+            .andAfford(HttpMethod.DELETE)
+            .withName("delete-diagram")
+            .toLink());
 
     model.add(
         Link.of(
