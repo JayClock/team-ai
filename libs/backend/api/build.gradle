@@ -23,9 +23,9 @@ dependencies {
     testImplementation 'io.rest-assured:rest-assured'
     testImplementation 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    // Spring REST Docs with REST-assured
     testImplementation 'org.springframework.restdocs:spring-restdocs-restassured'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 }
 
 test {

@@ -1,7 +1,6 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -75,10 +74,22 @@ public class DiagramsApiTest extends ApiTest {
         .body(
             "_links.self.href",
             is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
-        .body("_links.diagrams.href", is("/api/projects/" + project.getIdentity() + "/diagrams"))
-        .body("_templates.default.method", is("PUT"))
-        .body("_templates.default.properties", hasSize(4))
-        .body("_templates.delete-diagram.method", is("DELETE"));
+        .body(
+            "_links.edges.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/edges"))
+        .body(
+            "_links.nodes.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/nodes"));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
   }

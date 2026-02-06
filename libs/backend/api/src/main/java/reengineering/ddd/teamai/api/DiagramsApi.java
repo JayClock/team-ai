@@ -1,7 +1,14 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.validation.Valid;
-import jakarta.ws.rs.*;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -49,7 +56,7 @@ public class DiagramsApi {
   @Consumes(MediaType.APPLICATION_JSON)
   public Response create(@Valid DiagramDescription change, @Context UriInfo uriInfo) {
     Diagram created = project.addDiagram(change);
-    DiagramModel model = new DiagramModel(project, created, uriInfo);
+    DiagramModel model = DiagramModel.of(project, created, uriInfo);
     return Response.created(
             ApiTemplates.diagram(uriInfo).build(project.getIdentity(), created.getIdentity()))
         .entity(model)
