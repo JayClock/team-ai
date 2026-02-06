@@ -3,10 +3,12 @@ package reengineering.ddd.teamai.api;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +81,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
         .then()
         .statusCode(200)
         .body("id", is(logicalEntity.getIdentity()))
-        .body("type", is(logicalEntity.getDescription().type()))
+        .body("type", is("EVIDENCE"))
         .body("name", is(logicalEntity.getDescription().name()))
         .body("label", is(logicalEntity.getDescription().label()))
         .body("status", is(logicalEntity.getDescription().status()))
@@ -110,5 +112,44 @@ public class LogicalEntitiesApiTest extends ApiTest {
         .get("/projects/{projectId}/logical-entities/{id}", project.getIdentity(), "non-existent")
         .then()
         .statusCode(404);
+  }
+
+  @Test
+  public void should_create_logical_entity() {
+    LogicalEntity newEntity =
+        new LogicalEntity(
+            "entity-new",
+            new LogicalEntityDescription(
+                Type.PARTICIPANT, "Customer", "客户", null, null, new Ref<>(project.getIdentity())));
+
+    when(projectLogicalEntities.add(any(LogicalEntityDescription.class))).thenReturn(newEntity);
+
+    LogicalEntitiesApi.CreateLogicalEntityRequest request =
+        new LogicalEntitiesApi.CreateLogicalEntityRequest();
+    request.setType(Type.PARTICIPANT);
+    request.setName("Customer");
+    request.setLabel("客户");
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post("/projects/{projectId}/logical-entities", project.getIdentity())
+        .then()
+        .statusCode(201)
+        .body("id", is(newEntity.getIdentity()))
+        .body("type", is("PARTICIPANT"))
+        .body("name", is("Customer"))
+        .body("label", is("客户"))
+        .body(
+            "_links.self.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/logical-entities/"
+                    + newEntity.getIdentity()));
+
+    verify(projectLogicalEntities, times(1)).add(any(LogicalEntityDescription.class));
   }
 }

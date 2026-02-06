@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -11,6 +12,8 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.LogicalEntityModel;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
@@ -40,19 +43,29 @@ public class LogicalEntitiesApi {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response create(@Valid LogicalEntityDescription change, @Context UriInfo uriInfo) {
+  public Response create(@Valid CreateLogicalEntityRequest request, @Context UriInfo uriInfo) {
     LogicalEntity created =
         project.addLogicalEntity(
             new LogicalEntityDescription(
-                change.type(),
-                change.name(),
-                change.label(),
-                change.definition(),
-                change.status(),
+                request.getType(),
+                request.getName(),
+                request.getLabel(),
+                null,
+                null,
                 new Ref<>(project.getIdentity())));
 
     return Response.status(Response.Status.CREATED)
         .entity(new LogicalEntityModel(project, created, uriInfo))
         .build();
+  }
+
+  @Data
+  @NoArgsConstructor
+  public static class CreateLogicalEntityRequest {
+    @NotNull private LogicalEntityDescription.Type type;
+
+    @NotNull private String name;
+
+    private String label;
   }
 }

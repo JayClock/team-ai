@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
@@ -73,6 +74,26 @@ public class ProjectsApiTest extends ApiTest {
         .body("_templates.create-diagram.properties", hasSize(1))
         .body("_templates.create-diagram.properties[0].name", is("title"))
         .body("_templates.create-diagram.properties[0].required", is(true))
-        .body("_templates.create-diagram.properties[0].type", is("text"));
+        .body("_templates.create-diagram.properties[0].type", is("text"))
+        .body(
+            "_links.logical-entities.href",
+            is("/api/projects/" + project.getIdentity() + "/logical-entities"))
+        .body("_templates.create-logical-entity.method", is("POST"))
+        .body("_templates.create-logical-entity.properties", hasSize(3))
+        .body("_templates.create-logical-entity.properties[0].name", is("label"))
+        .body("_templates.create-logical-entity.properties[0].type", is("text"))
+        .body("_templates.create-logical-entity.properties[1].name", is("name"))
+        .body("_templates.create-logical-entity.properties[1].required", is(true))
+        .body("_templates.create-logical-entity.properties[1].type", is("text"))
+        .body("_templates.create-logical-entity.properties[2].name", is("type"))
+        .body("_templates.create-logical-entity.properties[2].required", is(true))
+        .body("_templates.create-logical-entity.properties[2].options.inline", hasSize(4))
+        .body("_templates.create-logical-entity.properties[2].options.promptField", is("prompt"))
+        .body("_templates.create-logical-entity.properties[2].options.valueField", is("value"))
+        .body("_templates.create-logical-entity.properties[2].options.maxItems", is(1))
+        .body("_templates.create-logical-entity.properties[2].options.minItems", is(1))
+        .body(
+            "_templates.create-logical-entity.properties[2].options.inline.value",
+            containsInAnyOrder("EVIDENCE", "PARTICIPANT", "ROLE", "CONTEXT"));
   }
 }
