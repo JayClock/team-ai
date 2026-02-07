@@ -12,7 +12,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
-import reengineering.ddd.teamai.description.EdgeRelationType;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 
@@ -179,7 +178,7 @@ public class DiagramTest {
               new Ref<>("node-2"),
               "right",
               "left",
-              EdgeRelationType.ASSOCIATION,
+              "ASSOCIATION",
               "hasMany",
               null);
       DiagramEdge expectedEdge = mock(DiagramEdge.class);

@@ -16,7 +16,7 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             "source-handle-1",
             "target-handle-1",
-            EdgeRelationType.ASSOCIATION,
+            "ASSOCIATION",
             "hasMany",
             styleProps);
 
@@ -24,7 +24,7 @@ public class EdgeDescriptionTest {
     assertEquals("node-2", description.targetNode().id());
     assertEquals("source-handle-1", description.sourceHandle());
     assertEquals("target-handle-1", description.targetHandle());
-    assertEquals(EdgeRelationType.ASSOCIATION, description.relationType());
+    assertEquals("ASSOCIATION", description.relationType());
     assertEquals("hasMany", description.label());
     assertEquals(styleProps, description.styleProps());
   }
@@ -34,13 +34,7 @@ public class EdgeDescriptionTest {
     EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 1);
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("node-1"),
-            new Ref<>("node-2"),
-            null,
-            null,
-            EdgeRelationType.ASSOCIATION,
-            null,
-            styleProps);
+            new Ref<>("node-1"), new Ref<>("node-2"), null, null, "ASSOCIATION", null, styleProps);
 
     assertNull(description.sourceHandle());
     assertNull(description.targetHandle());
@@ -56,7 +50,7 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             "right",
             "left",
-            EdgeRelationType.INHERITANCE,
+            "INHERITANCE",
             null,
             styleProps);
 
@@ -67,13 +61,7 @@ public class EdgeDescriptionTest {
   void should_support_null_style_props() {
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("node-1"),
-            new Ref<>("node-2"),
-            "right",
-            "left",
-            EdgeRelationType.ASSOCIATION,
-            "1..*",
-            null);
+            new Ref<>("node-1"), new Ref<>("node-2"), "right", "left", "ASSOCIATION", "1..*", null);
 
     assertNull(description.styleProps());
   }
@@ -88,25 +76,19 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             null,
             null,
-            EdgeRelationType.ASSOCIATION,
+            "ASSOCIATION",
             "1..*",
             styleProps);
     EdgeDescription inheritance =
         new EdgeDescription(
-            new Ref<>("node-1"),
-            new Ref<>("node-2"),
-            null,
-            null,
-            EdgeRelationType.INHERITANCE,
-            null,
-            styleProps);
+            new Ref<>("node-1"), new Ref<>("node-2"), null, null, "INHERITANCE", null, styleProps);
     EdgeDescription aggregation =
         new EdgeDescription(
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             null,
             null,
-            EdgeRelationType.AGGREGATION,
+            "AGGREGATION",
             "contains",
             styleProps);
     EdgeDescription flow =
@@ -115,7 +97,7 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             "right",
             "left",
-            EdgeRelationType.FLOW,
+            "FLOW",
             "triggers",
             styleProps);
     EdgeDescription dependency =
@@ -124,15 +106,15 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             null,
             null,
-            EdgeRelationType.DEPENDENCY,
+            "DEPENDENCY",
             "depends on",
             styleProps);
 
-    assertEquals(EdgeRelationType.ASSOCIATION, association.relationType());
-    assertEquals(EdgeRelationType.INHERITANCE, inheritance.relationType());
-    assertEquals(EdgeRelationType.AGGREGATION, aggregation.relationType());
-    assertEquals(EdgeRelationType.FLOW, flow.relationType());
-    assertEquals(EdgeRelationType.DEPENDENCY, dependency.relationType());
+    assertEquals("ASSOCIATION", association.relationType());
+    assertEquals("INHERITANCE", inheritance.relationType());
+    assertEquals("AGGREGATION", aggregation.relationType());
+    assertEquals("FLOW", flow.relationType());
+    assertEquals("DEPENDENCY", dependency.relationType());
   }
 
   @Test
@@ -145,7 +127,7 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             null,
             null,
-            EdgeRelationType.ASSOCIATION,
+            "ASSOCIATION",
             "1..*",
             styleProps);
     EdgeDescription hasMany =
@@ -154,7 +136,7 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             null,
             null,
-            EdgeRelationType.ASSOCIATION,
+            "ASSOCIATION",
             "hasMany",
             styleProps);
     EdgeDescription triggers =
@@ -163,7 +145,7 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             "right",
             "left",
-            EdgeRelationType.FLOW,
+            "FLOW",
             "triggers",
             styleProps);
 
@@ -181,7 +163,7 @@ public class EdgeDescriptionTest {
             new Ref<>("node-2"),
             "right",
             "left",
-            EdgeRelationType.DEPENDENCY,
+            "DEPENDENCY",
             "depends on",
             styleProps);
 
@@ -189,7 +171,7 @@ public class EdgeDescriptionTest {
     assertEquals("node-2", description.targetNode().id());
     assertEquals("right", description.sourceHandle());
     assertEquals("left", description.targetHandle());
-    assertEquals(EdgeRelationType.DEPENDENCY, description.relationType());
+    assertEquals("DEPENDENCY", description.relationType());
     assertEquals("depends on", description.label());
     assertEquals("dashed", description.styleProps().lineStyle());
     assertEquals(2, description.styleProps().lineWidth());
