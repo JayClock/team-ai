@@ -1,11 +1,14 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -125,7 +128,34 @@ public class NodesApiTest extends ApiTest {
             "_links.diagram.href",
             is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
         .body("_templates.default.method", is("PUT"))
-        .body("_templates.delete-node.method", is("DELETE"));
+        .body("_templates.delete-node.method", is("DELETE"))
+        .body("_templates.create-node.method", is("POST"))
+        .body("_templates.create-node.properties", hasSize(7))
+        .body("_templates.create-node.properties[0].name", is("height"))
+        .body("_templates.create-node.properties[0].required", is(true))
+        .body("_templates.create-node.properties[0].type", is("number"))
+        .body("_templates.create-node.properties[1].name", is("logicalEntityId"))
+        .body("_templates.create-node.properties[1].type", is("text"))
+        .body("_templates.create-node.properties[2].name", is("parentId"))
+        .body("_templates.create-node.properties[2].type", is("text"))
+        .body("_templates.create-node.properties[3].name", is("positionX"))
+        .body("_templates.create-node.properties[3].type", is("number"))
+        .body("_templates.create-node.properties[4].name", is("positionY"))
+        .body("_templates.create-node.properties[4].type", is("number"))
+        .body("_templates.create-node.properties[5].name", is("type"))
+        .body("_templates.create-node.properties[5].required", is(true))
+        .body("_templates.create-node.properties[5].type", is("text"))
+        .body("_templates.create-node.properties[6].name", is("width"))
+        .body("_templates.create-node.properties[6].required", is(true))
+        .body("_templates.create-node.properties[6].type", is("number"))
+        .body("_templates.create-edge.method", is("POST"))
+        .body("_templates.create-edge.properties", hasSize(2))
+        .body("_templates.create-edge.properties[0].name", is("sourceNodeId"))
+        .body("_templates.create-edge.properties[0].required", is(true))
+        .body("_templates.create-edge.properties[0].type", is("text"))
+        .body("_templates.create-edge.properties[1].name", is("targetNodeId"))
+        .body("_templates.create-edge.properties[1].required", is(true))
+        .body("_templates.create-edge.properties[1].type", is("text"));
 
     verify(diagramNodes, times(1)).findByIdentity(node.getIdentity());
   }
@@ -160,5 +190,55 @@ public class NodesApiTest extends ApiTest {
             node.getIdentity())
         .then()
         .statusCode(404);
+  }
+
+  @Test
+  public void should_create_node() {
+    DiagramNode newNode =
+        new DiagramNode(
+            "node-new",
+            diagram.getIdentity(),
+            new NodeDescription(
+                "new-class-node",
+                new Ref<>("new-logical-entity"),
+                null,
+                100.0,
+                50.0,
+                200,
+                100,
+                null,
+                null));
+
+    when(diagramNodes.add(any(NodeDescription.class))).thenReturn(newNode);
+
+    NodesApi.CreateNodeRequest request = new NodesApi.CreateNodeRequest();
+    request.setType("new-class-node");
+    request.setLogicalEntityId("new-logical-entity");
+    request.setParentId(null);
+    request.setPositionX(100.0);
+    request.setPositionY(50.0);
+    request.setWidth(200);
+    request.setHeight(100);
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{diagramId}/nodes",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(201)
+        .body("id", is(newNode.getIdentity()))
+        .body("type", is("new-class-node"))
+        .body("logicalEntityId", is("new-logical-entity"))
+        .body("positionX", is(100.0F))
+        .body("positionY", is(50.0F))
+        .body("width", is(200))
+        .body("height", is(100));
+
+    verify(diagramNodes, times(1)).add(any(NodeDescription.class));
   }
 }

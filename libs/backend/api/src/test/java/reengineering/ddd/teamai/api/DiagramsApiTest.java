@@ -103,7 +103,26 @@ public class DiagramsApiTest extends ApiTest {
         .body("_templates.default.properties[3].name", is("viewport.zoom"))
         .body("_templates.default.properties[3].type", is("number"))
         .body("_templates.delete-diagram.method", is("DELETE"))
-        .body("_templates.delete-diagram.properties", hasSize(0));
+        .body("_templates.delete-diagram.properties", hasSize(0))
+        .body("_templates.create-node.method", is("POST"))
+        .body("_templates.create-node.properties", hasSize(7))
+        .body("_templates.create-node.properties[0].name", is("height"))
+        .body("_templates.create-node.properties[0].required", is(true))
+        .body("_templates.create-node.properties[0].type", is("number"))
+        .body("_templates.create-node.properties[1].name", is("logicalEntityId"))
+        .body("_templates.create-node.properties[1].type", is("text"))
+        .body("_templates.create-node.properties[2].name", is("parentId"))
+        .body("_templates.create-node.properties[2].type", is("text"))
+        .body("_templates.create-node.properties[3].name", is("positionX"))
+        .body("_templates.create-node.properties[3].type", is("number"))
+        .body("_templates.create-node.properties[4].name", is("positionY"))
+        .body("_templates.create-node.properties[4].type", is("number"))
+        .body("_templates.create-node.properties[5].name", is("type"))
+        .body("_templates.create-node.properties[5].required", is(true))
+        .body("_templates.create-node.properties[5].type", is("text"))
+        .body("_templates.create-node.properties[6].name", is("width"))
+        .body("_templates.create-node.properties[6].required", is(true))
+        .body("_templates.create-node.properties[6].type", is("number"));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
   }

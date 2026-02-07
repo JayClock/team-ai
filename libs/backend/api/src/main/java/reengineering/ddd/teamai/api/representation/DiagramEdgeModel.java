@@ -8,6 +8,7 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
+import reengineering.ddd.teamai.api.EdgesApi;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.model.Diagram;
@@ -88,11 +89,16 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
             .toLink());
 
     add(
-        Link.of(
-                ApiTemplates.edges(uriInfo)
-                    .build(project.getIdentity(), diagram.getIdentity())
-                    .getPath())
-            .withRel("edges"));
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.edges(uriInfo)
+                            .build(project.getIdentity(), diagram.getIdentity())
+                            .getPath())
+                    .withRel("edges"))
+            .afford(HttpMethod.POST)
+            .withInput(EdgesApi.CreateEdgeRequest.class)
+            .withName("create-edge")
+            .toLink());
 
     add(
         Link.of(

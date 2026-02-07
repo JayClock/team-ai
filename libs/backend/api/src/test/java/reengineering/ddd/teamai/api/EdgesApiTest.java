@@ -1,11 +1,14 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import jakarta.ws.rs.core.MediaType;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -120,7 +123,15 @@ public class EdgesApiTest extends ApiTest {
             "_links.diagram.href",
             is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
         .body("_templates.default.method", is("PUT"))
-        .body("_templates.delete-edge.method", is("DELETE"));
+        .body("_templates.delete-edge.method", is("DELETE"))
+        .body("_templates.create-edge.method", is("POST"))
+        .body("_templates.create-edge.properties", hasSize(2))
+        .body("_templates.create-edge.properties[0].name", is("sourceNodeId"))
+        .body("_templates.create-edge.properties[0].required", is(true))
+        .body("_templates.create-edge.properties[0].type", is("text"))
+        .body("_templates.create-edge.properties[1].name", is("targetNodeId"))
+        .body("_templates.create-edge.properties[1].required", is(true))
+        .body("_templates.create-edge.properties[1].type", is("text"));
 
     verify(diagramEdges, times(1)).findByIdentity(edge.getIdentity());
   }
@@ -155,5 +166,52 @@ public class EdgesApiTest extends ApiTest {
             edge.getIdentity())
         .then()
         .statusCode(404);
+  }
+
+  @Test
+  public void should_create_edge() {
+    EdgeStyleProps styleProps = new EdgeStyleProps("dashed", "#666666", "arrow", 1);
+    DiagramEdge newEdge =
+        new DiagramEdge(
+            "edge-new",
+            diagram.getIdentity(),
+            new EdgeDescription(
+                new Ref<>(diagram.getIdentity()),
+                new Ref<>("source-node-1"),
+                new Ref<>("target-node-2"),
+                "right",
+                "left",
+                EdgeRelationType.DEPENDENCY,
+                "dependsOn",
+                styleProps));
+
+    when(diagramEdges.add(any(EdgeDescription.class))).thenReturn(newEdge);
+
+    EdgesApi.CreateEdgeRequest request = new EdgesApi.CreateEdgeRequest();
+    request.setSourceNodeId("source-node-1");
+    request.setTargetNodeId("target-node-2");
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{diagramId}/edges",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(201)
+        .body("id", is(newEdge.getIdentity()))
+        .body("sourceNodeId", is("source-node-1"))
+        .body("targetNodeId", is("target-node-2"))
+        .body("relationType", is("DEPENDENCY"))
+        .body("label", is("dependsOn"))
+        .body("styleProps.lineStyle", is("dashed"))
+        .body("styleProps.color", is("#666666"))
+        .body("styleProps.arrowType", is("arrow"))
+        .body("styleProps.lineWidth", is(1));
+
+    verify(diagramEdges, times(1)).add(any(EdgeDescription.class));
   }
 }

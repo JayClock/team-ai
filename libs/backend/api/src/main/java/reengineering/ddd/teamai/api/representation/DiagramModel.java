@@ -9,6 +9,8 @@ import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.DiagramApi;
+import reengineering.ddd.teamai.api.EdgesApi;
+import reengineering.ddd.teamai.api.NodesApi;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Project;
@@ -44,18 +46,28 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
             .toLink());
 
     model.add(
-        Link.of(
-                ApiTemplates.nodes(uriInfo)
-                    .build(project.getIdentity(), diagram.getIdentity())
-                    .getPath())
-            .withRel("nodes"));
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.nodes(uriInfo)
+                            .build(project.getIdentity(), diagram.getIdentity())
+                            .getPath())
+                    .withRel("nodes"))
+            .afford(HttpMethod.POST)
+            .withInput(NodesApi.CreateNodeRequest.class)
+            .withName("create-node")
+            .toLink());
 
     model.add(
-        Link.of(
-                ApiTemplates.edges(uriInfo)
-                    .build(project.getIdentity(), diagram.getIdentity())
-                    .getPath())
-            .withRel("edges"));
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.edges(uriInfo)
+                            .build(project.getIdentity(), diagram.getIdentity())
+                            .getPath())
+                    .withRel("edges"))
+            .afford(HttpMethod.POST)
+            .withInput(EdgesApi.CreateEdgeRequest.class)
+            .withName("create-edge")
+            .toLink());
     return model;
   }
 
