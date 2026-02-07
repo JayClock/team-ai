@@ -8,6 +8,10 @@ const Cockpit = lazy(() =>
   import('@shells/cockpit').then((m) => ({ default: m.Cockpit })),
 );
 
+const Diagram = lazy(() =>
+  import('@shells/diagram').then((m) => ({ default: m.ShellsDiagram })),
+);
+
 export function ResourceRenderer() {
   const client = useClient();
   const { apiUrl, contentType } = useLoaderData<LoaderType>();
@@ -29,4 +33,5 @@ const COMPONENT_MAP: Record<
   >
 > = {
   'application/vnd.business-driven-ai.project+json': Cockpit,
+  'application/vnd.business-driven-ai.diagram+json': Diagram,
 };

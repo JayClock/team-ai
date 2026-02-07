@@ -38,6 +38,9 @@
     },
     {
       "path": "./libs/frontend/features/project-diagrams"
+    },
+    {
+      "path": "./libs/frontend/shells/diagram"
     }
   ]
 }
