@@ -15,7 +15,6 @@ import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.TestDataSetup;
-import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
@@ -52,9 +51,7 @@ public class ProjectDiagramsTest {
   @Test
   public void should_add_diagram_and_return_saved_entity() {
     Viewport viewport = new Viewport(100, 50, 1.5);
-    var description =
-        new DiagramDescription(
-            "下单流程上下文图", DiagramType.CLASS, viewport, new Ref<>(project.getIdentity()));
+    var description = new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport);
 
     Diagram savedDiagram = project.addDiagram(description);
 
@@ -74,9 +71,7 @@ public class ProjectDiagramsTest {
   @Test
   public void should_find_single_diagram_of_project() {
     Viewport viewport = new Viewport(0, 0, 1);
-    var description =
-        new DiagramDescription(
-            "会员体系图", DiagramType.SEQUENCE, viewport, new Ref<>(project.getIdentity()));
+    var description = new DiagramDescription("会员体系图", DiagramType.SEQUENCE, viewport);
     Diagram savedDiagram = project.addDiagram(description);
 
     Diagram diagram = project.diagrams().findByIdentity(savedDiagram.getIdentity()).get();
@@ -99,9 +94,7 @@ public class ProjectDiagramsTest {
     int initialSize = project.diagrams().findAll().size();
 
     Viewport viewport = Viewport.defaultViewport();
-    var description =
-        new DiagramDescription(
-            "测试图", DiagramType.FLOWCHART, viewport, new Ref<>(project.getIdentity()));
+    var description = new DiagramDescription("测试图", DiagramType.FLOWCHART, viewport);
     project.addDiagram(description);
 
     int newSize = project.diagrams().findAll().size();
@@ -113,9 +106,7 @@ public class ProjectDiagramsTest {
     int initialSize = project.diagrams().findAll().size();
 
     Viewport viewport = Viewport.defaultViewport();
-    var description =
-        new DiagramDescription(
-            "缓存测试图", DiagramType.COMPONENT, viewport, new Ref<>(project.getIdentity()));
+    var description = new DiagramDescription("缓存测试图", DiagramType.COMPONENT, viewport);
     project.addDiagram(description);
 
     int newSize = project.diagrams().findAll().size();
@@ -128,10 +119,7 @@ public class ProjectDiagramsTest {
     for (int i = 0; i < 5; i++) {
       var description =
           new DiagramDescription(
-              "图" + i,
-              DiagramType.values()[i % DiagramType.values().length],
-              viewport,
-              new Ref<>(project.getIdentity()));
+              "图" + i, DiagramType.values()[i % DiagramType.values().length], viewport);
       project.addDiagram(description);
     }
 
@@ -155,50 +143,33 @@ public class ProjectDiagramsTest {
     Viewport viewport = Viewport.defaultViewport();
 
     Diagram flowchart =
-        project.addDiagram(
-            new DiagramDescription(
-                "流程图", DiagramType.FLOWCHART, viewport, new Ref<>(project.getIdentity())));
+        project.addDiagram(new DiagramDescription("流程图", DiagramType.FLOWCHART, viewport));
     assertEquals(DiagramType.FLOWCHART, flowchart.getDescription().type());
 
     Diagram sequence =
-        project.addDiagram(
-            new DiagramDescription(
-                "时序图", DiagramType.SEQUENCE, viewport, new Ref<>(project.getIdentity())));
+        project.addDiagram(new DiagramDescription("时序图", DiagramType.SEQUENCE, viewport));
     assertEquals(DiagramType.SEQUENCE, sequence.getDescription().type());
 
     Diagram classDiagram =
-        project.addDiagram(
-            new DiagramDescription(
-                "类图", DiagramType.CLASS, viewport, new Ref<>(project.getIdentity())));
+        project.addDiagram(new DiagramDescription("类图", DiagramType.CLASS, viewport));
     assertEquals(DiagramType.CLASS, classDiagram.getDescription().type());
 
     Diagram component =
-        project.addDiagram(
-            new DiagramDescription(
-                "组件图", DiagramType.COMPONENT, viewport, new Ref<>(project.getIdentity())));
+        project.addDiagram(new DiagramDescription("组件图", DiagramType.COMPONENT, viewport));
     assertEquals(DiagramType.COMPONENT, component.getDescription().type());
 
-    Diagram state =
-        project.addDiagram(
-            new DiagramDescription(
-                "状态图", DiagramType.STATE, viewport, new Ref<>(project.getIdentity())));
+    Diagram state = project.addDiagram(new DiagramDescription("状态图", DiagramType.STATE, viewport));
     assertEquals(DiagramType.STATE, state.getDescription().type());
 
     Diagram activity =
-        project.addDiagram(
-            new DiagramDescription(
-                "活动图", DiagramType.ACTIVITY, viewport, new Ref<>(project.getIdentity())));
+        project.addDiagram(new DiagramDescription("活动图", DiagramType.ACTIVITY, viewport));
     assertEquals(DiagramType.ACTIVITY, activity.getDescription().type());
   }
 
   @Test
   public void should_create_diagram_with_default_viewport() {
     var description =
-        new DiagramDescription(
-            "默认视口图",
-            DiagramType.CLASS,
-            Viewport.defaultViewport(),
-            new Ref<>(project.getIdentity()));
+        new DiagramDescription("默认视口图", DiagramType.CLASS, Viewport.defaultViewport());
 
     Diagram savedDiagram = project.addDiagram(description);
 

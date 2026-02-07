@@ -54,7 +54,7 @@ public class ProjectLogicalEntities extends EntityList<String, LogicalEntity>
       })
   public LogicalEntity add(LogicalEntityDescription description) {
     IdHolder idHolder = new IdHolder();
-    mapper.insertLogicalEntity(idHolder, description);
+    mapper.insertLogicalEntity(idHolder, projectId, description);
     return findEntity(String.valueOf(idHolder.id()));
   }
 }

@@ -16,7 +16,6 @@ import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.TestDataSetup;
-import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.EntityDefinition;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
@@ -55,14 +54,7 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition =
         new EntityDefinition("订单业务定义", List.of("Core"), List.of(), List.of());
     var description =
-        new LogicalEntityDescription(
-            Type.EVIDENCE,
-            null,
-            "Order",
-            "订单",
-            definition,
-            "DRAFT",
-            new Ref<>(project.getIdentity()));
+        new LogicalEntityDescription(Type.EVIDENCE, null, "Order", "订单", definition, "DRAFT");
 
     LogicalEntity savedEntity = project.addLogicalEntity(description);
 
@@ -80,14 +72,7 @@ public class ProjectLogicalEntitiesTest {
   public void should_find_single_logical_entity_of_project() {
     EntityDefinition definition = new EntityDefinition("测试定义", List.of(), List.of(), List.of());
     var description =
-        new LogicalEntityDescription(
-            Type.PARTICIPANT,
-            null,
-            "Customer",
-            "客户",
-            definition,
-            "DRAFT",
-            new Ref<>(project.getIdentity()));
+        new LogicalEntityDescription(Type.PARTICIPANT, null, "Customer", "客户", definition, "DRAFT");
     LogicalEntity savedEntity = project.addLogicalEntity(description);
 
     LogicalEntity entity =
@@ -111,14 +96,7 @@ public class ProjectLogicalEntitiesTest {
 
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
-        new LogicalEntityDescription(
-            Type.EVIDENCE,
-            null,
-            "Product",
-            "产品",
-            definition,
-            "DRAFT",
-            new Ref<>(project.getIdentity()));
+        new LogicalEntityDescription(Type.EVIDENCE, null, "Product", "产品", definition, "DRAFT");
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();
@@ -131,8 +109,7 @@ public class ProjectLogicalEntitiesTest {
 
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
-        new LogicalEntityDescription(
-            Type.ROLE, null, "Money", "金额", definition, "DRAFT", new Ref<>(project.getIdentity()));
+        new LogicalEntityDescription(Type.ROLE, null, "Money", "金额", definition, "DRAFT");
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();
@@ -145,13 +122,7 @@ public class ProjectLogicalEntitiesTest {
     for (int i = 0; i < 5; i++) {
       var description =
           new LogicalEntityDescription(
-              Type.PARTICIPANT,
-              null,
-              "Entity" + i,
-              "实体" + i,
-              definition,
-              "DRAFT",
-              new Ref<>(project.getIdentity()));
+              Type.PARTICIPANT, null, "Entity" + i, "实体" + i, definition, "DRAFT");
       project.addLogicalEntity(description);
     }
 

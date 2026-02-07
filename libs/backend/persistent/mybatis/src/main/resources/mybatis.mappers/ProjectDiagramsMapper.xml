@@ -2,12 +2,6 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectDiagramsMapper">
 
-  <resultMap id="ref" type="reengineering.ddd.archtype.Ref">
-    <constructor>
-      <arg column="project_id" javaType="Object"/>
-    </constructor>
-  </resultMap>
-
   <resultMap id="diagram" type="reengineering.ddd.teamai.model.Diagram">
     <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
     <result property="projectId" column="project_id" jdbcType="INTEGER" javaType="String"/>
@@ -16,7 +10,6 @@
         <arg column="title" jdbcType="VARCHAR" javaType="String"/>
         <arg column="type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler" javaType="reengineering.ddd.teamai.model.DiagramType"/>
         <arg column="viewport" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler" javaType="reengineering.ddd.teamai.description.Viewport"/>
-        <arg resultMap="ref" javaType="reengineering.ddd.archtype.Ref"/>
       </constructor>
     </association>
   </resultMap>

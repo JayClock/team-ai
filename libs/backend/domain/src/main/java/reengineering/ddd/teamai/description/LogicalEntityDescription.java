@@ -1,15 +1,12 @@
 package reengineering.ddd.teamai.description;
 
-import reengineering.ddd.archtype.Ref;
-
 public record LogicalEntityDescription(
     Type type,
     SubType subType,
     String name,
     String label,
     EntityDefinition definition,
-    String status,
-    Ref<String> project) {
+    String status) {
 
   public enum Type {
     EVIDENCE("Evidence"),

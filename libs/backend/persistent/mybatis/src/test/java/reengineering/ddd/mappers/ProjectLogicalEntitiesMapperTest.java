@@ -12,7 +12,6 @@ import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.context.annotation.Import;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataMapper;
-import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.EntityDefinition;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
@@ -73,15 +72,8 @@ public class ProjectLogicalEntitiesMapperTest {
     EntityDefinition definition =
         new EntityDefinition("业务描述", List.of("Core"), List.of(), List.of());
     LogicalEntityDescription description =
-        new LogicalEntityDescription(
-            Type.PARTICIPANT,
-            null,
-            "Customer",
-            "客户",
-            definition,
-            "DRAFT",
-            new Ref<>(String.valueOf(projectId)));
-    logicalEntitiesMapper.insertLogicalEntity(idHolder, description);
+        new LogicalEntityDescription(Type.PARTICIPANT, null, "Customer", "客户", definition, "DRAFT");
+    logicalEntitiesMapper.insertLogicalEntity(idHolder, projectId, description);
 
     LogicalEntity entity =
         logicalEntitiesMapper.findLogicalEntityByProjectAndId(projectId, idHolder.id());

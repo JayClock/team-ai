@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
-import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.EntityAttribute;
 import reengineering.ddd.teamai.description.EntityBehavior;
 import reengineering.ddd.teamai.description.EntityDefinition;
@@ -55,14 +54,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
     logicalEntity =
         new LogicalEntity(
             "entity-1",
-            new LogicalEntityDescription(
-                Type.EVIDENCE,
-                null,
-                "Order",
-                "订单",
-                definition,
-                "DRAFT",
-                new Ref<>(project.getIdentity())));
+            new LogicalEntityDescription(Type.EVIDENCE, null, "Order", "订单", definition, "DRAFT"));
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(projectLogicalEntities.findByIdentity(logicalEntity.getIdentity()))
@@ -97,7 +89,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
         .body("_templates.default.method", is("PUT"))
-        .body("_templates.default.properties", hasSize(7))
+        .body("_templates.default.properties", hasSize(6))
         .body("_templates.delete-logical-entity.method", is("DELETE"));
 
     verify(projectLogicalEntities, times(1)).findByIdentity(logicalEntity.getIdentity());
@@ -120,14 +112,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
     LogicalEntity newEntity =
         new LogicalEntity(
             "entity-new",
-            new LogicalEntityDescription(
-                Type.PARTICIPANT,
-                null,
-                "Customer",
-                "客户",
-                null,
-                null,
-                new Ref<>(project.getIdentity())));
+            new LogicalEntityDescription(Type.PARTICIPANT, null, "Customer", "客户", null, null));
 
     when(projectLogicalEntities.add(any(LogicalEntityDescription.class))).thenReturn(newEntity);
 

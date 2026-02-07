@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
 
 public class LogicalEntityDescriptionTest {
@@ -13,11 +12,8 @@ public class LogicalEntityDescriptionTest {
     EntityDefinition definition =
         new EntityDefinition("Test description", List.of("tag1", "tag2"), List.of(), List.of());
 
-    Ref<String> projectRef = new Ref<>("project-1");
-
     LogicalEntityDescription description =
-        new LogicalEntityDescription(
-            Type.EVIDENCE, null, "Order", "订单", definition, "DRAFT", projectRef);
+        new LogicalEntityDescription(Type.EVIDENCE, null, "Order", "订单", definition, "DRAFT");
 
     assertEquals(Type.EVIDENCE, description.type());
     assertEquals("Order", description.name());

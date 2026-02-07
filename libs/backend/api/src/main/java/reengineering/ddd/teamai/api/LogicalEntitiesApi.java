@@ -14,7 +14,6 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.LogicalEntityModel;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.SubType;
@@ -53,8 +52,7 @@ public class LogicalEntitiesApi {
                 request.getName(),
                 request.getLabel(),
                 null,
-                null,
-                new Ref<>(project.getIdentity())));
+                null));
 
     return Response.status(Response.Status.CREATED)
         .entity(new LogicalEntityModel(project, created, uriInfo))

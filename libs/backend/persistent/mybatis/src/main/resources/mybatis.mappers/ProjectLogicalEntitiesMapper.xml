@@ -2,12 +2,6 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectLogicalEntitiesMapper">
 
-  <resultMap id="ref" type="reengineering.ddd.archtype.Ref">
-    <constructor>
-      <arg column="project_id" javaType="Object"/>
-    </constructor>
-  </resultMap>
-
   <resultMap id="logicalEntity" type="reengineering.ddd.teamai.model.LogicalEntity">
     <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription">
@@ -18,7 +12,6 @@
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
         <arg column="definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>
         <arg column="status" jdbcType="VARCHAR" javaType="String"/>
-        <arg resultMap="ref" javaType="reengineering.ddd.archtype.Ref"/>
       </constructor>
     </association>
   </resultMap>
@@ -40,7 +33,7 @@
   <insert id="insertLogicalEntity" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
     INSERT INTO logical_entities(project_id, type, sub_type, name, label, definition, status)
-    VALUES (CAST(#{description.project.id} AS INTEGER),
+    VALUES (CAST(#{project_id} AS INTEGER),
             #{description.type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler},
             #{description.subType, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler},
             #{description.name}, #{description.label},

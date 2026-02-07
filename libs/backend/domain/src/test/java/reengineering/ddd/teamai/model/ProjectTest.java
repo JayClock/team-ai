@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
@@ -153,10 +152,8 @@ public class ProjectTest {
     @Test
     @DisplayName("should delegate add diagram to diagrams association")
     void shouldDelegateAddDiagram() {
-      Ref<String> projectRef = new Ref<>("project-1");
       DiagramDescription diagramDescription =
-          new DiagramDescription(
-              "Test Diagram", DiagramType.CLASS, Viewport.defaultViewport(), projectRef);
+          new DiagramDescription("Test Diagram", DiagramType.CLASS, Viewport.defaultViewport());
       Diagram expectedDiagram = mock(Diagram.class);
 
       when(diagrams.add(diagramDescription)).thenReturn(expectedDiagram);

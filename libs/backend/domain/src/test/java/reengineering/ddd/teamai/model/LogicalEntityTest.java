@@ -7,7 +7,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
-import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.EntityAttribute;
 import reengineering.ddd.teamai.description.EntityBehavior;
 import reengineering.ddd.teamai.description.EntityDefinition;
@@ -34,11 +33,9 @@ public class LogicalEntityTest {
             List.of(orderAttribute),
             List.of(payBehavior));
 
-    Ref<String> projectRef = new Ref<>("project-1");
-
     description =
         new LogicalEntityDescription(
-            Type.EVIDENCE, null, "Order", "销售订单", entityDefinition, "DRAFT", projectRef);
+            Type.EVIDENCE, null, "Order", "销售订单", entityDefinition, "DRAFT");
 
     entity = new LogicalEntity("entity-1", description);
   }

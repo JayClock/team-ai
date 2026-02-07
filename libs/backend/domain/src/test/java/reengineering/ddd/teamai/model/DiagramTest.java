@@ -28,8 +28,7 @@ public class DiagramTest {
   @BeforeEach
   public void setUp() {
     viewport = new Viewport(100, 50, 1.5);
-    Ref<String> projectRef = new Ref<>("project-1");
-    description = new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport, projectRef);
+    description = new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport);
     diagram = new Diagram("diagram-1", "project-1", description, nodes, edges);
   }
 
@@ -68,18 +67,9 @@ public class DiagramTest {
   }
 
   @Test
-  public void should_return_project_reference() {
-    Ref<String> projectRef = diagram.getDescription().project();
-    assertNotNull(projectRef);
-    assertEquals("project-1", projectRef.id());
-  }
-
-  @Test
   public void should_create_diagram_with_default_viewport() {
-    Ref<String> projectRef = new Ref<>("project-2");
     DiagramDescription descriptionWithDefaultViewport =
-        new DiagramDescription(
-            "会员体系图", DiagramType.SEQUENCE, Viewport.defaultViewport(), projectRef);
+        new DiagramDescription("会员体系图", DiagramType.SEQUENCE, Viewport.defaultViewport());
     Diagram diagramWithDefaultViewport =
         new Diagram("diagram-2", "project-2", descriptionWithDefaultViewport, nodes, edges);
 
@@ -96,13 +86,11 @@ public class DiagramTest {
 
   @Test
   public void should_support_all_diagram_types() {
-    Ref<String> projectRef = new Ref<>("project-3");
-
     Diagram flowchartDiagram =
         new Diagram(
             "flow-1",
             "project-3",
-            new DiagramDescription("流程图", DiagramType.FLOWCHART, viewport, projectRef),
+            new DiagramDescription("流程图", DiagramType.FLOWCHART, viewport),
             nodes,
             edges);
     assertEquals(DiagramType.FLOWCHART, flowchartDiagram.getDescription().type());
@@ -111,7 +99,7 @@ public class DiagramTest {
         new Diagram(
             "seq-1",
             "project-3",
-            new DiagramDescription("时序图", DiagramType.SEQUENCE, viewport, projectRef),
+            new DiagramDescription("时序图", DiagramType.SEQUENCE, viewport),
             nodes,
             edges);
     assertEquals(DiagramType.SEQUENCE, sequenceDiagram.getDescription().type());
@@ -120,7 +108,7 @@ public class DiagramTest {
         new Diagram(
             "class-1",
             "project-3",
-            new DiagramDescription("类图", DiagramType.CLASS, viewport, projectRef),
+            new DiagramDescription("类图", DiagramType.CLASS, viewport),
             nodes,
             edges);
     assertEquals(DiagramType.CLASS, classDiagram.getDescription().type());
@@ -129,7 +117,7 @@ public class DiagramTest {
         new Diagram(
             "comp-1",
             "project-3",
-            new DiagramDescription("组件图", DiagramType.COMPONENT, viewport, projectRef),
+            new DiagramDescription("组件图", DiagramType.COMPONENT, viewport),
             nodes,
             edges);
     assertEquals(DiagramType.COMPONENT, componentDiagram.getDescription().type());
@@ -138,7 +126,7 @@ public class DiagramTest {
         new Diagram(
             "state-1",
             "project-3",
-            new DiagramDescription("状态图", DiagramType.STATE, viewport, projectRef),
+            new DiagramDescription("状态图", DiagramType.STATE, viewport),
             nodes,
             edges);
     assertEquals(DiagramType.STATE, stateDiagram.getDescription().type());
@@ -147,7 +135,7 @@ public class DiagramTest {
         new Diagram(
             "act-1",
             "project-3",
-            new DiagramDescription("活动图", DiagramType.ACTIVITY, viewport, projectRef),
+            new DiagramDescription("活动图", DiagramType.ACTIVITY, viewport),
             nodes,
             edges);
     assertEquals(DiagramType.ACTIVITY, activityDiagram.getDescription().type());

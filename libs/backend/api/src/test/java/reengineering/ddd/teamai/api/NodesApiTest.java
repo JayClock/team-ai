@@ -55,8 +55,7 @@ public class NodesApiTest extends ApiTest {
         new Diagram(
             "diagram-1",
             project.getIdentity(),
-            new DiagramDescription(
-                "下单流程上下文图", DiagramType.CLASS, viewport, new Ref<>(project.getIdentity())),
+            new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport),
             diagramNodes,
             diagramEdges);
 

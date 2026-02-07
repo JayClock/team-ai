@@ -16,7 +16,9 @@ public interface ProjectLogicalEntitiesMapper {
       @Param("project_id") int projectId, @Param("from") int from, @Param("size") int size);
 
   int insertLogicalEntity(
-      @Param("holder") IdHolder holder, @Param("description") LogicalEntityDescription description);
+      @Param("holder") IdHolder holder,
+      @Param("project_id") int projectId,
+      @Param("description") LogicalEntityDescription description);
 
   int countLogicalEntitiesByProject(@Param("project_id") int projectId);
 }
