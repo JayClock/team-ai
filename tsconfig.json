@@ -35,6 +35,9 @@
     },
     {
       "path": "./libs/frontend/shared/util-http"
+    },
+    {
+      "path": "./libs/frontend/features/project-diagrams"
     }
   ]
 }

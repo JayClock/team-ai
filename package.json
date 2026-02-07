@@ -83,6 +83,7 @@
     "@vitejs/plugin-react": "^4.2.0",
     "@vitest/coverage-v8": "4.0.15",
     "@vitest/ui": "4.0.15",
+    "@xyflow/react": "^12.10.0",
     "ai": "^6.0.16",
     "ajv": "^8.0.0",
     "babel-plugin-transform-typescript-metadata": "^0.3.2",
