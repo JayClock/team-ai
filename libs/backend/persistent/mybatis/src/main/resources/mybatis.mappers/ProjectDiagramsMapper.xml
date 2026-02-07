@@ -12,6 +12,12 @@
         <arg column="viewport" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler" javaType="reengineering.ddd.teamai.description.Viewport"/>
       </constructor>
     </association>
+    <association property="nodes" javaType="reengineering.ddd.teamai.mybatis.associations.DiagramNodes">
+      <result column="id" property="diagramId" javaType="int"/>
+    </association>
+    <association property="edges" javaType="reengineering.ddd.teamai.mybatis.associations.DiagramEdges">
+      <result column="id" property="diagramId" javaType="int"/>
+    </association>
   </resultMap>
 
   <select id="findDiagramByProjectAndId" resultMap="diagram">
