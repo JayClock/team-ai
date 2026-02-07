@@ -68,7 +68,7 @@ public class EdgesApiTest extends ApiTest {
                 new Ref<>("node-2"),
                 "bottom",
                 "top",
-                EdgeRelationType.ASSOCIATION,
+                EdgeRelationType.ASSOCIATION.getValue(),
                 "hasMany",
                 styleProps));
 
@@ -178,7 +178,7 @@ public class EdgesApiTest extends ApiTest {
                 new Ref<>("target-node-2"),
                 "right",
                 "left",
-                EdgeRelationType.DEPENDENCY,
+                EdgeRelationType.DEPENDENCY.getValue(),
                 "dependsOn",
                 styleProps));
 

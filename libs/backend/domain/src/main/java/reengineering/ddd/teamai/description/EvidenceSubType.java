@@ -4,7 +4,7 @@ package reengineering.ddd.teamai.description;
  * Sub-types for Evidence entities in Fulfillment Modeling. Represents the standard evidence types
  * in a business fulfillment process.
  */
-public enum EvidenceSubType implements SubType {
+public enum EvidenceSubType implements LogicalEntityDescription.SubType {
   RFP("rfp", TemporalType.INTERVAL),
   PROPOSAL("proposal", TemporalType.INTERVAL),
   CONTRACT("contract", TemporalType.MOMENT),

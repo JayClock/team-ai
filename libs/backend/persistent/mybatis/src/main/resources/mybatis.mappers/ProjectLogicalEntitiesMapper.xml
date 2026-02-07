@@ -7,7 +7,7 @@
     <association property="description" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription">
       <constructor>
         <arg column="type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$Type"/>
-        <arg column="sub_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler" javaType="reengineering.ddd.teamai.description.SubType"/>
+        <arg column="sub_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$SubType"/>
         <arg column="name" jdbcType="VARCHAR" javaType="String"/>
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
         <arg column="definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>

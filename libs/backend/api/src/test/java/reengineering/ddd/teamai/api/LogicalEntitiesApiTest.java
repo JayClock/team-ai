@@ -18,8 +18,10 @@ import org.springframework.hateoas.MediaTypes;
 import reengineering.ddd.teamai.description.EntityAttribute;
 import reengineering.ddd.teamai.description.EntityBehavior;
 import reengineering.ddd.teamai.description.EntityDefinition;
+import reengineering.ddd.teamai.description.EvidenceSubType;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
+import reengineering.ddd.teamai.description.ParticipantSubType;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
@@ -54,7 +56,8 @@ public class LogicalEntitiesApiTest extends ApiTest {
     logicalEntity =
         new LogicalEntity(
             "entity-1",
-            new LogicalEntityDescription(Type.EVIDENCE, null, "Order", "订单", definition, "DRAFT"));
+            new LogicalEntityDescription(
+                Type.EVIDENCE, EvidenceSubType.RFP, "Order", "订单", definition, "DRAFT"));
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(projectLogicalEntities.findByIdentity(logicalEntity.getIdentity()))
@@ -112,13 +115,15 @@ public class LogicalEntitiesApiTest extends ApiTest {
     LogicalEntity newEntity =
         new LogicalEntity(
             "entity-new",
-            new LogicalEntityDescription(Type.PARTICIPANT, null, "Customer", "客户", null, null));
+            new LogicalEntityDescription(
+                Type.PARTICIPANT, ParticipantSubType.PARTY, "Customer", "客户", null, null));
 
     when(projectLogicalEntities.add(any(LogicalEntityDescription.class))).thenReturn(newEntity);
 
     LogicalEntitiesApi.CreateLogicalEntityRequest request =
         new LogicalEntitiesApi.CreateLogicalEntityRequest();
     request.setType(Type.PARTICIPANT);
+    request.setSubType(ParticipantSubType.PARTY);
     request.setName("Customer");
     request.setLabel("客户");
 

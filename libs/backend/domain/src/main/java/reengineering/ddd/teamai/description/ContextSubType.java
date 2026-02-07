@@ -4,7 +4,7 @@ package reengineering.ddd.teamai.description;
  * Sub-types for Context entities in Fulfillment Modeling. Represents bounded contexts that separate
  * different business domains.
  */
-public enum ContextSubType implements SubType {
+public enum ContextSubType implements LogicalEntityDescription.SubType {
   BOUNDED_CONTEXT("bounded_context");
 
   private final String value;

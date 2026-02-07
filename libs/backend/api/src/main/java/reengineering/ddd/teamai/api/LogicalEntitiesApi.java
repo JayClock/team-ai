@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.api;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
@@ -14,9 +16,10 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import reengineering.ddd.teamai.api.config.SubTypeDeserializer;
+import reengineering.ddd.teamai.api.config.SubTypeSerializer;
 import reengineering.ddd.teamai.api.representation.LogicalEntityModel;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
-import reengineering.ddd.teamai.description.SubType;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 
@@ -64,7 +67,9 @@ public class LogicalEntitiesApi {
   public static class CreateLogicalEntityRequest {
     @NotNull private LogicalEntityDescription.Type type;
 
-    private SubType subType;
+    @JsonSerialize(using = SubTypeSerializer.class)
+    @JsonDeserialize(using = SubTypeDeserializer.class)
+    private LogicalEntityDescription.SubType subType;
 
     @NotNull private String name;
 

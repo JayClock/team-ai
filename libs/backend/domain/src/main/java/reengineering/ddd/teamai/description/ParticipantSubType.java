@@ -4,7 +4,7 @@ package reengineering.ddd.teamai.description;
  * Sub-types for Participant entities in Fulfillment Modeling. Represents the parties and things
  * involved in a business contract.
  */
-public enum ParticipantSubType implements SubType {
+public enum ParticipantSubType implements LogicalEntityDescription.SubType {
   PARTY("party"),
   THING("thing");
 

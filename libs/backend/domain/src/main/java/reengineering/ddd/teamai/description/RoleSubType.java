@@ -4,7 +4,7 @@ package reengineering.ddd.teamai.description;
  * Sub-types for Role entities in Fulfillment Modeling. Represents abstract roles that can be played
  * by concrete participants.
  */
-public enum RoleSubType implements SubType {
+public enum RoleSubType implements LogicalEntityDescription.SubType {
   PARTY_ROLE("party_role"),
   DOMAIN_LOGIC_ROLE("domain_logic_role"),
   THIRD_PARTY_ROLE("third_party_role"),

@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reengineering.ddd.teamai.description.EntityAttribute;
 import reengineering.ddd.teamai.description.EntityBehavior;
 import reengineering.ddd.teamai.description.EntityDefinition;
+import reengineering.ddd.teamai.description.EvidenceSubType;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
 
@@ -35,7 +36,7 @@ public class LogicalEntityTest {
 
     description =
         new LogicalEntityDescription(
-            Type.EVIDENCE, null, "Order", "销售订单", entityDefinition, "DRAFT");
+            Type.EVIDENCE, EvidenceSubType.RFP, "Order", "销售订单", entityDefinition, "DRAFT");
 
     entity = new LogicalEntity("entity-1", description);
   }

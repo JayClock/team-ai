@@ -103,7 +103,7 @@ public class DiagramEdgesMapperTest {
             new Ref<>(String.valueOf(targetNodeId)),
             "source-handle-2",
             "target-handle-2",
-            EdgeRelationType.ASSOCIATION,
+            EdgeRelationType.ASSOCIATION.getValue(),
             "label-1",
             styleProps);
     edgesMapper.insertEdge(idHolder, diagramId, description);

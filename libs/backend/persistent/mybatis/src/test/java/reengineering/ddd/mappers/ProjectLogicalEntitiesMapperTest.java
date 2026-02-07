@@ -14,8 +14,10 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.EntityDefinition;
+import reengineering.ddd.teamai.description.EvidenceSubType;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription.Type;
+import reengineering.ddd.teamai.description.ParticipantSubType;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectLogicalEntitiesMapper;
 
@@ -41,6 +43,7 @@ public class ProjectLogicalEntitiesMapperTest {
         entityId,
         projectId,
         Type.EVIDENCE,
+        EvidenceSubType.RFP,
         "Order",
         "订单",
         "{\"description\":\"测试实体\",\"tags\":[],\"attributes\":[],\"behaviors\":[]}",
@@ -72,7 +75,8 @@ public class ProjectLogicalEntitiesMapperTest {
     EntityDefinition definition =
         new EntityDefinition("业务描述", List.of("Core"), List.of(), List.of());
     LogicalEntityDescription description =
-        new LogicalEntityDescription(Type.PARTICIPANT, null, "Customer", "客户", definition, "DRAFT");
+        new LogicalEntityDescription(
+            Type.PARTICIPANT, ParticipantSubType.PARTY, "Customer", "客户", definition, "DRAFT");
     logicalEntitiesMapper.insertLogicalEntity(idHolder, projectId, description);
 
     LogicalEntity entity =
