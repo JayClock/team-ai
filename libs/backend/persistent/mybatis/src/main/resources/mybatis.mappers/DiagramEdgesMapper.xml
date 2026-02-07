@@ -2,12 +2,6 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.DiagramEdgesMapper">
 
-  <resultMap id="diagramRef" type="reengineering.ddd.archtype.Ref">
-    <constructor>
-      <arg column="diagram_id" javaType="Object"/>
-    </constructor>
-  </resultMap>
-
   <resultMap id="sourceNodeRef" type="reengineering.ddd.archtype.Ref">
     <constructor>
       <arg column="source_node_id" javaType="Object"/>
@@ -25,7 +19,6 @@
     <result property="diagramId" column="diagram_id" jdbcType="INTEGER" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.EdgeDescription">
       <constructor>
-        <arg resultMap="diagramRef" javaType="reengineering.ddd.archtype.Ref"/>
         <arg resultMap="sourceNodeRef" javaType="reengineering.ddd.archtype.Ref"/>
         <arg resultMap="targetNodeRef" javaType="reengineering.ddd.archtype.Ref"/>
         <arg column="source_handle" jdbcType="VARCHAR" javaType="String"/>

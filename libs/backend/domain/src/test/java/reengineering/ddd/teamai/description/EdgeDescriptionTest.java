@@ -12,7 +12,6 @@ public class EdgeDescriptionTest {
     EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             "source-handle-1",
@@ -21,7 +20,6 @@ public class EdgeDescriptionTest {
             "hasMany",
             styleProps);
 
-    assertEquals("diagram-1", description.diagram().id());
     assertEquals("node-1", description.sourceNode().id());
     assertEquals("node-2", description.targetNode().id());
     assertEquals("source-handle-1", description.sourceHandle());
@@ -36,7 +34,6 @@ public class EdgeDescriptionTest {
     EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 1);
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             null,
@@ -55,7 +52,6 @@ public class EdgeDescriptionTest {
     EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 1);
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             "right",
@@ -71,7 +67,6 @@ public class EdgeDescriptionTest {
   void should_support_null_style_props() {
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             "right",
@@ -89,7 +84,6 @@ public class EdgeDescriptionTest {
 
     EdgeDescription association =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             null,
@@ -99,7 +93,6 @@ public class EdgeDescriptionTest {
             styleProps);
     EdgeDescription inheritance =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             null,
@@ -109,7 +102,6 @@ public class EdgeDescriptionTest {
             styleProps);
     EdgeDescription aggregation =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             null,
@@ -119,7 +111,6 @@ public class EdgeDescriptionTest {
             styleProps);
     EdgeDescription flow =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             "right",
@@ -129,7 +120,6 @@ public class EdgeDescriptionTest {
             styleProps);
     EdgeDescription dependency =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             null,
@@ -151,7 +141,6 @@ public class EdgeDescriptionTest {
 
     EdgeDescription oneToMany =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             null,
@@ -161,7 +150,6 @@ public class EdgeDescriptionTest {
             styleProps);
     EdgeDescription hasMany =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             null,
@@ -171,7 +159,6 @@ public class EdgeDescriptionTest {
             styleProps);
     EdgeDescription triggers =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             "right",
@@ -190,7 +177,6 @@ public class EdgeDescriptionTest {
     EdgeStyleProps styleProps = new EdgeStyleProps("dashed", "#666666", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             "right",
@@ -199,7 +185,6 @@ public class EdgeDescriptionTest {
             "depends on",
             styleProps);
 
-    assertEquals("diagram-1", description.diagram().id());
     assertEquals("node-1", description.sourceNode().id());
     assertEquals("node-2", description.targetNode().id());
     assertEquals("right", description.sourceHandle());

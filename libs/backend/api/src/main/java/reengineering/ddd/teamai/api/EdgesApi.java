@@ -67,7 +67,6 @@ public class EdgesApi {
   public Response create(@Valid CreateEdgeRequest request, @Context UriInfo uriInfo) {
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>(diagram.getIdentity()),
             new Ref<>(request.sourceNodeId),
             new Ref<>(request.targetNodeId),
             null,

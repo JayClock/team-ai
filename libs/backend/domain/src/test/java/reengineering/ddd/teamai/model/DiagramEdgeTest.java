@@ -18,7 +18,6 @@ public class DiagramEdgeTest {
   public void setUp() {
     description =
         new EdgeDescription(
-            new Ref<>("diagram-1"),
             new Ref<>("node-1"),
             new Ref<>("node-2"),
             "source-handle-1",
@@ -46,7 +45,7 @@ public class DiagramEdgeTest {
 
     @Test
     void should_return_diagram_ref() {
-      assertEquals("diagram-1", edge.getDescription().diagram().id());
+      assertNotNull(edge.getDescription().sourceNode());
     }
 
     @Test
@@ -104,7 +103,6 @@ public class DiagramEdgeTest {
     void should_support_association_relation() {
       EdgeDescription associationDesc =
           new EdgeDescription(
-              new Ref<>("diagram-1"),
               new Ref<>("node-1"),
               new Ref<>("node-2"),
               null,
@@ -122,7 +120,6 @@ public class DiagramEdgeTest {
     void should_support_inheritance_relation() {
       EdgeDescription inheritanceDesc =
           new EdgeDescription(
-              new Ref<>("diagram-1"),
               new Ref<>("node-1"),
               new Ref<>("node-2"),
               null,
@@ -140,7 +137,6 @@ public class DiagramEdgeTest {
     void should_support_aggregation_relation() {
       EdgeDescription aggregationDesc =
           new EdgeDescription(
-              new Ref<>("diagram-1"),
               new Ref<>("node-1"),
               new Ref<>("node-2"),
               null,
@@ -158,7 +154,6 @@ public class DiagramEdgeTest {
     void should_support_flow_relation() {
       EdgeDescription flowDesc =
           new EdgeDescription(
-              new Ref<>("diagram-1"),
               new Ref<>("node-1"),
               new Ref<>("node-2"),
               "right",
@@ -176,7 +171,6 @@ public class DiagramEdgeTest {
     void should_support_dependency_relation() {
       EdgeDescription dependencyDesc =
           new EdgeDescription(
-              new Ref<>("diagram-1"),
               new Ref<>("node-1"),
               new Ref<>("node-2"),
               null,
@@ -238,7 +232,6 @@ public class DiagramEdgeTest {
     void should_support_handles() {
       EdgeDescription edgeWithHandles =
           new EdgeDescription(
-              new Ref<>("diagram-1"),
               new Ref<>("node-1"),
               new Ref<>("node-2"),
               "right",
@@ -256,7 +249,6 @@ public class DiagramEdgeTest {
     void should_support_null_handles() {
       EdgeDescription edgeWithoutHandles =
           new EdgeDescription(
-              new Ref<>("diagram-1"),
               new Ref<>("node-1"),
               new Ref<>("node-2"),
               null,

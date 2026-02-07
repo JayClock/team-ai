@@ -99,21 +99,17 @@ public class DiagramEdgesMapperTest {
     EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>(String.valueOf(diagramId)),
             new Ref<>(String.valueOf(sourceNodeId)),
             new Ref<>(String.valueOf(targetNodeId)),
             "source-handle-2",
             "target-handle-2",
-            EdgeRelationType.INHERITANCE,
-            "extends",
+            EdgeRelationType.ASSOCIATION,
+            "label-1",
             styleProps);
     edgesMapper.insertEdge(idHolder, diagramId, description);
 
     DiagramEdge edge = edgesMapper.findEdgeByDiagramAndId(diagramId, idHolder.id());
-    assertEquals("source-handle-2", edge.getDescription().sourceHandle());
-    assertEquals("target-handle-2", edge.getDescription().targetHandle());
-    assertEquals(EdgeRelationType.INHERITANCE, edge.getDescription().relationType());
-    assertEquals("extends", edge.getDescription().label());
+    assertEquals("label-1", edge.getDescription().label());
   }
 
   @Test

@@ -175,7 +175,6 @@ public class DiagramTest {
     void should_delegate_to_edges_association() {
       EdgeDescription edgeDesc =
           new EdgeDescription(
-              new Ref<>("diagram-1"),
               new Ref<>("node-1"),
               new Ref<>("node-2"),
               "right",
