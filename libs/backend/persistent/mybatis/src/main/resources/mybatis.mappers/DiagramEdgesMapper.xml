@@ -23,7 +23,7 @@
         <arg resultMap="targetNodeRef" javaType="reengineering.ddd.archtype.Ref"/>
         <arg column="source_handle" jdbcType="VARCHAR" javaType="String"/>
         <arg column="target_handle" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="relation_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EdgeRelationTypeHandler" javaType="reengineering.ddd.teamai.description.EdgeRelationType"/>
+        <arg column="relation_type" jdbcType="VARCHAR" javaType="String"/>
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
         <arg column="style_props" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EdgeStylePropsHandler" javaType="reengineering.ddd.teamai.description.EdgeStyleProps"/>
       </constructor>
@@ -52,7 +52,7 @@
             #{description.targetNode, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
             #{description.sourceHandle},
             #{description.targetHandle},
-            #{description.relationType, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.EdgeRelationTypeHandler},
+            #{description.relationType},
             #{description.label},
             #{description.styleProps, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.EdgeStylePropsHandler})
   </insert>

@@ -10,7 +10,6 @@
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler"/>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler"/>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler"/>
-        <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.EdgeRelationTypeHandler"/>
     </typeHandlers>
     <objectFactory type="reengineering.ddd.mybatis.support.InjectableObjectFactory"/>
 </configuration>

@@ -14,7 +14,6 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.EdgeDescription;
-import reengineering.ddd.teamai.description.EdgeRelationType;
 import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.mybatis.mappers.DiagramEdgesMapper;
@@ -68,7 +67,7 @@ public class DiagramEdgesMapperTest {
     assertEquals(String.valueOf(edgeId), edge.getIdentity());
     assertEquals("source-handle-1", edge.getDescription().sourceHandle());
     assertEquals("target-handle-1", edge.getDescription().targetHandle());
-    assertEquals(EdgeRelationType.ASSOCIATION, edge.getDescription().relationType());
+    assertEquals("ASSOCIATION", edge.getDescription().relationType());
     assertEquals("hasRelation", edge.getDescription().label());
   }
 
@@ -103,7 +102,7 @@ public class DiagramEdgesMapperTest {
             new Ref<>(String.valueOf(targetNodeId)),
             "source-handle-2",
             "target-handle-2",
-            EdgeRelationType.ASSOCIATION.getValue(),
+            "ASSOCIATION",
             "label-1",
             styleProps);
     edgesMapper.insertEdge(idHolder, diagramId, description);
