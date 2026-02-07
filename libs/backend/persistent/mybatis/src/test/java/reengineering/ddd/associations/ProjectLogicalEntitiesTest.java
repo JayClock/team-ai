@@ -56,7 +56,13 @@ public class ProjectLogicalEntitiesTest {
         new EntityDefinition("订单业务定义", List.of("Core"), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            Type.EVIDENCE, "Order", "订单", definition, "DRAFT", new Ref<>(project.getIdentity()));
+            Type.EVIDENCE,
+            null,
+            "Order",
+            "订单",
+            definition,
+            "DRAFT",
+            new Ref<>(project.getIdentity()));
 
     LogicalEntity savedEntity = project.addLogicalEntity(description);
 
@@ -76,6 +82,7 @@ public class ProjectLogicalEntitiesTest {
     var description =
         new LogicalEntityDescription(
             Type.PARTICIPANT,
+            null,
             "Customer",
             "客户",
             definition,
@@ -105,7 +112,13 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            Type.EVIDENCE, "Product", "产品", definition, "DRAFT", new Ref<>(project.getIdentity()));
+            Type.EVIDENCE,
+            null,
+            "Product",
+            "产品",
+            definition,
+            "DRAFT",
+            new Ref<>(project.getIdentity()));
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();
@@ -119,7 +132,7 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            Type.ROLE, "Money", "金额", definition, "DRAFT", new Ref<>(project.getIdentity()));
+            Type.ROLE, null, "Money", "金额", definition, "DRAFT", new Ref<>(project.getIdentity()));
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();
@@ -133,6 +146,7 @@ public class ProjectLogicalEntitiesTest {
       var description =
           new LogicalEntityDescription(
               Type.PARTICIPANT,
+              null,
               "Entity" + i,
               "实体" + i,
               definition,

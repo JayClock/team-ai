@@ -8,6 +8,6 @@ public record EdgeDescription(
     Ref<String> targetNode,
     String sourceHandle,
     String targetHandle,
-    String relationType,
+    EdgeRelationType relationType,
     String label,
     EdgeStyleProps styleProps) {}

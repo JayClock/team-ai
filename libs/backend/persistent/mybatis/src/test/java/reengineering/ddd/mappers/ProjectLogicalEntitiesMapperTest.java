@@ -41,7 +41,7 @@ public class ProjectLogicalEntitiesMapperTest {
     testData.insertLogicalEntity(
         entityId,
         projectId,
-        "EVIDENCE",
+        Type.EVIDENCE,
         "Order",
         "订单",
         "{\"description\":\"测试实体\",\"tags\":[],\"attributes\":[],\"behaviors\":[]}",
@@ -75,6 +75,7 @@ public class ProjectLogicalEntitiesMapperTest {
     LogicalEntityDescription description =
         new LogicalEntityDescription(
             Type.PARTICIPANT,
+            null,
             "Customer",
             "客户",
             definition,

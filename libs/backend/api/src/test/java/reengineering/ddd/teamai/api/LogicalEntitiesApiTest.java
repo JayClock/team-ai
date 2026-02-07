@@ -57,6 +57,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
             "entity-1",
             new LogicalEntityDescription(
                 Type.EVIDENCE,
+                null,
                 "Order",
                 "订单",
                 definition,
@@ -96,7 +97,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
         .body("_templates.default.method", is("PUT"))
-        .body("_templates.default.properties", hasSize(6))
+        .body("_templates.default.properties", hasSize(7))
         .body("_templates.delete-logical-entity.method", is("DELETE"));
 
     verify(projectLogicalEntities, times(1)).findByIdentity(logicalEntity.getIdentity());
@@ -120,7 +121,13 @@ public class LogicalEntitiesApiTest extends ApiTest {
         new LogicalEntity(
             "entity-new",
             new LogicalEntityDescription(
-                Type.PARTICIPANT, "Customer", "客户", null, null, new Ref<>(project.getIdentity())));
+                Type.PARTICIPANT,
+                null,
+                "Customer",
+                "客户",
+                null,
+                null,
+                new Ref<>(project.getIdentity())));
 
     when(projectLogicalEntities.add(any(LogicalEntityDescription.class))).thenReturn(newEntity);
 

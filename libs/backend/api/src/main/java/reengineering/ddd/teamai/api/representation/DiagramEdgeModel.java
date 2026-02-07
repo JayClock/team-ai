@@ -69,7 +69,7 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
     this.targetNodeId = desc.targetNode() != null ? desc.targetNode().id() : null;
     this.sourceHandle = desc.sourceHandle();
     this.targetHandle = desc.targetHandle();
-    this.relationType = desc.relationType();
+    this.relationType = desc.relationType() != null ? desc.relationType().getValue() : null;
     this.label = desc.label();
     this.styleProps = new StylePropsModel(desc.styleProps());
 

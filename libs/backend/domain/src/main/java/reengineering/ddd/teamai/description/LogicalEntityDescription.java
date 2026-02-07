@@ -4,6 +4,7 @@ import reengineering.ddd.archtype.Ref;
 
 public record LogicalEntityDescription(
     Type type,
+    SubType subType,
     String name,
     String label,
     EntityDefinition definition,

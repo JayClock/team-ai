@@ -79,21 +79,44 @@ public class ProjectsApiTest extends ApiTest {
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
         .body("_templates.create-logical-entity.method", is("POST"))
-        .body("_templates.create-logical-entity.properties", hasSize(3))
+        .body("_templates.create-logical-entity.properties", hasSize(4))
         .body("_templates.create-logical-entity.properties[0].name", is("label"))
         .body("_templates.create-logical-entity.properties[0].type", is("text"))
         .body("_templates.create-logical-entity.properties[1].name", is("name"))
         .body("_templates.create-logical-entity.properties[1].required", is(true))
         .body("_templates.create-logical-entity.properties[1].type", is("text"))
-        .body("_templates.create-logical-entity.properties[2].name", is("type"))
-        .body("_templates.create-logical-entity.properties[2].required", is(true))
-        .body("_templates.create-logical-entity.properties[2].options.inline", hasSize(4))
+        .body("_templates.create-logical-entity.properties[2].name", is("subType"))
+        .body("_templates.create-logical-entity.properties[2].options.inline", hasSize(14))
         .body("_templates.create-logical-entity.properties[2].options.promptField", is("prompt"))
         .body("_templates.create-logical-entity.properties[2].options.valueField", is("value"))
         .body("_templates.create-logical-entity.properties[2].options.maxItems", is(1))
-        .body("_templates.create-logical-entity.properties[2].options.minItems", is(1))
+        .body("_templates.create-logical-entity.properties[2].options.minItems", is(0))
         .body(
             "_templates.create-logical-entity.properties[2].options.inline.value",
+            containsInAnyOrder(
+                "EVIDENCE:rfp",
+                "EVIDENCE:proposal",
+                "EVIDENCE:contract",
+                "EVIDENCE:fulfillment_request",
+                "EVIDENCE:fulfillment_confirmation",
+                "EVIDENCE:other_evidence",
+                "PARTICIPANT:party",
+                "PARTICIPANT:thing",
+                "ROLE:party_role",
+                "ROLE:domain_logic_role",
+                "ROLE:third_party_role",
+                "ROLE:context_role",
+                "ROLE:evidence_role",
+                "CONTEXT:bounded_context"))
+        .body("_templates.create-logical-entity.properties[3].name", is("type"))
+        .body("_templates.create-logical-entity.properties[3].required", is(true))
+        .body("_templates.create-logical-entity.properties[3].options.inline", hasSize(4))
+        .body("_templates.create-logical-entity.properties[3].options.promptField", is("prompt"))
+        .body("_templates.create-logical-entity.properties[3].options.valueField", is("value"))
+        .body("_templates.create-logical-entity.properties[3].options.maxItems", is(1))
+        .body("_templates.create-logical-entity.properties[3].options.minItems", is(1))
+        .body(
+            "_templates.create-logical-entity.properties[3].options.inline.value",
             containsInAnyOrder("EVIDENCE", "PARTICIPANT", "ROLE", "CONTEXT"));
   }
 }

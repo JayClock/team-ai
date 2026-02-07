@@ -14,6 +14,7 @@ import org.springframework.hateoas.MediaTypes;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
+import reengineering.ddd.teamai.description.EdgeRelationType;
 import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.Viewport;
@@ -66,7 +67,7 @@ public class EdgesApiTest extends ApiTest {
                 new Ref<>("node-2"),
                 "bottom",
                 "top",
-                "ASSOCIATION",
+                EdgeRelationType.ASSOCIATION,
                 "hasMany",
                 styleProps));
 

@@ -38,7 +38,7 @@ public class LogicalEntityTest {
 
     description =
         new LogicalEntityDescription(
-            Type.EVIDENCE, "Order", "销售订单", entityDefinition, "DRAFT", projectRef);
+            Type.EVIDENCE, null, "Order", "销售订单", entityDefinition, "DRAFT", projectRef);
 
     entity = new LogicalEntity("entity-1", description);
   }

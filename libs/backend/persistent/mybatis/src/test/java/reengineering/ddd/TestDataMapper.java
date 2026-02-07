@@ -3,6 +3,7 @@ package reengineering.ddd;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import reengineering.ddd.teamai.description.LogicalEntityDescription;
 
 @Mapper
 public interface TestDataMapper {
@@ -38,11 +39,11 @@ public interface TestDataMapper {
   void insertProjectMember(@Param("project_id") int projectId, @Param("user_id") int userId);
 
   @Insert(
-      "INSERT INTO logical_entities(id, project_id, type, name, label, definition, status) VALUES (#{id}, #{project_id}, #{type}, #{name}, #{label}, CAST(#{definition} AS jsonb), #{status})")
+      "INSERT INTO logical_entities(id, project_id, type, name, label, definition, status) VALUES (#{id}, #{project_id}, #{type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler}, #{name}, #{label}, CAST(#{definition} AS jsonb), #{status})")
   void insertLogicalEntity(
       @Param("id") int id,
       @Param("project_id") int projectId,
-      @Param("type") String type,
+      @Param("type") LogicalEntityDescription.Type type,
       @Param("name") String name,
       @Param("label") String label,
       @Param("definition") String definition,

@@ -14,6 +14,7 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.EdgeDescription;
+import reengineering.ddd.teamai.description.EdgeRelationType;
 import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.mybatis.mappers.DiagramEdgesMapper;
@@ -67,7 +68,7 @@ public class DiagramEdgesMapperTest {
     assertEquals(String.valueOf(edgeId), edge.getIdentity());
     assertEquals("source-handle-1", edge.getDescription().sourceHandle());
     assertEquals("target-handle-1", edge.getDescription().targetHandle());
-    assertEquals("ASSOCIATION", edge.getDescription().relationType());
+    assertEquals(EdgeRelationType.ASSOCIATION, edge.getDescription().relationType());
     assertEquals("hasRelation", edge.getDescription().label());
   }
 
@@ -95,7 +96,7 @@ public class DiagramEdgesMapperTest {
   @Test
   public void should_add_edge_to_database() {
     IdHolder idHolder = new IdHolder();
-    EdgeStyleProps styleProps = new EdgeStyleProps("dashed", "#ff0000", "diamond", 1);
+    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(String.valueOf(diagramId)),
@@ -103,7 +104,7 @@ public class DiagramEdgesMapperTest {
             new Ref<>(String.valueOf(targetNodeId)),
             "source-handle-2",
             "target-handle-2",
-            "INHERITANCE",
+            EdgeRelationType.INHERITANCE,
             "extends",
             styleProps);
     edgesMapper.insertEdge(idHolder, diagramId, description);
@@ -111,7 +112,7 @@ public class DiagramEdgesMapperTest {
     DiagramEdge edge = edgesMapper.findEdgeByDiagramAndId(diagramId, idHolder.id());
     assertEquals("source-handle-2", edge.getDescription().sourceHandle());
     assertEquals("target-handle-2", edge.getDescription().targetHandle());
-    assertEquals("INHERITANCE", edge.getDescription().relationType());
+    assertEquals(EdgeRelationType.INHERITANCE, edge.getDescription().relationType());
     assertEquals("extends", edge.getDescription().label());
   }
 

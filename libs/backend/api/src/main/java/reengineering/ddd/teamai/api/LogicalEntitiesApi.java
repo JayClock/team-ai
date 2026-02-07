@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.LogicalEntityModel;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.SubType;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 
@@ -48,6 +49,7 @@ public class LogicalEntitiesApi {
         project.addLogicalEntity(
             new LogicalEntityDescription(
                 request.getType(),
+                request.getSubType(),
                 request.getName(),
                 request.getLabel(),
                 null,
@@ -63,6 +65,8 @@ public class LogicalEntitiesApi {
   @NoArgsConstructor
   public static class CreateLogicalEntityRequest {
     @NotNull private LogicalEntityDescription.Type type;
+
+    private SubType subType;
 
     @NotNull private String name;
 

@@ -16,7 +16,8 @@ public class LogicalEntityDescriptionTest {
     Ref<String> projectRef = new Ref<>("project-1");
 
     LogicalEntityDescription description =
-        new LogicalEntityDescription(Type.EVIDENCE, "Order", "订单", definition, "DRAFT", projectRef);
+        new LogicalEntityDescription(
+            Type.EVIDENCE, null, "Order", "订单", definition, "DRAFT", projectRef);
 
     assertEquals(Type.EVIDENCE, description.type());
     assertEquals("Order", description.name());

@@ -6,7 +6,8 @@ public enum DiagramType {
   CLASS("class"),
   COMPONENT("component"),
   STATE("state"),
-  ACTIVITY("activity");
+  ACTIVITY("activity"),
+  FULFILLMENT("fulfillment");
 
   private final String value;
 

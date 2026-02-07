@@ -12,7 +12,8 @@
     <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription">
       <constructor>
-        <arg column="type" jdbcType="VARCHAR" typeHandler="org.apache.ibatis.type.EnumTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$Type"/>
+        <arg column="type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$Type"/>
+        <arg column="sub_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler" javaType="reengineering.ddd.teamai.description.SubType"/>
         <arg column="name" jdbcType="VARCHAR" javaType="String"/>
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
         <arg column="definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>
@@ -23,13 +24,13 @@
   </resultMap>
 
   <select id="findLogicalEntityByProjectAndId" resultMap="logicalEntity">
-    SELECT id, project_id, type, name, label, definition, status
+    SELECT id, project_id, type, sub_type, name, label, definition, status
     FROM logical_entities
     WHERE project_id = #{project_id} AND id = #{id}
   </select>
 
   <select id="findLogicalEntitiesByProjectId" resultMap="logicalEntity">
-    SELECT id, project_id, type, name, label, definition, status
+    SELECT id, project_id, type, sub_type, name, label, definition, status
     FROM logical_entities
     WHERE project_id = #{project_id}
     ORDER BY updated_at DESC
@@ -38,8 +39,11 @@
 
   <insert id="insertLogicalEntity" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
-    INSERT INTO logical_entities(project_id, type, name, label, definition, status)
-    VALUES (CAST(#{description.project.id} AS INTEGER), #{description.type}, #{description.name}, #{description.label},
+    INSERT INTO logical_entities(project_id, type, sub_type, name, label, definition, status)
+    VALUES (CAST(#{description.project.id} AS INTEGER),
+            #{description.type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler},
+            #{description.subType, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler},
+            #{description.name}, #{description.label},
             #{description.definition, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler},
             #{description.status})
   </insert>
