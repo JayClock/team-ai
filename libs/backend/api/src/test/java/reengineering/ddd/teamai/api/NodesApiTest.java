@@ -240,4 +240,40 @@ public class NodesApiTest extends ApiTest {
 
     verify(diagramNodes, times(1)).add(any(NodeDescription.class));
   }
+
+  @Test
+  public void should_return_all_nodes() {
+    DiagramNode node2 =
+        new DiagramNode(
+            "node-2",
+            diagram.getIdentity(),
+            new NodeDescription("entity-node", null, null, 300.0, 250.0, 250, 150, null, null));
+
+    when(diagramNodes.findAll()).thenReturn(new EntityList<>(node, node2));
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .get(
+            "/projects/{projectId}/diagrams/{diagramId}/nodes",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded.nodes", hasSize(2))
+        .body("_embedded.nodes[0].id", is(node.getIdentity()))
+        .body("_embedded.nodes[0].type", is("class-node"))
+        .body("_embedded.nodes[1].id", is(node2.getIdentity()))
+        .body("_embedded.nodes[1].type", is("entity-node"))
+        .body(
+            "_links.self.href",
+            org.hamcrest.Matchers.endsWith(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/nodes"));
+
+    verify(diagramNodes, times(1)).findAll();
+  }
 }

@@ -210,4 +210,48 @@ public class EdgesApiTest extends ApiTest {
 
     verify(diagramEdges, times(1)).add(any(EdgeDescription.class));
   }
+
+  @Test
+  public void should_return_all_edges() {
+    EdgeStyleProps styleProps2 = new EdgeStyleProps("dashed", "#666666", "diamond", 1);
+    DiagramEdge edge2 =
+        new DiagramEdge(
+            "edge-2",
+            diagram.getIdentity(),
+            new EdgeDescription(
+                new Ref<>("node-3"),
+                new Ref<>("node-4"),
+                "left",
+                "right",
+                "AGGREGATION",
+                "hasOne",
+                styleProps2));
+
+    when(diagramEdges.findAll()).thenReturn(new EntityList<>(edge, edge2));
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .get(
+            "/projects/{projectId}/diagrams/{diagramId}/edges",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded.edges", hasSize(2))
+        .body("_embedded.edges[0].id", is(edge.getIdentity()))
+        .body("_embedded.edges[0].relationType", is("ASSOCIATION"))
+        .body("_embedded.edges[1].id", is(edge2.getIdentity()))
+        .body("_embedded.edges[1].relationType", is("AGGREGATION"))
+        .body(
+            "_links.self.href",
+            org.hamcrest.Matchers.endsWith(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/edges"));
+
+    verify(diagramEdges, times(1)).findAll();
+  }
 }

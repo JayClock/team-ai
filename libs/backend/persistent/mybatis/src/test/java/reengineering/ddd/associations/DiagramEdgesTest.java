@@ -183,7 +183,7 @@ public class DiagramEdgesTest {
   }
 
   @Test
-  public void should_cache_edges_list_by_range() {
+  public void should_cache_edges_list() {
     EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
 
     for (int i = 0; i < 5; i++) {
@@ -199,10 +199,19 @@ public class DiagramEdgesTest {
       diagram.addEdge(description);
     }
 
-    var firstCall = diagram.edges().findAll().subCollection(0, 3);
-    var secondCall = diagram.edges().findAll().subCollection(0, 3);
+    var firstCall = diagram.edges().findAll();
+    var secondCall = diagram.edges().findAll();
 
-    assertEquals(firstCall.size(), secondCall.size());
+    int count = 0;
+    for (var edge : firstCall) {
+      count++;
+    }
+    int count2 = 0;
+    for (var edge : secondCall) {
+      count2++;
+    }
+
+    assertEquals(count, count2);
   }
 
   @Test

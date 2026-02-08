@@ -121,8 +121,8 @@ public class DiagramNodesMapperTest {
   }
 
   @Test
-  public void should_find_nodes_by_diagram_id_with_pagination() {
-    List<DiagramNode> nodes = nodesMapper.findNodesByDiagramId(diagramId, 0, 10);
+  public void should_find_nodes_by_diagram_id() {
+    List<DiagramNode> nodes = nodesMapper.findNodesByDiagramId(diagramId);
     assertEquals(1, nodes.size());
     assertEquals(String.valueOf(nodeId), nodes.get(0).getIdentity());
   }

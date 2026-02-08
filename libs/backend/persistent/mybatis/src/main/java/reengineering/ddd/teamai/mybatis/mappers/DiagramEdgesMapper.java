@@ -11,8 +11,7 @@ import reengineering.ddd.teamai.model.DiagramEdge;
 public interface DiagramEdgesMapper {
   DiagramEdge findEdgeByDiagramAndId(@Param("diagram_id") int diagramId, @Param("id") int id);
 
-  List<DiagramEdge> findEdgesByDiagramId(
-      @Param("diagram_id") int diagramId, @Param("from") int from, @Param("size") int size);
+  List<DiagramEdge> findEdgesByDiagramId(@Param("diagram_id") int diagramId);
 
   int insertEdge(
       @Param("holder") IdHolder holder,

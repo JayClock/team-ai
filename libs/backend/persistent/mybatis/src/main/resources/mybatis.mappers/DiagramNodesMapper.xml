@@ -43,7 +43,6 @@
     FROM diagram_nodes
     WHERE diagram_id = #{diagram_id}
     ORDER BY updated_at DESC
-    LIMIT #{size} OFFSET #{from}
   </select>
 
   <insert id="insertNode" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"

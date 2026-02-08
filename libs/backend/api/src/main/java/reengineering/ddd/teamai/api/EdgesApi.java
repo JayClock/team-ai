@@ -3,12 +3,10 @@ package reengineering.ddd.teamai.api;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
@@ -18,6 +16,7 @@ import jakarta.ws.rs.core.UriInfo;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.Link;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramEdgeModel;
 import reengineering.ddd.teamai.description.EdgeDescription;
@@ -50,16 +49,15 @@ public class EdgesApi {
   }
 
   @GET
-  public CollectionModel<DiagramEdgeModel> findAll(
-      @Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
-    return new Pagination<>(diagram.edges().findAll(), 20)
-        .page(
-            page,
-            edge -> DiagramEdgeModel.simple(project, diagram, edge, uriInfo),
-            p ->
-                ApiTemplates.edges(uriInfo)
-                    .queryParam("page", p)
-                    .build(project.getIdentity(), diagram.getIdentity()));
+  public CollectionModel<DiagramEdgeModel> findAll(@Context UriInfo uriInfo) {
+    return CollectionModel.of(
+        diagram.edges().findAll().stream()
+            .map(edge -> DiagramEdgeModel.simple(project, diagram, edge, uriInfo))
+            .toList(),
+        Link.of(
+            ApiTemplates.edges(uriInfo)
+                .build(project.getIdentity(), diagram.getIdentity())
+                .toString()));
   }
 
   @POST

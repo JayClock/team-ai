@@ -41,7 +41,6 @@
     FROM diagram_edges
     WHERE diagram_id = #{diagram_id}
     ORDER BY updated_at DESC
-    LIMIT #{size} OFFSET #{from}
   </select>
 
   <insert id="insertEdge" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"

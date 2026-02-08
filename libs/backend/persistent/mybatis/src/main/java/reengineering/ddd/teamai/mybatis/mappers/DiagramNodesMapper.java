@@ -11,8 +11,7 @@ import reengineering.ddd.teamai.model.DiagramNode;
 public interface DiagramNodesMapper {
   DiagramNode findNodeByDiagramAndId(@Param("diagram_id") int diagramId, @Param("id") int id);
 
-  List<DiagramNode> findNodesByDiagramId(
-      @Param("diagram_id") int diagramId, @Param("from") int from, @Param("size") int size);
+  List<DiagramNode> findNodesByDiagramId(@Param("diagram_id") int diagramId);
 
   int insertNode(
       @Param("holder") IdHolder holder,

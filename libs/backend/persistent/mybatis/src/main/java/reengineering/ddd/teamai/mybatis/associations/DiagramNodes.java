@@ -4,7 +4,6 @@ import jakarta.inject.Inject;
 import java.util.List;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import reengineering.ddd.mybatis.database.EntityList;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.NodeDescription;
@@ -17,17 +16,15 @@ import reengineering.ddd.teamai.mybatis.mappers.DiagramNodesMapper;
 public class DiagramNodes extends EntityList<String, DiagramNode> implements Diagram.Nodes {
 
   private static final String CACHE_NAME = "diagramNodes";
-  private static final String CACHE_LIST = "diagramNodesList";
-  private static final String CACHE_COUNT = "diagramNodesCount";
 
   private int diagramId;
 
   @Inject private DiagramNodesMapper mapper;
 
   @Override
-  @Cacheable(value = CACHE_LIST, key = "#root.target.diagramId + ':' + #from + ':' + #to")
+  @Cacheable(value = CACHE_NAME, key = "#root.target.diagramId")
   protected List<DiagramNode> findEntities(int from, int to) {
-    return mapper.findNodesByDiagramId(diagramId, from, to - from);
+    return mapper.findNodesByDiagramId(diagramId);
   }
 
   @Override
@@ -40,17 +37,13 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
   }
 
   @Override
-  @Cacheable(value = CACHE_COUNT, key = "#root.target.diagramId")
+  @Cacheable(value = CACHE_NAME, key = "#root.target.diagramId + ':size'")
   public int size() {
     return mapper.countNodesByDiagram(diagramId);
   }
 
   @Override
-  @Caching(
-      evict = {
-        @CacheEvict(value = CACHE_LIST, allEntries = true),
-        @CacheEvict(value = CACHE_COUNT, key = "#root.target.diagramId")
-      })
+  @CacheEvict(value = CACHE_NAME, key = "#root.target.diagramId + '*")
   public DiagramNode add(NodeDescription description) {
     IdHolder idHolder = new IdHolder();
     mapper.insertNode(idHolder, diagramId, description);

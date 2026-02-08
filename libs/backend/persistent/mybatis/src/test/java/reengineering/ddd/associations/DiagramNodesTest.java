@@ -147,7 +147,7 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_cache_nodes_list_by_range() {
+  public void should_cache_nodes_list() {
     for (int i = 0; i < 5; i++) {
       NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
       LocalNodeData localData = new LocalNodeData("Node " + i, "#00ff00", "note");
@@ -157,10 +157,19 @@ public class DiagramNodesTest {
       diagram.addNode(description);
     }
 
-    var firstCall = diagram.nodes().findAll().subCollection(0, 3);
-    var secondCall = diagram.nodes().findAll().subCollection(0, 3);
+    var firstCall = diagram.nodes().findAll();
+    var secondCall = diagram.nodes().findAll();
 
-    assertEquals(firstCall.size(), secondCall.size());
+    int count = 0;
+    for (var node : firstCall) {
+      count++;
+    }
+    int count2 = 0;
+    for (var node : secondCall) {
+      count2++;
+    }
+
+    assertEquals(count, count2);
   }
 
   @Test

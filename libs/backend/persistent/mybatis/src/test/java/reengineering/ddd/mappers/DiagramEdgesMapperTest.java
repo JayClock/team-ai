@@ -118,8 +118,8 @@ public class DiagramEdgesMapperTest {
   }
 
   @Test
-  public void should_find_edges_by_diagram_id_with_pagination() {
-    List<DiagramEdge> edges = edgesMapper.findEdgesByDiagramId(diagramId, 0, 10);
+  public void should_find_edges_by_diagram_id() {
+    List<DiagramEdge> edges = edgesMapper.findEdgesByDiagramId(diagramId);
     assertEquals(1, edges.size());
     assertEquals(String.valueOf(edgeId), edges.get(0).getIdentity());
   }
