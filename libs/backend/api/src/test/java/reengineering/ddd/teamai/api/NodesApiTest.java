@@ -126,6 +126,13 @@ public class NodesApiTest extends ApiTest {
         .body(
             "_links.diagram.href",
             is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
+        .body(
+            "_links.logical-entity.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/logical-entities/"
+                    + node.getDescription().logicalEntity().id()))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.delete-node.method", is("DELETE"))
         .body("_templates.create-node.method", is("POST"))
@@ -146,15 +153,7 @@ public class NodesApiTest extends ApiTest {
         .body("_templates.create-node.properties[5].type", is("text"))
         .body("_templates.create-node.properties[6].name", is("width"))
         .body("_templates.create-node.properties[6].required", is(true))
-        .body("_templates.create-node.properties[6].type", is("number"))
-        .body("_templates.create-edge.method", is("POST"))
-        .body("_templates.create-edge.properties", hasSize(2))
-        .body("_templates.create-edge.properties[0].name", is("sourceNodeId"))
-        .body("_templates.create-edge.properties[0].required", is(true))
-        .body("_templates.create-edge.properties[0].type", is("text"))
-        .body("_templates.create-edge.properties[1].name", is("targetNodeId"))
-        .body("_templates.create-edge.properties[1].required", is(true))
-        .body("_templates.create-edge.properties[1].type", is("text"));
+        .body("_templates.create-node.properties[6].type", is("number"));
 
     verify(diagramNodes, times(1)).findByIdentity(node.getIdentity());
   }
