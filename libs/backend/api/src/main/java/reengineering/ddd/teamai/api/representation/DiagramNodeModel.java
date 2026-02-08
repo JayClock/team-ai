@@ -104,9 +104,10 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
     }
   }
 
-  public DiagramNodeModel(Project project, Diagram diagram, DiagramNode node, UriInfo uriInfo) {
-    NodeDescription desc = node.getDescription();
-    this.id = node.getIdentity();
+  public DiagramNodeModel(
+      Project project, Diagram diagram, DiagramNode diagramNode, UriInfo uriInfo) {
+    NodeDescription desc = diagramNode.getDescription();
+    this.id = diagramNode.getIdentity();
     this.type = desc.type();
     this.logicalEntityId = desc.logicalEntity() != null ? desc.logicalEntity().id() : null;
     this.parentId = desc.parent() != null ? desc.parent().id() : null;
@@ -116,12 +117,19 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
     this.height = desc.height();
     this.styleConfig = new StyleConfigModel(desc.styleConfig());
     this.localData = new LocalDataModel(desc.localData());
+  }
 
-    add(
+  public static DiagramNodeModel of(
+      Project project, Diagram diagram, DiagramNode diagramNode, UriInfo uriInfo) {
+    DiagramNodeModel model = new DiagramNodeModel(project, diagram, diagramNode, uriInfo);
+    model.add(
         Affordances.of(
                 Link.of(
                         ApiTemplates.node(uriInfo)
-                            .build(project.getIdentity(), diagram.getIdentity(), node.getIdentity())
+                            .build(
+                                project.getIdentity(),
+                                diagram.getIdentity(),
+                                diagramNode.getIdentity())
                             .getPath())
                     .withSelfRel())
             .afford(HttpMethod.PUT)
@@ -130,7 +138,7 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
             .withName("delete-node")
             .toLink());
 
-    add(
+    model.add(
         Affordances.of(
                 Link.of(
                         ApiTemplates.nodes(uriInfo)
@@ -142,28 +150,30 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
             .withName("create-node")
             .toLink());
 
-    add(
+    model.add(
         Link.of(
                 ApiTemplates.diagram(uriInfo)
                     .build(project.getIdentity(), diagram.getIdentity())
                     .getPath())
             .withRel("diagram"));
 
-    add(
+    model.add(
         Link.of(
                 ApiTemplates.logicalEntity(uriInfo)
-                    .build(project.getIdentity(), node.getDescription().logicalEntity().id())
+                    .build(project.getIdentity(), diagramNode.getDescription().logicalEntity().id())
                     .getPath())
             .withRel("logical-entity"));
+
+    return model;
   }
 
   public static DiagramNodeModel simple(
-      Project project, Diagram diagram, DiagramNode entity, UriInfo uriInfo) {
-    DiagramNodeModel model = new DiagramNodeModel(project, diagram, entity, uriInfo);
+      Project project, Diagram diagram, DiagramNode diagramNode, UriInfo uriInfo) {
+    DiagramNodeModel model = new DiagramNodeModel(project, diagram, diagramNode, uriInfo);
     model.add(
         Link.of(
                 ApiTemplates.node(uriInfo)
-                    .build(project.getIdentity(), diagram.getIdentity(), entity.getIdentity())
+                    .build(project.getIdentity(), diagram.getIdentity(), diagramNode.getIdentity())
                     .getPath())
             .withSelfRel());
     return model;

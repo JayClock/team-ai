@@ -75,7 +75,7 @@ public class NodesApi {
             null,
             null);
     DiagramNode created = diagram.addNode(description);
-    DiagramNodeModel model = new DiagramNodeModel(project, diagram, created, uriInfo);
+    DiagramNodeModel model = DiagramNodeModel.of(project, diagram, created, uriInfo);
     return Response.created(
             ApiTemplates.node(uriInfo)
                 .build(project.getIdentity(), diagram.getIdentity(), created.getIdentity()))

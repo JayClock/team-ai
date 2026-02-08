@@ -25,6 +25,6 @@ public class NodeApi {
   @GET
   @VendorMediaType(ResourceTypes.NODE)
   public DiagramNodeModel get(@Context UriInfo uriInfo) {
-    return new DiagramNodeModel(project, diagram, entity, uriInfo);
+    return DiagramNodeModel.of(project, diagram, entity, uriInfo);
   }
 }

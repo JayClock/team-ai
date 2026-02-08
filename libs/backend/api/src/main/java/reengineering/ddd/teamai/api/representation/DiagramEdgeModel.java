@@ -109,12 +109,12 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
   }
 
   public static DiagramEdgeModel simple(
-      Project project, Diagram diagram, DiagramEdge entity, UriInfo uriInfo) {
-    DiagramEdgeModel model = new DiagramEdgeModel(project, diagram, entity, uriInfo);
+      Project project, Diagram diagram, DiagramEdge diagramEdge, UriInfo uriInfo) {
+    DiagramEdgeModel model = new DiagramEdgeModel(project, diagram, diagramEdge, uriInfo);
     model.add(
         Link.of(
                 ApiTemplates.edge(uriInfo)
-                    .build(project.getIdentity(), diagram.getIdentity(), entity.getIdentity())
+                    .build(project.getIdentity(), diagram.getIdentity(), diagramEdge.getIdentity())
                     .getPath())
             .withSelfRel());
     return model;
