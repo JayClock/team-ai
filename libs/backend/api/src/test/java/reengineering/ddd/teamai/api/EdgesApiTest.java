@@ -254,4 +254,23 @@ public class EdgesApiTest extends ApiTest {
 
     verify(diagramEdges, times(1)).findAll();
   }
+
+  @Test
+  public void should_return_empty_array_when_no_edges() {
+    when(diagramEdges.findAll()).thenReturn(new EntityList<>());
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .get(
+            "/projects/{projectId}/diagrams/{diagramId}/edges",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded", org.hamcrest.Matchers.nullValue())
+        .body("_links.self.href", org.hamcrest.Matchers.endsWith("/edges"));
+
+    verify(diagramEdges, times(1)).findAll();
+  }
 }

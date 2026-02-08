@@ -275,4 +275,23 @@ public class NodesApiTest extends ApiTest {
 
     verify(diagramNodes, times(1)).findAll();
   }
+
+  @Test
+  public void should_return_empty_array_when_no_nodes() {
+    when(diagramNodes.findAll()).thenReturn(new EntityList<>());
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .get(
+            "/projects/{projectId}/diagrams/{diagramId}/nodes",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded", org.hamcrest.Matchers.nullValue())
+        .body("_links.self.href", org.hamcrest.Matchers.endsWith("/nodes"));
+
+    verify(diagramNodes, times(1)).findAll();
+  }
 }
