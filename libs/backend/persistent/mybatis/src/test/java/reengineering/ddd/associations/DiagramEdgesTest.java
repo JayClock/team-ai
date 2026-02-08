@@ -97,6 +97,8 @@ public class DiagramEdgesTest {
 
     DiagramEdge savedEdge = diagram.addEdge(description);
 
+    assertEquals(node1.getIdentity(), savedEdge.getDescription().sourceNode().id());
+    assertEquals(node2.getIdentity(), savedEdge.getDescription().targetNode().id());
     assertEquals("sourceHandle", savedEdge.getDescription().sourceHandle());
     assertEquals("targetHandle", savedEdge.getDescription().targetHandle());
     assertEquals("ASSOCIATION", savedEdge.getDescription().relationType());
