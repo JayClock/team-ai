@@ -1,4 +1,5 @@
 import { Entity } from '@hateoas-ts/resource';
+import { LogicalEntity } from './logical-entity.js';
 
 export type DiagramNode = Entity<
   {
@@ -15,7 +16,7 @@ export type DiagramNode = Entity<
   {
     self: DiagramNode;
     diagram: Entity;
-    'logical-entity'?: Entity;
+    'logical-entity': LogicalEntity;
     parent?: Entity;
   }
 >;

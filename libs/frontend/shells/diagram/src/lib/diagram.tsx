@@ -1,12 +1,12 @@
 import { State } from '@hateoas-ts/resource';
 import { Diagram } from '@shared/schema';
+import { ProjectDiagram } from '@features/project-diagrams';
 interface Props {
   state: State<Diagram>;
 }
 
 export function ShellsDiagram(props: Props) {
-  const { state } = props;
-  return <h1>{state.data.title}</h1>;
+  return <ProjectDiagram state={props.state}></ProjectDiagram>;
 }
 
 export default ShellsDiagram;

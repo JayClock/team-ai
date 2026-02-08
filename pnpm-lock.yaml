@@ -370,7 +370,11 @@ importers:
         specifier: workspace:*
         version: link:../../features/project-conversations
 
-  libs/frontend/shells/diagram: {}
+  libs/frontend/shells/diagram:
+    dependencies:
+      '@features/project-diagrams':
+        specifier: workspace:*
+        version: link:../../features/project-diagrams
 
   libs/frontend/shells/layout:
     dependencies:

@@ -45,6 +45,9 @@
     },
     {
       "path": "../../../../packages/resource/tsconfig.lib.json"
+    },
+    {
+      "path": "../../features/project-diagrams/tsconfig.lib.json"
     }
   ]
 }
