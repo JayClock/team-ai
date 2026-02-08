@@ -84,7 +84,6 @@ public class DiagramNodesTest {
     assertEquals("Test content", savedNode.getDescription().localData().content());
     assertEquals("#00ff00", savedNode.getDescription().localData().color());
     assertEquals("sticky-note", savedNode.getDescription().localData().type());
-    assertEquals(diagram.getIdentity(), savedNode.getDiagramId());
 
     var retrievedNode = diagram.nodes().findByIdentity(savedNode.getIdentity()).get();
     assertEquals(savedNode.getIdentity(), retrievedNode.getIdentity());

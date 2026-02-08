@@ -4,7 +4,6 @@
 
   <resultMap id="node" type="reengineering.ddd.teamai.model.DiagramNode">
     <id property="identity" column="id" jdbcType="INTEGER" javaType="String"/>
-    <result property="diagramId" column="diagram_id" jdbcType="INTEGER" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.NodeDescription">
       <constructor>
         <arg column="type" jdbcType="VARCHAR" javaType="String"/>

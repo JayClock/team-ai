@@ -24,7 +24,7 @@ public class DiagramEdgeTest {
             "ASSOCIATION",
             "hasMany",
             new EdgeStyleProps("solid", "#000000", "arrow", 2));
-    edge = new DiagramEdge("edge-1", "diagram-1", description);
+    edge = new DiagramEdge("edge-1", description);
   }
 
   @Nested
@@ -89,14 +89,6 @@ public class DiagramEdgeTest {
   }
 
   @Nested
-  class DiagramId {
-    @Test
-    void should_return_diagram_id() {
-      assertEquals("diagram-1", edge.getDiagramId());
-    }
-  }
-
-  @Nested
   class DifferentRelationTypes {
     @Test
     void should_support_association_relation() {
@@ -110,7 +102,7 @@ public class DiagramEdgeTest {
               "1..*",
               new EdgeStyleProps("solid", "#000000", "arrow", 1));
 
-      DiagramEdge associationEdge = new DiagramEdge("edge-1", "diagram-1", associationDesc);
+      DiagramEdge associationEdge = new DiagramEdge("edge-1", associationDesc);
       assertEquals("ASSOCIATION", associationEdge.getDescription().relationType());
       assertEquals("1..*", associationEdge.getDescription().label());
     }
@@ -127,7 +119,7 @@ public class DiagramEdgeTest {
               null,
               new EdgeStyleProps("solid", "#000000", "triangle", 1));
 
-      DiagramEdge inheritanceEdge = new DiagramEdge("edge-2", "diagram-1", inheritanceDesc);
+      DiagramEdge inheritanceEdge = new DiagramEdge("edge-2", inheritanceDesc);
       assertEquals("INHERITANCE", inheritanceEdge.getDescription().relationType());
       assertNull(inheritanceEdge.getDescription().label());
     }
@@ -144,7 +136,7 @@ public class DiagramEdgeTest {
               "contains",
               new EdgeStyleProps("solid", "#000000", "diamond", 1));
 
-      DiagramEdge aggregationEdge = new DiagramEdge("edge-3", "diagram-1", aggregationDesc);
+      DiagramEdge aggregationEdge = new DiagramEdge("edge-3", aggregationDesc);
       assertEquals("AGGREGATION", aggregationEdge.getDescription().relationType());
       assertEquals("contains", aggregationEdge.getDescription().label());
     }
@@ -161,7 +153,7 @@ public class DiagramEdgeTest {
               "triggers",
               new EdgeStyleProps("solid", "#666666", "arrow", 2));
 
-      DiagramEdge flowEdge = new DiagramEdge("edge-4", "diagram-1", flowDesc);
+      DiagramEdge flowEdge = new DiagramEdge("edge-4", flowDesc);
       assertEquals("FLOW", flowEdge.getDescription().relationType());
       assertEquals("triggers", flowEdge.getDescription().label());
     }
@@ -178,7 +170,7 @@ public class DiagramEdgeTest {
               "depends on",
               new EdgeStyleProps("dashed", "#666666", "arrow", 1));
 
-      DiagramEdge dependencyEdge = new DiagramEdge("edge-5", "diagram-1", dependencyDesc);
+      DiagramEdge dependencyEdge = new DiagramEdge("edge-5", dependencyDesc);
       assertEquals("DEPENDENCY", dependencyEdge.getDescription().relationType());
       assertEquals("depends on", dependencyEdge.getDescription().label());
     }
@@ -239,7 +231,7 @@ public class DiagramEdgeTest {
               null,
               new EdgeStyleProps("solid", "#000000", "arrow", 1));
 
-      DiagramEdge edge = new DiagramEdge("edge-1", "diagram-1", edgeWithHandles);
+      DiagramEdge edge = new DiagramEdge("edge-1", edgeWithHandles);
       assertEquals("right", edge.getDescription().sourceHandle());
       assertEquals("left", edge.getDescription().targetHandle());
     }
@@ -256,7 +248,7 @@ public class DiagramEdgeTest {
               null,
               new EdgeStyleProps("solid", "#000000", "arrow", 1));
 
-      DiagramEdge edge = new DiagramEdge("edge-2", "diagram-1", edgeWithoutHandles);
+      DiagramEdge edge = new DiagramEdge("edge-2", edgeWithoutHandles);
       assertNull(edge.getDescription().sourceHandle());
       assertNull(edge.getDescription().targetHandle());
     }

@@ -107,7 +107,6 @@ public class DiagramEdgesTest {
     assertEquals("#333333", savedEdge.getDescription().styleProps().color());
     assertEquals("arrow", savedEdge.getDescription().styleProps().arrowType());
     assertEquals(2, savedEdge.getDescription().styleProps().lineWidth());
-    assertEquals(diagram.getIdentity(), savedEdge.getDiagramId());
 
     var retrievedEdge = diagram.edges().findByIdentity(savedEdge.getIdentity()).get();
     assertEquals(savedEdge.getIdentity(), retrievedEdge.getIdentity());

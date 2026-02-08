@@ -64,7 +64,6 @@ public class NodesApiTest extends ApiTest {
     node =
         new DiagramNode(
             "node-1",
-            diagram.getIdentity(),
             new NodeDescription(
                 "class-node",
                 new Ref<>("logical-entity-1"),
@@ -195,7 +194,6 @@ public class NodesApiTest extends ApiTest {
     DiagramNode newNode =
         new DiagramNode(
             "node-new",
-            diagram.getIdentity(),
             new NodeDescription(
                 "new-class-node",
                 new Ref<>("new-logical-entity"),
@@ -245,7 +243,6 @@ public class NodesApiTest extends ApiTest {
     DiagramNode node2 =
         new DiagramNode(
             "node-2",
-            diagram.getIdentity(),
             new NodeDescription("entity-node", null, null, 300.0, 250.0, 250, 150, null, null));
 
     when(diagramNodes.findAll()).thenReturn(new EntityList<>(node, node2));

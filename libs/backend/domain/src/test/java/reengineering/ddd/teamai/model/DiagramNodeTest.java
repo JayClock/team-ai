@@ -27,7 +27,7 @@ public class DiagramNodeTest {
             200,
             new NodeStyleConfig("#ff6b6b", "#ffffff", 14, false, java.util.List.of()),
             new LocalNodeData("", null, null));
-    node = new DiagramNode("node-1", "diagram-1", description);
+    node = new DiagramNode("node-1", description);
   }
 
   @Nested
@@ -91,14 +91,6 @@ public class DiagramNodeTest {
   }
 
   @Nested
-  class DiagramId {
-    @Test
-    void should_return_diagram_id() {
-      assertEquals("diagram-1", node.getDiagramId());
-    }
-  }
-
-  @Nested
   class PureDrawingNode {
     @Test
     void should_support_pure_drawing_node() {
@@ -114,7 +106,7 @@ public class DiagramNodeTest {
               new NodeStyleConfig("#ffd93d", "#000000", 12, false, java.util.List.of()),
               new LocalNodeData("这里逻辑还需要再讨论", "#ffd93d", "sticky-note"));
 
-      DiagramNode stickyNode = new DiagramNode("sticky-1", "diagram-1", stickyNoteDesc);
+      DiagramNode stickyNode = new DiagramNode("sticky-1", stickyNoteDesc);
 
       assertNull(stickyNode.getDescription().logicalEntity());
       assertEquals("这里逻辑还需要再讨论", stickyNode.getDescription().localData().content());
@@ -138,7 +130,7 @@ public class DiagramNodeTest {
                   "#ff0000", "#00ff00", 16, true, java.util.List.of("createdAt", "updatedAt")),
               new LocalNodeData("", null, null));
 
-      DiagramNode overrideNode = new DiagramNode("node-override", "diagram-1", nodeWithOverride);
+      DiagramNode overrideNode = new DiagramNode("node-override", nodeWithOverride);
 
       NodeStyleConfig styleConfig = overrideNode.getDescription().styleConfig();
       assertEquals("#ff0000", styleConfig.backgroundColor());
@@ -166,7 +158,7 @@ public class DiagramNodeTest {
               new NodeStyleConfig("#ffffff", "#000000", 14, false, java.util.List.of()),
               new LocalNodeData("", null, null));
 
-      DiagramNode classNode = new DiagramNode("class-1", "diagram-1", classNodeDesc);
+      DiagramNode classNode = new DiagramNode("class-1", classNodeDesc);
       assertEquals("class-node", classNode.getDescription().type());
     }
 
@@ -184,7 +176,7 @@ public class DiagramNodeTest {
               new NodeStyleConfig("#f0f0f0", "#000000", 14, false, java.util.List.of()),
               new LocalNodeData("", null, null));
 
-      DiagramNode groupNode = new DiagramNode("group-1", "diagram-1", groupNodeDesc);
+      DiagramNode groupNode = new DiagramNode("group-1", groupNodeDesc);
       assertEquals("group", groupNode.getDescription().type());
     }
   }

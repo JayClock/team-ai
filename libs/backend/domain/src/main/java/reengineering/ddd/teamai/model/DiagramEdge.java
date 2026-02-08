@@ -6,11 +6,9 @@ import reengineering.ddd.teamai.description.EdgeDescription;
 public class DiagramEdge implements Entity<String, EdgeDescription> {
   private String identity;
   private EdgeDescription description;
-  private String diagramId;
 
-  public DiagramEdge(String identity, String diagramId, EdgeDescription description) {
+  public DiagramEdge(String identity, EdgeDescription description) {
     this.identity = identity;
-    this.diagramId = diagramId;
     this.description = description;
   }
 
@@ -24,9 +22,5 @@ public class DiagramEdge implements Entity<String, EdgeDescription> {
   @Override
   public EdgeDescription getDescription() {
     return description;
-  }
-
-  public String getDiagramId() {
-    return diagramId;
   }
 }

@@ -61,7 +61,6 @@ public class EdgesApiTest extends ApiTest {
     edge =
         new DiagramEdge(
             "edge-1",
-            diagram.getIdentity(),
             new EdgeDescription(
                 new Ref<>("node-1"),
                 new Ref<>("node-2"),
@@ -171,7 +170,6 @@ public class EdgesApiTest extends ApiTest {
     DiagramEdge newEdge =
         new DiagramEdge(
             "edge-new",
-            diagram.getIdentity(),
             new EdgeDescription(
                 new Ref<>("source-node-1"),
                 new Ref<>("target-node-2"),
@@ -217,7 +215,6 @@ public class EdgesApiTest extends ApiTest {
     DiagramEdge edge2 =
         new DiagramEdge(
             "edge-2",
-            diagram.getIdentity(),
             new EdgeDescription(
                 new Ref<>("node-3"),
                 new Ref<>("node-4"),
