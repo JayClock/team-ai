@@ -2,7 +2,6 @@ package reengineering.ddd.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 import jakarta.inject.Inject;
 import java.util.List;
@@ -14,6 +13,7 @@ import org.springframework.context.annotation.Import;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.LocalNodeData;
+import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.NodeStyleConfig;
 import reengineering.ddd.teamai.model.DiagramNode;
@@ -29,6 +29,8 @@ public class DiagramNodesMapperTest {
   private final int projectId = id();
   private final int diagramId = id();
   private final int nodeId = id();
+  private final int logicalEntityId = id();
+  private final int parentNodeId = id();
 
   private static int id() {
     return new Random().nextInt(100000);
@@ -38,18 +40,32 @@ public class DiagramNodesMapperTest {
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
     testData.insertProject(projectId, userId, "Test Project" + projectId);
+    testData.insertProjectMember(projectId, userId);
+    testData.insertLogicalEntity(
+        logicalEntityId,
+        projectId,
+        LogicalEntityDescription.Type.CONTEXT,
+        null,
+        "TestEntity",
+        "Test Entity Label",
+        "{}",
+        "ACTIVE");
     testData.insertDiagram(
         diagramId,
         projectId,
         "Test Diagram" + diagramId,
         "CLASS_DIAGRAM",
         "{\"x\":0,\"y\":0,\"zoom\":1}");
+    // Insert parent node first (with null refs)
+    testData.insertDiagramNode(
+        parentNodeId, diagramId, "group-node", null, null, 0.0, 0.0, 800, 600, null, null);
+    // Insert child node with non-null logicalEntityId and parentId
     testData.insertDiagramNode(
         nodeId,
         diagramId,
         "class-node",
-        null,
-        null,
+        logicalEntityId,
+        parentNodeId,
         100.0,
         200.0,
         300,
@@ -89,10 +105,10 @@ public class DiagramNodesMapperTest {
   }
 
   @Test
-  void should_parse_null_refs_correctly() {
+  void should_parse_non_null_refs_correctly() {
     DiagramNode node = nodesMapper.findNodeByDiagramAndId(diagramId, nodeId);
-    assertNull(node.getDescription().logicalEntity());
-    assertNull(node.getDescription().parent());
+    assertEquals(String.valueOf(logicalEntityId), node.getDescription().logicalEntity().id());
+    assertEquals(String.valueOf(parentNodeId), node.getDescription().parent().id());
   }
 
   @Test
@@ -117,13 +133,12 @@ public class DiagramNodesMapperTest {
   @Test
   public void should_count_nodes_by_diagram() {
     int count = nodesMapper.countNodesByDiagram(diagramId);
-    assertEquals(1, count);
+    assertEquals(2, count);
   }
 
   @Test
   public void should_find_nodes_by_diagram_id() {
     List<DiagramNode> nodes = nodesMapper.findNodesByDiagramId(diagramId);
-    assertEquals(1, nodes.size());
-    assertEquals(String.valueOf(nodeId), nodes.get(0).getIdentity());
+    assertEquals(2, nodes.size());
   }
 }
