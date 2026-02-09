@@ -27,8 +27,8 @@
         <arg column="position_y" jdbcType="NUMERIC" javaType="_double"/>
         <arg column="width" jdbcType="INTEGER" javaType="Integer"/>
         <arg column="height" jdbcType="INTEGER" javaType="Integer"/>
-        <arg column="style_config" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.NodeStyleConfigHandler" javaType="reengineering.ddd.teamai.description.NodeStyleConfig"/>
-        <arg column="local_data" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.LocalNodeDataHandler" javaType="reengineering.ddd.teamai.description.LocalNodeData"/>
+        <arg column="style_config" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler" javaType="reengineering.ddd.archtype.JsonBlob"/>
+        <arg column="local_data" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler" javaType="reengineering.ddd.archtype.JsonBlob"/>
       </constructor>
     </association>
     <association property="logicalEntity" javaType="reengineering.ddd.mybatis.memory.Reference">
@@ -100,8 +100,8 @@
             #{description.positionY},
             #{description.width},
             #{description.height},
-            #{description.styleConfig, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.NodeStyleConfigHandler},
-            #{description.localData, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.LocalNodeDataHandler})
+            #{description.styleConfig, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler},
+            #{description.localData, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler})
   </insert>
 
   <select id="countNodesByDiagram" resultType="int">

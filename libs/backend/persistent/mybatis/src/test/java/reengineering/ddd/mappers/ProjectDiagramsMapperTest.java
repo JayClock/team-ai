@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,8 +18,6 @@ import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeStyleProps;
-import reengineering.ddd.teamai.description.LocalNodeData;
-import reengineering.ddd.teamai.description.NodeStyleConfig;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramEdge;
@@ -28,6 +28,8 @@ import reengineering.ddd.teamai.mybatis.mappers.ProjectDiagramsMapper;
 @MybatisTest
 @Import(TestContainerConfig.class)
 public class ProjectDiagramsMapperTest {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
+
   @Inject private TestDataMapper testData;
   @Inject private ProjectDiagramsMapper mapper;
 
@@ -227,10 +229,7 @@ public class ProjectDiagramsMapperTest {
   }
 
   @Test
-  void should_support_complex_node_description() {
-    NodeStyleConfig styleConfig =
-        new NodeStyleConfig("#ff0000", "#ffffff", 16, true, List.of("attribute1", "attribute2"));
-    LocalNodeData localData = new LocalNodeData("Custom content", "#00ff00", "custom-type");
+  void should_support_complex_node_description() throws Exception {
     testData.insertDiagramNode(
         nodeId1,
         diagramId,
@@ -247,13 +246,22 @@ public class ProjectDiagramsMapperTest {
     Diagram diagram = mapper.findDiagramByProjectAndId(projectId, diagramId);
     DiagramNode node = diagram.nodes().findAll().stream().findFirst().get();
 
-    assertEquals("#ff0000", node.getDescription().styleConfig().backgroundColor());
-    assertEquals("#ffffff", node.getDescription().styleConfig().textColor());
-    assertEquals(16, node.getDescription().styleConfig().fontSize());
-    assertEquals(true, node.getDescription().styleConfig().collapsed());
-    assertEquals(2, node.getDescription().styleConfig().hiddenAttributes().size());
-    assertEquals("Custom content", node.getDescription().localData().content());
-    assertEquals("#00ff00", node.getDescription().localData().color());
+    Map<String, Object> styleConfig =
+        objectMapper.readValue(
+            node.getDescription().styleConfig().json(),
+            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    Map<String, Object> localData =
+        objectMapper.readValue(
+            node.getDescription().localData().json(),
+            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+
+    assertEquals("#ff0000", styleConfig.get("backgroundColor"));
+    assertEquals("#ffffff", styleConfig.get("textColor"));
+    assertEquals(16, styleConfig.get("fontSize"));
+    assertEquals(true, styleConfig.get("collapsed"));
+    assertEquals(2, ((List<?>) styleConfig.get("hiddenAttributes")).size());
+    assertEquals("Custom content", localData.get("content"));
+    assertEquals("#00ff00", localData.get("color"));
   }
 
   @Test

@@ -3,8 +3,10 @@ package reengineering.ddd.associations;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,10 +17,9 @@ import reengineering.ddd.FlywayConfig;
 import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataSetup;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.teamai.description.DiagramDescription;
-import reengineering.ddd.teamai.description.LocalNodeData;
 import reengineering.ddd.teamai.description.NodeDescription;
-import reengineering.ddd.teamai.description.NodeStyleConfig;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramNode;
@@ -31,6 +32,8 @@ import reengineering.ddd.teamai.mybatis.config.CacheConfig;
 @Import({TestContainerConfig.class, FlywayConfig.class, TestCacheConfig.class, CacheConfig.class})
 @ExtendWith(TestDataSetup.class)
 public class DiagramNodesTest {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
+
   @Inject private Users users;
   @Inject private CacheManager cacheManager;
   @Inject private reengineering.ddd.TestDataMapper testData;
@@ -61,14 +64,40 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_add_node_and_return_saved_entity() {
+  public void should_add_node_and_return_saved_entity() throws Exception {
     int initialSize = diagram.nodes().findAll().size();
 
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Test content", "#00ff00", "sticky-note");
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#ff0000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Test content",
+                "color", "#00ff00",
+                "type", "sticky-note"));
+
     NodeDescription description =
         new NodeDescription(
-            "class-node", null, null, 100.0, 200.0, 300, 400, styleConfig, localData);
+            "class-node",
+            null,
+            null,
+            100.0,
+            200.0,
+            300,
+            400,
+            new JsonBlob(styleConfigJson),
+            new JsonBlob(localDataJson));
 
     DiagramNode savedNode = diagram.addNode(description);
 
@@ -77,13 +106,8 @@ public class DiagramNodesTest {
     assertEquals(200.0, savedNode.getDescription().positionY());
     assertEquals(300, savedNode.getDescription().width());
     assertEquals(400, savedNode.getDescription().height());
-    assertEquals("#ff0000", savedNode.getDescription().styleConfig().backgroundColor());
-    assertEquals("#ffffff", savedNode.getDescription().styleConfig().textColor());
-    assertEquals(14, savedNode.getDescription().styleConfig().fontSize());
-    assertEquals(false, savedNode.getDescription().styleConfig().collapsed());
-    assertEquals("Test content", savedNode.getDescription().localData().content());
-    assertEquals("#00ff00", savedNode.getDescription().localData().color());
-    assertEquals("sticky-note", savedNode.getDescription().localData().type());
+    assertTrue(savedNode.getDescription().styleConfig().json().contains("#ff0000"));
+    assertTrue(savedNode.getDescription().localData().json().contains("Test content"));
 
     var retrievedNode = diagram.nodes().findByIdentity(savedNode.getIdentity()).get();
     assertEquals(savedNode.getIdentity(), retrievedNode.getIdentity());
@@ -91,12 +115,37 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_find_single_node_of_diagram() {
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#000000", "#ffffff", 12, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Node content", "#0000ff", "note");
+  public void should_find_single_node_of_diagram() throws Exception {
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#000000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                12,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Node content",
+                "color", "#0000ff",
+                "type", "note"));
     NodeDescription description =
         new NodeDescription(
-            "entity-node", null, null, 50.0, 150.0, 200, 300, styleConfig, localData);
+            "entity-node",
+            null,
+            null,
+            50.0,
+            150.0,
+            200,
+            300,
+            new JsonBlob(styleConfigJson),
+            new JsonBlob(localDataJson));
     DiagramNode savedNode = diagram.addNode(description);
 
     DiagramNode node = diagram.nodes().findByIdentity(savedNode.getIdentity()).get();
@@ -116,14 +165,39 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_get_size_of_nodes_association() {
+  public void should_get_size_of_nodes_association() throws Exception {
     int initialSize = diagram.nodes().findAll().size();
 
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Test", "#00ff00", "note");
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#ff0000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Test",
+                "color", "#00ff00",
+                "type", "note"));
     NodeDescription description =
         new NodeDescription(
-            "test-node", null, null, 100.0, 200.0, 300, 400, styleConfig, localData);
+            "test-node",
+            null,
+            null,
+            100.0,
+            200.0,
+            300,
+            400,
+            new JsonBlob(styleConfigJson),
+            new JsonBlob(localDataJson));
     diagram.addNode(description);
 
     int newSize = diagram.nodes().findAll().size();
@@ -131,14 +205,39 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_evict_cache_on_add_node() {
+  public void should_evict_cache_on_add_node() throws Exception {
     int initialSize = diagram.nodes().findAll().size();
 
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Cache test", "#00ff00", "note");
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#ff0000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Cache test",
+                "color", "#00ff00",
+                "type", "note"));
     NodeDescription description =
         new NodeDescription(
-            "cache-test-node", null, null, 100.0, 200.0, 300, 400, styleConfig, localData);
+            "cache-test-node",
+            null,
+            null,
+            100.0,
+            200.0,
+            300,
+            400,
+            new JsonBlob(styleConfigJson),
+            new JsonBlob(localDataJson));
     diagram.addNode(description);
 
     int newSize = diagram.nodes().findAll().size();
@@ -146,13 +245,38 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_cache_nodes_list() {
+  public void should_cache_nodes_list() throws Exception {
     for (int i = 0; i < 5; i++) {
-      NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-      LocalNodeData localData = new LocalNodeData("Node " + i, "#00ff00", "note");
+      String styleConfigJson =
+          objectMapper.writeValueAsString(
+              Map.of(
+                  "backgroundColor",
+                  "#ff0000",
+                  "textColor",
+                  "#ffffff",
+                  "fontSize",
+                  14,
+                  "collapsed",
+                  false,
+                  "hiddenAttributes",
+                  List.of()));
+      String localDataJson =
+          objectMapper.writeValueAsString(
+              Map.of(
+                  "content", "Node " + i,
+                  "color", "#00ff00",
+                  "type", "note"));
       NodeDescription description =
           new NodeDescription(
-              "node-" + i, null, null, 100.0 + i * 50, 200.0, 300, 400, styleConfig, localData);
+              "node-" + i,
+              null,
+              null,
+              100.0 + i * 50,
+              200.0,
+              300,
+              400,
+              new JsonBlob(styleConfigJson),
+              new JsonBlob(localDataJson));
       diagram.addNode(description);
     }
 
@@ -180,38 +304,104 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_support_multiple_node_types() {
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Content", "#00ff00", "note");
+  public void should_support_multiple_node_types() throws Exception {
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#ff0000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Content",
+                "color", "#00ff00",
+                "type", "note"));
 
     DiagramNode classNode =
         diagram.addNode(
             new NodeDescription(
-                "class", null, null, 100.0, 200.0, 300, 400, styleConfig, localData));
+                "class",
+                null,
+                null,
+                100.0,
+                200.0,
+                300,
+                400,
+                new JsonBlob(styleConfigJson),
+                new JsonBlob(localDataJson)));
     assertEquals("class", classNode.getDescription().type());
 
     DiagramNode entityNode =
         diagram.addNode(
             new NodeDescription(
-                "entity", null, null, 500.0, 600.0, 300, 400, styleConfig, localData));
+                "entity",
+                null,
+                null,
+                500.0,
+                600.0,
+                300,
+                400,
+                new JsonBlob(styleConfigJson),
+                new JsonBlob(localDataJson)));
     assertEquals("entity", entityNode.getDescription().type());
 
     DiagramNode stickyNote =
         diagram.addNode(
             new NodeDescription(
-                "sticky-note", null, null, 800.0, 900.0, 200, 300, styleConfig, localData));
+                "sticky-note",
+                null,
+                null,
+                800.0,
+                900.0,
+                200,
+                300,
+                new JsonBlob(styleConfigJson),
+                new JsonBlob(localDataJson)));
     assertEquals("sticky-note", stickyNote.getDescription().type());
   }
 
   @Test
-  public void should_create_node_with_null_refs() {
+  public void should_create_node_with_null_refs() throws Exception {
     int initialSize = diagram.nodes().findAll().size();
 
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Test", "#00ff00", "note");
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#ff0000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Test",
+                "color", "#00ff00",
+                "type", "note"));
     NodeDescription description =
         new NodeDescription(
-            "null-refs-node", null, null, 100.0, 200.0, 300, 400, styleConfig, localData);
+            "null-refs-node",
+            null,
+            null,
+            100.0,
+            200.0,
+            300,
+            400,
+            new JsonBlob(styleConfigJson),
+            new JsonBlob(localDataJson));
     DiagramNode savedNode = diagram.addNode(description);
 
     assertEquals(null, savedNode.getDescription().logicalEntity());
@@ -222,16 +412,41 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_add_multiple_nodes_to_diagram() {
+  public void should_add_multiple_nodes_to_diagram() throws Exception {
     int initialSize = diagram.nodes().findAll().size();
 
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Test", "#00ff00", "note");
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#ff0000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Test",
+                "color", "#00ff00",
+                "type", "note"));
 
     for (int i = 0; i < 3; i++) {
       NodeDescription description =
           new NodeDescription(
-              "node-" + i, null, null, 100.0 + i * 100, 200.0, 300, 400, styleConfig, localData);
+              "node-" + i,
+              null,
+              null,
+              100.0 + i * 100,
+              200.0,
+              300,
+              400,
+              new JsonBlob(styleConfigJson),
+              new JsonBlob(localDataJson));
       diagram.addNode(description);
     }
 
@@ -240,13 +455,38 @@ public class DiagramNodesTest {
   }
 
   @Test
-  public void should_preserve_eager_loaded_nodes_after_cache_hydration() {
+  public void should_preserve_eager_loaded_nodes_after_cache_hydration() throws Exception {
     // Add some nodes
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Test", "#00ff00", "note");
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#ff0000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Test",
+                "color", "#00ff00",
+                "type", "note"));
     NodeDescription description =
         new NodeDescription(
-            "hydration-test", null, null, 100.0, 200.0, 300, 400, styleConfig, localData);
+            "hydration-test",
+            null,
+            null,
+            100.0,
+            200.0,
+            300,
+            400,
+            new JsonBlob(styleConfigJson),
+            new JsonBlob(localDataJson));
     DiagramNode savedNode = diagram.addNode(description);
 
     // Get diagram with nodes loaded

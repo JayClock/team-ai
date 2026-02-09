@@ -3,25 +3,28 @@ package reengineering.ddd.mappers;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.context.annotation.Import;
 import reengineering.ddd.TestContainerConfig;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.mybatis.support.IdHolder;
-import reengineering.ddd.teamai.description.LocalNodeData;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
-import reengineering.ddd.teamai.description.NodeStyleConfig;
 import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.mybatis.mappers.DiagramNodesMapper;
 
 @MybatisTest
 @Import(TestContainerConfig.class)
 public class DiagramNodesMapperTest {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
+
   @Inject private reengineering.ddd.TestDataMapper testData;
   @Inject private DiagramNodesMapper nodesMapper;
 
@@ -86,22 +89,30 @@ public class DiagramNodesMapperTest {
   }
 
   @Test
-  void should_parse_style_config_from_jsonb() {
+  void should_parse_style_config_from_jsonb() throws Exception {
     DiagramNode node = nodesMapper.findNodeByDiagramAndId(diagramId, nodeId);
     assertNotNull(node.getDescription().styleConfig());
-    assertEquals("#ff0000", node.getDescription().styleConfig().backgroundColor());
-    assertEquals("#ffffff", node.getDescription().styleConfig().textColor());
-    assertEquals(14, node.getDescription().styleConfig().fontSize());
-    assertEquals(false, node.getDescription().styleConfig().collapsed());
+    Map<String, Object> styleConfig =
+        objectMapper.readValue(
+            node.getDescription().styleConfig().json(),
+            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    assertEquals("#ff0000", styleConfig.get("backgroundColor"));
+    assertEquals("#ffffff", styleConfig.get("textColor"));
+    assertEquals(14, styleConfig.get("fontSize"));
+    assertEquals(false, styleConfig.get("collapsed"));
   }
 
   @Test
-  void should_parse_local_data_from_jsonb() {
+  void should_parse_local_data_from_jsonb() throws Exception {
     DiagramNode node = nodesMapper.findNodeByDiagramAndId(diagramId, nodeId);
     assertNotNull(node.getDescription().localData());
-    assertEquals("Node content", node.getDescription().localData().content());
-    assertEquals("#ff6b6b", node.getDescription().localData().color());
-    assertEquals("sticky-note", node.getDescription().localData().type());
+    Map<String, Object> localData =
+        objectMapper.readValue(
+            node.getDescription().localData().json(),
+            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    assertEquals("Node content", localData.get("content"));
+    assertEquals("#ff6b6b", localData.get("color"));
+    assertEquals("sticky-note", localData.get("type"));
   }
 
   @Test
@@ -112,14 +123,38 @@ public class DiagramNodesMapperTest {
   }
 
   @Test
-  public void should_add_node_to_database() {
+  public void should_add_node_to_database() throws Exception {
     IdHolder idHolder = new IdHolder();
-    NodeStyleConfig styleConfig =
-        new NodeStyleConfig("#00ff00", "#000000", 12, true, List.of("attr1", "attr2"));
-    LocalNodeData localData = new LocalNodeData("Test content", "#00ff00", "sticky-note");
+    String styleConfigJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#00ff00",
+                "textColor",
+                "#000000",
+                "fontSize",
+                12,
+                "collapsed",
+                true,
+                "hiddenAttributes",
+                List.of("attr1", "attr2")));
+    String localDataJson =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Test content",
+                "color", "#00ff00",
+                "type", "sticky-note"));
     NodeDescription description =
         new NodeDescription(
-            "sticky-note", null, null, 50.0, 150.0, 200, 300, styleConfig, localData);
+            "sticky-note",
+            null,
+            null,
+            50.0,
+            150.0,
+            200,
+            300,
+            new JsonBlob(styleConfigJson),
+            new JsonBlob(localDataJson));
     nodesMapper.insertNode(idHolder, diagramId, description);
 
     DiagramNode node = nodesMapper.findNodeByDiagramAndId(diagramId, idHolder.id());

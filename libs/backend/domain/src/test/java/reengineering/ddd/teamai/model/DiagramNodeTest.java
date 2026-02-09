@@ -7,17 +7,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import reengineering.ddd.archtype.HasOne;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
-import reengineering.ddd.teamai.description.LocalNodeData;
 import reengineering.ddd.teamai.description.NodeDescription;
-import reengineering.ddd.teamai.description.NodeStyleConfig;
 
 public class DiagramNodeTest {
   private DiagramNode node;
   private NodeDescription description;
 
   @BeforeEach
-  public void setUp() {
+  public void setUp() throws Exception {
     description =
         new NodeDescription(
             "class-node",
@@ -27,8 +26,9 @@ public class DiagramNodeTest {
             200.0,
             300,
             200,
-            new NodeStyleConfig("#ff6b6b", "#ffffff", 14, false, java.util.List.of()),
-            new LocalNodeData("", null, null));
+            new JsonBlob(
+                "{\"backgroundColor\":\"#ff6b6b\",\"textColor\":\"#ffffff\",\"fontSize\":14,\"collapsed\":false,\"hiddenAttributes\":[]}"),
+            new JsonBlob("{\"content\":\"\",\"color\":null,\"type\":null}"));
     node = new DiagramNode("node-1", description, mock(HasOne.class));
   }
 
@@ -76,26 +76,25 @@ public class DiagramNodeTest {
 
     @Test
     void should_return_style_config() {
-      NodeStyleConfig styleConfig = node.getDescription().styleConfig();
+      JsonBlob styleConfig = node.getDescription().styleConfig();
       assertNotNull(styleConfig);
-      assertEquals("#ff6b6b", styleConfig.backgroundColor());
-      assertEquals("#ffffff", styleConfig.textColor());
-      assertEquals(14, styleConfig.fontSize());
-      assertFalse(styleConfig.collapsed());
+      assertTrue(styleConfig.json().contains("#ff6b6b"));
+      assertTrue(styleConfig.json().contains("\"fontSize\":14"));
+      assertTrue(styleConfig.json().contains("\"collapsed\":false"));
     }
 
     @Test
     void should_return_local_data() {
-      LocalNodeData localData = node.getDescription().localData();
+      JsonBlob localData = node.getDescription().localData();
       assertNotNull(localData);
-      assertEquals("", localData.content());
+      assertTrue(localData.json().contains("\"content\":\"\""));
     }
   }
 
   @Nested
   class PureDrawingNode {
     @Test
-    void should_support_pure_drawing_node() {
+    void should_support_pure_drawing_node() throws Exception {
       NodeDescription stickyNoteDesc =
           new NodeDescription(
               "sticky-note",
@@ -105,20 +104,22 @@ public class DiagramNodeTest {
               150.0,
               200,
               200,
-              new NodeStyleConfig("#ffd93d", "#000000", 12, false, java.util.List.of()),
-              new LocalNodeData("这里逻辑还需要再讨论", "#ffd93d", "sticky-note"));
+              new JsonBlob(
+                  "{\"backgroundColor\":\"#ffd93d\",\"textColor\":\"#000000\",\"fontSize\":12,\"collapsed\":false,\"hiddenAttributes\":[]}"),
+              new JsonBlob(
+                  "{\"content\":\"这里逻辑还需要再讨论\",\"color\":\"#ffd93d\",\"type\":\"sticky-note\"}"));
 
       DiagramNode stickyNode = new DiagramNode("sticky-1", stickyNoteDesc, mock(HasOne.class));
 
       assertNull(stickyNode.getDescription().logicalEntity());
-      assertEquals("这里逻辑还需要再讨论", stickyNode.getDescription().localData().content());
+      assertTrue(stickyNode.getDescription().localData().json().contains("这里逻辑还需要再讨论"));
     }
   }
 
   @Nested
   class StyleConfigOverride {
     @Test
-    void should_support_style_override() {
+    void should_support_style_override() throws Exception {
       NodeDescription nodeWithOverride =
           new NodeDescription(
               "class-node",
@@ -128,27 +129,26 @@ public class DiagramNodeTest {
               0,
               200,
               150,
-              new NodeStyleConfig(
-                  "#ff0000", "#00ff00", 16, true, java.util.List.of("createdAt", "updatedAt")),
-              new LocalNodeData("", null, null));
+              new JsonBlob(
+                  "{\"backgroundColor\":\"#ff0000\",\"textColor\":\"#00ff00\",\"fontSize\":16,\"collapsed\":true,\"hiddenAttributes\":[\"createdAt\",\"updatedAt\"]}"),
+              new JsonBlob("{\"content\":\"\",\"color\":null,\"type\":null}"));
 
       DiagramNode overrideNode =
           new DiagramNode("node-override", nodeWithOverride, mock(HasOne.class));
 
-      NodeStyleConfig styleConfig = overrideNode.getDescription().styleConfig();
-      assertEquals("#ff0000", styleConfig.backgroundColor());
-      assertEquals("#00ff00", styleConfig.textColor());
-      assertEquals(16, styleConfig.fontSize());
-      assertTrue(styleConfig.collapsed());
-      assertEquals(2, styleConfig.hiddenAttributes().size());
-      assertTrue(styleConfig.hiddenAttributes().contains("createdAt"));
+      JsonBlob styleConfig = overrideNode.getDescription().styleConfig();
+      assertTrue(styleConfig.json().contains("#ff0000"));
+      assertTrue(styleConfig.json().contains("#00ff00"));
+      assertTrue(styleConfig.json().contains("\"fontSize\":16"));
+      assertTrue(styleConfig.json().contains("\"collapsed\":true"));
+      assertTrue(styleConfig.json().contains("hiddenAttributes"));
     }
   }
 
   @Nested
   class DifferentNodeTypes {
     @Test
-    void should_support_class_node_type() {
+    void should_support_class_node_type() throws Exception {
       NodeDescription classNodeDesc =
           new NodeDescription(
               "class-node",
@@ -158,15 +158,16 @@ public class DiagramNodeTest {
               0,
               200,
               150,
-              new NodeStyleConfig("#ffffff", "#000000", 14, false, java.util.List.of()),
-              new LocalNodeData("", null, null));
+              new JsonBlob(
+                  "{\"backgroundColor\":\"#ffffff\",\"textColor\":\"#000000\",\"fontSize\":14,\"collapsed\":false,\"hiddenAttributes\":[]}"),
+              new JsonBlob("{\"content\":\"\",\"color\":null,\"type\":null}"));
 
       DiagramNode classNode = new DiagramNode("class-1", classNodeDesc, mock(HasOne.class));
       assertEquals("class-node", classNode.getDescription().type());
     }
 
     @Test
-    void should_support_group_node_type() {
+    void should_support_group_node_type() throws Exception {
       NodeDescription groupNodeDesc =
           new NodeDescription(
               "group",
@@ -176,8 +177,9 @@ public class DiagramNodeTest {
               0,
               400,
               300,
-              new NodeStyleConfig("#f0f0f0", "#000000", 14, false, java.util.List.of()),
-              new LocalNodeData("", null, null));
+              new JsonBlob(
+                  "{\"backgroundColor\":\"#f0f0f0\",\"textColor\":\"#000000\",\"fontSize\":14,\"collapsed\":false,\"hiddenAttributes\":[]}"),
+              new JsonBlob("{\"content\":\"\",\"color\":null,\"type\":null}"));
 
       DiagramNode groupNode = new DiagramNode("group-1", groupNodeDesc, mock(HasOne.class));
       assertEquals("group", groupNode.getDescription().type());

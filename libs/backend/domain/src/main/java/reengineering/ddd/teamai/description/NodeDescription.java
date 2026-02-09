@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.description;
 
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 
 public record NodeDescription(
@@ -10,5 +11,5 @@ public record NodeDescription(
     double positionY,
     Integer width,
     Integer height,
-    NodeStyleConfig styleConfig,
-    LocalNodeData localData) {}
+    JsonBlob styleConfig,
+    JsonBlob localData) {}

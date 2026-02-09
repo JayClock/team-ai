@@ -3,8 +3,10 @@ package reengineering.ddd.associations;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,13 +17,12 @@ import reengineering.ddd.FlywayConfig;
 import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataSetup;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.EdgeStyleProps;
-import reengineering.ddd.teamai.description.LocalNodeData;
 import reengineering.ddd.teamai.description.NodeDescription;
-import reengineering.ddd.teamai.description.NodeStyleConfig;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramEdge;
@@ -35,6 +36,8 @@ import reengineering.ddd.teamai.mybatis.config.CacheConfig;
 @Import({TestContainerConfig.class, FlywayConfig.class, TestCacheConfig.class, CacheConfig.class})
 @ExtendWith(TestDataSetup.class)
 public class DiagramEdgesTest {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
+
   @Inject private Users users;
   @Inject private CacheManager cacheManager;
   @Inject private reengineering.ddd.TestDataMapper testData;
@@ -45,7 +48,7 @@ public class DiagramEdgesTest {
   private DiagramNode node2;
 
   @BeforeEach
-  public void setup() {
+  public void setup() throws Exception {
     cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
     user = users.findByIdentity("1").get();
     diagram =
@@ -59,18 +62,68 @@ public class DiagramEdgesTest {
                           "Test Diagram", DiagramType.CLASS, new Viewport(0, 0, 1.0)));
                 });
 
-    NodeStyleConfig styleConfig1 = new NodeStyleConfig("#ff0000", "#ffffff", 14, false, List.of());
-    LocalNodeData localData1 = new LocalNodeData("Source Node", "#00ff00", "note");
+    String styleConfigJson1 =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#ff0000",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson1 =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Source Node",
+                "color", "#00ff00",
+                "type", "note"));
     NodeDescription nodeDesc1 =
         new NodeDescription(
-            "source-node", null, null, 100.0, 200.0, 300, 400, styleConfig1, localData1);
+            "source-node",
+            null,
+            null,
+            100.0,
+            200.0,
+            300,
+            400,
+            new JsonBlob(styleConfigJson1),
+            new JsonBlob(localDataJson1));
     node1 = diagram.addNode(nodeDesc1);
 
-    NodeStyleConfig styleConfig2 = new NodeStyleConfig("#0000ff", "#ffffff", 14, false, List.of());
-    LocalNodeData localData2 = new LocalNodeData("Target Node", "#ffff00", "note");
+    String styleConfigJson2 =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "backgroundColor",
+                "#0000ff",
+                "textColor",
+                "#ffffff",
+                "fontSize",
+                14,
+                "collapsed",
+                false,
+                "hiddenAttributes",
+                List.of()));
+    String localDataJson2 =
+        objectMapper.writeValueAsString(
+            Map.of(
+                "content", "Target Node",
+                "color", "#ffff00",
+                "type", "note"));
     NodeDescription nodeDesc2 =
         new NodeDescription(
-            "target-node", null, null, 500.0, 600.0, 300, 400, styleConfig2, localData2);
+            "target-node",
+            null,
+            null,
+            500.0,
+            600.0,
+            300,
+            400,
+            new JsonBlob(styleConfigJson2),
+            new JsonBlob(localDataJson2));
     node2 = diagram.addNode(nodeDesc2);
   }
 

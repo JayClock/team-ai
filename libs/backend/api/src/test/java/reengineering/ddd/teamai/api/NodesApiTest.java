@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import jakarta.ws.rs.core.MediaType;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,11 +16,10 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.hateoas.MediaTypes;
 import reengineering.ddd.archtype.HasOne;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
-import reengineering.ddd.teamai.description.LocalNodeData;
 import reengineering.ddd.teamai.description.NodeDescription;
-import reengineering.ddd.teamai.description.NodeStyleConfig;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
@@ -43,7 +41,7 @@ public class NodesApiTest extends ApiTest {
   @Mock private Diagram.Edges diagramEdges;
 
   @BeforeEach
-  public void beforeEach() {
+  public void beforeEach() throws Exception {
     project =
         new Project(
             "project-1",
@@ -53,7 +51,7 @@ public class NodesApiTest extends ApiTest {
             projectLogicalEntities,
             diagrams);
 
-    Viewport viewport = new Viewport(100, 50, 1.5);
+    Viewport viewport = new Viewport(100.0, 50.0, 1.5);
     diagram =
         new Diagram(
             "diagram-1",
@@ -62,8 +60,12 @@ public class NodesApiTest extends ApiTest {
             diagramNodes,
             diagramEdges);
 
-    NodeStyleConfig styleConfig = new NodeStyleConfig("#ffffff", "#000000", 14, false, List.of());
-    LocalNodeData localData = new LocalNodeData("Note content", "#ffd93d", "sticky-note");
+    JsonBlob styleConfig =
+        new JsonBlob(
+            "{\"backgroundColor\":\"#ffffff\",\"textColor\":\"#000000\",\"fontSize\":14,\"collapsed\":false,\"hiddenAttributes\":[]}");
+    JsonBlob localData =
+        new JsonBlob(
+            "{\"content\":\"Note content\",\"color\":\"#ffd93d\",\"type\":\"sticky-note\"}");
     LogicalEntity mockLogicalEntity = Mockito.mock(LogicalEntity.class);
     when(mockLogicalEntity.getIdentity()).thenReturn("logical-entity-1");
     HasOne<LogicalEntity> mockHasOne = Mockito.mock(HasOne.class);
