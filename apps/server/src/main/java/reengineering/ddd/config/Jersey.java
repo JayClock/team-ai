@@ -1,5 +1,7 @@
 package reengineering.ddd.config;
 
+import com.businessdrivenai.api.RootApi;
+import com.businessdrivenai.api.provider.VendorMediaTypeInterceptor;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Map;
@@ -13,8 +15,6 @@ import org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType
 import org.springframework.lang.NonNull;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
-import reengineering.ddd.teamai.api.RootApi;
-import reengineering.ddd.teamai.api.provider.VendorMediaTypeInterceptor;
 
 @Configuration
 @EnableHypermediaSupport(type = {HypermediaType.HAL, HypermediaType.HAL_FORMS})

@@ -2,6 +2,7 @@ package reengineering.ddd.knowledgegraph;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.File;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -14,8 +15,7 @@ class KnowledgeGraphExtractorTest {
   @Test
   void testExtraction(@TempDir Path tempDir) {
     KnowledgeGraphExtractor extractor = new KnowledgeGraphExtractor();
-    String projectRoot =
-        System.getProperty("user.dir").replace("/tools/knowledge-graph-extractor", "");
+    String projectRoot = findProjectRoot();
 
     assertDoesNotThrow(() -> extractor.extract(projectRoot));
 
@@ -47,5 +47,23 @@ class KnowledgeGraphExtractorTest {
         "Graph should have IMPLEMENTS relationships");
 
     extractor.printSummary();
+  }
+
+  private String findProjectRoot() {
+    String userDir = System.getProperty("user.dir");
+    File current = new File(userDir);
+
+    while (current != null) {
+      File nxJson = new File(current, "nx.json");
+      File settingsGradle = new File(current, "settings.gradle");
+
+      if (nxJson.exists() || settingsGradle.exists()) {
+        return current.getAbsolutePath();
+      }
+
+      current = current.getParentFile();
+    }
+
+    throw new RuntimeException("Could not find project root. Started from: " + userDir);
   }
 }

@@ -4,5 +4,5 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ComponentScan({"reengineering.ddd.teamai.mybatis", "reengineering.ddd.mybatis.support"})
+@ComponentScan({"com.businessdrivenai.persistence.mybatis", "com.businessdrivenai.persistence"})
 public class MyBatis {}

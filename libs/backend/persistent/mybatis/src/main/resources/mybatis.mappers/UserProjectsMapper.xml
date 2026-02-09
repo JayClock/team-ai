@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
- <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.UserProjectsMapper">
+ <mapper namespace="com.businessdrivenai.persistence.mybatis.mappers.UserProjectsMapper">
 
-    <resultMap id="project" type="reengineering.ddd.teamai.model.Project">
+    <resultMap id="project" type="com.businessdrivenai.domain.model.Project">
       <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
-      <association property="description" javaType="reengineering.ddd.teamai.description.ProjectDescription">
+      <association property="description" javaType="com.businessdrivenai.domain.description.ProjectDescription">
         <constructor>
           <arg column="name" jdbcType="VARCHAR" javaType="String"/>
         </constructor>
       </association>
-      <association property="members" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectMembers">
+      <association property="members" javaType="com.businessdrivenai.persistence.mybatis.associations.ProjectMembers">
         <result column="id" property="projectId" javaType="int"/>
       </association>
-      <association property="conversations" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectConversations">
+      <association property="conversations" javaType="com.businessdrivenai.persistence.mybatis.associations.ProjectConversations">
         <result column="id" property="projectId" javaType="int"/>
       </association>
-      <association property="logicalEntities" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectLogicalEntities">
+      <association property="logicalEntities" javaType="com.businessdrivenai.persistence.mybatis.associations.ProjectLogicalEntities">
         <result column="id" property="projectId" javaType="int"/>
       </association>
-      <association property="diagrams" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectDiagrams">
+      <association property="diagrams" javaType="com.businessdrivenai.persistence.mybatis.associations.ProjectDiagrams">
         <result column="id" property="projectId" javaType="int"/>
       </association>
     </resultMap>
@@ -34,7 +34,7 @@
   </select>
 
   <insert id="insertProject" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+          parameterType="com.businessdrivenai.persistence.support.IdHolder">
     INSERT INTO projects(name, creator_id)
     VALUES (#{description.name}, #{user_id})
   </insert>

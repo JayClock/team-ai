@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
- <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper">
+ <mapper namespace="com.businessdrivenai.persistence.mybatis.mappers.UserAccountsMapper">
 
-  <resultMap id="account" type="reengineering.ddd.teamai.model.Account">
+  <resultMap id="account" type="com.businessdrivenai.domain.model.Account">
     <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
-    <association property="description" javaType="reengineering.ddd.teamai.description.AccountDescription">
+    <association property="description" javaType="com.businessdrivenai.domain.description.AccountDescription">
       <constructor>
         <arg column="provider" jdbcType="VARCHAR" javaType="String"/>
         <arg column="provider_id" jdbcType="VARCHAR" javaType="String"/>
@@ -22,7 +22,7 @@
   </select>
 
   <insert id="insertAccount" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+          parameterType="com.businessdrivenai.persistence.support.IdHolder">
       INSERT INTO accounts (provider, provider_id, user_id)
       VALUES (#{description.provider}, #{description.providerId}, #{user_id})
       on conflict (provider, provider_id) do nothing

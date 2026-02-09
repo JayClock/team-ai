@@ -1,37 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.DiagramNodesMapper">
+<mapper namespace="com.businessdrivenai.persistence.mybatis.mappers.DiagramNodesMapper">
 
-  <resultMap id="logicalEntity" type="reengineering.ddd.teamai.model.LogicalEntity">
+  <resultMap id="logicalEntity" type="com.businessdrivenai.domain.model.LogicalEntity">
     <id property="identity" column="le_id" jdbcType="VARCHAR" javaType="String"/>
-    <association property="description" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription">
+    <association property="description" javaType="com.businessdrivenai.domain.description.LogicalEntityDescription">
       <constructor>
-        <arg column="le_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$Type"/>
-        <arg column="le_sub_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$SubType"/>
+        <arg column="le_type" jdbcType="VARCHAR" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.LogicalEntityTypeHandler" javaType="com.businessdrivenai.domain.description.LogicalEntityDescription$Type"/>
+        <arg column="le_sub_type" jdbcType="VARCHAR" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.SubTypeHandler" javaType="com.businessdrivenai.domain.description.LogicalEntityDescription$SubType"/>
         <arg column="le_name" jdbcType="VARCHAR" javaType="String"/>
         <arg column="le_label" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="le_definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>
+        <arg column="le_definition" jdbcType="OTHER" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.EntityDefinitionHandler" javaType="com.businessdrivenai.domain.description.EntityDefinition"/>
         <arg column="le_status" jdbcType="VARCHAR" javaType="String"/>
       </constructor>
     </association>
   </resultMap>
 
-  <resultMap id="node" type="reengineering.ddd.teamai.model.DiagramNode">
+  <resultMap id="node" type="com.businessdrivenai.domain.model.DiagramNode">
     <id property="identity" column="id" jdbcType="INTEGER" javaType="String"/>
-    <association property="description" javaType="reengineering.ddd.teamai.description.NodeDescription">
+    <association property="description" javaType="com.businessdrivenai.domain.description.NodeDescription">
       <constructor>
         <arg column="type" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="logical_entity_id" jdbcType="INTEGER" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
-        <arg column="parent_id" jdbcType="INTEGER" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
+        <arg column="logical_entity_id" jdbcType="INTEGER" javaType="com.businessdrivenai.archtype.Ref" typeHandler="com.businessdrivenai.persistence.support.RefIntegerTypeHandler"/>
+        <arg column="parent_id" jdbcType="INTEGER" javaType="com.businessdrivenai.archtype.Ref" typeHandler="com.businessdrivenai.persistence.support.RefIntegerTypeHandler"/>
         <arg column="position_x" jdbcType="NUMERIC" javaType="_double"/>
         <arg column="position_y" jdbcType="NUMERIC" javaType="_double"/>
         <arg column="width" jdbcType="INTEGER" javaType="Integer"/>
         <arg column="height" jdbcType="INTEGER" javaType="Integer"/>
-        <arg column="style_config" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler" javaType="reengineering.ddd.archtype.JsonBlob"/>
-        <arg column="local_data" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler" javaType="reengineering.ddd.archtype.JsonBlob"/>
+        <arg column="style_config" jdbcType="OTHER" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.JsonBlobHandler" javaType="com.businessdrivenai.archtype.JsonBlob"/>
+        <arg column="local_data" jdbcType="OTHER" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.JsonBlobHandler" javaType="com.businessdrivenai.archtype.JsonBlob"/>
       </constructor>
     </association>
-    <association property="logicalEntity" javaType="reengineering.ddd.mybatis.memory.Reference">
+    <association property="logicalEntity" javaType="com.businessdrivenai.persistence.memory.Reference">
       <association property="entity" resultMap="logicalEntity"/>
     </association>
   </resultMap>
@@ -90,18 +90,18 @@
   </select>
 
   <insert id="insertNode" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+          parameterType="com.businessdrivenai.persistence.support.IdHolder">
     INSERT INTO diagram_nodes(diagram_id, type, logical_entity_id, parent_id, position_x, position_y, width, height, style_config, local_data)
     VALUES (#{diagram_id},
             #{description.type},
-            #{description.logicalEntity, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
-            #{description.parent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.logicalEntity, typeHandler=com.businessdrivenai.persistence.support.RefIntegerTypeHandler},
+            #{description.parent, typeHandler=com.businessdrivenai.persistence.support.RefIntegerTypeHandler},
             #{description.positionX},
             #{description.positionY},
             #{description.width},
             #{description.height},
-            #{description.styleConfig, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler},
-            #{description.localData, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler})
+            #{description.styleConfig, typeHandler=com.businessdrivenai.persistence.mybatis.typehandler.JsonBlobHandler},
+            #{description.localData, typeHandler=com.businessdrivenai.persistence.mybatis.typehandler.JsonBlobHandler})
   </insert>
 
   <select id="countNodesByDiagram" resultType="int">

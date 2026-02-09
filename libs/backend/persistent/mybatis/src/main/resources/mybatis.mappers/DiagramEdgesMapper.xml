@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.DiagramEdgesMapper">
+<mapper namespace="com.businessdrivenai.persistence.mybatis.mappers.DiagramEdgesMapper">
 
-  <resultMap id="edge" type="reengineering.ddd.teamai.model.DiagramEdge">
+  <resultMap id="edge" type="com.businessdrivenai.domain.model.DiagramEdge">
     <id property="identity" column="id" jdbcType="INTEGER" javaType="String"/>
-    <association property="description" javaType="reengineering.ddd.teamai.description.EdgeDescription">
+    <association property="description" javaType="com.businessdrivenai.domain.description.EdgeDescription">
       <constructor>
-        <arg column="source_node_id" jdbcType="INTEGER" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
-        <arg column="target_node_id" jdbcType="INTEGER" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
+        <arg column="source_node_id" jdbcType="INTEGER" javaType="com.businessdrivenai.archtype.Ref" typeHandler="com.businessdrivenai.persistence.support.RefIntegerTypeHandler"/>
+        <arg column="target_node_id" jdbcType="INTEGER" javaType="com.businessdrivenai.archtype.Ref" typeHandler="com.businessdrivenai.persistence.support.RefIntegerTypeHandler"/>
         <arg column="source_handle" jdbcType="VARCHAR" javaType="String"/>
         <arg column="target_handle" jdbcType="VARCHAR" javaType="String"/>
         <arg column="relation_type" jdbcType="VARCHAR" javaType="String"/>
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="style_props" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EdgeStylePropsHandler" javaType="reengineering.ddd.teamai.description.EdgeStyleProps"/>
+        <arg column="style_props" jdbcType="OTHER" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.EdgeStylePropsHandler" javaType="com.businessdrivenai.domain.description.EdgeStyleProps"/>
       </constructor>
     </association>
   </resultMap>
@@ -31,16 +31,16 @@
   </select>
 
   <insert id="insertEdge" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+          parameterType="com.businessdrivenai.persistence.support.IdHolder">
     INSERT INTO diagram_edges(diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props)
     VALUES (#{diagram_id},
-            #{description.sourceNode, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
-            #{description.targetNode, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+            #{description.sourceNode, typeHandler=com.businessdrivenai.persistence.support.RefIntegerTypeHandler},
+            #{description.targetNode, typeHandler=com.businessdrivenai.persistence.support.RefIntegerTypeHandler},
             #{description.sourceHandle},
             #{description.targetHandle},
             #{description.relationType},
             #{description.label},
-            #{description.styleProps, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.EdgeStylePropsHandler})
+            #{description.styleProps, typeHandler=com.businessdrivenai.persistence.mybatis.typehandler.EdgeStylePropsHandler})
   </insert>
 
   <select id="countEdgesByDiagram" resultType="int">

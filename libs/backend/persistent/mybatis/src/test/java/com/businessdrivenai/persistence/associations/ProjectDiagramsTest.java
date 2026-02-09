@@ -1,0 +1,180 @@
+package com.businessdrivenai.persistence.associations;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.businessdrivenai.domain.description.DiagramDescription;
+import com.businessdrivenai.domain.description.Viewport;
+import com.businessdrivenai.domain.model.Diagram;
+import com.businessdrivenai.domain.model.DiagramType;
+import com.businessdrivenai.domain.model.Project;
+import com.businessdrivenai.domain.model.User;
+import com.businessdrivenai.persistence.FlywayConfig;
+import com.businessdrivenai.persistence.TestCacheConfig;
+import com.businessdrivenai.persistence.TestContainerConfig;
+import com.businessdrivenai.persistence.TestDataSetup;
+import com.businessdrivenai.persistence.mappers.TestDataMapper;
+import com.businessdrivenai.persistence.mybatis.associations.Users;
+import com.businessdrivenai.persistence.mybatis.config.CacheConfig;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
+import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Import;
+
+@MybatisTest
+@Import({TestContainerConfig.class, FlywayConfig.class, TestCacheConfig.class, CacheConfig.class})
+@ExtendWith(TestDataSetup.class)
+public class ProjectDiagramsTest {
+  @Inject private Users users;
+  @Inject private CacheManager cacheManager;
+  @Inject private TestDataMapper testData;
+
+  private User user;
+  private Project project;
+
+  @BeforeEach
+  public void setup() {
+    cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
+    user = users.findByIdentity("1").get();
+    project = user.projects().findAll().stream().findFirst().get();
+  }
+
+  @Test
+  public void should_get_diagrams_association_of_project() {
+    int initialSize = project.diagrams().findAll().size();
+    assertEquals(0, initialSize);
+  }
+
+  @Test
+  public void should_add_diagram_and_return_saved_entity() {
+    Viewport viewport = new Viewport(100, 50, 1.5);
+    var description = new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport);
+
+    Diagram savedDiagram = project.addDiagram(description);
+
+    assertEquals("下单流程上下文图", savedDiagram.getDescription().title());
+    assertEquals(DiagramType.CLASS, savedDiagram.getDescription().type());
+    assertEquals(100, savedDiagram.getDescription().viewport().x());
+    assertEquals(50, savedDiagram.getDescription().viewport().y());
+    assertEquals(1.5, savedDiagram.getDescription().viewport().zoom());
+    assertEquals(project.getIdentity(), savedDiagram.getProjectId());
+
+    var retrievedDiagram = project.diagrams().findByIdentity(savedDiagram.getIdentity()).get();
+    assertEquals(savedDiagram.getIdentity(), retrievedDiagram.getIdentity());
+    assertEquals(savedDiagram.getDescription().title(), retrievedDiagram.getDescription().title());
+    assertEquals(savedDiagram.getDescription().type(), retrievedDiagram.getDescription().type());
+  }
+
+  @Test
+  public void should_find_single_diagram_of_project() {
+    Viewport viewport = new Viewport(0, 0, 1);
+    var description = new DiagramDescription("会员体系图", DiagramType.SEQUENCE, viewport);
+    Diagram savedDiagram = project.addDiagram(description);
+
+    Diagram diagram = project.diagrams().findByIdentity(savedDiagram.getIdentity()).get();
+    assertEquals(savedDiagram.getIdentity(), diagram.getIdentity());
+    assertEquals("会员体系图", diagram.getDescription().title());
+    assertEquals(DiagramType.SEQUENCE, diagram.getDescription().type());
+
+    var cachedDiagram = project.diagrams().findByIdentity(savedDiagram.getIdentity()).get();
+    assertEquals(diagram.getIdentity(), cachedDiagram.getIdentity());
+    assertEquals(diagram.getDescription().title(), cachedDiagram.getDescription().title());
+  }
+
+  @Test
+  public void should_not_find_diagram_by_project_and_id_if_not_exist() {
+    assertTrue(project.diagrams().findByIdentity("-1").isEmpty());
+  }
+
+  @Test
+  public void should_get_size_of_diagrams_association() {
+    int initialSize = project.diagrams().findAll().size();
+
+    Viewport viewport = Viewport.defaultViewport();
+    var description = new DiagramDescription("测试图", DiagramType.FLOWCHART, viewport);
+    project.addDiagram(description);
+
+    int newSize = project.diagrams().findAll().size();
+    assertEquals(initialSize + 1, newSize);
+  }
+
+  @Test
+  public void should_evict_cache_on_add_diagram() {
+    int initialSize = project.diagrams().findAll().size();
+
+    Viewport viewport = Viewport.defaultViewport();
+    var description = new DiagramDescription("缓存测试图", DiagramType.COMPONENT, viewport);
+    project.addDiagram(description);
+
+    int newSize = project.diagrams().findAll().size();
+    assertEquals(initialSize + 1, newSize);
+  }
+
+  @Test
+  public void should_cache_diagram_list_by_range() {
+    Viewport viewport = Viewport.defaultViewport();
+    for (int i = 0; i < 5; i++) {
+      var description =
+          new DiagramDescription(
+              "图" + i, DiagramType.values()[i % DiagramType.values().length], viewport);
+      project.addDiagram(description);
+    }
+
+    var firstCall = project.diagrams().findAll().subCollection(0, 3);
+    var secondCall = project.diagrams().findAll().subCollection(0, 3);
+
+    assertEquals(firstCall.size(), secondCall.size());
+    assertEquals(3, secondCall.size());
+  }
+
+  @Test
+  public void should_cache_diagram_count() {
+    int firstCall = project.diagrams().findAll().size();
+    int secondCall = project.diagrams().findAll().size();
+
+    assertEquals(firstCall, secondCall);
+  }
+
+  @Test
+  public void should_support_all_diagram_types() {
+    Viewport viewport = Viewport.defaultViewport();
+
+    Diagram flowchart =
+        project.addDiagram(new DiagramDescription("流程图", DiagramType.FLOWCHART, viewport));
+    assertEquals(DiagramType.FLOWCHART, flowchart.getDescription().type());
+
+    Diagram sequence =
+        project.addDiagram(new DiagramDescription("时序图", DiagramType.SEQUENCE, viewport));
+    assertEquals(DiagramType.SEQUENCE, sequence.getDescription().type());
+
+    Diagram classDiagram =
+        project.addDiagram(new DiagramDescription("类图", DiagramType.CLASS, viewport));
+    assertEquals(DiagramType.CLASS, classDiagram.getDescription().type());
+
+    Diagram component =
+        project.addDiagram(new DiagramDescription("组件图", DiagramType.COMPONENT, viewport));
+    assertEquals(DiagramType.COMPONENT, component.getDescription().type());
+
+    Diagram state = project.addDiagram(new DiagramDescription("状态图", DiagramType.STATE, viewport));
+    assertEquals(DiagramType.STATE, state.getDescription().type());
+
+    Diagram activity =
+        project.addDiagram(new DiagramDescription("活动图", DiagramType.ACTIVITY, viewport));
+    assertEquals(DiagramType.ACTIVITY, activity.getDescription().type());
+  }
+
+  @Test
+  public void should_create_diagram_with_default_viewport() {
+    var description =
+        new DiagramDescription("默认视口图", DiagramType.CLASS, Viewport.defaultViewport());
+
+    Diagram savedDiagram = project.addDiagram(description);
+
+    assertEquals(0, savedDiagram.getDescription().viewport().x());
+    assertEquals(0, savedDiagram.getDescription().viewport().y());
+    assertEquals(1, savedDiagram.getDescription().viewport().zoom());
+  }
+}

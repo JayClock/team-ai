@@ -3,6 +3,8 @@ package reengineering.ddd.infrastructure.security.oauth2;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.businessdrivenai.domain.description.UserDescription;
+import com.businessdrivenai.domain.model.User;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -14,8 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;
-import reengineering.ddd.teamai.description.UserDescription;
-import reengineering.ddd.teamai.model.User;
 
 @ExtendWith(MockitoExtension.class)
 class CustomOAuth2UserTest {

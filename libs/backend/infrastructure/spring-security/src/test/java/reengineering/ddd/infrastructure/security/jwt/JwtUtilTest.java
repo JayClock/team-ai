@@ -3,14 +3,14 @@ package reengineering.ddd.infrastructure.security.jwt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.businessdrivenai.domain.description.UserDescription;
+import com.businessdrivenai.domain.model.User;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import reengineering.ddd.teamai.description.UserDescription;
-import reengineering.ddd.teamai.model.User;
 
 @ExtendWith(MockitoExtension.class)
 class JwtUtilTest {

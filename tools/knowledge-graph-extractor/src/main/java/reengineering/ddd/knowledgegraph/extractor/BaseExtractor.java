@@ -27,6 +27,10 @@ public abstract class BaseExtractor {
   public abstract void extract(Path basePath);
 
   protected List<File> findJavaFiles(Path path) {
+    if (!Files.exists(path)) {
+      return List.of();
+    }
+
     try (Stream<Path> stream = Files.walk(path)) {
       return stream
           .filter(p -> p.toString().endsWith(".java"))

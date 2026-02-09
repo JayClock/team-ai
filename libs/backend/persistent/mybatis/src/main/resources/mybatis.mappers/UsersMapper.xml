@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.UsersMapper">
-  <resultMap id="user" type="reengineering.ddd.teamai.model.User">
+<mapper namespace="com.businessdrivenai.persistence.mybatis.mappers.UsersMapper">
+  <resultMap id="user" type="com.businessdrivenai.domain.model.User">
     <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
-    <association property="description" javaType="reengineering.ddd.teamai.description.UserDescription">
+    <association property="description" javaType="com.businessdrivenai.domain.description.UserDescription">
       <constructor>
         <arg column="name" jdbcType="VARCHAR" javaType="String"/>
         <arg column="email" jdbcType="VARCHAR" javaType="String"/>
       </constructor>
     </association>
-    <association property="accounts" javaType="reengineering.ddd.teamai.mybatis.associations.UserAccounts">
+    <association property="accounts" javaType="com.businessdrivenai.persistence.mybatis.associations.UserAccounts">
       <result column="id" property="userId" javaType="int"/>
-      <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.account"
-                  ofType="reengineering.ddd.teamai.model.Account"/>
+      <collection property="list" resultMap="com.businessdrivenai.persistence.mybatis.mappers.UserAccountsMapper.account"
+                  ofType="com.businessdrivenai.domain.model.Account"/>
     </association>
-    <association property="projects" javaType="reengineering.ddd.teamai.mybatis.associations.UserProjects">
+    <association property="projects" javaType="com.businessdrivenai.persistence.mybatis.associations.UserProjects">
       <result column="id" property="userId" javaType="int"/>
     </association>
   </resultMap>
@@ -36,7 +36,7 @@
   </select>
 
   <insert id="insertUser" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+          parameterType="com.businessdrivenai.persistence.support.IdHolder">
     insert into users (name, email)
     values (#{description.name}, #{description.email})
     on conflict (email) do update set name = excluded.name

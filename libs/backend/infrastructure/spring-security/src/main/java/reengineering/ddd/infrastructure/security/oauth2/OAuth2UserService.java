@@ -1,5 +1,9 @@
 package reengineering.ddd.infrastructure.security.oauth2;
 
+import com.businessdrivenai.domain.description.AccountDescription;
+import com.businessdrivenai.domain.description.UserDescription;
+import com.businessdrivenai.domain.model.User;
+import com.businessdrivenai.domain.model.Users;
 import jakarta.inject.Inject;
 import java.util.Collection;
 import java.util.List;
@@ -17,10 +21,6 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-import reengineering.ddd.teamai.description.AccountDescription;
-import reengineering.ddd.teamai.description.UserDescription;
-import reengineering.ddd.teamai.model.User;
-import reengineering.ddd.teamai.model.Users;
 
 @Service
 public class OAuth2UserService extends DefaultOAuth2UserService {

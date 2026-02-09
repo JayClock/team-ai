@@ -28,12 +28,10 @@ public class InfrastructureLayerExtractor extends BaseExtractor {
       new InfrastructureVisitor(filePath).visit(cu, null);
     }
 
-    Path associationPath =
-        basePath.resolve(
-            "libs/backend/persistent/mybatis/src/main/java/reengineering/ddd/teamai/mybatis/associations");
-    List<File> associationFiles = findJavaFiles(associationPath);
+    Path persistentPath = basePath.resolve("libs/backend/persistent/mybatis/src/main/java");
+    List<File> allPersistentFiles = findJavaFiles(persistentPath);
 
-    for (File file : associationFiles) {
+    for (File file : allPersistentFiles) {
       CompilationUnit cu = parseFile(file);
       String filePath = getFilePath(file);
       new AssociationVisitor(filePath).visit(cu, null);

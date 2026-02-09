@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectLogicalEntitiesMapper">
+<mapper namespace="com.businessdrivenai.persistence.mybatis.mappers.ProjectLogicalEntitiesMapper">
 
-  <resultMap id="logicalEntity" type="reengineering.ddd.teamai.model.LogicalEntity">
+  <resultMap id="logicalEntity" type="com.businessdrivenai.domain.model.LogicalEntity">
     <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
-    <association property="description" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription">
+    <association property="description" javaType="com.businessdrivenai.domain.description.LogicalEntityDescription">
       <constructor>
-        <arg column="type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$Type"/>
-        <arg column="sub_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$SubType"/>
+        <arg column="type" jdbcType="VARCHAR" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.LogicalEntityTypeHandler" javaType="com.businessdrivenai.domain.description.LogicalEntityDescription$Type"/>
+        <arg column="sub_type" jdbcType="VARCHAR" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.SubTypeHandler" javaType="com.businessdrivenai.domain.description.LogicalEntityDescription$SubType"/>
         <arg column="name" jdbcType="VARCHAR" javaType="String"/>
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>
+        <arg column="definition" jdbcType="OTHER" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.EntityDefinitionHandler" javaType="com.businessdrivenai.domain.description.EntityDefinition"/>
         <arg column="status" jdbcType="VARCHAR" javaType="String"/>
       </constructor>
     </association>
@@ -31,13 +31,13 @@
   </select>
 
   <insert id="insertLogicalEntity" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+          parameterType="com.businessdrivenai.persistence.support.IdHolder">
     INSERT INTO logical_entities(project_id, type, sub_type, name, label, definition, status)
     VALUES (CAST(#{project_id} AS INTEGER),
-            #{description.type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler},
-            #{description.subType, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler},
+            #{description.type, typeHandler=com.businessdrivenai.persistence.mybatis.typehandler.LogicalEntityTypeHandler},
+            #{description.subType, typeHandler=com.businessdrivenai.persistence.mybatis.typehandler.SubTypeHandler},
             #{description.name}, #{description.label},
-            #{description.definition, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler},
+            #{description.definition, typeHandler=com.businessdrivenai.persistence.mybatis.typehandler.EntityDefinitionHandler},
             #{description.status})
   </insert>
 

@@ -17,7 +17,7 @@ class DeepSeekModelProviderTest {
   @Test
   void should_implement_model_provider_interface() {
     assertThat(provider)
-        .isInstanceOf(reengineering.ddd.teamai.model.Conversation.ModelProvider.class);
+        .isInstanceOf(com.businessdrivenai.domain.model.Conversation.ModelProvider.class);
   }
 
   @Test

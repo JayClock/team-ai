@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectDiagramsMapper">
+<mapper namespace="com.businessdrivenai.persistence.mybatis.mappers.ProjectDiagramsMapper">
 
-  <resultMap id="diagram" type="reengineering.ddd.teamai.model.Diagram">
+  <resultMap id="diagram" type="com.businessdrivenai.domain.model.Diagram">
     <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
     <result property="projectId" column="project_id" jdbcType="INTEGER" javaType="String"/>
-    <association property="description" javaType="reengineering.ddd.teamai.description.DiagramDescription">
+    <association property="description" javaType="com.businessdrivenai.domain.description.DiagramDescription">
       <constructor>
         <arg column="title" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler" javaType="reengineering.ddd.teamai.model.DiagramType"/>
-        <arg column="viewport" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler" javaType="reengineering.ddd.teamai.description.Viewport"/>
+        <arg column="type" jdbcType="VARCHAR" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.DiagramTypeHandler" javaType="com.businessdrivenai.domain.model.DiagramType"/>
+        <arg column="viewport" jdbcType="OTHER" typeHandler="com.businessdrivenai.persistence.mybatis.typehandler.ViewportHandler" javaType="com.businessdrivenai.domain.description.Viewport"/>
       </constructor>
     </association>
-    <association property="nodes" javaType="reengineering.ddd.teamai.mybatis.associations.DiagramNodes">
+    <association property="nodes" javaType="com.businessdrivenai.persistence.mybatis.associations.DiagramNodes">
       <result column="id" property="diagramId" javaType="int"/>
     </association>
-    <association property="edges" javaType="reengineering.ddd.teamai.mybatis.associations.DiagramEdges">
+    <association property="edges" javaType="com.businessdrivenai.persistence.mybatis.associations.DiagramEdges">
       <result column="id" property="diagramId" javaType="int"/>
     </association>
   </resultMap>
@@ -35,11 +35,11 @@
   </select>
 
   <insert id="insertDiagram" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
-          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+          parameterType="com.businessdrivenai.persistence.support.IdHolder">
     INSERT INTO diagrams(project_id, title, type, viewport)
     VALUES (#{project_id}, #{description.title},
-            #{description.type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler},
-            #{description.viewport, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler})
+            #{description.type, typeHandler=com.businessdrivenai.persistence.mybatis.typehandler.DiagramTypeHandler},
+            #{description.viewport, typeHandler=com.businessdrivenai.persistence.mybatis.typehandler.ViewportHandler})
   </insert>
 
   <select id="countDiagramsByProject" resultType="int">

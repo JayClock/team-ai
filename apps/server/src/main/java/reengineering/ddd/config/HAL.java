@@ -1,5 +1,6 @@
 package reengineering.ddd.config;
 
+import com.businessdrivenai.api.options.HalFormsOptionsCustomizer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -15,7 +16,6 @@ import org.springframework.hateoas.mediatype.hal.Jackson2HalModule;
 import org.springframework.hateoas.mediatype.hal.forms.HalFormsConfiguration;
 import org.springframework.hateoas.mediatype.hal.forms.Jackson2HalFormsModule;
 import org.springframework.hateoas.server.LinkRelationProvider;
-import reengineering.ddd.teamai.api.options.HalFormsOptionsCustomizer;
 
 @Configuration
 public class HAL implements InitializingBean {
