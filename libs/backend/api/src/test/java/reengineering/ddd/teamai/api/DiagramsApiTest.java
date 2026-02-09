@@ -107,6 +107,11 @@ public class DiagramsApiTest extends ApiTest {
         .body("_templates.create-node.properties[0].type", is("number"))
         .body("_templates.create-node.properties[1].name", is("logicalEntityId"))
         .body("_templates.create-node.properties[1].type", is("text"))
+        .body(
+            "_templates.create-node.properties[1].options.link.href",
+            is("/api/projects/{projectId}/logical-entities"))
+        .body("_templates.create-node.properties[1].options.promptField", is("name"))
+        .body("_templates.create-node.properties[1].options.valueField", is("id"))
         .body("_templates.create-node.properties[2].name", is("parentId"))
         .body("_templates.create-node.properties[2].type", is("text"))
         .body("_templates.create-node.properties[3].name", is("positionX"))
