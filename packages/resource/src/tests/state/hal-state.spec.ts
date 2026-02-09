@@ -13,6 +13,7 @@ import { HalLink, HalResource } from 'hal-types';
 const mockClient = {
   bookmarkUri: 'https://example.com/',
   go: vi.fn(),
+  cacheState: vi.fn()
 } as unknown as ClientInstance;
 
 describe('HalState', async () => {

@@ -130,6 +130,7 @@ export class HalStateFactory implements StateFactory {
           selfLink,
         );
       }
+      client.cacheState(embeddedState[key])
     }
     return embeddedState;
   }

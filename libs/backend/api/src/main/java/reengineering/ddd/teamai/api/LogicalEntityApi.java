@@ -22,6 +22,6 @@ public class LogicalEntityApi {
   @GET
   @VendorMediaType(ResourceTypes.LOGICAL_ENTITY)
   public LogicalEntityModel get(@Context UriInfo uriInfo) {
-    return new LogicalEntityModel(project, entity, uriInfo);
+    return LogicalEntityModel.of(project, entity, uriInfo);
   }
 }

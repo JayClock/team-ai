@@ -34,7 +34,7 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
   @JsonProperty private LocalDataModel localData;
 
   public record EmbeddedResources(
-      @JsonProperty("logicalEntity") LogicalEntityModel logicalEntity) {}
+      @JsonProperty("logical-entity") LogicalEntityModel logicalEntity) {}
 
   private static class StyleConfigModel {
     private final String backgroundColor;
@@ -119,7 +119,7 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
     this.embedded =
         diagramNode.logicalEntity() != null
             ? new EmbeddedResources(
-                LogicalEntityModel.simple(project, diagramNode.logicalEntity(), uriInfo))
+                LogicalEntityModel.of(project, diagramNode.logicalEntity(), uriInfo))
             : null;
     this.parentId = desc.parent() != null ? desc.parent().id() : null;
     this.positionX = desc.positionX();

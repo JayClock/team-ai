@@ -22,8 +22,11 @@ public class LogicalEntityModel extends RepresentationModel<LogicalEntityModel> 
   public LogicalEntityModel(Project project, LogicalEntity entity, UriInfo uriInfo) {
     this.id = entity.getIdentity();
     this.description = entity.getDescription();
+  }
 
-    add(
+  public static LogicalEntityModel of(Project project, LogicalEntity entity, UriInfo uriInfo) {
+    LogicalEntityModel model = new LogicalEntityModel(project, entity, uriInfo);
+    model.add(
         Affordances.of(
                 Link.of(
                         ApiTemplates.logicalEntity(uriInfo)
@@ -36,9 +39,10 @@ public class LogicalEntityModel extends RepresentationModel<LogicalEntityModel> 
             .withName("delete-logical-entity")
             .toLink());
 
-    add(
+    model.add(
         Link.of(ApiTemplates.logicalEntities(uriInfo).build(project.getIdentity()).getPath())
             .withRel("logical-entities"));
+    return model;
   }
 
   public static LogicalEntityModel simple(Project project, LogicalEntity entity, UriInfo uriInfo) {

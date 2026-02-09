@@ -54,7 +54,7 @@ public class LogicalEntitiesApi {
     return new Pagination<>(project.logicalEntities().findAll(), 40)
         .page(
             page,
-            logicalEntity -> new LogicalEntityModel(project, logicalEntity, uriInfo),
+            logicalEntity -> LogicalEntityModel.simple(project, logicalEntity, uriInfo),
             p ->
                 ApiTemplates.logicalEntities(uriInfo)
                     .queryParam("page", p)
@@ -75,7 +75,7 @@ public class LogicalEntitiesApi {
                 null));
 
     return Response.status(Response.Status.CREATED)
-        .entity(new LogicalEntityModel(project, created, uriInfo))
+        .entity(LogicalEntityModel.of(project, created, uriInfo))
         .build();
   }
 
