@@ -111,6 +111,41 @@ public class LogicalEntitiesApiTest extends ApiTest {
   }
 
   @Test
+  public void should_return_paginated_logical_entities_list() {
+    LogicalEntity logicalEntity2 =
+        new LogicalEntity(
+            "entity-2",
+            new LogicalEntityDescription(
+                Type.PARTICIPANT, ParticipantSubType.PARTY, "Customer", "客户", null, null));
+
+    when(projectLogicalEntities.findAll())
+        .thenReturn(new EntityList<>(logicalEntity, logicalEntity2));
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .when()
+        .get("/projects/{projectId}/logical-entities", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded.logical-entities", hasSize(2))
+        .body("_embedded.logical-entities[0].id", is(logicalEntity.getIdentity()))
+        .body("_embedded.logical-entities[0].type", is("EVIDENCE"))
+        .body("_embedded.logical-entities[0].name", is("Order"))
+        .body("_embedded.logical-entities[1].id", is(logicalEntity2.getIdentity()))
+        .body("_embedded.logical-entities[1].type", is("PARTICIPANT"))
+        .body("_embedded.logical-entities[1].name", is("Customer"))
+        .body("page.size", is(40))
+        .body("page.totalElements", is(2))
+        .body("page.totalPages", is(1))
+        .body("page.number", is(0))
+        .body(
+            "_links.self.href",
+            is("/api/projects/" + project.getIdentity() + "/logical-entities?page=0"));
+
+    verify(projectLogicalEntities, times(1)).findAll();
+  }
+
+  @Test
   public void should_create_logical_entity() {
     LogicalEntity newEntity =
         new LogicalEntity(

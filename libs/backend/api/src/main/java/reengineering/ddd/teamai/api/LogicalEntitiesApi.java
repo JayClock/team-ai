@@ -5,9 +5,12 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
@@ -16,6 +19,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.config.SubTypeDeserializer;
 import reengineering.ddd.teamai.api.config.SubTypeSerializer;
 import reengineering.ddd.teamai.api.representation.LogicalEntityModel;
@@ -42,6 +46,19 @@ public class LogicalEntitiesApi {
               return resourceContext.initResource(api);
             })
         .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
+  }
+
+  @GET
+  public CollectionModel<LogicalEntityModel> findAll(
+      @Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
+    return new Pagination<>(project.logicalEntities().findAll(), 40)
+        .page(
+            page,
+            logicalEntity -> new LogicalEntityModel(project, logicalEntity, uriInfo),
+            p ->
+                ApiTemplates.logicalEntities(uriInfo)
+                    .queryParam("page", p)
+                    .build(project.getIdentity()));
   }
 
   @POST
