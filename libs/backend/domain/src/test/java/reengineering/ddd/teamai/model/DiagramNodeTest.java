@@ -1,10 +1,12 @@
 package reengineering.ddd.teamai.model;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import reengineering.ddd.archtype.HasOne;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.LocalNodeData;
 import reengineering.ddd.teamai.description.NodeDescription;
@@ -27,7 +29,7 @@ public class DiagramNodeTest {
             200,
             new NodeStyleConfig("#ff6b6b", "#ffffff", 14, false, java.util.List.of()),
             new LocalNodeData("", null, null));
-    node = new DiagramNode("node-1", description);
+    node = new DiagramNode("node-1", description, mock(HasOne.class));
   }
 
   @Nested
@@ -106,7 +108,7 @@ public class DiagramNodeTest {
               new NodeStyleConfig("#ffd93d", "#000000", 12, false, java.util.List.of()),
               new LocalNodeData("这里逻辑还需要再讨论", "#ffd93d", "sticky-note"));
 
-      DiagramNode stickyNode = new DiagramNode("sticky-1", stickyNoteDesc);
+      DiagramNode stickyNode = new DiagramNode("sticky-1", stickyNoteDesc, mock(HasOne.class));
 
       assertNull(stickyNode.getDescription().logicalEntity());
       assertEquals("这里逻辑还需要再讨论", stickyNode.getDescription().localData().content());
@@ -130,7 +132,8 @@ public class DiagramNodeTest {
                   "#ff0000", "#00ff00", 16, true, java.util.List.of("createdAt", "updatedAt")),
               new LocalNodeData("", null, null));
 
-      DiagramNode overrideNode = new DiagramNode("node-override", nodeWithOverride);
+      DiagramNode overrideNode =
+          new DiagramNode("node-override", nodeWithOverride, mock(HasOne.class));
 
       NodeStyleConfig styleConfig = overrideNode.getDescription().styleConfig();
       assertEquals("#ff0000", styleConfig.backgroundColor());
@@ -158,7 +161,7 @@ public class DiagramNodeTest {
               new NodeStyleConfig("#ffffff", "#000000", 14, false, java.util.List.of()),
               new LocalNodeData("", null, null));
 
-      DiagramNode classNode = new DiagramNode("class-1", classNodeDesc);
+      DiagramNode classNode = new DiagramNode("class-1", classNodeDesc, mock(HasOne.class));
       assertEquals("class-node", classNode.getDescription().type());
     }
 
@@ -176,7 +179,7 @@ public class DiagramNodeTest {
               new NodeStyleConfig("#f0f0f0", "#000000", 14, false, java.util.List.of()),
               new LocalNodeData("", null, null));
 
-      DiagramNode groupNode = new DiagramNode("group-1", groupNodeDesc);
+      DiagramNode groupNode = new DiagramNode("group-1", groupNodeDesc, mock(HasOne.class));
       assertEquals("group", groupNode.getDescription().type());
     }
   }

@@ -2,6 +2,20 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.DiagramNodesMapper">
 
+  <resultMap id="logicalEntity" type="reengineering.ddd.teamai.model.LogicalEntity">
+    <id property="identity" column="le_id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription">
+      <constructor>
+        <arg column="le_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$Type"/>
+        <arg column="le_sub_type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler" javaType="reengineering.ddd.teamai.description.LogicalEntityDescription$SubType"/>
+        <arg column="le_name" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="le_label" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="le_definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>
+        <arg column="le_status" jdbcType="VARCHAR" javaType="String"/>
+      </constructor>
+    </association>
+  </resultMap>
+
   <resultMap id="node" type="reengineering.ddd.teamai.model.DiagramNode">
     <id property="identity" column="id" jdbcType="INTEGER" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.NodeDescription">
@@ -17,19 +31,62 @@
         <arg column="local_data" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.LocalNodeDataHandler" javaType="reengineering.ddd.teamai.description.LocalNodeData"/>
       </constructor>
     </association>
+    <association property="logicalEntity" javaType="reengineering.ddd.mybatis.memory.Reference">
+      <association property="entity" resultMap="logicalEntity"/>
+    </association>
   </resultMap>
 
   <select id="findNodeByDiagramAndId" resultMap="node">
-    SELECT id, diagram_id, type, logical_entity_id, parent_id, position_x, position_y, width, height, style_config, local_data
-    FROM diagram_nodes
-    WHERE diagram_id = #{diagram_id} AND id = #{id}
+    SELECT
+      dn.id,
+      dn.diagram_id,
+      dn.type,
+      dn.logical_entity_id,
+      dn.parent_id,
+      dn.position_x,
+      dn.position_y,
+      dn.width,
+      dn.height,
+      dn.style_config,
+      dn.local_data,
+      le.id as le_id,
+      le.type as le_type,
+      le.sub_type as le_sub_type,
+      le.name as le_name,
+      le.label as le_label,
+      le.definition as le_definition,
+      le.status as le_status
+    FROM diagram_nodes dn
+    JOIN diagrams d ON dn.diagram_id = d.id
+    LEFT JOIN logical_entities le ON dn.logical_entity_id = le.id AND le.project_id = d.project_id
+    WHERE dn.diagram_id = #{diagram_id} AND dn.id = #{id}
   </select>
 
   <select id="findNodesByDiagramId" resultMap="node">
-    SELECT id, diagram_id, type, logical_entity_id, parent_id, position_x, position_y, width, height, style_config, local_data
-    FROM diagram_nodes
-    WHERE diagram_id = #{diagram_id}
-    ORDER BY updated_at DESC
+    SELECT
+      dn.id,
+      dn.diagram_id,
+      dn.type,
+      dn.logical_entity_id,
+      dn.parent_id,
+      dn.position_x,
+      dn.position_y,
+      dn.width,
+      dn.height,
+      dn.style_config,
+      dn.local_data,
+      le.id as le_id,
+      le.type as le_type,
+      le.sub_type as le_sub_type,
+      le.name as le_name,
+      le.label as le_label,
+      le.definition as le_definition,
+      le.status as le_status
+    FROM diagram_nodes dn
+    JOIN diagrams d ON dn.diagram_id = d.id
+    LEFT JOIN logical_entities le ON dn.logical_entity_id = le.id AND le.project_id = d.project_id
+    WHERE dn.diagram_id = #{diagram_id}
+    ORDER BY dn.updated_at DESC
   </select>
 
   <insert id="insertNode" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"

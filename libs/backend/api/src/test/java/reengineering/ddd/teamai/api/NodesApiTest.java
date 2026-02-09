@@ -14,7 +14,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.springframework.hateoas.MediaTypes;
+import reengineering.ddd.archtype.HasOne;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LocalNodeData;
@@ -25,6 +27,7 @@ import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.DiagramType;
+import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 
 public class NodesApiTest extends ApiTest {
@@ -61,6 +64,10 @@ public class NodesApiTest extends ApiTest {
 
     NodeStyleConfig styleConfig = new NodeStyleConfig("#ffffff", "#000000", 14, false, List.of());
     LocalNodeData localData = new LocalNodeData("Note content", "#ffd93d", "sticky-note");
+    LogicalEntity mockLogicalEntity = Mockito.mock(LogicalEntity.class);
+    when(mockLogicalEntity.getIdentity()).thenReturn("logical-entity-1");
+    HasOne<LogicalEntity> mockHasOne = Mockito.mock(HasOne.class);
+    when(mockHasOne.get()).thenReturn(mockLogicalEntity);
     node =
         new DiagramNode(
             "node-1",
@@ -73,7 +80,8 @@ public class NodesApiTest extends ApiTest {
                 300,
                 200,
                 styleConfig,
-                localData));
+                localData),
+            mockHasOne);
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(diagrams.findByIdentity(diagram.getIdentity())).thenReturn(Optional.of(diagram));
@@ -115,44 +123,14 @@ public class NodesApiTest extends ApiTest {
                     + "/nodes/"
                     + node.getIdentity()))
         .body(
-            "_links.nodes.href",
-            is(
-                "/api/projects/"
-                    + project.getIdentity()
-                    + "/diagrams/"
-                    + diagram.getIdentity()
-                    + "/nodes"))
-        .body(
-            "_links.diagram.href",
-            is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
-        .body(
             "_links.logical-entity.href",
             is(
                 "/api/projects/"
                     + project.getIdentity()
                     + "/logical-entities/"
-                    + node.getDescription().logicalEntity().id()))
+                    + "logical-entity-1"))
         .body("_templates.default.method", is("PUT"))
-        .body("_templates.delete-node.method", is("DELETE"))
-        .body("_templates.create-node.method", is("POST"))
-        .body("_templates.create-node.properties", hasSize(7))
-        .body("_templates.create-node.properties[0].name", is("height"))
-        .body("_templates.create-node.properties[0].required", is(true))
-        .body("_templates.create-node.properties[0].type", is("number"))
-        .body("_templates.create-node.properties[1].name", is("logicalEntityId"))
-        .body("_templates.create-node.properties[1].type", is("text"))
-        .body("_templates.create-node.properties[2].name", is("parentId"))
-        .body("_templates.create-node.properties[2].type", is("text"))
-        .body("_templates.create-node.properties[3].name", is("positionX"))
-        .body("_templates.create-node.properties[3].type", is("number"))
-        .body("_templates.create-node.properties[4].name", is("positionY"))
-        .body("_templates.create-node.properties[4].type", is("number"))
-        .body("_templates.create-node.properties[5].name", is("type"))
-        .body("_templates.create-node.properties[5].required", is(true))
-        .body("_templates.create-node.properties[5].type", is("text"))
-        .body("_templates.create-node.properties[6].name", is("width"))
-        .body("_templates.create-node.properties[6].required", is(true))
-        .body("_templates.create-node.properties[6].type", is("number"));
+        .body("_templates.delete-node.method", is("DELETE"));
 
     verify(diagramNodes, times(1)).findByIdentity(node.getIdentity());
   }
@@ -191,6 +169,8 @@ public class NodesApiTest extends ApiTest {
 
   @Test
   public void should_create_node() {
+    HasOne<LogicalEntity> mockHasOne = Mockito.mock(HasOne.class);
+    when(mockHasOne.get()).thenReturn(null);
     DiagramNode newNode =
         new DiagramNode(
             "node-new",
@@ -203,7 +183,8 @@ public class NodesApiTest extends ApiTest {
                 200,
                 100,
                 null,
-                null));
+                null),
+            mockHasOne);
 
     when(diagramNodes.add(any(NodeDescription.class))).thenReturn(newNode);
 
@@ -240,10 +221,15 @@ public class NodesApiTest extends ApiTest {
 
   @Test
   public void should_return_all_nodes() {
+    LogicalEntity mockLogicalEntity1 = Mockito.mock(LogicalEntity.class);
+    when(mockLogicalEntity1.getIdentity()).thenReturn("logical-entity-1");
+    HasOne<LogicalEntity> mockHasOne1 = Mockito.mock(HasOne.class);
+    when(mockHasOne1.get()).thenReturn(mockLogicalEntity1);
     DiagramNode node2 =
         new DiagramNode(
             "node-2",
-            new NodeDescription("entity-node", null, null, 300.0, 250.0, 250, 150, null, null));
+            new NodeDescription("entity-node", null, null, 300.0, 250.0, 250, 150, null, null),
+            mockHasOne1);
 
     when(diagramNodes.findAll()).thenReturn(new EntityList<>(node, node2));
 

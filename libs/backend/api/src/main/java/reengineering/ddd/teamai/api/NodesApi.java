@@ -52,7 +52,7 @@ public class NodesApi {
   public CollectionModel<DiagramNodeModel> findAll(@Context UriInfo uriInfo) {
     return CollectionModel.of(
         diagram.nodes().findAll().stream()
-            .map(node -> DiagramNodeModel.simple(project, diagram, node, uriInfo))
+            .map(node -> DiagramNodeModel.of(project, diagram, node, uriInfo))
             .toList(),
         Link.of(
             ApiTemplates.nodes(uriInfo)
