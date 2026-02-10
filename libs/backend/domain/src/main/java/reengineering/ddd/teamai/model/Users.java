@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.model;
 
 import java.util.Optional;
+import reengineering.ddd.teamai.context.ProjectContext;
 import reengineering.ddd.teamai.description.UserDescription;
 
 public interface Users {
@@ -9,4 +10,6 @@ public interface Users {
   User createUser(UserDescription description);
 
   void update(String id, User.UserChange request);
+
+  ProjectContext inProjectContext(Project project);
 }

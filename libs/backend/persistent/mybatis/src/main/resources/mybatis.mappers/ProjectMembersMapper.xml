@@ -23,12 +23,12 @@
   <select id="findMemberByProjectAndUser" resultMap="member">
     SELECT pm.user_id, pm.role
     FROM project_members pm
-    WHERE pm.project_id = #{project_id} AND pm.user_id = #{user_id}
+    WHERE pm.project_id = #{project_id} AND pm.user_id = CAST(#{user_id} AS INTEGER)
   </select>
 
   <insert id="insertMember">
     INSERT INTO project_members(project_id, user_id, role)
-    VALUES (#{project_id}, #{user_id}, #{role})
+    VALUES (#{project_id}, CAST(#{user_id} AS INTEGER), #{role})
     ON CONFLICT (project_id, user_id) DO UPDATE SET role = EXCLUDED.role
   </insert>
 
@@ -37,7 +37,7 @@
   </select>
 
   <delete id="deleteMember">
-    DELETE FROM project_members WHERE project_id = #{project_id} AND user_id = #{user_id}
+    DELETE FROM project_members WHERE project_id = #{project_id} AND user_id = CAST(#{user_id} AS INTEGER)
   </delete>
 
 </mapper>
