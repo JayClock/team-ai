@@ -2,11 +2,13 @@ import { Collection, State } from '@hateoas-ts/resource';
 import { Diagram, DiagramNode, DiagramEdge } from '@shared/schema';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import '@xyflow/react/dist/style.css';
-import { ReactFlow, Background, Controls, Edge } from '@xyflow/react';
+import { Background, Controls, Edge } from '@xyflow/react';
+import { Canvas } from '@shared/ui';
 import { useState } from 'react';
 import { FulfillmentNode } from './fulfillment-node';
 import { GroupContainerNode } from './group-container-node';
 import { StickyNoteNode } from './sticky-note-node';
+import { DiagramTools } from './tools/diagram-tools';
 
 interface Props {
   state: State<Diagram>;
@@ -51,16 +53,17 @@ export function ProjectDiagram(props: Props) {
 
   return (
     <div style={{ height: '100%', width: '100%' }}>
-      <ReactFlow
+      <Canvas
         title={state.data.title}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
         fitView
       >
+        <DiagramTools />
         <Background />
         <Controls />
-      </ReactFlow>
+      </Canvas>
     </div>
   );
 }

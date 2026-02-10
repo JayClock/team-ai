@@ -1,5 +1,7 @@
+export * from './components/ai-elements/canvas';
 export * from './components/ai-elements/conversation';
 export * from './components/ai-elements/message';
+export * from './components/ai-elements/panel';
 export * from './components/ai-elements/prompt-input';
 export * from './components/ai-elements/suggestion';
 
@@ -19,6 +21,7 @@ export * from './components/select';
 export * from './components/scroll-area';
 export * from './components/separator';
 export * from './components/sidebar';
+export * from './components/sheet';
 export * from './components/skeleton';
 export * from './components/spinner';
 export * from './components/textarea';
