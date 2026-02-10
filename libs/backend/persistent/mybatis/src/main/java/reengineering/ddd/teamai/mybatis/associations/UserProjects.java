@@ -43,10 +43,4 @@ public class UserProjects extends EntityList<String, Project> implements User.Pr
     mapper.addMember(idHolder.id(), userId, "OWNER");
     return mapper.findProjectByUserAndId(userId, idHolder.id());
   }
-
-  @Override
-  @CacheEvict(value = CACHE_NAME, allEntries = true)
-  public void delete(String id) {
-    mapper.deleteProject(userId, Integer.parseInt(id));
-  }
 }

@@ -50,18 +50,12 @@ public class User implements Entity<String, UserDescription> {
     return projects.add(projectDescription);
   }
 
-  public void deleteProject(String projectId) {
-    projects.delete(projectId);
-  }
-
   public interface Accounts extends HasMany<String, Account> {
     Account add(AccountDescription description);
   }
 
   public interface Projects extends HasMany<String, Project> {
     Project add(ProjectDescription description);
-
-    void delete(String id);
   }
 
   public static class UserChange {

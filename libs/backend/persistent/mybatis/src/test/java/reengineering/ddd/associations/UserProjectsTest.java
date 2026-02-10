@@ -78,18 +78,6 @@ public class UserProjectsTest {
   }
 
   @Test
-  public void should_delete_project() {
-    User user = users.findByIdentity(userId).get();
-    var description = new ProjectDescription("Project to Delete");
-    Project savedProject = user.add(description);
-
-    assertTrue(user.projects().findByIdentity(savedProject.getIdentity()).isPresent());
-
-    user.deleteProject(savedProject.getIdentity());
-    assertTrue(user.projects().findByIdentity(savedProject.getIdentity()).isEmpty());
-  }
-
-  @Test
   public void should_preserve_eager_loaded_projects_after_cache_hydration() {
     User firstUser = users.findByIdentity(userId).get();
     int projectsCount = firstUser.projects().findAll().size();

@@ -70,11 +70,4 @@ public class UserProjectsMapperTest {
     assertEquals(1, projects.size());
     assertEquals(String.valueOf(projectId), projects.get(0).getIdentity());
   }
-
-  @Test
-  public void should_delete_project() {
-    projectsMapper.deleteProject(userId, projectId);
-    Project project = projectsMapper.findProjectByUserAndId(userId, projectId);
-    assertEquals(null, project);
-  }
 }

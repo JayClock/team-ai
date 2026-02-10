@@ -56,10 +56,4 @@
     ORDER BY pm.joined_at DESC
     LIMIT #{size} OFFSET #{from}
   </select>
-
-  <delete id="deleteProject">
-    DELETE FROM project_members WHERE project_id = #{id} AND user_id = #{user_id};
-    DELETE FROM conversations WHERE project_id = #{id};
-    DELETE FROM projects WHERE id = #{id}
-  </delete>
  </mapper>

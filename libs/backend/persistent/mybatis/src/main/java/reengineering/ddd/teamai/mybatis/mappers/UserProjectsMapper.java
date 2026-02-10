@@ -23,6 +23,4 @@ public interface UserProjectsMapper {
       @Param("project_id") int projectId, @Param("user_id") int userId, @Param("role") String role);
 
   int countProjectsByUser(@Param("user_id") int userId);
-
-  void deleteProject(@Param("user_id") int userId, @Param("id") int id);
 }
