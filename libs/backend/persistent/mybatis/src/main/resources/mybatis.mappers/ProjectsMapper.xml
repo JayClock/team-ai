@@ -29,4 +29,30 @@
     WHERE p.id = #{id}
   </select>
 
-</mapper>
+  <select id="findAllProjects" resultMap="project">
+    SELECT p.id, p.name
+    FROM projects p
+    ORDER BY p.id DESC
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <select id="countAllProjects" resultType="int">
+    SELECT COUNT(*) FROM projects
+  </select>
+
+  <select id="findProjectMemberIds" resultType="int">
+    SELECT user_id FROM project_members WHERE project_id = #{id}
+  </select>
+
+  <delete id="deleteProject">
+    DELETE FROM project_members WHERE project_id = #{id};
+    DELETE FROM diagram_edges WHERE diagram_id IN (SELECT id FROM diagrams WHERE project_id = #{id});
+    DELETE FROM diagram_nodes WHERE diagram_id IN (SELECT id FROM diagrams WHERE project_id = #{id});
+    DELETE FROM diagrams WHERE project_id = #{id};
+    DELETE FROM messages WHERE conversation_id IN (SELECT id FROM conversations WHERE project_id = #{id});
+    DELETE FROM conversations WHERE project_id = #{id};
+    DELETE FROM logical_entities WHERE project_id = #{id};
+    DELETE FROM projects WHERE id = #{id}
+  </delete>
+
+ </mapper>

@@ -1,7 +1,7 @@
 package reengineering.ddd.teamai.model;
 
-import java.util.Optional;
+import reengineering.ddd.archtype.HasMany;
 
-public interface Projects {
-  Optional<Project> findByIdentity(String id);
+public interface Projects extends HasMany<String, Project> {
+  void delete(String id);
 }

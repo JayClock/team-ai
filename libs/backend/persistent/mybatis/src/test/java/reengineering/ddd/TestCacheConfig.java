@@ -23,6 +23,9 @@ public class TestCacheConfig {
         "conversationMessagesList",
         "conversationMessagesCount",
         "userAccounts",
-        "projects");
+        "projects",
+        "projectsList",
+        "projectsCount",
+        "userProjects");
   }
 }

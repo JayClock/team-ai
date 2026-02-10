@@ -48,4 +48,11 @@ public class ProjectsTest {
   public void should_not_find_project_if_not_exist() {
     assertTrue(projects.findByIdentity("-1").isEmpty());
   }
+
+  @Test
+  public void should_delete_project() {
+    assertTrue(projects.findByIdentity(projectId).isPresent());
+    projects.delete(projectId);
+    assertTrue(projects.findByIdentity(projectId).isEmpty());
+  }
 }
