@@ -48,7 +48,7 @@ public class Users implements reengineering.ddd.teamai.model.Users {
 
   @Override
   @CacheEvict(value = CACHE_NAME, key = "#id")
-  public void update(String id, User.UserChange request) {
+  public void update(String id, UserDescription request) {
     mapper.updateUser(Integer.parseInt(id), request);
   }
 

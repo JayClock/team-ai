@@ -144,6 +144,6 @@ public class UsersApiTest extends ApiTest {
         .body("name", is("John Updated"))
         .body("email", is("john.updated@email.com"));
 
-    verify(users).update(eq("john.smith"), any(User.UserChange.class));
+    verify(users).update(eq("john.smith"), any(UserDescription.class));
   }
 }

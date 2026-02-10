@@ -9,7 +9,7 @@ public interface Users {
 
   User createUser(UserDescription description);
 
-  void update(String id, User.UserChange request);
+  void update(String id, UserDescription request);
 
   ProjectContext inProjectContext(Project project);
 }

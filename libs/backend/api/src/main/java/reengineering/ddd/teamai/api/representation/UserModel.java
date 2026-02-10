@@ -9,6 +9,7 @@ import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
+import reengineering.ddd.teamai.api.UserApi.UpdateUserRequest;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.User;
 
@@ -29,7 +30,7 @@ public class UserModel extends RepresentationModel<UserModel> {
                 Link.of(ApiTemplates.user(uriInfo).build(user.getIdentity()).getPath())
                     .withSelfRel())
             .afford(HttpMethod.PUT)
-            .withInput(User.UserChange.class)
+            .withInput(UpdateUserRequest.class)
             .withName("update-user")
             .toLink());
 
