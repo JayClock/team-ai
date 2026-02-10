@@ -3,8 +3,13 @@
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectMembersMapper">
 
   <resultMap id="member" type="reengineering.ddd.teamai.model.Member">
-    <id property="userIdentity" column="user_id" jdbcType="VARCHAR" javaType="String"/>
-    <result property="role" column="role" jdbcType="VARCHAR" javaType="String"/>
+    <id property="identity" column="user_id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.MemberDescription">
+      <constructor>
+        <arg column="user_id" jdbcType="VARCHAR" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
+        <arg column="role" jdbcType="VARCHAR" javaType="java.lang.String"/>
+      </constructor>
+    </association>
   </resultMap>
 
   <select id="findMembersByProjectId" resultMap="member">

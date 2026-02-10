@@ -35,7 +35,9 @@ public class ProjectMembers extends EntityList<String, Member> implements Projec
 
   @Override
   @CacheEvict(value = CACHE_NAME, allEntries = true)
-  public Member invite(String userId, String role) {
+  public Member addMember(reengineering.ddd.teamai.description.MemberDescription description) {
+    String userId = description.user().id();
+    String role = description.role();
     mapper.insertMember(projectId, userId, role);
     return mapper.findMemberByProjectAndUser(projectId, userId).orElse(null);
   }

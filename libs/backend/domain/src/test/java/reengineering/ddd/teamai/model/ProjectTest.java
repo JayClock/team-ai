@@ -10,9 +10,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.Viewport;
 
@@ -58,18 +60,19 @@ public class ProjectTest {
     }
 
     @Test
-    @DisplayName("should delegate invite to members association")
-    void shouldDelegateInvite() {
+    @DisplayName("should delegate addMember to members association")
+    void shouldDelegateAddMember() {
       String userId = "user-123";
-      Project.Role role = Project.Role.EDITOR;
+      String role = "EDITOR";
+      MemberDescription description = new MemberDescription(new Ref<>(userId), role);
       Member expectedMember = mock(Member.class);
 
-      when(members.invite(userId, role.name())).thenReturn(expectedMember);
+      when(members.addMember(description)).thenReturn(expectedMember);
 
-      Member result = project.invite(userId, role);
+      Member result = project.addMember(description);
 
       assertSame(expectedMember, result);
-      verify(members).invite(userId, role.name());
+      verify(members).addMember(description);
     }
   }
 

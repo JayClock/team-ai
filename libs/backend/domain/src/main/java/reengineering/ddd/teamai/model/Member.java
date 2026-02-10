@@ -4,31 +4,23 @@ import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.teamai.description.MemberDescription;
 
 public class Member implements Entity<String, MemberDescription> {
-  private String userIdentity;
-  private String role;
+  private String identity;
+  private MemberDescription description;
 
-  public Member(String userIdentity, String role) {
-    this.userIdentity = userIdentity;
-    this.role = role;
+  public Member(String identity, MemberDescription description) {
+    this.identity = identity;
+    this.description = description;
   }
 
   private Member() {}
 
   @Override
   public String getIdentity() {
-    return userIdentity;
-  }
-
-  public String getUserIdentity() {
-    return userIdentity;
-  }
-
-  public String getRole() {
-    return role;
+    return identity;
   }
 
   @Override
   public MemberDescription getDescription() {
-    return new MemberDescription(role);
+    return description;
   }
 }

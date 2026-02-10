@@ -5,6 +5,7 @@ import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 
 public class Project implements Entity<String, ProjectDescription> {
@@ -46,8 +47,8 @@ public class Project implements Entity<String, ProjectDescription> {
     return members;
   }
 
-  public Member invite(String userId, Role role) {
-    return members.invite(userId, role.name());
+  public Member addMember(MemberDescription description) {
+    return members.addMember(description);
   }
 
   public HasMany<String, Conversation> conversations() {
@@ -79,7 +80,7 @@ public class Project implements Entity<String, ProjectDescription> {
   }
 
   public interface Members extends HasMany<String, Member> {
-    Member invite(String userId, String role);
+    Member addMember(MemberDescription description);
   }
 
   public interface LogicalEntities extends HasMany<String, LogicalEntity> {

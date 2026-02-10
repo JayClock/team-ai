@@ -1,10 +1,12 @@
 package reengineering.ddd.teamai.model;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.description.MemberDescription;
 
 public class MemberTest {
 
@@ -17,10 +19,11 @@ public class MemberTest {
     void shouldReturnUserIdentity() {
       String userId = "user-123";
       String role = "EDITOR";
-      Member member = new Member(userId, role);
+      MemberDescription description = new MemberDescription(new Ref<>(userId), role);
+      Member member = new Member(userId, description);
 
-      assertEquals(userId, member.getUserIdentity());
       assertEquals(userId, member.getIdentity());
+      assertEquals(userId, member.getDescription().user().id());
     }
   }
 
@@ -33,9 +36,10 @@ public class MemberTest {
     void shouldReturnRole() {
       String userId = "user-123";
       String role = "OWNER";
-      Member member = new Member(userId, role);
+      MemberDescription description = new MemberDescription(new Ref<>(userId), role);
+      Member member = new Member(userId, description);
 
-      assertEquals(role, member.getRole());
+      assertEquals(role, member.getDescription().role());
     }
   }
 }

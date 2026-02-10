@@ -1,3 +1,5 @@
 package reengineering.ddd.teamai.description;
 
-public record MemberDescription(String role) {}
+import reengineering.ddd.archtype.Ref;
+
+public record MemberDescription(Ref<String> user, String role) {}
