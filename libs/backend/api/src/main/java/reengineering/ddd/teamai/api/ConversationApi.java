@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.inject.Inject;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -16,6 +17,8 @@ import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
 import java.util.UUID;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import reengineering.ddd.teamai.api.representation.ConversationModel;
 import reengineering.ddd.teamai.description.MessageDescription;
 import reengineering.ddd.teamai.model.Conversation;
@@ -128,5 +131,11 @@ public class ConversationApi {
         .replace("\n", "\\n")
         .replace("\r", "\\r")
         .replace("\t", "\\t");
+  }
+
+  @Data
+  @NoArgsConstructor
+  public static class UpdateConversationRequest {
+    @NotNull() private String title;
   }
 }

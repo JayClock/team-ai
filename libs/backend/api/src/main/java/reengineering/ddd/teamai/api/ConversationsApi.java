@@ -1,11 +1,22 @@
 package reengineering.ddd.teamai.api;
 
-import jakarta.ws.rs.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
 import reengineering.ddd.teamai.api.representation.ConversationModel;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -49,7 +60,8 @@ public class ConversationsApi {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response create(ConversationDescription description, @Context UriInfo uriInfo) {
+  public Response create(@Valid CreateConversationRequest request, @Context UriInfo uriInfo) {
+    ConversationDescription description = new ConversationDescription(request.title);
     Conversation conversation = project.add(description);
     ConversationModel conversationModel = new ConversationModel(project, conversation, uriInfo);
     return Response.created(
@@ -57,5 +69,11 @@ public class ConversationsApi {
                 .build(project.getIdentity(), conversation.getIdentity()))
         .entity(conversationModel)
         .build();
+  }
+
+  @Data
+  @NoArgsConstructor
+  public static class CreateConversationRequest {
+    @NotNull() private String title;
   }
 }

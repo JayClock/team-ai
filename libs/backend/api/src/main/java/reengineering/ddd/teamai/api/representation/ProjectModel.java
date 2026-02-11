@@ -9,11 +9,11 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
+import reengineering.ddd.teamai.api.ConversationsApi;
 import reengineering.ddd.teamai.api.DiagramsApi;
 import reengineering.ddd.teamai.api.LogicalEntitiesApi;
 import reengineering.ddd.teamai.api.ProjectApi;
 import reengineering.ddd.teamai.description.ProjectDescription;
-import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
 
 @Relation(collectionRelation = "projects")
@@ -51,7 +51,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
                 Link.of(ApiTemplates.conversations(uriInfo).build(project.getIdentity()).getPath())
                     .withRel("conversations"))
             .afford(HttpMethod.POST)
-            .withInput(Conversation.ConversationChange.class)
+            .withInput(ConversationsApi.CreateConversationRequest.class)
             .withName("create-conversation")
             .toLink());
 

@@ -34,7 +34,7 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
                             .getPath())
                     .withSelfRel())
             .afford(HttpMethod.PUT)
-            .withInput(Conversation.ConversationChange.class)
+            .withInput(ConversationApi.UpdateConversationRequest.class)
             .andAfford(HttpMethod.DELETE)
             .withName("delete-conversation")
             .toLink());
