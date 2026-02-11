@@ -5,6 +5,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.UriInfo;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import reengineering.ddd.teamai.api.representation.ProjectModel;
 import reengineering.ddd.teamai.model.Project;
 
@@ -36,5 +38,11 @@ public class ProjectApi {
   @Path("diagrams")
   public DiagramsApi diagrams() {
     return resourceContext.initResource(new DiagramsApi(project));
+  }
+
+  @Data
+  @NoArgsConstructor
+  public static class UpdateProjectRequest {
+    private String name;
   }
 }

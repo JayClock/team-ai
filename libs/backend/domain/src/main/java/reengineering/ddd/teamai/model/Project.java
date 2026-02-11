@@ -102,16 +102,4 @@ public class Project implements Entity<String, ProjectDescription> {
 
     void delete(String id);
   }
-
-  public static class ProjectChange {
-    private String name;
-
-    public String getName() {
-      return name;
-    }
-
-    public void setName(String name) {
-      this.name = name;
-    }
-  }
 }

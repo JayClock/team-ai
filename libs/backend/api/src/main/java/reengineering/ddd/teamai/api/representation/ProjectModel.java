@@ -11,6 +11,7 @@ import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.DiagramsApi;
 import reengineering.ddd.teamai.api.LogicalEntitiesApi;
+import reengineering.ddd.teamai.api.ProjectApi;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
@@ -40,7 +41,7 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
                 Link.of(ApiTemplates.project(uriInfo).build(project.getIdentity()).getPath())
                     .withSelfRel())
             .afford(HttpMethod.PUT)
-            .withInput(Project.ProjectChange.class)
+            .withInput(ProjectApi.UpdateProjectRequest.class)
             .andAfford(HttpMethod.DELETE)
             .withName("delete-project")
             .toLink());
