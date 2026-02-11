@@ -1,5 +1,4 @@
 dependencies {
-    implementation 'jakarta.validation:jakarta.validation-api'
     implementation 'io.projectreactor:reactor-core'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.junit.jupiter:junit-jupiter'
