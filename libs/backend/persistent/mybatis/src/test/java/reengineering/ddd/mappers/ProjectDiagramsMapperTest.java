@@ -61,7 +61,6 @@ public class ProjectDiagramsMapperTest {
     Diagram diagram = mapper.findDiagramByProjectAndId(projectId, diagramId);
     assertNotNull(diagram);
     assertEquals(String.valueOf(diagramId), diagram.getIdentity());
-    assertEquals(String.valueOf(projectId), diagram.getProjectId());
     assertEquals("Test Diagram" + diagramId, diagram.getDescription().title());
     assertEquals(DiagramType.CLASS, diagram.getDescription().type());
     assertEquals(100, diagram.getDescription().viewport().x());

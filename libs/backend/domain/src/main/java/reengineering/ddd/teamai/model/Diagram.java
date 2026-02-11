@@ -9,14 +9,11 @@ import reengineering.ddd.teamai.description.NodeDescription;
 public class Diagram implements Entity<String, DiagramDescription> {
   private String identity;
   private DiagramDescription description;
-  private String projectId;
   private Nodes nodes;
   private Edges edges;
 
-  public Diagram(
-      String identity, String projectId, DiagramDescription description, Nodes nodes, Edges edges) {
+  public Diagram(String identity, DiagramDescription description, Nodes nodes, Edges edges) {
     this.identity = identity;
-    this.projectId = projectId;
     this.description = description;
     this.nodes = nodes;
     this.edges = edges;
@@ -32,10 +29,6 @@ public class Diagram implements Entity<String, DiagramDescription> {
   @Override
   public DiagramDescription getDescription() {
     return description;
-  }
-
-  public String getProjectId() {
-    return projectId;
   }
 
   public HasMany<String, DiagramNode> nodes() {

@@ -60,7 +60,6 @@ public class ProjectDiagramsTest {
     assertEquals(100, savedDiagram.getDescription().viewport().x());
     assertEquals(50, savedDiagram.getDescription().viewport().y());
     assertEquals(1.5, savedDiagram.getDescription().viewport().zoom());
-    assertEquals(project.getIdentity(), savedDiagram.getProjectId());
 
     var retrievedDiagram = project.diagrams().findByIdentity(savedDiagram.getIdentity()).get();
     assertEquals(savedDiagram.getIdentity(), retrievedDiagram.getIdentity());
