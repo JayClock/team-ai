@@ -42,9 +42,17 @@ const defaultSuggestions = [
 const API_KEY_STORAGE_KEY = 'api-key';
 const API_KEY_HEADER = 'X-Api-Key';
 
-function getApiKeyHeaders(): Record<string, string> {
-  const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-  return apiKey ? { [API_KEY_HEADER]: apiKey } : {};
+function withApiKeyInterceptor(fetcher: typeof fetch = fetch) {
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    if (!apiKey) {
+      return fetcher(input, init);
+    }
+
+    const requestWithApiKey = new Request(input, init);
+    requestWithApiKey.headers.set(API_KEY_HEADER, apiKey);
+    return fetcher(requestWithApiKey);
+  };
 }
 
 export function MessageList({
@@ -54,7 +62,7 @@ export function MessageList({
   const { messages, sendMessage } = useChat({
     transport: new DefaultChatTransport({
       api: conversationState.getLink('send-message')?.href,
-      headers: getApiKeyHeaders,
+      fetch: withApiKeyInterceptor(),
       prepareSendMessagesRequest: ({ messages }) => {
         const lastMessage = messages.at(-1);
         const textPart = lastMessage?.parts.find((p) => p.type === 'text');

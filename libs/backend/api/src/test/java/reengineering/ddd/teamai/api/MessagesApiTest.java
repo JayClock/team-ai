@@ -163,4 +163,22 @@ public class MessagesApiTest extends ApiTest {
     verify(messages).saveMessage(eq(userDescription));
     verify(messages).saveMessage(eq(assistantDescription));
   }
+
+  @Test
+  public void should_return_unauthorized_when_api_key_header_is_missing() {
+    MessageDescription userDescription = new MessageDescription("user", "Hello, AI!");
+
+    given(documentationSpec)
+        .urlEncodingEnabled(false)
+        .accept(MediaType.SERVER_SENT_EVENTS)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(userDescription)
+        .when()
+        .post(
+            "/projects/{projectId}/conversations/{conversationId}/messages/stream",
+            project.getIdentity(),
+            conversation.getIdentity())
+        .then()
+        .statusCode(401);
+  }
 }

@@ -31,6 +31,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
+import reengineering.ddd.infrastructure.security.filter.ApiKeyHeaderNormalizationFilter;
 import reengineering.ddd.infrastructure.security.filter.RedirectUrlCookieFilter;
 import reengineering.ddd.infrastructure.security.jwt.JwtAuthenticationFilter;
 import reengineering.ddd.infrastructure.security.jwt.JwtUtil;
@@ -117,6 +118,8 @@ public class SecurityConfig {
                         }))
         .addFilterBefore(
             new RedirectUrlCookieFilter(), OAuth2AuthorizationRequestRedirectFilter.class)
+        .addFilterBefore(
+            new ApiKeyHeaderNormalizationFilter(), UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
         .logout(
             logout ->
@@ -145,6 +148,8 @@ public class SecurityConfig {
   @Profile("dev")
   public SecurityFilterChain devSecurityFilterChain(HttpSecurity http) throws Exception {
     http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+        .addFilterBefore(
+            new ApiKeyHeaderNormalizationFilter(), UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(
             new OncePerRequestFilter() {
               @Override

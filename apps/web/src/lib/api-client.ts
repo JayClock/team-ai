@@ -1,6 +1,7 @@
 import { createClient, FetchMiddleware } from '@hateoas-ts/resource';
 import { appConfig } from '../config/app.config';
 import { Root } from '@shared/schema';
+import { apiKeyStorage } from './api-key-storage';
 
 function buildLoginUrlWithReturnTo(): string {
   const currentPath = window.location.pathname + window.location.search;
@@ -24,6 +25,19 @@ function createCredentialsMiddleware(): FetchMiddleware {
   };
 }
 
+function createApiKeyMiddleware(): FetchMiddleware {
+  return (request, next) => {
+    const apiKey = apiKeyStorage.get();
+    if (!apiKey) {
+      return next(request);
+    }
+
+    const requestWithApiKey = new Request(request);
+    requestWithApiKey.headers.set('X-Api-Key', apiKey);
+    return next(requestWithApiKey);
+  };
+}
+
 function createAuthMiddleware(): FetchMiddleware {
   return async (request, next) => {
     const response = await next(request);
@@ -40,4 +54,5 @@ function createAuthMiddleware(): FetchMiddleware {
 }
 
 apiClient.use(createCredentialsMiddleware());
+apiClient.use(createApiKeyMiddleware());
 apiClient.use(createAuthMiddleware());

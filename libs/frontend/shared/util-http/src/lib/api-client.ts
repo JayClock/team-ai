@@ -24,6 +24,19 @@ function createCredentialsMiddleware(): FetchMiddleware {
   };
 }
 
+function createApiKeyMiddleware(): FetchMiddleware {
+  return (request, next) => {
+    const apiKey = localStorage.getItem('api-key');
+    if (!apiKey) {
+      return next(request);
+    }
+
+    const requestWithApiKey = new Request(request);
+    requestWithApiKey.headers.set('X-Api-Key', apiKey);
+    return next(requestWithApiKey);
+  };
+}
+
 function createAuthMiddleware(): FetchMiddleware {
   return async (request, next) => {
     const response = await next(request);
@@ -40,4 +53,5 @@ function createAuthMiddleware(): FetchMiddleware {
 }
 
 apiClient.use(createCredentialsMiddleware());
+apiClient.use(createApiKeyMiddleware());
 apiClient.use(createAuthMiddleware());

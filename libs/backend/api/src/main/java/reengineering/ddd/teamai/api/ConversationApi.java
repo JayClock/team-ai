@@ -62,7 +62,7 @@ public class ConversationApi {
       @Context Sse sse,
       @Context HttpHeaders headers) {
     String apiKey = headers.getHeaderString(API_KEY_HEADER);
-    if (apiKey == null || apiKey.isEmpty()) {
+    if (apiKey == null || apiKey.isBlank()) {
       throw new WebApplicationException("Missing API Key", Response.Status.UNAUTHORIZED);
     }
 
