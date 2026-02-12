@@ -54,4 +54,13 @@ public class Diagram implements Entity<String, DiagramDescription> {
   public interface Edges extends HasMany<String, DiagramEdge> {
     DiagramEdge add(EdgeDescription description);
   }
+
+  public DiagramDescription.DraftDiagram proposeModel(
+      String requirement, DomainArchitect architect) {
+    return architect.proposeModel(requirement);
+  }
+
+  public interface DomainArchitect {
+    DiagramDescription.DraftDiagram proposeModel(String requirement);
+  }
 }

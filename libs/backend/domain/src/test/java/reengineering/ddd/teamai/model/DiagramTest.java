@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.model;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ public class DiagramTest {
 
   @Mock private Diagram.Nodes nodes;
   @Mock private Diagram.Edges edges;
+  @Mock private Diagram.DomainArchitect architect;
 
   @BeforeEach
   public void setUp() {
@@ -160,6 +162,24 @@ public class DiagramTest {
 
       assertSame(expectedEdge, resultEdge);
       verify(edges).add(edgeDesc);
+    }
+  }
+
+  @Nested
+  class ProposeModel {
+    @Test
+    void should_delegate_to_domain_architect() {
+      String requirement = "As a domain architect, I want a draft model proposal";
+      DiagramDescription.DraftDiagram expected =
+          new DiagramDescription.DraftDiagram(List.of(), List.of());
+
+      when(architect.proposeModel(requirement)).thenReturn(expected);
+
+      DiagramDescription.DraftDiagram actual = diagram.proposeModel(requirement, architect);
+
+      assertSame(expected, actual);
+      verify(architect).proposeModel(requirement);
+      verifyNoMoreInteractions(architect);
     }
   }
 }

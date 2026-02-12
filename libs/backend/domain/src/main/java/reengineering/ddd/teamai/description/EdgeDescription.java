@@ -9,4 +9,6 @@ public record EdgeDescription(
     String targetHandle,
     String relationType,
     String label,
-    EdgeStyleProps styleProps) {}
+    EdgeStyleProps styleProps) {
+  public static record DraftEdge(Ref<String> sourceNode, Ref<String> targetNode) {}
+}
