@@ -68,6 +68,18 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
             .withInput(EdgesApi.CreateEdgeRequest.class)
             .withName("create-edge")
             .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.proposeModel(uriInfo)
+                            .build(project.getIdentity(), diagram.getIdentity())
+                            .getPath())
+                    .withRel("propose-model"))
+            .afford(HttpMethod.POST)
+            .withInput(DiagramApi.ProposeModelRequest.class)
+            .withName("propose-model")
+            .toLink());
     return model;
   }
 

@@ -7,12 +7,18 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import jakarta.ws.rs.core.MediaType;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.EdgeDescription;
+import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
@@ -86,6 +92,14 @@ public class DiagramsApiTest extends ApiTest {
                     + "/diagrams/"
                     + diagram.getIdentity()
                     + "/nodes"))
+        .body(
+            "_links.propose-model.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/propose-model"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(4))
         .body("_templates.default.properties[0].name", is("title"))
@@ -122,9 +136,50 @@ public class DiagramsApiTest extends ApiTest {
         .body("_templates.create-node.properties[5].type", is("text"))
         .body("_templates.create-node.properties[6].name", is("width"))
         .body("_templates.create-node.properties[6].required", is(true))
-        .body("_templates.create-node.properties[6].type", is("number"));
+        .body("_templates.create-node.properties[6].type", is("number"))
+        .body("_templates.propose-model.method", is("POST"))
+        .body("_templates.propose-model.properties", hasSize(1))
+        .body("_templates.propose-model.properties[0].name", is("requirement"))
+        .body("_templates.propose-model.properties[0].required", is(true))
+        .body("_templates.propose-model.properties[0].type", is("text"));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
+  }
+
+  @Test
+  public void should_propose_diagram_model() {
+    String requirement = "设计一个订单管理模型";
+    DiagramDescription.DraftDiagram expected =
+        new DiagramDescription.DraftDiagram(
+            List.of(
+                new NodeDescription.DraftNode(
+                    new NodeDescription.DraftEntity(
+                        "Order", "订单", LogicalEntityDescription.Type.EVIDENCE))),
+            List.of(new EdgeDescription.DraftEdge(new Ref<>("node-1"), new Ref<>("node-2"))));
+    when(domainArchitect.proposeModel(requirement)).thenReturn(expected);
+
+    DiagramApi.ProposeModelRequest request = new DiagramApi.ProposeModelRequest();
+    request.setRequirement(requirement);
+
+    given(documentationSpec)
+        .accept(MediaType.APPLICATION_JSON)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/propose-model",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("nodes", hasSize(1))
+        .body("nodes[0].localData.name", is("Order"))
+        .body("nodes[0].localData.label", is("订单"))
+        .body("edges", hasSize(1))
+        .body("edges[0].sourceNode.id", is("node-1"))
+        .body("edges[0].targetNode.id", is("node-2"));
+
+    verify(domainArchitect, times(1)).proposeModel(requirement);
   }
 
   @Test

@@ -74,4 +74,8 @@ public class ApiTemplates {
   public static UriBuilder edge(UriInfo uriInfo) {
     return edges(uriInfo).path(EdgesApi.class, "findById");
   }
+
+  public static UriBuilder proposeModel(UriInfo uriInfo) {
+    return diagram(uriInfo).path(DiagramApi.class, "proposeModel");
+  }
 }
