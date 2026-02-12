@@ -1,6 +1,7 @@
 export * from './components/ai-elements/canvas';
 export * from './components/ai-elements/conversation';
 export * from './components/ai-elements/message';
+export * from './components/ai-elements/model-selector';
 export * from './components/ai-elements/panel';
 export * from './components/ai-elements/prompt-input';
 export * from './components/ai-elements/suggestion';

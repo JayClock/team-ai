@@ -3,6 +3,7 @@ dependencies {
     implementation platform("org.springframework.ai:spring-ai-bom:1.0.1")
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'jakarta.inject:jakarta.inject-api'
+    implementation 'jakarta.servlet:jakarta.servlet-api'
     implementation 'org.springframework.ai:spring-ai-starter-model-deepseek'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

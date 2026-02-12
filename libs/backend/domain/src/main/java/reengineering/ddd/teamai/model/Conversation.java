@@ -37,10 +37,9 @@ public class Conversation implements Entity<String, ConversationDescription> {
     return messages.saveMessage(description);
   }
 
-  public Flux<String> sendMessage(
-      MessageDescription description, ModelProvider modelProvider, String apiKey) {
+  public Flux<String> sendMessage(MessageDescription description, ModelProvider modelProvider) {
     saveMessage(description);
-    return modelProvider.sendMessage(description.content(), apiKey);
+    return modelProvider.sendMessage(description.content());
   }
 
   public interface Messages extends HasMany<String, Message> {
@@ -53,9 +52,8 @@ public class Conversation implements Entity<String, ConversationDescription> {
      * Send message to AI model and get response stream
      *
      * @param message User message content
-     * @param apiKey API key for the AI model service
      * @return Response stream from AI model
      */
-    Flux<String> sendMessage(String message, String apiKey);
+    Flux<String> sendMessage(String message);
   }
 }

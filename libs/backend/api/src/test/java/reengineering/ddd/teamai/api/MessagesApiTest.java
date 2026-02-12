@@ -24,6 +24,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reactor.core.publisher.Flux;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.MessageDescription;
+import reengineering.ddd.teamai.model.ApiKeyMissingException;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Message;
 import reengineering.ddd.teamai.model.Project;
@@ -123,7 +124,7 @@ public class MessagesApiTest extends ApiTest {
         .thenReturn(savedMessage)
         .thenReturn(assistantMessage);
 
-    when(modelProvider.sendMessage(eq("Hello, AI!"), any(String.class)))
+    when(modelProvider.sendMessage(eq("Hello, AI!")))
         .thenReturn(Flux.just("Hello", " there", "!", " How", " can", " I", " help", " you", "?"));
 
     String responseBody =
@@ -162,11 +163,13 @@ public class MessagesApiTest extends ApiTest {
 
     verify(messages).saveMessage(eq(userDescription));
     verify(messages).saveMessage(eq(assistantDescription));
+    verify(modelProvider).sendMessage("Hello, AI!");
   }
 
   @Test
   public void should_return_unauthorized_when_api_key_header_is_missing() {
     MessageDescription userDescription = new MessageDescription("user", "Hello, AI!");
+    when(modelProvider.sendMessage(eq("Hello, AI!"))).thenThrow(new ApiKeyMissingException());
 
     given(documentationSpec)
         .urlEncodingEnabled(false)

@@ -40,17 +40,26 @@ const defaultSuggestions = [
 ];
 
 const API_KEY_STORAGE_KEY = 'api-key';
+const MODEL_STORAGE_KEY = 'ai-model';
 const API_KEY_HEADER = 'X-Api-Key';
+const MODEL_HEADER = 'X-AI-Model';
 
 function withApiKeyInterceptor(fetcher: typeof fetch = fetch) {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-    if (!apiKey) {
+    const model = localStorage.getItem(MODEL_STORAGE_KEY);
+
+    if (!apiKey && !model) {
       return fetcher(input, init);
     }
 
     const requestWithApiKey = new Request(input, init);
-    requestWithApiKey.headers.set(API_KEY_HEADER, apiKey);
+    if (apiKey) {
+      requestWithApiKey.headers.set(API_KEY_HEADER, apiKey);
+    }
+    if (model) {
+      requestWithApiKey.headers.set(MODEL_HEADER, model);
+    }
     return fetcher(requestWithApiKey);
   };
 }
@@ -61,7 +70,7 @@ export function MessageList({
 }: MessageListProps) {
   const { messages, sendMessage } = useChat({
     transport: new DefaultChatTransport({
-      api: conversationState.getLink('send-message')?.href,
+      api: conversationState.getLink('chat')?.href,
       fetch: withApiKeyInterceptor(),
       prepareSendMessagesRequest: ({ messages }) => {
         const lastMessage = messages.at(-1);

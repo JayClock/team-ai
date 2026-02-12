@@ -9,7 +9,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
@@ -19,8 +18,10 @@ import jakarta.ws.rs.sse.SseEventSink;
 import java.util.UUID;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import reactor.core.publisher.Flux;
 import reengineering.ddd.teamai.api.representation.ConversationModel;
 import reengineering.ddd.teamai.description.MessageDescription;
+import reengineering.ddd.teamai.model.ApiKeyMissingException;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Project;
 
@@ -51,18 +52,16 @@ public class ConversationApi {
     return new MessagesApi(project, conversation);
   }
 
-  private static final String API_KEY_HEADER = "X-Api-Key";
-
   @POST
   @Path("messages/stream")
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void chat(
-      MessageDescription description,
-      @Context SseEventSink sseEventSink,
-      @Context Sse sse,
-      @Context HttpHeaders headers) {
-    String apiKey = headers.getHeaderString(API_KEY_HEADER);
-    if (apiKey == null || apiKey.isBlank()) {
+      MessageDescription description, @Context SseEventSink sseEventSink, @Context Sse sse) {
+    Flux<String> modelResponseStream;
+
+    try {
+      modelResponseStream = this.conversation.sendMessage(description, modelProvider);
+    } catch (ApiKeyMissingException e) {
       throw new WebApplicationException("Missing API Key", Response.Status.UNAUTHORIZED);
     }
 
@@ -76,8 +75,7 @@ public class ConversationApi {
     // 2. Text start
     sendSseEvent(sseEventSink, sse, "{\"type\":\"text-start\",\"id\":\"" + textId + "\"}");
 
-    this.conversation
-        .sendMessage(description, modelProvider, apiKey)
+    modelResponseStream
         .doOnNext(aiResponseBuilder::append)
         .doOnComplete(
             () -> {

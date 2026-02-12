@@ -1,10 +1,11 @@
 import { Outlet } from 'react-router-dom';
+import { ModelSettingsDialog } from './model-settings-dialog';
 
 export function Layout() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <header className="shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-14 items-center px-4 md:px-6">
+        <div className="flex h-14 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-2">
             <svg
               className="h-6 w-6"
@@ -23,6 +24,7 @@ export function Layout() {
               Team AI
             </span>
           </div>
+          <ModelSettingsDialog />
         </div>
       </header>
       <main className="flex-1 overflow-hidden">

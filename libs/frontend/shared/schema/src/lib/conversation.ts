@@ -3,5 +3,5 @@ import { Message } from './message.js';
 
 export type Conversation = Entity<
   { id: string; title: string },
-  { self: Conversation; messages: Collection<Message>; 'send-message': Entity }
+  { self: Conversation; messages: Collection<Message>; 'chat': Entity }
 >;
