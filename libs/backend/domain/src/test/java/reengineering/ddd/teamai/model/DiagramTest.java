@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
@@ -171,12 +172,11 @@ public class DiagramTest {
     @Test
     void should_delegate_to_domain_architect() {
       String requirement = "As a domain architect, I want a draft model proposal";
-      DiagramDescription.DraftDiagram expected =
-          new DiagramDescription.DraftDiagram(List.of(), List.of());
+      DraftDiagram expected = new DraftDiagram(List.of(), List.of());
 
       when(architect.proposeModel(requirement)).thenReturn(expected);
 
-      DiagramDescription.DraftDiagram actual = diagram.proposeModel(requirement, architect);
+      DraftDiagram actual = diagram.proposeModel(requirement, architect);
 
       assertSame(expected, actual);
       verify(architect).proposeModel(requirement);

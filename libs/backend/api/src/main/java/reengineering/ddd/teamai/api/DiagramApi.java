@@ -26,7 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.ContextLoader;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
-import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramNode;
@@ -64,7 +64,7 @@ public class DiagramApi {
   @POST
   @Path("propose-model")
   @Consumes(MediaType.APPLICATION_JSON)
-  public DiagramDescription.DraftDiagram proposeModel(@Valid ProposeModelRequest request) {
+  public DraftDiagram proposeModel(@Valid ProposeModelRequest request) {
     return entity.proposeModel(request.getRequirement(), domainArchitect);
   }
 

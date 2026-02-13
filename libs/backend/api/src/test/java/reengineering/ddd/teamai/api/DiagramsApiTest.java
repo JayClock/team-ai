@@ -22,6 +22,7 @@ import org.springframework.hateoas.MediaTypes;
 import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
@@ -387,13 +388,13 @@ public class DiagramsApiTest extends ApiTest {
   @Test
   public void should_propose_diagram_model() {
     String requirement = "设计一个订单管理模型";
-    DiagramDescription.DraftDiagram expected =
-        new DiagramDescription.DraftDiagram(
+    DraftDiagram expected =
+        new DraftDiagram(
             List.of(
-                new NodeDescription.DraftNode(
-                    new NodeDescription.DraftEntity(
+                new DraftDiagram.DraftNode(
+                    new DraftDiagram.DraftEntity(
                         "Order", "订单", LogicalEntityDescription.Type.EVIDENCE))),
-            List.of(new EdgeDescription.DraftEdge(new Ref<>("node-1"), new Ref<>("node-2"))));
+            List.of(new DraftDiagram.DraftEdge(new Ref<>("node-1"), new Ref<>("node-2"))));
     when(domainArchitect.proposeModel(requirement)).thenReturn(expected);
 
     DiagramApi.ProposeModelRequest request = new DiagramApi.ProposeModelRequest();

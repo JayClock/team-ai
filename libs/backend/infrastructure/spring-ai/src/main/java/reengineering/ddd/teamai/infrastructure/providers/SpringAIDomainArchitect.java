@@ -5,7 +5,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.ai.deepseek.DeepSeekChatOptions;
 import org.springframework.ai.deepseek.api.DeepSeekApi;
-import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.model.Diagram;
 
@@ -13,11 +13,11 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
   private static final String DEFAULT_MODEL = "deepseek-chat";
 
   @Override
-  public DiagramDescription.DraftDiagram proposeModel(String requirement) {
+  public DraftDiagram proposeModel(String requirement) {
     return analyzeAndGenerateModel(requirement);
   }
 
-  private DiagramDescription.DraftDiagram analyzeAndGenerateModel(String requirement) {
+  private DraftDiagram analyzeAndGenerateModel(String requirement) {
     String prompt = buildAnalysisPrompt(requirement);
     String apiKey = resolveApiKey();
     String model = resolveModel(DEFAULT_MODEL);
@@ -31,7 +31,7 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
         .options(DeepSeekChatOptions.builder().model(model).build())
         .user(prompt)
         .call()
-        .entity(DiagramDescription.DraftDiagram.class);
+        .entity(DraftDiagram.class);
   }
 
   private String buildAnalysisPrompt(String requirement) {

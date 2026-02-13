@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.model;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 
@@ -55,12 +56,11 @@ public class Diagram implements Entity<String, DiagramDescription> {
     DiagramEdge add(EdgeDescription description);
   }
 
-  public DiagramDescription.DraftDiagram proposeModel(
-      String requirement, DomainArchitect architect) {
+  public DraftDiagram proposeModel(String requirement, DomainArchitect architect) {
     return architect.proposeModel(requirement);
   }
 
   public interface DomainArchitect {
-    DiagramDescription.DraftDiagram proposeModel(String requirement);
+    DraftDiagram proposeModel(String requirement);
   }
 }

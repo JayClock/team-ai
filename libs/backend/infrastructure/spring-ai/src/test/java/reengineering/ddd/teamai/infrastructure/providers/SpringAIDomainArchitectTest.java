@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.model.Diagram;
 
 class SpringAIDomainArchitectTest {
@@ -35,7 +35,7 @@ class SpringAIDomainArchitectTest {
   @Test
   void should_return_valid_draft_diagram_when_api_available() {
     try {
-      DiagramDescription.DraftDiagram result = domainArchitect.proposeModel("创建一个简单的待办事项应用");
+      DraftDiagram result = domainArchitect.proposeModel("创建一个简单的待办事项应用");
 
       if (result != null) {
         assertThat(result.nodes()).isNotNull();
@@ -61,7 +61,7 @@ class SpringAIDomainArchitectTest {
 
     for (String requirement : requirements) {
       try {
-        DiagramDescription.DraftDiagram result = domainArchitect.proposeModel(requirement);
+        DraftDiagram result = domainArchitect.proposeModel(requirement);
 
         if (result != null) {
           System.out.println("处理需求成功: " + requirement);
