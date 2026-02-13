@@ -60,7 +60,7 @@ export function ProjectDiagram(props: Props) {
         nodeTypes={nodeTypes}
         fitView
       >
-        <DiagramTools />
+        <DiagramTools state={state} />
         <Background />
         <Controls />
       </Canvas>

@@ -1,11 +1,17 @@
+import { State } from '@hateoas-ts/resource';
+import { Diagram } from '@shared/schema';
 import { Panel } from '@shared/ui';
 import { SettingsTool } from './settings-tool';
 
-export function DiagramTools() {
+interface Props {
+  state: State<Diagram>;
+}
+
+export function DiagramTools({ state }: Props) {
   return (
     <Panel position="center-left">
       <div className="flex gap-1">
-        <SettingsTool />
+        <SettingsTool state={state} />
       </div>
     </Panel>
   );

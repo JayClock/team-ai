@@ -4,7 +4,12 @@ export type { Project } from './lib/project.js';
 export type { Account } from './lib/account.js';
 export type { Conversation } from './lib/conversation.js';
 export type { Message } from './lib/message.js';
-export type { Diagram, DiagramType, Viewport } from './lib/diagram.js';
+export type {
+  Diagram,
+  DiagramType,
+  Viewport,
+  DraftDiagramModel,
+} from './lib/diagram.js';
 export type {
   DiagramNode,
 } from './lib/node.js';
