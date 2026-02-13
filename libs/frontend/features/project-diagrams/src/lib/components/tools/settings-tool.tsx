@@ -33,6 +33,7 @@ type ValueTarget = {
 
 interface Props {
   state: State<Diagram>;
+  onDraftApplied?: () => void;
 }
 
 function toDraftSummary(draft: DraftDiagramModel['data']): string {
@@ -69,11 +70,38 @@ function toDraftSummary(draft: DraftDiagramModel['data']): string {
   ].join('\n');
 }
 
-export function SettingsTool({ state }: Props) {
+function getCreatedId(data: unknown): string | undefined {
+  if (typeof data !== 'object' || data === null) {
+    return undefined;
+  }
+  const id = (data as { id?: unknown }).id;
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+
+function toNodeReferenceKeys(
+  node: DraftDiagramModel['data']['nodes'][number],
+  index: number,
+): string[] {
+  const keys = new Set<string>();
+  keys.add(`node-${index + 1}`);
+  keys.add(`node_${index + 1}`);
+  keys.add(String(index + 1));
+  if (node.localData.name) {
+    keys.add(node.localData.name);
+  }
+  if (node.localData.label) {
+    keys.add(node.localData.label);
+  }
+  return Array.from(keys);
+}
+
+export function SettingsTool({ state, onDraftApplied }: Props) {
   const [requirement, setRequirement] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
   const [error, setError] = useState<string>();
+  const [latestDraft, setLatestDraft] = useState<DraftDiagramModel['data']>();
 
   const canSubmit = useMemo(
     () => requirement.trim().length > 0 && !isSubmitting,
@@ -110,6 +138,7 @@ export function SettingsTool({ state }: Props) {
         .action('propose-model')
         .submit({ requirement: trimmedRequirement });
 
+      setLatestDraft(result.data);
       setMessages((prev) => [
         ...prev,
         {
@@ -131,6 +160,132 @@ export function SettingsTool({ state }: Props) {
       ]);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleApplyDraft = async () => {
+    if (!latestDraft || isApplying) {
+      return;
+    }
+
+    if (!state.hasLink('project') || !state.hasLink('nodes') || !state.hasLink('edges')) {
+      setError('Current diagram is missing required links for draft apply.');
+      return;
+    }
+
+    setIsApplying(true);
+    setError(undefined);
+
+    try {
+      const projectState = await state.follow('project').get();
+      const nodeIdByDraftRef = new Map<string, string>();
+      const createdNodeIds: string[] = [];
+
+      for (let index = 0; index < latestDraft.nodes.length; index += 1) {
+        const draftNode = latestDraft.nodes[index];
+        const fallbackName = `entity_${index + 1}`;
+        const name = draftNode.localData.name?.trim() || fallbackName;
+        const label = draftNode.localData.label?.trim() || name;
+
+        const createdLogicalEntity = await projectState
+          .follow('logical-entities')
+          .post({
+            data: {
+              type: draftNode.localData.type,
+              name,
+              label,
+            },
+          });
+
+        const logicalEntityId = getCreatedId(createdLogicalEntity.data);
+        if (!logicalEntityId) {
+          throw new Error('Failed to create logical entity for draft node.');
+        }
+
+        const column = index % 3;
+        const row = Math.floor(index / 3);
+
+        const createdNode = await state.follow('nodes').post({
+          data: {
+            type: 'fulfillment-node',
+            logicalEntityId,
+            positionX: 120 + column * 300,
+            positionY: 120 + row * 180,
+            width: 220,
+            height: 120,
+          },
+        });
+
+        const createdNodeId = getCreatedId(createdNode.data);
+        if (!createdNodeId) {
+          throw new Error('Failed to create diagram node for draft node.');
+        }
+
+        createdNodeIds.push(createdNodeId);
+        for (const key of toNodeReferenceKeys(draftNode, index)) {
+          nodeIdByDraftRef.set(key, createdNodeId);
+        }
+      }
+
+      const resolveNodeId = (draftRefId: string): string | undefined => {
+        const direct = nodeIdByDraftRef.get(draftRefId);
+        if (direct) {
+          return direct;
+        }
+
+        const match = draftRefId.match(/node[-_]?(\d+)/i);
+        if (!match) {
+          return undefined;
+        }
+
+        const index = Number(match[1]) - 1;
+        return index >= 0 ? createdNodeIds[index] : undefined;
+      };
+
+      let createdEdges = 0;
+      let skippedEdges = 0;
+
+      for (const draftEdge of latestDraft.edges) {
+        const sourceNodeId = resolveNodeId(draftEdge.sourceNode.id);
+        const targetNodeId = resolveNodeId(draftEdge.targetNode.id);
+
+        if (!sourceNodeId || !targetNodeId) {
+          skippedEdges += 1;
+          continue;
+        }
+
+        await state.follow('edges').post({
+          data: {
+            sourceNodeId,
+            targetNodeId,
+          },
+        });
+        createdEdges += 1;
+      }
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-apply-${Date.now()}`,
+          role: 'assistant',
+          content: `Applied draft to canvas.\n\n- Created nodes: ${createdNodeIds.length}\n- Created edges: ${createdEdges}\n- Skipped edges: ${skippedEdges}`,
+        },
+      ]);
+
+      onDraftApplied?.();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to apply draft';
+      setError(message);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-apply-error-${Date.now()}`,
+          role: 'assistant',
+          content: `Apply to canvas failed: ${message}`,
+        },
+      ]);
+    } finally {
+      setIsApplying(false);
     }
   };
 
@@ -182,7 +337,7 @@ export function SettingsTool({ state }: Props) {
               const target = event.target as ValueTarget;
               setRequirement(target.value ?? '');
             }}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isApplying}
             className="min-h-24 resize-y"
             aria-label="Model requirement"
           />
@@ -191,9 +346,18 @@ export function SettingsTool({ state }: Props) {
               {error}
             </p>
           ) : null}
-          <Button type="submit" disabled={!canSubmit}>
+          <Button type="submit" disabled={!canSubmit || isApplying}>
             {isSubmitting ? <Spinner className="size-4" /> : null}
             Propose Model
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!latestDraft || isSubmitting || isApplying}
+            onClick={handleApplyDraft}
+          >
+            {isApplying ? <Spinner className="size-4" /> : null}
+            Apply Draft to Canvas
           </Button>
         </form>
       </SheetContent>

@@ -4,7 +4,7 @@ import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import '@xyflow/react/dist/style.css';
 import { Background, Controls, Edge } from '@xyflow/react';
 import { Canvas } from '@shared/ui';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FulfillmentNode } from './fulfillment-node';
 import { GroupContainerNode } from './group-container-node';
 import { StickyNoteNode } from './sticky-note-node';
@@ -22,14 +22,29 @@ const nodeTypes = {
 
 export function ProjectDiagram(props: Props) {
   const { state } = props;
+  const [diagramResources, setDiagramResources] = useState(() => ({
+    nodes: state.follow('nodes'),
+    edges: state.follow('edges'),
+  }));
+
+  const refreshDiagramResources = useCallback(() => {
+    setDiagramResources({
+      nodes: state.follow('nodes'),
+      edges: state.follow('edges'),
+    });
+  }, [state]);
+
+  useEffect(() => {
+    refreshDiagramResources();
+  }, [refreshDiagramResources]);
 
   const { resourceState: nodesState } = useSuspenseResource<
     Collection<DiagramNode>
-  >(state.follow('nodes'));
+  >(diagramResources.nodes);
 
   const { resourceState: edgesState } = useSuspenseResource<
     Collection<DiagramEdge>
-  >(state.follow('edges'));
+  >(diagramResources.edges);
 
   const nodes = nodesState.collection.map((nodeState) => ({
     id: nodeState.data.id,
@@ -43,12 +58,14 @@ export function ProjectDiagram(props: Props) {
     },
   }));
 
-  const [edges] = useState<Edge[]>(
-    edgesState.collection.map((state) => ({
-      id: state.data.id,
-      source: state.data.sourceNodeId,
-      target: state.data.targetNodeId,
-    })),
+  const edges = useMemo<Edge[]>(
+    () =>
+      edgesState.collection.map((edgeState) => ({
+        id: edgeState.data.id,
+        source: edgeState.data.sourceNodeId,
+        target: edgeState.data.targetNodeId,
+      })),
+    [edgesState.collection],
   );
 
   return (
@@ -60,7 +77,10 @@ export function ProjectDiagram(props: Props) {
         nodeTypes={nodeTypes}
         fitView
       >
-        <DiagramTools state={state} />
+        <DiagramTools
+          state={state}
+          onDraftApplied={refreshDiagramResources}
+        />
         <Background />
         <Controls />
       </Canvas>

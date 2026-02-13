@@ -52,11 +52,19 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     return this.links.get(rel as string);
   }
 
+  private isBuffer(data: SafeAny): data is Buffer {
+    return typeof Buffer !== 'undefined' && data instanceof Buffer;
+  }
+
+  private isBlob(data: SafeAny): data is Blob {
+    return typeof Blob !== 'undefined' && data instanceof Blob;
+  }
+
   serializeBody(): Buffer | Blob | string {
     const data = this.data as SafeAny;
     if (
-      ((global as SafeAny).Buffer && data instanceof Buffer) ||
-      ((global as SafeAny).Blob && data instanceof Blob) ||
+      this.isBuffer(data) ||
+      this.isBlob(data) ||
       typeof data === 'string'
     ) {
       return this.data;

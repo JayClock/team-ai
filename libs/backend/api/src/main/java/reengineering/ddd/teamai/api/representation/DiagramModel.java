@@ -31,6 +31,9 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
 
   public static DiagramModel of(Project project, Diagram diagram, UriInfo uriInfo) {
     DiagramModel model = new DiagramModel(project, diagram, uriInfo);
+    model.add(
+        Link.of(ApiTemplates.project(uriInfo).build(project.getIdentity()).getPath())
+            .withRel("project"));
 
     model.add(
         Affordances.of(
@@ -85,6 +88,9 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
 
   public static DiagramModel simple(Project project, Diagram diagram, UriInfo uriInfo) {
     DiagramModel model = new DiagramModel(project, diagram, uriInfo);
+    model.add(
+        Link.of(ApiTemplates.project(uriInfo).build(project.getIdentity()).getPath())
+            .withRel("project"));
     model.add(
         Link.of(
                 ApiTemplates.diagram(uriInfo)
