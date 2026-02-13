@@ -1,8 +1,10 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
 import reengineering.ddd.archtype.Ref;
@@ -27,6 +30,7 @@ import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.DiagramType;
+import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 
 public class DiagramsApiTest extends ApiTest {
@@ -106,13 +110,13 @@ public class DiagramsApiTest extends ApiTest {
                     + diagram.getIdentity()
                     + "/propose-model"))
         .body(
-            "_links.batch-commit.href",
+            "_links.commit-draft.href",
             is(
                 "/api/projects/"
                     + project.getIdentity()
                     + "/diagrams/"
                     + diagram.getIdentity()
-                    + "/batch-commit"))
+                    + "/commit-draft"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(4))
         .body("_templates.default.properties[0].name", is("title"))
@@ -155,12 +159,15 @@ public class DiagramsApiTest extends ApiTest {
         .body("_templates.propose-model.properties[0].name", is("requirement"))
         .body("_templates.propose-model.properties[0].required", is(true))
         .body("_templates.propose-model.properties[0].type", is("text"))
-        .body("_templates.'batch-commit'.method", is("POST"))
+        .body("_templates.'commit-draft'.method", is("POST"))
         .body(
-            "_templates.'batch-commit'.properties.find { it.name == 'nodes' }._schema.type",
+            "_templates.'commit-draft'.properties.find { it.name == 'logicalEntities' }._schema.type",
             is("array"))
         .body(
-            "_templates.'batch-commit'.properties.find { it.name == 'edges' }._schema.type",
+            "_templates.'commit-draft'.properties.find { it.name == 'nodes' }._schema.type",
+            is("array"))
+        .body(
+            "_templates.'commit-draft'.properties.find { it.name == 'edges' }._schema.type",
             is("array"));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
@@ -205,7 +212,7 @@ public class DiagramsApiTest extends ApiTest {
     edge.setSourceNodeId("node-1");
     edge.setTargetNodeId("node-2");
 
-    DiagramApi.BatchCommitRequest request = new DiagramApi.BatchCommitRequest();
+    DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
     request.setNodes(List.of(node1, node2));
     request.setEdges(List.of(edge));
 
@@ -215,20 +222,98 @@ public class DiagramsApiTest extends ApiTest {
         .body(request)
         .when()
         .post(
-            "/projects/{projectId}/diagrams/{id}/batch-commit",
+            "/projects/{projectId}/diagrams/{id}/commit-draft",
             project.getIdentity(),
             diagram.getIdentity())
         .then()
-        .statusCode(200)
-        .body("nodes", hasSize(2))
-        .body("edges", hasSize(1))
-        .body("nodeIdMapping.node-1", is("node-101"))
-        .body("nodeIdMapping.node-2", is("node-102"))
-        .body("edges[0].sourceNodeId", is("node-101"))
-        .body("edges[0].targetNodeId", is("node-102"));
+        .statusCode(201)
+        .header(
+            "Location",
+            containsString(
+                "/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()));
 
     verify(diagramNodes, times(2)).add(any(NodeDescription.class));
     verify(diagramEdges, times(1)).add(any(EdgeDescription.class));
+  }
+
+  @Test
+  public void should_batch_commit_logical_entities_and_resolve_placeholders() {
+    LogicalEntity createdLogicalEntity =
+        new LogicalEntity(
+            "logical-101",
+            new LogicalEntityDescription(
+                LogicalEntityDescription.Type.EVIDENCE, null, "Order", "订单", null, null));
+    DiagramNode createdNode =
+        new DiagramNode(
+            "node-101",
+            new NodeDescription(
+                "fulfillment-node", new Ref<>("logical-101"), null, 120, 120, 220, 120, null, null),
+            mock(reengineering.ddd.archtype.HasOne.class));
+    DiagramEdge createdEdge =
+        new DiagramEdge(
+            "edge-201",
+            new EdgeDescription(
+                new Ref<>("node-101"), new Ref<>("node-101"), null, null, null, null, null));
+
+    when(projectLogicalEntities.add(any(LogicalEntityDescription.class)))
+        .thenReturn(createdLogicalEntity);
+    when(diagramNodes.add(any(NodeDescription.class))).thenReturn(createdNode);
+    when(diagramEdges.add(any(EdgeDescription.class))).thenReturn(createdEdge);
+
+    LogicalEntitiesApi.CreateLogicalEntityRequest logicalEntityRequest =
+        new LogicalEntitiesApi.CreateLogicalEntityRequest();
+    logicalEntityRequest.setType(LogicalEntityDescription.Type.EVIDENCE);
+    logicalEntityRequest.setName("Order");
+    logicalEntityRequest.setLabel("订单");
+
+    NodesApi.CreateNodeRequest nodeRequest = new NodesApi.CreateNodeRequest();
+    nodeRequest.setType("fulfillment-node");
+    nodeRequest.setLogicalEntityId("logical-1");
+    nodeRequest.setPositionX(120);
+    nodeRequest.setPositionY(120);
+    nodeRequest.setWidth(220);
+    nodeRequest.setHeight(120);
+
+    EdgesApi.CreateEdgeRequest edgeRequest = new EdgesApi.CreateEdgeRequest();
+    edgeRequest.setSourceNodeId("node-1");
+    edgeRequest.setTargetNodeId("node-1");
+
+    DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
+    request.setLogicalEntities(List.of(logicalEntityRequest));
+    request.setNodes(List.of(nodeRequest));
+    request.setEdges(List.of(edgeRequest));
+
+    given(documentationSpec)
+        .accept(MediaType.APPLICATION_JSON)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/commit-draft",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(201)
+        .header(
+            "Location",
+            containsString(
+                "/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()));
+
+    ArgumentCaptor<NodeDescription> nodeDescriptionCaptor =
+        ArgumentCaptor.forClass(NodeDescription.class);
+    ArgumentCaptor<EdgeDescription> edgeDescriptionCaptor =
+        ArgumentCaptor.forClass(EdgeDescription.class);
+
+    verify(projectLogicalEntities, times(1)).add(any(LogicalEntityDescription.class));
+    verify(diagramNodes, times(1)).add(nodeDescriptionCaptor.capture());
+    verify(diagramEdges, times(1)).add(edgeDescriptionCaptor.capture());
+
+    NodeDescription createdNodeDescription = nodeDescriptionCaptor.getValue();
+    EdgeDescription createdEdgeDescription = edgeDescriptionCaptor.getValue();
+
+    assertEquals("logical-101", createdNodeDescription.logicalEntity().id());
+    assertEquals("node-101", createdEdgeDescription.sourceNode().id());
+    assertEquals("node-101", createdEdgeDescription.targetNode().id());
   }
 
   @Test
@@ -237,7 +322,7 @@ public class DiagramsApiTest extends ApiTest {
     edge.setSourceNodeId("node-99");
     edge.setTargetNodeId("node-2");
 
-    DiagramApi.BatchCommitRequest request = new DiagramApi.BatchCommitRequest();
+    DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
     request.setEdges(List.of(edge));
 
     given(documentationSpec)
@@ -246,12 +331,42 @@ public class DiagramsApiTest extends ApiTest {
         .body(request)
         .when()
         .post(
-            "/projects/{projectId}/diagrams/{id}/batch-commit",
+            "/projects/{projectId}/diagrams/{id}/commit-draft",
             project.getIdentity(),
             diagram.getIdentity())
         .then()
         .statusCode(400);
 
+    verify(diagramNodes, times(0)).add(any(NodeDescription.class));
+    verify(diagramEdges, times(0)).add(any(EdgeDescription.class));
+  }
+
+  @Test
+  public void should_return_400_when_batch_commit_uses_unknown_logical_entity_placeholder_id() {
+    NodesApi.CreateNodeRequest node = new NodesApi.CreateNodeRequest();
+    node.setType("fulfillment-node");
+    node.setLogicalEntityId("logical-99");
+    node.setPositionX(120);
+    node.setPositionY(120);
+    node.setWidth(220);
+    node.setHeight(120);
+
+    DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
+    request.setNodes(List.of(node));
+
+    given(documentationSpec)
+        .accept(MediaType.APPLICATION_JSON)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/commit-draft",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(400);
+
+    verify(projectLogicalEntities, times(0)).add(any(LogicalEntityDescription.class));
     verify(diagramNodes, times(0)).add(any(NodeDescription.class));
     verify(diagramEdges, times(0)).add(any(EdgeDescription.class));
   }
