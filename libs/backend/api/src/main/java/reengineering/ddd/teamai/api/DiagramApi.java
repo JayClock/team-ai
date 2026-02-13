@@ -89,7 +89,6 @@ public class DiagramApi {
                         logicalEntityRequest.getSubType(),
                         logicalEntityRequest.getName(),
                         logicalEntityRequest.getLabel(),
-                        null,
                         null));
             createdLogicalEntityIdByRef.put(
                 "logical-" + (index + 1), createdLogicalEntity.getIdentity());

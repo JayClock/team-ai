@@ -13,15 +13,13 @@ public class LogicalEntityDescriptionTest {
         new EntityDefinition("Test description", List.of("tag1", "tag2"), List.of(), List.of());
 
     LogicalEntityDescription description =
-        new LogicalEntityDescription(
-            Type.EVIDENCE, EvidenceSubType.RFP, "Order", "订单", definition, "DRAFT");
+        new LogicalEntityDescription(Type.EVIDENCE, EvidenceSubType.RFP, "Order", "订单", definition);
 
     assertEquals(Type.EVIDENCE, description.type());
     assertEquals(EvidenceSubType.RFP, description.subType());
     assertEquals("Order", description.name());
     assertEquals("订单", description.label());
     assertEquals(definition, description.definition());
-    assertEquals("DRAFT", description.status());
   }
 
   @Test

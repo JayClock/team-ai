@@ -71,7 +71,6 @@ public class LogicalEntitiesApi {
                 request.getSubType(),
                 request.getName(),
                 request.getLabel(),
-                null,
                 null));
 
     return Response.status(Response.Status.CREATED)

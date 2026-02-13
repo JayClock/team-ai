@@ -11,7 +11,6 @@
         <arg column="le_name" jdbcType="VARCHAR" javaType="String"/>
         <arg column="le_label" jdbcType="VARCHAR" javaType="String"/>
         <arg column="le_definition" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler" javaType="reengineering.ddd.teamai.description.EntityDefinition"/>
-        <arg column="le_status" jdbcType="VARCHAR" javaType="String"/>
       </constructor>
     </association>
   </resultMap>
@@ -54,8 +53,7 @@
       le.sub_type as le_sub_type,
       le.name as le_name,
       le.label as le_label,
-      le.definition as le_definition,
-      le.status as le_status
+      le.definition as le_definition
     FROM diagram_nodes dn
     JOIN diagrams d ON dn.diagram_id = d.id
     LEFT JOIN logical_entities le ON dn.logical_entity_id = le.id AND le.project_id = d.project_id
@@ -80,8 +78,7 @@
       le.sub_type as le_sub_type,
       le.name as le_name,
       le.label as le_label,
-      le.definition as le_definition,
-      le.status as le_status
+      le.definition as le_definition
     FROM diagram_nodes dn
     JOIN diagrams d ON dn.diagram_id = d.id
     LEFT JOIN logical_entities le ON dn.logical_entity_id = le.id AND le.project_id = d.project_id

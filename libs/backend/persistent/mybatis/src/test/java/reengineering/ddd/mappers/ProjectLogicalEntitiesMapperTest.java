@@ -46,8 +46,7 @@ public class ProjectLogicalEntitiesMapperTest {
         EvidenceSubType.RFP,
         "Order",
         "订单",
-        "{\"description\":\"测试实体\",\"tags\":[],\"attributes\":[],\"behaviors\":[]}",
-        "DRAFT");
+        "{\"description\":\"测试实体\",\"tags\":[],\"attributes\":[],\"behaviors\":[]}");
   }
 
   @Test
@@ -58,7 +57,6 @@ public class ProjectLogicalEntitiesMapperTest {
     assertEquals("Order", entity.getDescription().name());
     assertEquals("订单", entity.getDescription().label());
     assertEquals(Type.EVIDENCE, entity.getDescription().type());
-    assertEquals("DRAFT", entity.getDescription().status());
   }
 
   @Test
@@ -76,7 +74,7 @@ public class ProjectLogicalEntitiesMapperTest {
         new EntityDefinition("业务描述", List.of("Core"), List.of(), List.of());
     LogicalEntityDescription description =
         new LogicalEntityDescription(
-            Type.PARTICIPANT, ParticipantSubType.PARTY, "Customer", "客户", definition, "DRAFT");
+            Type.PARTICIPANT, ParticipantSubType.PARTY, "Customer", "客户", definition);
     logicalEntitiesMapper.insertLogicalEntity(idHolder, projectId, description);
 
     LogicalEntity entity =

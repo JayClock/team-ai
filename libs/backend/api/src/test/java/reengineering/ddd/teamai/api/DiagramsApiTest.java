@@ -249,7 +249,7 @@ public class DiagramsApiTest extends ApiTest {
         new LogicalEntity(
             "logical-101",
             new LogicalEntityDescription(
-                LogicalEntityDescription.Type.EVIDENCE, null, "Order", "订单", null, null));
+                LogicalEntityDescription.Type.EVIDENCE, null, "Order", "订单", null));
     DiagramNode createdNode =
         new DiagramNode(
             "node-101",

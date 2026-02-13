@@ -57,8 +57,7 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition =
         new EntityDefinition("订单业务定义", List.of("Core"), List.of(), List.of());
     var description =
-        new LogicalEntityDescription(
-            Type.EVIDENCE, EvidenceSubType.RFP, "Order", "订单", definition, "DRAFT");
+        new LogicalEntityDescription(Type.EVIDENCE, EvidenceSubType.RFP, "Order", "订单", definition);
 
     LogicalEntity savedEntity = project.addLogicalEntity(description);
 
@@ -78,7 +77,7 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition = new EntityDefinition("测试定义", List.of(), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            Type.PARTICIPANT, ParticipantSubType.PARTY, "Customer", "客户", definition, "DRAFT");
+            Type.PARTICIPANT, ParticipantSubType.PARTY, "Customer", "客户", definition);
     LogicalEntity savedEntity = project.addLogicalEntity(description);
 
     LogicalEntity entity =
@@ -103,7 +102,7 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
         new LogicalEntityDescription(
-            Type.EVIDENCE, EvidenceSubType.PROPOSAL, "Product", "产品", definition, "DRAFT");
+            Type.EVIDENCE, EvidenceSubType.PROPOSAL, "Product", "产品", definition);
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();
@@ -116,8 +115,7 @@ public class ProjectLogicalEntitiesTest {
 
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
-        new LogicalEntityDescription(
-            Type.ROLE, RoleSubType.PARTY_ROLE, "Money", "金额", definition, "DRAFT");
+        new LogicalEntityDescription(Type.ROLE, RoleSubType.PARTY_ROLE, "Money", "金额", definition);
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();
@@ -130,12 +128,7 @@ public class ProjectLogicalEntitiesTest {
     for (int i = 0; i < 5; i++) {
       var description =
           new LogicalEntityDescription(
-              Type.PARTICIPANT,
-              ParticipantSubType.PARTY,
-              "Entity" + i,
-              "实体" + i,
-              definition,
-              "DRAFT");
+              Type.PARTICIPANT, ParticipantSubType.PARTY, "Entity" + i, "实体" + i, definition);
       project.addLogicalEntity(description);
     }
 

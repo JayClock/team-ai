@@ -36,7 +36,7 @@ public class LogicalEntityTest {
 
     description =
         new LogicalEntityDescription(
-            Type.EVIDENCE, EvidenceSubType.RFP, "Order", "销售订单", entityDefinition, "DRAFT");
+            Type.EVIDENCE, EvidenceSubType.RFP, "Order", "销售订单", entityDefinition);
 
     entity = new LogicalEntity("entity-1", description);
   }
@@ -107,10 +107,5 @@ public class LogicalEntityTest {
     assertEquals("pay()", behavior.name());
     assertEquals("支付", behavior.label());
     assertEquals("触发支付流程，状态流转为 PAID", behavior.description());
-  }
-
-  @Test
-  public void should_return_entity_status() {
-    assertEquals("DRAFT", entity.getDescription().status());
   }
 }

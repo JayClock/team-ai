@@ -51,8 +51,7 @@ public class DiagramNodesMapperTest {
         null,
         "TestEntity",
         "Test Entity Label",
-        "{}",
-        "ACTIVE");
+        "{}");
     testData.insertDiagram(
         diagramId,
         projectId,

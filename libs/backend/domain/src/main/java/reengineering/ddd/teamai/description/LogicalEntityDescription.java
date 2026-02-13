@@ -1,12 +1,7 @@
 package reengineering.ddd.teamai.description;
 
 public record LogicalEntityDescription(
-    Type type,
-    SubType subType,
-    String name,
-    String label,
-    EntityDefinition definition,
-    String status) {
+    Type type, SubType subType, String name, String label, EntityDefinition definition) {
 
   public enum Type {
     EVIDENCE("Evidence"),

@@ -237,7 +237,6 @@ public final class HateoasDocumentation {
       fieldWithPath("type").description("Entity type: Evidence, Participant, Role, or Context"),
       fieldWithPath("name").description("English name for code generation (e.g., 'Order')"),
       fieldWithPath("label").description("Chinese name for product managers (e.g., '订单')"),
-      fieldWithPath("status").description("Status: DRAFT, REVIEWED, or DEPRECATED"),
       subsectionWithPath("definition")
           .description("Entity definition with business meaning, attributes, and behaviors"),
       fieldWithPath("definition.description").description("Business meaning description"),
@@ -254,8 +253,7 @@ public final class HateoasDocumentation {
       fieldWithPath("type").description("Entity type: Evidence, Participant, Role, or Context"),
       fieldWithPath("name").description("English name for code generation"),
       fieldWithPath("label").description("Chinese name for product managers"),
-      fieldWithPath("definition").description("Entity definition with attributes and behaviors"),
-      fieldWithPath("status").description("Status: DRAFT, REVIEWED, or DEPRECATED")
+      fieldWithPath("definition").description("Entity definition with attributes and behaviors")
     };
   }
 
@@ -264,8 +262,7 @@ public final class HateoasDocumentation {
       fieldWithPath("type").description("Updated entity type"),
       fieldWithPath("name").description("Updated English name"),
       fieldWithPath("label").description("Updated Chinese name"),
-      fieldWithPath("definition").description("Updated entity definition"),
-      fieldWithPath("status").description("Updated status")
+      fieldWithPath("definition").description("Updated entity definition")
     };
   }
 }

@@ -65,7 +65,6 @@ export type LogicalEntity = Entity<
     name: string;
     label: string;
     definition: EntityDefinition;
-    status: string;
   },
   {
     self: LogicalEntity;

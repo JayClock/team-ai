@@ -39,7 +39,7 @@ public interface TestDataMapper {
   void insertProjectMember(@Param("project_id") int projectId, @Param("user_id") int userId);
 
   @Insert(
-      "INSERT INTO logical_entities(id, project_id, type, sub_type, name, label, definition, status) VALUES (#{id}, #{project_id}, #{type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler}, #{sub_type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler}, #{name}, #{label}, CAST(#{definition} AS jsonb), #{status})")
+      "INSERT INTO logical_entities(id, project_id, type, sub_type, name, label, definition) VALUES (#{id}, #{project_id}, #{type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.LogicalEntityTypeHandler}, #{sub_type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler}, #{name}, #{label}, CAST(#{definition} AS jsonb))")
   void insertLogicalEntity(
       @Param("id") int id,
       @Param("project_id") int projectId,
@@ -47,8 +47,7 @@ public interface TestDataMapper {
       @Param("sub_type") LogicalEntityDescription.SubType subType,
       @Param("name") String name,
       @Param("label") String label,
-      @Param("definition") String definition,
-      @Param("status") String status);
+      @Param("definition") String definition);
 
   @Insert(
       "INSERT INTO diagrams(id, project_id, title, type, viewport) VALUES (#{id}, #{project_id}, #{title}, #{type}, CAST(#{viewport} AS jsonb))")
