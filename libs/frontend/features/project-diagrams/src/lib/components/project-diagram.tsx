@@ -27,25 +27,23 @@ const nodeTypes = {
 
 type BatchNodePayload = {
   type: string;
-  logicalEntityId: string;
+  logicalEntityId?: string;
   positionX: number;
   positionY: number;
   width: number;
   height: number;
 };
 
+type BatchLogicalEntityPayload = {
+  type: DraftDiagramModel['data']['nodes'][number]['localData']['type'];
+  name: string;
+  label: string;
+};
+
 type BatchEdgePayload = {
   sourceNodeId: string;
   targetNodeId: string;
 };
-
-function getCreatedId(data: unknown): string | undefined {
-  if (typeof data !== 'object' || data === null) {
-    return undefined;
-  }
-  const id = (data as { id?: unknown }).id;
-  return typeof id === 'string' && id.length > 0 ? id : undefined;
-}
 
 export function ProjectDiagram(props: Props) {
   const { state } = props;
@@ -157,15 +155,15 @@ export function ProjectDiagram(props: Props) {
       return;
     }
 
-    if (!state.hasLink('project') || !state.hasLink('batch-commit')) {
+    if (!state.hasLink('commit-draft')) {
       throw new Error('Current diagram is missing required links for draft save.');
     }
 
     setIsSavingDraft(true);
 
     try {
-      const projectState = await state.follow('project').get();
       const draftRefToNodeRef = new Map<string, string>();
+      const logicalEntitiesPayload: BatchLogicalEntityPayload[] = [];
       const nodesPayload: BatchNodePayload[] = [];
 
       for (let index = 0; index < pendingDraft.nodes.length; index += 1) {
@@ -173,21 +171,12 @@ export function ProjectDiagram(props: Props) {
         const fallbackName = `entity_${index + 1}`;
         const name = draftNode.localData.name.trim() || fallbackName;
         const label = draftNode.localData.label.trim() || name;
-
-        const createdLogicalEntity = await projectState
-          .follow('logical-entities')
-          .post({
-            data: {
-              type: draftNode.localData.type,
-              name,
-              label,
-            },
-          });
-
-        const logicalEntityId = getCreatedId(createdLogicalEntity.data);
-        if (!logicalEntityId) {
-          throw new Error('Failed to create logical entity for draft node.');
-        }
+        const logicalEntityRef = `logical-${index + 1}`;
+        logicalEntitiesPayload.push({
+          type: draftNode.localData.type,
+          name,
+          label,
+        });
 
         const column = index % 3;
         const row = Math.floor(index / 3);
@@ -195,7 +184,7 @@ export function ProjectDiagram(props: Props) {
 
         nodesPayload.push({
           type: 'fulfillment-node',
-          logicalEntityId,
+          logicalEntityId: logicalEntityRef,
           positionX: 120 + column * 300,
           positionY: 120 + row * 180,
           width: 220,
@@ -236,18 +225,15 @@ export function ProjectDiagram(props: Props) {
         });
       }
 
-      await state.action('batch-commit').submit({
+      await state.action('commit-draft').submit({
+        logicalEntities: logicalEntitiesPayload,
         nodes: nodesPayload,
         edges: edgesPayload,
       });
-
-      setPendingDraft(null);
-      setOptimisticPreview(null);
-      refreshDiagramResources();
     } finally {
       setIsSavingDraft(false);
     }
-  }, [isSavingDraft, pendingDraft, refreshDiagramResources, state]);
+  }, [isSavingDraft, pendingDraft, state]);
 
   return (
     <div style={{ height: '100%', width: '100%' }}>

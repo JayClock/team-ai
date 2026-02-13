@@ -87,13 +87,13 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
     model.add(
         Affordances.of(
                 Link.of(
-                        ApiTemplates.batchCommit(uriInfo)
+                        ApiTemplates.commitDraft(uriInfo)
                             .build(project.getIdentity(), diagram.getIdentity())
                             .getPath())
-                    .withRel("batch-commit"))
+                    .withRel("commit-draft"))
             .afford(HttpMethod.POST)
-            .withInput(DiagramApi.BatchCommitRequest.class)
-            .withName("batch-commit")
+            .withInput(DiagramApi.CommitDraftRequest.class)
+            .withName("commit-draft")
             .toLink());
     return model;
   }

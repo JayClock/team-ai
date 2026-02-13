@@ -79,7 +79,7 @@ public class ApiTemplates {
     return diagram(uriInfo).path(DiagramApi.class, "proposeModel");
   }
 
-  public static UriBuilder batchCommit(UriInfo uriInfo) {
-    return diagram(uriInfo).path(DiagramApi.class, "batchCommit");
+  public static UriBuilder commitDraft(UriInfo uriInfo) {
+    return diagram(uriInfo).path(DiagramApi.class, "commitDraft");
   }
 }

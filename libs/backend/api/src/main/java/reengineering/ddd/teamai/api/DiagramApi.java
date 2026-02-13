@@ -13,7 +13,6 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,14 +24,13 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.ContextLoader;
-import reengineering.ddd.teamai.api.representation.DiagramEdgeModel;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
-import reengineering.ddd.teamai.api.representation.DiagramNodeModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.model.Diagram;
-import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
+import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 
 public class DiagramApi {
@@ -71,53 +69,65 @@ public class DiagramApi {
   }
 
   @POST
-  @Path("batch-commit")
+  @Path("commit-draft")
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response batchCommit(@Valid BatchCommitRequest request, @Context UriInfo uriInfo) {
-    BatchCommitResult result =
-        executeInTransaction(
-            status -> {
-              List<DiagramNode> createdNodes = new ArrayList<>();
-              List<DiagramEdge> createdEdges = new ArrayList<>();
-              Map<String, String> createdNodeIdByRef = new LinkedHashMap<>();
+  public Response commitDraft(@Valid CommitDraftRequest request, @Context UriInfo uriInfo) {
+    executeInTransaction(
+        status -> {
+          Map<String, String> createdLogicalEntityIdByRef = new LinkedHashMap<>();
+          Map<String, String> createdNodeIdByRef = new LinkedHashMap<>();
 
-              List<NodesApi.CreateNodeRequest> nodeRequests = request.safeNodes();
-              for (int index = 0; index < nodeRequests.size(); index += 1) {
-                NodesApi.CreateNodeRequest nodeRequest = nodeRequests.get(index);
-                DiagramNode createdNode = entity.addNode(NodesApi.toDescription(nodeRequest));
-                createdNodes.add(createdNode);
-                createdNodeIdByRef.put("node-" + (index + 1), createdNode.getIdentity());
-              }
+          List<LogicalEntitiesApi.CreateLogicalEntityRequest> logicalEntityRequests =
+              request.safeLogicalEntities();
+          for (int index = 0; index < logicalEntityRequests.size(); index += 1) {
+            LogicalEntitiesApi.CreateLogicalEntityRequest logicalEntityRequest =
+                logicalEntityRequests.get(index);
+            LogicalEntity createdLogicalEntity =
+                project.addLogicalEntity(
+                    new LogicalEntityDescription(
+                        logicalEntityRequest.getType(),
+                        logicalEntityRequest.getSubType(),
+                        logicalEntityRequest.getName(),
+                        logicalEntityRequest.getLabel(),
+                        null,
+                        null));
+            createdLogicalEntityIdByRef.put(
+                "logical-" + (index + 1), createdLogicalEntity.getIdentity());
+          }
 
-              for (EdgesApi.CreateEdgeRequest edgeRequest : request.safeEdges()) {
-                String sourceNodeId =
-                    resolveNodeId(edgeRequest.getSourceNodeId(), createdNodeIdByRef);
-                String targetNodeId =
-                    resolveNodeId(edgeRequest.getTargetNodeId(), createdNodeIdByRef);
-                EdgesApi.CreateEdgeRequest resolvedEdgeRequest = new EdgesApi.CreateEdgeRequest();
-                resolvedEdgeRequest.setSourceNodeId(sourceNodeId);
-                resolvedEdgeRequest.setTargetNodeId(targetNodeId);
-                DiagramEdge createdEdge =
-                    entity.addEdge(EdgesApi.toDescription(resolvedEdgeRequest));
-                createdEdges.add(createdEdge);
-              }
+          List<NodesApi.CreateNodeRequest> nodeRequests = request.safeNodes();
+          for (int index = 0; index < nodeRequests.size(); index += 1) {
+            NodesApi.CreateNodeRequest nodeRequest = nodeRequests.get(index);
+            NodesApi.CreateNodeRequest resolvedNodeRequest = new NodesApi.CreateNodeRequest();
+            resolvedNodeRequest.setType(nodeRequest.getType());
+            resolvedNodeRequest.setParentId(nodeRequest.getParentId());
+            resolvedNodeRequest.setPositionX(nodeRequest.getPositionX());
+            resolvedNodeRequest.setPositionY(nodeRequest.getPositionY());
+            resolvedNodeRequest.setWidth(nodeRequest.getWidth());
+            resolvedNodeRequest.setHeight(nodeRequest.getHeight());
+            resolvedNodeRequest.setLogicalEntityId(
+                resolveLogicalEntityId(
+                    nodeRequest.getLogicalEntityId(), createdLogicalEntityIdByRef));
 
-              return new BatchCommitResult(createdNodes, createdEdges, createdNodeIdByRef);
-            });
+            DiagramNode createdNode = entity.addNode(NodesApi.toDescription(resolvedNodeRequest));
+            createdNodeIdByRef.put("node-" + (index + 1), createdNode.getIdentity());
+          }
 
-    if (result == null) {
-      throw new IllegalStateException("Batch commit transaction returned null result.");
-    }
+          for (EdgesApi.CreateEdgeRequest edgeRequest : request.safeEdges()) {
+            String sourceNodeId = resolveNodeId(edgeRequest.getSourceNodeId(), createdNodeIdByRef);
+            String targetNodeId = resolveNodeId(edgeRequest.getTargetNodeId(), createdNodeIdByRef);
+            EdgesApi.CreateEdgeRequest resolvedEdgeRequest = new EdgesApi.CreateEdgeRequest();
+            resolvedEdgeRequest.setSourceNodeId(sourceNodeId);
+            resolvedEdgeRequest.setTargetNodeId(targetNodeId);
+            entity.addEdge(EdgesApi.toDescription(resolvedEdgeRequest));
+          }
 
-    BatchCommitResponse response =
-        BatchCommitResponse.of(
-            project,
-            entity,
-            uriInfo,
-            result.createdNodes(),
-            result.createdEdges(),
-            result.nodeIdMapping());
-    return Response.ok(response).build();
+          return null;
+        });
+
+    return Response.created(
+            ApiTemplates.diagram(uriInfo).build(project.getIdentity(), entity.getIdentity()))
+        .build();
   }
 
   private static String resolveNodeId(String nodeId, Map<String, String> createdNodeIdByRef) {
@@ -132,6 +142,21 @@ public class DiagramApi {
       throw badRequest("Unknown node placeholder id: " + nodeId);
     }
     return nodeId;
+  }
+
+  private static String resolveLogicalEntityId(
+      String logicalEntityId, Map<String, String> createdLogicalEntityIdByRef) {
+    if (logicalEntityId == null || logicalEntityId.isBlank()) {
+      return null;
+    }
+    String resolvedId = createdLogicalEntityIdByRef.get(logicalEntityId);
+    if (resolvedId != null) {
+      return resolvedId;
+    }
+    if (logicalEntityId.matches("logical-\\d+")) {
+      throw badRequest("Unknown logical entity placeholder id: " + logicalEntityId);
+    }
+    return logicalEntityId;
   }
 
   private static RuntimeException badRequest(String message) {
@@ -178,19 +203,21 @@ public class DiagramApi {
     @NotNull private String requirement;
   }
 
-  public record BatchCommitResult(
-      List<DiagramNode> createdNodes,
-      List<DiagramEdge> createdEdges,
-      Map<String, String> nodeIdMapping) {}
-
   @Data
   @NoArgsConstructor
-  public static class BatchCommitRequest {
+  public static class CommitDraftRequest {
+    @WithJsonSchema(LogicalEntitiesApi.CreateLogicalEntityRequest[].class)
+    private List<LogicalEntitiesApi.CreateLogicalEntityRequest> logicalEntities;
+
     @WithJsonSchema(NodesApi.CreateNodeRequest[].class)
     private List<NodesApi.CreateNodeRequest> nodes;
 
     @WithJsonSchema(EdgesApi.CreateEdgeRequest[].class)
     private List<EdgesApi.CreateEdgeRequest> edges;
+
+    public List<LogicalEntitiesApi.CreateLogicalEntityRequest> safeLogicalEntities() {
+      return logicalEntities == null ? List.of() : logicalEntities;
+    }
 
     public List<NodesApi.CreateNodeRequest> safeNodes() {
       return nodes == null ? List.of() : nodes;
@@ -198,34 +225,6 @@ public class DiagramApi {
 
     public List<EdgesApi.CreateEdgeRequest> safeEdges() {
       return edges == null ? List.of() : edges;
-    }
-  }
-
-  @Data
-  @NoArgsConstructor
-  public static class BatchCommitResponse {
-    private List<DiagramNodeModel> nodes;
-    private List<DiagramEdgeModel> edges;
-    private Map<String, String> nodeIdMapping;
-
-    public static BatchCommitResponse of(
-        Project project,
-        Diagram diagram,
-        UriInfo uriInfo,
-        List<DiagramNode> createdNodes,
-        List<DiagramEdge> createdEdges,
-        Map<String, String> nodeIdMapping) {
-      BatchCommitResponse response = new BatchCommitResponse();
-      response.setNodes(
-          createdNodes.stream()
-              .map(node -> DiagramNodeModel.of(project, diagram, node, uriInfo))
-              .toList());
-      response.setEdges(
-          createdEdges.stream()
-              .map(edge -> DiagramEdgeModel.simple(project, diagram, edge, uriInfo))
-              .toList());
-      response.setNodeIdMapping(nodeIdMapping);
-      return response;
     }
   }
 }

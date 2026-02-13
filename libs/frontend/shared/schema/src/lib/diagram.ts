@@ -41,10 +41,11 @@ export type DraftDiagramModel = Entity<{
   edges: DraftDiagramEdge[];
 }>;
 
-export type BatchCommitDiagramModel = Entity<{
-  nodes: DiagramNode['data'][];
-  edges: DiagramEdge['data'][];
-  nodeIdMapping: Record<string, string>;
+export type CommitDraftDiagramModel = Entity<{
+  nodes?: DiagramNode['data'][];
+  edges?: DiagramEdge['data'][];
+  nodeIdMapping?: Record<string, string>;
+  logicalEntityIdMapping?: Record<string, string>;
 }>;
 
 export type Diagram = Entity<
@@ -62,7 +63,7 @@ export type Diagram = Entity<
     'add-node': DiagramNode;
     'add-edge': DiagramEdge;
     'propose-model': DraftDiagramModel;
-    'batch-commit': BatchCommitDiagramModel;
+    'commit-draft': CommitDraftDiagramModel;
     project: Project;
   }
 >;
