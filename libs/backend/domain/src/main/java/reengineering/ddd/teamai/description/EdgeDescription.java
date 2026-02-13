@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.description;
 
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 
 public record EdgeDescription(
@@ -9,6 +10,7 @@ public record EdgeDescription(
     String targetHandle,
     String relationType,
     String label,
-    EdgeStyleProps styleProps) {
+    JsonBlob styleProps) {
+
   public static record DraftEdge(Ref<String> sourceNode, Ref<String> targetNode) {}
 }

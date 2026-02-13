@@ -17,6 +17,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.Link;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramEdgeModel;
 import reengineering.ddd.teamai.description.EdgeDescription;
@@ -80,7 +81,7 @@ public class EdgesApi {
         null,
         null,
         null,
-        null);
+        (JsonBlob) null);
   }
 
   @Data

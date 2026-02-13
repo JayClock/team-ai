@@ -1,16 +1,19 @@
 package reengineering.ddd.teamai.api.representation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.core.UriInfo;
+import java.util.Map;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.EdgesApi;
 import reengineering.ddd.teamai.description.EdgeDescription;
-import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.Project;
@@ -24,44 +27,9 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
   @JsonProperty private String targetHandle;
   @JsonProperty private String relationType;
   @JsonProperty private String label;
-  @JsonProperty private StylePropsModel styleProps;
+  @JsonProperty private Map<String, Object> styleProps;
 
-  private static class StylePropsModel {
-    private final String lineStyle;
-    private final String color;
-    private final String arrowType;
-    private final Integer lineWidth;
-
-    StylePropsModel(EdgeStyleProps props) {
-      if (props != null) {
-        this.lineStyle = props.lineStyle();
-        this.color = props.color();
-        this.arrowType = props.arrowType();
-        this.lineWidth = props.lineWidth();
-      } else {
-        this.lineStyle = null;
-        this.color = null;
-        this.arrowType = null;
-        this.lineWidth = null;
-      }
-    }
-
-    public String getLineStyle() {
-      return lineStyle;
-    }
-
-    public String getColor() {
-      return color;
-    }
-
-    public String getArrowType() {
-      return arrowType;
-    }
-
-    public Integer getLineWidth() {
-      return lineWidth;
-    }
-  }
+  private static final ObjectMapper objectMapper = new ObjectMapper();
 
   public DiagramEdgeModel(Project project, Diagram diagram, DiagramEdge entity, UriInfo uriInfo) {
     EdgeDescription desc = entity.getDescription();
@@ -72,7 +40,7 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
     this.targetHandle = desc.targetHandle();
     this.relationType = desc.relationType();
     this.label = desc.label();
-    this.styleProps = new StylePropsModel(desc.styleProps());
+    this.styleProps = parseJsonBlob(desc.styleProps());
 
     add(
         Affordances.of(
@@ -106,6 +74,17 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
                     .build(project.getIdentity(), diagram.getIdentity())
                     .getPath())
             .withRel("diagram"));
+  }
+
+  private Map<String, Object> parseJsonBlob(JsonBlob blob) {
+    if (blob == null || blob.json() == null || blob.json().isEmpty()) {
+      return Map.of();
+    }
+    try {
+      return objectMapper.readValue(blob.json(), new TypeReference<Map<String, Object>>() {});
+    } catch (Exception e) {
+      return Map.of();
+    }
   }
 
   public static DiagramEdgeModel simple(

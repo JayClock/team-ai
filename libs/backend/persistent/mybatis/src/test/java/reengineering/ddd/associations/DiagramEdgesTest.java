@@ -21,7 +21,6 @@ import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
-import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
@@ -137,7 +136,7 @@ public class DiagramEdgesTest {
   public void should_add_edge_and_return_saved_entity() {
     int initialSize = diagram.edges().findAll().size();
 
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(node1.getIdentity()),
@@ -156,10 +155,11 @@ public class DiagramEdgesTest {
     assertEquals("targetHandle", savedEdge.getDescription().targetHandle());
     assertEquals("ASSOCIATION", savedEdge.getDescription().relationType());
     assertEquals("test edge", savedEdge.getDescription().label());
-    assertEquals("solid", savedEdge.getDescription().styleProps().lineStyle());
-    assertEquals("#333333", savedEdge.getDescription().styleProps().color());
-    assertEquals("arrow", savedEdge.getDescription().styleProps().arrowType());
-    assertEquals(2, savedEdge.getDescription().styleProps().lineWidth());
+    Map<String, Object> savedStyle = parseStyleProps(savedEdge);
+    assertEquals("solid", savedStyle.get("lineStyle"));
+    assertEquals("#333333", savedStyle.get("color"));
+    assertEquals("arrow", savedStyle.get("arrowType"));
+    assertEquals(2, savedStyle.get("lineWidth"));
 
     var retrievedEdge = diagram.edges().findByIdentity(savedEdge.getIdentity()).get();
     assertEquals(savedEdge.getIdentity(), retrievedEdge.getIdentity());
@@ -169,7 +169,7 @@ public class DiagramEdgesTest {
 
   @Test
   public void should_find_single_edge_of_diagram() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("dashed", "#666666", "diamond", 1);
+    JsonBlob styleProps = edgeStyleProps("dashed", "#666666", "diamond", 1);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(node1.getIdentity()),
@@ -200,7 +200,7 @@ public class DiagramEdgesTest {
   public void should_get_size_of_edges_association() {
     int initialSize = diagram.edges().findAll().size();
 
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(node1.getIdentity()),
@@ -220,7 +220,7 @@ public class DiagramEdgesTest {
   public void should_evict_cache_on_add_edge() {
     int initialSize = diagram.edges().findAll().size();
 
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(node1.getIdentity()),
@@ -238,7 +238,7 @@ public class DiagramEdgesTest {
 
   @Test
   public void should_cache_edges_list() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
 
     for (int i = 0; i < 5; i++) {
       EdgeDescription description =
@@ -278,7 +278,7 @@ public class DiagramEdgesTest {
 
   @Test
   public void should_support_multiple_relation_types() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
 
     DiagramEdge association =
         diagram.addEdge(
@@ -331,7 +331,7 @@ public class DiagramEdgesTest {
 
   @Test
   public void should_support_different_handle_types() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(node1.getIdentity()),
@@ -349,7 +349,7 @@ public class DiagramEdgesTest {
 
   @Test
   public void should_support_various_edge_styles() {
-    EdgeStyleProps solidProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob solidProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     DiagramEdge solidEdge =
         diagram.addEdge(
             new EdgeDescription(
@@ -360,12 +360,13 @@ public class DiagramEdgesTest {
                 "ASSOCIATION",
                 "solid",
                 solidProps));
-    assertEquals("solid", solidEdge.getDescription().styleProps().lineStyle());
-    assertEquals("#333333", solidEdge.getDescription().styleProps().color());
-    assertEquals("arrow", solidEdge.getDescription().styleProps().arrowType());
-    assertEquals(2, solidEdge.getDescription().styleProps().lineWidth());
+    Map<String, Object> solidStyle = parseStyleProps(solidEdge);
+    assertEquals("solid", solidStyle.get("lineStyle"));
+    assertEquals("#333333", solidStyle.get("color"));
+    assertEquals("arrow", solidStyle.get("arrowType"));
+    assertEquals(2, solidStyle.get("lineWidth"));
 
-    EdgeStyleProps dashedProps = new EdgeStyleProps("dashed", "#666666", "diamond", 1);
+    JsonBlob dashedProps = edgeStyleProps("dashed", "#666666", "diamond", 1);
     DiagramEdge dashedEdge =
         diagram.addEdge(
             new EdgeDescription(
@@ -376,17 +377,18 @@ public class DiagramEdgesTest {
                 "AGGREGATION",
                 "dashed",
                 dashedProps));
-    assertEquals("dashed", dashedEdge.getDescription().styleProps().lineStyle());
-    assertEquals("#666666", dashedEdge.getDescription().styleProps().color());
-    assertEquals("diamond", dashedEdge.getDescription().styleProps().arrowType());
-    assertEquals(1, dashedEdge.getDescription().styleProps().lineWidth());
+    Map<String, Object> dashedStyle = parseStyleProps(dashedEdge);
+    assertEquals("dashed", dashedStyle.get("lineStyle"));
+    assertEquals("#666666", dashedStyle.get("color"));
+    assertEquals("diamond", dashedStyle.get("arrowType"));
+    assertEquals(1, dashedStyle.get("lineWidth"));
   }
 
   @Test
   public void should_add_multiple_edges_to_diagram() {
     int initialSize = diagram.edges().findAll().size();
 
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
 
     for (int i = 0; i < 3; i++) {
       EdgeDescription description =
@@ -407,7 +409,7 @@ public class DiagramEdgesTest {
 
   @Test
   public void should_create_edge_with_label() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(node1.getIdentity()),
@@ -424,7 +426,7 @@ public class DiagramEdgesTest {
 
   @Test
   public void should_create_edge_with_empty_label() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(node1.getIdentity()),
@@ -441,7 +443,7 @@ public class DiagramEdgesTest {
 
   @Test
   public void should_preserve_eager_loaded_edges_after_cache_hydration() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(node1.getIdentity()),
@@ -490,5 +492,29 @@ public class DiagramEdgesTest {
         edgeRelation,
         cachedEdge.get().getDescription().relationType(),
         "Edge data should be preserved after hydration");
+  }
+
+  private Map<String, Object> parseStyleProps(DiagramEdge edge) {
+    try {
+      return objectMapper.readValue(
+          edge.getDescription().styleProps().json(),
+          new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private JsonBlob edgeStyleProps(
+      String lineStyle, String color, String arrowType, Integer lineWidth) {
+    return new JsonBlob(
+        "{\"lineStyle\":\""
+            + lineStyle
+            + "\",\"color\":\""
+            + color
+            + "\",\"arrowType\":\""
+            + arrowType
+            + "\",\"lineWidth\":"
+            + lineWidth
+            + "}");
   }
 }

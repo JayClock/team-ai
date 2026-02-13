@@ -12,7 +12,7 @@
         <arg column="target_handle" jdbcType="VARCHAR" javaType="String"/>
         <arg column="relation_type" jdbcType="VARCHAR" javaType="String"/>
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="style_props" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.EdgeStylePropsHandler" javaType="reengineering.ddd.teamai.description.EdgeStyleProps"/>
+        <arg column="style_props" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler" javaType="reengineering.ddd.archtype.JsonBlob"/>
       </constructor>
     </association>
   </resultMap>
@@ -40,7 +40,7 @@
             #{description.targetHandle},
             #{description.relationType},
             #{description.label},
-            #{description.styleProps, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.EdgeStylePropsHandler})
+            #{description.styleProps, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler})
   </insert>
 
   <select id="countEdgesByDiagram" resultType="int">

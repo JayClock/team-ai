@@ -3,24 +3,28 @@ package reengineering.ddd.mappers;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.context.annotation.Import;
 import reengineering.ddd.TestContainerConfig;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.EdgeDescription;
-import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.mybatis.mappers.DiagramEdgesMapper;
 
 @MybatisTest
 @Import(TestContainerConfig.class)
 public class DiagramEdgesMapperTest {
+  private static final ObjectMapper objectMapper = new ObjectMapper();
+
   @Inject private reengineering.ddd.TestDataMapper testData;
   @Inject private DiagramEdgesMapper edgesMapper;
 
@@ -72,13 +76,17 @@ public class DiagramEdgesMapperTest {
   }
 
   @Test
-  void should_parse_style_props_from_jsonb() {
+  void should_parse_style_props_from_jsonb() throws Exception {
     DiagramEdge edge = edgesMapper.findEdgeByDiagramAndId(diagramId, edgeId);
     assertNotNull(edge.getDescription().styleProps());
-    assertEquals("solid", edge.getDescription().styleProps().lineStyle());
-    assertEquals("#000000", edge.getDescription().styleProps().color());
-    assertEquals("arrow", edge.getDescription().styleProps().arrowType());
-    assertEquals(2, edge.getDescription().styleProps().lineWidth());
+    Map<String, Object> styleProps =
+        objectMapper.readValue(
+            edge.getDescription().styleProps().json(),
+            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    assertEquals("solid", styleProps.get("lineStyle"));
+    assertEquals("#000000", styleProps.get("color"));
+    assertEquals("arrow", styleProps.get("arrowType"));
+    assertEquals(2, styleProps.get("lineWidth"));
   }
 
   @Test
@@ -95,7 +103,7 @@ public class DiagramEdgesMapperTest {
   @Test
   public void should_add_edge_to_database() {
     IdHolder idHolder = new IdHolder();
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#000000", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>(String.valueOf(sourceNodeId)),
@@ -122,5 +130,19 @@ public class DiagramEdgesMapperTest {
     List<DiagramEdge> edges = edgesMapper.findEdgesByDiagramId(diagramId);
     assertEquals(1, edges.size());
     assertEquals(String.valueOf(edgeId), edges.get(0).getIdentity());
+  }
+
+  private JsonBlob edgeStyleProps(
+      String lineStyle, String color, String arrowType, Integer lineWidth) {
+    return new JsonBlob(
+        "{\"lineStyle\":\""
+            + lineStyle
+            + "\",\"color\":\""
+            + color
+            + "\",\"arrowType\":\""
+            + arrowType
+            + "\",\"lineWidth\":"
+            + lineWidth
+            + "}");
   }
 }

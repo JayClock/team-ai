@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
@@ -153,7 +154,7 @@ public class DiagramTest {
               "left",
               "ASSOCIATION",
               "hasMany",
-              null);
+              (JsonBlob) null);
       DiagramEdge expectedEdge = mock(DiagramEdge.class);
 
       when(edges.add(edgeDesc)).thenReturn(expectedEdge);

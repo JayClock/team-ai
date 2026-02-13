@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
@@ -189,7 +190,13 @@ public class DiagramsApiTest extends ApiTest {
         new DiagramEdge(
             "edge-201",
             new EdgeDescription(
-                new Ref<>("node-101"), new Ref<>("node-102"), null, null, null, null, null));
+                new Ref<>("node-101"),
+                new Ref<>("node-102"),
+                null,
+                null,
+                null,
+                null,
+                (JsonBlob) null));
 
     when(diagramNodes.add(any(NodeDescription.class))).thenReturn(createdNode1, createdNode2);
     when(diagramEdges.add(any(EdgeDescription.class))).thenReturn(createdEdge);
@@ -253,7 +260,13 @@ public class DiagramsApiTest extends ApiTest {
         new DiagramEdge(
             "edge-201",
             new EdgeDescription(
-                new Ref<>("node-101"), new Ref<>("node-101"), null, null, null, null, null));
+                new Ref<>("node-101"),
+                new Ref<>("node-101"),
+                null,
+                null,
+                null,
+                null,
+                (JsonBlob) null));
 
     when(projectLogicalEntities.add(any(LogicalEntityDescription.class)))
         .thenReturn(createdLogicalEntity);

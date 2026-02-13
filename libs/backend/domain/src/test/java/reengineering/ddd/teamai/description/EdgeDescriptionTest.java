@@ -3,13 +3,14 @@ package reengineering.ddd.teamai.description;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 
 public class EdgeDescriptionTest {
 
   @Test
   void should_create_edge_description() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#000000", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>("node-1"),
@@ -31,7 +32,7 @@ public class EdgeDescriptionTest {
 
   @Test
   void should_support_null_handles() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 1);
+    JsonBlob styleProps = edgeStyleProps("solid", "#000000", "arrow", 1);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>("node-1"), new Ref<>("node-2"), null, null, "ASSOCIATION", null, styleProps);
@@ -43,7 +44,7 @@ public class EdgeDescriptionTest {
 
   @Test
   void should_support_null_label() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 1);
+    JsonBlob styleProps = edgeStyleProps("solid", "#000000", "arrow", 1);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>("node-1"),
@@ -61,14 +62,20 @@ public class EdgeDescriptionTest {
   void should_support_null_style_props() {
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("node-1"), new Ref<>("node-2"), "right", "left", "ASSOCIATION", "1..*", null);
+            new Ref<>("node-1"),
+            new Ref<>("node-2"),
+            "right",
+            "left",
+            "ASSOCIATION",
+            "1..*",
+            (JsonBlob) null);
 
     assertNull(description.styleProps());
   }
 
   @Test
   void should_support_different_relation_types() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 1);
+    JsonBlob styleProps = edgeStyleProps("solid", "#000000", "arrow", 1);
 
     EdgeDescription association =
         new EdgeDescription(
@@ -119,7 +126,7 @@ public class EdgeDescriptionTest {
 
   @Test
   void should_support_different_labels() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#000000", "arrow", 1);
+    JsonBlob styleProps = edgeStyleProps("solid", "#000000", "arrow", 1);
 
     EdgeDescription oneToMany =
         new EdgeDescription(
@@ -156,7 +163,7 @@ public class EdgeDescriptionTest {
 
   @Test
   void should_support_edge_with_all_properties() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("dashed", "#666666", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("dashed", "#666666", "arrow", 2);
     EdgeDescription description =
         new EdgeDescription(
             new Ref<>("node-1"),
@@ -173,7 +180,21 @@ public class EdgeDescriptionTest {
     assertEquals("left", description.targetHandle());
     assertEquals("DEPENDENCY", description.relationType());
     assertEquals("depends on", description.label());
-    assertEquals("dashed", description.styleProps().lineStyle());
-    assertEquals(2, description.styleProps().lineWidth());
+    assertTrue(description.styleProps().json().contains("\"lineStyle\":\"dashed\""));
+    assertTrue(description.styleProps().json().contains("\"lineWidth\":2"));
+  }
+
+  private JsonBlob edgeStyleProps(
+      String lineStyle, String color, String arrowType, Integer lineWidth) {
+    return new JsonBlob(
+        "{\"lineStyle\":\""
+            + lineStyle
+            + "\",\"color\":\""
+            + color
+            + "\",\"arrowType\":\""
+            + arrowType
+            + "\",\"lineWidth\":"
+            + lineWidth
+            + "}");
   }
 }

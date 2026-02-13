@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.EdgeDescription;
-import reengineering.ddd.teamai.description.EdgeStyleProps;
 
 public class DiagramEdgeTest {
   private DiagramEdge edge;
@@ -23,7 +23,7 @@ public class DiagramEdgeTest {
             "target-handle-1",
             "ASSOCIATION",
             "hasMany",
-            new EdgeStyleProps("solid", "#000000", "arrow", 2));
+            edgeStyleProps("solid", "#000000", "arrow", 2));
     edge = new DiagramEdge("edge-1", description);
   }
 
@@ -79,12 +79,12 @@ public class DiagramEdgeTest {
 
     @Test
     void should_return_style_props() {
-      EdgeStyleProps styleProps = edge.getDescription().styleProps();
+      JsonBlob styleProps = edge.getDescription().styleProps();
       assertNotNull(styleProps);
-      assertEquals("solid", styleProps.lineStyle());
-      assertEquals("#000000", styleProps.color());
-      assertEquals("arrow", styleProps.arrowType());
-      assertEquals(2, styleProps.lineWidth());
+      assertTrue(styleProps.json().contains("\"lineStyle\":\"solid\""));
+      assertTrue(styleProps.json().contains("\"color\":\"#000000\""));
+      assertTrue(styleProps.json().contains("\"arrowType\":\"arrow\""));
+      assertTrue(styleProps.json().contains("\"lineWidth\":2"));
     }
   }
 
@@ -100,7 +100,7 @@ public class DiagramEdgeTest {
               null,
               "ASSOCIATION",
               "1..*",
-              new EdgeStyleProps("solid", "#000000", "arrow", 1));
+              edgeStyleProps("solid", "#000000", "arrow", 1));
 
       DiagramEdge associationEdge = new DiagramEdge("edge-1", associationDesc);
       assertEquals("ASSOCIATION", associationEdge.getDescription().relationType());
@@ -117,7 +117,7 @@ public class DiagramEdgeTest {
               null,
               "INHERITANCE",
               null,
-              new EdgeStyleProps("solid", "#000000", "triangle", 1));
+              edgeStyleProps("solid", "#000000", "triangle", 1));
 
       DiagramEdge inheritanceEdge = new DiagramEdge("edge-2", inheritanceDesc);
       assertEquals("INHERITANCE", inheritanceEdge.getDescription().relationType());
@@ -134,7 +134,7 @@ public class DiagramEdgeTest {
               null,
               "AGGREGATION",
               "contains",
-              new EdgeStyleProps("solid", "#000000", "diamond", 1));
+              edgeStyleProps("solid", "#000000", "diamond", 1));
 
       DiagramEdge aggregationEdge = new DiagramEdge("edge-3", aggregationDesc);
       assertEquals("AGGREGATION", aggregationEdge.getDescription().relationType());
@@ -151,7 +151,7 @@ public class DiagramEdgeTest {
               "left",
               "FLOW",
               "triggers",
-              new EdgeStyleProps("solid", "#666666", "arrow", 2));
+              edgeStyleProps("solid", "#666666", "arrow", 2));
 
       DiagramEdge flowEdge = new DiagramEdge("edge-4", flowDesc);
       assertEquals("FLOW", flowEdge.getDescription().relationType());
@@ -168,7 +168,7 @@ public class DiagramEdgeTest {
               null,
               "DEPENDENCY",
               "depends on",
-              new EdgeStyleProps("dashed", "#666666", "arrow", 1));
+              edgeStyleProps("dashed", "#666666", "arrow", 1));
 
       DiagramEdge dependencyEdge = new DiagramEdge("edge-5", dependencyDesc);
       assertEquals("DEPENDENCY", dependencyEdge.getDescription().relationType());
@@ -180,40 +180,40 @@ public class DiagramEdgeTest {
   class EdgeStyles {
     @Test
     void should_support_solid_line_style() {
-      EdgeStyleProps solidStyle = new EdgeStyleProps("solid", "#000000", "arrow", 2);
-      assertEquals("solid", solidStyle.lineStyle());
+      JsonBlob solidStyle = edgeStyleProps("solid", "#000000", "arrow", 2);
+      assertTrue(solidStyle.json().contains("\"lineStyle\":\"solid\""));
     }
 
     @Test
     void should_support_dashed_line_style() {
-      EdgeStyleProps dashedStyle = new EdgeStyleProps("dashed", "#666666", "arrow", 1);
-      assertEquals("dashed", dashedStyle.lineStyle());
+      JsonBlob dashedStyle = edgeStyleProps("dashed", "#666666", "arrow", 1);
+      assertTrue(dashedStyle.json().contains("\"lineStyle\":\"dashed\""));
     }
 
     @Test
     void should_support_dotted_line_style() {
-      EdgeStyleProps dottedStyle = new EdgeStyleProps("dotted", "#999999", "arrow", 1);
-      assertEquals("dotted", dottedStyle.lineStyle());
+      JsonBlob dottedStyle = edgeStyleProps("dotted", "#999999", "arrow", 1);
+      assertTrue(dottedStyle.json().contains("\"lineStyle\":\"dotted\""));
     }
 
     @Test
     void should_support_different_arrow_types() {
-      EdgeStyleProps arrowStyle = new EdgeStyleProps("solid", "#000000", "arrow", 2);
-      EdgeStyleProps triangleStyle = new EdgeStyleProps("solid", "#000000", "triangle", 1);
-      EdgeStyleProps diamondStyle = new EdgeStyleProps("solid", "#000000", "diamond", 1);
+      JsonBlob arrowStyle = edgeStyleProps("solid", "#000000", "arrow", 2);
+      JsonBlob triangleStyle = edgeStyleProps("solid", "#000000", "triangle", 1);
+      JsonBlob diamondStyle = edgeStyleProps("solid", "#000000", "diamond", 1);
 
-      assertEquals("arrow", arrowStyle.arrowType());
-      assertEquals("triangle", triangleStyle.arrowType());
-      assertEquals("diamond", diamondStyle.arrowType());
+      assertTrue(arrowStyle.json().contains("\"arrowType\":\"arrow\""));
+      assertTrue(triangleStyle.json().contains("\"arrowType\":\"triangle\""));
+      assertTrue(diamondStyle.json().contains("\"arrowType\":\"diamond\""));
     }
 
     @Test
     void should_support_different_line_widths() {
-      EdgeStyleProps thinStyle = new EdgeStyleProps("solid", "#000000", "arrow", 1);
-      EdgeStyleProps thickStyle = new EdgeStyleProps("solid", "#000000", "arrow", 3);
+      JsonBlob thinStyle = edgeStyleProps("solid", "#000000", "arrow", 1);
+      JsonBlob thickStyle = edgeStyleProps("solid", "#000000", "arrow", 3);
 
-      assertEquals(1, thinStyle.lineWidth());
-      assertEquals(3, thickStyle.lineWidth());
+      assertTrue(thinStyle.json().contains("\"lineWidth\":1"));
+      assertTrue(thickStyle.json().contains("\"lineWidth\":3"));
     }
   }
 
@@ -229,7 +229,7 @@ public class DiagramEdgeTest {
               "left",
               "ASSOCIATION",
               null,
-              new EdgeStyleProps("solid", "#000000", "arrow", 1));
+              edgeStyleProps("solid", "#000000", "arrow", 1));
 
       DiagramEdge edge = new DiagramEdge("edge-1", edgeWithHandles);
       assertEquals("right", edge.getDescription().sourceHandle());
@@ -246,11 +246,25 @@ public class DiagramEdgeTest {
               null,
               "ASSOCIATION",
               null,
-              new EdgeStyleProps("solid", "#000000", "arrow", 1));
+              edgeStyleProps("solid", "#000000", "arrow", 1));
 
       DiagramEdge edge = new DiagramEdge("edge-2", edgeWithoutHandles);
       assertNull(edge.getDescription().sourceHandle());
       assertNull(edge.getDescription().targetHandle());
     }
+  }
+
+  private JsonBlob edgeStyleProps(
+      String lineStyle, String color, String arrowType, Integer lineWidth) {
+    return new JsonBlob(
+        "{\"lineStyle\":\""
+            + lineStyle
+            + "\",\"color\":\""
+            + color
+            + "\",\"arrowType\":\""
+            + arrowType
+            + "\",\"lineWidth\":"
+            + lineWidth
+            + "}");
   }
 }

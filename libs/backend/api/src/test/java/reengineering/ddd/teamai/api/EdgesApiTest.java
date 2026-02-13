@@ -14,10 +14,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
-import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
@@ -56,7 +56,7 @@ public class EdgesApiTest extends ApiTest {
             diagramNodes,
             diagramEdges);
 
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
+    JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     edge =
         new DiagramEdge(
             "edge-1",
@@ -165,7 +165,7 @@ public class EdgesApiTest extends ApiTest {
 
   @Test
   public void should_create_edge() {
-    EdgeStyleProps styleProps = new EdgeStyleProps("dashed", "#666666", "arrow", 1);
+    JsonBlob styleProps = edgeStyleProps("dashed", "#666666", "arrow", 1);
     DiagramEdge newEdge =
         new DiagramEdge(
             "edge-new",
@@ -210,7 +210,7 @@ public class EdgesApiTest extends ApiTest {
 
   @Test
   public void should_return_all_edges() {
-    EdgeStyleProps styleProps2 = new EdgeStyleProps("dashed", "#666666", "diamond", 1);
+    JsonBlob styleProps2 = edgeStyleProps("dashed", "#666666", "diamond", 1);
     DiagramEdge edge2 =
         new DiagramEdge(
             "edge-2",
@@ -268,5 +268,19 @@ public class EdgesApiTest extends ApiTest {
         .body("_links.self.href", org.hamcrest.Matchers.endsWith("/edges"));
 
     verify(diagramEdges, times(1)).findAll();
+  }
+
+  private JsonBlob edgeStyleProps(
+      String lineStyle, String color, String arrowType, Integer lineWidth) {
+    return new JsonBlob(
+        "{\"lineStyle\":\""
+            + lineStyle
+            + "\",\"color\":\""
+            + color
+            + "\",\"arrowType\":\""
+            + arrowType
+            + "\",\"lineWidth\":"
+            + lineWidth
+            + "}");
   }
 }

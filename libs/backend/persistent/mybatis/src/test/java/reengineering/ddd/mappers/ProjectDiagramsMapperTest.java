@@ -17,7 +17,6 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.DiagramDescription;
-import reengineering.ddd.teamai.description.EdgeStyleProps;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramEdge;
@@ -264,13 +263,12 @@ public class ProjectDiagramsMapperTest {
   }
 
   @Test
-  void should_support_complex_edge_description() {
+  void should_support_complex_edge_description() throws Exception {
     testData.insertDiagramNode(
         nodeId1, diagramId, "class-node", null, null, 100.0, 200.0, 300, 400, "{}", "{}");
     testData.insertDiagramNode(
         nodeId2, diagramId, "class-node", null, null, 500.0, 600.0, 300, 400, "{}", "{}");
 
-    EdgeStyleProps styleProps = new EdgeStyleProps("solid", "#333333", "arrow", 2);
     testData.insertDiagramEdge(
         edgeId,
         diagramId,
@@ -289,10 +287,14 @@ public class ProjectDiagramsMapperTest {
     assertEquals("targetHandle", edge.getDescription().targetHandle());
     assertEquals("AGGREGATION", edge.getDescription().relationType());
     assertEquals("test aggregation", edge.getDescription().label());
-    assertEquals("solid", edge.getDescription().styleProps().lineStyle());
-    assertEquals("#333333", edge.getDescription().styleProps().color());
-    assertEquals("arrow", edge.getDescription().styleProps().arrowType());
-    assertEquals(2, edge.getDescription().styleProps().lineWidth());
+    Map<String, Object> styleProps =
+        objectMapper.readValue(
+            edge.getDescription().styleProps().json(),
+            new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+    assertEquals("solid", styleProps.get("lineStyle"));
+    assertEquals("#333333", styleProps.get("color"));
+    assertEquals("arrow", styleProps.get("arrowType"));
+    assertEquals(2, styleProps.get("lineWidth"));
   }
 
   @Test
