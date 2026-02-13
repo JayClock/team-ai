@@ -3,6 +3,8 @@ package reengineering.ddd.teamai.api;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -22,6 +24,8 @@ import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.DiagramEdge;
+import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.model.Project;
 
@@ -101,6 +105,14 @@ public class DiagramsApiTest extends ApiTest {
                     + "/diagrams/"
                     + diagram.getIdentity()
                     + "/propose-model"))
+        .body(
+            "_links.batch-commit.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/batch-commit"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(4))
         .body("_templates.default.properties[0].name", is("title"))
@@ -142,9 +154,106 @@ public class DiagramsApiTest extends ApiTest {
         .body("_templates.propose-model.properties", hasSize(1))
         .body("_templates.propose-model.properties[0].name", is("requirement"))
         .body("_templates.propose-model.properties[0].required", is(true))
-        .body("_templates.propose-model.properties[0].type", is("text"));
+        .body("_templates.propose-model.properties[0].type", is("text"))
+        .body("_templates.'batch-commit'.method", is("POST"))
+        .body(
+            "_templates.'batch-commit'.properties.find { it.name == 'nodes' }._schema.type",
+            is("array"))
+        .body(
+            "_templates.'batch-commit'.properties.find { it.name == 'edges' }._schema.type",
+            is("array"));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
+  }
+
+  @Test
+  public void should_batch_commit_nodes_and_edges() {
+    DiagramNode createdNode1 =
+        new DiagramNode(
+            "node-101",
+            new NodeDescription("fulfillment-node", null, null, 120, 120, 220, 120, null, null),
+            mock(reengineering.ddd.archtype.HasOne.class));
+    DiagramNode createdNode2 =
+        new DiagramNode(
+            "node-102",
+            new NodeDescription("fulfillment-node", null, null, 420, 120, 220, 120, null, null),
+            mock(reengineering.ddd.archtype.HasOne.class));
+    DiagramEdge createdEdge =
+        new DiagramEdge(
+            "edge-201",
+            new EdgeDescription(
+                new Ref<>("node-101"), new Ref<>("node-102"), null, null, null, null, null));
+
+    when(diagramNodes.add(any(NodeDescription.class))).thenReturn(createdNode1, createdNode2);
+    when(diagramEdges.add(any(EdgeDescription.class))).thenReturn(createdEdge);
+
+    NodesApi.CreateNodeRequest node1 = new NodesApi.CreateNodeRequest();
+    node1.setType("fulfillment-node");
+    node1.setPositionX(120);
+    node1.setPositionY(120);
+    node1.setWidth(220);
+    node1.setHeight(120);
+
+    NodesApi.CreateNodeRequest node2 = new NodesApi.CreateNodeRequest();
+    node2.setType("fulfillment-node");
+    node2.setPositionX(420);
+    node2.setPositionY(120);
+    node2.setWidth(220);
+    node2.setHeight(120);
+
+    EdgesApi.CreateEdgeRequest edge = new EdgesApi.CreateEdgeRequest();
+    edge.setSourceNodeId("node-1");
+    edge.setTargetNodeId("node-2");
+
+    DiagramApi.BatchCommitRequest request = new DiagramApi.BatchCommitRequest();
+    request.setNodes(List.of(node1, node2));
+    request.setEdges(List.of(edge));
+
+    given(documentationSpec)
+        .accept(MediaType.APPLICATION_JSON)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/batch-commit",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("nodes", hasSize(2))
+        .body("edges", hasSize(1))
+        .body("nodeIdMapping.node-1", is("node-101"))
+        .body("nodeIdMapping.node-2", is("node-102"))
+        .body("edges[0].sourceNodeId", is("node-101"))
+        .body("edges[0].targetNodeId", is("node-102"));
+
+    verify(diagramNodes, times(2)).add(any(NodeDescription.class));
+    verify(diagramEdges, times(1)).add(any(EdgeDescription.class));
+  }
+
+  @Test
+  public void should_return_400_when_batch_commit_uses_unknown_node_placeholder_id() {
+    EdgesApi.CreateEdgeRequest edge = new EdgesApi.CreateEdgeRequest();
+    edge.setSourceNodeId("node-99");
+    edge.setTargetNodeId("node-2");
+
+    DiagramApi.BatchCommitRequest request = new DiagramApi.BatchCommitRequest();
+    request.setEdges(List.of(edge));
+
+    given(documentationSpec)
+        .accept(MediaType.APPLICATION_JSON)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/batch-commit",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(400);
+
+    verify(diagramNodes, times(0)).add(any(NodeDescription.class));
+    verify(diagramEdges, times(0)).add(any(EdgeDescription.class));
   }
 
   @Test

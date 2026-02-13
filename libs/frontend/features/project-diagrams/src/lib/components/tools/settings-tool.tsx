@@ -27,6 +27,20 @@ type ChatMessage = {
   content: string;
 };
 
+type BatchNodePayload = {
+  type: string;
+  logicalEntityId: string;
+  positionX: number;
+  positionY: number;
+  width: number;
+  height: number;
+};
+
+type BatchEdgePayload = {
+  sourceNodeId: string;
+  targetNodeId: string;
+};
+
 type ValueTarget = {
   value?: string;
 };
@@ -76,6 +90,17 @@ function getCreatedId(data: unknown): string | undefined {
   }
   const id = (data as { id?: unknown }).id;
   return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+
+function getArrayLength(
+  data: unknown,
+  key: 'nodes' | 'edges',
+): number | undefined {
+  if (typeof data !== 'object' || data === null) {
+    return undefined;
+  }
+  const value = (data as { nodes?: unknown; edges?: unknown })[key];
+  return Array.isArray(value) ? value.length : undefined;
 }
 
 function toNodeReferenceKeys(
@@ -168,7 +193,7 @@ export function SettingsTool({ state, onDraftApplied }: Props) {
       return;
     }
 
-    if (!state.hasLink('project') || !state.hasLink('nodes') || !state.hasLink('edges')) {
+    if (!state.hasLink('project') || !state.hasLink('batch-commit')) {
       setError('Current diagram is missing required links for draft apply.');
       return;
     }
@@ -178,8 +203,8 @@ export function SettingsTool({ state, onDraftApplied }: Props) {
 
     try {
       const projectState = await state.follow('project').get();
-      const nodeIdByDraftRef = new Map<string, string>();
-      const createdNodeIds: string[] = [];
+      const draftRefToNodeRef = new Map<string, string>();
+      const nodesPayload: BatchNodePayload[] = [];
 
       for (let index = 0; index < latestDraft.nodes.length; index += 1) {
         const draftNode = latestDraft.nodes[index];
@@ -204,31 +229,24 @@ export function SettingsTool({ state, onDraftApplied }: Props) {
 
         const column = index % 3;
         const row = Math.floor(index / 3);
+        const nodeRef = `node-${index + 1}`;
 
-        const createdNode = await state.follow('nodes').post({
-          data: {
-            type: 'fulfillment-node',
-            logicalEntityId,
-            positionX: 120 + column * 300,
-            positionY: 120 + row * 180,
-            width: 220,
-            height: 120,
-          },
+        nodesPayload.push({
+          type: 'fulfillment-node',
+          logicalEntityId,
+          positionX: 120 + column * 300,
+          positionY: 120 + row * 180,
+          width: 220,
+          height: 120,
         });
 
-        const createdNodeId = getCreatedId(createdNode.data);
-        if (!createdNodeId) {
-          throw new Error('Failed to create diagram node for draft node.');
-        }
-
-        createdNodeIds.push(createdNodeId);
         for (const key of toNodeReferenceKeys(draftNode, index)) {
-          nodeIdByDraftRef.set(key, createdNodeId);
+          draftRefToNodeRef.set(key, nodeRef);
         }
       }
 
       const resolveNodeId = (draftRefId: string): string | undefined => {
-        const direct = nodeIdByDraftRef.get(draftRefId);
+        const direct = draftRefToNodeRef.get(draftRefId);
         if (direct) {
           return direct;
         }
@@ -239,11 +257,11 @@ export function SettingsTool({ state, onDraftApplied }: Props) {
         }
 
         const index = Number(match[1]) - 1;
-        return index >= 0 ? createdNodeIds[index] : undefined;
+        return index >= 0 ? `node-${index + 1}` : undefined;
       };
 
-      let createdEdges = 0;
       let skippedEdges = 0;
+      const edgesPayload: BatchEdgePayload[] = [];
 
       for (const draftEdge of latestDraft.edges) {
         const sourceNodeId = resolveNodeId(draftEdge.sourceNode.id);
@@ -254,21 +272,26 @@ export function SettingsTool({ state, onDraftApplied }: Props) {
           continue;
         }
 
-        await state.follow('edges').post({
-          data: {
-            sourceNodeId,
-            targetNodeId,
-          },
+        edgesPayload.push({
+          sourceNodeId,
+          targetNodeId,
         });
-        createdEdges += 1;
       }
+
+      const created = await state.action('batch-commit').submit({
+        nodes: nodesPayload,
+        edges: edgesPayload,
+      });
+
+      const createdNodes = getArrayLength(created.data, 'nodes') ?? nodesPayload.length;
+      const createdEdges = getArrayLength(created.data, 'edges') ?? edgesPayload.length;
 
       setMessages((prev) => [
         ...prev,
         {
           id: `assistant-apply-${Date.now()}`,
           role: 'assistant',
-          content: `Applied draft to canvas.\n\n- Created nodes: ${createdNodeIds.length}\n- Created edges: ${createdEdges}\n- Skipped edges: ${skippedEdges}`,
+          content: `Applied draft to canvas.\n\n- Created nodes: ${createdNodes}\n- Created edges: ${createdEdges}\n- Skipped edges: ${skippedEdges}`,
         },
       ]);
 

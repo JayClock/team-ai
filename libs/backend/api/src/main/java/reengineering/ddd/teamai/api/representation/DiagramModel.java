@@ -83,6 +83,18 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
             .withInput(DiagramApi.ProposeModelRequest.class)
             .withName("propose-model")
             .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.batchCommit(uriInfo)
+                            .build(project.getIdentity(), diagram.getIdentity())
+                            .getPath())
+                    .withRel("batch-commit"))
+            .afford(HttpMethod.POST)
+            .withInput(DiagramApi.BatchCommitRequest.class)
+            .withName("batch-commit")
+            .toLink());
     return model;
   }
 

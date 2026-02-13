@@ -63,24 +63,26 @@ public class NodesApi {
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   public Response create(@Valid CreateNodeRequest request, @Context UriInfo uriInfo) {
-    NodeDescription description =
-        new NodeDescription(
-            request.type,
-            new Ref<>(request.logicalEntityId),
-            new Ref<>(request.parentId),
-            request.positionX,
-            request.positionY,
-            request.width,
-            request.height,
-            null,
-            null);
-    DiagramNode created = diagram.addNode(description);
+    DiagramNode created = diagram.addNode(toDescription(request));
     DiagramNodeModel model = DiagramNodeModel.of(project, diagram, created, uriInfo);
     return Response.created(
             ApiTemplates.node(uriInfo)
                 .build(project.getIdentity(), diagram.getIdentity(), created.getIdentity()))
         .entity(model)
         .build();
+  }
+
+  public static NodeDescription toDescription(CreateNodeRequest request) {
+    return new NodeDescription(
+        request.type,
+        new Ref<>(request.logicalEntityId),
+        new Ref<>(request.parentId),
+        request.positionX,
+        request.positionY,
+        request.width,
+        request.height,
+        null,
+        null);
   }
 
   @Data

@@ -63,22 +63,24 @@ public class EdgesApi {
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   public Response create(@Valid CreateEdgeRequest request, @Context UriInfo uriInfo) {
-    EdgeDescription description =
-        new EdgeDescription(
-            new Ref<>(request.sourceNodeId),
-            new Ref<>(request.targetNodeId),
-            null,
-            null,
-            null,
-            null,
-            null);
-    DiagramEdge created = diagram.addEdge(description);
+    DiagramEdge created = diagram.addEdge(toDescription(request));
     DiagramEdgeModel model = new DiagramEdgeModel(project, diagram, created, uriInfo);
     return Response.created(
             ApiTemplates.edge(uriInfo)
                 .build(project.getIdentity(), diagram.getIdentity(), created.getIdentity()))
         .entity(model)
         .build();
+  }
+
+  public static EdgeDescription toDescription(CreateEdgeRequest request) {
+    return new EdgeDescription(
+        new Ref<>(request.sourceNodeId),
+        new Ref<>(request.targetNodeId),
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   @Data

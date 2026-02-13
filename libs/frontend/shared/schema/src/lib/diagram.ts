@@ -41,6 +41,12 @@ export type DraftDiagramModel = Entity<{
   edges: DraftDiagramEdge[];
 }>;
 
+export type BatchCommitDiagramModel = Entity<{
+  nodes: DiagramNode['data'][];
+  edges: DiagramEdge['data'][];
+  nodeIdMapping: Record<string, string>;
+}>;
+
 export type Diagram = Entity<
   {
     id: string;
@@ -56,6 +62,7 @@ export type Diagram = Entity<
     'add-node': DiagramNode;
     'add-edge': DiagramEdge;
     'propose-model': DraftDiagramModel;
+    'batch-commit': BatchCommitDiagramModel;
     project: Project;
   }
 >;
