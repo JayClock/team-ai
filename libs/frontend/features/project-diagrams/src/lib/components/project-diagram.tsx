@@ -2,13 +2,14 @@ import { Collection, State } from '@hateoas-ts/resource';
 import { Diagram, DiagramNode, DiagramEdge } from '@shared/schema';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import '@xyflow/react/dist/style.css';
-import { Background, Controls, Edge } from '@xyflow/react';
+import { Background, Controls, Edge, Node } from '@xyflow/react';
 import { Canvas } from '@shared/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FulfillmentNode } from './fulfillment-node';
 import { GroupContainerNode } from './group-container-node';
 import { StickyNoteNode } from './sticky-note-node';
 import { DiagramTools } from './tools/diagram-tools';
+import { OptimisticDraftPreview } from './tools/settings-tool';
 
 interface Props {
   state: State<Diagram>;
@@ -26,6 +27,8 @@ export function ProjectDiagram(props: Props) {
     nodes: state.follow('nodes'),
     edges: state.follow('edges'),
   }));
+  const [optimisticPreview, setOptimisticPreview] =
+    useState<OptimisticDraftPreview | null>(null);
 
   const refreshDiagramResources = useCallback(() => {
     setDiagramResources({
@@ -68,18 +71,75 @@ export function ProjectDiagram(props: Props) {
     [edgesState.collection],
   );
 
+  const optimisticNodes = useMemo<Node[]>(
+    () =>
+      optimisticPreview?.nodes.map((node) => ({
+        id: node.id,
+        type: 'sticky-note',
+        position: {
+          x: node.positionX,
+          y: node.positionY,
+        },
+        data: {
+          content: node.content,
+          localData: {
+            optimistic: true,
+          },
+        },
+      })) ?? [],
+    [optimisticPreview],
+  );
+
+  const optimisticEdges = useMemo<Edge[]>(
+    () =>
+      optimisticPreview?.edges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        animated: true,
+      })) ?? [],
+    [optimisticPreview],
+  );
+
+  const canvasNodes = useMemo(
+    () => [...nodes, ...optimisticNodes],
+    [nodes, optimisticNodes],
+  );
+  const canvasEdges = useMemo(
+    () => [...edges, ...optimisticEdges],
+    [edges, optimisticEdges],
+  );
+
+  const handleDraftApplyOptimistic = useCallback(
+    (preview: OptimisticDraftPreview) => {
+      setOptimisticPreview(preview);
+    },
+    [],
+  );
+
+  const handleDraftApplyReverted = useCallback(() => {
+    setOptimisticPreview(null);
+  }, []);
+
+  const handleDraftApplied = useCallback(() => {
+    setOptimisticPreview(null);
+    refreshDiagramResources();
+  }, [refreshDiagramResources]);
+
   return (
     <div style={{ height: '100%', width: '100%' }}>
       <Canvas
         title={state.data.title}
-        nodes={nodes}
-        edges={edges}
+        nodes={canvasNodes}
+        edges={canvasEdges}
         nodeTypes={nodeTypes}
         fitView
       >
         <DiagramTools
           state={state}
-          onDraftApplied={refreshDiagramResources}
+          onDraftApplied={handleDraftApplied}
+          onDraftApplyOptimistic={handleDraftApplyOptimistic}
+          onDraftApplyReverted={handleDraftApplyReverted}
         />
         <Background />
         <Controls />

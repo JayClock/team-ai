@@ -41,6 +41,20 @@ type BatchEdgePayload = {
   targetNodeId: string;
 };
 
+export type OptimisticDraftPreview = {
+  nodes: Array<{
+    id: string;
+    positionX: number;
+    positionY: number;
+    content: string;
+  }>;
+  edges: Array<{
+    id: string;
+    source: string;
+    target: string;
+  }>;
+};
+
 type ValueTarget = {
   value?: string;
 };
@@ -48,6 +62,8 @@ type ValueTarget = {
 interface Props {
   state: State<Diagram>;
   onDraftApplied?: () => void;
+  onDraftApplyOptimistic?: (preview: OptimisticDraftPreview) => void;
+  onDraftApplyReverted?: () => void;
 }
 
 function toDraftSummary(draft: DraftDiagramModel['data']): string {
@@ -120,7 +136,12 @@ function toNodeReferenceKeys(
   return Array.from(keys);
 }
 
-export function SettingsTool({ state, onDraftApplied }: Props) {
+export function SettingsTool({
+  state,
+  onDraftApplied,
+  onDraftApplyOptimistic,
+  onDraftApplyReverted,
+}: Props) {
   const [requirement, setRequirement] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,6 +223,62 @@ export function SettingsTool({ state, onDraftApplied }: Props) {
     setError(undefined);
 
     try {
+      const optimisticNodeIdByDraftRef = new Map<string, string>();
+      const optimisticNodes: OptimisticDraftPreview['nodes'] = [];
+
+      for (let index = 0; index < latestDraft.nodes.length; index += 1) {
+        const draftNode = latestDraft.nodes[index];
+        const column = index % 3;
+        const row = Math.floor(index / 3);
+        const optimisticNodeId = `optimistic-node-${index + 1}`;
+
+        optimisticNodes.push({
+          id: optimisticNodeId,
+          positionX: 120 + column * 300,
+          positionY: 120 + row * 180,
+          content: `${draftNode.localData.label} (${draftNode.localData.type})`,
+        });
+
+        for (const key of toNodeReferenceKeys(draftNode, index)) {
+          optimisticNodeIdByDraftRef.set(key, optimisticNodeId);
+        }
+      }
+
+      const resolveOptimisticNodeId = (draftRefId: string): string | undefined => {
+        const direct = optimisticNodeIdByDraftRef.get(draftRefId);
+        if (direct) {
+          return direct;
+        }
+
+        const match = draftRefId.match(/node[-_]?(\d+)/i);
+        if (!match) {
+          return undefined;
+        }
+
+        const index = Number(match[1]) - 1;
+        return index >= 0 ? `optimistic-node-${index + 1}` : undefined;
+      };
+
+      const optimisticEdges: OptimisticDraftPreview['edges'] = [];
+      for (let index = 0; index < latestDraft.edges.length; index += 1) {
+        const draftEdge = latestDraft.edges[index];
+        const source = resolveOptimisticNodeId(draftEdge.sourceNode.id);
+        const target = resolveOptimisticNodeId(draftEdge.targetNode.id);
+        if (!source || !target) {
+          continue;
+        }
+        optimisticEdges.push({
+          id: `optimistic-edge-${index + 1}`,
+          source,
+          target,
+        });
+      }
+
+      onDraftApplyOptimistic?.({
+        nodes: optimisticNodes,
+        edges: optimisticEdges,
+      });
+
       const projectState = await state.follow('project').get();
       const draftRefToNodeRef = new Map<string, string>();
       const nodesPayload: BatchNodePayload[] = [];
@@ -297,6 +374,7 @@ export function SettingsTool({ state, onDraftApplied }: Props) {
 
       onDraftApplied?.();
     } catch (e) {
+      onDraftApplyReverted?.();
       const message = e instanceof Error ? e.message : 'Failed to apply draft';
       setError(message);
       setMessages((prev) => [
