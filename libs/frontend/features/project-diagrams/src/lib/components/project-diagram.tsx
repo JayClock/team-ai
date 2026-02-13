@@ -1,5 +1,5 @@
 import { Collection, State } from '@hateoas-ts/resource';
-import { Diagram, DiagramNode, DiagramEdge } from '@shared/schema';
+import { Diagram, DiagramEdge, DiagramNode, DraftDiagramModel } from '@shared/schema';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import '@xyflow/react/dist/style.css';
 import { Background, Controls, Edge, Node } from '@xyflow/react';
@@ -9,7 +9,11 @@ import { FulfillmentNode } from './fulfillment-node';
 import { GroupContainerNode } from './group-container-node';
 import { StickyNoteNode } from './sticky-note-node';
 import { DiagramTools } from './tools/diagram-tools';
-import { OptimisticDraftPreview } from './tools/settings-tool';
+import {
+  DraftApplyPayload,
+  OptimisticDraftPreview,
+  toNodeReferenceKeys,
+} from './tools/draft-utils';
 
 interface Props {
   state: State<Diagram>;
@@ -21,6 +25,28 @@ const nodeTypes = {
   'sticky-note': StickyNoteNode,
 };
 
+type BatchNodePayload = {
+  type: string;
+  logicalEntityId: string;
+  positionX: number;
+  positionY: number;
+  width: number;
+  height: number;
+};
+
+type BatchEdgePayload = {
+  sourceNodeId: string;
+  targetNodeId: string;
+};
+
+function getCreatedId(data: unknown): string | undefined {
+  if (typeof data !== 'object' || data === null) {
+    return undefined;
+  }
+  const id = (data as { id?: unknown }).id;
+  return typeof id === 'string' && id.length > 0 ? id : undefined;
+}
+
 export function ProjectDiagram(props: Props) {
   const { state } = props;
   const [diagramResources, setDiagramResources] = useState(() => ({
@@ -29,6 +55,9 @@ export function ProjectDiagram(props: Props) {
   }));
   const [optimisticPreview, setOptimisticPreview] =
     useState<OptimisticDraftPreview | null>(null);
+  const [pendingDraft, setPendingDraft] =
+    useState<DraftDiagramModel['data'] | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const refreshDiagramResources = useCallback(() => {
     setDiagramResources({
@@ -111,20 +140,114 @@ export function ProjectDiagram(props: Props) {
   );
 
   const handleDraftApplyOptimistic = useCallback(
-    (preview: OptimisticDraftPreview) => {
+    ({ draft, preview }: DraftApplyPayload) => {
+      setPendingDraft(draft);
       setOptimisticPreview(preview);
     },
     [],
   );
 
   const handleDraftApplyReverted = useCallback(() => {
+    setPendingDraft(null);
     setOptimisticPreview(null);
   }, []);
 
-  const handleDraftApplied = useCallback(() => {
-    setOptimisticPreview(null);
-    refreshDiagramResources();
-  }, [refreshDiagramResources]);
+  const handleSaveDraft = useCallback(async () => {
+    if (!pendingDraft || isSavingDraft) {
+      return;
+    }
+
+    if (!state.hasLink('project') || !state.hasLink('batch-commit')) {
+      throw new Error('Current diagram is missing required links for draft save.');
+    }
+
+    setIsSavingDraft(true);
+
+    try {
+      const projectState = await state.follow('project').get();
+      const draftRefToNodeRef = new Map<string, string>();
+      const nodesPayload: BatchNodePayload[] = [];
+
+      for (let index = 0; index < pendingDraft.nodes.length; index += 1) {
+        const draftNode = pendingDraft.nodes[index];
+        const fallbackName = `entity_${index + 1}`;
+        const name = draftNode.localData.name.trim() || fallbackName;
+        const label = draftNode.localData.label.trim() || name;
+
+        const createdLogicalEntity = await projectState
+          .follow('logical-entities')
+          .post({
+            data: {
+              type: draftNode.localData.type,
+              name,
+              label,
+            },
+          });
+
+        const logicalEntityId = getCreatedId(createdLogicalEntity.data);
+        if (!logicalEntityId) {
+          throw new Error('Failed to create logical entity for draft node.');
+        }
+
+        const column = index % 3;
+        const row = Math.floor(index / 3);
+        const nodeRef = `node-${index + 1}`;
+
+        nodesPayload.push({
+          type: 'fulfillment-node',
+          logicalEntityId,
+          positionX: 120 + column * 300,
+          positionY: 120 + row * 180,
+          width: 220,
+          height: 120,
+        });
+
+        for (const key of toNodeReferenceKeys(draftNode, index)) {
+          draftRefToNodeRef.set(key, nodeRef);
+        }
+      }
+
+      const resolveNodeId = (draftRefId: string): string | undefined => {
+        const direct = draftRefToNodeRef.get(draftRefId);
+        if (direct) {
+          return direct;
+        }
+
+        const match = draftRefId.match(/node[-_]?(\d+)/i);
+        if (!match) {
+          return undefined;
+        }
+
+        const index = Number(match[1]) - 1;
+        return index >= 0 ? `node-${index + 1}` : undefined;
+      };
+
+      const edgesPayload: BatchEdgePayload[] = [];
+      for (const draftEdge of pendingDraft.edges) {
+        const sourceNodeId = resolveNodeId(draftEdge.sourceNode.id);
+        const targetNodeId = resolveNodeId(draftEdge.targetNode.id);
+        if (!sourceNodeId || !targetNodeId) {
+          continue;
+        }
+
+        edgesPayload.push({
+          sourceNodeId,
+          targetNodeId,
+        });
+      }
+
+      await state.action('batch-commit').submit({
+        nodes: nodesPayload,
+        edges: edgesPayload,
+      });
+
+      setPendingDraft(null);
+      setOptimisticPreview(null);
+      refreshDiagramResources();
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }, [isSavingDraft, pendingDraft, refreshDiagramResources, state]);
 
   return (
     <div style={{ height: '100%', width: '100%' }}>
@@ -137,7 +260,9 @@ export function ProjectDiagram(props: Props) {
       >
         <DiagramTools
           state={state}
-          onDraftApplied={handleDraftApplied}
+          canSaveDraft={pendingDraft !== null}
+          isSavingDraft={isSavingDraft}
+          onSaveDraft={handleSaveDraft}
           onDraftApplyOptimistic={handleDraftApplyOptimistic}
           onDraftApplyReverted={handleDraftApplyReverted}
         />

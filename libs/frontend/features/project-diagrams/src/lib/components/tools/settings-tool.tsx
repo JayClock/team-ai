@@ -20,39 +20,15 @@ import { State } from '@hateoas-ts/resource';
 import { Diagram, DraftDiagramModel } from '@shared/schema';
 import { Settings2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
+import {
+  buildOptimisticDraftPreview,
+  DraftApplyPayload,
+} from './draft-utils';
 
 type ChatMessage = {
   id: string;
   role: 'assistant' | 'user';
   content: string;
-};
-
-type BatchNodePayload = {
-  type: string;
-  logicalEntityId: string;
-  positionX: number;
-  positionY: number;
-  width: number;
-  height: number;
-};
-
-type BatchEdgePayload = {
-  sourceNodeId: string;
-  targetNodeId: string;
-};
-
-export type OptimisticDraftPreview = {
-  nodes: Array<{
-    id: string;
-    positionX: number;
-    positionY: number;
-    content: string;
-  }>;
-  edges: Array<{
-    id: string;
-    source: string;
-    target: string;
-  }>;
 };
 
 type ValueTarget = {
@@ -61,8 +37,8 @@ type ValueTarget = {
 
 interface Props {
   state: State<Diagram>;
-  onDraftApplied?: () => void;
-  onDraftApplyOptimistic?: (preview: OptimisticDraftPreview) => void;
+  isSavingDraft?: boolean;
+  onDraftApplyOptimistic?: (payload: DraftApplyPayload) => void;
   onDraftApplyReverted?: () => void;
 }
 
@@ -100,64 +76,26 @@ function toDraftSummary(draft: DraftDiagramModel['data']): string {
   ].join('\n');
 }
 
-function getCreatedId(data: unknown): string | undefined {
-  if (typeof data !== 'object' || data === null) {
-    return undefined;
-  }
-  const id = (data as { id?: unknown }).id;
-  return typeof id === 'string' && id.length > 0 ? id : undefined;
-}
-
-function getArrayLength(
-  data: unknown,
-  key: 'nodes' | 'edges',
-): number | undefined {
-  if (typeof data !== 'object' || data === null) {
-    return undefined;
-  }
-  const value = (data as { nodes?: unknown; edges?: unknown })[key];
-  return Array.isArray(value) ? value.length : undefined;
-}
-
-function toNodeReferenceKeys(
-  node: DraftDiagramModel['data']['nodes'][number],
-  index: number,
-): string[] {
-  const keys = new Set<string>();
-  keys.add(`node-${index + 1}`);
-  keys.add(`node_${index + 1}`);
-  keys.add(String(index + 1));
-  if (node.localData.name) {
-    keys.add(node.localData.name);
-  }
-  if (node.localData.label) {
-    keys.add(node.localData.label);
-  }
-  return Array.from(keys);
-}
-
 export function SettingsTool({
   state,
-  onDraftApplied,
+  isSavingDraft = false,
   onDraftApplyOptimistic,
   onDraftApplyReverted,
 }: Props) {
   const [requirement, setRequirement] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isApplying, setIsApplying] = useState(false);
   const [error, setError] = useState<string>();
-  const [latestDraft, setLatestDraft] = useState<DraftDiagramModel['data']>();
 
   const canSubmit = useMemo(
-    () => requirement.trim().length > 0 && !isSubmitting,
-    [requirement, isSubmitting],
+    () => requirement.trim().length > 0 && !isSubmitting && !isSavingDraft,
+    [requirement, isSubmitting, isSavingDraft],
   );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedRequirement = requirement.trim();
-    if (!trimmedRequirement || isSubmitting) {
+    if (!trimmedRequirement || isSubmitting || isSavingDraft) {
       return;
     }
 
@@ -184,16 +122,22 @@ export function SettingsTool({
         .action('propose-model')
         .submit({ requirement: trimmedRequirement });
 
-      setLatestDraft(result.data);
+      const preview = buildOptimisticDraftPreview(result.data);
+      onDraftApplyOptimistic?.({
+        draft: result.data,
+        preview,
+      });
+
       setMessages((prev) => [
         ...prev,
         {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-          content: toDraftSummary(result.data),
+          content: `${toDraftSummary(result.data)}\n\nDraft rendered on canvas. Click "Save Draft" in the top-right panel to persist changes.`,
         },
       ]);
     } catch (e) {
+      onDraftApplyReverted?.();
       const message = e instanceof Error ? e.message : 'Failed to propose model';
       setError(message);
       setMessages((prev) => [
@@ -206,187 +150,6 @@ export function SettingsTool({
       ]);
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleApplyDraft = async () => {
-    if (!latestDraft || isApplying) {
-      return;
-    }
-
-    if (!state.hasLink('project') || !state.hasLink('batch-commit')) {
-      setError('Current diagram is missing required links for draft apply.');
-      return;
-    }
-
-    setIsApplying(true);
-    setError(undefined);
-
-    try {
-      const optimisticNodeIdByDraftRef = new Map<string, string>();
-      const optimisticNodes: OptimisticDraftPreview['nodes'] = [];
-
-      for (let index = 0; index < latestDraft.nodes.length; index += 1) {
-        const draftNode = latestDraft.nodes[index];
-        const column = index % 3;
-        const row = Math.floor(index / 3);
-        const optimisticNodeId = `optimistic-node-${index + 1}`;
-
-        optimisticNodes.push({
-          id: optimisticNodeId,
-          positionX: 120 + column * 300,
-          positionY: 120 + row * 180,
-          content: `${draftNode.localData.label} (${draftNode.localData.type})`,
-        });
-
-        for (const key of toNodeReferenceKeys(draftNode, index)) {
-          optimisticNodeIdByDraftRef.set(key, optimisticNodeId);
-        }
-      }
-
-      const resolveOptimisticNodeId = (draftRefId: string): string | undefined => {
-        const direct = optimisticNodeIdByDraftRef.get(draftRefId);
-        if (direct) {
-          return direct;
-        }
-
-        const match = draftRefId.match(/node[-_]?(\d+)/i);
-        if (!match) {
-          return undefined;
-        }
-
-        const index = Number(match[1]) - 1;
-        return index >= 0 ? `optimistic-node-${index + 1}` : undefined;
-      };
-
-      const optimisticEdges: OptimisticDraftPreview['edges'] = [];
-      for (let index = 0; index < latestDraft.edges.length; index += 1) {
-        const draftEdge = latestDraft.edges[index];
-        const source = resolveOptimisticNodeId(draftEdge.sourceNode.id);
-        const target = resolveOptimisticNodeId(draftEdge.targetNode.id);
-        if (!source || !target) {
-          continue;
-        }
-        optimisticEdges.push({
-          id: `optimistic-edge-${index + 1}`,
-          source,
-          target,
-        });
-      }
-
-      onDraftApplyOptimistic?.({
-        nodes: optimisticNodes,
-        edges: optimisticEdges,
-      });
-
-      const projectState = await state.follow('project').get();
-      const draftRefToNodeRef = new Map<string, string>();
-      const nodesPayload: BatchNodePayload[] = [];
-
-      for (let index = 0; index < latestDraft.nodes.length; index += 1) {
-        const draftNode = latestDraft.nodes[index];
-        const fallbackName = `entity_${index + 1}`;
-        const name = draftNode.localData.name?.trim() || fallbackName;
-        const label = draftNode.localData.label?.trim() || name;
-
-        const createdLogicalEntity = await projectState
-          .follow('logical-entities')
-          .post({
-            data: {
-              type: draftNode.localData.type,
-              name,
-              label,
-            },
-          });
-
-        const logicalEntityId = getCreatedId(createdLogicalEntity.data);
-        if (!logicalEntityId) {
-          throw new Error('Failed to create logical entity for draft node.');
-        }
-
-        const column = index % 3;
-        const row = Math.floor(index / 3);
-        const nodeRef = `node-${index + 1}`;
-
-        nodesPayload.push({
-          type: 'fulfillment-node',
-          logicalEntityId,
-          positionX: 120 + column * 300,
-          positionY: 120 + row * 180,
-          width: 220,
-          height: 120,
-        });
-
-        for (const key of toNodeReferenceKeys(draftNode, index)) {
-          draftRefToNodeRef.set(key, nodeRef);
-        }
-      }
-
-      const resolveNodeId = (draftRefId: string): string | undefined => {
-        const direct = draftRefToNodeRef.get(draftRefId);
-        if (direct) {
-          return direct;
-        }
-
-        const match = draftRefId.match(/node[-_]?(\d+)/i);
-        if (!match) {
-          return undefined;
-        }
-
-        const index = Number(match[1]) - 1;
-        return index >= 0 ? `node-${index + 1}` : undefined;
-      };
-
-      let skippedEdges = 0;
-      const edgesPayload: BatchEdgePayload[] = [];
-
-      for (const draftEdge of latestDraft.edges) {
-        const sourceNodeId = resolveNodeId(draftEdge.sourceNode.id);
-        const targetNodeId = resolveNodeId(draftEdge.targetNode.id);
-
-        if (!sourceNodeId || !targetNodeId) {
-          skippedEdges += 1;
-          continue;
-        }
-
-        edgesPayload.push({
-          sourceNodeId,
-          targetNodeId,
-        });
-      }
-
-      const created = await state.action('batch-commit').submit({
-        nodes: nodesPayload,
-        edges: edgesPayload,
-      });
-
-      const createdNodes = getArrayLength(created.data, 'nodes') ?? nodesPayload.length;
-      const createdEdges = getArrayLength(created.data, 'edges') ?? edgesPayload.length;
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-apply-${Date.now()}`,
-          role: 'assistant',
-          content: `Applied draft to canvas.\n\n- Created nodes: ${createdNodes}\n- Created edges: ${createdEdges}\n- Skipped edges: ${skippedEdges}`,
-        },
-      ]);
-
-      onDraftApplied?.();
-    } catch (e) {
-      onDraftApplyReverted?.();
-      const message = e instanceof Error ? e.message : 'Failed to apply draft';
-      setError(message);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-apply-error-${Date.now()}`,
-          role: 'assistant',
-          content: `Apply to canvas failed: ${message}`,
-        },
-      ]);
-    } finally {
-      setIsApplying(false);
     }
   };
 
@@ -438,7 +201,7 @@ export function SettingsTool({
               const target = event.target as ValueTarget;
               setRequirement(target.value ?? '');
             }}
-            disabled={isSubmitting || isApplying}
+            disabled={isSubmitting || isSavingDraft}
             className="min-h-24 resize-y"
             aria-label="Model requirement"
           />
@@ -447,18 +210,9 @@ export function SettingsTool({
               {error}
             </p>
           ) : null}
-          <Button type="submit" disabled={!canSubmit || isApplying}>
+          <Button type="submit" disabled={!canSubmit}>
             {isSubmitting ? <Spinner className="size-4" /> : null}
             Propose Model
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!latestDraft || isSubmitting || isApplying}
-            onClick={handleApplyDraft}
-          >
-            {isApplying ? <Spinner className="size-4" /> : null}
-            Apply Draft to Canvas
           </Button>
         </form>
       </SheetContent>
