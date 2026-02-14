@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -170,7 +171,19 @@ public class DiagramsApiTest extends ApiTest {
             is("array"))
         .body(
             "_templates.'commit-draft'.properties.find { it.name == 'edges' }._schema.type",
-            is("array"));
+            is("array"))
+        .body(
+            "_templates.'commit-draft'.properties.find { it.name == 'nodes' }._schema.toString()",
+            containsString("logicalEntity"))
+        .body(
+            "_templates.'commit-draft'.properties.find { it.name == 'nodes' }._schema.toString()",
+            not(containsString("logicalEntity.id")))
+        .body(
+            "_templates.'commit-draft'.properties.find { it.name == 'edges' }._schema.toString()",
+            containsString("sourceNode"))
+        .body(
+            "_templates.'commit-draft'.properties.find { it.name == 'edges' }._schema.toString()",
+            containsString("targetNode"));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
   }

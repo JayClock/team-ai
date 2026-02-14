@@ -24,6 +24,7 @@ import org.springframework.transaction.support.SimpleTransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.ContextLoader;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
 import reengineering.ddd.teamai.description.DraftDiagram;
@@ -208,10 +209,10 @@ public class DiagramApi {
     @WithJsonSchema(LogicalEntitiesApi.CreateLogicalEntityRequest[].class)
     private List<LogicalEntitiesApi.CreateLogicalEntityRequest> logicalEntities;
 
-    @WithJsonSchema(NodesApi.CreateNodeRequest[].class)
+    @WithJsonSchema(CommitDraftNodeSchema[].class)
     private List<NodesApi.CreateNodeRequest> nodes;
 
-    @WithJsonSchema(EdgesApi.CreateEdgeRequest[].class)
+    @WithJsonSchema(CommitDraftEdgeSchema[].class)
     private List<EdgesApi.CreateEdgeRequest> edges;
 
     public List<LogicalEntitiesApi.CreateLogicalEntityRequest> safeLogicalEntities() {
@@ -225,5 +226,24 @@ public class DiagramApi {
     public List<EdgesApi.CreateEdgeRequest> safeEdges() {
       return edges == null ? List.of() : edges;
     }
+  }
+
+  @Data
+  @NoArgsConstructor
+  public static class CommitDraftNodeSchema {
+    @NotNull private String type;
+    private Ref<String> logicalEntity;
+    private Ref<String> parent;
+    private double positionX;
+    private double positionY;
+    @NotNull private Integer width;
+    @NotNull private Integer height;
+  }
+
+  @Data
+  @NoArgsConstructor
+  public static class CommitDraftEdgeSchema {
+    @NotNull private Ref<String> sourceNode;
+    @NotNull private Ref<String> targetNode;
   }
 }
