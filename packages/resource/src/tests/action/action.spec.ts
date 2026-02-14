@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ActionNotFound, SimpleAction } from '../../lib/action/action.js';
+import {
+  ActionNotFound,
+  ActionValidationError,
+  SimpleAction,
+} from '../../lib/action/action.js';
 import type {
   ActionFormSchema,
   SchemaPlugin,
@@ -409,6 +413,35 @@ describe('SimpleAction', () => {
         );
       });
     });
+
+    describe('with validation issues', () => {
+      it('should throw ActionValidationError and not dispatch request', async () => {
+        const invalidSchemaPlugin: SchemaPlugin = {
+          createSchema: () => ({
+            '~standard': {
+              version: 1,
+              vendor: 'test-invalid',
+              validate: () => ({
+                issues: [
+                  {
+                    message: 'Name is required',
+                    path: ['name'],
+                  },
+                ],
+              }),
+            },
+          }),
+        };
+        action = new SimpleAction<TestEntity>(mockClient, mockForm, invalidSchemaPlugin);
+
+        await expect(action.submit({})).rejects.toBeInstanceOf(ActionValidationError);
+        await expect(action.submit({})).rejects.toMatchObject({
+          message: 'name: Name is required',
+        });
+        expect(mockClient.fetcher.fetchOrThrow).not.toHaveBeenCalled();
+        expect(mockClient.go).not.toHaveBeenCalled();
+      });
+    });
   });
 });
 
@@ -425,5 +458,21 @@ describe('ActionNotFound', () => {
     const error = new ActionNotFound('Test error');
 
     expect(error.name).toBe('ActionNotFound');
+  });
+});
+
+describe('ActionValidationError', () => {
+  it('should include issues and formatted message', () => {
+    const error = new ActionValidationError([
+      {
+        message: 'Invalid email',
+        path: ['email'],
+      },
+    ]);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe('ActionValidationError');
+    expect(error.message).toBe('email: Invalid email');
+    expect(error.issues).toHaveLength(1);
   });
 });

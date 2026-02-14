@@ -225,11 +225,13 @@ export function ProjectDiagram(props: Props) {
         });
       }
 
-      await state.action('commit-draft').submit({
+      const commitDraftAction = state.action('commit-draft');
+      const payload = {
         logicalEntities: logicalEntitiesPayload,
         nodes: nodesPayload,
         edges: edgesPayload,
-      });
+      };
+      await commitDraftAction.submit(payload);
     } finally {
       setIsSavingDraft(false);
     }

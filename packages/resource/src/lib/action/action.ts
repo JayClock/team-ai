@@ -7,6 +7,36 @@ import { ClientInstance } from '../client-instance.js';
 import type { StandardSchemaV1 } from '@standard-schema/spec';
 import * as qs from 'querystring';
 
+const toPathSegment = (
+  entry: PropertyKey | StandardSchemaV1.PathSegment,
+): string => {
+  if (typeof entry === 'object' && entry !== null && 'key' in entry) {
+    return String(entry.key);
+  }
+  return String(entry);
+};
+
+const formatValidationMessage = (
+  issues: readonly StandardSchemaV1.Issue[],
+): string => {
+  if (issues.length === 0) {
+    return 'Action payload validation failed.';
+  }
+
+  const [firstIssue] = issues;
+  const path =
+    firstIssue.path && firstIssue.path.length > 0
+      ? firstIssue.path.map((entry) => toPathSegment(entry)).join('.')
+      : undefined;
+  const prefix = path ? `${path}: ` : '';
+
+  if (issues.length === 1) {
+    return `${prefix}${firstIssue.message}`;
+  }
+
+  return `${prefix}${firstIssue.message} (+${issues.length - 1} more)`;
+};
+
 
 /**
  * Represents an executable hypermedia action (form submission).
@@ -202,6 +232,13 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
 
   async submit(formData: Record<string, SafeAny>): Promise<State<TEntity>> {
     const submitFormData = this.normalizeSubmitFormData(formData);
+    const validationResult = await this.formSchema['~standard'].validate(submitFormData);
+    const validationIssues =
+      'issues' in validationResult ? validationResult.issues : undefined;
+    if (validationIssues && validationIssues.length > 0) {
+      throw new ActionValidationError(validationIssues);
+    }
+
     const uri = new URL(this.uri, this.client.bookmarkUri);
 
     if (this.method === 'GET') {
@@ -247,4 +284,19 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
  */
 export class ActionNotFound extends Error {
   override name = 'ActionNotFound';
+}
+
+/**
+ * Error thrown when action payload validation fails before request dispatch.
+ *
+ * @category Resource
+ */
+export class ActionValidationError extends Error {
+  override name = 'ActionValidationError';
+  readonly issues: readonly StandardSchemaV1.Issue[];
+
+  constructor(issues: readonly StandardSchemaV1.Issue[]) {
+    super(formatValidationMessage(issues));
+    this.issues = issues;
+  }
 }

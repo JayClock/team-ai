@@ -39,6 +39,7 @@ export type { FetchMiddleware } from './http/fetcher.js';
 export {
   defaultSchemaPlugin,
   standardActionSchemaPlugin,
+  ActionValidationError,
 } from './action/action.js';
 export type {
   Action,

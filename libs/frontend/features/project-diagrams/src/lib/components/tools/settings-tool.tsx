@@ -104,6 +104,9 @@ export function SettingsTool({
       return;
     }
 
+    const proposeModelAction = state.action('propose-model');
+    const payload = { requirement: trimmedRequirement };
+
     setIsSubmitting(true);
     setError(undefined);
     setRequirement('');
@@ -118,9 +121,7 @@ export function SettingsTool({
     ]);
 
     try {
-      const result = await state
-        .action('propose-model')
-        .submit({ requirement: trimmedRequirement });
+      const result = await proposeModelAction.submit(payload);
 
       const preview = buildOptimisticDraftPreview(result.data);
       onDraftApplyOptimistic?.({
