@@ -11,10 +11,55 @@ import { Form } from '../../form/form.js';
 import { Field } from '../../form/field.js';
 import { HttpMethod } from 'src/lib/http/util.js';
 
+const HAL_FORMS_STANDARD_PROPERTY_KEYS = new Set([
+  'name',
+  'type',
+  'value',
+  'prompt',
+  'required',
+  'readOnly',
+  'placeholder',
+  'regex',
+  'minLength',
+  'maxLength',
+  'min',
+  'max',
+  'step',
+  'cols',
+  'rows',
+  'options',
+]);
+
+type HalCustomFields = Record<string, SafeAny>;
+
 export function isInlineOptions(
   options: HalFormsSimpleProperty['options'],
 ): options is HalFormsOptionsInline {
   return (options as SafeAny).inline !== undefined;
+}
+
+function extractHalCustomFields(halField: HalFormsProperty): HalCustomFields {
+  const customFields: HalCustomFields = {};
+
+  for (const [key, value] of Object.entries(halField as Record<string, SafeAny>)) {
+    if (HAL_FORMS_STANDARD_PROPERTY_KEYS.has(key)) continue;
+    customFields[key] = value;
+  }
+
+  return customFields;
+}
+
+function withHalCustomFields(field: Field, halField: HalFormsProperty): Field {
+  const customFields = extractHalCustomFields(halField);
+
+  if (!Object.keys(customFields).length) {
+    return field;
+  }
+
+  return {
+    ...field,
+    extensions: customFields,
+  };
 }
 
 export function parseHalTemplates(
@@ -65,12 +110,12 @@ export function parseHalField(halField: HalFormsProperty): Field {
             }
           }
 
-          return {
+          return withHalCustomFields({
             ...baseField,
             options,
-          };
+          }, halField);
         } else {
-          return {
+          return withHalCustomFields({
             ...baseField,
             dataSource: {
               href: halField.options.link.href,
@@ -78,10 +123,10 @@ export function parseHalField(halField: HalFormsProperty): Field {
               labelField,
               valueField,
             },
-          };
+          }, halField);
         }
       } else {
-        return {
+        return withHalCustomFields({
           name: halField.name,
           type: halField.type ?? 'text',
           required: halField.required || false,
@@ -92,10 +137,10 @@ export function parseHalField(halField: HalFormsProperty): Field {
           placeholder: halField.placeholder,
           minLength: halField.minLength,
           maxLength: halField.maxLength,
-        };
+        }, halField);
       }
     case 'hidden':
-      return {
+      return withHalCustomFields({
         name: halField.name,
         type: 'hidden',
         required: halField.required || false,
@@ -103,9 +148,9 @@ export function parseHalField(halField: HalFormsProperty): Field {
         value: halField.value,
         label: halField.prompt,
         placeholder: halField.placeholder,
-      };
+      }, halField);
     case 'textarea':
-      return {
+      return withHalCustomFields({
         name: halField.name,
         type: halField.type,
         required: halField.required || false,
@@ -117,9 +162,9 @@ export function parseHalField(halField: HalFormsProperty): Field {
         rows: halField.rows,
         minLength: halField.minLength,
         maxLength: halField.maxLength,
-      };
+      }, halField);
     case 'password':
-      return {
+      return withHalCustomFields({
         name: halField.name,
         type: halField.type,
         required: halField.required || false,
@@ -128,12 +173,12 @@ export function parseHalField(halField: HalFormsProperty): Field {
         placeholder: halField.placeholder,
         minLength: halField.minLength,
         maxLength: halField.maxLength,
-      };
+      }, halField);
     case 'date':
     case 'month':
     case 'week':
     case 'time':
-      return {
+      return withHalCustomFields({
         name: halField.name,
         type: halField.type,
         value: halField.value,
@@ -143,10 +188,10 @@ export function parseHalField(halField: HalFormsProperty): Field {
         min: halField.min,
         max: halField.max,
         step: halField.step,
-      };
+      }, halField);
     case 'number':
     case 'range':
-      return {
+      return withHalCustomFields({
         name: halField.name,
         type: halField.type,
         value: halField.value ? +halField.value : undefined,
@@ -156,9 +201,9 @@ export function parseHalField(halField: HalFormsProperty): Field {
         min: halField.min,
         max: halField.max,
         step: halField.step,
-      };
+      }, halField);
     case 'datetime-local':
-      return {
+      return withHalCustomFields({
         name: halField.name,
         type: halField.type,
         value: halField.value ? new Date(halField.value) : undefined,
@@ -168,25 +213,25 @@ export function parseHalField(halField: HalFormsProperty): Field {
         min: halField.min,
         max: halField.max,
         step: halField.step,
-      };
+      }, halField);
     case 'color':
-      return {
+      return withHalCustomFields({
         name: halField.name,
         type: halField.type,
         required: halField.required || false,
         readOnly: halField.readOnly || false,
         label: halField.prompt,
         value: halField.value,
-      };
+      }, halField);
     case 'radio':
     case 'checkbox':
-      return {
+      return withHalCustomFields({
         name: halField.name,
         type: halField.type,
         required: halField.required || false,
         readOnly: halField.readOnly || false,
         label: halField.prompt,
         value: !!halField.value,
-      };
+      }, halField);
   }
 }

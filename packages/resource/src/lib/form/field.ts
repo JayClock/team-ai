@@ -70,6 +70,12 @@ interface BaseField<T> {
    * A human-readable label for the field.
    */
   label?: string;
+
+  /**
+   * Non-standard HAL-FORMS members preserved from the original backend field.
+   */
+  extensions?: Record<string, unknown>;
+
 }
 
 /**

@@ -142,6 +142,43 @@ describe('parseHalTemplates', () => {
     expect(forms[0].fields[1].type).toBe('textarea');
   });
 
+  it('should preserve custom HAL members under field.extensions', () => {
+    const property = {
+      name: 'title',
+      type: 'text' as const,
+      required: true,
+      prompt: 'Title',
+      customSchema: {
+        kind: 'string',
+      },
+      _schema: {
+        kind: 'string',
+      },
+    } as HalFormsProperty & {
+      customSchema: { kind: string };
+      _schema: { kind: string };
+    };
+
+    const templates: Record<string, HalFormsTemplate> = {
+      create: {
+        method: 'POST',
+        properties: [property],
+      },
+    };
+
+    const forms = parseHalTemplates(mockLinks, templates);
+    const parsedField = forms[0].fields[0];
+
+    expect(parsedField.extensions).toEqual({
+      customSchema: {
+        kind: 'string',
+      },
+      _schema: {
+        kind: 'string',
+      },
+    });
+  });
+
   it('should handle empty templates object', () => {
     const forms = parseHalTemplates(mockLinks, {});
 
