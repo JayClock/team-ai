@@ -2,6 +2,17 @@ import type { ActionFormSchema, SchemaPlugin } from './action.js';
 import { Field } from '../form/field.js';
 import * as z from 'zod';
 
+type FieldSchemaNode = {
+  children: Map<string, FieldSchemaNode>;
+  schema?: z.ZodTypeAny;
+  required: boolean;
+};
+
+type BuiltNode = {
+  schema: z.ZodTypeAny;
+  required: boolean;
+};
+
 const createZodSchemaForField = (field: Field): z.ZodTypeAny => {
   let schema: z.ZodTypeAny;
 
@@ -74,12 +85,68 @@ const createZodSchemaForField = (field: Field): z.ZodTypeAny => {
   return field.required ? schema : schema.optional();
 };
 
+const createNode = (): FieldSchemaNode => ({
+  children: new Map<string, FieldSchemaNode>(),
+  required: false,
+});
+
+const insertField = (root: FieldSchemaNode, field: Field) => {
+  const path = field.name.split('.').filter(Boolean);
+  if (path.length === 0) return;
+
+  let current = root;
+  for (let i = 0; i < path.length; i++) {
+    const part = path[i];
+    let next = current.children.get(part);
+    if (!next) {
+      next = createNode();
+      current.children.set(part, next);
+    }
+
+    if (i === path.length - 1) {
+      next.schema = createZodSchemaForField(field);
+      next.required = field.required;
+    }
+    current = next;
+  }
+};
+
+const buildNode = (node: FieldSchemaNode): BuiltNode => {
+  if (node.children.size === 0) {
+    return { schema: node.schema ?? z.unknown(), required: node.required };
+  }
+
+  const shape: Record<string, z.ZodTypeAny> = {};
+  let hasRequiredChild = false;
+
+  for (const [key, child] of node.children) {
+    const builtChild = buildNode(child);
+    shape[key] = builtChild.schema;
+    if (builtChild.required) {
+      hasRequiredChild = true;
+    }
+  }
+
+  const objectSchema = z.object(shape);
+  if (hasRequiredChild) {
+    return { schema: objectSchema, required: true };
+  }
+  return { schema: objectSchema.optional(), required: false };
+};
+
 export const zodSchemaPlugin: SchemaPlugin = {
   createSchema(fields: Field[]): ActionFormSchema {
-    const shape: Record<string, z.ZodTypeAny> = {};
+    const root = createNode();
+
     for (const field of fields) {
-      shape[field.name] = createZodSchemaForField(field);
+      insertField(root, field);
     }
+
+    const shape: Record<string, z.ZodTypeAny> = {};
+    for (const [key, child] of root.children) {
+      shape[key] = buildNode(child).schema;
+    }
+
     return z.object(shape);
   },
 };

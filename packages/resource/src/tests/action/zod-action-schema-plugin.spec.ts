@@ -239,4 +239,31 @@ describe('zodSchemaPlugin', () => {
     const schema = zodSchemaPlugin.createSchema([]);
     await expectSchemaValid(schema, {});
   });
+
+  it('should map dot notation fields to nested objects', async () => {
+    const schema = zodSchemaPlugin.createSchema([
+      {
+        name: 'user.id',
+        type: 'text',
+        required: true,
+        readOnly: false,
+        label: 'User ID',
+      } as Field,
+      {
+        name: 'user.nickname',
+        type: 'text',
+        required: false,
+        readOnly: false,
+        label: 'Nickname',
+      } as Field,
+    ]);
+
+    await expectSchemaValid(schema, { user: { id: 'u-1' } });
+    await expectSchemaValid(schema, {
+      user: { id: 'u-1', nickname: 'jay' },
+    });
+    await expectSchemaInvalid(schema, {});
+    await expectSchemaInvalid(schema, { 'user.id': 'u-1' });
+    await expectSchemaInvalid(schema, { user: { id: 123 } });
+  });
 });
