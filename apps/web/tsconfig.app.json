@@ -41,6 +41,9 @@
       "path": "../../packages/resource/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/frontend/shared/util-http/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/resource-react/tsconfig.lib.json"
     },
     {

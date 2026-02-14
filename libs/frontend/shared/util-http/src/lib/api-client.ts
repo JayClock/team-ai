@@ -1,7 +1,7 @@
 import { createClient, FetchMiddleware } from '@hateoas-ts/resource';
-import { zodSchemaPlugin } from '@hateoas-ts/resource/zod';
 import { appConfig } from './config/app.config.js';
 import { Root } from '@shared/schema';
+import { halFormsJsonSchemaZodSchemaPlugin } from './hal-forms-json-schema-zod-schema-plugin.js';
 
 function buildLoginUrlWithReturnTo(): string {
   const currentPath = window.location.pathname + window.location.search;
@@ -12,7 +12,7 @@ function buildLoginUrlWithReturnTo(): string {
 export const apiClient = createClient({
   baseURL: appConfig.api.baseURL,
   sendUserAgent: false,
-  schemaPlugin: zodSchemaPlugin,
+  schemaPlugin: halFormsJsonSchemaZodSchemaPlugin,
 });
 
 export const rootResource = apiClient.go<Root>('/api');

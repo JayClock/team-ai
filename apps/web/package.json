@@ -6,6 +6,7 @@
   "dependencies": {
     "@features/conversation-messages": "workspace:*",
     "@features/project-conversations": "workspace:*",
+    "@shared/util-http": "workspace:*",
     "@features/user-projects": "workspace:*",
     "@shells/layout": "workspace:*"
   },

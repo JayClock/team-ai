@@ -77,6 +77,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      json-schema-typed:
+        specifier: ^8.0.2
+        version: 8.0.2
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@19.0.0)
@@ -339,6 +342,9 @@ importers:
       '@features/user-projects':
         specifier: workspace:*
         version: link:../../libs/frontend/features/user-projects
+      '@shared/util-http':
+        specifier: workspace:*
+        version: link:../../libs/frontend/shared/util-http
       '@shells/layout':
         specifier: workspace:*
         version: link:../../libs/frontend/shells/layout
@@ -13324,14 +13330,14 @@ snapshots:
       chai: 6.2.1
       tinyrainbow: 3.0.3
 
-  '@vitest/mocker@4.0.15(msw@2.12.4(@types/node@20.19.26)(typescript@5.9.3))(vite@7.2.7(@types/node@20.19.9)(jiti@2.4.2)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.62.1)(terser@5.44.1)(yaml@2.8.2))':
+  '@vitest/mocker@4.0.15(msw@2.12.4(@types/node@20.19.26)(typescript@5.9.3))(vite@7.2.7(@types/node@20.19.26)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.96.0)(terser@5.44.1)(yaml@2.8.2))':
     dependencies:
       '@vitest/spy': 4.0.15
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
       msw: 2.12.4(@types/node@20.19.26)(typescript@5.9.3)
-      vite: 7.2.7(@types/node@20.19.9)(jiti@2.4.2)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.62.1)(terser@5.44.1)(yaml@2.8.2)
+      vite: 7.2.7(@types/node@20.19.26)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.96.0)(terser@5.44.1)(yaml@2.8.2)
 
   '@vitest/mocker@4.0.15(msw@2.12.4(@types/node@20.19.9)(typescript@5.9.3))(vite@7.2.7(@types/node@20.19.9)(jiti@2.4.2)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.62.1)(terser@5.44.1)(yaml@2.8.2))':
     dependencies:
@@ -13368,7 +13374,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.15(@opentelemetry/api@1.9.0)(@types/node@20.19.9)(@vitest/ui@4.0.15)(jiti@2.4.2)(jsdom@22.1.0)(less@4.4.2)(lightningcss@1.30.2)(msw@2.12.4(@types/node@20.19.9)(typescript@5.9.3))(sass-embedded@1.96.0)(sass@1.62.1)(terser@5.44.1)(yaml@2.8.2)
+      vitest: 4.0.15(@opentelemetry/api@1.9.0)(@types/node@20.19.26)(@vitest/ui@4.0.15)(jiti@2.6.1)(jsdom@22.1.0)(less@4.4.2)(lightningcss@1.30.2)(msw@2.12.4(@types/node@20.19.26)(typescript@5.9.3))(sass-embedded@1.96.0)(sass@1.96.0)(terser@5.44.1)(yaml@2.8.2)
 
   '@vitest/utils@4.0.15':
     dependencies:
@@ -20191,7 +20197,7 @@ snapshots:
   vitest@4.0.15(@opentelemetry/api@1.9.0)(@types/node@20.19.26)(@vitest/ui@4.0.15)(jiti@2.6.1)(jsdom@22.1.0)(less@4.4.2)(lightningcss@1.30.2)(msw@2.12.4(@types/node@20.19.26)(typescript@5.9.3))(sass-embedded@1.96.0)(sass@1.96.0)(terser@5.44.1)(yaml@2.8.2):
     dependencies:
       '@vitest/expect': 4.0.15
-      '@vitest/mocker': 4.0.15(msw@2.12.4(@types/node@20.19.26)(typescript@5.9.3))(vite@7.2.7(@types/node@20.19.9)(jiti@2.4.2)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.62.1)(terser@5.44.1)(yaml@2.8.2))
+      '@vitest/mocker': 4.0.15(msw@2.12.4(@types/node@20.19.26)(typescript@5.9.3))(vite@7.2.7(@types/node@20.19.26)(jiti@2.6.1)(less@4.4.2)(lightningcss@1.30.2)(sass-embedded@1.96.0)(sass@1.96.0)(terser@5.44.1)(yaml@2.8.2))
       '@vitest/pretty-format': 4.0.15
       '@vitest/runner': 4.0.15
       '@vitest/snapshot': 4.0.15
