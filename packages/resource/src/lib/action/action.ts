@@ -140,21 +140,82 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
     return this.fields.find((field) => field.name === name);
   }
 
+  private hasOwn(data: Record<string, SafeAny>, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(data, key);
+  }
+
+  private getValueFromPath(
+    data: Record<string, SafeAny>,
+    path: string,
+  ): SafeAny | undefined {
+    const parts = path.split('.').filter(Boolean);
+    if (parts.length === 0) return undefined;
+
+    let current: unknown = data;
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      if (Array.isArray(current)) {
+        const index = Number(part);
+        if (!Number.isInteger(index)) return undefined;
+        current = current[index];
+        continue;
+      }
+      if (typeof current !== 'object') return undefined;
+      current = (current as Record<string, unknown>)[part];
+    }
+    return current as SafeAny;
+  }
+
+  private normalizeSubmitFormData(
+    formData: Record<string, SafeAny>,
+  ): Record<string, SafeAny> {
+    const payload: Record<string, SafeAny> = { ...formData };
+    const fieldNames = new Set(this.fields.map((field) => field.name));
+    const dottedRoots = new Set<string>();
+
+    for (const field of this.fields) {
+      if (!field.name.includes('.')) continue;
+      const root = field.name.split('.')[0];
+      dottedRoots.add(root);
+
+      if (this.hasOwn(payload, field.name)) continue;
+      const nestedValue = this.getValueFromPath(formData, field.name);
+      if (nestedValue !== undefined) {
+        payload[field.name] = nestedValue;
+      }
+    }
+
+    for (const root of dottedRoots) {
+      if (fieldNames.has(root) || !this.hasOwn(payload, root)) continue;
+      const value = payload[root];
+      if (
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
+      ) {
+        delete payload[root];
+      }
+    }
+
+    return payload;
+  }
+
   async submit(formData: Record<string, SafeAny>): Promise<State<TEntity>> {
+    const submitFormData = this.normalizeSubmitFormData(formData);
     const uri = new URL(this.uri, this.client.bookmarkUri);
 
     if (this.method === 'GET') {
-      uri.search = qs.stringify(formData);
+      uri.search = qs.stringify(submitFormData);
       const resource = this.client.go<TEntity>(uri.toString());
       return resource.get();
     }
     let body;
     switch (this.contentType) {
       case 'application/x-www-form-urlencoded':
-        body = qs.stringify(formData);
+        body = qs.stringify(submitFormData);
         break;
       case 'application/json':
-        body = JSON.stringify(formData);
+        body = JSON.stringify(submitFormData);
         break;
       default:
         throw new Error(

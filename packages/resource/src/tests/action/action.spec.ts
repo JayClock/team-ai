@@ -185,6 +185,69 @@ describe('SimpleAction', () => {
   });
 
   describe('submit', () => {
+    describe('with dot notation form fields', () => {
+      it('should serialize nested values back to dotted keys for JSON', async () => {
+        mockForm = {
+          uri: 'https://example.com/api/resources',
+          name: 'create',
+          method: 'POST',
+          contentType: 'application/json',
+          fields: [
+            {
+              name: 'user.id',
+              type: 'text',
+              required: true,
+              readOnly: false,
+            } as Field,
+          ],
+        };
+        action = new SimpleAction<TestEntity>(mockClient, mockForm);
+
+        await action.submit({
+          user: { id: 'u-1' },
+          page: 1,
+        });
+
+        const call = (
+          mockClient.fetcher.fetchOrThrow as ReturnType<typeof vi.fn>
+        ).mock.calls[0];
+        expect(call[0]).toBe('https://example.com/api/resources');
+        expect(JSON.parse(call[1].body as string)).toEqual({
+          'user.id': 'u-1',
+          page: 1,
+        });
+      });
+
+      it('should serialize nested values back to dotted keys for GET', async () => {
+        mockForm = {
+          uri: 'https://example.com/api/search',
+          name: 'search',
+          method: 'GET',
+          contentType: 'application/x-www-form-urlencoded',
+          fields: [
+            {
+              name: 'user.id',
+              type: 'text',
+              required: true,
+              readOnly: false,
+            } as Field,
+          ],
+        };
+        action = new SimpleAction<TestEntity>(mockClient, mockForm);
+
+        await action.submit({
+          user: { id: 'u-1' },
+          page: 2,
+        });
+
+        const call = (mockClient.go as ReturnType<typeof vi.fn>).mock.calls[0];
+        const url = new URL(call[0] as string);
+        expect(url.origin + url.pathname).toBe('https://example.com/api/search');
+        expect(url.searchParams.get('user.id')).toBe('u-1');
+        expect(url.searchParams.get('page')).toBe('2');
+      });
+    });
+
     describe('with GET method', () => {
       beforeEach(() => {
         mockForm = {
