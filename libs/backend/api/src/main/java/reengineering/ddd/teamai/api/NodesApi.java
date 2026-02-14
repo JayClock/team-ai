@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
@@ -90,8 +91,12 @@ public class NodesApi {
   public static class CreateNodeRequest {
     @NotNull private String type;
 
+    @JsonProperty("logicalEntity.id")
     private String logicalEntityId;
+
+    @JsonProperty("parent.id")
     private String parentId;
+
     private double positionX;
     private double positionY;
 

@@ -11,6 +11,7 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.archtype.JsonBlob;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.model.Diagram;
@@ -21,12 +22,12 @@ import reengineering.ddd.teamai.model.Project;
 public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
   @JsonProperty private String id;
   @JsonProperty private String type;
-  @JsonProperty private String logicalEntityId;
+  @JsonProperty private Ref<String> logicalEntity;
 
   @JsonProperty("_embedded")
   private EmbeddedResources embedded;
 
-  @JsonProperty private String parentId;
+  @JsonProperty private Ref<String> parent;
   @JsonProperty private double positionX;
   @JsonProperty private double positionY;
   @JsonProperty private Integer width;
@@ -44,13 +45,13 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
     NodeDescription desc = diagramNode.getDescription();
     this.id = diagramNode.getIdentity();
     this.type = desc.type();
-    this.logicalEntityId = desc.logicalEntity() != null ? desc.logicalEntity().id() : null;
+    this.logicalEntity = desc.logicalEntity();
     this.embedded =
         diagramNode.logicalEntity() != null
             ? new EmbeddedResources(
                 LogicalEntityModel.of(project, diagramNode.logicalEntity(), uriInfo))
             : null;
-    this.parentId = desc.parent() != null ? desc.parent().id() : null;
+    this.parent = desc.parent();
     this.positionX = desc.positionX();
     this.positionY = desc.positionY();
     this.width = desc.width();

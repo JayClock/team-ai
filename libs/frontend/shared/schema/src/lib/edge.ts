@@ -29,9 +29,8 @@ export type EdgeStyleProps = {
 export type DiagramEdge = Entity<
   {
     id: string;
-    diagramId: string;
-    sourceNodeId: string;
-    targetNodeId: string;
+    sourceNode: { id: string };
+    targetNode: { id: string };
     sourceHandle?: string;
     targetHandle?: string;
     relationType: EdgeRelationType;

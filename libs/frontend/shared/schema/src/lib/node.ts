@@ -13,10 +13,9 @@ export type NodeComponentType =
 export type DiagramNode = Entity<
   {
     id: string;
-    diagramId: string;
     type: NodeComponentType;
-    logicalEntityId: string;
-    parentId: string;
+    logicalEntity?: { id: string } | null;
+    parent?: { id: string } | null;
     positionX: number;
     positionY: number;
     width: number;

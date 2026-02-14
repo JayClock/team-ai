@@ -59,7 +59,6 @@ export type EntityDefinition = {
 export type LogicalEntity = Entity<
   {
     id: string;
-    projectId: string;
     type: LogicalEntityType;
     subType: SubType;
     name: string;

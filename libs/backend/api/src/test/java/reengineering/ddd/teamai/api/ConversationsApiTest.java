@@ -169,7 +169,7 @@ public class ConversationsApiTest extends ApiTest {
                         + "/conversations/"
                         + newConversation.getIdentity())))
         .body("id", is(newConversation.getIdentity()))
-        .body("projectId", is(project.getIdentity()));
+        .body("project.id", is(project.getIdentity()));
   }
 
   @Test
@@ -197,7 +197,7 @@ public class ConversationsApiTest extends ApiTest {
         .statusCode(200)
         .body("id", is(conversation.getIdentity()))
         .body("title", is(conversation.getDescription().title()))
-        .body("projectId", is(project.getIdentity()))
+        .body("project.id", is(project.getIdentity()))
         .body(
             "_links.self.href",
             is(

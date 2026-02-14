@@ -11,6 +11,7 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.archtype.JsonBlob;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.EdgesApi;
 import reengineering.ddd.teamai.description.EdgeDescription;
@@ -21,8 +22,8 @@ import reengineering.ddd.teamai.model.Project;
 @Relation(collectionRelation = "edges")
 public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
   @JsonProperty private String id;
-  @JsonProperty private String sourceNodeId;
-  @JsonProperty private String targetNodeId;
+  @JsonProperty private Ref<String> sourceNode;
+  @JsonProperty private Ref<String> targetNode;
   @JsonProperty private String sourceHandle;
   @JsonProperty private String targetHandle;
   @JsonProperty private String relationType;
@@ -34,8 +35,8 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
   public DiagramEdgeModel(Project project, Diagram diagram, DiagramEdge entity, UriInfo uriInfo) {
     EdgeDescription desc = entity.getDescription();
     this.id = entity.getIdentity();
-    this.sourceNodeId = desc.sourceNode() != null ? desc.sourceNode().id() : null;
-    this.targetNodeId = desc.targetNode() != null ? desc.targetNode().id() : null;
+    this.sourceNode = desc.sourceNode();
+    this.targetNode = desc.targetNode();
     this.sourceHandle = desc.sourceHandle();
     this.targetHandle = desc.targetHandle();
     this.relationType = desc.relationType();

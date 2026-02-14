@@ -27,7 +27,7 @@ const nodeTypes = {
 
 type BatchNodePayload = {
   type: string;
-  logicalEntityId?: string;
+  'logicalEntity.id'?: string;
   positionX: number;
   positionY: number;
   width: number;
@@ -41,8 +41,8 @@ type BatchLogicalEntityPayload = {
 };
 
 type BatchEdgePayload = {
-  sourceNodeId: string;
-  targetNodeId: string;
+  'sourceNode.id': string;
+  'targetNode.id': string;
 };
 
 export function ProjectDiagram(props: Props) {
@@ -92,8 +92,8 @@ export function ProjectDiagram(props: Props) {
     () =>
       edgesState.collection.map((edgeState) => ({
         id: edgeState.data.id,
-        source: edgeState.data.sourceNodeId,
-        target: edgeState.data.targetNodeId,
+        source: edgeState.data.sourceNode.id,
+        target: edgeState.data.targetNode.id,
       })),
     [edgesState.collection],
   );
@@ -184,7 +184,7 @@ export function ProjectDiagram(props: Props) {
 
         nodesPayload.push({
           type: 'fulfillment-node',
-          logicalEntityId: logicalEntityRef,
+          'logicalEntity.id': logicalEntityRef,
           positionX: 120 + column * 300,
           positionY: 120 + row * 180,
           width: 220,
@@ -220,8 +220,8 @@ export function ProjectDiagram(props: Props) {
         }
 
         edgesPayload.push({
-          sourceNodeId,
-          targetNodeId,
+          'sourceNode.id': sourceNodeId,
+          'targetNode.id': targetNodeId,
         });
       }
 

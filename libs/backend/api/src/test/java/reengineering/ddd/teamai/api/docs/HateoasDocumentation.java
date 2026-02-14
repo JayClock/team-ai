@@ -144,7 +144,7 @@ public final class HateoasDocumentation {
   public static FieldDescriptor[] conversationResponseFields() {
     return new FieldDescriptor[] {
       fieldWithPath("id").description("Unique conversation identifier"),
-      fieldWithPath("projectId").description("Unique project identifier"),
+      fieldWithPath("project.id").description("Unique project identifier"),
       fieldWithPath("title").description("Conversation title"),
       subsectionWithPath("_links").description("HATEOAS navigation links"),
       subsectionWithPath("_templates").description("HAL-FORMS action templates")

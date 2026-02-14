@@ -54,7 +54,6 @@ export type Diagram = Entity<
     title: string;
     type: DiagramType;
     viewport: Viewport;
-    projectId: string;
   },
   {
     self: Diagram;

@@ -12,7 +12,7 @@ public class CreateNodeRequestOptionsCustomizer implements HalFormsOptionsCustom
   public HalFormsConfiguration customize(HalFormsConfiguration config) {
     return config.withOptions(
         CreateNodeRequest.class,
-        "logicalEntityId",
+        "logicalEntity.id",
         metadata -> {
           String template = "/api/projects/{projectId}/logical-entities";
           return HalFormsOptions.remote(template)

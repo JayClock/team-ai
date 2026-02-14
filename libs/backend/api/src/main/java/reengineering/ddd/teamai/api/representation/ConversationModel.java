@@ -8,6 +8,7 @@ import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.ConversationApi;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -19,12 +20,12 @@ import reengineering.ddd.teamai.model.Project;
 public class ConversationModel extends RepresentationModel<ConversationModel> {
   @JsonProperty private String id;
   @JsonUnwrapped private ConversationDescription description;
-  @JsonProperty private String projectId;
+  @JsonProperty private Ref<String> project;
 
   public ConversationModel(Project project, Conversation conversation, UriInfo uriInfo) {
     this.id = conversation.getIdentity();
     this.description = conversation.getDescription();
-    this.projectId = project.getIdentity();
+    this.project = new Ref<>(project.getIdentity());
 
     add(
         Affordances.of(
