@@ -1,4 +1,5 @@
 import { createClient, FetchMiddleware } from '@hateoas-ts/resource';
+import { zodSchemaPlugin } from '@hateoas-ts/resource/zod';
 import { appConfig } from '../config/app.config';
 import { Root } from '@shared/schema';
 import { apiKeyStorage } from './api-key-storage';
@@ -12,6 +13,7 @@ function buildLoginUrlWithReturnTo(): string {
 export const apiClient = createClient({
   baseURL: appConfig.api.baseURL,
   sendUserAgent: false,
+  schemaPlugin: zodSchemaPlugin,
 });
 
 export const rootResource = apiClient.go<Root>('/api');

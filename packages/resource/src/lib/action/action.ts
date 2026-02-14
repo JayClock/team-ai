@@ -4,8 +4,8 @@ import { State } from '../state/state.js';
 import { Field } from '../form/field.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { ClientInstance } from '../client-instance.js';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
 import * as qs from 'querystring';
-import * as z from "zod";
 
 
 /**
@@ -59,10 +59,48 @@ export interface Action<TEntity extends Entity> extends Form {
   field(name: string): Field | undefined;
 
   /**
- * schema generated form fields with zod
- */
-  formSchema: z.ZodType<SafeAny, SafeAny>
+   * Schema generated from form fields.
+   *
+   * Uses the Standard Schema interface so validation engines are pluggable.
+   */
+  formSchema: ActionFormSchema;
 }
+
+export type ActionFormSchema = StandardSchemaV1<
+  Record<string, SafeAny>,
+  Record<string, SafeAny>
+>;
+
+/**
+ * Plugin interface for generating action form schemas.
+ */
+export interface SchemaPlugin {
+  createSchema(fields: Field[]): ActionFormSchema;
+}
+
+export type ActionSchemaPlugin = SchemaPlugin;
+
+/**
+ * Default schema plugin with no validation.
+ *
+ * If you need runtime validation, pass a custom plugin (e.g. zod plugin).
+ */
+export const defaultSchemaPlugin: SchemaPlugin = {
+  createSchema(fields: Field[]): ActionFormSchema {
+    void fields;
+    return {
+      '~standard': {
+        version: 1,
+        vendor: 'hateoas-resource-noop',
+        validate(value) {
+          return { value: value as Record<string, SafeAny> };
+        },
+      },
+    };
+  },
+};
+
+export const standardActionSchemaPlugin = defaultSchemaPlugin;
 
 /**
  * Default implementation of the Action interface.
@@ -82,11 +120,12 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
   method: string;
   contentType: string;
   fields: Field[];
-  formSchema: z.ZodType<SafeAny, SafeAny>
+  formSchema: ActionFormSchema;
 
   constructor(
     private client: ClientInstance,
     private form: Form,
+    schemaPlugin: SchemaPlugin = defaultSchemaPlugin,
   ) {
     this.uri = this.form.uri;
     this.name = this.form.name;
@@ -94,7 +133,7 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
     this.method = this.form.method;
     this.contentType = this.form.contentType;
     this.fields = this.form.fields;
-    this.formSchema = this.generateFormSchema()
+    this.formSchema = schemaPlugin.createSchema(this.fields);
   }
 
   field(name: string): Field | undefined {
@@ -134,85 +173,6 @@ export class SimpleAction<TEntity extends Entity> implements Action<TEntity> {
       { rel: '', href: uri.toString(), context: this.client.bookmarkUri },
       response,
     );
-  }
-
-  private generateFormSchema(): z.ZodType<SafeAny, SafeAny> {
-    const shape: Record<string, z.ZodTypeAny> = {};
-
-    for (const field of this.fields) {
-      let schema: z.ZodTypeAny;
-
-      // Map field types to Zod schemas
-      switch (field.type) {
-        case 'checkbox':
-        case 'radio':
-          schema = z.boolean();
-          break;
-
-        case 'number':
-        case 'range':
-          schema = z.number();
-          if ('min' in field && field.min !== undefined) {
-            schema = (schema as z.ZodNumber).min(field.min);
-          }
-          if ('max' in field && field.max !== undefined) {
-            schema = (schema as z.ZodNumber).max(field.max);
-          }
-          break;
-
-        case 'date':
-        case 'month':
-        case 'time':
-        case 'week':
-        case 'datetime':
-        case 'datetime-local':
-          schema = z.string();
-          if ('min' in field && field.min !== undefined) {
-            schema = (schema as z.ZodString).min(field.min);
-          }
-          if ('max' in field && field.max !== undefined) {
-            schema = (schema as z.ZodString).max(field.max);
-          }
-          break;
-
-        case 'hidden':
-          schema = z.union([z.string(), z.number(), z.null(), z.boolean()]);
-          break;
-
-        case 'select':
-          if ('multiple' in field && field.multiple === true) {
-            schema = z.array(z.string());
-          } else {
-            schema = z.string();
-          }
-          break;
-
-        case 'text':
-        case 'textarea':
-        case 'color':
-        case 'email':
-        case 'password':
-        case 'search':
-        case 'tel':
-        case 'url':
-        default:
-          schema = z.string();
-          if ('minLength' in field && field.minLength !== undefined) {
-            schema = (schema as z.ZodString).min(field.minLength);
-          }
-          if ('maxLength' in field && field.maxLength !== undefined) {
-            schema = (schema as z.ZodString).max(field.maxLength);
-          }
-          if ('pattern' in field && field.pattern !== undefined) {
-            schema = (schema as z.ZodString).regex(field.pattern);
-          }
-          break;
-      }
-
-      shape[field.name] = field.required ? schema : schema.optional();
-    }
-
-    return z.object(shape);
   }
 }
 

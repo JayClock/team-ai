@@ -36,4 +36,13 @@ export type { ExtractCollectionElement } from './state/state-collection.js';
 export * from './resource/resource.js';
 export * from './resource/resource-relation.js';
 export type { FetchMiddleware } from './http/fetcher.js';
-export type { Action } from '../lib/action/action.js'
+export {
+  defaultSchemaPlugin,
+  standardActionSchemaPlugin,
+} from './action/action.js';
+export type {
+  Action,
+  ActionFormSchema,
+  SchemaPlugin,
+  ActionSchemaPlugin,
+} from './action/action.js';

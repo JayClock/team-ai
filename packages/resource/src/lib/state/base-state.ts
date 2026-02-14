@@ -160,12 +160,17 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
       return new SimpleAction<TEntity['links'][K]>(
         this.client,
         this.forms[0],
+        this.client.config?.schemaPlugin,
       );
     }
 
     for (const form of this.forms) {
       if (form.name === name) {
-        return new SimpleAction(this.client, form);
+        return new SimpleAction(
+          this.client,
+          form,
+          this.client.config?.schemaPlugin,
+        );
       }
     }
 
