@@ -1,9 +1,7 @@
 package reengineering.ddd.teamai.infrastructure.providers;
 
-import com.alibaba.cloud.ai.graph.agent.ReactAgent;
-import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
 import java.util.Arrays;
-import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.ai.deepseek.api.DeepSeekApi;
@@ -20,7 +18,6 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
   }
 
   private DraftDiagram analyzeAndGenerateModel(String requirement) {
-    String prompt = buildAnalysisPrompt(requirement);
     String apiKey = resolveApiKey();
     String model = resolveModel(DEFAULT_MODEL);
 
@@ -32,25 +29,21 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 org.springframework.ai.deepseek.DeepSeekChatOptions.builder().model(model).build())
             .build();
 
-    ReactAgent architectAgent =
-        ReactAgent.builder()
-            .name("domain-architect")
-            .model(chatModel)
-            .instruction(prompt)
-            .outputType(DraftDiagram.class)
-            .build();
+    ChatClient chatClient = ChatClient.create(chatModel);
+    BeanOutputConverter<DraftDiagram> outputConverter =
+        new BeanOutputConverter<>(DraftDiagram.class);
+    String prompt = buildAnalysisPrompt(requirement, outputConverter.getFormat());
 
     try {
-      AssistantMessage result = architectAgent.call(requirement);
-      return new BeanOutputConverter<>(DraftDiagram.class).convert(result.getText());
-    } catch (GraphRunnerException e) {
-      throw new IllegalStateException("Failed to generate domain model with ReactAgent", e);
+      String response = chatClient.prompt().user(prompt).call().content();
+      return outputConverter.convert(response);
     } catch (RuntimeException e) {
-      throw new IllegalStateException("Failed to parse DraftDiagram from agent response", e);
+      throw new IllegalStateException(
+          "Failed to generate or parse DraftDiagram from model response", e);
     }
   }
 
-  private String buildAnalysisPrompt(String requirement) {
+  private String buildAnalysisPrompt(String requirement, String outputFormat) {
     String allowedTypes =
         String.join(
             ", ", Arrays.stream(LogicalEntityDescription.Type.values()).map(Enum::name).toList());
@@ -63,8 +56,9 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 1. 识别核心领域概念作为 Node，每个 Node 应该有 name、label 和 type（type 必须使用 LogicalEntityDescription.Type 枚举值：%s）
                 2. 定义领域对象之间的关系作为 Edge，每个 Edge 有 sourceNode 和 targetNode
 
-                请确保结果严格符合 JSON 格式要求，不要包含额外的文本或解释。
+                输出必须严格遵守以下结构化格式（不要输出额外文本）：
+                %s
                 """
-        .formatted(requirement, allowedTypes);
+        .formatted(requirement, allowedTypes, outputFormat);
   }
 }
