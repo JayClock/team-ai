@@ -74,24 +74,13 @@ public class DiagramApi {
     entity
         .proposeModel(request.getRequirement(), domainArchitect)
         .subscribe(
-            chunk ->
-                sendJsonSseEvent(
-                    sseEventSink,
-                    sse,
-                    "{\"type\":\"chunk\",\"content\":\"" + escapeJsonString(chunk) + "\"}"),
+            chunk -> sendSseEvent(sseEventSink, sse, null, chunk),
             error -> {
-              sendJsonSseEvent(
-                  sseEventSink,
-                  sse,
-                  "{\"type\":\"error\",\"message\":\""
-                      + escapeJsonString(error.getMessage())
-                      + "\"}");
-              sendRawSseEvent(sseEventSink, sse, "[DONE]");
+              sendSseEvent(sseEventSink, sse, "error", error == null ? null : error.getMessage());
               sseEventSink.close();
             },
             () -> {
-              sendJsonSseEvent(sseEventSink, sse, "{\"type\":\"complete\"}");
-              sendRawSseEvent(sseEventSink, sse, "[DONE]");
+              sendSseEvent(sseEventSink, sse, "complete", "");
               sseEventSink.close();
             });
   }
@@ -190,25 +179,14 @@ public class DiagramApi {
     return new jakarta.ws.rs.BadRequestException(message);
   }
 
-  private void sendJsonSseEvent(SseEventSink sseEventSink, Sse sse, String data) {
-    sendRawSseEvent(sseEventSink, sse, data);
-  }
-
-  private void sendRawSseEvent(SseEventSink sseEventSink, Sse sse, String data) {
-    OutboundSseEvent event = sse.newEventBuilder().data(data).build();
-    sseEventSink.send(event);
-  }
-
-  private String escapeJsonString(String input) {
-    if (input == null) {
-      return "";
+  private void sendSseEvent(SseEventSink sseEventSink, Sse sse, String eventName, String data) {
+    String payload = data == null ? "" : data;
+    OutboundSseEvent.Builder builder = sse.newEventBuilder();
+    if (eventName != null && !eventName.isBlank()) {
+      builder.name(eventName);
     }
-    return input
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t");
+    OutboundSseEvent event = builder.data(String.class, payload).build();
+    sseEventSink.send(event);
   }
 
   private static <T> T executeInTransaction(TransactionCallback<T> callback) {

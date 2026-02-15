@@ -56,37 +56,52 @@ type ProposeModelStreamEvent =
       type: 'complete';
     };
 
-function toSseData(eventBlock: string): string | null {
+type SseEnvelope = {
+  event: string | null;
+  data: string | null;
+};
+
+function parseSseEnvelope(eventBlock: string): SseEnvelope {
   const lines = eventBlock.split('\n');
+  let eventName: string | null = null;
   const dataLines = lines
+    .filter((line) => !line.startsWith(':'))
+    .map((line) => line.trimEnd());
+
+  for (const line of dataLines) {
+    if (line.startsWith('event:')) {
+      const value = line.slice(6).trim();
+      eventName = value.length > 0 ? value : null;
+    }
+  }
+
+  const payloadLines = dataLines
     .filter((line) => line.startsWith('data:'))
     .map((line) => line.slice(5).trimStart());
-  if (dataLines.length === 0) {
-    return null;
-  }
-  return dataLines.join('\n');
+
+  return {
+    event: eventName,
+    data: payloadLines.length > 0 ? payloadLines.join('\n') : null,
+  };
 }
 
-function parseStreamEvent(data: string): ProposeModelStreamEvent | null {
-  if (data === '[DONE]') {
-    return { type: 'complete' };
-  }
+function parseStreamEvent(envelope: SseEnvelope): ProposeModelStreamEvent | null {
+  const { event, data } = envelope;
 
-  try {
-    const parsed = JSON.parse(data) as Record<string, unknown>;
-    if (parsed.type === 'chunk' && typeof parsed.content === 'string') {
-      return { type: 'chunk', content: parsed.content };
+  if (!event || event === 'message') {
+    if (data == null) {
+      return null;
     }
-    if (parsed.type === 'error' && typeof parsed.message === 'string') {
-      return { type: 'error', message: parsed.message };
-    }
-    if (parsed.type === 'complete') {
-      return { type: 'complete' };
-    }
-    return null;
-  } catch {
     return { type: 'chunk', content: data };
   }
+
+  if (event === 'error') {
+    return { type: 'error', message: data ?? '模型提议失败' };
+  }
+  if (event === 'complete') {
+    return { type: 'complete' };
+  }
+  return null;
 }
 
 function normalizeDraft(value: unknown): DraftDiagramModel['data'] | null {
@@ -255,12 +270,7 @@ export function SettingsTool({
       };
 
       const processSseEvent = (eventBlock: string) => {
-        const data = toSseData(eventBlock);
-        if (!data) {
-          return;
-        }
-
-        const streamEvent = parseStreamEvent(data);
+        const streamEvent = parseStreamEvent(parseSseEnvelope(eventBlock));
         if (!streamEvent) {
           return;
         }

@@ -422,10 +422,9 @@ public class DiagramsApiTest extends ApiTest {
         .then()
         .statusCode(200)
         .contentType(containsString(MediaType.SERVER_SENT_EVENTS))
-        .body(containsString("\"type\":\"chunk\""))
+        .body(containsString("data: {\"nodes\""))
         .body(containsString("Order"))
-        .body(containsString("\"type\":\"complete\""))
-        .body(containsString("[DONE]"));
+        .body(containsString("event: complete"));
 
     verify(domainArchitect, times(1)).proposeModel(requirement);
   }
