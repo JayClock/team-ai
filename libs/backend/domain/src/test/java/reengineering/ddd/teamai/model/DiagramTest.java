@@ -3,17 +3,16 @@ package reengineering.ddd.teamai.model;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
-import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
@@ -172,11 +171,11 @@ public class DiagramTest {
     @Test
     void should_delegate_to_domain_architect() {
       String requirement = "As a domain architect, I want a draft model proposal";
-      DraftDiagram expected = new DraftDiagram(List.of(), List.of());
+      Flux<String> expected = Flux.just("{\"nodes\":[],\"edges\":[]}");
 
       when(architect.proposeModel(requirement)).thenReturn(expected);
 
-      DraftDiagram actual = diagram.proposeModel(requirement, architect);
+      Flux<String> actual = diagram.proposeModel(requirement, architect);
 
       assertSame(expected, actual);
       verify(architect).proposeModel(requirement);

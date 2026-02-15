@@ -8,11 +8,15 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
+import jakarta.ws.rs.sse.OutboundSseEvent;
+import jakarta.ws.rs.sse.Sse;
+import jakarta.ws.rs.sse.SseEventSink;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +31,6 @@ import org.springframework.web.context.ContextLoader;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
-import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramNode;
@@ -65,8 +68,32 @@ public class DiagramApi {
   @POST
   @Path("propose-model")
   @Consumes(MediaType.APPLICATION_JSON)
-  public DraftDiagram proposeModel(@Valid ProposeModelRequest request) {
-    return entity.proposeModel(request.getRequirement(), domainArchitect);
+  @Produces(MediaType.SERVER_SENT_EVENTS)
+  public void proposeModel(
+      @Valid ProposeModelRequest request, @Context SseEventSink sseEventSink, @Context Sse sse) {
+    entity
+        .proposeModel(request.getRequirement(), domainArchitect)
+        .subscribe(
+            chunk ->
+                sendJsonSseEvent(
+                    sseEventSink,
+                    sse,
+                    "{\"type\":\"chunk\",\"content\":\"" + escapeJsonString(chunk) + "\"}"),
+            error -> {
+              sendJsonSseEvent(
+                  sseEventSink,
+                  sse,
+                  "{\"type\":\"error\",\"message\":\""
+                      + escapeJsonString(error.getMessage())
+                      + "\"}");
+              sendRawSseEvent(sseEventSink, sse, "[DONE]");
+              sseEventSink.close();
+            },
+            () -> {
+              sendJsonSseEvent(sseEventSink, sse, "{\"type\":\"complete\"}");
+              sendRawSseEvent(sseEventSink, sse, "[DONE]");
+              sseEventSink.close();
+            });
   }
 
   @POST
@@ -161,6 +188,27 @@ public class DiagramApi {
 
   private static RuntimeException badRequest(String message) {
     return new jakarta.ws.rs.BadRequestException(message);
+  }
+
+  private void sendJsonSseEvent(SseEventSink sseEventSink, Sse sse, String data) {
+    sendRawSseEvent(sseEventSink, sse, data);
+  }
+
+  private void sendRawSseEvent(SseEventSink sseEventSink, Sse sse, String data) {
+    OutboundSseEvent event = sse.newEventBuilder().data(data).build();
+    sseEventSink.send(event);
+  }
+
+  private String escapeJsonString(String input) {
+    if (input == null) {
+      return "";
+    }
+    return input
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t");
   }
 
   private static <T> T executeInTransaction(TransactionCallback<T> callback) {

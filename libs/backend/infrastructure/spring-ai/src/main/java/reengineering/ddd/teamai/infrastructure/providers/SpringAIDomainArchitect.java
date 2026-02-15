@@ -5,6 +5,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
 import org.springframework.ai.deepseek.api.DeepSeekApi;
+import reactor.core.publisher.Flux;
 import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.model.Diagram;
@@ -13,11 +14,11 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
   private static final String DEFAULT_MODEL = "deepseek-chat";
 
   @Override
-  public DraftDiagram proposeModel(String requirement) {
+  public Flux<String> proposeModel(String requirement) {
     return analyzeAndGenerateModel(requirement);
   }
 
-  private DraftDiagram analyzeAndGenerateModel(String requirement) {
+  private Flux<String> analyzeAndGenerateModel(String requirement) {
     String apiKey = resolveApiKey();
     String model = resolveModel(DEFAULT_MODEL);
 
@@ -34,13 +35,7 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
         new BeanOutputConverter<>(DraftDiagram.class);
     String prompt = buildAnalysisPrompt(requirement, outputConverter.getFormat());
 
-    try {
-      String response = chatClient.prompt().user(prompt).call().content();
-      return outputConverter.convert(response);
-    } catch (RuntimeException e) {
-      throw new IllegalStateException(
-          "Failed to generate or parse DraftDiagram from model response", e);
-    }
+    return chatClient.prompt().user(prompt).stream().content();
   }
 
   private String buildAnalysisPrompt(String requirement, String outputFormat) {
@@ -56,7 +51,7 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 1. 识别核心领域概念作为 Node，每个 Node 应该有 name、label 和 type（type 必须使用 LogicalEntityDescription.Type 枚举值：%s）
                 2. 定义领域对象之间的关系作为 Edge，每个 Edge 有 sourceNode 和 targetNode
 
-                输出必须严格遵守以下结构化格式（不要输出额外文本）：
+                输出必须严格遵守以下结构化格式（不要输出额外文本，不要 Markdown 代码块，不要解释）：
                 %s
                 """
         .formatted(requirement, allowedTypes, outputFormat);

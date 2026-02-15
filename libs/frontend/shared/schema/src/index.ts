@@ -9,6 +9,7 @@ export type {
   DiagramType,
   Viewport,
   DraftDiagramModel,
+  ProposeModelStream,
 } from './lib/diagram.js';
 export type {
   DiagramNode,

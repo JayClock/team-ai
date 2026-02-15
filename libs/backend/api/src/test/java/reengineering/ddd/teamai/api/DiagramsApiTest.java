@@ -20,10 +20,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
+import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
-import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
@@ -401,20 +401,17 @@ public class DiagramsApiTest extends ApiTest {
   @Test
   public void should_propose_diagram_model() {
     String requirement = "设计一个订单管理模型";
-    DraftDiagram expected =
-        new DraftDiagram(
-            List.of(
-                new DraftDiagram.DraftNode(
-                    new DraftDiagram.DraftEntity(
-                        "Order", "订单", LogicalEntityDescription.Type.EVIDENCE))),
-            List.of(new DraftDiagram.DraftEdge(new Ref<>("node-1"), new Ref<>("node-2"))));
+    Flux<String> expected =
+        Flux.just(
+            "{\"nodes\":[{\"localData\":{\"name\":\"Order\",\"label\":\"订单\",\"type\":\"EVIDENCE\"}}],",
+            "\"edges\":[{\"sourceNode\":{\"id\":\"node-1\"},\"targetNode\":{\"id\":\"node-2\"}}]}");
     when(domainArchitect.proposeModel(requirement)).thenReturn(expected);
 
     DiagramApi.ProposeModelRequest request = new DiagramApi.ProposeModelRequest();
     request.setRequirement(requirement);
 
     given(documentationSpec)
-        .accept(MediaType.APPLICATION_JSON)
+        .accept(MediaType.SERVER_SENT_EVENTS)
         .contentType(MediaType.APPLICATION_JSON)
         .body(request)
         .when()
@@ -424,12 +421,11 @@ public class DiagramsApiTest extends ApiTest {
             diagram.getIdentity())
         .then()
         .statusCode(200)
-        .body("nodes", hasSize(1))
-        .body("nodes[0].localData.name", is("Order"))
-        .body("nodes[0].localData.label", is("订单"))
-        .body("edges", hasSize(1))
-        .body("edges[0].sourceNode.id", is("node-1"))
-        .body("edges[0].targetNode.id", is("node-2"));
+        .contentType(containsString(MediaType.SERVER_SENT_EVENTS))
+        .body(containsString("\"type\":\"chunk\""))
+        .body(containsString("Order"))
+        .body(containsString("\"type\":\"complete\""))
+        .body(containsString("[DONE]"));
 
     verify(domainArchitect, times(1)).proposeModel(requirement);
   }

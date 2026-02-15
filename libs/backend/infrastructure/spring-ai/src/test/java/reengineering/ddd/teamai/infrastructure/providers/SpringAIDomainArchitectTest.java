@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import reengineering.ddd.teamai.description.DraftDiagram;
+import reactor.core.publisher.Flux;
 import reengineering.ddd.teamai.model.Diagram;
 
 class SpringAIDomainArchitectTest {
@@ -35,11 +35,10 @@ class SpringAIDomainArchitectTest {
   @Test
   void should_return_valid_draft_diagram_when_api_available() {
     try {
-      DraftDiagram result = domainArchitect.proposeModel("创建一个简单的待办事项应用");
+      Flux<String> result = domainArchitect.proposeModel("创建一个简单的待办事项应用");
 
       if (result != null) {
-        assertThat(result.nodes()).isNotNull();
-        assertThat(result.edges()).isNotNull();
+        assertThat(result).isNotNull();
       }
     } catch (Exception e) {
       System.err.println("API 调用失败: " + e.getMessage());
@@ -61,12 +60,11 @@ class SpringAIDomainArchitectTest {
 
     for (String requirement : requirements) {
       try {
-        DraftDiagram result = domainArchitect.proposeModel(requirement);
+        Flux<String> result = domainArchitect.proposeModel(requirement);
 
         if (result != null) {
           System.out.println("处理需求成功: " + requirement);
-          System.out.println("  节点数: " + result.nodes().size());
-          System.out.println("  边数: " + result.edges().size());
+          System.out.println("  已返回流式输出。");
         }
       } catch (Exception e) {
         System.err.println("处理需求失败 '" + requirement + "': " + e.getMessage());

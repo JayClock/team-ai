@@ -41,6 +41,8 @@ export type DraftDiagramModel = Entity<{
   edges: DraftDiagramEdge[];
 }>;
 
+export type ProposeModelStream = Entity<ReadableStream<Uint8Array>>;
+
 export type CommitDraftDiagramModel = Entity<{
   nodes?: DiagramNode['data'][];
   edges?: DiagramEdge['data'][];
@@ -61,7 +63,7 @@ export type Diagram = Entity<
     edges: Collection<DiagramEdge>;
     'add-node': DiagramNode;
     'add-edge': DiagramEdge;
-    'propose-model': DraftDiagramModel;
+    'propose-model': ProposeModelStream;
     'commit-draft': CommitDraftDiagramModel;
     project: Project;
   }

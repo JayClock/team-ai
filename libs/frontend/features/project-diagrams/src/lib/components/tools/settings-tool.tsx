@@ -18,6 +18,7 @@ import {
 } from '@shared/ui';
 import { State } from '@hateoas-ts/resource';
 import { Diagram, DraftDiagramModel } from '@shared/schema';
+import { parse as parseBestEffortJson } from 'best-effort-json-parser';
 import { Settings2 } from 'lucide-react';
 import { FormEvent, useMemo, useState } from 'react';
 import {
@@ -42,38 +43,140 @@ interface Props {
   onDraftApplyReverted?: () => void;
 }
 
-function toDraftSummary(draft: DraftDiagramModel['data']): string {
-  const nodeLines =
-    draft.nodes.length > 0
-      ? draft.nodes
-          .map(
-            (node, index) =>
-              `${index + 1}. ${node.localData.label} (${node.localData.name}) [${node.localData.type}]`,
-          )
-          .join('\n')
-      : '- No nodes suggested';
+type ProposeModelStreamEvent =
+  | {
+      type: 'chunk';
+      content: string;
+    }
+  | {
+      type: 'error';
+      message: string;
+    }
+  | {
+      type: 'complete';
+    };
 
-  const edgeLines =
-    draft.edges.length > 0
-      ? draft.edges
-          .map(
-            (edge, index) =>
-              `${index + 1}. ${edge.sourceNode.id} -> ${edge.targetNode.id}`,
-          )
-          .join('\n')
-      : '- No edges suggested';
+function toSseData(eventBlock: string): string | null {
+  const lines = eventBlock.split('\n');
+  const dataLines = lines
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.slice(5).trimStart());
+  if (dataLines.length === 0) {
+    return null;
+  }
+  return dataLines.join('\n');
+}
 
-  return [
-    '### Proposed Diagram Draft',
-    `- Nodes: ${draft.nodes.length}`,
-    `- Edges: ${draft.edges.length}`,
-    '',
-    '### Nodes',
-    nodeLines,
-    '',
-    '### Edges',
-    edgeLines,
-  ].join('\n');
+function parseStreamEvent(data: string): ProposeModelStreamEvent | null {
+  if (data === '[DONE]') {
+    return { type: 'complete' };
+  }
+
+  try {
+    const parsed = JSON.parse(data) as Record<string, unknown>;
+    if (parsed.type === 'chunk' && typeof parsed.content === 'string') {
+      return { type: 'chunk', content: parsed.content };
+    }
+    if (parsed.type === 'error' && typeof parsed.message === 'string') {
+      return { type: 'error', message: parsed.message };
+    }
+    if (parsed.type === 'complete') {
+      return { type: 'complete' };
+    }
+    return null;
+  } catch {
+    return { type: 'chunk', content: data };
+  }
+}
+
+function normalizeDraft(value: unknown): DraftDiagramModel['data'] | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const raw = value as {
+    nodes?: unknown;
+    edges?: unknown;
+  };
+
+  if (!Array.isArray(raw.nodes) && !Array.isArray(raw.edges)) {
+    return null;
+  }
+
+  const nodes: DraftDiagramModel['data']['nodes'] = Array.isArray(raw.nodes)
+    ? raw.nodes.flatMap((entry) => {
+        if (!entry || typeof entry !== 'object') {
+          return [];
+        }
+        const localData = (entry as { localData?: unknown }).localData;
+        if (!localData || typeof localData !== 'object') {
+          return [];
+        }
+
+        const name = (localData as { name?: unknown }).name;
+        const label = (localData as { label?: unknown }).label;
+        const type = (localData as { type?: unknown }).type;
+
+        if (
+          typeof name !== 'string' ||
+          typeof label !== 'string' ||
+          typeof type !== 'string'
+        ) {
+          return [];
+        }
+
+        return [
+          {
+            localData: {
+              name,
+              label,
+              type: type as DraftDiagramModel['data']['nodes'][number]['localData']['type'],
+            },
+          },
+        ];
+      })
+    : [];
+
+  const edges: DraftDiagramModel['data']['edges'] = Array.isArray(raw.edges)
+    ? raw.edges.flatMap((entry) => {
+        if (!entry || typeof entry !== 'object') {
+          return [];
+        }
+        const sourceNode = (entry as { sourceNode?: unknown }).sourceNode;
+        const targetNode = (entry as { targetNode?: unknown }).targetNode;
+        if (
+          !sourceNode ||
+          typeof sourceNode !== 'object' ||
+          !targetNode ||
+          typeof targetNode !== 'object'
+        ) {
+          return [];
+        }
+
+        const sourceNodeId = (sourceNode as { id?: unknown }).id;
+        const targetNodeId = (targetNode as { id?: unknown }).id;
+        if (typeof sourceNodeId !== 'string' || typeof targetNodeId !== 'string') {
+          return [];
+        }
+
+        return [
+          {
+            sourceNode: { id: sourceNodeId },
+            targetNode: { id: targetNodeId },
+          },
+        ];
+      })
+    : [];
+
+  return { nodes, edges };
+}
+
+function tryParseDraft(jsonText: string): DraftDiagramModel['data'] | null {
+  try {
+    return normalizeDraft(parseBestEffortJson(jsonText));
+  } catch {
+    return null;
+  }
 }
 
 export function SettingsTool({
@@ -100,7 +203,7 @@ export function SettingsTool({
     }
 
     if (!state.hasLink('propose-model')) {
-      setError('Current diagram does not expose propose-model action.');
+      setError('当前图表未提供 propose-model 操作。');
       return;
     }
 
@@ -123,32 +226,118 @@ export function SettingsTool({
     try {
       const result = await proposeModelAction.submit(payload);
 
-      const preview = buildOptimisticDraftPreview(result.data);
+      const stream = result.data;
+      if (
+        !stream ||
+        typeof (stream as { getReader?: unknown }).getReader !== 'function'
+      ) {
+        throw new Error('模型提议接口未返回流式响应。');
+      }
+
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let sseBuffer = '';
+      let draftJsonBuffer = '';
+      let latestDraft: DraftDiagramModel['data'] | null = null;
+      let streamCompleted = false;
+
+      const syncDraftPreview = () => {
+        const parsed = tryParseDraft(draftJsonBuffer);
+        if (!parsed || parsed.nodes.length === 0) {
+          return;
+        }
+        latestDraft = parsed;
+        const preview = buildOptimisticDraftPreview(parsed);
+        onDraftApplyOptimistic?.({
+          draft: parsed,
+          preview,
+        });
+      };
+
+      const processSseEvent = (eventBlock: string) => {
+        const data = toSseData(eventBlock);
+        if (!data) {
+          return;
+        }
+
+        const streamEvent = parseStreamEvent(data);
+        if (!streamEvent) {
+          return;
+        }
+
+        if (streamEvent.type === 'chunk') {
+          draftJsonBuffer += streamEvent.content;
+          syncDraftPreview();
+          return;
+        }
+
+        if (streamEvent.type === 'error') {
+          throw new Error(streamEvent.message);
+        }
+
+        streamCompleted = true;
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        sseBuffer += decoder
+          .decode(value, { stream: true })
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n');
+
+        let eventSeparatorIndex = sseBuffer.indexOf('\n\n');
+        while (eventSeparatorIndex >= 0) {
+          const eventBlock = sseBuffer.slice(0, eventSeparatorIndex).trim();
+          sseBuffer = sseBuffer.slice(eventSeparatorIndex + 2);
+          if (eventBlock.length > 0) {
+            processSseEvent(eventBlock);
+          }
+          eventSeparatorIndex = sseBuffer.indexOf('\n\n');
+        }
+      }
+
+      const finalChunk = decoder.decode().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      if (finalChunk) {
+        sseBuffer += finalChunk;
+      }
+      if (sseBuffer.trim().length > 0) {
+        processSseEvent(sseBuffer.trim());
+      }
+
+      if (!latestDraft) {
+        const parsed = tryParseDraft(draftJsonBuffer);
+        if (parsed) {
+          latestDraft = parsed;
+        }
+      }
+      if (!latestDraft) {
+        throw new Error('模型响应不是有效的草稿图 JSON。');
+      }
+      if (!streamCompleted) {
+        throw new Error('模型流式响应异常中断。');
+      }
+
+      const preview = buildOptimisticDraftPreview(latestDraft);
       onDraftApplyOptimistic?.({
-        draft: result.data,
+        draft: latestDraft,
         preview,
       });
-
       setMessages((prev) => [
         ...prev,
         {
-          id: `assistant-${Date.now()}`,
+          id: `assistant-complete-${Date.now()}`,
           role: 'assistant',
-          content: `${toDraftSummary(result.data)}\n\nDraft rendered on canvas. Click "Save Draft" in the top-right panel to persist changes.`,
+          content: '草稿已生成，画布已更新。',
         },
       ]);
     } catch (e) {
       onDraftApplyReverted?.();
-      const message = e instanceof Error ? e.message : 'Failed to propose model';
+      const message = e instanceof Error ? e.message : '模型提议失败';
       setError(message);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-error-${Date.now()}`,
-          role: 'assistant',
-          content: `Model proposal failed: ${message}`,
-        },
-      ]);
     } finally {
       setIsSubmitting(false);
     }
@@ -163,28 +352,40 @@ export function SettingsTool({
       </SheetTrigger>
       <SheetContent side="right" className="gap-0 p-0 sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Model Assistant</SheetTitle>
+          <SheetTitle>模型助手</SheetTitle>
           <SheetDescription>
-            Describe your requirement and generate a draft model proposal.
+            描述你的需求，生成领域模型草稿。
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex min-h-0 flex-1 flex-col border-t">
           <Conversation className="min-h-0 flex-1">
             <ConversationContent className="gap-4 px-4 py-4">
-              {messages.length === 0 ? (
+              {messages.length === 0 && !isSubmitting ? (
                 <ConversationEmptyState
-                  title="No model proposal yet"
-                  description="Enter a requirement below to propose nodes and edges."
+                  title="暂无模型提议"
+                  description="在下方输入需求后，可自动提议节点与连线。"
                 />
               ) : (
-                messages.map((message) => (
-                  <Message key={message.id} from={message.role}>
-                    <MessageContent>
-                      <MessageResponse>{message.content}</MessageResponse>
-                    </MessageContent>
-                  </Message>
-                ))
+                <>
+                  {messages.map((message) => (
+                    <Message key={message.id} from={message.role}>
+                      <MessageContent>
+                        <MessageResponse>{message.content}</MessageResponse>
+                      </MessageContent>
+                    </Message>
+                  ))}
+                  {isSubmitting ? (
+                    <Message key="assistant-loading" from="assistant">
+                      <MessageContent>
+                        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                          <Spinner className="size-4" />
+                          正在生成草稿并更新画布...
+                        </div>
+                      </MessageContent>
+                    </Message>
+                  ) : null}
+                </>
               )}
             </ConversationContent>
             <ConversationScrollButton />
@@ -196,7 +397,7 @@ export function SettingsTool({
           className="flex shrink-0 flex-col gap-3 border-t p-4"
         >
           <Textarea
-            placeholder="Example: Build an order fulfillment context model with customer, order, and shipment."
+            placeholder="示例：构建一个包含客户、订单、发货的履约上下文模型。"
             value={requirement}
             onChange={(event) => {
               const target = event.target as ValueTarget;
@@ -204,7 +405,7 @@ export function SettingsTool({
             }}
             disabled={isSubmitting || isSavingDraft}
             className="min-h-24 resize-y"
-            aria-label="Model requirement"
+            aria-label="模型需求"
           />
           {error ? (
             <p className="text-destructive text-sm" role="alert">
@@ -213,7 +414,7 @@ export function SettingsTool({
           ) : null}
           <Button type="submit" disabled={!canSubmit}>
             {isSubmitting ? <Spinner className="size-4" /> : null}
-            Propose Model
+            生成模型
           </Button>
         </form>
       </SheetContent>
