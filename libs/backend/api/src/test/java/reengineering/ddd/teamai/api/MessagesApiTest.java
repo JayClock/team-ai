@@ -113,7 +113,7 @@ public class MessagesApiTest extends ApiTest {
   }
 
   @Test
-  public void should_send_message_and_receive_streaming_response_in_vercel_ai_sdk_format() {
+  public void should_send_message_and_receive_streaming_response_in_standard_sse_format() {
     MessageDescription userDescription = new MessageDescription("user", "Hello, AI!");
     Message savedMessage = new Message("1", userDescription);
     MessageDescription assistantDescription =
@@ -153,13 +153,8 @@ public class MessagesApiTest extends ApiTest {
             .extract()
             .asString();
 
-    assertThat(responseBody).contains("\"type\":\"start\"");
-    assertThat(responseBody).contains("\"type\":\"text-start\"");
-    assertThat(responseBody).contains("\"type\":\"text-delta\"");
-    assertThat(responseBody).contains("\"delta\":\"Hello\"");
-    assertThat(responseBody).contains("\"type\":\"text-end\"");
-    assertThat(responseBody).contains("\"type\":\"finish\"");
-    assertThat(responseBody).contains("[DONE]");
+    assertThat(responseBody).contains("data: Hello");
+    assertThat(responseBody).contains("event: complete");
 
     verify(messages).saveMessage(eq(userDescription));
     verify(messages).saveMessage(eq(assistantDescription));

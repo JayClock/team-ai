@@ -1,5 +1,4 @@
 import { UIMessage, useChat } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
 import { Conversation } from '@shared/schema';
 import { State } from '@hateoas-ts/resource-react';
 import {
@@ -26,6 +25,7 @@ import {
   Suggestion,
 } from '@shared/ui';
 import { useState } from 'react';
+import { StandardSseChatTransport } from './standard-sse-chat-transport';
 
 interface MessageListProps {
   defaultMessages: UIMessage[];
@@ -69,7 +69,7 @@ export function MessageList({
   conversationState,
 }: MessageListProps) {
   const { messages, sendMessage } = useChat({
-    transport: new DefaultChatTransport({
+    transport: new StandardSseChatTransport({
       api: conversationState.getLink('chat')?.href,
       fetch: withApiKeyInterceptor(),
       prepareSendMessagesRequest: ({ messages }) => {

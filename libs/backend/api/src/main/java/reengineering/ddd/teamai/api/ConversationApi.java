@@ -15,7 +15,6 @@ import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
-import java.util.UUID;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import reactor.core.publisher.Flux;
@@ -66,14 +65,6 @@ public class ConversationApi {
     }
 
     StringBuilder aiResponseBuilder = new StringBuilder();
-    String messageId = UUID.randomUUID().toString();
-    String textId = UUID.randomUUID().toString();
-
-    // Send Vercel AI SDK Data Stream Protocol events
-    // 1. Message start
-    sendSseEvent(sseEventSink, sse, "{\"type\":\"start\",\"messageId\":\"" + messageId + "\"}");
-    // 2. Text start
-    sendSseEvent(sseEventSink, sse, "{\"type\":\"text-start\",\"id\":\"" + textId + "\"}");
 
     modelResponseStream
         .doOnNext(aiResponseBuilder::append)
@@ -83,52 +74,25 @@ public class ConversationApi {
               conversation.saveMessage(new MessageDescription("assistant", fullAiResponse));
             })
         .subscribe(
-            text -> {
-              // 3. Text delta - escape JSON string properly
-              String escapedText = escapeJsonString(text);
-              sendSseEvent(
-                  sseEventSink,
-                  sse,
-                  "{\"type\":\"text-delta\",\"id\":\""
-                      + textId
-                      + "\",\"delta\":\""
-                      + escapedText
-                      + "\"}");
-            },
+            text -> sendSseEvent(sseEventSink, sse, null, text),
             error -> {
-              // Send error event
-              String errorMessage = escapeJsonString(error.getMessage());
-              sendSseEvent(
-                  sseEventSink, sse, "{\"type\":\"error\",\"errorText\":\"" + errorMessage + "\"}");
-              sendSseEvent(sseEventSink, sse, "[DONE]");
+              sendSseEvent(sseEventSink, sse, "error", error == null ? null : error.getMessage());
               sseEventSink.close();
             },
             () -> {
-              // 4. Text end
-              sendSseEvent(sseEventSink, sse, "{\"type\":\"text-end\",\"id\":\"" + textId + "\"}");
-              // 5. Finish message
-              sendSseEvent(sseEventSink, sse, "{\"type\":\"finish\"}");
-              // 6. Stream termination
-              sendSseEvent(sseEventSink, sse, "[DONE]");
+              sendSseEvent(sseEventSink, sse, "complete", "");
               sseEventSink.close();
             });
   }
 
-  private void sendSseEvent(SseEventSink sseEventSink, Sse sse, String data) {
-    OutboundSseEvent event = sse.newEventBuilder().data(data).build();
-    sseEventSink.send(event);
-  }
-
-  private String escapeJsonString(String input) {
-    if (input == null) {
-      return "";
+  private void sendSseEvent(SseEventSink sseEventSink, Sse sse, String eventName, String data) {
+    String payload = data == null ? "" : data;
+    OutboundSseEvent.Builder builder = sse.newEventBuilder();
+    if (eventName != null && !eventName.isBlank()) {
+      builder.name(eventName);
     }
-    return input
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t");
+    OutboundSseEvent event = builder.data(String.class, payload).build();
+    sseEventSink.send(event);
   }
 
   @Data
