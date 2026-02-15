@@ -1,9 +1,11 @@
 package reengineering.ddd.teamai.infrastructure.providers;
 
+import com.alibaba.cloud.ai.graph.agent.ReactAgent;
+import com.alibaba.cloud.ai.graph.exception.GraphRunnerException;
 import java.util.Arrays;
-import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
-import org.springframework.ai.deepseek.DeepSeekChatOptions;
 import org.springframework.ai.deepseek.api.DeepSeekApi;
 import reengineering.ddd.teamai.description.DraftDiagram;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
@@ -23,15 +25,29 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
     String model = resolveModel(DEFAULT_MODEL);
 
     DeepSeekApi api = DeepSeekApi.builder().apiKey(apiKey).build();
-    DeepSeekChatModel chatModel = DeepSeekChatModel.builder().deepSeekApi(api).build();
-    ChatClient chatClient = ChatClient.create(chatModel);
+    DeepSeekChatModel chatModel =
+        DeepSeekChatModel.builder()
+            .deepSeekApi(api)
+            .defaultOptions(
+                org.springframework.ai.deepseek.DeepSeekChatOptions.builder().model(model).build())
+            .build();
 
-    return chatClient
-        .prompt()
-        .options(DeepSeekChatOptions.builder().model(model).build())
-        .user(prompt)
-        .call()
-        .entity(DraftDiagram.class);
+    ReactAgent architectAgent =
+        ReactAgent.builder()
+            .name("domain-architect")
+            .model(chatModel)
+            .instruction(prompt)
+            .outputType(DraftDiagram.class)
+            .build();
+
+    try {
+      AssistantMessage result = architectAgent.call(requirement);
+      return new BeanOutputConverter<>(DraftDiagram.class).convert(result.getText());
+    } catch (GraphRunnerException e) {
+      throw new IllegalStateException("Failed to generate domain model with ReactAgent", e);
+    } catch (RuntimeException e) {
+      throw new IllegalStateException("Failed to parse DraftDiagram from agent response", e);
+    }
   }
 
   private String buildAnalysisPrompt(String requirement) {
