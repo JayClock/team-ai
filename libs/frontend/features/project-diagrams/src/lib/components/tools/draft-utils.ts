@@ -12,6 +12,7 @@ export type OptimisticDraftPreview = {
     positionX: number;
     positionY: number;
     content: string;
+    localdata: DraftDiagramModel['data']['nodes'][number]['localData'];
   }>;
   edges: Array<{
     id: string;
@@ -85,6 +86,7 @@ export function buildOptimisticDraftPreview(
       positionX: position.x,
       positionY: position.y,
       content: `${draftNode.localData.label} (${draftNode.localData.type})`,
+      localdata: draftNode.localData,
     });
 
     for (const key of toNodeReferenceKeys(draftNode, index)) {

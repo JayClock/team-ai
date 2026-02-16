@@ -7,20 +7,24 @@ export const NODE_COMPONENT_TYPES = {
   NOTE: 'sticky-note',
 } as const;
 
-export type NodeComponentType =
-  (typeof NODE_COMPONENT_TYPES)[keyof typeof NODE_COMPONENT_TYPES];
+export type NodeComponentType = string;
+
+export type NodeLocalData = Record<string, unknown>;
+
+export type DiagramNodeData = {
+  id: string;
+  type: NodeComponentType;
+  logicalEntity?: { id: string } | null;
+  parent?: { id: string } | null;
+  positionX: number;
+  positionY: number;
+  width: number;
+  height: number;
+  localData: NodeLocalData;
+};
 
 export type DiagramNode = Entity<
-  {
-    id: string;
-    type: NodeComponentType;
-    logicalEntity?: { id: string } | null;
-    parent?: { id: string } | null;
-    positionX: number;
-    positionY: number;
-    width: number;
-    height: number;
-  },
+  DiagramNodeData,
   {
     self: DiagramNode;
     diagram: Entity;

@@ -1,13 +1,11 @@
 import { Collection, State } from '@hateoas-ts/resource';
-import { Diagram, DiagramEdge, DiagramNode } from '@shared/schema';
+import { Diagram, DiagramEdge, DiagramNode, LogicalEntity } from '@shared/schema';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import '@xyflow/react/dist/style.css';
 import { Background, Controls, Edge, Node } from '@xyflow/react';
 import { Canvas, Panel } from '@shared/ui';
-import { useMemo } from 'react';
-import { FulfillmentNode } from './fulfillment-node';
-import { GroupContainerNode } from './group-container-node';
-import { StickyNoteNode } from './sticky-note-node';
+import { use, useMemo } from 'react';
+import { nodeTypes } from './node-types';
 import {
   CommitDraftPanelTool,
   useCommitDraft,
@@ -21,10 +19,8 @@ interface Props {
   state: State<Diagram>;
 }
 
-const nodeTypes = {
-  'fulfillment-node': FulfillmentNode,
-  'group-container': GroupContainerNode,
-  'sticky-note': StickyNoteNode,
+type DiagramCanvasNodeData = DiagramNode['data'] & {
+  localdata: Record<string, unknown> | null;
 };
 
 export function ProjectDiagram(props: Props) {
@@ -58,7 +54,38 @@ export function ProjectDiagram(props: Props) {
   const { resourceState: edgesState } =
     useSuspenseResource<Collection<DiagramEdge>>(edgesResource);
 
-  const nodes = useMemo<Node<{ nodeState: State<DiagramNode> }, string>[]>(
+  const logicalEntities = use(
+    useMemo(
+      () =>
+        Promise.all(
+          nodesState.collection.map(async (nodeState) => {
+            if (!nodeState.hasLink('logical-entity')) {
+              return {
+                nodeId: nodeState.data.id,
+                data: null,
+              };
+            }
+
+            const logicalEntityState = await nodeState.follow('logical-entity').get();
+            return {
+              nodeId: nodeState.data.id,
+              data: logicalEntityState.data,
+            };
+          }),
+        ),
+      [nodesState.collection],
+    ),
+  );
+
+  const logicalEntityDataByNodeId = useMemo(() => {
+    const map = new Map<string, LogicalEntity['data'] | null>();
+    logicalEntities.forEach((item) => {
+      map.set(item.nodeId, item.data);
+    });
+    return map;
+  }, [logicalEntities]);
+
+  const nodes = useMemo<Node<DiagramCanvasNodeData>[]>(
     () =>
       nodesState.collection.map((nodeState) => ({
         id: nodeState.data.id,
@@ -68,10 +95,11 @@ export function ProjectDiagram(props: Props) {
           y: nodeState.data.positionY,
         },
         data: {
-          nodeState,
+          ...nodeState.data,
+          localdata: logicalEntityDataByNodeId.get(nodeState.data.id) ?? null,
         },
       })),
-    [nodesState.collection],
+    [logicalEntityDataByNodeId, nodesState.collection],
   );
 
   const edges = useMemo<Edge[]>(

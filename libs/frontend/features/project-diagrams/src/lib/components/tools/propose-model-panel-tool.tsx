@@ -17,7 +17,7 @@ import {
   Textarea,
 } from '@shared/ui';
 import { State } from '@hateoas-ts/resource';
-import { Diagram, DraftDiagramModel } from '@shared/schema';
+import { Diagram, DiagramNode, DraftDiagramModel } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
 import { parse as parseBestEffortJson } from 'best-effort-json-parser';
 import { Settings2 } from 'lucide-react';
@@ -51,11 +51,15 @@ interface UseProposeModelDraftOptions {
 }
 
 interface UseProposeModelDraftResult {
-  optimisticNodes: Node[];
+  optimisticNodes: Node<CanvasNodeData>[];
   optimisticEdges: Edge[];
   handleDraftApplyOptimistic: (payload: DraftApplyPayload) => void;
   handleDraftApplyReverted: () => void;
 }
+
+type CanvasNodeData = DiagramNode['data'] & {
+  localdata: Record<string, unknown> | null;
+};
 
 type ProposeModelStreamEvent =
   | {
@@ -228,7 +232,7 @@ export function useProposeModelDraft({
     setOptimisticPreview(null);
   }, [onDraftApplyReverted]);
 
-  const optimisticNodes = useMemo<Node[]>(
+  const optimisticNodes = useMemo<Node<CanvasNodeData>[]>(
     () =>
       optimisticPreview?.nodes.map((node) => ({
         id: node.id,
@@ -238,10 +242,19 @@ export function useProposeModelDraft({
           y: node.positionY,
         },
         data: {
-          content: node.content,
+          id: node.id,
+          type: 'sticky-note',
+          logicalEntity: null,
+          parent: null,
+          positionX: node.positionX,
+          positionY: node.positionY,
+          width: 220,
+          height: 120,
           localData: {
             optimistic: true,
+            content: node.content,
           },
+          localdata: node.localdata,
         },
       })) ?? [],
     [optimisticPreview],

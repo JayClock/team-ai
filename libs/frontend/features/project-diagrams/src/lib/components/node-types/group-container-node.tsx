@@ -1,10 +1,7 @@
-import { State } from '@hateoas-ts/resource';
 import { DiagramNode } from '@shared/schema';
 import { Node, NodeProps, Handle, Position } from '@xyflow/react';
 
-type GroupContainerNodeData = {
-  nodeState: State<DiagramNode>;
-};
+type GroupContainerNodeData = DiagramNode['data'];
 
 type GroupContainerNodeType = Node<GroupContainerNodeData, 'group-container'>;
 
@@ -17,7 +14,7 @@ export function GroupContainerNode({
       <div className="text-sm font-medium text-blue-700 mb-2">
         Context Group
       </div>
-      <div className="text-xs text-blue-600">{data.nodeState.data.type}</div>
+      <div className="text-xs text-blue-600">{data.type}</div>
       <Handle type="source" position={Position.Bottom} />
     </div>
   );
