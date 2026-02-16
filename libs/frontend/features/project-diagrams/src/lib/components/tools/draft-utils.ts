@@ -1,4 +1,4 @@
-import { DraftDiagramModel } from '@shared/schema';
+import { DiagramEdge, DiagramNode } from '@shared/schema';
 
 const GRID_COLUMNS = 3;
 const NODE_X_OFFSET = 120;
@@ -7,17 +7,20 @@ const NODE_X_GAP = 300;
 const NODE_Y_GAP = 180;
 
 export type OptimisticDraftPreview = {
-  nodes: DraftDiagramModel['data']['nodes'];
-  edges: DraftDiagramModel['data']['edges'];
+  nodes: DiagramNode['data'][];
+  edges: DiagramEdge['data'][];
 };
 
 export type DraftApplyPayload = {
-  draft: DraftDiagramModel['data'];
+  draft: {
+    nodes: DiagramNode['data'][];
+    edges: DiagramEdge['data'][];
+  };
   preview: OptimisticDraftPreview;
 };
 
 export function toNodeReferenceKeys(
-  node: DraftDiagramModel['data']['nodes'][number],
+  node: DiagramNode['data'],
   index: number,
 ): string[] {
   const keys = new Set<string>();
@@ -62,7 +65,10 @@ function resolveNodeReference(
 }
 
 export function buildOptimisticDraftPreview(
-  draft: DraftDiagramModel['data'],
+  draft: {
+    nodes: DiagramNode['data'][];
+    edges: DiagramEdge['data'][];
+  },
 ): OptimisticDraftPreview {
   const nodeIdByDraftRef = new Map<string, string>();
   const nodes: OptimisticDraftPreview['nodes'] = [];

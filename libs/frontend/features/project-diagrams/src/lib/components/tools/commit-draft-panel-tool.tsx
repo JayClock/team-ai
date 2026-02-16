@@ -1,5 +1,5 @@
 import { State } from '@hateoas-ts/resource';
-import { Diagram, DraftDiagramModel } from '@shared/schema';
+import { Diagram, DiagramEdge, DiagramNode } from '@shared/schema';
 import {
   Button,
   Dialog,
@@ -24,7 +24,7 @@ type BatchNodePayload = {
 };
 
 type BatchLogicalEntityPayload = {
-  type: DraftDiagramModel['data']['nodes'][number]['localData']['type'];
+  type: DiagramNode['data']['localData']['type'];
   name: string;
   label: string;
 };
@@ -50,7 +50,10 @@ export function useCommitDraft({
   state,
 }: UseCommitDraftOptions): UseCommitDraftResult {
   const [pendingDraft, setPendingDraft] =
-    useState<DraftDiagramModel['data'] | null>(null);
+    useState<{
+      nodes: DiagramNode['data'][];
+      edges: DiagramEdge['data'][];
+    } | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   const handleDraftApplyOptimistic = useCallback((payload: DraftApplyPayload) => {

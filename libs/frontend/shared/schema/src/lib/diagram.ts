@@ -18,24 +18,6 @@ export type Viewport = {
   zoom: number;
 };
 
-export type DraftDiagramNode = DiagramNode['data'];
-
-export type DraftDiagramEdge = DiagramEdge['data'];
-
-export type DraftDiagramModel = Entity<{
-  nodes: DraftDiagramNode[];
-  edges: DraftDiagramEdge[];
-}>;
-
-export type ProposeModelStream = Entity<ReadableStream<Uint8Array>>;
-
-export type CommitDraftDiagramModel = Entity<{
-  nodes?: DiagramNode['data'][];
-  edges?: DiagramEdge['data'][];
-  nodeIdMapping?: Record<string, string>;
-  logicalEntityIdMapping?: Record<string, string>;
-}>;
-
 export type Diagram = Entity<
   {
     id: string;
@@ -49,8 +31,8 @@ export type Diagram = Entity<
     edges: Collection<DiagramEdge>;
     'add-node': DiagramNode;
     'add-edge': DiagramEdge;
-    'propose-model': ProposeModelStream;
-    'commit-draft': CommitDraftDiagramModel;
+    'propose-model': Entity<ReadableStream<Uint8Array>>;
+    'commit-draft': Entity;
     project: Project;
   }
 >;

@@ -1,5 +1,10 @@
 import { Collection, State } from '@hateoas-ts/resource';
-import { Diagram, DiagramEdge, DiagramNode, LogicalEntity } from '@shared/schema';
+import {
+  Diagram,
+  DiagramEdge,
+  DiagramNode,
+  LogicalEntity,
+} from '@shared/schema';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import '@xyflow/react/dist/style.css';
 import { Background, Controls, Edge, Node } from '@xyflow/react';
@@ -18,10 +23,6 @@ import {
 interface Props {
   state: State<Diagram>;
 }
-
-type DiagramCanvasNodeData = Omit<DiagramNode['data'], 'localData'> & {
-  localData: Record<string, unknown> | null;
-};
 
 export function ProjectDiagram(props: Props) {
   const { state } = props;
@@ -66,7 +67,9 @@ export function ProjectDiagram(props: Props) {
               };
             }
 
-            const logicalEntityState = await nodeState.follow('logical-entity').get();
+            const logicalEntityState = await nodeState
+              .follow('logical-entity')
+              .get();
             return {
               nodeId: nodeState.data.id,
               data: logicalEntityState.data,
@@ -85,23 +88,24 @@ export function ProjectDiagram(props: Props) {
     return map;
   }, [logicalEntities]);
 
-  const nodes = useMemo<Node<DiagramCanvasNodeData>[]>(
+  const nodes = useMemo<Node<DiagramNode['data']>[]>(
     () =>
-      nodesState.collection.map((nodeState) => ({
-        id: nodeState.data.id,
-        type: nodeState.data.type,
-        position: {
-          x: nodeState.data.positionX,
-          y: nodeState.data.positionY,
-        },
-        data: {
-          ...nodeState.data,
-          localData:
-            (logicalEntityDataByNodeId.get(nodeState.data.id) ??
-              nodeState.data.localData ??
-              null) as Record<string, unknown> | null,
-        },
-      })),
+      nodesState.collection.map((nodeState) => {
+        const node = {
+          id: nodeState.data.id,
+          type: nodeState.data.type,
+          position: {
+            x: nodeState.data.positionX,
+            y: nodeState.data.positionY,
+          },
+          data: nodeState.data,
+        };
+        const localData = logicalEntityDataByNodeId.get(nodeState.data.id);
+        if (localData) {
+          node.data.localData = localData;
+        }
+        return node;
+      }),
     [logicalEntityDataByNodeId, nodesState.collection],
   );
 

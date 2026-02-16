@@ -19,8 +19,8 @@ import {
 import { State } from '@hateoas-ts/resource';
 import {
   Diagram,
+  DiagramEdge,
   DiagramNode,
-  DraftDiagramModel,
 } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
 import { parse as parseBestEffortJson } from 'best-effort-json-parser';
@@ -66,7 +66,7 @@ type CanvasNodeData = Omit<DiagramNode['data'], 'localData'> & {
 };
 
 type DraftLogicalEntityType =
-  DraftDiagramModel['data']['nodes'][number]['localData']['type'];
+  DiagramNode['data']['localData']['type'];
 
 type ProposeModelStreamEvent =
   | {
@@ -139,7 +139,7 @@ function getDefaultDraftNodePosition(index: number): { x: number; y: number } {
 function normalizeDraftNode(
   entry: unknown,
   index: number,
-): DraftDiagramModel['data']['nodes'][number] | null {
+): DiagramNode['data'] | null {
   if (!entry || typeof entry !== 'object') {
     return null;
   }
@@ -204,7 +204,7 @@ function normalizeDraftNode(
 function normalizeDraftEdge(
   entry: unknown,
   index: number,
-): DraftDiagramModel['data']['edges'][number] | null {
+): DiagramEdge['data'] | null {
   if (!entry || typeof entry !== 'object') {
     return null;
   }
@@ -234,14 +234,19 @@ function normalizeDraftEdge(
     targetHandle: typeof raw.targetHandle === 'string' ? raw.targetHandle : null,
     relationType:
       typeof raw.relationType === 'string'
-        ? (raw.relationType as DraftDiagramModel['data']['edges'][number]['relationType'])
+        ? (raw.relationType as DiagramEdge['data']['relationType'])
         : null,
     label: typeof raw.label === 'string' ? raw.label : null,
     styleProps: normalizeDraftStyleProps(raw.styleProps),
   };
 }
 
-function normalizeDraft(value: unknown): DraftDiagramModel['data'] | null {
+function normalizeDraft(
+  value: unknown,
+): {
+  nodes: DiagramNode['data'][];
+  edges: DiagramEdge['data'][];
+} | null {
   if (!value || typeof value !== 'object') {
     return null;
   }
@@ -255,14 +260,14 @@ function normalizeDraft(value: unknown): DraftDiagramModel['data'] | null {
     return null;
   }
 
-  const nodes: DraftDiagramModel['data']['nodes'] = Array.isArray(raw.nodes)
+  const nodes: DiagramNode['data'][] = Array.isArray(raw.nodes)
     ? raw.nodes.flatMap((entry, index) => {
         const node = normalizeDraftNode(entry, index);
         return node ? [node] : [];
       })
     : [];
 
-  const edges: DraftDiagramModel['data']['edges'] = Array.isArray(raw.edges)
+  const edges: DiagramEdge['data'][] = Array.isArray(raw.edges)
     ? raw.edges.flatMap((entry, index) => {
         const edge = normalizeDraftEdge(entry, index);
         return edge ? [edge] : [];
@@ -272,7 +277,12 @@ function normalizeDraft(value: unknown): DraftDiagramModel['data'] | null {
   return { nodes, edges };
 }
 
-function tryParseDraft(jsonText: string): DraftDiagramModel['data'] | null {
+function tryParseDraft(
+  jsonText: string,
+): {
+  nodes: DiagramNode['data'][];
+  edges: DiagramEdge['data'][];
+} | null {
   try {
     return normalizeDraft(parseBestEffortJson(jsonText));
   } catch {
@@ -304,9 +314,9 @@ function normalizeDraftLogicalEntityType(
 function normalizeDraftSubType(
   type: DraftLogicalEntityType,
   subType: unknown,
-): DraftDiagramModel['data']['nodes'][number]['localData']['subType'] {
+): DiagramNode['data']['localData']['subType'] {
   if (typeof subType === 'string') {
-    return subType as DraftDiagramModel['data']['nodes'][number]['localData']['subType'];
+    return subType as DiagramNode['data']['localData']['subType'];
   }
   switch (type) {
     case 'EVIDENCE':
@@ -322,16 +332,16 @@ function normalizeDraftSubType(
 
 function normalizeDraftDefinition(
   definition: unknown,
-): DraftDiagramModel['data']['nodes'][number]['localData']['definition'] {
+): DiagramNode['data']['localData']['definition'] {
   if (!definition || typeof definition !== 'object') {
     return {};
   }
-  return definition as DraftDiagramModel['data']['nodes'][number]['localData']['definition'];
+  return definition as DiagramNode['data']['localData']['definition'];
 }
 
 function normalizeDraftStyleProps(
   styleProps: unknown,
-): DraftDiagramModel['data']['edges'][number]['styleProps'] {
+): DiagramEdge['data']['styleProps'] {
   if (!styleProps || typeof styleProps !== 'object') {
     return null;
   }
@@ -480,7 +490,10 @@ export function ProposeModelPanelTool({
       const decoder = new TextDecoder();
       let sseBuffer = '';
       let draftJsonBuffer = '';
-      let latestDraft: DraftDiagramModel['data'] | null = null;
+      let latestDraft: {
+        nodes: DiagramNode['data'][];
+        edges: DiagramEdge['data'][];
+      } | null = null;
       let streamCompleted = false;
 
       const syncDraftPreview = () => {
