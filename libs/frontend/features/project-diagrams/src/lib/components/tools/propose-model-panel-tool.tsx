@@ -18,12 +18,14 @@ import {
 } from '@shared/ui';
 import { State } from '@hateoas-ts/resource';
 import { Diagram, DraftDiagramModel } from '@shared/schema';
+import { Edge, Node } from '@xyflow/react';
 import { parse as parseBestEffortJson } from 'best-effort-json-parser';
 import { Settings2 } from 'lucide-react';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useMemo, useState } from 'react';
 import {
   buildOptimisticDraftPreview,
   DraftApplyPayload,
+  OptimisticDraftPreview,
 } from './draft-utils';
 
 type ChatMessage = {
@@ -41,6 +43,18 @@ interface Props {
   isSavingDraft?: boolean;
   onDraftApplyOptimistic?: (payload: DraftApplyPayload) => void;
   onDraftApplyReverted?: () => void;
+}
+
+interface UseProposeModelDraftOptions {
+  onDraftApplyOptimistic?: (payload: DraftApplyPayload) => void;
+  onDraftApplyReverted?: () => void;
+}
+
+interface UseProposeModelDraftResult {
+  optimisticNodes: Node[];
+  optimisticEdges: Edge[];
+  handleDraftApplyOptimistic: (payload: DraftApplyPayload) => void;
+  handleDraftApplyReverted: () => void;
 }
 
 type ProposeModelStreamEvent =
@@ -192,6 +206,64 @@ function tryParseDraft(jsonText: string): DraftDiagramModel['data'] | null {
   } catch {
     return null;
   }
+}
+
+export function useProposeModelDraft({
+  onDraftApplyOptimistic,
+  onDraftApplyReverted,
+}: UseProposeModelDraftOptions): UseProposeModelDraftResult {
+  const [optimisticPreview, setOptimisticPreview] =
+    useState<OptimisticDraftPreview | null>(null);
+
+  const handleDraftApplyOptimistic = useCallback(
+    (payload: DraftApplyPayload) => {
+      onDraftApplyOptimistic?.(payload);
+      setOptimisticPreview(payload.preview);
+    },
+    [onDraftApplyOptimistic],
+  );
+
+  const handleDraftApplyReverted = useCallback(() => {
+    onDraftApplyReverted?.();
+    setOptimisticPreview(null);
+  }, [onDraftApplyReverted]);
+
+  const optimisticNodes = useMemo<Node[]>(
+    () =>
+      optimisticPreview?.nodes.map((node) => ({
+        id: node.id,
+        type: 'sticky-note',
+        position: {
+          x: node.positionX,
+          y: node.positionY,
+        },
+        data: {
+          content: node.content,
+          localData: {
+            optimistic: true,
+          },
+        },
+      })) ?? [],
+    [optimisticPreview],
+  );
+
+  const optimisticEdges = useMemo<Edge[]>(
+    () =>
+      optimisticPreview?.edges.map((edge) => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        animated: true,
+      })) ?? [],
+    [optimisticPreview],
+  );
+
+  return {
+    optimisticNodes,
+    optimisticEdges,
+    handleDraftApplyOptimistic,
+    handleDraftApplyReverted,
+  };
 }
 
 export function ProposeModelPanelTool({
