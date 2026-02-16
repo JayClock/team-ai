@@ -19,8 +19,8 @@ interface Props {
   state: State<Diagram>;
 }
 
-type DiagramCanvasNodeData = DiagramNode['data'] & {
-  localdata: Record<string, unknown> | null;
+type DiagramCanvasNodeData = Omit<DiagramNode['data'], 'localData'> & {
+  localData: Record<string, unknown> | null;
 };
 
 export function ProjectDiagram(props: Props) {
@@ -96,7 +96,10 @@ export function ProjectDiagram(props: Props) {
         },
         data: {
           ...nodeState.data,
-          localdata: logicalEntityDataByNodeId.get(nodeState.data.id) ?? null,
+          localData:
+            (logicalEntityDataByNodeId.get(nodeState.data.id) ??
+              nodeState.data.localData ??
+              null) as Record<string, unknown> | null,
         },
       })),
     [logicalEntityDataByNodeId, nodesState.collection],

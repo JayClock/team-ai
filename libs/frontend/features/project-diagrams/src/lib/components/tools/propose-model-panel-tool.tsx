@@ -57,8 +57,8 @@ interface UseProposeModelDraftResult {
   handleDraftApplyReverted: () => void;
 }
 
-type CanvasNodeData = DiagramNode['data'] & {
-  localdata: Record<string, unknown> | null;
+type CanvasNodeData = Omit<DiagramNode['data'], 'localData'> & {
+  localData: Record<string, unknown> | null;
 };
 
 type ProposeModelStreamEvent =
@@ -236,25 +236,21 @@ export function useProposeModelDraft({
     () =>
       optimisticPreview?.nodes.map((node) => ({
         id: node.id,
-        type: 'sticky-note',
+        type: 'fulfillment-node',
         position: {
           x: node.positionX,
           y: node.positionY,
         },
         data: {
           id: node.id,
-          type: 'sticky-note',
+          type: 'fulfillment-node',
           logicalEntity: null,
           parent: null,
           positionX: node.positionX,
           positionY: node.positionY,
           width: 220,
           height: 120,
-          localData: {
-            optimistic: true,
-            content: node.content,
-          },
-          localdata: node.localdata,
+          localData: node.localData,
         },
       })) ?? [],
     [optimisticPreview],

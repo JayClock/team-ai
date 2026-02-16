@@ -1,17 +1,17 @@
 import { DiagramNode } from '@shared/schema';
 import { Node, NodeProps, Handle, Position } from '@xyflow/react';
 
-type StickyNoteNodeData = DiagramNode['data'] & {
+type StickyNoteNodeData = Omit<DiagramNode['data'], 'localData'> & {
   content?: string;
-  localdata?: Record<string, unknown> | null;
+  localData?: Record<string, unknown> | null;
 };
 
 type StickyNoteNodeType = Node<StickyNoteNodeData, 'sticky-note'>;
 
 export function StickyNoteNode({ data }: NodeProps<StickyNoteNodeType>) {
   const localContent = data.localData?.content;
-  const label = data.localdata?.label;
-  const type = data.localdata?.type;
+  const label = data.localData?.label;
+  const type = data.localData?.type;
   const entityContent =
     typeof label === 'string' && typeof type === 'string'
       ? `${label} (${type})`

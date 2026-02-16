@@ -1,9 +1,9 @@
 import { DiagramNode, LogicalEntityType } from '@shared/schema';
 import { Node, NodeProps, Handle, Position } from '@xyflow/react';
 
-type FulfillmentNodeData = {
-  localdata: Record<string, unknown> | null;
-} & DiagramNode['data'];
+type FulfillmentNodeData = Omit<DiagramNode['data'], 'localData'> & {
+  localData: Record<string, unknown> | null;
+};
 
 type FulfillmentNodeType = Node<FulfillmentNodeData, 'fulfillment-node'>;
 
@@ -38,7 +38,7 @@ function getNodeIcon(type: LogicalEntityType): string {
 }
 
 export function FulfillmentNode({ data }: NodeProps<FulfillmentNodeType>) {
-  const entity = data.localdata;
+  const entity = data.localData;
   const entityType = (entity?.type as LogicalEntityType | undefined) ?? undefined;
   const entityLabel = (entity?.label as string | undefined) ?? 'Unnamed Entity';
   const entitySubType = (entity?.subType as string | undefined) ?? undefined;

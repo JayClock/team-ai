@@ -20,10 +20,10 @@ export type EdgeRelationType =
   | 'FLOW';
 
 export type EdgeStyleProps = {
-  lineStyle?: string;
-  color?: string;
-  arrowType?: string;
-  lineWidth?: number;
+  lineStyle: string;
+  color: string;
+  arrowType: string;
+  lineWidth: number;
 };
 
 export type DiagramEdge = Entity<
@@ -31,11 +31,11 @@ export type DiagramEdge = Entity<
     id: string;
     sourceNode: { id: string };
     targetNode: { id: string };
-    sourceHandle?: string;
-    targetHandle?: string;
-    relationType: EdgeRelationType;
-    label?: string;
-    styleProps?: EdgeStyleProps;
+    sourceHandle: string | null;
+    targetHandle: string | null;
+    relationType: EdgeRelationType | null;
+    label: string | null;
+    styleProps: EdgeStyleProps | null;
   },
   {
     self: DiagramEdge;
