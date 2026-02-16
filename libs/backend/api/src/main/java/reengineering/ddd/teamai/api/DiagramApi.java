@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
@@ -31,10 +32,10 @@ import org.springframework.web.context.ContextLoader;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
-import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.EdgeDescription;
+import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramNode;
-import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 
 public class DiagramApi {
@@ -91,51 +92,26 @@ public class DiagramApi {
   public Response commitDraft(@Valid CommitDraftRequest request, @Context UriInfo uriInfo) {
     executeInTransaction(
         status -> {
-          Map<String, String> createdLogicalEntityIdByRef = new LinkedHashMap<>();
           Map<String, String> createdNodeIdByRef = new LinkedHashMap<>();
 
-          List<LogicalEntitiesApi.CreateLogicalEntityRequest> logicalEntityRequests =
-              request.safeLogicalEntities();
-          for (int index = 0; index < logicalEntityRequests.size(); index += 1) {
-            LogicalEntitiesApi.CreateLogicalEntityRequest logicalEntityRequest =
-                logicalEntityRequests.get(index);
-            LogicalEntity createdLogicalEntity =
-                project.addLogicalEntity(
-                    new LogicalEntityDescription(
-                        logicalEntityRequest.getType(),
-                        logicalEntityRequest.getSubType(),
-                        logicalEntityRequest.getName(),
-                        logicalEntityRequest.getLabel(),
-                        null));
-            createdLogicalEntityIdByRef.put(
-                "logical-" + (index + 1), createdLogicalEntity.getIdentity());
-          }
-
-          List<NodesApi.CreateNodeRequest> nodeRequests = request.safeNodes();
+          List<CommitDraftNodeSchema> nodeRequests = request.safeNodes();
           for (int index = 0; index < nodeRequests.size(); index += 1) {
-            NodesApi.CreateNodeRequest nodeRequest = nodeRequests.get(index);
-            NodesApi.CreateNodeRequest resolvedNodeRequest = new NodesApi.CreateNodeRequest();
-            resolvedNodeRequest.setType(nodeRequest.getType());
-            resolvedNodeRequest.setParentId(nodeRequest.getParentId());
-            resolvedNodeRequest.setPositionX(nodeRequest.getPositionX());
-            resolvedNodeRequest.setPositionY(nodeRequest.getPositionY());
-            resolvedNodeRequest.setWidth(nodeRequest.getWidth());
-            resolvedNodeRequest.setHeight(nodeRequest.getHeight());
-            resolvedNodeRequest.setLogicalEntityId(
-                resolveLogicalEntityId(
-                    nodeRequest.getLogicalEntityId(), createdLogicalEntityIdByRef));
+            CommitDraftNodeSchema nodeRequest = nodeRequests.get(index);
+            String draftNodeId = nodeRequest.getId();
+            if (draftNodeId == null || draftNodeId.isBlank()) {
+              throw badRequest("Node request must provide id.");
+            }
 
-            DiagramNode createdNode = entity.addNode(NodesApi.toDescription(resolvedNodeRequest));
+            DiagramNode createdNode = entity.addNode(nodeRequest.toDescription());
+            createdNodeIdByRef.put(draftNodeId, createdNode.getIdentity());
+            // Backward compatibility with older indexed placeholder references.
             createdNodeIdByRef.put("node-" + (index + 1), createdNode.getIdentity());
           }
 
-          for (EdgesApi.CreateEdgeRequest edgeRequest : request.safeEdges()) {
+          for (CommitDraftEdgeSchema edgeRequest : request.safeEdges()) {
             String sourceNodeId = resolveNodeId(edgeRequest.getSourceNodeId(), createdNodeIdByRef);
             String targetNodeId = resolveNodeId(edgeRequest.getTargetNodeId(), createdNodeIdByRef);
-            EdgesApi.CreateEdgeRequest resolvedEdgeRequest = new EdgesApi.CreateEdgeRequest();
-            resolvedEdgeRequest.setSourceNodeId(sourceNodeId);
-            resolvedEdgeRequest.setTargetNodeId(targetNodeId);
-            entity.addEdge(EdgesApi.toDescription(resolvedEdgeRequest));
+            entity.addEdge(edgeRequest.toDescription(sourceNodeId, targetNodeId));
           }
 
           return null;
@@ -158,21 +134,6 @@ public class DiagramApi {
       throw badRequest("Unknown node placeholder id: " + nodeId);
     }
     return nodeId;
-  }
-
-  private static String resolveLogicalEntityId(
-      String logicalEntityId, Map<String, String> createdLogicalEntityIdByRef) {
-    if (logicalEntityId == null || logicalEntityId.isBlank()) {
-      return null;
-    }
-    String resolvedId = createdLogicalEntityIdByRef.get(logicalEntityId);
-    if (resolvedId != null) {
-      return resolvedId;
-    }
-    if (logicalEntityId.matches("logical-\\d+")) {
-      throw badRequest("Unknown logical entity placeholder id: " + logicalEntityId);
-    }
-    return logicalEntityId;
   }
 
   private static RuntimeException badRequest(String message) {
@@ -232,44 +193,68 @@ public class DiagramApi {
   @Data
   @NoArgsConstructor
   public static class CommitDraftRequest {
-    @WithJsonSchema(LogicalEntitiesApi.CreateLogicalEntityRequest[].class)
-    private List<LogicalEntitiesApi.CreateLogicalEntityRequest> logicalEntities;
-
     @WithJsonSchema(CommitDraftNodeSchema[].class)
-    private List<NodesApi.CreateNodeRequest> nodes;
+    @Valid
+    private List<CommitDraftNodeSchema> nodes;
 
     @WithJsonSchema(CommitDraftEdgeSchema[].class)
-    private List<EdgesApi.CreateEdgeRequest> edges;
+    @Valid
+    private List<CommitDraftEdgeSchema> edges;
 
-    public List<LogicalEntitiesApi.CreateLogicalEntityRequest> safeLogicalEntities() {
-      return logicalEntities == null ? List.of() : logicalEntities;
-    }
-
-    public List<NodesApi.CreateNodeRequest> safeNodes() {
+    public List<CommitDraftNodeSchema> safeNodes() {
       return nodes == null ? List.of() : nodes;
     }
 
-    public List<EdgesApi.CreateEdgeRequest> safeEdges() {
+    public List<CommitDraftEdgeSchema> safeEdges() {
       return edges == null ? List.of() : edges;
     }
   }
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   @Data
   @NoArgsConstructor
   public static class CommitDraftNodeSchema {
+    @NotNull private String id;
     @NotNull private String type;
     private Ref<String> logicalEntity;
     private Ref<String> parent;
     private double positionX;
     private double positionY;
+    private Object localData;
     @NotNull private Integer width;
     @NotNull private Integer height;
+
+    public NodeDescription toDescription() {
+      return new NodeDescription(
+          type, logicalEntity, parent, positionX, positionY, width, height, null, null);
+    }
   }
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   @Data
   @NoArgsConstructor
   public static class CommitDraftEdgeSchema {
     @NotNull private Ref<String> sourceNode;
     @NotNull private Ref<String> targetNode;
+
+    private String id;
+    private String sourceHandle;
+    private String targetHandle;
+    private String relationType;
+    private String label;
+    private Object styleProps;
+
+    public String getSourceNodeId() {
+      return sourceNode == null ? null : sourceNode.id();
+    }
+
+    public String getTargetNodeId() {
+      return targetNode == null ? null : targetNode.id();
+    }
+
+    public EdgeDescription toDescription(String sourceNodeId, String targetNodeId) {
+      return new EdgeDescription(
+          new Ref<>(sourceNodeId), new Ref<>(targetNodeId), null, null, null, null, null);
+    }
   }
 }
