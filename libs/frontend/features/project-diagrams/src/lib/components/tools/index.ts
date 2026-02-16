@@ -1,2 +1,2 @@
-export { DiagramTools } from './diagram-tools';
-export { SettingsTool } from './settings-tool';
+export { CommitDraftPanelTool } from './commit-draft-panel-tool';
+export { ProposeModelPanelTool } from './propose-model-panel-tool';

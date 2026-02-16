@@ -1,5 +1,3 @@
-import { State } from '@hateoas-ts/resource';
-import { Diagram } from '@shared/schema';
 import {
   Button,
   Dialog,
@@ -8,29 +6,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  Panel,
   Spinner,
 } from '@shared/ui';
 import { useState } from 'react';
-import { DraftApplyPayload } from './draft-utils';
-import { SettingsTool } from './settings-tool';
 
 interface Props {
-  state: State<Diagram>;
   canSaveDraft: boolean;
   isSavingDraft: boolean;
   onSaveDraft: () => void | Promise<void>;
-  onDraftApplyOptimistic?: (payload: DraftApplyPayload) => void;
-  onDraftApplyReverted?: () => void;
 }
 
-export function DiagramTools({
-  state,
+export function CommitDraftPanelTool({
   canSaveDraft,
   isSavingDraft,
   onSaveDraft,
-  onDraftApplyOptimistic,
-  onDraftApplyReverted,
 }: Props) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [saveError, setSaveError] = useState<string>();
@@ -49,28 +38,16 @@ export function DiagramTools({
 
   return (
     <>
-      <Panel position="center-left">
-        <div className="flex gap-1">
-          <SettingsTool
-            state={state}
-            isSavingDraft={isSavingDraft}
-            onDraftApplyOptimistic={onDraftApplyOptimistic}
-            onDraftApplyReverted={onDraftApplyReverted}
-          />
-        </div>
-      </Panel>
-      <Panel position="top-right">
-        <Button
-          size="sm"
-          disabled={!canSaveDraft || isSavingDraft}
-          onClick={() => {
-            setIsConfirmOpen(true);
-          }}
-        >
-          {isSavingDraft ? <Spinner className="size-4" /> : null}
-          Save Draft
-        </Button>
-      </Panel>
+      <Button
+        size="sm"
+        disabled={!canSaveDraft || isSavingDraft}
+        onClick={() => {
+          setIsConfirmOpen(true);
+        }}
+      >
+        {isSavingDraft ? <Spinner className="size-4" /> : null}
+        Save Draft
+      </Button>
       <Dialog
         open={isConfirmOpen}
         onOpenChange={(open) => {

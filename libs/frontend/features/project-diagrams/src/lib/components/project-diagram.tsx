@@ -3,17 +3,18 @@ import { Diagram, DiagramEdge, DiagramNode, DraftDiagramModel } from '@shared/sc
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import '@xyflow/react/dist/style.css';
 import { Background, Controls, Edge, Node } from '@xyflow/react';
-import { Canvas } from '@shared/ui';
+import { Canvas, Panel } from '@shared/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FulfillmentNode } from './fulfillment-node';
 import { GroupContainerNode } from './group-container-node';
 import { StickyNoteNode } from './sticky-note-node';
-import { DiagramTools } from './tools/diagram-tools';
+import { CommitDraftPanelTool } from './tools/commit-draft-panel-tool';
 import {
   DraftApplyPayload,
   OptimisticDraftPreview,
   toNodeReferenceKeys,
 } from './tools/draft-utils';
+import { ProposeModelPanelTool } from './tools/propose-model-panel-tool';
 
 interface Props {
   state: State<Diagram>;
@@ -246,14 +247,23 @@ export function ProjectDiagram(props: Props) {
         nodeTypes={nodeTypes}
         fitView
       >
-        <DiagramTools
-          state={state}
-          canSaveDraft={pendingDraft !== null}
-          isSavingDraft={isSavingDraft}
-          onSaveDraft={handleSaveDraft}
-          onDraftApplyOptimistic={handleDraftApplyOptimistic}
-          onDraftApplyReverted={handleDraftApplyReverted}
-        />
+        <Panel position="center-left">
+          <div className="flex gap-1">
+            <ProposeModelPanelTool
+              state={state}
+              isSavingDraft={isSavingDraft}
+              onDraftApplyOptimistic={handleDraftApplyOptimistic}
+              onDraftApplyReverted={handleDraftApplyReverted}
+            />
+          </div>
+        </Panel>
+        <Panel position="top-right">
+          <CommitDraftPanelTool
+            canSaveDraft={pendingDraft !== null}
+            isSavingDraft={isSavingDraft}
+            onSaveDraft={handleSaveDraft}
+          />
+        </Panel>
         <Background />
         <Controls />
       </Canvas>

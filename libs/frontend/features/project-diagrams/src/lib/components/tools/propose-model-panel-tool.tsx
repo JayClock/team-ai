@@ -194,7 +194,7 @@ function tryParseDraft(jsonText: string): DraftDiagramModel['data'] | null {
   }
 }
 
-export function SettingsTool({
+export function ProposeModelPanelTool({
   state,
   isSavingDraft = false,
   onDraftApplyOptimistic,
