@@ -2,9 +2,9 @@ import { Collection, State } from '@hateoas-ts/resource';
 import { Diagram, DiagramEdge, DiagramNode } from '@shared/schema';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import '@xyflow/react/dist/style.css';
-import { Background, Controls, Edge } from '@xyflow/react';
+import { Background, Controls, Edge, Node } from '@xyflow/react';
 import { Canvas, Panel } from '@shared/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { FulfillmentNode } from './fulfillment-node';
 import { GroupContainerNode } from './group-container-node';
 import { StickyNoteNode } from './sticky-note-node';
@@ -30,11 +30,6 @@ const nodeTypes = {
 export function ProjectDiagram(props: Props) {
   const { state } = props;
 
-  const [diagramResources, setDiagramResources] = useState(() => ({
-    nodes: state.follow('nodes'),
-    edges: state.follow('edges'),
-  }));
-
   const {
     canSaveDraft,
     isSavingDraft,
@@ -53,36 +48,31 @@ export function ProjectDiagram(props: Props) {
     onDraftApplyReverted: handleCommitDraftApplyReverted,
   });
 
-  const refreshDiagramResources = useCallback(() => {
-    setDiagramResources({
-      nodes: state.follow('nodes'),
-      edges: state.follow('edges'),
-    });
-  }, [state]);
+  const nodesResource = useMemo(() => state.follow('nodes'), [state]);
 
-  useEffect(() => {
-    refreshDiagramResources();
-  }, [refreshDiagramResources]);
+  const { resourceState: nodesState } =
+    useSuspenseResource<Collection<DiagramNode>>(nodesResource);
 
-  const { resourceState: nodesState } = useSuspenseResource<
-    Collection<DiagramNode>
-  >(diagramResources.nodes);
+  const edgesResource = useMemo(() => state.follow('edges'), [state]);
 
-  const { resourceState: edgesState } = useSuspenseResource<
-    Collection<DiagramEdge>
-  >(diagramResources.edges);
+  const { resourceState: edgesState } =
+    useSuspenseResource<Collection<DiagramEdge>>(edgesResource);
 
-  const nodes = nodesState.collection.map((nodeState) => ({
-    id: nodeState.data.id,
-    type: nodeState.data.type,
-    position: {
-      x: nodeState.data.positionX,
-      y: nodeState.data.positionY,
-    },
-    data: {
-      nodeState,
-    },
-  }));
+  const nodes = useMemo<Node<{ nodeState: State<DiagramNode> }, string>[]>(
+    () =>
+      nodesState.collection.map((nodeState) => ({
+        id: nodeState.data.id,
+        type: nodeState.data.type,
+        position: {
+          x: nodeState.data.positionX,
+          y: nodeState.data.positionY,
+        },
+        data: {
+          nodeState,
+        },
+      })),
+    [nodesState.collection],
+  );
 
   const edges = useMemo<Edge[]>(
     () =>
