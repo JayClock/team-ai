@@ -12,6 +12,12 @@ const schemaIssues = async (fields: ActionFields, data: ActionFormData) => {
   return 'issues' in validationResult ? validationResult.issues : undefined;
 };
 
+const schemaValue = async (fields: ActionFields, data: ActionFormData) => {
+  const schema = halFormsJsonSchemaZodSchemaPlugin.createSchema(fields);
+  const validationResult = await schema['~standard'].validate(data);
+  return 'value' in validationResult ? validationResult.value : undefined;
+};
+
 describe('halFormsJsonSchemaZodSchemaPlugin', () => {
   it('converts _schema array/object to zod schema', async () => {
     const fields: ActionFields = [
@@ -89,6 +95,7 @@ describe('halFormsJsonSchemaZodSchemaPlugin', () => {
                 properties: {
                   sourceNode: { $ref: '#/$defs/nodeRef' },
                   targetNode: { $ref: '#/$defs/nodeRef' },
+                  label: { type: 'string' },
                 },
               },
               nodeRef: {
@@ -125,6 +132,18 @@ describe('halFormsJsonSchemaZodSchemaPlugin', () => {
         ],
       }),
     ).toBeDefined();
+
+    expect(
+      await schemaIssues(fields, {
+        edges: [
+          {
+            sourceNode: { id: 'node-1' },
+            targetNode: { id: 'node-2' },
+            label: null,
+          },
+        ],
+      }),
+    ).toBeUndefined();
   });
 
   it('keeps HAL-FORMS dot-notation fallback behavior', async () => {
@@ -152,5 +171,30 @@ describe('halFormsJsonSchemaZodSchemaPlugin', () => {
     ).toBeUndefined();
 
     expect(await schemaIssues(fields, {})).toBeDefined();
+  });
+
+  it('cleans null to undefined for optional fields', async () => {
+    const fields: ActionFields = [
+      {
+        name: 'title',
+        type: 'text',
+        required: true,
+        readOnly: false,
+      },
+      {
+        name: 'logicalEntity.id',
+        type: 'text',
+        required: false,
+        readOnly: false,
+      },
+    ];
+
+    expect(await schemaIssues(fields, { title: 'Node', logicalEntity: null })).toBeUndefined();
+    expect(
+      await schemaValue(fields, { title: 'Node', logicalEntity: null }),
+    ).toEqual({
+      title: 'Node',
+      logicalEntity: undefined,
+    });
   });
 });

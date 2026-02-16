@@ -17,6 +17,9 @@ type BuiltNode = {
   required: boolean;
 };
 
+const asNullishCleanedOptional = (schema: z.ZodTypeAny): z.ZodTypeAny =>
+  schema.nullish().transform((value) => value ?? undefined);
+
 const JSON_SCHEMA_TYPES = new Set<TypeName>([
   TypeName.String,
   TypeName.Number,
@@ -294,7 +297,7 @@ const createObjectSchema = (
     const propertyZodSchema = jsonSchemaToZod(propertySchema, rootSchema, seenRefs);
     shape[propertyName] = required.has(propertyName)
       ? propertyZodSchema
-      : propertyZodSchema.optional();
+      : asNullishCleanedOptional(propertyZodSchema);
   }
 
   let objectSchema = z.object(shape);
@@ -574,7 +577,7 @@ const createFieldSchema = (field: ActionField): z.ZodTypeAny => {
     baseSchema = createFallbackSchemaForField(field);
   }
 
-  return field.required ? baseSchema : baseSchema.optional();
+  return field.required ? baseSchema : asNullishCleanedOptional(baseSchema);
 };
 
 const createNode = (): FieldSchemaNode => ({
@@ -635,7 +638,7 @@ const buildNode = (node: FieldSchemaNode): BuiltNode => {
   }
 
   return {
-    schema: objectSchema.optional(),
+    schema: asNullishCleanedOptional(objectSchema),
     required: false,
   };
 };

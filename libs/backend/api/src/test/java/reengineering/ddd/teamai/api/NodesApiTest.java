@@ -1,8 +1,10 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -275,6 +277,37 @@ public class NodesApiTest extends ApiTest {
         .statusCode(200)
         .body("_embedded", org.hamcrest.Matchers.nullValue())
         .body("_links.self.href", org.hamcrest.Matchers.endsWith("/nodes"));
+
+    verify(diagramNodes, times(1)).findAll();
+  }
+
+  @Test
+  public void should_skip_logical_entity_link_when_identity_is_missing() {
+    LogicalEntity nullIdentityLogicalEntity = Mockito.mock(LogicalEntity.class);
+    when(nullIdentityLogicalEntity.getIdentity()).thenReturn(null);
+    HasOne<LogicalEntity> danglingLogicalEntityRef = Mockito.mock(HasOne.class);
+    when(danglingLogicalEntityRef.get()).thenReturn(nullIdentityLogicalEntity);
+    DiagramNode nodeWithoutLogicalEntityId =
+        new DiagramNode(
+            "node-dangling",
+            new NodeDescription("note-node", null, null, 100.0, 200.0, 180, 90, null, null),
+            danglingLogicalEntityRef);
+
+    when(diagramNodes.findAll()).thenReturn(new EntityList<>(nodeWithoutLogicalEntityId));
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_JSON.toString())
+        .when()
+        .get(
+            "/projects/{projectId}/diagrams/{diagramId}/nodes",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded.nodes", hasSize(1))
+        .body("_embedded.nodes[0].id", is("node-dangling"))
+        .body("_embedded.nodes[0]", not(hasKey("_embedded")))
+        .body("_embedded.nodes[0]._links.logical-entity", org.hamcrest.Matchers.nullValue());
 
     verify(diagramNodes, times(1)).findAll();
   }
