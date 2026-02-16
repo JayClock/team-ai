@@ -48,8 +48,8 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 需求：%s
 
                 请基于需求分析创建一个领域模型 Diagram，包含：
-                1. 识别核心领域概念作为 Node，每个 Node 应该有 name、label 和 type（type 必须使用 LogicalEntityDescription.Type 枚举值：%s）
-                2. 定义领域对象之间的关系作为 Edge，每个 Edge 有 sourceNode 和 targetNode
+                1. 识别核心领域概念作为 Node，每个 Node 必须有唯一虚拟 id（建议格式 node-1、node-2...），并包含 name、label 和 type（type 必须使用 LogicalEntityDescription.Type 枚举值：%s）
+                2. 定义领域对象之间的关系作为 Edge，每个 Edge 必须提供 sourceNode 和 targetNode，且 sourceNode.id / targetNode.id 必须引用已定义的 Node.id
 
                 输出必须严格遵守以下结构化格式（不要输出额外文本，不要 Markdown 代码块，不要解释）：
                 %s

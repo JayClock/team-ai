@@ -403,7 +403,7 @@ public class DiagramsApiTest extends ApiTest {
     String requirement = "设计一个订单管理模型";
     Flux<String> expected =
         Flux.just(
-            "{\"nodes\":[{\"localData\":{\"name\":\"Order\",\"label\":\"订单\",\"type\":\"EVIDENCE\"}}],",
+            "{\"nodes\":[{\"id\":\"node-1\",\"localData\":{\"name\":\"Order\",\"label\":\"订单\",\"type\":\"EVIDENCE\"}}],",
             "\"edges\":[{\"sourceNode\":{\"id\":\"node-1\"},\"targetNode\":{\"id\":\"node-2\"}}]}");
     when(domainArchitect.proposeModel(requirement)).thenReturn(expected);
 

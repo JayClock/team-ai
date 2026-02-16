@@ -108,24 +108,13 @@ export function useCommitDraft({
         }
         nodesPayload.push(nodePayload);
 
-        for (const key of toNodeReferenceKeys(draftNode, index)) {
+        for (const key of toNodeReferenceKeys(draftNode)) {
           draftRefToNodeRef.set(key, nodeRef);
         }
       }
 
       const resolveNodeId = (draftRefId: string): string | undefined => {
-        const direct = draftRefToNodeRef.get(draftRefId);
-        if (direct) {
-          return direct;
-        }
-
-        const match = draftRefId.match(/node[-_]?(\d+)/i);
-        if (!match) {
-          return undefined;
-        }
-
-        const index = Number(match[1]) - 1;
-        return index >= 0 ? `node-${index + 1}` : undefined;
+        return draftRefToNodeRef.get(draftRefId);
       };
 
       const edgesPayload: BatchEdgePayload[] = [];

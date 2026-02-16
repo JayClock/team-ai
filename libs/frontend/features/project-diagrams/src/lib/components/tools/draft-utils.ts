@@ -21,13 +21,9 @@ export type DraftApplyPayload = {
 
 export function toNodeReferenceKeys(
   node: DiagramNode['data'],
-  index: number,
 ): string[] {
   const keys = new Set<string>();
   keys.add(node.id);
-  keys.add(`node-${index + 1}`);
-  keys.add(`node_${index + 1}`);
-  keys.add(String(index + 1));
   if (node.localData.name) {
     keys.add(node.localData.name);
   }
@@ -50,18 +46,7 @@ function resolveNodeReference(
   nodeIdByDraftRef: Map<string, string>,
   draftRefId: string,
 ): string | undefined {
-  const direct = nodeIdByDraftRef.get(draftRefId);
-  if (direct) {
-    return direct;
-  }
-
-  const match = draftRefId.match(/node[-_]?(\d+)/i);
-  if (!match) {
-    return undefined;
-  }
-
-  const index = Number(match[1]) - 1;
-  return index >= 0 ? `optimistic-node-${index + 1}` : undefined;
+  return nodeIdByDraftRef.get(draftRefId);
 }
 
 export function buildOptimisticDraftPreview(
@@ -75,7 +60,7 @@ export function buildOptimisticDraftPreview(
 
   for (let index = 0; index < draft.nodes.length; index += 1) {
     const draftNode = draft.nodes[index];
-    const optimisticNodeId = `optimistic-node-${index + 1}`;
+    const optimisticNodeId = `optimistic-${draftNode.id}`;
     const position = getGridPosition(index);
 
     nodes.push({
@@ -85,7 +70,7 @@ export function buildOptimisticDraftPreview(
       positionY: typeof draftNode.positionY === 'number' ? draftNode.positionY : position.y,
     });
 
-    for (const key of toNodeReferenceKeys(draftNode, index)) {
+    for (const key of toNodeReferenceKeys(draftNode)) {
       nodeIdByDraftRef.set(key, optimisticNodeId);
     }
   }

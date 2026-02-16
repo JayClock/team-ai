@@ -160,6 +160,10 @@ function normalizeDraftNode(
   if (!localData || typeof localData !== 'object') {
     return null;
   }
+  const id = raw.id;
+  if (typeof id !== 'string' || id.trim().length === 0) {
+    return null;
+  }
 
   const localDataRaw = localData as {
     id?: unknown;
@@ -179,7 +183,7 @@ function normalizeDraftNode(
 
   const position = getDefaultDraftNodePosition(index);
   return {
-    id: typeof raw.id === 'string' ? raw.id : `node-${index + 1}`,
+    id,
     type: typeof raw.type === 'string' ? raw.type : 'fulfillment-node',
     logicalEntity: normalizeRef(raw.logicalEntity),
     parent: normalizeRef(raw.parent),

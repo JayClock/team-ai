@@ -4,7 +4,7 @@ import java.util.List;
 import reengineering.ddd.archtype.Ref;
 
 public record DraftDiagram(List<DraftNode> nodes, List<DraftEdge> edges) {
-  public static record DraftNode(DraftEntity localData) {}
+  public static record DraftNode(String id, DraftEntity localData) {}
 
   public static record DraftEdge(Ref<String> sourceNode, Ref<String> targetNode) {}
 
