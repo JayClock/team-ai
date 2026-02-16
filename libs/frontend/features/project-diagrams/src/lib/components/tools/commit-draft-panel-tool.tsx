@@ -16,6 +16,7 @@ import { DraftApplyPayload, toNodeReferenceKeys } from './draft-utils';
 type BatchNodePayload = {
   type: string;
   'logicalEntity.id'?: string;
+  'parent.id'?: string;
   positionX: number;
   positionY: number;
   width: number;
@@ -88,18 +89,21 @@ export function useCommitDraft({
           label,
         });
 
-        const column = index % 3;
-        const row = Math.floor(index / 3);
         const nodeRef = `node-${index + 1}`;
 
-        nodesPayload.push({
-          type: 'fulfillment-node',
+        const parentId = draftNode.parent?.id;
+        const nodePayload: BatchNodePayload = {
+          type: draftNode.type,
           'logicalEntity.id': logicalEntityRef,
-          positionX: 120 + column * 300,
-          positionY: 120 + row * 180,
-          width: 220,
-          height: 120,
-        });
+          positionX: draftNode.positionX,
+          positionY: draftNode.positionY,
+          width: draftNode.width,
+          height: draftNode.height,
+        };
+        if (parentId) {
+          nodePayload['parent.id'] = parentId;
+        }
+        nodesPayload.push(nodePayload);
 
         for (const key of toNodeReferenceKeys(draftNode, index)) {
           draftRefToNodeRef.set(key, nodeRef);

@@ -7,17 +7,8 @@ const NODE_X_GAP = 300;
 const NODE_Y_GAP = 180;
 
 export type OptimisticDraftPreview = {
-  nodes: Array<{
-    id: string;
-    positionX: number;
-    positionY: number;
-    localData: DraftDiagramModel['data']['nodes'][number]['localData'];
-  }>;
-  edges: Array<{
-    id: string;
-    source: string;
-    target: string;
-  }>;
+  nodes: DraftDiagramModel['data']['nodes'];
+  edges: DraftDiagramModel['data']['edges'];
 };
 
 export type DraftApplyPayload = {
@@ -30,6 +21,7 @@ export function toNodeReferenceKeys(
   index: number,
 ): string[] {
   const keys = new Set<string>();
+  keys.add(node.id);
   keys.add(`node-${index + 1}`);
   keys.add(`node_${index + 1}`);
   keys.add(String(index + 1));
@@ -81,10 +73,10 @@ export function buildOptimisticDraftPreview(
     const position = getGridPosition(index);
 
     nodes.push({
+      ...draftNode,
       id: optimisticNodeId,
-      positionX: position.x,
-      positionY: position.y,
-      localData: draftNode.localData,
+      positionX: typeof draftNode.positionX === 'number' ? draftNode.positionX : position.x,
+      positionY: typeof draftNode.positionY === 'number' ? draftNode.positionY : position.y,
     });
 
     for (const key of toNodeReferenceKeys(draftNode, index)) {
@@ -101,9 +93,10 @@ export function buildOptimisticDraftPreview(
       continue;
     }
     edges.push({
+      ...draftEdge,
       id: `optimistic-edge-${index + 1}`,
-      source,
-      target,
+      sourceNode: { id: source },
+      targetNode: { id: target },
     });
   }
 

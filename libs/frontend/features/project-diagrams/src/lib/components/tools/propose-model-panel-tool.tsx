@@ -17,7 +17,11 @@ import {
   Textarea,
 } from '@shared/ui';
 import { State } from '@hateoas-ts/resource';
-import { Diagram, DiagramNode, DraftDiagramModel } from '@shared/schema';
+import {
+  Diagram,
+  DiagramNode,
+  DraftDiagramModel,
+} from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
 import { parse as parseBestEffortJson } from 'best-effort-json-parser';
 import { Settings2 } from 'lucide-react';
@@ -60,6 +64,9 @@ interface UseProposeModelDraftResult {
 type CanvasNodeData = Omit<DiagramNode['data'], 'localData'> & {
   localData: Record<string, unknown> | null;
 };
+
+type DraftLogicalEntityType =
+  DraftDiagramModel['data']['nodes'][number]['localData']['type'];
 
 type ProposeModelStreamEvent =
   | {
@@ -122,6 +129,118 @@ function parseStreamEvent(envelope: SseEnvelope): ProposeModelStreamEvent | null
   return null;
 }
 
+function getDefaultDraftNodePosition(index: number): { x: number; y: number } {
+  return {
+    x: 120 + (index % 3) * 300,
+    y: 120 + Math.floor(index / 3) * 180,
+  };
+}
+
+function normalizeDraftNode(
+  entry: unknown,
+  index: number,
+): DraftDiagramModel['data']['nodes'][number] | null {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const raw = entry as {
+    id?: unknown;
+    type?: unknown;
+    logicalEntity?: unknown;
+    parent?: unknown;
+    positionX?: unknown;
+    positionY?: unknown;
+    width?: unknown;
+    height?: unknown;
+    localData?: unknown;
+  };
+
+  const localData = raw.localData;
+  if (!localData || typeof localData !== 'object') {
+    return null;
+  }
+
+  const localDataRaw = localData as {
+    id?: unknown;
+    type?: unknown;
+    subType?: unknown;
+    name?: unknown;
+    label?: unknown;
+    definition?: unknown;
+  };
+
+  const name = localDataRaw.name;
+  const label = localDataRaw.label;
+  const normalizedType = normalizeDraftLogicalEntityType(localDataRaw.type);
+  if (typeof name !== 'string' || typeof label !== 'string' || !normalizedType) {
+    return null;
+  }
+
+  const position = getDefaultDraftNodePosition(index);
+  return {
+    id: typeof raw.id === 'string' ? raw.id : `node-${index + 1}`,
+    type: typeof raw.type === 'string' ? raw.type : 'fulfillment-node',
+    logicalEntity: normalizeRef(raw.logicalEntity),
+    parent: normalizeRef(raw.parent),
+    positionX: typeof raw.positionX === 'number' ? raw.positionX : position.x,
+    positionY: typeof raw.positionY === 'number' ? raw.positionY : position.y,
+    width: typeof raw.width === 'number' ? raw.width : 220,
+    height: typeof raw.height === 'number' ? raw.height : 120,
+    localData: {
+      id:
+        typeof localDataRaw.id === 'string'
+          ? localDataRaw.id
+          : `draft-entity-${index + 1}`,
+      type: normalizedType,
+      subType: normalizeDraftSubType(normalizedType, localDataRaw.subType),
+      name,
+      label,
+      definition: normalizeDraftDefinition(localDataRaw.definition),
+    },
+  };
+}
+
+function normalizeDraftEdge(
+  entry: unknown,
+  index: number,
+): DraftDiagramModel['data']['edges'][number] | null {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const raw = entry as {
+    id?: unknown;
+    sourceNode?: unknown;
+    targetNode?: unknown;
+    sourceHandle?: unknown;
+    targetHandle?: unknown;
+    relationType?: unknown;
+    label?: unknown;
+    styleProps?: unknown;
+  };
+
+  const sourceNode = normalizeRef(raw.sourceNode);
+  const targetNode = normalizeRef(raw.targetNode);
+  if (!sourceNode || !targetNode) {
+    return null;
+  }
+
+  return {
+    id: typeof raw.id === 'string' ? raw.id : `edge-${index + 1}`,
+    sourceNode,
+    targetNode,
+    sourceHandle: typeof raw.sourceHandle === 'string' ? raw.sourceHandle : null,
+    targetHandle: typeof raw.targetHandle === 'string' ? raw.targetHandle : null,
+    relationType:
+      typeof raw.relationType === 'string'
+        ? (raw.relationType as DraftDiagramModel['data']['edges'][number]['relationType'])
+        : null,
+    label: typeof raw.label === 'string' ? raw.label : null,
+    styleProps: normalizeDraftStyleProps(raw.styleProps),
+  };
+}
+
 function normalizeDraft(value: unknown): DraftDiagramModel['data'] | null {
   if (!value || typeof value !== 'object') {
     return null;
@@ -137,67 +256,16 @@ function normalizeDraft(value: unknown): DraftDiagramModel['data'] | null {
   }
 
   const nodes: DraftDiagramModel['data']['nodes'] = Array.isArray(raw.nodes)
-    ? raw.nodes.flatMap((entry) => {
-        if (!entry || typeof entry !== 'object') {
-          return [];
-        }
-        const localData = (entry as { localData?: unknown }).localData;
-        if (!localData || typeof localData !== 'object') {
-          return [];
-        }
-
-        const name = (localData as { name?: unknown }).name;
-        const label = (localData as { label?: unknown }).label;
-        const type = (localData as { type?: unknown }).type;
-
-        if (
-          typeof name !== 'string' ||
-          typeof label !== 'string' ||
-          typeof type !== 'string'
-        ) {
-          return [];
-        }
-
-        return [
-          {
-            localData: {
-              name,
-              label,
-              type: type as DraftDiagramModel['data']['nodes'][number]['localData']['type'],
-            },
-          },
-        ];
+    ? raw.nodes.flatMap((entry, index) => {
+        const node = normalizeDraftNode(entry, index);
+        return node ? [node] : [];
       })
     : [];
 
   const edges: DraftDiagramModel['data']['edges'] = Array.isArray(raw.edges)
-    ? raw.edges.flatMap((entry) => {
-        if (!entry || typeof entry !== 'object') {
-          return [];
-        }
-        const sourceNode = (entry as { sourceNode?: unknown }).sourceNode;
-        const targetNode = (entry as { targetNode?: unknown }).targetNode;
-        if (
-          !sourceNode ||
-          typeof sourceNode !== 'object' ||
-          !targetNode ||
-          typeof targetNode !== 'object'
-        ) {
-          return [];
-        }
-
-        const sourceNodeId = (sourceNode as { id?: unknown }).id;
-        const targetNodeId = (targetNode as { id?: unknown }).id;
-        if (typeof sourceNodeId !== 'string' || typeof targetNodeId !== 'string') {
-          return [];
-        }
-
-        return [
-          {
-            sourceNode: { id: sourceNodeId },
-            targetNode: { id: targetNodeId },
-          },
-        ];
+    ? raw.edges.flatMap((entry, index) => {
+        const edge = normalizeDraftEdge(entry, index);
+        return edge ? [edge] : [];
       })
     : [];
 
@@ -210,6 +278,91 @@ function tryParseDraft(jsonText: string): DraftDiagramModel['data'] | null {
   } catch {
     return null;
   }
+}
+
+function normalizeDraftLogicalEntityType(
+  type: unknown,
+): DraftLogicalEntityType | null {
+  if (typeof type !== 'string') {
+    return null;
+  }
+
+  switch (type.trim().toUpperCase()) {
+    case 'EVIDENCE':
+      return 'EVIDENCE';
+    case 'PARTICIPANT':
+      return 'PARTICIPANT';
+    case 'ROLE':
+      return 'ROLE';
+    case 'CONTEXT':
+      return 'CONTEXT';
+    default:
+      return null;
+  }
+}
+
+function normalizeDraftSubType(
+  type: DraftLogicalEntityType,
+  subType: unknown,
+): DraftDiagramModel['data']['nodes'][number]['localData']['subType'] {
+  if (typeof subType === 'string') {
+    return subType as DraftDiagramModel['data']['nodes'][number]['localData']['subType'];
+  }
+  switch (type) {
+    case 'EVIDENCE':
+      return 'other_evidence';
+    case 'PARTICIPANT':
+      return 'party';
+    case 'ROLE':
+      return 'party_role';
+    case 'CONTEXT':
+      return 'bounded_context';
+  }
+}
+
+function normalizeDraftDefinition(
+  definition: unknown,
+): DraftDiagramModel['data']['nodes'][number]['localData']['definition'] {
+  if (!definition || typeof definition !== 'object') {
+    return {};
+  }
+  return definition as DraftDiagramModel['data']['nodes'][number]['localData']['definition'];
+}
+
+function normalizeDraftStyleProps(
+  styleProps: unknown,
+): DraftDiagramModel['data']['edges'][number]['styleProps'] {
+  if (!styleProps || typeof styleProps !== 'object') {
+    return null;
+  }
+  const raw = styleProps as {
+    lineStyle?: unknown;
+    color?: unknown;
+    arrowType?: unknown;
+    lineWidth?: unknown;
+  };
+  if (
+    typeof raw.lineStyle !== 'string' ||
+    typeof raw.color !== 'string' ||
+    typeof raw.arrowType !== 'string' ||
+    typeof raw.lineWidth !== 'number'
+  ) {
+    return null;
+  }
+  return {
+    lineStyle: raw.lineStyle,
+    color: raw.color,
+    arrowType: raw.arrowType,
+    lineWidth: raw.lineWidth,
+  };
+}
+
+function normalizeRef(value: unknown): { id: string } | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  const id = (value as { id?: unknown }).id;
+  return typeof id === 'string' ? { id } : null;
 }
 
 export function useProposeModelDraft({
@@ -236,21 +389,14 @@ export function useProposeModelDraft({
     () =>
       optimisticPreview?.nodes.map((node) => ({
         id: node.id,
-        type: 'fulfillment-node',
+        type: node.type,
         position: {
           x: node.positionX,
           y: node.positionY,
         },
         data: {
-          id: node.id,
-          type: 'fulfillment-node',
-          logicalEntity: null,
-          parent: null,
-          positionX: node.positionX,
-          positionY: node.positionY,
-          width: 220,
-          height: 120,
-          localData: node.localData,
+          ...node,
+          localData: node.localData as Record<string, unknown> | null,
         },
       })) ?? [],
     [optimisticPreview],
@@ -260,8 +406,8 @@ export function useProposeModelDraft({
     () =>
       optimisticPreview?.edges.map((edge) => ({
         id: edge.id,
-        source: edge.source,
-        target: edge.target,
+        source: edge.sourceNode.id,
+        target: edge.targetNode.id,
         animated: true,
       })) ?? [],
     [optimisticPreview],

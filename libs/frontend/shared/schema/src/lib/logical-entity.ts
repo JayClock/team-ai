@@ -1,7 +1,7 @@
 import { Entity } from '@hateoas-ts/resource';
 import { Project } from './project.js';
 
-export type LogicalEntityType = 'Evidence' | 'Participant' | 'Role' | 'Context';
+export type LogicalEntityType = 'EVIDENCE' | 'PARTICIPANT' | 'ROLE' | 'CONTEXT';
 
 export type TemporalType = 'moment' | 'interval';
 

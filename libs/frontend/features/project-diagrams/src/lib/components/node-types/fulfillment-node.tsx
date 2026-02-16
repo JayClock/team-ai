@@ -1,4 +1,4 @@
-import { DiagramNode, LogicalEntityType } from '@shared/schema';
+import { DiagramNode } from '@shared/schema';
 import { Node, NodeProps, Handle, Position } from '@xyflow/react';
 
 type FulfillmentNodeData = Omit<DiagramNode['data'], 'localData'> & {
@@ -7,30 +7,38 @@ type FulfillmentNodeData = Omit<DiagramNode['data'], 'localData'> & {
 
 type FulfillmentNodeType = Node<FulfillmentNodeData, 'fulfillment-node'>;
 
-function getNodeColor(type: LogicalEntityType): string {
+function getNodeColor(type: string): string {
   switch (type) {
     case 'Evidence':
+    case 'EVIDENCE':
       return 'bg-pink-100 border-pink-300';
     case 'Role':
+    case 'ROLE':
       return 'bg-yellow-100 border-yellow-300';
     case 'Participant':
+    case 'PARTICIPANT':
       return 'bg-green-100 border-green-300';
     case 'Context':
+    case 'CONTEXT':
       return 'bg-blue-100 border-blue-300';
     default:
       return 'bg-white border-gray-200';
   }
 }
 
-function getNodeIcon(type: LogicalEntityType): string {
+function getNodeIcon(type: string): string {
   switch (type) {
     case 'Evidence':
+    case 'EVIDENCE':
       return '📄';
     case 'Role':
+    case 'ROLE':
       return '🎭';
     case 'Participant':
+    case 'PARTICIPANT':
       return '👤';
     case 'Context':
+    case 'CONTEXT':
       return '📦';
     default:
       return '📌';
@@ -39,7 +47,7 @@ function getNodeIcon(type: LogicalEntityType): string {
 
 export function FulfillmentNode({ data }: NodeProps<FulfillmentNodeType>) {
   const entity = data.localData;
-  const entityType = (entity?.type as LogicalEntityType | undefined) ?? undefined;
+  const entityType = (entity?.type as string | undefined) ?? undefined;
   const entityLabel = (entity?.label as string | undefined) ?? 'Unnamed Entity';
   const entitySubType = (entity?.subType as string | undefined) ?? undefined;
   const bgColorClass = entityType
