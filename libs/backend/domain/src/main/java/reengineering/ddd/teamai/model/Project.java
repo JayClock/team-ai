@@ -1,11 +1,14 @@
 package reengineering.ddd.teamai.model;
 
+import java.util.Collection;
+import java.util.List;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
+import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 
 public class Project implements Entity<String, ProjectDescription> {
@@ -79,6 +82,13 @@ public class Project implements Entity<String, ProjectDescription> {
     return diagrams.add(description);
   }
 
+  public Diagrams.CommitDraftResult commitDiagramDraft(
+      String diagramId,
+      Collection<Diagrams.DraftNode> draftNodes,
+      Collection<Diagrams.DraftEdge> draftEdges) {
+    return diagrams.commitDraft(diagramId, draftNodes, draftEdges);
+  }
+
   public interface Members extends HasMany<String, Member> {
     Member addMember(MemberDescription description);
   }
@@ -89,6 +99,26 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public interface Diagrams extends HasMany<String, Diagram> {
     Diagram add(DiagramDescription description);
+
+    CommitDraftResult commitDraft(
+        String diagramId, Collection<DraftNode> draftNodes, Collection<DraftEdge> draftEdges);
+
+    record DraftNode(String id, NodeDescription description) {}
+
+    record DraftEdge(String sourceNodeId, String targetNodeId) {}
+
+    record CommitDraftResult(List<DiagramNode> nodes, List<DiagramEdge> edges) {
+      public CommitDraftResult {
+        nodes = nodes == null ? List.of() : List.copyOf(nodes);
+        edges = edges == null ? List.of() : List.copyOf(edges);
+      }
+    }
+
+    class InvalidDraftException extends RuntimeException {
+      public InvalidDraftException(String message) {
+        super(message);
+      }
+    }
   }
 
   public enum Role {

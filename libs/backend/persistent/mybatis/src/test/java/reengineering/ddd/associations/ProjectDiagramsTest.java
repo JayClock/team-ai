@@ -1,9 +1,11 @@
 package reengineering.ddd.associations;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.inject.Inject;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +18,7 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramType;
@@ -175,5 +178,49 @@ public class ProjectDiagramsTest {
     assertEquals(0, savedDiagram.getDescription().viewport().x());
     assertEquals(0, savedDiagram.getDescription().viewport().y());
     assertEquals(1, savedDiagram.getDescription().viewport().zoom());
+  }
+
+  @Test
+  public void should_commit_draft_via_project_diagrams_association() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("草稿提交图", DiagramType.CLASS, Viewport.defaultViewport()));
+    NodeDescription nodeDescription =
+        new NodeDescription("class-node", null, null, 100.0, 200.0, 300, 200, null, null);
+
+    Project.Diagrams.CommitDraftResult result =
+        project.commitDiagramDraft(
+            diagram.getIdentity(),
+            List.of(new Project.Diagrams.DraftNode("node-1", nodeDescription)),
+            List.of(new Project.Diagrams.DraftEdge("node-1", "node-1")));
+
+    assertEquals(1, result.nodes().size());
+    assertEquals(1, result.edges().size());
+
+    Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
+    assertEquals(1, committed.nodes().findAll().size());
+    assertEquals(1, committed.edges().findAll().size());
+  }
+
+  @Test
+  public void should_reject_duplicated_draft_node_id_in_association_consistency_check() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("重复节点草稿图", DiagramType.CLASS, Viewport.defaultViewport()));
+    NodeDescription nodeDescription =
+        new NodeDescription("class-node", null, null, 100.0, 200.0, 300, 200, null, null);
+
+    Project.Diagrams.InvalidDraftException error =
+        assertThrows(
+            Project.Diagrams.InvalidDraftException.class,
+            () ->
+                project.commitDiagramDraft(
+                    diagram.getIdentity(),
+                    List.of(
+                        new Project.Diagrams.DraftNode("dup-node", nodeDescription),
+                        new Project.Diagrams.DraftNode("dup-node", nodeDescription)),
+                    List.of()));
+
+    assertEquals("Duplicated node id: dup-node", error.getMessage());
   }
 }

@@ -7,14 +7,20 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import jakarta.ws.rs.core.MediaType;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -65,6 +71,83 @@ public class DiagramsApiTest extends ApiTest {
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(diagrams.findByIdentity(diagram.getIdentity())).thenReturn(Optional.of(diagram));
+    when(diagrams.commitDraft(eq(diagram.getIdentity()), any(), any()))
+        .thenAnswer(
+            invocation ->
+                commitDraftInAssociation(
+                    diagram, invocation.getArgument(1), invocation.getArgument(2)));
+  }
+
+  private static Project.Diagrams.CommitDraftResult commitDraftInAssociation(
+      Diagram diagram,
+      List<Project.Diagrams.DraftNode> draftNodes,
+      List<Project.Diagrams.DraftEdge> draftEdges) {
+    List<Project.Diagrams.DraftNode> requestedNodes =
+        draftNodes == null ? List.of() : List.copyOf(draftNodes);
+    List<Project.Diagrams.DraftEdge> requestedEdges =
+        draftEdges == null ? List.of() : List.copyOf(draftEdges);
+
+    List<String> draftNodeIds = new ArrayList<>(requestedNodes.size());
+    Set<String> uniqueDraftNodeIds = new HashSet<>();
+    List<NodeDescription> nodeDescriptions = new ArrayList<>(requestedNodes.size());
+    for (Project.Diagrams.DraftNode draftNode : requestedNodes) {
+      if (draftNode == null || draftNode.description() == null) {
+        throw new Project.Diagrams.InvalidDraftException("Node request must provide description.");
+      }
+      String draftNodeId = draftNode.id();
+      if (draftNodeId == null || draftNodeId.isBlank()) {
+        throw new Project.Diagrams.InvalidDraftException("Node request must provide id.");
+      }
+      if (!uniqueDraftNodeIds.add(draftNodeId)) {
+        throw new Project.Diagrams.InvalidDraftException("Duplicated node id: " + draftNodeId);
+      }
+      draftNodeIds.add(draftNodeId);
+      nodeDescriptions.add(draftNode.description());
+    }
+
+    List<DiagramNode> createdNodes = diagram.addNodes(nodeDescriptions);
+    if (createdNodes.size() != draftNodeIds.size()) {
+      throw new Project.Diagrams.InvalidDraftException("Node creation count mismatch.");
+    }
+
+    Map<String, String> createdNodeIdByRef = new LinkedHashMap<>();
+    for (int index = 0; index < createdNodes.size(); index += 1) {
+      String createdNodeId = createdNodes.get(index).getIdentity();
+      if (createdNodeId == null || createdNodeId.isBlank()) {
+        throw new Project.Diagrams.InvalidDraftException("Created node id must not be blank.");
+      }
+      createdNodeIdByRef.put(draftNodeIds.get(index), createdNodeId);
+      createdNodeIdByRef.put("node-" + (index + 1), createdNodeId);
+    }
+
+    List<EdgeDescription> edgeDescriptions = new ArrayList<>(requestedEdges.size());
+    for (Project.Diagrams.DraftEdge draftEdge : requestedEdges) {
+      if (draftEdge == null) {
+        throw new Project.Diagrams.InvalidDraftException("Edge request must provide nodeId.");
+      }
+      String sourceNodeId = resolveNodeId(draftEdge.sourceNodeId(), createdNodeIdByRef);
+      String targetNodeId = resolveNodeId(draftEdge.targetNodeId(), createdNodeIdByRef);
+      edgeDescriptions.add(
+          new EdgeDescription(
+              new Ref<>(sourceNodeId), new Ref<>(targetNodeId), null, null, null, null, null));
+    }
+
+    List<DiagramEdge> createdEdges = diagram.addEdges(edgeDescriptions);
+    return new Project.Diagrams.CommitDraftResult(createdNodes, createdEdges);
+  }
+
+  private static String resolveNodeId(String nodeId, Map<String, String> createdNodeIdByRef) {
+    if (nodeId == null || nodeId.isBlank()) {
+      throw new Project.Diagrams.InvalidDraftException("Edge request must provide nodeId.");
+    }
+    String resolvedId = createdNodeIdByRef.get(nodeId);
+    if (resolvedId != null) {
+      return resolvedId;
+    }
+    if (nodeId.matches("node-\\d+")) {
+      throw new Project.Diagrams.InvalidDraftException("Unknown node placeholder id: " + nodeId);
+    }
+    return nodeId;
   }
 
   @Test
@@ -337,6 +420,43 @@ public class DiagramsApiTest extends ApiTest {
 
     DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
     request.setEdges(List.of(edge));
+
+    given(documentationSpec)
+        .accept(MediaType.APPLICATION_JSON)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/commit-draft",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(400);
+
+    verify(diagramNodes, times(0)).addAll(any());
+    verify(diagramEdges, times(0)).addAll(any());
+  }
+
+  @Test
+  public void should_return_400_when_batch_commit_uses_duplicated_node_id() {
+    DiagramApi.CommitDraftNodeSchema node1 = new DiagramApi.CommitDraftNodeSchema();
+    node1.setId("dup-node");
+    node1.setType("fulfillment-node");
+    node1.setPositionX(120);
+    node1.setPositionY(120);
+    node1.setWidth(220);
+    node1.setHeight(120);
+
+    DiagramApi.CommitDraftNodeSchema node2 = new DiagramApi.CommitDraftNodeSchema();
+    node2.setId("dup-node");
+    node2.setType("fulfillment-node");
+    node2.setPositionX(420);
+    node2.setPositionY(120);
+    node2.setWidth(220);
+    node2.setHeight(120);
+
+    DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
+    request.setNodes(List.of(node1, node2));
 
     given(documentationSpec)
         .accept(MediaType.APPLICATION_JSON)

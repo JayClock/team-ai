@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.model;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,6 +16,7 @@ import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
+import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.Viewport;
 
@@ -165,6 +167,29 @@ public class ProjectTest {
 
       assertSame(expectedDiagram, result);
       verify(diagrams).add(diagramDescription);
+    }
+
+    @Test
+    @DisplayName("should delegate commit diagram draft to diagrams association")
+    void shouldDelegateCommitDiagramDraft() {
+      String diagramId = "diagram-1";
+      NodeDescription nodeDescription =
+          new NodeDescription(
+              "class-node", new Ref<>("entity-1"), null, 100.0, 200.0, 300, 200, null, null);
+      Project.Diagrams.DraftNode draftNode =
+          new Project.Diagrams.DraftNode("node-1", nodeDescription);
+      Project.Diagrams.DraftEdge draftEdge = new Project.Diagrams.DraftEdge("node-1", "node-1");
+      Project.Diagrams.CommitDraftResult expected =
+          new Project.Diagrams.CommitDraftResult(List.of(), List.of());
+
+      when(diagrams.commitDraft(diagramId, List.of(draftNode), List.of(draftEdge)))
+          .thenReturn(expected);
+
+      Project.Diagrams.CommitDraftResult result =
+          project.commitDiagramDraft(diagramId, List.of(draftNode), List.of(draftEdge));
+
+      assertSame(expected, result);
+      verify(diagrams).commitDraft(diagramId, List.of(draftNode), List.of(draftEdge));
     }
   }
 }

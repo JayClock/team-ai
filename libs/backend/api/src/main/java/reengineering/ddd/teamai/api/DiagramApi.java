@@ -20,15 +20,8 @@ import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.context.ApplicationContext;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.SimpleTransactionStatus;
-import org.springframework.transaction.support.TransactionCallback;
-import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.context.ContextLoader;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
@@ -88,22 +81,18 @@ public class DiagramApi {
   @Path("commit-draft")
   @Consumes(MediaType.APPLICATION_JSON)
   public Response commitDraft(@Valid CommitDraftRequest request, @Context UriInfo uriInfo) {
-    List<Diagram.DraftNode> draftNodes = new ArrayList<>(request.safeNodes().size());
+    List<Project.Diagrams.DraftNode> draftNodes = new ArrayList<>(request.safeNodes().size());
     for (CommitDraftNodeSchema nodeRequest : request.safeNodes()) {
       draftNodes.add(nodeRequest.toDraftNode());
     }
-    List<Diagram.DraftEdge> draftEdges = new ArrayList<>(request.safeEdges().size());
+    List<Project.Diagrams.DraftEdge> draftEdges = new ArrayList<>(request.safeEdges().size());
     for (CommitDraftEdgeSchema edgeRequest : request.safeEdges()) {
       draftEdges.add(edgeRequest.toDraftEdge());
     }
 
     try {
-      executeInTransaction(
-          status -> {
-            entity.commitDraft(draftNodes, draftEdges);
-            return null;
-          });
-    } catch (Diagram.InvalidDraftException error) {
+      project.commitDiagramDraft(entity.getIdentity(), draftNodes, draftEdges);
+    } catch (Project.Diagrams.InvalidDraftException error) {
       throw badRequest(error.getMessage());
     }
 
@@ -124,25 +113,6 @@ public class DiagramApi {
     }
     OutboundSseEvent event = builder.data(String.class, payload).build();
     sseEventSink.send(event);
-  }
-
-  private static <T> T executeInTransaction(TransactionCallback<T> callback) {
-    ApplicationContext context = ContextLoader.getCurrentWebApplicationContext();
-    if (context == null) {
-      return callback.doInTransaction(new SimpleTransactionStatus());
-    }
-    if (context.containsBean("transactionManager")) {
-      PlatformTransactionManager transactionManager =
-          context.getBean("transactionManager", PlatformTransactionManager.class);
-      return new TransactionTemplate(transactionManager).execute(callback);
-    }
-    Map<String, PlatformTransactionManager> transactionManagers =
-        context.getBeansOfType(PlatformTransactionManager.class);
-    if (transactionManagers.isEmpty()) {
-      return callback.doInTransaction(new SimpleTransactionStatus());
-    }
-    PlatformTransactionManager transactionManager = transactionManagers.values().iterator().next();
-    return new TransactionTemplate(transactionManager).execute(callback);
   }
 
   @Data
@@ -205,8 +175,8 @@ public class DiagramApi {
           type, logicalEntity, parent, positionX, positionY, width, height, null, null);
     }
 
-    public Diagram.DraftNode toDraftNode() {
-      return new Diagram.DraftNode(id, toDescription());
+    public Project.Diagrams.DraftNode toDraftNode() {
+      return new Project.Diagrams.DraftNode(id, toDescription());
     }
   }
 
@@ -232,8 +202,8 @@ public class DiagramApi {
       return targetNode == null ? null : targetNode.id();
     }
 
-    public Diagram.DraftEdge toDraftEdge() {
-      return new Diagram.DraftEdge(getSourceNodeId(), getTargetNodeId());
+    public Project.Diagrams.DraftEdge toDraftEdge() {
+      return new Project.Diagrams.DraftEdge(getSourceNodeId(), getTargetNodeId());
     }
   }
 }
