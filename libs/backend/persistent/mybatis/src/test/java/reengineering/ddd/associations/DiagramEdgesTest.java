@@ -168,6 +168,37 @@ public class DiagramEdgesTest {
   }
 
   @Test
+  public void should_add_edges_in_batch_and_return_saved_entities() {
+    int initialSize = diagram.edges().findAll().size();
+
+    List<DiagramEdge> savedEdges =
+        ((Diagram.Edges) diagram.edges())
+            .addAll(
+                List.of(
+                    new EdgeDescription(
+                        new Ref<>(node1.getIdentity()),
+                        new Ref<>(node2.getIdentity()),
+                        "source-a",
+                        "target-a",
+                        "ASSOCIATION",
+                        "batch edge 1",
+                        edgeStyleProps("solid", "#333333", "arrow", 2)),
+                    new EdgeDescription(
+                        new Ref<>(node2.getIdentity()),
+                        new Ref<>(node1.getIdentity()),
+                        "source-b",
+                        "target-b",
+                        "DEPENDENCY",
+                        "batch edge 2",
+                        edgeStyleProps("dashed", "#666666", "diamond", 1))));
+
+    assertEquals(2, savedEdges.size());
+    assertEquals("ASSOCIATION", savedEdges.get(0).getDescription().relationType());
+    assertEquals("DEPENDENCY", savedEdges.get(1).getDescription().relationType());
+    assertEquals(initialSize + 2, diagram.edges().findAll().size());
+  }
+
+  @Test
   public void should_find_single_edge_of_diagram() {
     JsonBlob styleProps = edgeStyleProps("dashed", "#666666", "diamond", 1);
     EdgeDescription description =

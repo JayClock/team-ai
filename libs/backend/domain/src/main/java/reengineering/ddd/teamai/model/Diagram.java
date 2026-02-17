@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.model;
 
+import java.util.Collection;
+import java.util.List;
 import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
@@ -50,10 +52,14 @@ public class Diagram implements Entity<String, DiagramDescription> {
 
   public interface Nodes extends HasMany<String, DiagramNode> {
     DiagramNode add(NodeDescription description);
+
+    List<DiagramNode> addAll(Collection<NodeDescription> descriptions);
   }
 
   public interface Edges extends HasMany<String, DiagramEdge> {
     DiagramEdge add(EdgeDescription description);
+
+    List<DiagramEdge> addAll(Collection<EdgeDescription> descriptions);
   }
 
   public Flux<String> proposeModel(String requirement, DomainArchitect architect) {

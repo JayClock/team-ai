@@ -115,6 +115,41 @@ public class DiagramNodesTest {
   }
 
   @Test
+  public void should_add_nodes_in_batch_and_return_saved_entities() {
+    int initialSize = diagram.nodes().findAll().size();
+
+    List<DiagramNode> savedNodes =
+        ((Diagram.Nodes) diagram.nodes())
+            .addAll(
+                List.of(
+                    new NodeDescription(
+                        "batch-node-1",
+                        null,
+                        null,
+                        120.0,
+                        220.0,
+                        300,
+                        400,
+                        new JsonBlob("{\"backgroundColor\":\"#ff0000\"}"),
+                        new JsonBlob("{\"content\":\"batch-1\"}")),
+                    new NodeDescription(
+                        "batch-node-2",
+                        null,
+                        null,
+                        240.0,
+                        360.0,
+                        320,
+                        420,
+                        new JsonBlob("{\"backgroundColor\":\"#00ff00\"}"),
+                        new JsonBlob("{\"content\":\"batch-2\"}"))));
+
+    assertEquals(2, savedNodes.size());
+    assertEquals("batch-node-1", savedNodes.get(0).getDescription().type());
+    assertEquals("batch-node-2", savedNodes.get(1).getDescription().type());
+    assertEquals(initialSize + 2, diagram.nodes().findAll().size());
+  }
+
+  @Test
   public void should_find_single_node_of_diagram() throws Exception {
     String styleConfigJson =
         objectMapper.writeValueAsString(

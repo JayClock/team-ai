@@ -1,6 +1,8 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -48,5 +50,21 @@ public class DiagramEdges extends EntityList<String, DiagramEdge> implements Dia
     IdHolder idHolder = new IdHolder();
     mapper.insertEdge(idHolder, diagramId, description);
     return findEntity(String.valueOf(idHolder.id()));
+  }
+
+  @Override
+  @CacheEvict(value = CACHE_NAME, key = "#root.target.diagramId + '*")
+  public List<DiagramEdge> addAll(Collection<EdgeDescription> descriptions) {
+    if (descriptions == null || descriptions.isEmpty()) {
+      return List.of();
+    }
+
+    List<DiagramEdge> createdEdges = new ArrayList<>(descriptions.size());
+    for (EdgeDescription description : descriptions) {
+      IdHolder idHolder = new IdHolder();
+      mapper.insertEdge(idHolder, diagramId, description);
+      createdEdges.add(findEntity(String.valueOf(idHolder.id())));
+    }
+    return List.copyOf(createdEdges);
   }
 }
