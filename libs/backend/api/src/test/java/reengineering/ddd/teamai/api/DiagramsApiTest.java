@@ -5,8 +5,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
 import reactor.core.publisher.Flux;
@@ -207,8 +206,8 @@ public class DiagramsApiTest extends ApiTest {
                 null,
                 (JsonBlob) null));
 
-    when(diagramNodes.add(any(NodeDescription.class))).thenReturn(createdNode1, createdNode2);
-    when(diagramEdges.add(any(EdgeDescription.class))).thenReturn(createdEdge);
+    when(diagramNodes.addAll(any())).thenReturn(List.of(createdNode1, createdNode2));
+    when(diagramEdges.addAll(any())).thenReturn(List.of(createdEdge));
 
     DiagramApi.CommitDraftNodeSchema node1 = new DiagramApi.CommitDraftNodeSchema();
     node1.setId("node-1");
@@ -250,8 +249,8 @@ public class DiagramsApiTest extends ApiTest {
             containsString(
                 "/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()));
 
-    verify(diagramNodes, times(2)).add(any(NodeDescription.class));
-    verify(diagramEdges, times(1)).add(any(EdgeDescription.class));
+    verify(diagramNodes, times(1)).addAll(any());
+    verify(diagramEdges, times(1)).addAll(any());
   }
 
   @Test
@@ -274,8 +273,8 @@ public class DiagramsApiTest extends ApiTest {
                 null,
                 (JsonBlob) null));
 
-    when(diagramNodes.add(any(NodeDescription.class))).thenReturn(createdNode);
-    when(diagramEdges.add(any(EdgeDescription.class))).thenReturn(createdEdge);
+    when(diagramNodes.addAll(any())).thenReturn(List.of(createdNode));
+    when(diagramEdges.addAll(any())).thenReturn(List.of(createdEdge));
 
     DiagramApi.CommitDraftNodeSchema nodeRequest = new DiagramApi.CommitDraftNodeSchema();
     nodeRequest.setId("draft-node-1");
@@ -310,21 +309,24 @@ public class DiagramsApiTest extends ApiTest {
             containsString(
                 "/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()));
 
-    ArgumentCaptor<NodeDescription> nodeDescriptionCaptor =
-        ArgumentCaptor.forClass(NodeDescription.class);
-    ArgumentCaptor<EdgeDescription> edgeDescriptionCaptor =
-        ArgumentCaptor.forClass(EdgeDescription.class);
-
     verify(projectLogicalEntities, times(0)).add(any());
-    verify(diagramNodes, times(1)).add(nodeDescriptionCaptor.capture());
-    verify(diagramEdges, times(1)).add(edgeDescriptionCaptor.capture());
-
-    NodeDescription createdNodeDescription = nodeDescriptionCaptor.getValue();
-    EdgeDescription createdEdgeDescription = edgeDescriptionCaptor.getValue();
-
-    assertEquals("logical-101", createdNodeDescription.logicalEntity().id());
-    assertEquals("node-101", createdEdgeDescription.sourceNode().id());
-    assertEquals("node-101", createdEdgeDescription.targetNode().id());
+    verify(diagramNodes, times(1))
+        .addAll(
+            argThat(
+                descriptions ->
+                    descriptions.size() == 1
+                        && "logical-101"
+                            .equals(
+                                descriptions.iterator().next().logicalEntity() == null
+                                    ? null
+                                    : descriptions.iterator().next().logicalEntity().id())));
+    verify(diagramEdges, times(1))
+        .addAll(
+            argThat(
+                descriptions ->
+                    descriptions.size() == 1
+                        && "node-101".equals(descriptions.iterator().next().sourceNode().id())
+                        && "node-101".equals(descriptions.iterator().next().targetNode().id())));
   }
 
   @Test
@@ -348,8 +350,8 @@ public class DiagramsApiTest extends ApiTest {
         .then()
         .statusCode(400);
 
-    verify(diagramNodes, times(0)).add(any(NodeDescription.class));
-    verify(diagramEdges, times(0)).add(any(EdgeDescription.class));
+    verify(diagramNodes, times(0)).addAll(any());
+    verify(diagramEdges, times(0)).addAll(any());
   }
 
   @Test
@@ -372,7 +374,7 @@ public class DiagramsApiTest extends ApiTest {
             new NodeDescription(
                 "fulfillment-node", new Ref<>("logical-99"), null, 120, 120, 220, 120, null, null),
             mock(reengineering.ddd.archtype.HasOne.class));
-    when(diagramNodes.add(any(NodeDescription.class))).thenReturn(createdNode);
+    when(diagramNodes.addAll(any())).thenReturn(List.of(createdNode));
 
     given(documentationSpec)
         .accept(MediaType.APPLICATION_JSON)
@@ -386,12 +388,18 @@ public class DiagramsApiTest extends ApiTest {
         .then()
         .statusCode(201);
 
-    ArgumentCaptor<NodeDescription> nodeDescriptionCaptor =
-        ArgumentCaptor.forClass(NodeDescription.class);
     verify(projectLogicalEntities, times(0)).add(any());
-    verify(diagramNodes, times(1)).add(nodeDescriptionCaptor.capture());
-    verify(diagramEdges, times(0)).add(any(EdgeDescription.class));
-    assertEquals("logical-99", nodeDescriptionCaptor.getValue().logicalEntity().id());
+    verify(diagramNodes, times(1))
+        .addAll(
+            argThat(
+                descriptions ->
+                    descriptions.size() == 1
+                        && "logical-99"
+                            .equals(
+                                descriptions.iterator().next().logicalEntity() == null
+                                    ? null
+                                    : descriptions.iterator().next().logicalEntity().id())));
+    verify(diagramEdges, times(0)).addAll(any());
   }
 
   @Test

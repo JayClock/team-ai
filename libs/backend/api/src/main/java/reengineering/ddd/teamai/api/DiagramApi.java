@@ -18,7 +18,7 @@ import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.Data;
@@ -32,10 +32,8 @@ import org.springframework.web.context.ContextLoader;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
-import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.model.Diagram;
-import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.Project;
 
 public class DiagramApi {
@@ -90,50 +88,28 @@ public class DiagramApi {
   @Path("commit-draft")
   @Consumes(MediaType.APPLICATION_JSON)
   public Response commitDraft(@Valid CommitDraftRequest request, @Context UriInfo uriInfo) {
-    executeInTransaction(
-        status -> {
-          Map<String, String> createdNodeIdByRef = new LinkedHashMap<>();
+    List<Diagram.DraftNode> draftNodes = new ArrayList<>(request.safeNodes().size());
+    for (CommitDraftNodeSchema nodeRequest : request.safeNodes()) {
+      draftNodes.add(nodeRequest.toDraftNode());
+    }
+    List<Diagram.DraftEdge> draftEdges = new ArrayList<>(request.safeEdges().size());
+    for (CommitDraftEdgeSchema edgeRequest : request.safeEdges()) {
+      draftEdges.add(edgeRequest.toDraftEdge());
+    }
 
-          List<CommitDraftNodeSchema> nodeRequests = request.safeNodes();
-          for (int index = 0; index < nodeRequests.size(); index += 1) {
-            CommitDraftNodeSchema nodeRequest = nodeRequests.get(index);
-            String draftNodeId = nodeRequest.getId();
-            if (draftNodeId == null || draftNodeId.isBlank()) {
-              throw badRequest("Node request must provide id.");
-            }
-
-            DiagramNode createdNode = entity.addNode(nodeRequest.toDescription());
-            createdNodeIdByRef.put(draftNodeId, createdNode.getIdentity());
-            // Backward compatibility with older indexed placeholder references.
-            createdNodeIdByRef.put("node-" + (index + 1), createdNode.getIdentity());
-          }
-
-          for (CommitDraftEdgeSchema edgeRequest : request.safeEdges()) {
-            String sourceNodeId = resolveNodeId(edgeRequest.getSourceNodeId(), createdNodeIdByRef);
-            String targetNodeId = resolveNodeId(edgeRequest.getTargetNodeId(), createdNodeIdByRef);
-            entity.addEdge(edgeRequest.toDescription(sourceNodeId, targetNodeId));
-          }
-
-          return null;
-        });
+    try {
+      executeInTransaction(
+          status -> {
+            entity.commitDraft(draftNodes, draftEdges);
+            return null;
+          });
+    } catch (Diagram.InvalidDraftException error) {
+      throw badRequest(error.getMessage());
+    }
 
     return Response.created(
             ApiTemplates.diagram(uriInfo).build(project.getIdentity(), entity.getIdentity()))
         .build();
-  }
-
-  private static String resolveNodeId(String nodeId, Map<String, String> createdNodeIdByRef) {
-    if (nodeId == null || nodeId.isBlank()) {
-      throw badRequest("Edge request must provide nodeId.");
-    }
-    String resolvedId = createdNodeIdByRef.get(nodeId);
-    if (resolvedId != null) {
-      return resolvedId;
-    }
-    if (nodeId.matches("node-\\d+")) {
-      throw badRequest("Unknown node placeholder id: " + nodeId);
-    }
-    return nodeId;
   }
 
   private static RuntimeException badRequest(String message) {
@@ -228,6 +204,10 @@ public class DiagramApi {
       return new NodeDescription(
           type, logicalEntity, parent, positionX, positionY, width, height, null, null);
     }
+
+    public Diagram.DraftNode toDraftNode() {
+      return new Diagram.DraftNode(id, toDescription());
+    }
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -252,9 +232,8 @@ public class DiagramApi {
       return targetNode == null ? null : targetNode.id();
     }
 
-    public EdgeDescription toDescription(String sourceNodeId, String targetNodeId) {
-      return new EdgeDescription(
-          new Ref<>(sourceNodeId), new Ref<>(targetNodeId), null, null, null, null, null);
+    public Diagram.DraftEdge toDraftEdge() {
+      return new Diagram.DraftEdge(getSourceNodeId(), getTargetNodeId());
     }
   }
 }

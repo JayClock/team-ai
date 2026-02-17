@@ -1,8 +1,10 @@
 package reengineering.ddd.teamai.model;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -180,6 +182,64 @@ public class DiagramTest {
       assertSame(expected, actual);
       verify(architect).proposeModel(requirement);
       verifyNoMoreInteractions(architect);
+    }
+  }
+
+  @Nested
+  class CommitDraft {
+    @Test
+    void should_batch_commit_with_add_all_associations() {
+      NodeDescription nodeDesc =
+          new NodeDescription(
+              "class-node", new Ref<>("entity-1"), null, 100.0, 200.0, 300, 200, null, null);
+      DiagramNode createdNode = mock(DiagramNode.class);
+      DiagramEdge createdEdge = mock(DiagramEdge.class);
+      when(createdNode.getIdentity()).thenReturn("101");
+
+      when(nodes.addAll(List.of(nodeDesc))).thenReturn(List.of(createdNode));
+      when(edges.addAll(any())).thenReturn(List.of(createdEdge));
+
+      Diagram.CommitDraftResult result =
+          diagram.commitDraft(
+              List.of(new Diagram.DraftNode("node-1", nodeDesc)),
+              List.of(new Diagram.DraftEdge("node-1", "node-1")));
+
+      assertEquals(1, result.nodes().size());
+      assertEquals(1, result.edges().size());
+      assertSame(createdNode, result.nodes().get(0));
+      assertSame(createdEdge, result.edges().get(0));
+      verify(nodes).addAll(List.of(nodeDesc));
+      verify(edges, times(1))
+          .addAll(
+              argThat(
+                  descriptions ->
+                      descriptions.size() == 1
+                          && "101".equals(descriptions.iterator().next().sourceNode().id())
+                          && "101".equals(descriptions.iterator().next().targetNode().id())));
+    }
+
+    @Test
+    void should_throw_when_commit_draft_uses_unknown_node_placeholder_id() {
+      Diagram.InvalidDraftException error =
+          assertThrows(
+              Diagram.InvalidDraftException.class,
+              () ->
+                  diagram.commitDraft(
+                      List.of(), List.of(new Diagram.DraftEdge("node-99", "node-2"))));
+      assertEquals("Unknown node placeholder id: node-99", error.getMessage());
+    }
+
+    @Test
+    void should_throw_when_commit_draft_node_id_missing() {
+      NodeDescription nodeDesc =
+          new NodeDescription(
+              "class-node", new Ref<>("entity-1"), null, 100.0, 200.0, 300, 200, null, null);
+
+      Diagram.InvalidDraftException error =
+          assertThrows(
+              Diagram.InvalidDraftException.class,
+              () -> diagram.commitDraft(List.of(new Diagram.DraftNode(" ", nodeDesc)), List.of()));
+      assertEquals("Node request must provide id.", error.getMessage());
     }
   }
 }
