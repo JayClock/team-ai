@@ -188,7 +188,9 @@ public class ProjectDiagramsTest {
   public void should_commit_draft_via_project_diagrams_association() {
     Diagram diagram =
         project.addDiagram(
-            new DiagramDescription("草稿提交图", DiagramType.CLASS, Viewport.defaultViewport()));
+            new DiagramDescription(
+                "草稿提交图", DiagramType.CLASS, Viewport.defaultViewport(), DiagramStatus.PUBLISHED));
+    assertEquals(DiagramStatus.PUBLISHED, diagram.getDescription().status());
     NodeDescription nodeDescription =
         new NodeDescription("class-node", null, null, 100.0, 200.0, 300, 200, null, null);
 
@@ -204,6 +206,7 @@ public class ProjectDiagramsTest {
     Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     assertEquals(1, committed.nodes().findAll().size());
     assertEquals(1, committed.edges().findAll().size());
+    assertEquals(DiagramStatus.DRAFT, committed.getDescription().status());
   }
 
   @Test

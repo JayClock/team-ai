@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.DiagramStatus;
 
 @Mapper
 public interface ProjectDiagramsMapper {
@@ -20,4 +21,9 @@ public interface ProjectDiagramsMapper {
       @Param("description") DiagramDescription description);
 
   int countDiagramsByProject(@Param("project_id") int projectId);
+
+  int updateDiagramStatus(
+      @Param("project_id") int projectId,
+      @Param("id") int diagramId,
+      @Param("status") DiagramStatus status);
 }

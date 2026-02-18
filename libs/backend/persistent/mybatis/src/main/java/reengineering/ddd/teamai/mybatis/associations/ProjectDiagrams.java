@@ -20,6 +20,7 @@ import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
+import reengineering.ddd.teamai.model.DiagramStatus;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.mybatis.cache.AssociationMapping;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectDiagramsMapper;
@@ -144,6 +145,7 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
     }
 
     List<DiagramEdge> createdEdges = diagram.addEdges(edgeDescriptions);
+    mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), DiagramStatus.DRAFT);
     return new Project.Diagrams.CommitDraftResult(createdNodes, createdEdges);
   }
 

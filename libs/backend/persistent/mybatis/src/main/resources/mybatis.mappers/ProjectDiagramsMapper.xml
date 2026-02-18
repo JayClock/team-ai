@@ -50,4 +50,11 @@
     SELECT COUNT(id) FROM diagrams WHERE project_id = #{project_id}
   </select>
 
+  <update id="updateDiagramStatus">
+    UPDATE diagrams
+    SET status = #{status, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.DiagramStatusHandler},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id} AND id = #{id}
+  </update>
+
 </mapper>

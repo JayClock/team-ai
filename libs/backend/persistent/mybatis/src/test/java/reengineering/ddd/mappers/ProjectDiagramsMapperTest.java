@@ -232,6 +232,15 @@ public class ProjectDiagramsMapperTest {
   }
 
   @Test
+  void should_update_diagram_status() {
+    int updatedRows = mapper.updateDiagramStatus(projectId, diagramId, DiagramStatus.PUBLISHED);
+    assertEquals(1, updatedRows);
+
+    Diagram updated = mapper.findDiagramByProjectAndId(projectId, diagramId);
+    assertEquals(DiagramStatus.PUBLISHED, updated.getDescription().status());
+  }
+
+  @Test
   void should_support_complex_node_description() throws Exception {
     testData.insertDiagramNode(
         nodeId1,
