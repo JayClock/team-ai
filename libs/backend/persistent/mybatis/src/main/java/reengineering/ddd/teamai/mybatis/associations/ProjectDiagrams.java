@@ -79,6 +79,14 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
     return transactionDecorator.execute(() -> doCommitDraft(diagramId, draftNodes, draftEdges));
   }
 
+  @Override
+  public void publishDiagram(String diagramId) {
+    if (diagramId == null || diagramId.isBlank()) {
+      throw new Project.Diagrams.InvalidDraftException("Diagram id must be provided.");
+    }
+    mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), DiagramStatus.PUBLISHED);
+  }
+
   private Project.Diagrams.CommitDraftResult doCommitDraft(
       String diagramId,
       Collection<Project.Diagrams.DraftNode> draftNodes,

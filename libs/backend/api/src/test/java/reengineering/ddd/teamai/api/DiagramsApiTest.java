@@ -211,6 +211,14 @@ public class DiagramsApiTest extends ApiTest {
                     + "/diagrams/"
                     + diagram.getIdentity()
                     + "/commit-draft"))
+        .body(
+            "_links.publish.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/publish"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(4))
         .body("_templates.default.properties[0].name", is("title"))
@@ -272,7 +280,9 @@ public class DiagramsApiTest extends ApiTest {
             containsString("sourceNode"))
         .body(
             "_templates.'commit-draft'.properties.find { it.name == 'edges' }._schema.toString()",
-            containsString("targetNode"));
+            containsString("targetNode"))
+        .body("_templates.'publish-diagram'.method", is("POST"))
+        .body("_templates.'publish-diagram'.properties", hasSize(0));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
   }
@@ -532,6 +542,21 @@ public class DiagramsApiTest extends ApiTest {
                                     ? null
                                     : descriptions.iterator().next().logicalEntity().id())));
     verify(diagramEdges, times(0)).addAll(any());
+  }
+
+  @Test
+  public void should_publish_diagram() {
+    given(documentationSpec)
+        .accept(MediaType.APPLICATION_JSON)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/publish",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(204);
+
+    verify(diagrams, times(1)).publishDiagram(diagram.getIdentity());
   }
 
   @Test

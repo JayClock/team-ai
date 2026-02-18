@@ -210,6 +210,19 @@ public class ProjectDiagramsTest {
   }
 
   @Test
+  public void should_publish_diagram_via_project_diagrams_association() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("发布图", DiagramType.CLASS, Viewport.defaultViewport()));
+    assertEquals(DiagramStatus.DRAFT, diagram.getDescription().status());
+
+    project.publishDiagram(diagram.getIdentity());
+
+    Diagram published = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
+    assertEquals(DiagramStatus.PUBLISHED, published.getDescription().status());
+  }
+
+  @Test
   public void should_create_diagram_version_from_persisted_diagram() {
     Diagram diagram =
         project.addDiagram(

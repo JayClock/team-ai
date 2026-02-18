@@ -191,5 +191,15 @@ public class ProjectTest {
       assertSame(expected, result);
       verify(diagrams).saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
     }
+
+    @Test
+    @DisplayName("should delegate publish diagram to diagrams association")
+    void shouldDelegatePublishDiagram() {
+      String diagramId = "diagram-1";
+
+      project.publishDiagram(diagramId);
+
+      verify(diagrams).publishDiagram(diagramId);
+    }
   }
 }

@@ -90,4 +90,8 @@ public class ApiTemplates {
   public static UriBuilder commitDraft(UriInfo uriInfo) {
     return diagram(uriInfo).path(DiagramApi.class, "commitDraft");
   }
+
+  public static UriBuilder publishDiagram(UriInfo uriInfo) {
+    return diagram(uriInfo).path(DiagramApi.class, "publishDiagram");
+  }
 }

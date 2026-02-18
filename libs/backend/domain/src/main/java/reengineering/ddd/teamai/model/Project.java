@@ -89,6 +89,10 @@ public class Project implements Entity<String, ProjectDescription> {
     return diagrams.saveDiagram(diagramId, draftNodes, draftEdges);
   }
 
+  public void publishDiagram(String diagramId) {
+    diagrams.publishDiagram(diagramId);
+  }
+
   public interface Members extends HasMany<String, Member> {
     Member addMember(MemberDescription description);
   }
@@ -102,6 +106,8 @@ public class Project implements Entity<String, ProjectDescription> {
 
     CommitDraftResult saveDiagram(
         String diagramId, Collection<DraftNode> draftNodes, Collection<DraftEdge> draftEdges);
+
+    void publishDiagram(String diagramId);
 
     record DraftNode(String id, NodeDescription description) {}
 

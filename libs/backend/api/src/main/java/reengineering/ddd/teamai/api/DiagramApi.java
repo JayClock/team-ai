@@ -106,6 +106,13 @@ public class DiagramApi {
         .build();
   }
 
+  @POST
+  @Path("publish")
+  public Response publishDiagram() {
+    project.publishDiagram(diagram.getIdentity());
+    return Response.noContent().build();
+  }
+
   private static RuntimeException badRequest(String message) {
     return new jakarta.ws.rs.BadRequestException(message);
   }

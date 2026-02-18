@@ -108,6 +108,17 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
             .withInput(DiagramApi.CommitDraftRequest.class)
             .withName("commit-draft")
             .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.publishDiagram(uriInfo)
+                            .build(project.getIdentity(), diagram.getIdentity())
+                            .getPath())
+                    .withRel("publish"))
+            .afford(HttpMethod.POST)
+            .withName("publish-diagram")
+            .toLink());
     return model;
   }
 
