@@ -21,6 +21,7 @@ import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
+import reengineering.ddd.teamai.model.DiagramStatus;
 import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectDiagramsMapper;
 
@@ -62,6 +63,7 @@ public class ProjectDiagramsMapperTest {
     assertEquals(String.valueOf(diagramId), diagram.getIdentity());
     assertEquals("Test Diagram" + diagramId, diagram.getDescription().title());
     assertEquals(DiagramType.CLASS, diagram.getDescription().type());
+    assertEquals(DiagramStatus.DRAFT, diagram.getDescription().status());
     assertEquals(100, diagram.getDescription().viewport().x());
     assertEquals(50, diagram.getDescription().viewport().y());
     assertEquals(1.5, diagram.getDescription().viewport().zoom());
@@ -210,6 +212,7 @@ public class ProjectDiagramsMapperTest {
     assertNotNull(insertedDiagram);
     assertEquals("New Diagram", insertedDiagram.getDescription().title());
     assertEquals(DiagramType.FLOWCHART, insertedDiagram.getDescription().type());
+    assertEquals(DiagramStatus.DRAFT, insertedDiagram.getDescription().status());
     assertEquals(200, insertedDiagram.getDescription().viewport().x());
     assertEquals(100, insertedDiagram.getDescription().viewport().y());
     assertEquals(2.0, insertedDiagram.getDescription().viewport().zoom());

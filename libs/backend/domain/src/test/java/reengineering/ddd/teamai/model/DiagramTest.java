@@ -68,6 +68,25 @@ public class DiagramTest {
   }
 
   @Test
+  public void should_return_default_diagram_status() {
+    assertEquals(DiagramStatus.DRAFT, diagram.getDescription().status());
+  }
+
+  @Test
+  public void should_support_published_diagram_status() {
+    Diagram publishedDiagram =
+        new Diagram(
+            "published-1",
+            new DiagramDescription("发布图", DiagramType.CLASS, viewport, DiagramStatus.PUBLISHED),
+            nodes,
+            edges,
+            versions);
+
+    assertEquals(DiagramStatus.PUBLISHED, publishedDiagram.getDescription().status());
+    assertEquals("published", publishedDiagram.getDescription().status().getValue());
+  }
+
+  @Test
   public void should_return_viewport() {
     Viewport resultViewport = diagram.getDescription().viewport();
     assertNotNull(resultViewport);

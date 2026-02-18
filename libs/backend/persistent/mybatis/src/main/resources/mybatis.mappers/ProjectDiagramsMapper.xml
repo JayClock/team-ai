@@ -9,6 +9,7 @@
         <arg column="title" jdbcType="VARCHAR" javaType="String"/>
         <arg column="type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler" javaType="reengineering.ddd.teamai.model.DiagramType"/>
         <arg column="viewport" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler" javaType="reengineering.ddd.teamai.description.Viewport"/>
+        <arg column="status" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramStatusHandler" javaType="reengineering.ddd.teamai.model.DiagramStatus"/>
       </constructor>
     </association>
     <association property="nodes" javaType="reengineering.ddd.teamai.mybatis.associations.DiagramNodes">
@@ -23,13 +24,13 @@
   </resultMap>
 
   <select id="findDiagramByProjectAndId" resultMap="diagram">
-    SELECT id, project_id, title, type, viewport
+    SELECT id, project_id, title, type, viewport, status
     FROM diagrams
     WHERE project_id = #{project_id} AND id = #{id}
   </select>
 
   <select id="findDiagramsByProjectId" resultMap="diagram">
-    SELECT id, project_id, title, type, viewport
+    SELECT id, project_id, title, type, viewport, status
     FROM diagrams
     WHERE project_id = #{project_id}
     ORDER BY updated_at DESC
@@ -38,10 +39,11 @@
 
   <insert id="insertDiagram" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
-    INSERT INTO diagrams(project_id, title, type, viewport)
+    INSERT INTO diagrams(project_id, title, type, viewport, status)
     VALUES (#{project_id}, #{description.title},
             #{description.type, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler},
-            #{description.viewport, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler})
+            #{description.viewport, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler},
+            #{description.status, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.DiagramStatusHandler})
   </insert>
 
   <select id="countDiagramsByProject" resultType="int">

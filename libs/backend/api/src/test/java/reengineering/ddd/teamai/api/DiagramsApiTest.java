@@ -163,6 +163,7 @@ public class DiagramsApiTest extends ApiTest {
         .body("id", is(diagram.getIdentity()))
         .body("title", is(diagram.getDescription().title()))
         .body("type", is("class"))
+        .body("status", is("draft"))
         .body("viewport.x", is(100.0F))
         .body("viewport.y", is(50.0F))
         .body("viewport.zoom", is(1.5F))

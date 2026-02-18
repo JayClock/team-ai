@@ -20,12 +20,14 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
   @JsonProperty private String id;
   @JsonProperty private String title;
   @JsonProperty private String type;
+  @JsonProperty private String status;
   @JsonProperty private Viewport viewport;
 
   public DiagramModel(Project project, Diagram diagram, UriInfo uriInfo) {
     this.id = diagram.getIdentity();
     this.title = diagram.getDescription().title();
     this.type = diagram.getDescription().type().getValue();
+    this.status = diagram.getDescription().status().getValue();
     this.viewport = diagram.getDescription().viewport();
   }
 

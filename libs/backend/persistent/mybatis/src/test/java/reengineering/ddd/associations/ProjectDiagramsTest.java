@@ -21,6 +21,7 @@ import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.DiagramStatus;
 import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.model.DiagramVersion;
 import reengineering.ddd.teamai.model.Project;
@@ -61,6 +62,7 @@ public class ProjectDiagramsTest {
 
     assertEquals("下单流程上下文图", savedDiagram.getDescription().title());
     assertEquals(DiagramType.CLASS, savedDiagram.getDescription().type());
+    assertEquals(DiagramStatus.DRAFT, savedDiagram.getDescription().status());
     assertEquals(100, savedDiagram.getDescription().viewport().x());
     assertEquals(50, savedDiagram.getDescription().viewport().y());
     assertEquals(1.5, savedDiagram.getDescription().viewport().zoom());
@@ -81,6 +83,7 @@ public class ProjectDiagramsTest {
     assertEquals(savedDiagram.getIdentity(), diagram.getIdentity());
     assertEquals("会员体系图", diagram.getDescription().title());
     assertEquals(DiagramType.SEQUENCE, diagram.getDescription().type());
+    assertEquals(DiagramStatus.DRAFT, diagram.getDescription().status());
 
     var cachedDiagram = project.diagrams().findByIdentity(savedDiagram.getIdentity()).get();
     assertEquals(diagram.getIdentity(), cachedDiagram.getIdentity());

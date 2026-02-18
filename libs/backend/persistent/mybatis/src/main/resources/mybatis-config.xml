@@ -8,6 +8,7 @@
     <typeHandlers>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.EntityDefinitionHandler"/>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler"/>
+        <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.DiagramStatusHandler"/>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.DiagramSnapshotHandler"/>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler"/>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler"/>
