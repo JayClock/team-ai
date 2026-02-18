@@ -17,6 +17,9 @@
     <association property="edges" javaType="reengineering.ddd.teamai.mybatis.associations.DiagramEdges">
       <result column="id" property="diagramId" javaType="int"/>
     </association>
+    <association property="versions" javaType="reengineering.ddd.teamai.mybatis.associations.DiagramVersions">
+      <result column="id" property="diagramId" javaType="int"/>
+    </association>
   </resultMap>
 
   <select id="findDiagramByProjectAndId" resultMap="diagram">

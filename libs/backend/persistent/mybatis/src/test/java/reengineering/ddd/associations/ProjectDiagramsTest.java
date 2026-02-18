@@ -22,6 +22,7 @@ import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramType;
+import reengineering.ddd.teamai.model.DiagramVersion;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
@@ -200,6 +201,18 @@ public class ProjectDiagramsTest {
     Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     assertEquals(1, committed.nodes().findAll().size());
     assertEquals(1, committed.edges().findAll().size());
+  }
+
+  @Test
+  public void should_create_diagram_version_from_persisted_diagram() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("版本图", DiagramType.CLASS, Viewport.defaultViewport()));
+
+    DiagramVersion version = diagram.createVersion();
+
+    assertEquals("v1", version.getDescription().name());
+    assertEquals(1, diagram.versions().findAll().size());
   }
 
   @Test

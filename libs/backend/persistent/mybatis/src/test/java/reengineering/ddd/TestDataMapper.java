@@ -87,4 +87,13 @@ public interface TestDataMapper {
       @Param("relation_type") String relationType,
       @Param("label") String label,
       @Param("style_props") String styleProps);
+
+  @Insert(
+      "INSERT INTO diagram_versions(id, diagram_id, version_name, snapshot_data) "
+          + "VALUES (#{id}, #{diagram_id}, #{version_name}, CAST(#{snapshot_data} AS jsonb))")
+  void insertDiagramVersion(
+      @Param("id") int id,
+      @Param("diagram_id") int diagramId,
+      @Param("version_name") String versionName,
+      @Param("snapshot_data") String snapshotData);
 }

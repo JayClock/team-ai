@@ -65,6 +65,8 @@ public class ProjectDiagramsMapperTest {
     assertEquals(100, diagram.getDescription().viewport().x());
     assertEquals(50, diagram.getDescription().viewport().y());
     assertEquals(1.5, diagram.getDescription().viewport().zoom());
+    assertNotNull(diagram.versions());
+    assertEquals(0, diagram.versions().findAll().size());
   }
 
   @Test
