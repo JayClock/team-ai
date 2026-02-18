@@ -3,17 +3,23 @@ package reengineering.ddd.teamai.model;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.util.Iterator;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Flux;
+import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.JsonBlob;
+import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.DiagramVersionDescription;
+import reengineering.ddd.teamai.description.DiagramVersionDescription.DiagramSnapshot;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
@@ -26,13 +32,14 @@ public class DiagramTest {
 
   @Mock private Diagram.Nodes nodes;
   @Mock private Diagram.Edges edges;
+  @Mock private Diagram.Versions versions;
   @Mock private Diagram.DomainArchitect architect;
 
   @BeforeEach
   public void setUp() {
     viewport = new Viewport(100, 50, 1.5);
     description = new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport);
-    diagram = new Diagram("diagram-1", description, nodes, edges);
+    diagram = new Diagram("diagram-1", description, nodes, edges, versions);
   }
 
   @Test
@@ -74,7 +81,7 @@ public class DiagramTest {
     DiagramDescription descriptionWithDefaultViewport =
         new DiagramDescription("会员体系图", DiagramType.SEQUENCE, Viewport.defaultViewport());
     Diagram diagramWithDefaultViewport =
-        new Diagram("diagram-2", descriptionWithDefaultViewport, nodes, edges);
+        new Diagram("diagram-2", descriptionWithDefaultViewport, nodes, edges, versions);
 
     Viewport defaultViewport = diagramWithDefaultViewport.getDescription().viewport();
     assertEquals(0, defaultViewport.x());
@@ -86,32 +93,56 @@ public class DiagramTest {
   public void should_support_all_diagram_types() {
     Diagram flowchartDiagram =
         new Diagram(
-            "flow-1", new DiagramDescription("流程图", DiagramType.FLOWCHART, viewport), nodes, edges);
+            "flow-1",
+            new DiagramDescription("流程图", DiagramType.FLOWCHART, viewport),
+            nodes,
+            edges,
+            versions);
     assertEquals(DiagramType.FLOWCHART, flowchartDiagram.getDescription().type());
 
     Diagram sequenceDiagram =
         new Diagram(
-            "seq-1", new DiagramDescription("时序图", DiagramType.SEQUENCE, viewport), nodes, edges);
+            "seq-1",
+            new DiagramDescription("时序图", DiagramType.SEQUENCE, viewport),
+            nodes,
+            edges,
+            versions);
     assertEquals(DiagramType.SEQUENCE, sequenceDiagram.getDescription().type());
 
     Diagram classDiagram =
         new Diagram(
-            "class-1", new DiagramDescription("类图", DiagramType.CLASS, viewport), nodes, edges);
+            "class-1",
+            new DiagramDescription("类图", DiagramType.CLASS, viewport),
+            nodes,
+            edges,
+            versions);
     assertEquals(DiagramType.CLASS, classDiagram.getDescription().type());
 
     Diagram componentDiagram =
         new Diagram(
-            "comp-1", new DiagramDescription("组件图", DiagramType.COMPONENT, viewport), nodes, edges);
+            "comp-1",
+            new DiagramDescription("组件图", DiagramType.COMPONENT, viewport),
+            nodes,
+            edges,
+            versions);
     assertEquals(DiagramType.COMPONENT, componentDiagram.getDescription().type());
 
     Diagram stateDiagram =
         new Diagram(
-            "state-1", new DiagramDescription("状态图", DiagramType.STATE, viewport), nodes, edges);
+            "state-1",
+            new DiagramDescription("状态图", DiagramType.STATE, viewport),
+            nodes,
+            edges,
+            versions);
     assertEquals(DiagramType.STATE, stateDiagram.getDescription().type());
 
     Diagram activityDiagram =
         new Diagram(
-            "act-1", new DiagramDescription("活动图", DiagramType.ACTIVITY, viewport), nodes, edges);
+            "act-1",
+            new DiagramDescription("活动图", DiagramType.ACTIVITY, viewport),
+            nodes,
+            edges,
+            versions);
     assertEquals(DiagramType.ACTIVITY, activityDiagram.getDescription().type());
   }
 
@@ -164,6 +195,67 @@ public class DiagramTest {
 
       assertSame(expectedEdge, resultEdge);
       verify(edges).add(edgeDesc);
+    }
+  }
+
+  @Nested
+  class VersionsAssociation {
+    @Test
+    void should_return_versions_association() {
+      assertSame(versions, diagram.versions());
+    }
+
+    @Test
+    void should_create_version_from_current_nodes_edges_and_viewport() {
+      NodeDescription nodeDescription =
+          new NodeDescription(
+              "class-node", new Ref<>("entity-1"), null, 120.0, 240.0, 300, 180, null, null);
+      DiagramNode node = new DiagramNode("node-1", nodeDescription, () -> null);
+
+      EdgeDescription edgeDescription =
+          new EdgeDescription(
+              new Ref<>("node-1"),
+              new Ref<>("node-2"),
+              "right",
+              "left",
+              "ASSOCIATION",
+              "contains",
+              (JsonBlob) null);
+      DiagramEdge edge = new DiagramEdge("edge-1", edgeDescription);
+
+      when(nodes.findAll()).thenReturn(manyOf(List.of(node)));
+      when(edges.findAll()).thenReturn(manyOf(List.of(edge)));
+      when(versions.findAll())
+          .thenReturn(
+              manyOf(
+                  List.of(
+                      new DiagramVersion(
+                          "version-1",
+                          new DiagramVersionDescription(
+                              "v1",
+                              new DiagramSnapshot(
+                                  List.of(), List.of(), Viewport.defaultViewport()))))));
+
+      DiagramVersion expectedVersion = mock(DiagramVersion.class);
+      when(versions.add(any())).thenReturn(expectedVersion);
+
+      DiagramVersion result = diagram.createVersion();
+
+      assertSame(expectedVersion, result);
+
+      ArgumentCaptor<DiagramVersionDescription> captor =
+          ArgumentCaptor.forClass(DiagramVersionDescription.class);
+      verify(versions).add(captor.capture());
+      DiagramVersionDescription versionDescription = captor.getValue();
+
+      assertEquals("v2", versionDescription.name());
+      assertEquals(viewport, versionDescription.snapshot().viewport());
+      assertEquals(1, versionDescription.snapshot().nodes().size());
+      assertEquals("node-1", versionDescription.snapshot().nodes().get(0).id());
+      assertEquals(nodeDescription, versionDescription.snapshot().nodes().get(0).description());
+      assertEquals(1, versionDescription.snapshot().edges().size());
+      assertEquals("edge-1", versionDescription.snapshot().edges().get(0).id());
+      assertEquals(edgeDescription, versionDescription.snapshot().edges().get(0).description());
     }
   }
 
@@ -237,5 +329,25 @@ public class DiagramTest {
       assertTrue(diagram.addEdges(null).isEmpty());
       verify(edges, never()).addAll(any());
     }
+  }
+
+  private static <E extends Entity<?, ?>> Many<E> manyOf(List<E> entities) {
+    List<E> items = List.copyOf(entities);
+    return new Many<>() {
+      @Override
+      public int size() {
+        return items.size();
+      }
+
+      @Override
+      public Many<E> subCollection(int from, int to) {
+        return manyOf(items.subList(from, to));
+      }
+
+      @Override
+      public Iterator<E> iterator() {
+        return items.iterator();
+      }
+    };
   }
 }

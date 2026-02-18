@@ -36,6 +36,7 @@ public class EdgesApiTest extends ApiTest {
   @Mock private Project.Diagrams diagrams;
   @Mock private Diagram.Nodes diagramNodes;
   @Mock private Diagram.Edges diagramEdges;
+  @Mock private Diagram.Versions diagramVersions;
 
   @BeforeEach
   public void beforeEach() {
@@ -54,7 +55,8 @@ public class EdgesApiTest extends ApiTest {
             "diagram-1",
             new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport),
             diagramNodes,
-            diagramEdges);
+            diagramEdges,
+            diagramVersions);
 
     JsonBlob styleProps = edgeStyleProps("solid", "#333333", "arrow", 2);
     edge =

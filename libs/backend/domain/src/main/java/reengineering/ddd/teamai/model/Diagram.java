@@ -6,6 +6,8 @@ import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.DiagramVersionDescription;
+import reengineering.ddd.teamai.description.DiagramVersionDescription.DiagramSnapshot;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 
@@ -14,12 +16,19 @@ public class Diagram implements Entity<String, DiagramDescription> {
   private DiagramDescription description;
   private Nodes nodes;
   private Edges edges;
+  private Versions versions;
 
-  public Diagram(String identity, DiagramDescription description, Nodes nodes, Edges edges) {
+  public Diagram(
+      String identity,
+      DiagramDescription description,
+      Nodes nodes,
+      Edges edges,
+      Versions versions) {
     this.identity = identity;
     this.description = description;
     this.nodes = nodes;
     this.edges = edges;
+    this.versions = versions;
   }
 
   private Diagram() {}
@@ -42,6 +51,10 @@ public class Diagram implements Entity<String, DiagramDescription> {
     return edges;
   }
 
+  public HasMany<String, DiagramVersion> versions() {
+    return versions;
+  }
+
   public DiagramNode addNode(NodeDescription description) {
     return nodes.add(description);
   }
@@ -58,6 +71,24 @@ public class Diagram implements Entity<String, DiagramDescription> {
     return descriptions == null || descriptions.isEmpty() ? List.of() : edges.addAll(descriptions);
   }
 
+  public DiagramVersion createVersion() {
+    DiagramSnapshot snapshot =
+        new DiagramSnapshot(
+            nodes.findAll().stream()
+                .map(
+                    node ->
+                        new DiagramSnapshot.SnapshotNode(node.getIdentity(), node.getDescription()))
+                .toList(),
+            edges.findAll().stream()
+                .map(
+                    edge ->
+                        new DiagramSnapshot.SnapshotEdge(edge.getIdentity(), edge.getDescription()))
+                .toList(),
+            description.viewport());
+    String versionName = "v" + (versions.findAll().size() + 1);
+    return versions.add(new DiagramVersionDescription(versionName, snapshot));
+  }
+
   public interface Nodes extends HasMany<String, DiagramNode> {
     DiagramNode add(NodeDescription description);
 
@@ -68,6 +99,10 @@ public class Diagram implements Entity<String, DiagramDescription> {
     DiagramEdge add(EdgeDescription description);
 
     List<DiagramEdge> addAll(Collection<EdgeDescription> descriptions);
+  }
+
+  public interface Versions extends HasMany<String, DiagramVersion> {
+    DiagramVersion add(DiagramVersionDescription description);
   }
 
   public Flux<String> proposeModel(String requirement, DomainArchitect architect) {

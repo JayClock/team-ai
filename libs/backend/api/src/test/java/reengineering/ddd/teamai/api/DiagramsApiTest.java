@@ -49,6 +49,7 @@ public class DiagramsApiTest extends ApiTest {
   @Mock private Project.Diagrams diagrams;
   @Mock private Diagram.Nodes diagramNodes;
   @Mock private Diagram.Edges diagramEdges;
+  @Mock private Diagram.Versions diagramVersions;
 
   @BeforeEach
   public void beforeEach() {
@@ -67,7 +68,8 @@ public class DiagramsApiTest extends ApiTest {
             "diagram-1",
             new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport),
             diagramNodes,
-            diagramEdges);
+            diagramEdges,
+            diagramVersions);
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(diagrams.findByIdentity(diagram.getIdentity())).thenReturn(Optional.of(diagram));

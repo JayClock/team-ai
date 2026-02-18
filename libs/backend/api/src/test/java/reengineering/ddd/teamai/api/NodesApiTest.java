@@ -41,6 +41,7 @@ public class NodesApiTest extends ApiTest {
   @Mock private Project.Diagrams diagrams;
   @Mock private Diagram.Nodes diagramNodes;
   @Mock private Diagram.Edges diagramEdges;
+  @Mock private Diagram.Versions diagramVersions;
 
   @BeforeEach
   public void beforeEach() throws Exception {
@@ -59,7 +60,8 @@ public class NodesApiTest extends ApiTest {
             "diagram-1",
             new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport),
             diagramNodes,
-            diagramEdges);
+            diagramEdges,
+            diagramVersions);
 
     JsonBlob styleConfig =
         new JsonBlob(
