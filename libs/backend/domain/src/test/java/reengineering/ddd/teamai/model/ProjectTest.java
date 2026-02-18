@@ -182,14 +182,14 @@ public class ProjectTest {
       Project.Diagrams.CommitDraftResult expected =
           new Project.Diagrams.CommitDraftResult(List.of(), List.of());
 
-      when(diagrams.commitDraft(diagramId, List.of(draftNode), List.of(draftEdge)))
+      when(diagrams.saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge)))
           .thenReturn(expected);
 
       Project.Diagrams.CommitDraftResult result =
-          project.commitDiagramDraft(diagramId, List.of(draftNode), List.of(draftEdge));
+          project.saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
 
       assertSame(expected, result);
-      verify(diagrams).commitDraft(diagramId, List.of(draftNode), List.of(draftEdge));
+      verify(diagrams).saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
     }
   }
 }

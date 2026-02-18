@@ -71,7 +71,7 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
   }
 
   @Override
-  public Project.Diagrams.CommitDraftResult commitDraft(
+  public Project.Diagrams.CommitDraftResult saveDiagram(
       String diagramId,
       Collection<Project.Diagrams.DraftNode> draftNodes,
       Collection<Project.Diagrams.DraftEdge> draftEdges) {

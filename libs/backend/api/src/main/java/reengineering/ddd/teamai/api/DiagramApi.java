@@ -34,27 +34,27 @@ public class DiagramApi {
   @Context ResourceContext resourceContext;
 
   private final Project project;
-  private final Diagram entity;
+  private final Diagram diagram;
 
   public DiagramApi(Project project, Diagram entity) {
     this.project = project;
-    this.entity = entity;
+    this.diagram = entity;
   }
 
   @GET
   @VendorMediaType(ResourceTypes.DIAGRAM)
   public DiagramModel get(@Context UriInfo uriInfo) {
-    return DiagramModel.of(project, entity, uriInfo);
+    return DiagramModel.of(project, diagram, uriInfo);
   }
 
   @Path("nodes")
   public NodesApi nodes() {
-    return resourceContext.initResource(new NodesApi(project, entity));
+    return resourceContext.initResource(new NodesApi(project, diagram));
   }
 
   @Path("edges")
   public EdgesApi edges() {
-    return resourceContext.initResource(new EdgesApi(project, entity));
+    return resourceContext.initResource(new EdgesApi(project, diagram));
   }
 
   @POST
@@ -63,7 +63,7 @@ public class DiagramApi {
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void proposeModel(
       @Valid ProposeModelRequest request, @Context SseEventSink sseEventSink, @Context Sse sse) {
-    entity
+    diagram
         .proposeModel(request.getRequirement(), domainArchitect)
         .subscribe(
             chunk -> sendSseEvent(sseEventSink, sse, null, chunk),
@@ -91,13 +91,13 @@ public class DiagramApi {
     }
 
     try {
-      project.commitDiagramDraft(entity.getIdentity(), draftNodes, draftEdges);
+      project.saveDiagram(diagram.getIdentity(), draftNodes, draftEdges);
     } catch (Project.Diagrams.InvalidDraftException error) {
       throw badRequest(error.getMessage());
     }
 
     return Response.created(
-            ApiTemplates.diagram(uriInfo).build(project.getIdentity(), entity.getIdentity()))
+            ApiTemplates.diagram(uriInfo).build(project.getIdentity(), diagram.getIdentity()))
         .build();
   }
 

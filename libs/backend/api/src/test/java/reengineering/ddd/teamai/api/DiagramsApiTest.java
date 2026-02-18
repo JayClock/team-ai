@@ -71,7 +71,7 @@ public class DiagramsApiTest extends ApiTest {
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(diagrams.findByIdentity(diagram.getIdentity())).thenReturn(Optional.of(diagram));
-    when(diagrams.commitDraft(eq(diagram.getIdentity()), any(), any()))
+    when(diagrams.saveDiagram(eq(diagram.getIdentity()), any(), any()))
         .thenAnswer(
             invocation ->
                 commitDraftInAssociation(

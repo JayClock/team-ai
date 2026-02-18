@@ -189,7 +189,7 @@ public class ProjectDiagramsTest {
         new NodeDescription("class-node", null, null, 100.0, 200.0, 300, 200, null, null);
 
     Project.Diagrams.CommitDraftResult result =
-        project.commitDiagramDraft(
+        project.saveDiagram(
             diagram.getIdentity(),
             List.of(new Project.Diagrams.DraftNode("node-1", nodeDescription)),
             List.of(new Project.Diagrams.DraftEdge("node-1", "node-1")));
@@ -214,7 +214,7 @@ public class ProjectDiagramsTest {
         assertThrows(
             Project.Diagrams.InvalidDraftException.class,
             () ->
-                project.commitDiagramDraft(
+                project.saveDiagram(
                     diagram.getIdentity(),
                     List.of(
                         new Project.Diagrams.DraftNode("dup-node", nodeDescription),

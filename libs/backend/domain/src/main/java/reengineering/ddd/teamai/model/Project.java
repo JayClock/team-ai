@@ -82,11 +82,11 @@ public class Project implements Entity<String, ProjectDescription> {
     return diagrams.add(description);
   }
 
-  public Diagrams.CommitDraftResult commitDiagramDraft(
+  public Diagrams.CommitDraftResult saveDiagram(
       String diagramId,
       Collection<Diagrams.DraftNode> draftNodes,
       Collection<Diagrams.DraftEdge> draftEdges) {
-    return diagrams.commitDraft(diagramId, draftNodes, draftEdges);
+    return diagrams.saveDiagram(diagramId, draftNodes, draftEdges);
   }
 
   public interface Members extends HasMany<String, Member> {
@@ -100,7 +100,7 @@ public class Project implements Entity<String, ProjectDescription> {
   public interface Diagrams extends HasMany<String, Diagram> {
     Diagram add(DiagramDescription description);
 
-    CommitDraftResult commitDraft(
+    CommitDraftResult saveDiagram(
         String diagramId, Collection<DraftNode> draftNodes, Collection<DraftEdge> draftEdges);
 
     record DraftNode(String id, NodeDescription description) {}
