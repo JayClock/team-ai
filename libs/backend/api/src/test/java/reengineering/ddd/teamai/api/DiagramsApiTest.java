@@ -187,6 +187,14 @@ public class DiagramsApiTest extends ApiTest {
                     + diagram.getIdentity()
                     + "/nodes"))
         .body(
+            "_links.versions.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/versions"))
+        .body(
             "_links.propose-model.href",
             is(
                 "/api/projects/"
@@ -239,6 +247,7 @@ public class DiagramsApiTest extends ApiTest {
         .body("_templates.create-node.properties[6].name", is("width"))
         .body("_templates.create-node.properties[6].required", is(true))
         .body("_templates.create-node.properties[6].type", is("number"))
+        .body("_templates.'create-version'.method", is("POST"))
         .body("_templates.propose-model.method", is("POST"))
         .body("_templates.propose-model.properties", hasSize(1))
         .body("_templates.propose-model.properties[0].name", is("requirement"))

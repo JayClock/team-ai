@@ -57,6 +57,11 @@ public class DiagramApi {
     return resourceContext.initResource(new EdgesApi(project, diagram));
   }
 
+  @Path("versions")
+  public DiagramVersionsApi versions() {
+    return resourceContext.initResource(new DiagramVersionsApi(project, diagram));
+  }
+
   @POST
   @Path("propose-model")
   @Consumes(MediaType.APPLICATION_JSON)

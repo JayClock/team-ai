@@ -75,6 +75,17 @@ public class DiagramModel extends RepresentationModel<DiagramModel> {
     model.add(
         Affordances.of(
                 Link.of(
+                        ApiTemplates.versions(uriInfo)
+                            .build(project.getIdentity(), diagram.getIdentity())
+                            .getPath())
+                    .withRel("versions"))
+            .afford(HttpMethod.POST)
+            .withName("create-version")
+            .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(
                         ApiTemplates.proposeModel(uriInfo)
                             .build(project.getIdentity(), diagram.getIdentity())
                             .getPath())

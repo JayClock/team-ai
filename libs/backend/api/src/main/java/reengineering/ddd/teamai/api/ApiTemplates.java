@@ -75,6 +75,14 @@ public class ApiTemplates {
     return edges(uriInfo).path(EdgesApi.class, "findById");
   }
 
+  public static UriBuilder versions(UriInfo uriInfo) {
+    return diagram(uriInfo).path(DiagramApi.class, "versions");
+  }
+
+  public static UriBuilder version(UriInfo uriInfo) {
+    return versions(uriInfo).path(DiagramVersionsApi.class, "findById");
+  }
+
   public static UriBuilder proposeModel(UriInfo uriInfo) {
     return diagram(uriInfo).path(DiagramApi.class, "proposeModel");
   }
