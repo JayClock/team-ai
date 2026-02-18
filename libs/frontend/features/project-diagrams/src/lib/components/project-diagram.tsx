@@ -16,6 +16,10 @@ import {
   useCommitDraft,
 } from './tools/commit-draft-panel-tool';
 import {
+  PublishDiagramPanelTool,
+  usePublishDiagram,
+} from './tools/publish-diagram-panel-tool';
+import {
   ProposeModelPanelTool,
   useProposeModelDraft,
 } from './tools/propose-model-panel-tool';
@@ -34,6 +38,12 @@ export function ProjectDiagram(props: Props) {
     handleDraftApplyOptimistic: handleCommitDraftApplyOptimistic,
     handleDraftApplyReverted: handleCommitDraftApplyReverted,
   } = useCommitDraft({ state });
+
+  const { canPublish, isPublishing, handlePublish } = usePublishDiagram({
+    state,
+    hasPendingDraft: canSaveDraft,
+    isSavingDraft,
+  });
 
   const {
     optimisticNodes,
@@ -149,11 +159,18 @@ export function ProjectDiagram(props: Props) {
           </div>
         </Panel>
         <Panel position="top-right">
-          <CommitDraftPanelTool
-            canSaveDraft={canSaveDraft}
-            isSavingDraft={isSavingDraft}
-            onSaveDraft={handleSaveDraft}
-          />
+          <div className="flex gap-2">
+            <CommitDraftPanelTool
+              canSaveDraft={canSaveDraft}
+              isSavingDraft={isSavingDraft}
+              onSaveDraft={handleSaveDraft}
+            />
+            <PublishDiagramPanelTool
+              canPublish={canPublish}
+              isPublishing={isPublishing}
+              onPublish={handlePublish}
+            />
+          </div>
         </Panel>
         <Background />
         <Controls />

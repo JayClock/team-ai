@@ -23,6 +23,7 @@ export type Diagram = Entity<
     id: string;
     title: string;
     type: DiagramType;
+    status: 'draft' | 'published';
     viewport: Viewport;
   },
   {
@@ -33,6 +34,8 @@ export type Diagram = Entity<
     'add-edge': DiagramEdge;
     'propose-model': Entity<ReadableStream<Uint8Array>>;
     'commit-draft': Entity;
+    'publish-diagram': Entity;
+    publish: Entity;
     project: Project;
   }
 >;
