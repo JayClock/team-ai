@@ -2,8 +2,6 @@ package reengineering.ddd.teamai.api.representation;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.core.UriInfo;
 import java.util.Map;
 import org.springframework.hateoas.Link;
@@ -11,7 +9,6 @@ import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
-import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.description.NodeDescription;
@@ -41,8 +38,6 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
   public record EmbeddedResources(
       @JsonProperty("logical-entity") LogicalEntityModel logicalEntity) {}
 
-  private static final ObjectMapper objectMapper = new ObjectMapper();
-
   public DiagramNodeModel(
       Project project, Diagram diagram, DiagramNode diagramNode, UriInfo uriInfo) {
     NodeDescription desc = diagramNode.getDescription();
@@ -60,19 +55,8 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
     this.positionY = desc.positionY();
     this.width = desc.width();
     this.height = desc.height();
-    this.styleConfig = parseJsonBlob(desc.styleConfig());
-    this.localData = parseJsonBlob(desc.localData());
-  }
-
-  private Map<String, Object> parseJsonBlob(JsonBlob blob) {
-    if (blob == null || blob.json() == null || blob.json().isEmpty()) {
-      return Map.of();
-    }
-    try {
-      return objectMapper.readValue(blob.json(), new TypeReference<Map<String, Object>>() {});
-    } catch (Exception e) {
-      return Map.of();
-    }
+    this.styleConfig = JsonBlobReader.read(desc.styleConfig());
+    this.localData = JsonBlobReader.read(desc.localData());
   }
 
   public static DiagramNodeModel of(

@@ -1,8 +1,6 @@
 package reengineering.ddd.teamai.api.representation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.core.UriInfo;
 import java.util.Map;
 import org.springframework.hateoas.Link;
@@ -10,7 +8,6 @@ import org.springframework.hateoas.RepresentationModel;
 import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
-import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.EdgesApi;
@@ -30,8 +27,6 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
   @JsonProperty private String label;
   @JsonProperty private Map<String, Object> styleProps;
 
-  private static final ObjectMapper objectMapper = new ObjectMapper();
-
   public DiagramEdgeModel(Project project, Diagram diagram, DiagramEdge entity, UriInfo uriInfo) {
     EdgeDescription desc = entity.getDescription();
     this.id = entity.getIdentity();
@@ -41,7 +36,7 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
     this.targetHandle = desc.targetHandle();
     this.relationType = desc.relationType();
     this.label = desc.label();
-    this.styleProps = parseJsonBlob(desc.styleProps());
+    this.styleProps = JsonBlobReader.read(desc.styleProps());
 
     add(
         Affordances.of(
@@ -75,17 +70,6 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
                     .build(project.getIdentity(), diagram.getIdentity())
                     .getPath())
             .withRel("diagram"));
-  }
-
-  private Map<String, Object> parseJsonBlob(JsonBlob blob) {
-    if (blob == null || blob.json() == null || blob.json().isEmpty()) {
-      return Map.of();
-    }
-    try {
-      return objectMapper.readValue(blob.json(), new TypeReference<Map<String, Object>>() {});
-    } catch (Exception e) {
-      return Map.of();
-    }
   }
 
   public static DiagramEdgeModel simple(
