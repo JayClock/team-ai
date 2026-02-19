@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -73,14 +74,17 @@ public class DiagramsApiTest extends ApiTest {
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(diagrams.findByIdentity(diagram.getIdentity())).thenReturn(Optional.of(diagram));
-    when(diagrams.saveDiagram(eq(diagram.getIdentity()), any(), any()))
-        .thenAnswer(
-            invocation ->
-                commitDraftInAssociation(
-                    diagram, invocation.getArgument(1), invocation.getArgument(2)));
+    doAnswer(
+            invocation -> {
+              commitDraftInAssociation(
+                  diagram, invocation.getArgument(1), invocation.getArgument(2));
+              return null;
+            })
+        .when(diagrams)
+        .saveDiagram(eq(diagram.getIdentity()), any(), any());
   }
 
-  private static Project.Diagrams.CommitDraftResult commitDraftInAssociation(
+  private static void commitDraftInAssociation(
       Diagram diagram,
       List<Project.Diagrams.DraftNode> draftNodes,
       List<Project.Diagrams.DraftEdge> draftEdges) {
@@ -134,8 +138,7 @@ public class DiagramsApiTest extends ApiTest {
               new Ref<>(sourceNodeId), new Ref<>(targetNodeId), null, null, null, null, null));
     }
 
-    List<DiagramEdge> createdEdges = diagram.addEdges(edgeDescriptions);
-    return new Project.Diagrams.CommitDraftResult(createdNodes, createdEdges);
+    diagram.addEdges(edgeDescriptions);
   }
 
   private static String resolveNodeId(String nodeId, Map<String, String> createdNodeIdByRef) {

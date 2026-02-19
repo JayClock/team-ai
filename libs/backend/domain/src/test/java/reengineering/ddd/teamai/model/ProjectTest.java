@@ -179,16 +179,9 @@ public class ProjectTest {
       Project.Diagrams.DraftNode draftNode =
           new Project.Diagrams.DraftNode("node-1", nodeDescription);
       Project.Diagrams.DraftEdge draftEdge = new Project.Diagrams.DraftEdge("node-1", "node-1");
-      Project.Diagrams.CommitDraftResult expected =
-          new Project.Diagrams.CommitDraftResult(List.of(), List.of());
 
-      when(diagrams.saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge)))
-          .thenReturn(expected);
-
-      Project.Diagrams.CommitDraftResult result =
-          project.saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
-
-      assertSame(expected, result);
+      doNothing().when(diagrams).saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
+      project.saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
       verify(diagrams).saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
     }
 

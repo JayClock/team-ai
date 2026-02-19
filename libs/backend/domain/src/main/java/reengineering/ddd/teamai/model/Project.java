@@ -1,7 +1,6 @@
 package reengineering.ddd.teamai.model;
 
 import java.util.Collection;
-import java.util.List;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -82,11 +81,11 @@ public class Project implements Entity<String, ProjectDescription> {
     return diagrams.add(description);
   }
 
-  public Diagrams.CommitDraftResult saveDiagram(
+  public void saveDiagram(
       String diagramId,
       Collection<Diagrams.DraftNode> draftNodes,
       Collection<Diagrams.DraftEdge> draftEdges) {
-    return diagrams.saveDiagram(diagramId, draftNodes, draftEdges);
+    diagrams.saveDiagram(diagramId, draftNodes, draftEdges);
   }
 
   public void publishDiagram(String diagramId) {
@@ -104,7 +103,7 @@ public class Project implements Entity<String, ProjectDescription> {
   public interface Diagrams extends HasMany<String, Diagram> {
     Diagram add(DiagramDescription description);
 
-    CommitDraftResult saveDiagram(
+    void saveDiagram(
         String diagramId, Collection<DraftNode> draftNodes, Collection<DraftEdge> draftEdges);
 
     void publishDiagram(String diagramId);
@@ -112,13 +111,6 @@ public class Project implements Entity<String, ProjectDescription> {
     record DraftNode(String id, NodeDescription description) {}
 
     record DraftEdge(String sourceNodeId, String targetNodeId) {}
-
-    record CommitDraftResult(List<DiagramNode> nodes, List<DiagramEdge> edges) {
-      public CommitDraftResult {
-        nodes = nodes == null ? List.of() : List.copyOf(nodes);
-        edges = edges == null ? List.of() : List.copyOf(edges);
-      }
-    }
 
     class InvalidDraftException extends RuntimeException {
       public InvalidDraftException(String message) {

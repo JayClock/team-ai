@@ -18,7 +18,6 @@ import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.model.Diagram;
-import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.DiagramStatus;
 import reengineering.ddd.teamai.model.Project;
@@ -72,11 +71,15 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
   }
 
   @Override
-  public Project.Diagrams.CommitDraftResult saveDiagram(
+  public void saveDiagram(
       String diagramId,
       Collection<Project.Diagrams.DraftNode> draftNodes,
       Collection<Project.Diagrams.DraftEdge> draftEdges) {
-    return transactionDecorator.execute(() -> doCommitDraft(diagramId, draftNodes, draftEdges));
+    transactionDecorator.execute(
+        () -> {
+          doCommitDraft(diagramId, draftNodes, draftEdges);
+          return null;
+        });
   }
 
   @Override
@@ -87,7 +90,7 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
     mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), DiagramStatus.PUBLISHED);
   }
 
-  private Project.Diagrams.CommitDraftResult doCommitDraft(
+  private void doCommitDraft(
       String diagramId,
       Collection<Project.Diagrams.DraftNode> draftNodes,
       Collection<Project.Diagrams.DraftEdge> draftEdges) {
@@ -152,9 +155,8 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
               new Ref<>(sourceNodeId), new Ref<>(targetNodeId), null, null, null, null, null));
     }
 
-    List<DiagramEdge> createdEdges = diagram.addEdges(edgeDescriptions);
+    diagram.addEdges(edgeDescriptions);
     mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), DiagramStatus.DRAFT);
-    return new Project.Diagrams.CommitDraftResult(createdNodes, createdEdges);
   }
 
   private static String resolveNodeId(String nodeId, Map<String, String> createdNodeIdByRef) {
