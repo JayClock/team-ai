@@ -7,9 +7,9 @@
     <association property="description" javaType="reengineering.ddd.teamai.description.DiagramDescription">
       <constructor>
         <arg column="title" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler" javaType="reengineering.ddd.teamai.model.Diagram$DiagramType"/>
+        <arg column="type" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramTypeHandler" javaType="reengineering.ddd.teamai.model.Diagram$Type"/>
         <arg column="viewport" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler" javaType="reengineering.ddd.teamai.description.Viewport"/>
-        <arg column="status" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramStatusHandler" javaType="reengineering.ddd.teamai.model.Diagram$DiagramStatus"/>
+        <arg column="status" jdbcType="VARCHAR" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.DiagramStatusHandler" javaType="reengineering.ddd.teamai.model.Diagram$Status"/>
       </constructor>
     </association>
     <association property="nodes" javaType="reengineering.ddd.teamai.mybatis.associations.DiagramNodes">

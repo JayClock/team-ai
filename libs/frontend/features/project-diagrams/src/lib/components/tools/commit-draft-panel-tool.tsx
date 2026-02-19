@@ -49,7 +49,7 @@ export function useCommitDraft({
     }
 
     if (!state.hasLink('commit-draft')) {
-      throw new Error('Current diagram is missing required links for draft save.');
+      throw new Error('当前图表缺少保存草稿所需的链接。');
     }
 
     setIsSavingDraft(true);
@@ -92,7 +92,7 @@ export function CommitDraftPanelTool({
       setIsConfirmOpen(false);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Failed to save draft';
+        error instanceof Error ? error.message : '保存草稿失败';
       setSaveError(message);
     }
   };
@@ -107,7 +107,7 @@ export function CommitDraftPanelTool({
         }}
       >
         {isSavingDraft ? <Spinner className="size-4" /> : null}
-        Save Draft
+        保存草稿
       </Button>
       <Dialog
         open={isConfirmOpen}
@@ -120,9 +120,9 @@ export function CommitDraftPanelTool({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Draft to Canvas</DialogTitle>
+            <DialogTitle>将草稿保存到画布</DialogTitle>
             <DialogDescription>
-              This will persist the current draft nodes and edges to the diagram.
+              此操作会将当前草稿中的节点和连线持久化到图表中。
             </DialogDescription>
           </DialogHeader>
           {saveError ? (
@@ -139,7 +139,7 @@ export function CommitDraftPanelTool({
               }}
               disabled={isSavingDraft}
             >
-              Cancel
+              取消
             </Button>
             <Button
               type="button"
@@ -149,7 +149,7 @@ export function CommitDraftPanelTool({
               disabled={isSavingDraft}
             >
               {isSavingDraft ? <Spinner className="size-4" /> : null}
-              Confirm Save
+              确认保存
             </Button>
           </DialogFooter>
         </DialogContent>

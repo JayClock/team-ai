@@ -47,7 +47,7 @@ export function usePublishDiagram({
     }
 
     if (!state.hasLink('publish-diagram')) {
-      throw new Error('Current diagram is missing required links for publish.');
+      throw new Error('当前图表缺少发布所需的链接。');
     }
 
     setIsPublishing(true);
@@ -88,7 +88,7 @@ export function PublishDiagramPanelTool({
       setIsConfirmOpen(false);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Failed to publish diagram';
+        error instanceof Error ? error.message : '发布图表失败';
       setPublishError(message);
     }
   };
@@ -104,7 +104,7 @@ export function PublishDiagramPanelTool({
         }}
       >
         {isPublishing ? <Spinner className="size-4" /> : null}
-        Publish
+        发布
       </Button>
       <Dialog
         open={isConfirmOpen}
@@ -117,9 +117,9 @@ export function PublishDiagramPanelTool({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Publish Diagram</DialogTitle>
+            <DialogTitle>发布图表</DialogTitle>
             <DialogDescription>
-              This will set diagram status to published.
+              此操作会将图表状态设置为已发布。
             </DialogDescription>
           </DialogHeader>
           {publishError ? (
@@ -136,7 +136,7 @@ export function PublishDiagramPanelTool({
               }}
               disabled={isPublishing}
             >
-              Cancel
+              取消
             </Button>
             <Button
               type="button"
@@ -146,7 +146,7 @@ export function PublishDiagramPanelTool({
               disabled={isPublishing}
             >
               {isPublishing ? <Spinner className="size-4" /> : null}
-              Confirm Publish
+              确认发布
             </Button>
           </DialogFooter>
         </DialogContent>
