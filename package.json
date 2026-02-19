@@ -6,6 +6,7 @@
     "prepare": "husky"
   },
   "private": true,
+  "packageManager": "pnpm@10.14.0",
   "dependencies": {
     "@features/user-projects": "workspace:*",
     "@hateoas-ts/resource": "workspace:*",
