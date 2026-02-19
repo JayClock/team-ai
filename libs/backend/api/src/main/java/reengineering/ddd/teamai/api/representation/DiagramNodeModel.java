@@ -22,11 +22,6 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
   @JsonProperty private String id;
   @JsonProperty private String type;
   @JsonProperty private Ref<String> logicalEntity;
-
-  @JsonInclude(JsonInclude.Include.NON_NULL)
-  @JsonProperty("_embedded")
-  private EmbeddedResources embedded;
-
   @JsonProperty private Ref<String> parent;
   @JsonProperty private double positionX;
   @JsonProperty private double positionY;
@@ -35,28 +30,28 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
   @JsonProperty private Map<String, Object> styleConfig;
   @JsonProperty private Map<String, Object> localData;
 
-  public record EmbeddedResources(
-      @JsonProperty("logical-entity") LogicalEntityModel logicalEntity) {}
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonProperty("_embedded")
+  private EmbeddedResources embedded;
 
   public DiagramNodeModel(
       Project project, Diagram diagram, DiagramNode diagramNode, UriInfo uriInfo) {
-    NodeDescription desc = diagramNode.getDescription();
-    String logicalEntityId = resolveLogicalEntityId(diagramNode);
+    NodeDescription description = diagramNode.getDescription();
     LogicalEntity logicalEntity = diagramNode.logicalEntity();
     this.id = diagramNode.getIdentity();
-    this.type = desc.type();
-    this.logicalEntity = logicalEntityId == null ? null : new Ref<>(logicalEntityId);
+    this.type = description.type();
+    this.logicalEntity = description.logicalEntity();
     this.embedded =
-        logicalEntityId != null && logicalEntity != null
+        logicalEntity != null
             ? new EmbeddedResources(LogicalEntityModel.of(project, logicalEntity, uriInfo))
             : null;
-    this.parent = desc.parent();
-    this.positionX = desc.positionX();
-    this.positionY = desc.positionY();
-    this.width = desc.width();
-    this.height = desc.height();
-    this.styleConfig = JsonBlobReader.read(desc.styleConfig());
-    this.localData = JsonBlobReader.read(desc.localData());
+    this.parent = description.parent();
+    this.positionX = description.positionX();
+    this.positionY = description.positionY();
+    this.width = description.width();
+    this.height = description.height();
+    this.styleConfig = JsonBlobReader.read(description.styleConfig());
+    this.localData = JsonBlobReader.read(description.localData());
   }
 
   public static DiagramNodeModel of(
@@ -78,12 +73,12 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
             .withName("delete-node")
             .toLink());
 
-    String logicalEntityId = resolveLogicalEntityId(diagramNode);
-    if (logicalEntityId != null) {
+    LogicalEntity logicalEntity = diagramNode.logicalEntity();
+    if (logicalEntity != null) {
       model.add(
           Link.of(
                   ApiTemplates.logicalEntity(uriInfo)
-                      .build(project.getIdentity(), logicalEntityId)
+                      .build(project.getIdentity(), logicalEntity.getIdentity())
                       .getPath())
               .withRel("logical-entity"));
     }
@@ -103,24 +98,6 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
     return model;
   }
 
-  private static String resolveLogicalEntityId(DiagramNode diagramNode) {
-    NodeDescription description = diagramNode.getDescription();
-    if (description != null && description.logicalEntity() != null) {
-      String idFromDescription = description.logicalEntity().id();
-      if (hasText(idFromDescription)) {
-        return idFromDescription;
-      }
-    }
-
-    LogicalEntity logicalEntity = diagramNode.logicalEntity();
-    if (logicalEntity != null && hasText(logicalEntity.getIdentity())) {
-      return logicalEntity.getIdentity();
-    }
-
-    return null;
-  }
-
-  private static boolean hasText(String value) {
-    return value != null && !value.isBlank();
-  }
+  private record EmbeddedResources(
+      @JsonProperty("logical-entity") LogicalEntityModel logicalEntity) {}
 }

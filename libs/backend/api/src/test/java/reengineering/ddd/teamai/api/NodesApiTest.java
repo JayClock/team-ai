@@ -71,8 +71,7 @@ public class NodesApiTest extends ApiTest {
             "{\"content\":\"Note content\",\"color\":\"#ffd93d\",\"type\":\"sticky-note\"}");
     LogicalEntity mockLogicalEntity = Mockito.mock(LogicalEntity.class);
     when(mockLogicalEntity.getIdentity()).thenReturn("logical-entity-1");
-    HasOne<LogicalEntity> mockHasOne = Mockito.mock(HasOne.class);
-    when(mockHasOne.get()).thenReturn(mockLogicalEntity);
+    HasOne<LogicalEntity> mockHasOne = () -> mockLogicalEntity;
     node =
         new DiagramNode(
             "node-1",
@@ -174,8 +173,7 @@ public class NodesApiTest extends ApiTest {
 
   @Test
   public void should_create_node() {
-    HasOne<LogicalEntity> mockHasOne = Mockito.mock(HasOne.class);
-    when(mockHasOne.get()).thenReturn(null);
+    HasOne<LogicalEntity> mockHasOne = () -> null;
     DiagramNode newNode =
         new DiagramNode(
             "node-new",
@@ -228,8 +226,7 @@ public class NodesApiTest extends ApiTest {
   public void should_return_all_nodes() {
     LogicalEntity mockLogicalEntity1 = Mockito.mock(LogicalEntity.class);
     when(mockLogicalEntity1.getIdentity()).thenReturn("logical-entity-1");
-    HasOne<LogicalEntity> mockHasOne1 = Mockito.mock(HasOne.class);
-    when(mockHasOne1.get()).thenReturn(mockLogicalEntity1);
+    HasOne<LogicalEntity> mockHasOne1 = () -> mockLogicalEntity1;
     DiagramNode node2 =
         new DiagramNode(
             "node-2",
@@ -284,15 +281,21 @@ public class NodesApiTest extends ApiTest {
   }
 
   @Test
-  public void should_skip_logical_entity_link_when_identity_is_missing() {
-    LogicalEntity nullIdentityLogicalEntity = Mockito.mock(LogicalEntity.class);
-    when(nullIdentityLogicalEntity.getIdentity()).thenReturn(null);
-    HasOne<LogicalEntity> danglingLogicalEntityRef = Mockito.mock(HasOne.class);
-    when(danglingLogicalEntityRef.get()).thenReturn(nullIdentityLogicalEntity);
+  public void should_skip_logical_entity_link_when_logical_entity_is_null() {
+    HasOne<LogicalEntity> danglingLogicalEntityRef = () -> null;
     DiagramNode nodeWithoutLogicalEntityId =
         new DiagramNode(
             "node-dangling",
-            new NodeDescription("note-node", null, null, 100.0, 200.0, 180, 90, null, null),
+            new NodeDescription(
+                "note-node",
+                new Ref<>("logical-entity-missing"),
+                null,
+                100.0,
+                200.0,
+                180,
+                90,
+                null,
+                null),
             danglingLogicalEntityRef);
 
     when(diagramNodes.findAll()).thenReturn(new EntityList<>(nodeWithoutLogicalEntityId));
