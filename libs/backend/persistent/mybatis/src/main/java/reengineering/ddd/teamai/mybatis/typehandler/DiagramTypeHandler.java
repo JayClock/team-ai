@@ -7,32 +7,32 @@ import java.sql.SQLException;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.MappedTypes;
-import reengineering.ddd.teamai.model.DiagramType;
+import reengineering.ddd.teamai.model.Diagram.Type;
 
-@MappedTypes(DiagramType.class)
-public class DiagramTypeHandler extends BaseTypeHandler<DiagramType> {
+@MappedTypes(Type.class)
+public class DiagramTypeHandler extends BaseTypeHandler<Type> {
 
   @Override
-  public void setNonNullParameter(
-      PreparedStatement ps, int i, DiagramType parameter, JdbcType jdbcType) throws SQLException {
+  public void setNonNullParameter(PreparedStatement ps, int i, Type parameter, JdbcType jdbcType)
+      throws SQLException {
     ps.setString(i, parameter.getValue());
   }
 
   @Override
-  public DiagramType getNullableResult(ResultSet rs, String columnName) throws SQLException {
+  public Type getNullableResult(ResultSet rs, String columnName) throws SQLException {
     String value = rs.getString(columnName);
-    return value == null ? null : DiagramType.fromValue(value);
+    return value == null ? null : Type.fromValue(value);
   }
 
   @Override
-  public DiagramType getNullableResult(ResultSet rs, int columnIndex) throws SQLException {
+  public Type getNullableResult(ResultSet rs, int columnIndex) throws SQLException {
     String value = rs.getString(columnIndex);
-    return value == null ? null : DiagramType.fromValue(value);
+    return value == null ? null : Type.fromValue(value);
   }
 
   @Override
-  public DiagramType getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {
+  public Type getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {
     String value = cs.getString(columnIndex);
-    return value == null ? null : DiagramType.fromValue(value);
+    return value == null ? null : Type.fromValue(value);
   }
 }

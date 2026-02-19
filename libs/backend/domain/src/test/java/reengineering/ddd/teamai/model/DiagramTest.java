@@ -38,7 +38,7 @@ public class DiagramTest {
   @BeforeEach
   public void setUp() {
     viewport = new Viewport(100, 50, 1.5);
-    description = new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport);
+    description = new DiagramDescription("下单流程上下文图", Diagram.Type.CLASS, viewport);
     diagram = new Diagram("diagram-1", description, nodes, edges, versions);
   }
 
@@ -59,7 +59,7 @@ public class DiagramTest {
 
   @Test
   public void should_return_diagram_type() {
-    assertEquals(DiagramType.CLASS, diagram.getDescription().type());
+    assertEquals(Diagram.Type.CLASS, diagram.getDescription().type());
   }
 
   @Test
@@ -69,7 +69,7 @@ public class DiagramTest {
 
   @Test
   public void should_return_default_diagram_status() {
-    assertEquals(DiagramStatus.DRAFT, diagram.getDescription().status());
+    assertEquals(Diagram.Status.DRAFT, diagram.getDescription().status());
   }
 
   @Test
@@ -77,12 +77,12 @@ public class DiagramTest {
     Diagram publishedDiagram =
         new Diagram(
             "published-1",
-            new DiagramDescription("发布图", DiagramType.CLASS, viewport, DiagramStatus.PUBLISHED),
+            new DiagramDescription("发布图", Diagram.Type.CLASS, viewport, Diagram.Status.PUBLISHED),
             nodes,
             edges,
             versions);
 
-    assertEquals(DiagramStatus.PUBLISHED, publishedDiagram.getDescription().status());
+    assertEquals(Diagram.Status.PUBLISHED, publishedDiagram.getDescription().status());
     assertEquals("published", publishedDiagram.getDescription().status().getValue());
   }
 
@@ -98,7 +98,7 @@ public class DiagramTest {
   @Test
   public void should_create_diagram_with_default_viewport() {
     DiagramDescription descriptionWithDefaultViewport =
-        new DiagramDescription("会员体系图", DiagramType.SEQUENCE, Viewport.defaultViewport());
+        new DiagramDescription("会员体系图", Diagram.Type.SEQUENCE, Viewport.defaultViewport());
     Diagram diagramWithDefaultViewport =
         new Diagram("diagram-2", descriptionWithDefaultViewport, nodes, edges, versions);
 
@@ -113,56 +113,56 @@ public class DiagramTest {
     Diagram flowchartDiagram =
         new Diagram(
             "flow-1",
-            new DiagramDescription("流程图", DiagramType.FLOWCHART, viewport),
+            new DiagramDescription("流程图", Diagram.Type.FLOWCHART, viewport),
             nodes,
             edges,
             versions);
-    assertEquals(DiagramType.FLOWCHART, flowchartDiagram.getDescription().type());
+    assertEquals(Diagram.Type.FLOWCHART, flowchartDiagram.getDescription().type());
 
     Diagram sequenceDiagram =
         new Diagram(
             "seq-1",
-            new DiagramDescription("时序图", DiagramType.SEQUENCE, viewport),
+            new DiagramDescription("时序图", Diagram.Type.SEQUENCE, viewport),
             nodes,
             edges,
             versions);
-    assertEquals(DiagramType.SEQUENCE, sequenceDiagram.getDescription().type());
+    assertEquals(Diagram.Type.SEQUENCE, sequenceDiagram.getDescription().type());
 
     Diagram classDiagram =
         new Diagram(
             "class-1",
-            new DiagramDescription("类图", DiagramType.CLASS, viewport),
+            new DiagramDescription("类图", Diagram.Type.CLASS, viewport),
             nodes,
             edges,
             versions);
-    assertEquals(DiagramType.CLASS, classDiagram.getDescription().type());
+    assertEquals(Diagram.Type.CLASS, classDiagram.getDescription().type());
 
     Diagram componentDiagram =
         new Diagram(
             "comp-1",
-            new DiagramDescription("组件图", DiagramType.COMPONENT, viewport),
+            new DiagramDescription("组件图", Diagram.Type.COMPONENT, viewport),
             nodes,
             edges,
             versions);
-    assertEquals(DiagramType.COMPONENT, componentDiagram.getDescription().type());
+    assertEquals(Diagram.Type.COMPONENT, componentDiagram.getDescription().type());
 
     Diagram stateDiagram =
         new Diagram(
             "state-1",
-            new DiagramDescription("状态图", DiagramType.STATE, viewport),
+            new DiagramDescription("状态图", Diagram.Type.STATE, viewport),
             nodes,
             edges,
             versions);
-    assertEquals(DiagramType.STATE, stateDiagram.getDescription().type());
+    assertEquals(Diagram.Type.STATE, stateDiagram.getDescription().type());
 
     Diagram activityDiagram =
         new Diagram(
             "act-1",
-            new DiagramDescription("活动图", DiagramType.ACTIVITY, viewport),
+            new DiagramDescription("活动图", Diagram.Type.ACTIVITY, viewport),
             nodes,
             edges,
             versions);
-    assertEquals(DiagramType.ACTIVITY, activityDiagram.getDescription().type());
+    assertEquals(Diagram.Type.ACTIVITY, activityDiagram.getDescription().type());
   }
 
   @Nested

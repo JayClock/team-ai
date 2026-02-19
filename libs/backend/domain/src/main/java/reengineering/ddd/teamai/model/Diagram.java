@@ -112,4 +112,57 @@ public class Diagram implements Entity<String, DiagramDescription> {
   public interface DomainArchitect {
     Flux<String> proposeModel(String requirement);
   }
+
+  public enum Type {
+    FLOWCHART("flowchart"),
+    SEQUENCE("sequence"),
+    CLASS("class"),
+    COMPONENT("component"),
+    STATE("state"),
+    ACTIVITY("activity"),
+    FULFILLMENT("fulfillment");
+
+    private final String value;
+
+    Type(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
+    public static Type fromValue(String value) {
+      for (Type type : values()) {
+        if (type.value.equals(value)) {
+          return type;
+        }
+      }
+      throw new IllegalArgumentException("Unknown diagram type: " + value);
+    }
+  }
+
+  public enum Status {
+    DRAFT("draft"),
+    PUBLISHED("published");
+
+    private final String value;
+
+    Status(String value) {
+      this.value = value;
+    }
+
+    public String getValue() {
+      return value;
+    }
+
+    public static Status fromValue(String value) {
+      for (Status status : values()) {
+        if (status.value.equals(value)) {
+          return status;
+        }
+      }
+      throw new IllegalArgumentException("Unknown diagram status: " + value);
+    }
+  }
 }

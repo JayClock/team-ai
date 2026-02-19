@@ -21,8 +21,8 @@ import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
-import reengineering.ddd.teamai.model.DiagramStatus;
-import reengineering.ddd.teamai.model.DiagramType;
+import reengineering.ddd.teamai.model.Diagram.Status;
+import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramVersion;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
@@ -56,13 +56,13 @@ public class ProjectDiagramsTest {
   @Test
   public void should_add_diagram_and_return_saved_entity() {
     Viewport viewport = new Viewport(100, 50, 1.5);
-    var description = new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport);
+    var description = new DiagramDescription("下单流程上下文图", Type.CLASS, viewport);
 
     Diagram savedDiagram = project.addDiagram(description);
 
     assertEquals("下单流程上下文图", savedDiagram.getDescription().title());
-    assertEquals(DiagramType.CLASS, savedDiagram.getDescription().type());
-    assertEquals(DiagramStatus.DRAFT, savedDiagram.getDescription().status());
+    assertEquals(Type.CLASS, savedDiagram.getDescription().type());
+    assertEquals(Status.DRAFT, savedDiagram.getDescription().status());
     assertEquals(100, savedDiagram.getDescription().viewport().x());
     assertEquals(50, savedDiagram.getDescription().viewport().y());
     assertEquals(1.5, savedDiagram.getDescription().viewport().zoom());
@@ -76,14 +76,14 @@ public class ProjectDiagramsTest {
   @Test
   public void should_find_single_diagram_of_project() {
     Viewport viewport = new Viewport(0, 0, 1);
-    var description = new DiagramDescription("会员体系图", DiagramType.SEQUENCE, viewport);
+    var description = new DiagramDescription("会员体系图", Type.SEQUENCE, viewport);
     Diagram savedDiagram = project.addDiagram(description);
 
     Diagram diagram = project.diagrams().findByIdentity(savedDiagram.getIdentity()).get();
     assertEquals(savedDiagram.getIdentity(), diagram.getIdentity());
     assertEquals("会员体系图", diagram.getDescription().title());
-    assertEquals(DiagramType.SEQUENCE, diagram.getDescription().type());
-    assertEquals(DiagramStatus.DRAFT, diagram.getDescription().status());
+    assertEquals(Type.SEQUENCE, diagram.getDescription().type());
+    assertEquals(Status.DRAFT, diagram.getDescription().status());
 
     var cachedDiagram = project.diagrams().findByIdentity(savedDiagram.getIdentity()).get();
     assertEquals(diagram.getIdentity(), cachedDiagram.getIdentity());
@@ -100,7 +100,7 @@ public class ProjectDiagramsTest {
     int initialSize = project.diagrams().findAll().size();
 
     Viewport viewport = Viewport.defaultViewport();
-    var description = new DiagramDescription("测试图", DiagramType.FLOWCHART, viewport);
+    var description = new DiagramDescription("测试图", Type.FLOWCHART, viewport);
     project.addDiagram(description);
 
     int newSize = project.diagrams().findAll().size();
@@ -112,7 +112,7 @@ public class ProjectDiagramsTest {
     int initialSize = project.diagrams().findAll().size();
 
     Viewport viewport = Viewport.defaultViewport();
-    var description = new DiagramDescription("缓存测试图", DiagramType.COMPONENT, viewport);
+    var description = new DiagramDescription("缓存测试图", Type.COMPONENT, viewport);
     project.addDiagram(description);
 
     int newSize = project.diagrams().findAll().size();
@@ -124,8 +124,7 @@ public class ProjectDiagramsTest {
     Viewport viewport = Viewport.defaultViewport();
     for (int i = 0; i < 5; i++) {
       var description =
-          new DiagramDescription(
-              "图" + i, DiagramType.values()[i % DiagramType.values().length], viewport);
+          new DiagramDescription("图" + i, Type.values()[i % Type.values().length], viewport);
       project.addDiagram(description);
     }
 
@@ -148,34 +147,28 @@ public class ProjectDiagramsTest {
   public void should_support_all_diagram_types() {
     Viewport viewport = Viewport.defaultViewport();
 
-    Diagram flowchart =
-        project.addDiagram(new DiagramDescription("流程图", DiagramType.FLOWCHART, viewport));
-    assertEquals(DiagramType.FLOWCHART, flowchart.getDescription().type());
+    Diagram flowchart = project.addDiagram(new DiagramDescription("流程图", Type.FLOWCHART, viewport));
+    assertEquals(Type.FLOWCHART, flowchart.getDescription().type());
 
-    Diagram sequence =
-        project.addDiagram(new DiagramDescription("时序图", DiagramType.SEQUENCE, viewport));
-    assertEquals(DiagramType.SEQUENCE, sequence.getDescription().type());
+    Diagram sequence = project.addDiagram(new DiagramDescription("时序图", Type.SEQUENCE, viewport));
+    assertEquals(Type.SEQUENCE, sequence.getDescription().type());
 
-    Diagram classDiagram =
-        project.addDiagram(new DiagramDescription("类图", DiagramType.CLASS, viewport));
-    assertEquals(DiagramType.CLASS, classDiagram.getDescription().type());
+    Diagram classDiagram = project.addDiagram(new DiagramDescription("类图", Type.CLASS, viewport));
+    assertEquals(Type.CLASS, classDiagram.getDescription().type());
 
-    Diagram component =
-        project.addDiagram(new DiagramDescription("组件图", DiagramType.COMPONENT, viewport));
-    assertEquals(DiagramType.COMPONENT, component.getDescription().type());
+    Diagram component = project.addDiagram(new DiagramDescription("组件图", Type.COMPONENT, viewport));
+    assertEquals(Type.COMPONENT, component.getDescription().type());
 
-    Diagram state = project.addDiagram(new DiagramDescription("状态图", DiagramType.STATE, viewport));
-    assertEquals(DiagramType.STATE, state.getDescription().type());
+    Diagram state = project.addDiagram(new DiagramDescription("状态图", Type.STATE, viewport));
+    assertEquals(Type.STATE, state.getDescription().type());
 
-    Diagram activity =
-        project.addDiagram(new DiagramDescription("活动图", DiagramType.ACTIVITY, viewport));
-    assertEquals(DiagramType.ACTIVITY, activity.getDescription().type());
+    Diagram activity = project.addDiagram(new DiagramDescription("活动图", Type.ACTIVITY, viewport));
+    assertEquals(Type.ACTIVITY, activity.getDescription().type());
   }
 
   @Test
   public void should_create_diagram_with_default_viewport() {
-    var description =
-        new DiagramDescription("默认视口图", DiagramType.CLASS, Viewport.defaultViewport());
+    var description = new DiagramDescription("默认视口图", Type.CLASS, Viewport.defaultViewport());
 
     Diagram savedDiagram = project.addDiagram(description);
 
@@ -189,8 +182,8 @@ public class ProjectDiagramsTest {
     Diagram diagram =
         project.addDiagram(
             new DiagramDescription(
-                "草稿提交图", DiagramType.CLASS, Viewport.defaultViewport(), DiagramStatus.PUBLISHED));
-    assertEquals(DiagramStatus.PUBLISHED, diagram.getDescription().status());
+                "草稿提交图", Type.CLASS, Viewport.defaultViewport(), Status.PUBLISHED));
+    assertEquals(Status.PUBLISHED, diagram.getDescription().status());
     NodeDescription nodeDescription =
         new NodeDescription("class-node", null, null, 100.0, 200.0, 300, 200, null, null);
 
@@ -202,27 +195,25 @@ public class ProjectDiagramsTest {
     Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     assertEquals(1, committed.nodes().findAll().size());
     assertEquals(1, committed.edges().findAll().size());
-    assertEquals(DiagramStatus.DRAFT, committed.getDescription().status());
+    assertEquals(Status.DRAFT, committed.getDescription().status());
   }
 
   @Test
   public void should_publish_diagram_via_project_diagrams_association() {
     Diagram diagram =
-        project.addDiagram(
-            new DiagramDescription("发布图", DiagramType.CLASS, Viewport.defaultViewport()));
-    assertEquals(DiagramStatus.DRAFT, diagram.getDescription().status());
+        project.addDiagram(new DiagramDescription("发布图", Type.CLASS, Viewport.defaultViewport()));
+    assertEquals(Status.DRAFT, diagram.getDescription().status());
 
     project.publishDiagram(diagram.getIdentity());
 
     Diagram published = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
-    assertEquals(DiagramStatus.PUBLISHED, published.getDescription().status());
+    assertEquals(Status.PUBLISHED, published.getDescription().status());
   }
 
   @Test
   public void should_create_diagram_version_from_persisted_diagram() {
     Diagram diagram =
-        project.addDiagram(
-            new DiagramDescription("版本图", DiagramType.CLASS, Viewport.defaultViewport()));
+        project.addDiagram(new DiagramDescription("版本图", Type.CLASS, Viewport.defaultViewport()));
 
     DiagramVersion version = diagram.createVersion();
 
@@ -234,7 +225,7 @@ public class ProjectDiagramsTest {
   public void should_reject_duplicated_draft_node_id_in_association_consistency_check() {
     Diagram diagram =
         project.addDiagram(
-            new DiagramDescription("重复节点草稿图", DiagramType.CLASS, Viewport.defaultViewport()));
+            new DiagramDescription("重复节点草稿图", Type.CLASS, Viewport.defaultViewport()));
     NodeDescription nodeDescription =
         new NodeDescription("class-node", null, null, 100.0, 200.0, 300, 200, null, null);
 

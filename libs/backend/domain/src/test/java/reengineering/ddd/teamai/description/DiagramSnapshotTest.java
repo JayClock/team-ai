@@ -17,9 +17,9 @@ import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
-import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.model.DiagramVersion;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +34,7 @@ public class DiagramSnapshotTest {
     Diagram diagram =
         new Diagram(
             "diagram-1",
-            new DiagramDescription("订单图", DiagramType.CLASS, viewport),
+            new DiagramDescription("订单图", Type.CLASS, viewport),
             nodes,
             edges,
             versions);

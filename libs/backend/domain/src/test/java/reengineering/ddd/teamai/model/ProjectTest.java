@@ -158,7 +158,7 @@ public class ProjectTest {
     @DisplayName("should delegate add diagram to diagrams association")
     void shouldDelegateAddDiagram() {
       DiagramDescription diagramDescription =
-          new DiagramDescription("Test Diagram", DiagramType.CLASS, Viewport.defaultViewport());
+          new DiagramDescription("Test Diagram", Diagram.Type.CLASS, Viewport.defaultViewport());
       Diagram expectedDiagram = mock(Diagram.class);
 
       when(diagrams.add(diagramDescription)).thenReturn(expectedDiagram);

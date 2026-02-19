@@ -25,8 +25,8 @@ import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramNode;
-import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 
@@ -58,7 +58,7 @@ public class NodesApiTest extends ApiTest {
     diagram =
         new Diagram(
             "diagram-1",
-            new DiagramDescription("下单流程上下文图", DiagramType.CLASS, viewport),
+            new DiagramDescription("下单流程上下文图", Type.CLASS, viewport),
             diagramNodes,
             diagramEdges,
             diagramVersions);

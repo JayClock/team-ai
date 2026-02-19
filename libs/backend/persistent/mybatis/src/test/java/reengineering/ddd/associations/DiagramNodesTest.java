@@ -22,8 +22,8 @@ import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramNode;
-import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 import reengineering.ddd.teamai.mybatis.config.CacheConfig;
@@ -52,8 +52,7 @@ public class DiagramNodesTest {
                 () -> {
                   var project = user.projects().findAll().stream().findFirst().get();
                   return project.addDiagram(
-                      new DiagramDescription(
-                          "Test Diagram", DiagramType.CLASS, new Viewport(0, 0, 1.0)));
+                      new DiagramDescription("Test Diagram", Type.CLASS, new Viewport(0, 0, 1.0)));
                 });
   }
 

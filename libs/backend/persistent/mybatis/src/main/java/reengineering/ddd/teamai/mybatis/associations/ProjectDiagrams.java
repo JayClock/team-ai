@@ -18,8 +18,8 @@ import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.Diagram.Status;
 import reengineering.ddd.teamai.model.DiagramNode;
-import reengineering.ddd.teamai.model.DiagramStatus;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.mybatis.cache.AssociationMapping;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectDiagramsMapper;
@@ -87,7 +87,7 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
     if (diagramId == null || diagramId.isBlank()) {
       throw new Project.Diagrams.InvalidDraftException("Diagram id must be provided.");
     }
-    mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), DiagramStatus.PUBLISHED);
+    mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), Status.PUBLISHED);
   }
 
   private void doCommitDraft(
@@ -156,7 +156,7 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
     }
 
     diagram.addEdges(edgeDescriptions);
-    mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), DiagramStatus.DRAFT);
+    mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), Status.DRAFT);
   }
 
   private static String resolveNodeId(String nodeId, Map<String, String> createdNodeIdByRef) {

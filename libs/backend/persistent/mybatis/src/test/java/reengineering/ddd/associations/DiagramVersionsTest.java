@@ -21,7 +21,7 @@ import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
-import reengineering.ddd.teamai.model.DiagramType;
+import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramVersion;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
@@ -45,8 +45,7 @@ public class DiagramVersionsTest {
     user = users.findByIdentity("1").orElseThrow();
     project = user.projects().findAll().stream().findFirst().orElseThrow();
     diagram =
-        project.addDiagram(
-            new DiagramDescription("版本测试图", DiagramType.CLASS, Viewport.defaultViewport()));
+        project.addDiagram(new DiagramDescription("版本测试图", Type.CLASS, Viewport.defaultViewport()));
   }
 
   @Test

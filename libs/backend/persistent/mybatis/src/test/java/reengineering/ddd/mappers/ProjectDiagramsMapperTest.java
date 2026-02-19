@@ -19,10 +19,10 @@ import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.Diagram.Status;
+import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
-import reengineering.ddd.teamai.model.DiagramStatus;
-import reengineering.ddd.teamai.model.DiagramType;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectDiagramsMapper;
 
 @MybatisTest
@@ -62,8 +62,8 @@ public class ProjectDiagramsMapperTest {
     assertNotNull(diagram);
     assertEquals(String.valueOf(diagramId), diagram.getIdentity());
     assertEquals("Test Diagram" + diagramId, diagram.getDescription().title());
-    assertEquals(DiagramType.CLASS, diagram.getDescription().type());
-    assertEquals(DiagramStatus.DRAFT, diagram.getDescription().status());
+    assertEquals(Type.CLASS, diagram.getDescription().type());
+    assertEquals(Status.DRAFT, diagram.getDescription().status());
     assertEquals(100, diagram.getDescription().viewport().x());
     assertEquals(50, diagram.getDescription().viewport().y());
     assertEquals(1.5, diagram.getDescription().viewport().zoom());
@@ -201,7 +201,7 @@ public class ProjectDiagramsMapperTest {
     IdHolder idHolder = new IdHolder();
     Viewport viewport = new Viewport(200, 100, 2.0);
     DiagramDescription description =
-        new DiagramDescription("New Diagram", DiagramType.FLOWCHART, viewport);
+        new DiagramDescription("New Diagram", Type.FLOWCHART, viewport);
 
     int result = mapper.insertDiagram(idHolder, projectId, description);
 
@@ -211,8 +211,8 @@ public class ProjectDiagramsMapperTest {
     Diagram insertedDiagram = mapper.findDiagramByProjectAndId(projectId, idHolder.id());
     assertNotNull(insertedDiagram);
     assertEquals("New Diagram", insertedDiagram.getDescription().title());
-    assertEquals(DiagramType.FLOWCHART, insertedDiagram.getDescription().type());
-    assertEquals(DiagramStatus.DRAFT, insertedDiagram.getDescription().status());
+    assertEquals(Type.FLOWCHART, insertedDiagram.getDescription().type());
+    assertEquals(Status.DRAFT, insertedDiagram.getDescription().status());
     assertEquals(200, insertedDiagram.getDescription().viewport().x());
     assertEquals(100, insertedDiagram.getDescription().viewport().y());
     assertEquals(2.0, insertedDiagram.getDescription().viewport().zoom());
@@ -233,11 +233,11 @@ public class ProjectDiagramsMapperTest {
 
   @Test
   void should_update_diagram_status() {
-    int updatedRows = mapper.updateDiagramStatus(projectId, diagramId, DiagramStatus.PUBLISHED);
+    int updatedRows = mapper.updateDiagramStatus(projectId, diagramId, Status.PUBLISHED);
     assertEquals(1, updatedRows);
 
     Diagram updated = mapper.findDiagramByProjectAndId(projectId, diagramId);
-    assertEquals(DiagramStatus.PUBLISHED, updated.getDescription().status());
+    assertEquals(Status.PUBLISHED, updated.getDescription().status());
   }
 
   @Test
