@@ -157,6 +157,25 @@ public class DiagramsApiTest extends ApiTest {
 
   @Test
   public void should_return_single_diagram() {
+    DiagramNode node =
+        new DiagramNode(
+            "node-1",
+            new NodeDescription("class-node", null, null, 120, 80, 200, 120, null, null),
+            mock(reengineering.ddd.archtype.HasOne.class));
+    DiagramEdge edge =
+        new DiagramEdge(
+            "edge-1",
+            new EdgeDescription(
+                new Ref<>("node-1"),
+                new Ref<>("node-2"),
+                "right",
+                "left",
+                "ASSOCIATION",
+                "relates-to",
+                (JsonBlob) null));
+    when(diagramNodes.findAll()).thenReturn(new EntityList<>(node));
+    when(diagramEdges.findAll()).thenReturn(new EntityList<>(edge));
+
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
         .when()
@@ -170,6 +189,12 @@ public class DiagramsApiTest extends ApiTest {
         .body("viewport.x", is(100.0F))
         .body("viewport.y", is(50.0F))
         .body("viewport.zoom", is(1.5F))
+        .body("_embedded.nodes", hasSize(1))
+        .body("_embedded.nodes[0].id", is(node.getIdentity()))
+        .body("_embedded.nodes[0].type", is("class-node"))
+        .body("_embedded.edges", hasSize(1))
+        .body("_embedded.edges[0].id", is(edge.getIdentity()))
+        .body("_embedded.edges[0].relationType", is("ASSOCIATION"))
         .body(
             "_links.self.href",
             is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
@@ -288,6 +313,8 @@ public class DiagramsApiTest extends ApiTest {
         .body("_templates.'publish-diagram'.properties", hasSize(0));
 
     verify(diagrams, times(1)).findByIdentity(diagram.getIdentity());
+    verify(diagramNodes, times(1)).findAll();
+    verify(diagramEdges, times(1)).findAll();
   }
 
   @Test
