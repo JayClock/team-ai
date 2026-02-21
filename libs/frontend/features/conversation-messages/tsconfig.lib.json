@@ -48,6 +48,9 @@
       "path": "../../../../packages/resource-react/tsconfig.lib.json"
     },
     {
+      "path": "../../../../packages/resource/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/schema/tsconfig.lib.json"
     }
   ]

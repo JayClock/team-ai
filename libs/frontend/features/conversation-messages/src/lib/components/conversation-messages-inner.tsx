@@ -1,22 +1,23 @@
 import { UIMessage } from '@ai-sdk/react';
 import { Conversation } from '@shared/schema';
-import {
-  State,
-  useSuspenseInfiniteCollection,
-} from '@hateoas-ts/resource-react';
+import { State } from '@hateoas-ts/resource';
+import { useSuspenseInfiniteCollection } from '@hateoas-ts/resource-react';
 import { useMemo } from 'react';
 import { MessageList } from './message-list';
+import { type Signal } from '@preact/signals-react';
 
 interface ConversationMessagesInnerProps {
-  conversationState: State<Conversation>;
+  conversationState: Signal<State<Conversation>>;
 }
 
 export function ConversationMessagesInner({
   conversationState,
 }: ConversationMessagesInnerProps) {
-  const { items: messagesCollections } = useSuspenseInfiniteCollection(
-    conversationState.follow('messages'),
-  );
+  const currentConversationState = conversationState.value;
+  const messagesResource = currentConversationState.follow('messages');
+
+  const { items: messagesCollections } =
+    useSuspenseInfiniteCollection(messagesResource);
 
   const defaultMessages: UIMessage[] = useMemo(() => {
     return messagesCollections.map((message) => ({

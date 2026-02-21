@@ -14,13 +14,12 @@ import {
   TabsList,
   TabsTrigger,
 } from '@shared/ui/components/tabs';
+import { signal } from '@preact/signals-react';
 
 export function AppRoutes() {
   const [activeTab, setActiveTab] = useState('chat');
-  const [conversationState, setConversationState] =
-    useState<State<Conversation>>();
-
-  const [projectState, setProjectState] = useState<State<Project>>();
+  const conversationState = signal<State<Conversation> | undefined>(undefined);
+  const projectState = signal<State<Project> | undefined>(undefined);
 
   const meRelation = useMemo(() => rootResource.follow('me'), []);
 
@@ -30,7 +29,12 @@ export function AppRoutes() {
     <div className="flex items-center justify-between w-full">
       <div className="flex items-center gap-2">
         <MessageSquareIcon className="h-5 w-5" aria-hidden="true" />
-        <UserProjects state={userState} onProjectChange={setProjectState} />
+        <UserProjects
+          state={userState}
+          onProjectChange={(newProjectState) => {
+            projectState.value = newProjectState;
+          }}
+        />
       </div>
       <Button
         variant="ghost"
@@ -45,8 +49,10 @@ export function AppRoutes() {
 
   const sidebarContent = (
     <ProjectConversations
-      state={projectState}
-      onConversationChange={setConversationState}
+      state={projectState as any}
+      onConversationChange={(newConversationState) => {
+        conversationState.value = newConversationState;
+      }}
     />
   );
 
@@ -72,8 +78,8 @@ export function AppRoutes() {
         className="flex-1 overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
       >
         <ConversationMessages
-          conversationState={conversationState}
-          key={conversationState?.data.id}
+          conversationState={conversationState as any}
+          key={conversationState.value?.data.id}
         />
       </TabsContent>
 
@@ -90,9 +96,9 @@ export function AppRoutes() {
 
   const conversationTitle =
     activeTab === 'chat'
-      ? conversationState?.data.title || '选择一个对话'
-      : projectState?.data.name
-        ? `${projectState.data.name} - 知识库`
+      ? conversationState.value?.data.title || '选择一个对话'
+      : projectState.value?.data.name
+        ? `${projectState.value.data.name} - 知识库`
         : '知识库';
 
   return { sidebarHeader, sidebarContent, mainContent, conversationTitle };

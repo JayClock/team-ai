@@ -3,6 +3,7 @@ import { useLoaderData } from 'react-router-dom';
 import { LoaderType } from './generic-loader';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Entity, State } from '@hateoas-ts/resource';
+import { type Signal, useSignal } from '@preact/signals-react';
 
 const Cockpit = lazy(() =>
   import('@shells/cockpit').then((m) => ({ default: m.Cockpit })),
@@ -19,9 +20,10 @@ export function ResourceRenderer() {
     client.go(apiUrl),
   );
   const Component = COMPONENT_MAP[contentType];
+  const signal = useSignal(resourceState);
   return (
     <Suspense>
-      <Component state={resourceState}></Component>
+      <Component state={signal}></Component>
     </Suspense>
   );
 }
@@ -29,7 +31,7 @@ export function ResourceRenderer() {
 const COMPONENT_MAP: Record<
   string,
   React.LazyExoticComponent<
-    React.ComponentType<{ state: State<Entity<never, never>> }>
+    React.ComponentType<{ state: Signal<State<Entity<never, never>>> }>
   >
 > = {
   'application/vnd.business-driven-ai.project+json': Cockpit,

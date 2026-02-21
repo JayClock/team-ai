@@ -11,7 +11,7 @@ import { SidebarProvider } from '@shared/ui';
 
 export function ProjectConversations(props: Props) {
   const { state, ...rest } = props;
-  if (!state) {
+  if (!state?.value) {
     return (
       <div className="flex h-full items-center justify-center p-4">
         <Empty>

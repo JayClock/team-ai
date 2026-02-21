@@ -1,5 +1,5 @@
 import { Conversation } from '@shared/schema';
-import { State } from '@hateoas-ts/resource-react';
+import { State } from '@hateoas-ts/resource';
 import { ConversationMessagesInner } from './components';
 import {
   ConversationEmptyState,
@@ -9,6 +9,7 @@ import {
 } from '@shared/ui';
 import { MessageSquareIcon } from 'lucide-react';
 import { Suspense } from 'react';
+import { type Signal } from '@preact/signals-react';
 
 const defaultSuggestions = [
   '帮我写一篇技术文档',
@@ -31,11 +32,12 @@ function MessagesLoading() {
 }
 
 export function ConversationMessages(props: {
-  conversationState?: State<Conversation>;
+  conversationState?: Signal<State<Conversation> | undefined>;
 }) {
   const { conversationState } = props;
+  const currentConversationState = conversationState?.value;
 
-  if (!conversationState) {
+  if (!currentConversationState) {
     return (
       <div className="flex h-full flex-col">
         <ConversationEmptyState
@@ -73,7 +75,9 @@ export function ConversationMessages(props: {
   return (
     <div className="h-full">
       <Suspense fallback={<MessagesLoading />}>
-        <ConversationMessagesInner conversationState={conversationState} />
+        <ConversationMessagesInner
+          conversationState={conversationState as Signal<State<Conversation>>}
+        />
       </Suspense>
     </div>
   );

@@ -1,6 +1,6 @@
 import { UIMessage, useChat } from '@ai-sdk/react';
 import { Conversation } from '@shared/schema';
-import { State } from '@hateoas-ts/resource-react';
+import { State } from '@hateoas-ts/resource';
 import {
   Conversation as ConversationWrapper,
   ConversationContent,
@@ -26,10 +26,11 @@ import {
 } from '@shared/ui';
 import { useState } from 'react';
 import { StandardSseChatTransport } from './standard-sse-chat-transport';
+import { type Signal } from '@preact/signals-react';
 
 interface MessageListProps {
   defaultMessages: UIMessage[];
-  conversationState: State<Conversation>;
+  conversationState: Signal<State<Conversation>>;
 }
 
 const defaultSuggestions = [
@@ -68,9 +69,10 @@ export function MessageList({
   defaultMessages,
   conversationState,
 }: MessageListProps) {
+  const currentConversationState = conversationState.value;
   const { messages, sendMessage } = useChat({
     transport: new StandardSseChatTransport({
-      api: conversationState.getLink('chat')?.href,
+      api: currentConversationState.getLink('chat')?.href,
       fetch: withApiKeyInterceptor(),
       prepareSendMessagesRequest: ({ messages }) => {
         const lastMessage = messages.at(-1);

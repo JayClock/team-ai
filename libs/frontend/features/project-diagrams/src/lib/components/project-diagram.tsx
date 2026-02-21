@@ -10,6 +10,7 @@ import '@xyflow/react/dist/style.css';
 import { Background, Controls, Edge, Node } from '@xyflow/react';
 import { Canvas, Panel } from '@shared/ui';
 import { use, useMemo } from 'react';
+import { type Signal } from '@preact/signals-react';
 import { nodeTypes } from './node-types';
 import {
   CommitDraftPanelTool,
@@ -25,11 +26,12 @@ import {
 } from './tools/propose-model-panel-tool';
 
 interface Props {
-  state: State<Diagram>;
+  state: Signal<State<Diagram>>;
 }
 
 export function ProjectDiagram(props: Props) {
   const { state } = props;
+  const diagramState = state.value;
 
   const {
     canSaveDraft,
@@ -37,10 +39,10 @@ export function ProjectDiagram(props: Props) {
     handleSaveDraft,
     handleDraftApplyOptimistic: handleCommitDraftApplyOptimistic,
     handleDraftApplyReverted: handleCommitDraftApplyReverted,
-  } = useCommitDraft({ state });
+  } = useCommitDraft({ state: diagramState });
 
   const { canPublish, isPublishing, handlePublish } = usePublishDiagram({
-    state,
+    state: diagramState,
     hasPendingDraft: canSaveDraft,
     isSavingDraft,
   });
@@ -55,12 +57,18 @@ export function ProjectDiagram(props: Props) {
     onDraftApplyReverted: handleCommitDraftApplyReverted,
   });
 
-  const nodesResource = useMemo(() => state.follow('nodes'), [state]);
+  const nodesResource = useMemo(
+    () => diagramState.follow('nodes'),
+    [diagramState],
+  );
 
   const { resourceState: nodesState } =
     useSuspenseResource<Collection<DiagramNode>>(nodesResource);
 
-  const edgesResource = useMemo(() => state.follow('edges'), [state]);
+  const edgesResource = useMemo(
+    () => diagramState.follow('edges'),
+    [diagramState],
+  );
 
   const { resourceState: edgesState } =
     useSuspenseResource<Collection<DiagramEdge>>(edgesResource);
@@ -142,7 +150,7 @@ export function ProjectDiagram(props: Props) {
   return (
     <div style={{ height: '100%', width: '100%' }}>
       <Canvas
-        title={state.data.title}
+        title={diagramState.data.title}
         nodes={canvasNodes}
         edges={canvasEdges}
         nodeTypes={nodeTypes}
@@ -151,7 +159,7 @@ export function ProjectDiagram(props: Props) {
         <Panel position="center-left">
           <div className="flex gap-1">
             <ProposeModelPanelTool
-              state={state}
+              state={diagramState}
               isSavingDraft={isSavingDraft}
               onDraftApplyOptimistic={handleDraftApplyOptimistic}
               onDraftApplyReverted={handleDraftApplyReverted}

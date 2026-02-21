@@ -16,10 +16,11 @@ import { ScrollArea } from '@radix-ui/react-scroll-area';
 export default function ConversationList(props: Required<Props>) {
   const { state, onConversationChange } = props;
   const [activeConversationId, setActiveConversationId] = useState<string>();
+  const projectState = state.value;
 
   const conversationsResource = useMemo(
-    () => state.follow('conversations'),
-    [state],
+    () => projectState.follow('conversations'),
+    [projectState],
   );
 
   const {
