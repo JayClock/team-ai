@@ -63,16 +63,16 @@ jobs:
             ${{ runner.os }}-nx-
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v2
         with:
-          version: 10
+          version: 8
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install
       - run: npx playwright install --with-deps
 
       - name: Lint
