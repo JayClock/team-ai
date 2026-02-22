@@ -21,6 +21,7 @@ type StateInit<TEntity extends Entity> = {
   forms?: Form[];
   collection?: StateCollection<TEntity>;
   embeddedState?: TEntity['links'];
+  timestamp?: number;
 };
 
 export class BaseState<TEntity extends Entity> implements State<TEntity> {
@@ -29,7 +30,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   readonly data: TEntity['data'];
   readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
-  readonly timestamp = Date.now();
+  readonly timestamp: number;
 
   private readonly forms: Form[];
   private readonly headers: Headers;
@@ -39,6 +40,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     this.client = init.client;
     this.data = init.data;
     this.links = init.links;
+    this.timestamp = init.timestamp ?? Date.now();
     this.headers = init.headers;
     this.forms = init.forms ?? [];
     this.collection = init.collection ?? [];
@@ -180,6 +182,9 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   }
 
   clone(): State<TEntity> {
-    return new BaseState(this.init);
+    return new BaseState({
+      ...this.init,
+      timestamp: this.timestamp,
+    });
   }
 }
