@@ -106,7 +106,7 @@ describe('HalState', async () => {
   });
 
   describe('clone', () => {
-    it('should deeply clone data using structuredClone', async () => {
+    it('should clone state while keeping data immutable', async () => {
       const state = await halStateFactory.create(
         mockClient,
         {
@@ -125,12 +125,17 @@ describe('HalState', async () => {
 
       expect(cloned.uri).toEqual(state.uri);
 
-      expect(cloned.data).not.toBe(state.data);
       expect(cloned.data).toEqual(state.data);
+      expect(cloned.data).toBe(state.data);
+      expect(Object.isFrozen(cloned.data)).toBe(true);
 
-      (cloned.data as SafeAny).name = 'Modified';
+      try {
+        (cloned.data as SafeAny).name = 'Modified';
+      } catch {
+        // ignore write attempts to frozen objects
+      }
       expect(state.data.name).toBe('JayClock');
-      expect(cloned.data.name).toBe('Modified');
+      expect(cloned.data.name).toBe('JayClock');
     });
   });
 });

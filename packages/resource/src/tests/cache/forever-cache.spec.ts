@@ -23,16 +23,13 @@ describe('ForeverCache', () => {
   it('should store and retrieve cloned State objects', () => {
     cache.store(state);
     expect(cache.has('https://www.example.com/api/users/1')).toEqual(true);
-    const ts = Date.now();
-    // We're resetting the timestamps so they do not drift during
-    // cloning
-    state.timestamp = ts;
-
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const newState = cache.get('https://www.example.com/api/users/1')!;
-    newState.timestamp = ts;
     expect(newState).not.eq(state);
-    expect(newState).toEqual(state);
+    expect(newState.uri).toEqual(state.uri);
+    expect(newState.timestamp).toEqual(state.timestamp);
+    expect(newState.data).toEqual(state.data);
+    expect(newState.collection).toEqual(state.collection);
   });
 
   it('should allow items to be deleted', () => {

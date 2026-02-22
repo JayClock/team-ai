@@ -144,13 +144,6 @@ class HalState<TEntity extends Entity> extends BaseState<TEntity> {
     });
   }
 
-  override clone(): State<TEntity> {
-    return new HalState<TEntity>({
-      ...this.init,
-      data: structuredClone(this.data),
-    });
-  }
-
   private serializeLinks(): HalResource['_links'] {
     const links: HalResource['_links'] = {
       self: { href: new URL(this.uri).pathname },

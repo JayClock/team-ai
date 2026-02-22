@@ -11,6 +11,7 @@ import { Link, LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
 import { expand } from '../util/uri-template.js';
 import { Action, ActionNotFound, SimpleAction } from '../action/action.js';
+import { freeze } from 'immer'
 
 type StateInit<TEntity extends Entity> = {
   client: ClientInstance;
@@ -38,7 +39,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   constructor(protected init: StateInit<TEntity>) {
     this.uri = resolve(this.init.currentLink);
     this.client = init.client;
-    this.data = init.data;
+    this.data = freeze(init.data);
     this.links = init.links;
     this.timestamp = init.timestamp ?? Date.now();
     this.headers = init.headers;
