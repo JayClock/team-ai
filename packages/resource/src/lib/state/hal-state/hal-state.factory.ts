@@ -34,6 +34,7 @@ export class HalStateFactory implements StateFactory {
     client: ClientInstance,
     headers: Headers,
     currentLink: Link,
+    isPartial = false,
   ): State<SafeAny> {
     const { _links, _embedded, _templates, ...pureData } = halResource;
     const links = new Links(client.bookmarkUri, parseHalLinks(_links));
@@ -55,6 +56,7 @@ export class HalStateFactory implements StateFactory {
       collection,
       currentLink,
       embeddedState,
+      isPartial,
     });
   }
 
@@ -63,23 +65,48 @@ export class HalStateFactory implements StateFactory {
     _embedded: HalResource['_embedded'],
     client: ClientInstance,
   ) {
-    const rel = currentLink.rel;
-    if (_embedded && Array.isArray(_embedded[rel])) {
-      return _embedded[rel].map((embedded) => {
-        const selfHalLink = embedded._links?.self as HalLink;
-        const selfLink: Link = {
-          ...selfHalLink,
-          rel: 'self',
-          context: client.bookmarkUri,
-        };
-        return this.createHalStateFromResource(
-          embedded,
-          client,
-          new Headers(),
-          selfLink,
-        );
-      });
+    const collectionItems = this.resolveCollectionItems(
+      _embedded,
+      currentLink.rel,
+    );
+
+    return collectionItems.map((embedded) => {
+      const selfHalLink = embedded._links?.self as HalLink;
+      const selfLink: Link = {
+        ...selfHalLink,
+        rel: 'self',
+        context: client.bookmarkUri,
+      };
+      return this.createHalStateFromResource(
+        embedded,
+        client,
+        new Headers(),
+        selfLink,
+        true,
+      );
+    });
+  }
+
+  private resolveCollectionItems(
+    _embedded: HalResource['_embedded'],
+    rel: string,
+  ): SafeAny[] {
+    if (!_embedded) {
+      return [];
     }
+
+    if (Array.isArray(_embedded[rel])) {
+      return _embedded[rel];
+    }
+
+    const arrayEntries = Object.values(_embedded).filter((entry) =>
+      Array.isArray(entry),
+    );
+
+    if (arrayEntries.length === 1) {
+      return arrayEntries[0];
+    }
+
     return [];
   }
 
@@ -110,11 +137,13 @@ export class HalStateFactory implements StateFactory {
               client,
               new Headers(),
               selfLink,
+              true,
             );
           }),
           links: new Links(client.bookmarkUri),
           headers: new Headers(),
           currentLink: link,
+          isPartial: true,
         });
       } else {
         const sefHalLink = value._links?.self as HalLink;
@@ -128,6 +157,7 @@ export class HalStateFactory implements StateFactory {
           client,
           new Headers(),
           selfLink,
+          true,
         );
       }
       client.cacheState(embeddedState[key])

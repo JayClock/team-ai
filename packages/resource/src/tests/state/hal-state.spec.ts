@@ -74,6 +74,88 @@ describe('HalState', async () => {
       const { _links, ...pureAccount } = halUser._embedded.accounts[0];
       expect(state.collection[0].data).toEqual(pureAccount);
     });
+
+    it('should create collection from the only embedded array when rel key differs', async () => {
+      const state = await halStateFactory.create<Collection<Account>>(
+        mockClient,
+        {
+          rel: 'items',
+          href: '/api/users/1/renamed-collection',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json({
+          _links: {
+            self: {
+              href: '/api/users/1/renamed-collection',
+            },
+          },
+          _embedded: {
+            records: [
+              {
+                id: 'acc-1',
+                provider: 'github',
+                _links: {
+                  self: {
+                    href: '/api/users/1/accounts/acc-1',
+                  },
+                },
+              },
+            ],
+          },
+        }),
+      );
+
+      expect(state.collection.length).toBe(1);
+      expect(state.collection[0].uri).toEqual(
+        'https://example.com/api/users/1/accounts/acc-1',
+      );
+      expect(state.collection[0].data).toMatchObject({
+        id: 'acc-1',
+        provider: 'github',
+      });
+    });
+
+    it('should return empty collection when embedded has multiple arrays and rel key differs', async () => {
+      const state = await halStateFactory.create(
+        mockClient,
+        {
+          rel: 'items',
+          href: '/api/users/1/ambiguous-collection',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json({
+          _links: {
+            self: {
+              href: '/api/users/1/ambiguous-collection',
+            },
+          },
+          _embedded: {
+            accounts: [
+              {
+                id: '1',
+                _links: {
+                  self: {
+                    href: '/api/users/1/accounts/1',
+                  },
+                },
+              },
+            ],
+            conversations: [
+              {
+                id: '2',
+                _links: {
+                  self: {
+                    href: '/api/users/1/conversations/2',
+                  },
+                },
+              },
+            ],
+          },
+        }),
+      );
+
+      expect(state.collection).toEqual([]);
+    });
   });
 
   describe('serializeBody', () => {

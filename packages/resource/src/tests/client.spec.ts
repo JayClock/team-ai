@@ -8,6 +8,8 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { resolve } from '../lib/util/uri.js';
 
+let accountSelfFetchCount = 0;
+
 const handlers = [
   http.get('https://api.example.com/api/users/1', () => {
     return HttpResponse.json(halUser);
@@ -25,6 +27,20 @@ const handlers = [
       _links: {
         self: {
           href: '/api/users/1/accounts',
+        },
+      },
+    });
+  }),
+  http.get('https://api.example.com/api/users/1/accounts/1', () => {
+    accountSelfFetchCount += 1;
+    return HttpResponse.json({
+      id: '1',
+      provider: 'github',
+      providerId: '35857909',
+      displayName: 'Jay Clock GitHub',
+      _links: {
+        self: {
+          href: '/api/users/1/accounts/1',
         },
       },
     });
@@ -97,13 +113,27 @@ describe('Client', () => {
     );
   });
 
+  it('should re-fetch full state for embedded collection item when following self', async () => {
+    const accountsState = await userResource.follow('accounts').get();
+    const embeddedAccount = accountsState.collection[0];
+
+    const fullState = await embeddedAccount.follow('self').get();
+    const fullData = fullState.data as { displayName?: string };
+
+    expect(fullData.displayName).toBe('Jay Clock GitHub');
+    expect(accountSelfFetchCount).toBe(1);
+  });
+
   it('should get user file data with binary', async () => {
     const res = await userResource.follow('file').get()
     const text = await res.data.text();
     expect(text).toBe('Hello');
   });
 
-  afterEach(() => server.resetHandlers());
+  afterEach(() => {
+    accountSelfFetchCount = 0;
+    server.resetHandlers();
+  });
 
   afterAll(() => server.close());
 });

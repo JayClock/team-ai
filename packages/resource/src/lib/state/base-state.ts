@@ -23,6 +23,7 @@ type StateInit<TEntity extends Entity> = {
   collection?: StateCollection<TEntity>;
   embeddedState?: TEntity['links'];
   timestamp?: number;
+  isPartial?: boolean;
 };
 
 export class BaseState<TEntity extends Entity> implements State<TEntity> {
@@ -32,6 +33,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
   readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
   readonly timestamp: number;
+  readonly isPartial: boolean;
 
   private readonly forms: Form[];
   private readonly headers: Headers;
@@ -42,6 +44,7 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
     this.data = freeze(init.data);
     this.links = init.links;
     this.timestamp = init.timestamp ?? Date.now();
+    this.isPartial = init.isPartial ?? false;
     this.headers = init.headers;
     this.forms = init.forms ?? [];
     this.collection = init.collection ?? [];

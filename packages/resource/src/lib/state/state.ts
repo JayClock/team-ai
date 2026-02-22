@@ -50,6 +50,14 @@ export type State<TEntity extends Entity = Entity> = {
   timestamp: number;
 
   /**
+   * Whether this state is partial (typically transcluded/summary data).
+   *
+   * Partial states should not be trusted as full detail representations.
+   * Consumers may choose to force-refresh when partial cache is encountered.
+   */
+  isPartial: boolean;
+
+  /**
    * The URI associated with this state
    */
   uri: string;

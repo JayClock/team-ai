@@ -176,8 +176,9 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     const requestInit = this.optionsToRequestInit('GET', requestOptions ?? {});
 
     const state = this.getCache();
+    const shouldBypassPartialCache = !!state?.isPartial;
 
-    if (state) {
+    if (state && !shouldBypassPartialCache) {
       return Promise.resolve(state as State<TEntity>);
     }
 
