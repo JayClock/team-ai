@@ -6,6 +6,7 @@ import { resolve } from '../lib/util/uri.js';
 import { Cache } from '../lib/cache/cache.js';
 import { beforeEach, describe, expect, vi } from 'vitest';
 import { Link } from '../lib/links/link.js';
+import { Links } from '../lib/links/links.js';
 import { HalStateFactory } from '../lib/state/hal-state/hal-state.factory.js';
 import { BinaryStateFactory } from '../lib/state/binary-state/binary-state.factory.js';
 import { StreamStateFactory } from '../lib/state/stream-state/stream-state.factory.js';
@@ -234,6 +235,57 @@ describe('ClientInstance', () => {
       clientInstance.clearResourceCache([level_2.uri], [level_3.uri]);
       expect(deleted).toEqual('3');
       expect(staled).toEqual('2');
+    });
+
+    it('should invalidate dependent caches discovered from inv-by links', () => {
+      const isolatedCache = {
+        store: vi.fn(),
+        clear: vi.fn(),
+        delete: vi.fn(),
+        get: vi.fn(),
+        has: vi.fn(),
+      } as unknown as Cache;
+      const isolatedInstance = new ClientInstance(
+        mockFetcher,
+        mockConfig,
+        isolatedCache,
+        mockHalStateFactory,
+        mockBinaryStateFactory,
+        mockStreamStateFactory,
+      );
+
+      const targetUri = resolve(isolatedInstance.bookmarkUri, '/api/users/1');
+      const dependentUri = resolve(
+        isolatedInstance.bookmarkUri,
+        '/api/users/1/conversations',
+      );
+
+      const target = {
+        collection: [],
+        uri: targetUri,
+        links: new Links<Record<string, State>>(isolatedInstance.bookmarkUri),
+      } as unknown as State;
+
+      const dependent = {
+        collection: [],
+        uri: dependentUri,
+        links: new Links<Record<string, State>>(isolatedInstance.bookmarkUri, [
+          { rel: 'inv-by', href: targetUri },
+        ]),
+      } as unknown as State;
+
+      let dependentStaled = false;
+      isolatedInstance.go(dependentUri).once('stale', () => {
+        dependentStaled = true;
+      });
+
+      isolatedInstance.cacheState(target);
+      isolatedInstance.cacheState(dependent);
+      isolatedInstance.clearResourceCache([targetUri], []);
+
+      expect(isolatedCache.delete).toHaveBeenCalledWith(targetUri);
+      expect(isolatedCache.delete).toHaveBeenCalledWith(dependentUri);
+      expect(dependentStaled).toBe(true);
     });
   });
 

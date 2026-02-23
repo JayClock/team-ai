@@ -41,6 +41,7 @@ export class ClientInstance implements Client {
    */
   readonly resources = new Map<string, Resource<SafeAny>>();
   readonly cache: Cache;
+  readonly cacheDependencies: Map<string, Set<string>> = new Map();
 
   constructor(
     @inject(TYPES.Fetcher)
@@ -166,6 +167,13 @@ export class ClientInstance implements Client {
     // Flatten the list of state objects.
     const newStates = this.flattenState(state);
 
+    // Register cache dependencies from `inv-by` links.
+    for (const nState of newStates) {
+      for (const invByLink of nState.links.getMany('inv-by' as never)) {
+        this.addCacheDependency(resolve(invByLink), nState.uri);
+      }
+    }
+
     // Store all new caches
     for (const nState of newStates) {
       this.cache.store(nState);
@@ -206,7 +214,7 @@ export class ClientInstance implements Client {
    * @param deletedUris - URIs that were deleted
    */
   clearResourceCache(staleUris: string[], deletedUris: string[]) {
-    const stale = new Set<string>();
+    let stale = new Set<string>();
     const deleted = new Set<string>();
     for (const uri of staleUris) {
       stale.add(resolve(this.bookmarkUri, uri));
@@ -215,6 +223,8 @@ export class ClientInstance implements Client {
       stale.add(resolve(this.bookmarkUri, uri));
       deleted.add(resolve(this.bookmarkUri, uri));
     }
+
+    stale = this.expandCacheDependencies(new Set([...stale, ...deleted]));
 
     for (const uri of stale) {
       this.cache.delete(uri);
@@ -228,5 +238,30 @@ export class ClientInstance implements Client {
         }
       }
     }
+  }
+
+  addCacheDependency(targetUri: string, dependentUri: string): void {
+    if (this.cacheDependencies.has(targetUri)) {
+      this.cacheDependencies.get(targetUri)?.add(dependentUri);
+    } else {
+      this.cacheDependencies.set(targetUri, new Set([dependentUri]));
+    }
+  }
+
+  private expandCacheDependencies(
+    uris: Set<string>,
+    output: Set<string> = new Set(),
+  ): Set<string> {
+    for (const uri of uris) {
+      if (output.has(uri)) {
+        continue;
+      }
+      output.add(uri);
+      const dependencies = this.cacheDependencies.get(uri);
+      if (dependencies) {
+        this.expandCacheDependencies(dependencies, output);
+      }
+    }
+    return output;
   }
 }
