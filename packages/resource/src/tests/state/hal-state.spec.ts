@@ -103,6 +103,65 @@ describe('HalState', async () => {
       ).toBe(true);
     });
 
+    it('should merge HTTP Link headers into parsed links', async () => {
+      const state = await halStateFactory.create(
+        mockClient,
+        {
+          rel: '',
+          href: '/api/users/1',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json(
+          {
+            _links: {
+              self: { href: '/api/users/1' },
+            },
+          },
+          {
+            headers: {
+              Link: '</api/users/2>; rel="next", </api/users/3>; rel="next"',
+            },
+          },
+        ),
+      );
+
+      const nextLinks = (state as SafeAny).links.getMany('next');
+      expect(nextLinks).toHaveLength(2);
+      expect(nextLinks[0]?.href).toEqual('/api/users/2');
+      expect(nextLinks[1]?.href).toEqual('/api/users/3');
+    });
+
+    it('should backfill links from _embedded self links when rel is missing in _links', async () => {
+      const state = await halStateFactory.create(
+        mockClient,
+        {
+          rel: '',
+          href: '/api/users/1',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json({
+          _links: {
+            self: { href: '/api/users/1' },
+          },
+          _embedded: {
+            accounts: [
+              {
+                _links: { self: { href: '/api/users/1/accounts/1' } },
+              },
+              {
+                _links: { self: { href: '/api/users/1/accounts/2' } },
+              },
+            ],
+          },
+        }),
+      );
+
+      const accountLinks = (state as SafeAny).links.getMany('accounts');
+      expect(accountLinks).toHaveLength(2);
+      expect(accountLinks[0]?.href).toEqual('/api/users/1/accounts/1');
+      expect(accountLinks[1]?.href).toEqual('/api/users/1/accounts/2');
+    });
+
     it('should create collection from the only embedded array when rel key differs', async () => {
       const state = await halStateFactory.create<Collection<Account>>(
         mockClient,

@@ -9,6 +9,8 @@ import { injectable } from 'inversify';
 import { Links } from '../../links/links.js';
 import { Link } from '../../links/link.js';
 import { SafeAny } from '../../archtype/safe-any.js';
+import { parseHeaderLink } from '../../http/util.js';
+import { resolve } from '../../util/uri.js';
 
 /**
  * Turns a HTTP response into a HalState
@@ -37,7 +39,11 @@ export class HalStateFactory implements StateFactory {
     isPartial = false,
   ): State<SafeAny> {
     const { _links, _embedded, _templates, ...pureData } = halResource;
-    const links = new Links(client.bookmarkUri, parseHalLinks(_links));
+    const headerLinks = parseHeaderLink(resolve(currentLink), headers);
+    const links = new Links(client.bookmarkUri, [
+      ...headerLinks.getAll(),
+      ...parseHalLinks(_links, _embedded),
+    ]);
     const forms = parseHalTemplates(links, _templates);
     const embeddedState = this.getEmbeddedState(
       _embedded,
