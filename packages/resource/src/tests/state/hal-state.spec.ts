@@ -75,6 +75,34 @@ describe('HalState', async () => {
       expect(state.collection[0].data).toEqual(pureAccount);
     });
 
+    it('should mark embedded collection as full and only collection items as partial', async () => {
+      vi.clearAllMocks();
+
+      await halStateFactory.create(
+        mockClient,
+        {
+          rel: '',
+          href: '/api/users/1',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json(halUser),
+      );
+
+      const cachedStates = mockClient.cacheState.mock.calls.map(
+        (args) => args[0] as BaseState<SafeAny>,
+      );
+      const embeddedAccounts = cachedStates.find(
+        (cachedState) =>
+          cachedState.uri === 'https://example.com/api/users/1/accounts',
+      );
+
+      expect(embeddedAccounts).toBeDefined();
+      expect(embeddedAccounts?.isPartial).toBe(false);
+      expect(
+        embeddedAccounts?.collection.every((item) => item.isPartial),
+      ).toBe(true);
+    });
+
     it('should create collection from the only embedded array when rel key differs', async () => {
       const state = await halStateFactory.create<Collection<Account>>(
         mockClient,

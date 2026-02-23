@@ -143,7 +143,7 @@ export class HalStateFactory implements StateFactory {
           links: new Links(client.bookmarkUri),
           headers: new Headers(),
           currentLink: link,
-          isPartial: true,
+          isPartial: false,
         });
       } else {
         const sefHalLink = value._links?.self as HalLink;
