@@ -174,11 +174,17 @@ export class ResourceRelation<TEntity extends Entity> {
     rels: string[],
   ): Promise<Resource<TEntity>> {
     let resource: Resource<SafeAny> = this.client.go(this.link);
+    if (rels.length === 0) {
+      return resource as Resource<TEntity>;
+    }
+
     let state: State<SafeAny> = await resource.get();
     for (const [index, rel] of rels.entries()) {
       const currentOptions = this.optionsMap.get(index);
       resource = state.follow(rel, currentOptions?.query ?? {});
-      state = await resource.get();
+      if (index < rels.length - 1) {
+        state = await resource.get();
+      }
     }
     return resource;
   }
