@@ -65,7 +65,9 @@ describe('Resource POST Requests', () => {
 
     await form.submit(newConversationData);
 
-    expect(form?.uri).toEqual(halUser._templates['create-conversation'].target);
+    expect(form?.uri).toEqual(
+      'https://www.test.com/api/users/1/conversations',
+    );
     expect(form?.method).toEqual(
       halUser._templates['create-conversation'].method,
     );
@@ -193,6 +195,53 @@ describe('Resource POST Requests', () => {
       await secondRequest;
 
       expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('postFollow', () => {
+    it('should follow Location when response status is 201', async () => {
+      const createdResource = new Resource(mockClient, {
+        rel: '',
+        href: '/api/conversations/created',
+        context: mockClient.bookmarkUri,
+      });
+      vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(
+        new Response(null, {
+          status: 201,
+          headers: new Headers({
+            Location: '/api/conversations/created',
+          }),
+        }),
+      );
+      vi.spyOn(mockClient, 'go').mockReturnValue(createdResource);
+      vi.spyOn(mockClient.cache, 'get').mockReturnValue(userState);
+
+      const nextResource = await userState.follow('conversations').postFollow({
+        data: newConversationData,
+      });
+
+      expect(mockClient.go).toHaveBeenCalledWith(
+        'https://www.test.com/api/conversations/created',
+      );
+      expect(nextResource).toBe(createdResource);
+    });
+
+    it('should return current resource on 204/205', async () => {
+      vi.spyOn(mockClient.cache, 'get').mockReturnValue(userState);
+      vi.spyOn(mockClient.fetcher, 'fetchOrThrow')
+        .mockResolvedValueOnce(new Response(null, { status: 204 }))
+        .mockResolvedValueOnce(new Response(null, { status: 205 }));
+
+      const rel = userState.follow('conversations');
+      const resource204 = await rel.postFollow({
+        data: newConversationData,
+      });
+      const resource205 = await rel.postFollow({
+        data: newConversationData,
+      });
+
+      expect(resource204).toBeInstanceOf(Resource);
+      expect(resource205).toBeInstanceOf(Resource);
     });
   });
 });

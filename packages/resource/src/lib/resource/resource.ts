@@ -330,6 +330,41 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   /**
+   * Sends a POST request and follows to the next resource.
+   *
+   * If server replies with:
+   * - `201` + `Location`: returns the created resource
+   * - `204` or `205`: returns current resource
+   *
+   * @throws Error when status code is not 201/204/205, or 201 misses Location
+   */
+  async postFollow<TFollowed extends Entity = Entity>(
+    requestOptions: PostRequestOptions,
+  ): Promise<Resource<TFollowed>> {
+    const response = await this.fetchOrThrow(
+      this.optionsToRequestInit('POST', requestOptions),
+    );
+
+    switch (response.status) {
+      case 201:
+        if (response.headers.has('location')) {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          return this.client.go(resolve(this.uri, response.headers.get('location')!));
+        }
+        throw new Error(
+          'Could not follow after a 201 request, because the server did not reply with a Location header. If you sent a Location header, check if your service is returning "Access-Control-Expose-Headers: Location".',
+        );
+      case 204:
+      case 205:
+        return this as unknown as Resource<TFollowed>;
+      default:
+        throw new Error(
+          'Did not receive a 201, 204 or 205 status code so we could not follow to the next resource',
+        );
+    }
+  }
+
+  /**
    * Sends a PUT request to replace the resource.
    *
    * Defaults to `application/json` content-type header.

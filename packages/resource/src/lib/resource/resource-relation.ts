@@ -195,6 +195,16 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
+   * Sends POST and follows the next resource according to response semantics.
+   */
+  async postFollow<TFollowed extends Entity = Entity>(
+    options: PostRequestOptions,
+  ): Promise<Resource<TFollowed>> {
+    const resource = await this.getResource();
+    return resource.postFollow<TFollowed>(options);
+  }
+
+  /**
    * Sends a PUT request to the target resource.
    *
    * Resolves all intermediate relationships and performs PUT on the target.
