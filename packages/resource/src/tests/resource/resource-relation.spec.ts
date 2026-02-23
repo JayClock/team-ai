@@ -191,4 +191,56 @@ describe('ResourceRelation', () => {
     expect(terminalResource.get).toHaveBeenCalledTimes(1);
     expect(terminalResource.post).toHaveBeenCalledTimes(1);
   });
+
+  it('should resolve multiple relations from Resource.followAll', async () => {
+    const itemA = { uri: 'https://api.example.com/items/a' };
+    const itemB = { uri: 'https://api.example.com/items/b' };
+    const listState = {
+      followAll: vi.fn().mockReturnValue([itemA, itemB]),
+    };
+    const mockClient = {
+      go: vi.fn(),
+    } as unknown as ClientInstance;
+
+    const rootLink: Link = {
+      rel: '',
+      href: '/root',
+      context: 'https://api.example.com',
+    };
+
+    const resource = new Resource<Entity>(mockClient, rootLink);
+    vi.spyOn(resource, 'get').mockResolvedValue(listState as never);
+    const result = await resource.followAll('item' as never);
+
+    expect(result).toEqual([itemA, itemB]);
+    expect(listState.followAll).toHaveBeenCalledWith('item');
+  });
+
+  it('should resolve multiple relations from ResourceRelation.followAll', async () => {
+    const itemA = { uri: 'https://api.example.com/items/a' };
+    const itemB = { uri: 'https://api.example.com/items/b' };
+    const firstState = {
+      follow: vi.fn().mockReturnValue({
+        followAll: vi.fn().mockReturnValue([itemA, itemB]),
+      }),
+    };
+    const firstResource = {
+      get: vi.fn().mockResolvedValue(firstState),
+    };
+
+    const mockClient = {
+      go: vi.fn().mockReturnValue(firstResource),
+    } as unknown as ClientInstance;
+
+    const rootLink: Link = {
+      rel: '',
+      href: '/root',
+      context: 'https://api.example.com',
+    };
+
+    const resource = new Resource<Entity>(mockClient, rootLink);
+    const result = await resource.follow('item').followAll('item' as never);
+
+    expect(result).toEqual([itemA, itemB]);
+  });
 });

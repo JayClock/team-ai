@@ -34,6 +34,8 @@ describe('BaseState', () => {
   let state: BaseState<TestEntity>;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
     // Setup test data
     testData = {
       id: '123',
@@ -449,6 +451,42 @@ describe('BaseState', () => {
           collectionLinks.get('self'),
         );
       });
+    });
+  });
+
+  describe('followAll', () => {
+    it('should follow all links for a relation', () => {
+      const multiLinks = new Links<TestEntity['links']>(mockClient.bookmarkUri, [
+        { rel: 'edit', href: '/api/test/123/edit-a' },
+        { rel: 'edit', href: '/api/test/123/edit-b' },
+      ]);
+      const multiState = new BaseState<TestEntity>({
+        client: mockClient,
+        data: testData,
+        links: multiLinks,
+        headers: mockHeaders,
+        currentLink,
+      });
+
+      multiState.followAll('edit');
+
+      expect(mockClient.go).toHaveBeenCalledTimes(2);
+      expect(mockClient.go).toHaveBeenNthCalledWith(1, {
+        rel: 'edit',
+        href: '/api/test/123/edit-a',
+        context: mockClient.bookmarkUri,
+      });
+      expect(mockClient.go).toHaveBeenNthCalledWith(2, {
+        rel: 'edit',
+        href: '/api/test/123/edit-b',
+        context: mockClient.bookmarkUri,
+      });
+    });
+
+    it('should return empty array when relation does not exist', () => {
+      const result = state.followAll('unknown' as never);
+      expect(result).toEqual([]);
+      expect(mockClient.go).not.toHaveBeenCalled();
     });
   });
 

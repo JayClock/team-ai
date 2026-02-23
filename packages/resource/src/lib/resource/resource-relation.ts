@@ -147,6 +147,16 @@ export class ResourceRelation<TEntity extends Entity> {
   }
 
   /**
+   * Resolves all resources matching a relation from the target state.
+   */
+  async followAll<K extends keyof TEntity['links']>(
+    rel: K,
+  ): Promise<Resource<TEntity['links'][K]>[]> {
+    const resource = await this.getResource();
+    return resource.followAll(rel);
+  }
+
+  /**
    * Fetches the target resource state.
    *
    * Resolves all intermediate relationships and performs GET on the target.

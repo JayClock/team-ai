@@ -110,6 +110,16 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   /**
+   * Resolves all resources matching a relation from current state.
+   */
+  async followAll<K extends keyof TEntity['links']>(
+    rel: K,
+  ): Promise<Resource<TEntity['links'][K]>[]> {
+    const state = await this.get();
+    return state.followAll(rel);
+  }
+
+  /**
    * Performs an HTTP request on the current resource URI
    * @param init Request initialization options including headers, method, etc.
    * @returns Returns a Promise of the HTTP response

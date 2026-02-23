@@ -115,6 +115,14 @@ export class BaseHeadState<TEntity extends Entity>
     const expandedHref = expand(link, variables);
     return this.client.go({ ...link, href: expandedHref });
   }
+
+  followAll<K extends keyof TEntity['links']>(
+    rel: K,
+  ): Resource<TEntity['links'][K]>[] {
+    return this.links.getMany(rel).map((link) => {
+      return this.client.go({ ...link });
+    });
+  }
 }
 
 export class BaseState<TEntity extends Entity>

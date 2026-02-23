@@ -42,6 +42,13 @@ export type HeadState<TEntity extends Entity = Entity> = {
   ): Resource<TEntity['links'][K]>;
 
   /**
+   * Follows all links for the same relation.
+   */
+  followAll<K extends keyof TEntity['links']>(
+    rel: K,
+  ): Resource<TEntity['links'][K]>[];
+
+  /**
    * Returns content-related HTTP headers for this state.
    */
   contentHeaders(): Headers;
@@ -165,6 +172,13 @@ export type State<TEntity extends Entity = Entity> = {
     rel: K,
     variables?: LinkVariables,
   ): Resource<TEntity['links'][K]>;
+
+  /**
+   * Follows all links for the same relation.
+   */
+  followAll<K extends keyof TEntity['links']>(
+    rel: K,
+  ): Resource<TEntity['links'][K]>[];
 
   /**
    * Serializes the state for use in HTTP request bodies.
