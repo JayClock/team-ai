@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, vi } from 'vitest';
 import { BaseState } from '../../lib/state/base-state.js';
 import { Links } from '../../lib/links/links.js';
 import { Link } from '../../lib/links/link.js';
+import { LinkNotFound } from '../../lib/links/link.js';
 import { ClientInstance } from '../../lib/client-instance.js';
 import { Form } from '../../lib/form/form.js';
 import { StateCollection } from '../../lib/state/state-collection.js';
@@ -311,8 +312,9 @@ describe('BaseState', () => {
     });
 
     it('should throw error if link does not exist', () => {
+      expect(() => state.follow('unknown' as never)).toThrow(LinkNotFound);
       expect(() => state.follow('unknown' as never)).toThrow(
-        'rel unknown is not exited',
+        'Link with rel unknown on https://example.com/api/resources/123 not found',
       );
     });
 
@@ -323,6 +325,33 @@ describe('BaseState', () => {
       const result = state.follow('edit');
 
       expect(result).toBe(mockResource);
+    });
+
+    it('should warn when following a deprecated link', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        // noop
+      });
+      const deprecatedState = new BaseState<TestEntity>({
+        client: mockClient,
+        data: testData,
+        links: new Links<TestEntity['links']>(mockClient.bookmarkUri, [
+          {
+            rel: 'edit',
+            href: '/api/resources/123/edit',
+            hints: { status: 'deprecated' } as never,
+          },
+        ]),
+        headers: mockHeaders,
+        currentLink,
+      });
+
+      deprecatedState.follow('edit');
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Resource] The edit link on https://example.com/api/resources/123 is marked deprecated.',
+        expect.objectContaining({ rel: 'edit' }),
+      );
+      warnSpy.mockRestore();
     });
 
     describe('pagination links with collection', () => {
@@ -487,6 +516,37 @@ describe('BaseState', () => {
       const result = state.followAll('unknown' as never);
       expect(result).toEqual([]);
       expect(mockClient.go).not.toHaveBeenCalled();
+    });
+
+    it('should warn when following deprecated links', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        // noop
+      });
+      const deprecatedLinks = new Links<TestEntity['links']>(
+        mockClient.bookmarkUri,
+        [
+          {
+            rel: 'related',
+            href: '/api/resources/124',
+            hints: { status: 'deprecated' } as never,
+          },
+        ],
+      );
+      const deprecatedState = new BaseState<TestEntity>({
+        client: mockClient,
+        data: testData,
+        links: deprecatedLinks,
+        headers: mockHeaders,
+        currentLink,
+      });
+
+      deprecatedState.followAll('related');
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[Resource] The related link on https://example.com/api/resources/123 is marked deprecated.',
+        expect.objectContaining({ rel: 'related' }),
+      );
+      warnSpy.mockRestore();
     });
   });
 

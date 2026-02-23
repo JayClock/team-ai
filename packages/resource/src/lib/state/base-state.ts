@@ -7,7 +7,7 @@ import { ClientInstance } from '../client-instance.js';
 import { entityHeaderNames } from '../http/util.js';
 import { SafeAny } from '../archtype/safe-any.js';
 import { Resource } from '../index.js';
-import { Link, LinkVariables } from '../links/link.js';
+import { Link, LinkNotFound, LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
 import { expand } from '../util/uri-template.js';
 import { Action, ActionNotFound, SimpleAction } from '../action/action.js';
@@ -44,6 +44,17 @@ export class BaseHeadState<TEntity extends Entity>
     this.links = init.links;
     this.timestamp = init.timestamp ?? Date.now();
     this.headers = init.headers;
+  }
+
+  protected warnDeprecatedLink(link: Link): void {
+    if (link.hints?.status !== 'deprecated') {
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[Resource] The ${link.rel} link on ${this.uri} is marked deprecated.`,
+      link,
+    );
   }
 
   hasLink<K extends keyof TEntity['links']>(rel: K): boolean {
@@ -107,11 +118,13 @@ export class BaseHeadState<TEntity extends Entity>
     rel: K,
     variables?: LinkVariables,
   ): Resource<TEntity['links'][K]> {
-    if (!this.hasLink(rel)) {
-      throw new Error(`rel ${rel as string} is not exited`);
+    const link = this.links.get(rel as string);
+    if (!link) {
+      throw new LinkNotFound(
+        `Link with rel ${rel as string} on ${this.uri} not found`,
+      );
     }
-
-    const link = this.links.get(rel as string) as Link;
+    this.warnDeprecatedLink(link);
     const expandedHref = expand(link, variables);
     return this.client.go({ ...link, href: expandedHref });
   }
@@ -120,6 +133,7 @@ export class BaseHeadState<TEntity extends Entity>
     rel: K,
   ): Resource<TEntity['links'][K]>[] {
     return this.links.getMany(rel).map((link) => {
+      this.warnDeprecatedLink(link);
       return this.client.go({ ...link });
     });
   }
@@ -151,7 +165,9 @@ export class BaseState<TEntity extends Entity>
     variables?: LinkVariables,
   ): Resource<TEntity['links'][K]> {
     if (!this.hasLink(rel)) {
-      throw new Error(`rel ${rel as string} is not exited`);
+      throw new LinkNotFound(
+        `Link with rel ${rel as string} on ${this.uri} not found`,
+      );
     }
 
     const link = this.links.get(rel as string) ?? {
@@ -159,6 +175,7 @@ export class BaseState<TEntity extends Entity>
       href: this.action(rel).uri,
       context: this.client.bookmarkUri,
     };
+    this.warnDeprecatedLink(link);
 
     if (
       ['self', 'first', 'last', 'prev', 'next'].includes(link.rel) &&

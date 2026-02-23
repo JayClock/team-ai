@@ -35,6 +35,8 @@ export type { HeadState, State } from './state/state.js';
 export type { ExtractCollectionElement } from './state/state-collection.js';
 export * from './resource/resource.js';
 export * from './resource/resource-relation.js';
+export * from './links/link.js';
+export * from './links/links.js';
 export * from './cache/index.js';
 export type { FetchMiddleware } from './http/fetcher.js';
 export {

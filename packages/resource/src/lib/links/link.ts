@@ -94,3 +94,12 @@ export type NewLink = Omit<Link, 'context'>;
 export type LinkVariables = {
   [key: string]: string | number | string[] | number[];
 };
+
+/**
+ * Error thrown when attempting to follow a relation that does not exist.
+ *
+ * @category Resource
+ */
+export class LinkNotFound extends Error {
+  override name = 'LinkNotFound';
+}
