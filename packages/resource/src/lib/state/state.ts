@@ -6,6 +6,48 @@ import { Link, LinkVariables } from '../links/link.js';
 import { Action } from '../action/action.js';
 
 /**
+ * Represents the metadata-only state of a resource from a HEAD response.
+ *
+ * HEAD state contains links and content headers, but no response body.
+ *
+ * @typeParam TEntity - The entity type defining available links
+ */
+export type HeadState<TEntity extends Entity = Entity> = {
+  /**
+   * Timestamp of when the head state was first generated
+   */
+  timestamp: number;
+
+  /**
+   * The URI associated with this head state
+   */
+  uri: string;
+
+  /**
+   * Checks if a link with the given relation exists.
+   */
+  hasLink<K extends keyof TEntity['links']>(rel: K): boolean;
+
+  /**
+   * Gets the raw link object for a given relation.
+   */
+  getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined;
+
+  /**
+   * Follows a relationship to create a Resource for navigation.
+   */
+  follow<K extends keyof TEntity['links']>(
+    rel: K,
+    variables?: LinkVariables,
+  ): Resource<TEntity['links'][K]>;
+
+  /**
+   * Returns content-related HTTP headers for this state.
+   */
+  contentHeaders(): Headers;
+};
+
+/**
  * Represents the state of a REST resource at a specific point in time.
  *
  * State is the result of fetching a resource and contains:

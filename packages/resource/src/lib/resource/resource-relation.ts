@@ -18,6 +18,18 @@ interface ResourceOptions {
   query?: Record<string, SafeAny>;
 }
 
+interface FollowStrategy {
+  prefetch: boolean;
+  preferTransclude: boolean;
+  useHead: boolean;
+}
+
+const defaultFollowStrategy: FollowStrategy = {
+  prefetch: false,
+  preferTransclude: false,
+  useHead: false,
+};
+
 /**
  * Represents a deferred resource relationship for chained HATEOAS navigation.
  *
@@ -63,7 +75,8 @@ export class ResourceRelation<TEntity extends Entity> {
     private readonly link: Link,
     private readonly rels: string[],
     private readonly optionsMap: Map<number, ResourceOptions> = new Map(),
-  ) { }
+    private readonly strategy: FollowStrategy = defaultFollowStrategy,
+  ) {}
 
   /**
    * Gets the resource instance
@@ -73,6 +86,44 @@ export class ResourceRelation<TEntity extends Entity> {
     return this.getResourceWithRels(this.rels);
   }
 
+  /**
+   * Enables prefetching of the terminal linked resource state.
+   */
+  preFetch(): ResourceRelation<TEntity> {
+    return new ResourceRelation(
+      this.client,
+      this.link,
+      this.rels,
+      new Map(this.optionsMap),
+      { ...this.strategy, prefetch: true },
+    );
+  }
+
+  /**
+   * Enables Prefer transclude hint when resolving links via GET.
+   */
+  preferTransclude(): ResourceRelation<TEntity> {
+    return new ResourceRelation(
+      this.client,
+      this.link,
+      this.rels,
+      new Map(this.optionsMap),
+      { ...this.strategy, preferTransclude: true },
+    );
+  }
+
+  /**
+   * Uses HEAD requests for link discovery on each hop.
+   */
+  useHead(): ResourceRelation<TEntity> {
+    return new ResourceRelation(
+      this.client,
+      this.link,
+      this.rels,
+      new Map(this.optionsMap),
+      { ...this.strategy, useHead: true },
+    );
+  }
 
   /**
    * Follows a resource relationship based on its rel type
@@ -91,6 +142,7 @@ export class ResourceRelation<TEntity extends Entity> {
       this.link,
       this.rels.concat(rel as string),
       newOptionsMap,
+      this.strategy,
     );
   }
 
@@ -178,13 +230,25 @@ export class ResourceRelation<TEntity extends Entity> {
       return resource as Resource<TEntity>;
     }
 
-    let state: State<SafeAny> = await resource.get();
     for (const [index, rel] of rels.entries()) {
       const currentOptions = this.optionsMap.get(index);
-      resource = state.follow(rel, currentOptions?.query ?? {});
-      if (index < rels.length - 1) {
-        state = await resource.get();
+      const headers: Record<string, string> = {};
+      if (!this.strategy.useHead && this.strategy.preferTransclude) {
+        headers.Prefer = `transclude=${rel}`;
       }
+
+      const state = this.strategy.useHead
+        ? await resource.head({ headers })
+        : await resource.get({ headers });
+
+      resource = state.follow(rel, currentOptions?.query ?? {});
+    }
+
+    if (this.strategy.prefetch) {
+      resource.get().catch((error: Error) => {
+        // eslint-disable-next-line no-console
+        console.warn('Error while prefetching linked resource', error);
+      });
     }
     return resource;
   }

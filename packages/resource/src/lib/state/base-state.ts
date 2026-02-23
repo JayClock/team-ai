@@ -1,6 +1,6 @@
 import { Entity } from '../archtype/entity.js';
 import { Links } from '../links/links.js';
-import { State } from './state.js';
+import { HeadState, State } from './state.js';
 import { StateCollection } from './state-collection.js';
 import { Form } from '../form/form.js';
 import { ClientInstance } from '../client-instance.js';
@@ -11,47 +11,43 @@ import { Link, LinkVariables } from '../links/link.js';
 import { resolve } from '../util/uri.js';
 import { expand } from '../util/uri-template.js';
 import { Action, ActionNotFound, SimpleAction } from '../action/action.js';
-import { freeze } from 'immer'
+import { freeze } from 'immer';
 
-type StateInit<TEntity extends Entity> = {
+type HeadStateInit<TEntity extends Entity> = {
   client: ClientInstance;
-  data: TEntity['data'];
   links: Links<TEntity['links']>;
   headers: Headers;
   currentLink: Link;
-  forms?: Form[];
-  collection?: StateCollection<TEntity>;
-  embeddedState?: TEntity['links'];
   timestamp?: number;
-  isPartial?: boolean;
 };
 
-export class BaseState<TEntity extends Entity> implements State<TEntity> {
+type StateInit<TEntity extends Entity> = {
+  forms?: Form[];
+  data: TEntity['data'];
+  collection?: StateCollection<TEntity>;
+  embeddedState?: TEntity['links'];
+  isPartial?: boolean;
+} & HeadStateInit<TEntity>;
+
+export class BaseHeadState<TEntity extends Entity>
+  implements HeadState<TEntity>
+{
   readonly uri: string;
   readonly client: ClientInstance;
-  readonly data: TEntity['data'];
-  readonly collection: StateCollection<TEntity>;
   readonly links: Links<TEntity['links']>;
   readonly timestamp: number;
-  readonly isPartial: boolean;
+  protected readonly headers: Headers;
 
-  private readonly forms: Form[];
-  private readonly headers: Headers;
-
-  constructor(protected init: StateInit<TEntity>) {
+  constructor(protected init: HeadStateInit<TEntity>) {
     this.uri = resolve(this.init.currentLink);
     this.client = init.client;
-    this.data = freeze(init.data);
     this.links = init.links;
     this.timestamp = init.timestamp ?? Date.now();
-    this.isPartial = init.isPartial ?? false;
     this.headers = init.headers;
-    this.forms = init.forms ?? [];
-    this.collection = init.collection ?? [];
   }
 
   hasLink<K extends keyof TEntity['links']>(rel: K): boolean {
-    return this.links.has(rel) || this.hasAction(rel);
+    return this.links.has(rel);
   }
 
   getLink<K extends keyof TEntity['links']>(rel: K): Link | undefined {
@@ -115,24 +111,56 @@ export class BaseState<TEntity extends Entity> implements State<TEntity> {
       throw new Error(`rel ${rel as string} is not exited`);
     }
 
+    const link = this.links.get(rel as string) as Link;
+    const expandedHref = expand(link, variables);
+    return this.client.go({ ...link, href: expandedHref });
+  }
+}
+
+export class BaseState<TEntity extends Entity>
+  extends BaseHeadState<TEntity>
+  implements State<TEntity>
+{
+  readonly data: TEntity['data'];
+  readonly collection: StateCollection<TEntity>;
+  readonly isPartial: boolean;
+  private readonly forms: Form[];
+
+  constructor(protected override init: StateInit<TEntity>) {
+    super(init);
+    this.data = freeze(init.data);
+    this.isPartial = init.isPartial ?? false;
+    this.forms = init.forms ?? [];
+    this.collection = init.collection ?? [];
+  }
+
+  override hasLink<K extends keyof TEntity['links']>(rel: K): boolean {
+    return this.links.has(rel) || this.hasAction(rel);
+  }
+
+  override follow<K extends keyof TEntity['links']>(
+    rel: K,
+    variables?: LinkVariables,
+  ): Resource<TEntity['links'][K]> {
+    if (!this.hasLink(rel)) {
+      throw new Error(`rel ${rel as string} is not exited`);
+    }
+
     const link = this.links.get(rel as string) ?? {
       rel: rel as string,
       href: this.action(rel).uri,
       context: this.client.bookmarkUri,
-    }
+    };
 
     if (
       ['self', 'first', 'last', 'prev', 'next'].includes(link.rel) &&
       this.collection.length > 0
     ) {
-      return this.client.go(
-        { ...link, rel: this.init.currentLink.rel },
-      );
+      return this.client.go({ ...link, rel: this.init.currentLink.rel });
     }
     const expandedHref = expand(link, variables);
     return this.client.go({ ...link, href: expandedHref });
   }
-
 
   /**
    * Checks if the specified action exists.

@@ -73,6 +73,13 @@ export type RequestOptions<T = SafeAny> = {
 export type GetRequestOptions = Omit<RequestOptions, 'serializeBody' | 'data'>;
 
 /**
+ * Request options for HEAD requests (no body allowed).
+ *
+ * @category Resource
+ */
+export type HeadRequestOptions = GetRequestOptions;
+
+/**
  * Request options for PATCH requests.
  *
  * @typeParam T - The type of the data payload

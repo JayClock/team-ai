@@ -5,11 +5,11 @@ import { TYPES } from './archtype/injection-types.js';
 import { Client } from './create-client.js';
 import { Link, NewLink } from './links/link.js';
 import { Fetcher, FetchMiddleware } from './http/fetcher.js';
-import { State, StateFactory } from './state/state.js';
+import { HeadState, State, StateFactory } from './state/state.js';
 import { HalStateFactory } from './state/hal-state/hal-state.factory.js';
 import type { Config } from './archtype/config.js';
 import { BinaryStateFactory } from './state/binary-state/binary-state.factory.js';
-import { parseContentType } from './http/util.js';
+import { parseContentType, parseHeaderLink } from './http/util.js';
 import { resolve } from './util/uri.js';
 import { SafeAny } from './archtype/safe-any.js';
 import type { Cache } from './cache/cache.js';
@@ -17,6 +17,8 @@ import { StreamStateFactory } from './state/stream-state/stream-state.factory.js
 import { acceptMiddleware } from './middlewares/accept-header.js';
 import { cacheMiddleware } from './middlewares/cache.js';
 import { warningMiddleware } from './middlewares/warning.js';
+import { BaseHeadState } from './state/base-state.js';
+import { Links } from './links/links.js';
 
 /**
  * Internal Client implementation with dependency injection.
@@ -154,6 +156,20 @@ export class ClientInstance implements Client {
       link,
       response,
     );
+  }
+
+  getHeadStateForResponse<TEntity extends Entity>(
+    link: Link,
+    response: Response,
+  ): HeadState<TEntity> {
+    const uri = resolve(link);
+    const links = parseHeaderLink(uri, response.headers) as Links<TEntity['links']>;
+    return new BaseHeadState<TEntity>({
+      client: this,
+      currentLink: link,
+      links,
+      headers: response.headers,
+    });
   }
   /**
    * Caches a State object and emits update events.

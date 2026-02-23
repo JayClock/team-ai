@@ -1,6 +1,7 @@
 import { Entity } from '../archtype/entity.js';
 import {
   GetRequestOptions,
+  HeadRequestOptions,
   PatchRequestOptions,
   PostRequestOptions,
   PutRequestOptions,
@@ -9,6 +10,7 @@ import {
 import { Link, LinkVariables } from '../links/link.js';
 import { ClientInstance } from '../client-instance.js';
 import { State } from '../state/state.js';
+import { HeadState } from '../state/state.js';
 import { needsJsonStringify } from '../util/fetch-body-helper.js';
 import { resolve } from '../util/uri.js';
 import { HttpMethod } from '../http/util.js';
@@ -206,6 +208,29 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return (await this.activeRefresh.get(hash)!) as State<TEntity>;
+  }
+
+  /**
+   * Performs a HEAD request and returns link/navigation metadata.
+   *
+   * If a full cached GET state exists, it is returned directly.
+   *
+   * @param requestOptions - Optional request headers
+   * @returns A Promise resolving to a head state or cached full state
+   */
+  async head(
+    requestOptions?: HeadRequestOptions,
+  ): Promise<HeadState<TEntity> | State<TEntity>> {
+    const state = this.getCache();
+    if (state && !state.isPartial) {
+      return state;
+    }
+
+    const response = await this.fetchOrThrow(
+      this.optionsToRequestInit('HEAD', requestOptions ?? {}),
+    );
+
+    return this.client.getHeadStateForResponse(this.link, response);
   }
 
   /**
