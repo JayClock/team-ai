@@ -62,7 +62,7 @@ export class ResourceRelation<TEntity extends Entity> {
     private readonly client: ClientInstance,
     private readonly link: Link,
     private readonly rels: string[],
-    private readonly optionsMap: Map<string, ResourceOptions> = new Map(),
+    private readonly optionsMap: Map<number, ResourceOptions> = new Map(),
   ) { }
 
   /**
@@ -85,7 +85,7 @@ export class ResourceRelation<TEntity extends Entity> {
     variables?: LinkVariables,
   ): ResourceRelation<TEntity['links'][K]> {
     const newOptionsMap = new Map(this.optionsMap);
-    newOptionsMap.set(rel as string, { query: variables });
+    newOptionsMap.set(this.rels.length, { query: variables });
     return new ResourceRelation(
       this.client,
       this.link,
@@ -175,8 +175,8 @@ export class ResourceRelation<TEntity extends Entity> {
   ): Promise<Resource<TEntity>> {
     let resource: Resource<SafeAny> = this.client.go(this.link);
     let state: State<SafeAny> = await resource.get();
-    for (const rel of rels) {
-      const currentOptions = this.optionsMap.get(rel);
+    for (const [index, rel] of rels.entries()) {
+      const currentOptions = this.optionsMap.get(index);
       resource = state.follow(rel, currentOptions?.query ?? {});
       state = await resource.get();
     }

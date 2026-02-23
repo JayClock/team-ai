@@ -103,7 +103,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
       this.client,
       this.link,
       [rel as string],
-      new Map([[rel as string, { query: variables }]]),
+      new Map([[0, { query: variables }]]),
     );
   }
 

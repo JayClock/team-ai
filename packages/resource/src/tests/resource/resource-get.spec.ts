@@ -68,6 +68,7 @@ describe('Resource GET Requests', () => {
     const mockResponse = {
       url: resolve(link.context, expand(link, variables)),
       json: vi.fn().mockResolvedValue(halConversations),
+      headers: new Headers(),
     } as unknown as Response;
 
     const options: RequestInit = {
