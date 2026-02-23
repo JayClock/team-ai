@@ -2,7 +2,7 @@ import { TYPES } from './archtype/injection-types.js';
 import { Config } from './archtype/config.js';
 import { Entity } from './archtype/entity.js';
 import { NewLink } from './links/link.js';
-import { container } from './container.js';
+import { createContainer } from './container.js';
 import { FetchMiddleware } from './http/fetcher.js';
 import { Resource } from './index.js';
 import type { StateFactory } from './state/state.js';
@@ -118,6 +118,7 @@ export interface Client {
  * @category Client
  */
 export const createClient = (options: Config): Client => {
+  const container = createContainer();
   container.bind(TYPES.Config).toConstantValue(options);
   return container.get(TYPES.Client);
 };
