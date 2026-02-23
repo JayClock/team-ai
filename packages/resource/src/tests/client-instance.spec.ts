@@ -10,6 +10,7 @@ import { Links } from '../lib/links/links.js';
 import { HalStateFactory } from '../lib/state/hal-state/hal-state.factory.js';
 import { BinaryStateFactory } from '../lib/state/binary-state/binary-state.factory.js';
 import { StreamStateFactory } from '../lib/state/stream-state/stream-state.factory.js';
+import { TextStateFactory } from '../lib/state/text-state/text-state.factory.js';
 import { ForeverCache, NeverCache } from '../lib/cache/index.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
@@ -28,6 +29,10 @@ const mockStreamStateFactory = {
   create: vi.fn(),
 } as StreamStateFactory;
 
+const mockTextStateFactory = {
+  create: vi.fn(),
+} as TextStateFactory;
+
 const mockCache = {
   store: vi.fn(),
   clear: vi.fn(),
@@ -44,6 +49,7 @@ describe('ClientInstance', () => {
     mockHalStateFactory,
     mockBinaryStateFactory,
     mockStreamStateFactory,
+    mockTextStateFactory,
   );
 
   it('should set bookmarkUri with config baseURL', () => {
@@ -61,6 +67,7 @@ describe('ClientInstance', () => {
       mockHalStateFactory,
       mockBinaryStateFactory,
       mockStreamStateFactory,
+      mockTextStateFactory,
     );
 
     expect(instance.cache).toBe(configuredCache);
@@ -180,6 +187,28 @@ describe('ClientInstance', () => {
       });
     });
 
+    describe('generate text state', () => {
+      it('should generate text state when content-type text/plain', () => {
+        clientInstance.getStateForResponse(
+          {} as Link,
+          new Response('text', {
+            headers: { 'Content-Type': 'text/plain' },
+          }),
+        );
+        expect(mockTextStateFactory.create).toHaveBeenCalled();
+      });
+
+      it('should generate text state when content-type starts with text/', () => {
+        clientInstance.getStateForResponse(
+          {} as Link,
+          new Response('a,b,c', {
+            headers: { 'Content-Type': 'text/csv' },
+          }),
+        );
+        expect(mockTextStateFactory.create).toHaveBeenCalled();
+      });
+    });
+
     it('should use configured custom content type factories', () => {
       const customFactory = {
         create: vi.fn(),
@@ -196,6 +225,7 @@ describe('ClientInstance', () => {
         mockHalStateFactory,
         mockBinaryStateFactory,
         mockStreamStateFactory,
+        mockTextStateFactory,
       );
 
       instance.getStateForResponse(
@@ -302,6 +332,7 @@ describe('ClientInstance', () => {
         mockHalStateFactory,
         mockBinaryStateFactory,
         mockStreamStateFactory,
+        mockTextStateFactory,
       );
 
       const targetUri = resolve(isolatedInstance.bookmarkUri, '/api/users/1');

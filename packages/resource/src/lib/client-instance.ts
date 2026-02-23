@@ -14,6 +14,7 @@ import { resolve } from './util/uri.js';
 import { SafeAny } from './archtype/safe-any.js';
 import type { Cache } from './cache/cache.js';
 import { StreamStateFactory } from './state/stream-state/stream-state.factory.js';
+import { TextStateFactory } from './state/text-state/text-state.factory.js';
 import { acceptMiddleware } from './middlewares/accept-header.js';
 import { cacheMiddleware } from './middlewares/cache.js';
 import { warningMiddleware } from './middlewares/warning.js';
@@ -71,6 +72,7 @@ export class ClientInstance implements Client {
     readonly binaryStateFactory: BinaryStateFactory,
     @inject(TYPES.StreamStateFactory)
     streamStateFactory: StreamStateFactory,
+    private readonly textStateFactory: TextStateFactory = new TextStateFactory(),
   ) {
     this.bookmarkUri = config.baseURL;
     this.cache = config.cache ?? cache;
@@ -79,6 +81,7 @@ export class ClientInstance implements Client {
     this.registerContentType('application/hal+json', halStateFactory, '0.9');
     this.registerContentType('application/json', halStateFactory, '0.7');
     this.registerContentType('text/event-stream', streamStateFactory, '0.5');
+    this.registerContentType('text/plain', this.textStateFactory, '0.6');
 
     for (const [contentType, factoryConfig] of Object.entries(
       config.contentTypeMap ?? {},
@@ -165,6 +168,8 @@ export class ClientInstance implements Client {
         link,
         response,
       );
+    } else if (contentType.startsWith('text/')) {
+      return this.textStateFactory.create<TEntity>(this, link, response);
     } else if (contentType.match(/^application\/[A-Za-z-.]+\+json/)) {
       return this.halStateFactory.create<TEntity>(
         this,
