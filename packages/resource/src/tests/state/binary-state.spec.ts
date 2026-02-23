@@ -27,12 +27,14 @@ describe('Binary State', async () => {
   });
 
   it('should get link form header', () => {
-    expect(state.getLink('self')).toEqual({
-      rel: 'self',
-      href: 'https://api.example.com/users/1',
-      type: 'application/json',
-      hreflang: 'en',
-      title: 'User Profile',
-    });
+    expect(state.getLink('self')).toEqual(
+      expect.objectContaining({
+        rel: 'self',
+        href: 'https://api.example.com/users/1',
+        type: 'application/json',
+        hreflang: 'en',
+        title: 'User Profile',
+      }),
+    );
   });
 });

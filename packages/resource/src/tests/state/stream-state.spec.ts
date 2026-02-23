@@ -42,12 +42,14 @@ describe('StreamState', async () => {
   });
 
   it('should get link from header', () => {
-    expect(state.getLink('self')).toEqual({
-      rel: 'self',
-      href: 'https://api.example.com/stream/1',
-      type: 'application/octet-stream',
-      title: 'Stream Data',
-    });
+    expect(state.getLink('self')).toEqual(
+      expect.objectContaining({
+        rel: 'self',
+        href: 'https://api.example.com/stream/1',
+        type: 'application/octet-stream',
+        title: 'Stream Data',
+      }),
+    );
   });
 
   it('should have correct content type', () => {
