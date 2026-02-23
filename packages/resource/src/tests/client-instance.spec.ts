@@ -9,6 +9,7 @@ import { Link } from '../lib/links/link.js';
 import { HalStateFactory } from '../lib/state/hal-state/hal-state.factory.js';
 import { BinaryStateFactory } from '../lib/state/binary-state/binary-state.factory.js';
 import { StreamStateFactory } from '../lib/state/stream-state/stream-state.factory.js';
+import { ForeverCache, NeverCache } from '../lib/cache/intex.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
 
@@ -46,6 +47,22 @@ describe('ClientInstance', () => {
 
   it('should set bookmarkUri with config baseURL', () => {
     expect(clientInstance.bookmarkUri).toEqual(mockConfig.baseURL);
+  });
+
+  it('should use cache from config when provided', () => {
+    const configuredCache = new NeverCache();
+    const fallbackCache = new ForeverCache();
+
+    const instance = new ClientInstance(
+      mockFetcher,
+      { ...mockConfig, cache: configuredCache },
+      fallbackCache,
+      mockHalStateFactory,
+      mockBinaryStateFactory,
+      mockStreamStateFactory,
+    );
+
+    expect(instance.cache).toBe(configuredCache);
   });
 
   describe('should go to link resource and cache resource', () => {

@@ -40,6 +40,7 @@ export class ClientInstance implements Client {
    * Ensures each URI has only one Resource instance.
    */
   readonly resources = new Map<string, Resource<SafeAny>>();
+  readonly cache: Cache;
 
   constructor(
     @inject(TYPES.Fetcher)
@@ -47,7 +48,7 @@ export class ClientInstance implements Client {
     @inject(TYPES.Config)
     readonly config: Config,
     @inject(TYPES.Cache)
-    readonly cache: Cache,
+    cache: Cache,
     @inject(TYPES.HalStateFactory)
     readonly halStateFactory: HalStateFactory,
     @inject(TYPES.BinaryStateFactory)
@@ -56,6 +57,7 @@ export class ClientInstance implements Client {
     streamStateFactory: StreamStateFactory,
   ) {
     this.bookmarkUri = config.baseURL;
+    this.cache = config.cache ?? cache;
 
     this.contentTypeMap = {
       'application/prs.hal-forms+json': [halStateFactory, '1.0'],
