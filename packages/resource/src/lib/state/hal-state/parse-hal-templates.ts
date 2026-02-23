@@ -10,6 +10,7 @@ import { Links } from '../../links/links.js';
 import { Form } from '../../form/form.js';
 import { Field } from '../../form/field.js';
 import { HttpMethod } from 'src/lib/http/util.js';
+import { resolve } from '../../util/uri.js';
 
 const HAL_FORMS_STANDARD_PROPERTY_KEYS = new Set([
   'name',
@@ -66,12 +67,12 @@ export function parseHalTemplates(
   links: Links<SafeAny>,
   templates: HalResource['_templates'] = {},
 ): Form[] {
+  const selfHref = (links.get('self') as HalLink | undefined)?.href ?? '';
   return Object.entries(templates).map(([key, template]) => ({
     name: key,
     title: template.title,
     method: template.method as HttpMethod,
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    uri: template.target ?? (links.get('self')! as HalLink).href,
+    uri: resolve(links.defaultContext, template.target ?? selfHref),
     contentType: template.contentType ?? 'application/json',
     fields:
       template.properties?.map((property) => parseHalField(property)) || [],

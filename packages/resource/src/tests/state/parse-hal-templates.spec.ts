@@ -80,8 +80,8 @@ describe('parseHalTemplates', () => {
     const customForm = forms.find((f) => f.name === 'customTarget');
     const defaultForm = forms.find((f) => f.name === 'defaultTarget');
 
-    expect(customForm?.uri).toBe('/api/custom-endpoint');
-    expect(defaultForm?.uri).toBe('/api/resources/1');
+    expect(customForm?.uri).toBe('https://example.com/api/custom-endpoint');
+    expect(defaultForm?.uri).toBe('https://example.com/api/resources/1');
   });
 
   it('should default contentType to application/json', () => {
