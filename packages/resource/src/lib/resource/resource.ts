@@ -223,6 +223,40 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 
   /**
+   * Gets the current state of the resource, always bypassing the cache.
+   *
+   * This method still deduplicates in-flight requests with identical options.
+   */
+  async refresh(requestOptions?: GetRequestOptions): Promise<State<TEntity>> {
+    const requestInit = this.optionsToRequestInit('GET', requestOptions ?? {});
+    requestInit.cache = 'no-cache';
+
+    const hash = this.requestHash(this.uri, requestOptions);
+
+    if (!this.activeRefresh.has(hash)) {
+      this.activeRefresh.set(
+        hash,
+        (async (): Promise<State<TEntity>> => {
+          try {
+            const response = await this.fetchOrThrow(requestInit);
+            const state: State<TEntity> = await this.client.getStateForResponse(
+              this.link,
+              response,
+            );
+            this.updateCache(state);
+            return state;
+          } finally {
+            this.activeRefresh.delete(hash);
+          }
+        })(),
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return (await this.activeRefresh.get(hash)!) as State<TEntity>;
+  }
+
+  /**
    * Performs a HEAD request and returns link/navigation metadata.
    *
    * If a full cached GET state exists, it is returned directly.
