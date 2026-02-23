@@ -1,4 +1,4 @@
-import { describe, expect } from 'vitest';
+import { describe, expect, vi } from 'vitest';
 import halUser from '../fixtures/hal-user.json' with { type: 'json' };
 import { BaseState } from '../../lib/state/base-state.js';
 import { SafeAny } from '../../lib/archtype/safe-any.js';
@@ -10,10 +10,12 @@ import { Account } from '../fixtures/interface.js';
 import { Collection } from '../../lib/index.js';
 import { HalLink, HalResource } from 'hal-types';
 
+const cacheStateMock = vi.fn();
+
 const mockClient = {
   bookmarkUri: 'https://example.com/',
   go: vi.fn(),
-  cacheState: vi.fn()
+  cacheState: cacheStateMock,
 } as unknown as ClientInstance;
 
 describe('HalState', async () => {
@@ -111,8 +113,8 @@ describe('HalState', async () => {
         Response.json(halUser),
       );
 
-      const cachedStates = mockClient.cacheState.mock.calls.map(
-        (args) => args[0] as BaseState<SafeAny>,
+      const cachedStates = cacheStateMock.mock.calls.map(
+        (call) => call[0] as BaseState<SafeAny>,
       );
       const embeddedAccounts = cachedStates.find(
         (cachedState) =>

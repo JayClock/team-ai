@@ -3,6 +3,7 @@ import { StateCollection } from './state-collection.js';
 import { ClientInstance } from '../client-instance.js';
 import { Resource } from '../index.js';
 import { Link, LinkVariables } from '../links/link.js';
+import { Links } from '../links/links.js';
 import { Action } from '../action/action.js';
 
 /**
@@ -27,6 +28,11 @@ export type HeadState<TEntity extends Entity = Entity> = {
    * Checks if a link with the given relation exists.
    */
   hasLink<K extends keyof TEntity['links']>(rel: K): boolean;
+
+  /**
+   * Raw links container for low-level traversal scenarios.
+   */
+  links: Links<TEntity['links']>;
 
   /**
    * Gets the raw link object for a given relation.
@@ -135,6 +141,11 @@ export type State<TEntity extends Entity = Entity> = {
    * @returns `true` if the link exists, `false` otherwise
    */
   hasLink<K extends keyof TEntity['links']>(rel: K): boolean;
+
+  /**
+   * Raw links container for low-level traversal scenarios.
+   */
+  links: Links<TEntity['links']>;
 
   /**
    * Gets the raw link object for a given relation.

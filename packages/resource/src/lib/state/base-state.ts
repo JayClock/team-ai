@@ -50,7 +50,7 @@ export class BaseHeadState<TEntity extends Entity>
     if (link.hints?.status !== 'deprecated') {
       return;
     }
-    // eslint-disable-next-line no-console
+     
     console.warn(
       `[Resource] The ${link.rel} link on ${this.uri} is marked deprecated.`,
       link,
@@ -65,24 +65,12 @@ export class BaseHeadState<TEntity extends Entity>
     return this.links.get(rel as string);
   }
 
-  private isBuffer(data: SafeAny): data is Buffer {
+  protected isBuffer(data: SafeAny): data is Buffer {
     return typeof Buffer !== 'undefined' && data instanceof Buffer;
   }
 
-  private isBlob(data: SafeAny): data is Blob {
+  protected isBlob(data: SafeAny): data is Blob {
     return typeof Blob !== 'undefined' && data instanceof Blob;
-  }
-
-  serializeBody(): Buffer | Blob | string {
-    const data = this.data as SafeAny;
-    if (
-      this.isBuffer(data) ||
-      this.isBlob(data) ||
-      typeof data === 'string'
-    ) {
-      return this.data;
-    }
-    return JSON.stringify(data);
   }
 
   contentHeaders(): Headers {
@@ -158,6 +146,18 @@ export class BaseState<TEntity extends Entity>
 
   override hasLink<K extends keyof TEntity['links']>(rel: K): boolean {
     return this.links.has(rel) || this.hasAction(rel);
+  }
+
+  serializeBody(): Buffer | Blob | string {
+    const data = this.data as SafeAny;
+    if (
+      this.isBuffer(data) ||
+      this.isBlob(data) ||
+      typeof data === 'string'
+    ) {
+      return this.data;
+    }
+    return JSON.stringify(data);
   }
 
   override follow<K extends keyof TEntity['links']>(

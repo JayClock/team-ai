@@ -266,7 +266,7 @@ export class ResourceRelation<TEntity extends Entity> {
 
     if (this.strategy.prefetch) {
       resource.get().catch((error: Error) => {
-        // eslint-disable-next-line no-console
+         
         console.warn('Error while prefetching linked resource', error);
       });
     }

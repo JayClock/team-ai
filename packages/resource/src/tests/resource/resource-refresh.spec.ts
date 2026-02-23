@@ -38,7 +38,7 @@ describe('Resource REFRESH Requests', () => {
 
   it('should de-duplicate identical refresh requests made concurrently', async () => {
     const refreshedState = { uri: resource.uri } as State<User>;
-    let resolveResponse: ((response: Response) => void) | null = null;
+    let resolveResponse!: (response: Response) => void;
     const responsePromise = new Promise<Response>((resolve) => {
       resolveResponse = resolve;
     });
@@ -51,7 +51,7 @@ describe('Resource REFRESH Requests', () => {
 
     expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(1);
 
-    resolveResponse?.(new Response(null, { status: 200 }));
+    resolveResponse(new Response(null, { status: 200 }));
 
     const [result1, result2] = await Promise.all([request1, request2]);
     expect(result1).toBe(result2);

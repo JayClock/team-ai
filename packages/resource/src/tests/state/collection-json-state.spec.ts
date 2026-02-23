@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ClientInstance } from '../../lib/client-instance.js';
 import { CollectionJsonStateFactory } from '../../lib/state/collection-json-state/collection-json-state.factory.js';
+import type { Collection, Entity } from '../../lib/index.js';
+
+type Book = Entity<{ title: string }>;
 
 const mockClient = {
   bookmarkUri: 'https://example.com/',
@@ -10,7 +13,7 @@ const mockClient = {
 describe('CollectionJsonStateFactory', () => {
   it('should parse collection links and collection items', async () => {
     const factory = new CollectionJsonStateFactory();
-    const state = await factory.create(
+    const state = await factory.create<Collection<Book>>(
       mockClient,
       {
         rel: '',
@@ -43,7 +46,7 @@ describe('CollectionJsonStateFactory', () => {
 
   it('should convert queries and template into actions', async () => {
     const factory = new CollectionJsonStateFactory();
-    const state = await factory.create(
+    const state = await factory.create<Collection<Book>>(
       mockClient,
       {
         rel: '',
