@@ -285,7 +285,10 @@ describe('Fetcher', () => {
         method: 'PUT',
       });
 
-      expect(mockClient.clearResourceCache).toHaveBeenCalledWith([], []);
+      expect(mockClient.clearResourceCache).toHaveBeenCalledWith(
+        ['https://api.example.com/resource'],
+        [],
+      );
       expect(mockClient.getStateForResponse).toHaveBeenCalledWith(
         {
           rel: '',

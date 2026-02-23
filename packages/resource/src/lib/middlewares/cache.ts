@@ -32,6 +32,8 @@ export function cacheMiddleware(client: ClientInstance): FetchMiddleware {
 
     if (request.method === 'DELETE') {
       deleted.push(request.url);
+    } else {
+      stale.push(request.url);
     }
 
     // If the response had a Link: rel=invalidate header, we want to
