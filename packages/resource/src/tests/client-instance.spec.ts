@@ -92,6 +92,18 @@ describe('ClientInstance', () => {
         ),
       ).toBeTruthy();
     });
+
+    it('should preserve provided link context when resolving relative href', () => {
+      const resource = clientInstance.go(
+        {
+          rel: 'accounts',
+          href: 'list',
+          context: 'https://www.example.com/api/users/1/',
+        } as unknown as Link,
+      );
+
+      expect(resource.uri).toEqual('https://www.example.com/api/users/1/list');
+    });
   });
 
   describe('getStateForResponse', () => {

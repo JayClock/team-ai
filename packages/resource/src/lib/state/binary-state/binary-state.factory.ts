@@ -5,6 +5,7 @@ import { ClientInstance } from 'src/lib/client-instance.js';
 import { BaseState } from '../base-state.js';
 import { parseHeaderLink } from '../../http/util.js';
 import { Link } from '../../links/link.js';
+import { resolve } from '../../util/uri.js';
 
 @injectable()
 export class BinaryStateFactory implements StateFactory {
@@ -17,7 +18,7 @@ export class BinaryStateFactory implements StateFactory {
       client,
       data: await response.blob(),
       headers: response.headers,
-      links: parseHeaderLink(client.bookmarkUri, response.headers),
+      links: parseHeaderLink(resolve(currentLink), response.headers),
       currentLink,
     });
   }

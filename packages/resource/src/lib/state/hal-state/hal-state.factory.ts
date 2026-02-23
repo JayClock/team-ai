@@ -40,7 +40,7 @@ export class HalStateFactory implements StateFactory {
   ): State<SafeAny> {
     const { _links, _embedded, _templates, ...pureData } = halResource;
     const headerLinks = parseHeaderLink(resolve(currentLink), headers);
-    const links = new Links(client.bookmarkUri, [
+    const links = new Links(resolve(currentLink), [
       ...headerLinks.getAll(),
       ...parseHalLinks(_links, _embedded),
     ]);

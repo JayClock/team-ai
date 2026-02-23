@@ -99,7 +99,11 @@ export class ClientInstance implements Client {
     } else if (typeof uri === 'string') {
       link = { rel: '', context: this.bookmarkUri, href: uri };
     } else {
-      link = { ...uri, context: this.bookmarkUri };
+      const uriWithOptionalContext = uri as NewLink & Partial<Link>;
+      link = {
+        ...uriWithOptionalContext,
+        context: uriWithOptionalContext.context ?? this.bookmarkUri,
+      };
     }
     const absoluteUri = resolve(link);
     if (!this.resources.has(absoluteUri)) {

@@ -52,6 +52,29 @@ describe('HalState', async () => {
       expect(state).toBeInstanceOf(BaseState);
     });
 
+    it('should resolve relative HAL links against the current resource uri', async () => {
+      const state = await halStateFactory.create(
+        mockClient,
+        {
+          rel: '',
+          href: '/api/users/1/',
+          context: mockClient.bookmarkUri,
+        },
+        Response.json({
+          _links: {
+            self: { href: '/api/users/1/' },
+            accounts: { href: 'accounts' },
+          },
+        }),
+      );
+
+      const accountsLink = state.getLink('accounts');
+      expect(accountsLink).toMatchObject({
+        href: 'accounts',
+        context: 'https://example.com/api/users/1/',
+      });
+    });
+
     it('should create collection from hal _embedded', async () => {
       const state = await halStateFactory.create<Collection<Account>>(
         mockClient,
