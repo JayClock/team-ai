@@ -14,6 +14,7 @@ import { TextStateFactory } from '../lib/state/text-state/text-state.factory.js'
 import { HtmlStateFactory } from '../lib/state/html-state/html-state.factory.js';
 import { JsonApiStateFactory } from '../lib/state/jsonapi-state/jsonapi-state.factory.js';
 import { SirenStateFactory } from '../lib/state/siren-state/siren-state.factory.js';
+import { CollectionJsonStateFactory } from '../lib/state/collection-json-state/collection-json-state.factory.js';
 import { ForeverCache, NeverCache } from '../lib/cache/index.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
@@ -48,6 +49,10 @@ const mockSirenStateFactory = {
   create: vi.fn(),
 } as SirenStateFactory;
 
+const mockCollectionJsonStateFactory = {
+  create: vi.fn(),
+} as CollectionJsonStateFactory;
+
 const mockCache = {
   store: vi.fn(),
   clear: vi.fn(),
@@ -66,6 +71,7 @@ describe('ClientInstance', () => {
     mockStreamStateFactory,
     mockJsonApiStateFactory,
     mockSirenStateFactory,
+    mockCollectionJsonStateFactory,
     mockHtmlStateFactory,
     mockTextStateFactory,
   );
@@ -87,6 +93,7 @@ describe('ClientInstance', () => {
       mockStreamStateFactory,
       mockJsonApiStateFactory,
       mockSirenStateFactory,
+      mockCollectionJsonStateFactory,
       mockHtmlStateFactory,
       mockTextStateFactory,
     );
@@ -220,6 +227,18 @@ describe('ClientInstance', () => {
       });
     });
 
+    describe('generate collection-json state', () => {
+      it('should generate collection-json state when content-type application/vnd.collection+json', () => {
+        clientInstance.getStateForResponse(
+          {} as Link,
+          new Response(null, {
+            headers: { 'Content-Type': 'application/vnd.collection+json' },
+          }),
+        );
+        expect(mockCollectionJsonStateFactory.create).toHaveBeenCalled();
+      });
+    });
+
     describe('generate stream state', () => {
       it('should generate hal state when content-type text/event-stream', () => {
         clientInstance.getStateForResponse(
@@ -284,6 +303,7 @@ describe('ClientInstance', () => {
         mockStreamStateFactory,
         mockJsonApiStateFactory,
         mockSirenStateFactory,
+        mockCollectionJsonStateFactory,
         mockHtmlStateFactory,
         mockTextStateFactory,
       );
@@ -394,6 +414,7 @@ describe('ClientInstance', () => {
         mockStreamStateFactory,
         mockJsonApiStateFactory,
         mockSirenStateFactory,
+        mockCollectionJsonStateFactory,
         mockHtmlStateFactory,
         mockTextStateFactory,
       );
