@@ -1,6 +1,18 @@
 #!/usr/bin/env sh
 
+set -e
+
+# Keep only the files that were staged at commit start.
+STAGED_FILES="$(mktemp)"
+trap 'rm -f "$STAGED_FILES"' EXIT
+git diff --cached --name-only -z > "$STAGED_FILES"
+
 nx affected -t spotlessApply
 nx affected -t typecheck
 nx affected -t format:write
 nx affected -t lint --fix
+
+# Re-stage only files that were already staged.
+while IFS= read -r -d '' file; do
+  git add -A -- "$file"
+done < "$STAGED_FILES"
