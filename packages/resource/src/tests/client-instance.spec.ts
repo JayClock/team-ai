@@ -11,6 +11,7 @@ import { HalStateFactory } from '../lib/state/hal-state/hal-state.factory.js';
 import { BinaryStateFactory } from '../lib/state/binary-state/binary-state.factory.js';
 import { StreamStateFactory } from '../lib/state/stream-state/stream-state.factory.js';
 import { TextStateFactory } from '../lib/state/text-state/text-state.factory.js';
+import { HtmlStateFactory } from '../lib/state/html-state/html-state.factory.js';
 import { ForeverCache, NeverCache } from '../lib/cache/index.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
@@ -33,6 +34,10 @@ const mockTextStateFactory = {
   create: vi.fn(),
 } as TextStateFactory;
 
+const mockHtmlStateFactory = {
+  create: vi.fn(),
+} as HtmlStateFactory;
+
 const mockCache = {
   store: vi.fn(),
   clear: vi.fn(),
@@ -49,6 +54,7 @@ describe('ClientInstance', () => {
     mockHalStateFactory,
     mockBinaryStateFactory,
     mockStreamStateFactory,
+    mockHtmlStateFactory,
     mockTextStateFactory,
   );
 
@@ -67,6 +73,7 @@ describe('ClientInstance', () => {
       mockHalStateFactory,
       mockBinaryStateFactory,
       mockStreamStateFactory,
+      mockHtmlStateFactory,
       mockTextStateFactory,
     );
 
@@ -187,6 +194,18 @@ describe('ClientInstance', () => {
       });
     });
 
+    describe('generate html state', () => {
+      it('should generate html state when content-type text/html', () => {
+        clientInstance.getStateForResponse(
+          {} as Link,
+          new Response('<html></html>', {
+            headers: { 'Content-Type': 'text/html' },
+          }),
+        );
+        expect(mockHtmlStateFactory.create).toHaveBeenCalled();
+      });
+    });
+
     describe('generate text state', () => {
       it('should generate text state when content-type text/plain', () => {
         clientInstance.getStateForResponse(
@@ -225,6 +244,7 @@ describe('ClientInstance', () => {
         mockHalStateFactory,
         mockBinaryStateFactory,
         mockStreamStateFactory,
+        mockHtmlStateFactory,
         mockTextStateFactory,
       );
 
@@ -332,6 +352,7 @@ describe('ClientInstance', () => {
         mockHalStateFactory,
         mockBinaryStateFactory,
         mockStreamStateFactory,
+        mockHtmlStateFactory,
         mockTextStateFactory,
       );
 
