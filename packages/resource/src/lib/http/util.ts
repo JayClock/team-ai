@@ -36,7 +36,7 @@ export function parseHeaderLink(
         hreflang: httpLink.hreflang,
         type: httpLink.type,
       };
-      result.set(link);
+      result.add(link);
     }
   }
   return result;
