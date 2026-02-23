@@ -12,6 +12,7 @@ import { BinaryStateFactory } from '../lib/state/binary-state/binary-state.facto
 import { StreamStateFactory } from '../lib/state/stream-state/stream-state.factory.js';
 import { TextStateFactory } from '../lib/state/text-state/text-state.factory.js';
 import { HtmlStateFactory } from '../lib/state/html-state/html-state.factory.js';
+import { JsonApiStateFactory } from '../lib/state/jsonapi-state/jsonapi-state.factory.js';
 import { ForeverCache, NeverCache } from '../lib/cache/index.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
@@ -38,6 +39,10 @@ const mockHtmlStateFactory = {
   create: vi.fn(),
 } as HtmlStateFactory;
 
+const mockJsonApiStateFactory = {
+  create: vi.fn(),
+} as JsonApiStateFactory;
+
 const mockCache = {
   store: vi.fn(),
   clear: vi.fn(),
@@ -54,6 +59,7 @@ describe('ClientInstance', () => {
     mockHalStateFactory,
     mockBinaryStateFactory,
     mockStreamStateFactory,
+    mockJsonApiStateFactory,
     mockHtmlStateFactory,
     mockTextStateFactory,
   );
@@ -73,6 +79,7 @@ describe('ClientInstance', () => {
       mockHalStateFactory,
       mockBinaryStateFactory,
       mockStreamStateFactory,
+      mockJsonApiStateFactory,
       mockHtmlStateFactory,
       mockTextStateFactory,
     );
@@ -182,6 +189,18 @@ describe('ClientInstance', () => {
       });
     });
 
+    describe('generate jsonapi state', () => {
+      it('should generate jsonapi state when content-type application/vnd.api+json', () => {
+        clientInstance.getStateForResponse(
+          {} as Link,
+          new Response(null, {
+            headers: { 'Content-Type': 'application/vnd.api+json' },
+          }),
+        );
+        expect(mockJsonApiStateFactory.create).toHaveBeenCalled();
+      });
+    });
+
     describe('generate stream state', () => {
       it('should generate hal state when content-type text/event-stream', () => {
         clientInstance.getStateForResponse(
@@ -244,6 +263,7 @@ describe('ClientInstance', () => {
         mockHalStateFactory,
         mockBinaryStateFactory,
         mockStreamStateFactory,
+        mockJsonApiStateFactory,
         mockHtmlStateFactory,
         mockTextStateFactory,
       );
@@ -352,6 +372,7 @@ describe('ClientInstance', () => {
         mockHalStateFactory,
         mockBinaryStateFactory,
         mockStreamStateFactory,
+        mockJsonApiStateFactory,
         mockHtmlStateFactory,
         mockTextStateFactory,
       );
