@@ -13,6 +13,7 @@ import { StreamStateFactory } from '../lib/state/stream-state/stream-state.facto
 import { TextStateFactory } from '../lib/state/text-state/text-state.factory.js';
 import { HtmlStateFactory } from '../lib/state/html-state/html-state.factory.js';
 import { JsonApiStateFactory } from '../lib/state/jsonapi-state/jsonapi-state.factory.js';
+import { SirenStateFactory } from '../lib/state/siren-state/siren-state.factory.js';
 import { ForeverCache, NeverCache } from '../lib/cache/index.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
@@ -43,6 +44,10 @@ const mockJsonApiStateFactory = {
   create: vi.fn(),
 } as JsonApiStateFactory;
 
+const mockSirenStateFactory = {
+  create: vi.fn(),
+} as SirenStateFactory;
+
 const mockCache = {
   store: vi.fn(),
   clear: vi.fn(),
@@ -60,6 +65,7 @@ describe('ClientInstance', () => {
     mockBinaryStateFactory,
     mockStreamStateFactory,
     mockJsonApiStateFactory,
+    mockSirenStateFactory,
     mockHtmlStateFactory,
     mockTextStateFactory,
   );
@@ -80,6 +86,7 @@ describe('ClientInstance', () => {
       mockBinaryStateFactory,
       mockStreamStateFactory,
       mockJsonApiStateFactory,
+      mockSirenStateFactory,
       mockHtmlStateFactory,
       mockTextStateFactory,
     );
@@ -201,6 +208,18 @@ describe('ClientInstance', () => {
       });
     });
 
+    describe('generate siren state', () => {
+      it('should generate siren state when content-type application/vnd.siren+json', () => {
+        clientInstance.getStateForResponse(
+          {} as Link,
+          new Response(null, {
+            headers: { 'Content-Type': 'application/vnd.siren+json' },
+          }),
+        );
+        expect(mockSirenStateFactory.create).toHaveBeenCalled();
+      });
+    });
+
     describe('generate stream state', () => {
       it('should generate hal state when content-type text/event-stream', () => {
         clientInstance.getStateForResponse(
@@ -264,6 +283,7 @@ describe('ClientInstance', () => {
         mockBinaryStateFactory,
         mockStreamStateFactory,
         mockJsonApiStateFactory,
+        mockSirenStateFactory,
         mockHtmlStateFactory,
         mockTextStateFactory,
       );
@@ -373,6 +393,7 @@ describe('ClientInstance', () => {
         mockBinaryStateFactory,
         mockStreamStateFactory,
         mockJsonApiStateFactory,
+        mockSirenStateFactory,
         mockHtmlStateFactory,
         mockTextStateFactory,
       );

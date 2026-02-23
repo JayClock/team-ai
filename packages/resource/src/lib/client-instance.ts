@@ -17,6 +17,7 @@ import { StreamStateFactory } from './state/stream-state/stream-state.factory.js
 import { TextStateFactory } from './state/text-state/text-state.factory.js';
 import { HtmlStateFactory } from './state/html-state/html-state.factory.js';
 import { JsonApiStateFactory } from './state/jsonapi-state/jsonapi-state.factory.js';
+import { SirenStateFactory } from './state/siren-state/siren-state.factory.js';
 import { acceptMiddleware } from './middlewares/accept-header.js';
 import { cacheMiddleware } from './middlewares/cache.js';
 import { warningMiddleware } from './middlewares/warning.js';
@@ -75,6 +76,7 @@ export class ClientInstance implements Client {
     @inject(TYPES.StreamStateFactory)
     streamStateFactory: StreamStateFactory,
     private readonly jsonApiStateFactory: JsonApiStateFactory = new JsonApiStateFactory(),
+    private readonly sirenStateFactory: SirenStateFactory = new SirenStateFactory(),
     private readonly htmlStateFactory: HtmlStateFactory = new HtmlStateFactory(),
     private readonly textStateFactory: TextStateFactory = new TextStateFactory(),
   ) {
@@ -86,6 +88,11 @@ export class ClientInstance implements Client {
     this.registerContentType(
       'application/vnd.api+json',
       this.jsonApiStateFactory,
+      '0.8',
+    );
+    this.registerContentType(
+      'application/vnd.siren+json',
+      this.sirenStateFactory,
       '0.8',
     );
     this.registerContentType('application/json', halStateFactory, '0.7');
