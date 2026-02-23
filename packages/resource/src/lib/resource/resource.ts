@@ -62,6 +62,8 @@ import { ResourceRelation } from './resource-relation.js';
  */
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class Resource<TEntity extends Entity> extends EventEmitter {
+  private static readonly NO_STALE_HEADER = 'X-RESOURCE-NO-STALE';
+
   /**
    * Gets the complete URI of the current resource
    * @returns {string} The resolved complete URI
@@ -391,13 +393,28 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    * });
    * ```
    */
-  async put(requestOptions: PutRequestOptions): Promise<State<TEntity>> {
+  async put(requestOptions: PutRequestOptions): Promise<State<TEntity>>;
+  async put(requestOptions: State<TEntity>): Promise<State<TEntity>>;
+  async put(
+    requestOptions: PutRequestOptions | State<TEntity>,
+  ): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit('PUT', requestOptions ?? {});
+
+    if (this.isStatePayload(requestOptions)) {
+      const headers = new Headers(requestInit.headers);
+      headers.set(Resource.NO_STALE_HEADER, '1');
+      requestInit.headers = headers;
+    }
 
     const response = await this.client.fetcher.fetchOrThrow(
       this.uri,
       requestInit,
     );
+
+    if (this.isStatePayload(requestOptions)) {
+      this.updateCache(requestOptions);
+      return requestOptions;
+    }
 
     const state: State<TEntity> = await this.client.getStateForResponse(
       this.link,
@@ -507,6 +524,18 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
     }
 
     return uri + '|' + headerStr + '|' + bodyStr;
+  }
+
+  private isStatePayload(
+    requestOptions: PutRequestOptions | State<TEntity>,
+  ): requestOptions is State<TEntity> {
+    return (
+      typeof requestOptions === 'object' &&
+      requestOptions !== null &&
+      'uri' in requestOptions &&
+      'serializeBody' in requestOptions &&
+      'contentHeaders' in requestOptions
+    );
   }
 }
 

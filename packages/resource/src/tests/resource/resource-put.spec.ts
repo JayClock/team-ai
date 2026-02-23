@@ -75,4 +75,21 @@ describe('Resource PUT Requests', () => {
       options,
     );
   });
+
+  it('should support put(state) and suppress stale invalidation signal', async () => {
+    const selfResource = userState.follow('self');
+    const response = new Response(null, { status: 204 });
+
+    vi.spyOn(mockClient.fetcher, 'fetchOrThrow').mockResolvedValue(response);
+
+    const result = await selfResource.put(userState);
+
+    expect(result).toBe(userState);
+    expect(mockClient.fetcher.fetchOrThrow).toHaveBeenCalledTimes(1);
+    const requestInit = vi.mocked(mockClient.fetcher.fetchOrThrow).mock.calls[0][1];
+    const requestHeaders = new Headers(requestInit?.headers);
+    expect(requestHeaders.get('X-RESOURCE-NO-STALE')).toBe('1');
+    expect(mockClient.cacheState).toHaveBeenCalledWith(userState);
+    expect(mockClient.getStateForResponse).not.toHaveBeenCalled();
+  });
 });

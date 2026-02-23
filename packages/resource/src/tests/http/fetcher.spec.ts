@@ -260,6 +260,25 @@ describe('Fetcher', () => {
       );
     });
 
+    it('should skip stale event invalidation when no-stale request header is present', async () => {
+      const mockClient = {
+        clearResourceCache: vi.fn(),
+      } as unknown as ClientInstance;
+
+      fetcher.use(cacheMiddleware(mockClient));
+
+      mockFetch.mockResolvedValue(new Response(null, { status: 204 }));
+
+      await fetcher.fetchOrThrow('https://api.example.com/resource', {
+        method: 'PUT',
+        headers: {
+          'X-RESOURCE-NO-STALE': '1',
+        },
+      });
+
+      expect(mockClient.clearResourceCache).toHaveBeenCalledWith([], []);
+    });
+
     it('should use cache middle to update data with content-location', async () => {
       const mockClient = {
         clearResourceCache: vi.fn(),

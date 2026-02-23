@@ -15,6 +15,12 @@ import { isSafeMethod } from '../http/util.js';
  */
 export function cacheMiddleware(client: ClientInstance): FetchMiddleware {
   return async (request, next) => {
+    let noStaleEvent = false;
+    if (request.headers.has('X-RESOURCE-NO-STALE')) {
+      noStaleEvent = true;
+      request.headers.delete('X-RESOURCE-NO-STALE');
+    }
+
     const response = await next(request);
 
     if (isSafeMethod(request.method)) {
@@ -32,7 +38,7 @@ export function cacheMiddleware(client: ClientInstance): FetchMiddleware {
 
     if (request.method === 'DELETE') {
       deleted.push(request.url);
-    } else {
+    } else if (!noStaleEvent) {
       stale.push(request.url);
     }
 
