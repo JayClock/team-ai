@@ -1,5 +1,5 @@
 import { describe, expect } from 'vitest';
-import { NeverCache } from '../../lib/cache/intex.js';
+import { NeverCache } from '../../lib/cache/index.js';
 import { State } from '../../lib/state/state.js';
 import { Entity } from '../../lib/archtype/entity.js';
 

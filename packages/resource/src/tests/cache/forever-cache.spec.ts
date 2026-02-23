@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect } from 'vitest';
-import { ForeverCache } from '../../lib/cache/intex.js';
+import { ForeverCache } from '../../lib/cache/index.js';
 import { ClientInstance } from '../../lib/client-instance.js';
 import { State } from '../../lib/index.js';
 import { HalStateFactory } from '../../lib/state/hal-state/hal-state.factory.js';

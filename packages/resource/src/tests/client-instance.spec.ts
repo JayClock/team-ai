@@ -9,7 +9,7 @@ import { Link } from '../lib/links/link.js';
 import { HalStateFactory } from '../lib/state/hal-state/hal-state.factory.js';
 import { BinaryStateFactory } from '../lib/state/binary-state/binary-state.factory.js';
 import { StreamStateFactory } from '../lib/state/stream-state/stream-state.factory.js';
-import { ForeverCache, NeverCache } from '../lib/cache/intex.js';
+import { ForeverCache, NeverCache } from '../lib/cache/index.js';
 
 const mockFetcher = { use: vi.fn() } as unknown as Fetcher;
 
