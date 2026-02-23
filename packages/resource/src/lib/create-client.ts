@@ -5,6 +5,7 @@ import { NewLink } from './links/link.js';
 import { container } from './container.js';
 import { FetchMiddleware } from './http/fetcher.js';
 import { Resource } from './index.js';
+import type { StateFactory } from './state/state.js';
 
 /**
  * A HATEOAS client for navigating HAL-compliant REST APIs.
@@ -72,6 +73,18 @@ export interface Client {
    * ```
    */
   use(middleware: FetchMiddleware, origin?: string): void;
+
+  /**
+   * Registers or overrides a content-type parser at runtime.
+   *
+   * Use this to plug in parsers for media types such as JSON:API, Siren,
+   * Collection+JSON, HTML, or any custom type.
+   */
+  registerContentType(
+    mimeType: string,
+    factory: StateFactory,
+    quality?: string,
+  ): void;
 }
 
 /**

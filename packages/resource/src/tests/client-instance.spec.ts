@@ -179,6 +179,56 @@ describe('ClientInstance', () => {
         expect(mockStreamStateFactory.create).toHaveBeenCalled();
       });
     });
+
+    it('should use configured custom content type factories', () => {
+      const customFactory = {
+        create: vi.fn(),
+      };
+      const instance = new ClientInstance(
+        mockFetcher,
+        {
+          ...mockConfig,
+          contentTypeMap: {
+            'application/vnd.api+json': customFactory,
+          },
+        },
+        mockCache,
+        mockHalStateFactory,
+        mockBinaryStateFactory,
+        mockStreamStateFactory,
+      );
+
+      instance.getStateForResponse(
+        {} as Link,
+        new Response(null, {
+          headers: { 'Content-Type': 'application/vnd.api+json' },
+        }),
+      );
+
+      expect(customFactory.create).toHaveBeenCalled();
+    });
+
+    it('should allow registering content type factories at runtime', () => {
+      const customFactory = {
+        create: vi.fn(),
+      };
+
+      clientInstance.registerContentType(
+        'application/vnd.collection+json',
+        customFactory as never,
+        '0.8',
+      );
+
+      clientInstance.getStateForResponse(
+        {} as Link,
+        new Response(null, {
+          headers: { 'Content-Type': 'application/vnd.collection+json' },
+        }),
+      );
+
+      expect(customFactory.create).toHaveBeenCalled();
+      expect(clientInstance.contentTypeMap['application/vnd.collection+json'][1]).toBe('0.8');
+    });
   });
 
   describe('cache', () => {

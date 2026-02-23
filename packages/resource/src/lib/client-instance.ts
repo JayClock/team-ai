@@ -19,6 +19,19 @@ import { cacheMiddleware } from './middlewares/cache.js';
 import { warningMiddleware } from './middlewares/warning.js';
 import { BaseHeadState } from './state/base-state.js';
 import { Links } from './links/links.js';
+import type { ContentTypeFactoryConfig } from './archtype/config.js';
+
+function normalizeContentTypeFactory(
+  config: ContentTypeFactoryConfig,
+): [StateFactory, string] {
+  if (Array.isArray(config)) {
+    return [config[0], config[1] ?? '0.5'];
+  }
+  if ('create' in config) {
+    return [config, '0.5'];
+  }
+  return [config.factory, config.quality ?? '0.5'];
+}
 
 /**
  * Internal Client implementation with dependency injection.
@@ -62,16 +75,17 @@ export class ClientInstance implements Client {
     this.bookmarkUri = config.baseURL;
     this.cache = config.cache ?? cache;
 
-    this.contentTypeMap = {
-      'application/prs.hal-forms+json': [halStateFactory, '1.0'],
-      'application/hal+json': [halStateFactory, '0.9'],
-      // 'application/vnd.api+json': [jsonApiStateFactory, '0.8'],
-      // 'application/vnd.siren+json': [sirenStateFactory, '0.8'],
-      // 'application/vnd.collection+json': [cjStateFactory, '0.8'],
-      'application/json': [halStateFactory, '0.7'],
-      // 'text/html': [htmlStateFactory, '0.6'],
-      'text/event-stream': [streamStateFactory, '0.5'],
-    };
+    this.registerContentType('application/prs.hal-forms+json', halStateFactory, '1.0');
+    this.registerContentType('application/hal+json', halStateFactory, '0.9');
+    this.registerContentType('application/json', halStateFactory, '0.7');
+    this.registerContentType('text/event-stream', streamStateFactory, '0.5');
+
+    for (const [contentType, factoryConfig] of Object.entries(
+      config.contentTypeMap ?? {},
+    )) {
+      const [factory, quality] = normalizeContentTypeFactory(factoryConfig);
+      this.registerContentType(contentType, factory, quality);
+    }
 
     this.use(acceptMiddleware(this));
     this.use(cacheMiddleware(this));
@@ -87,6 +101,14 @@ export class ClientInstance implements Client {
   contentTypeMap: {
     [mimeType: string]: [StateFactory, string];
   } = {};
+
+  registerContentType(
+    mimeType: string,
+    factory: StateFactory,
+    quality = '0.5',
+  ) {
+    this.contentTypeMap[mimeType] = [factory, quality];
+  }
 
   /**
    * Navigates to a resource by URI or link.
