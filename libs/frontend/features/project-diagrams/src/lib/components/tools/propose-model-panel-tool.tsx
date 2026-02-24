@@ -379,6 +379,43 @@ function normalizeRef(value: unknown): { id: string } | null {
   return typeof id === 'string' ? { id } : null;
 }
 
+function formatDraftSummaryMessage(draft: {
+  nodes: DiagramNode['data'][];
+  edges: DiagramEdge['data'][];
+}, options?: { streaming?: boolean }): string {
+  const nodeLines =
+    draft.nodes.length > 0
+      ? draft.nodes.map((node, index) => {
+          const displayName = node.localData.label || node.localData.name || node.id;
+          return `${index + 1}. ${displayName} [id=${node.id}, type=${node.localData.type}]`;
+        })
+      : ['(empty)'];
+
+  const edgeLines =
+    draft.edges.length > 0
+      ? draft.edges.map((edge, index) => {
+          const relation = edge.relationType ?? edge.label ?? '关联';
+          return `${index + 1}. ${edge.sourceNode.id} -> ${edge.targetNode.id} (${relation})`;
+        })
+      : ['(empty)'];
+
+  const title = options?.streaming ? 'AI 正在读取，当前草稿：' : 'AI 读取完成，草稿如下：';
+  return [title, 'Nodes:', ...nodeLines, 'Edges:', ...edgeLines].join('\n');
+}
+
+function waitForNextPaint(): Promise<void> {
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+    return new Promise((resolve) => {
+      window.requestAnimationFrame(() => {
+        resolve();
+      });
+    });
+  }
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 export function useProposeModelDraft({
   onDraftApplyOptimistic,
   onDraftApplyReverted,
@@ -494,24 +531,12 @@ export function ProposeModelPanelTool({
       const decoder = new TextDecoder();
       let sseBuffer = '';
       let draftJsonBuffer = '';
+      const streamMessageId = `assistant-stream-${Date.now()}`;
       let latestDraft: {
         nodes: DiagramNode['data'][];
         edges: DiagramEdge['data'][];
       } | null = null;
       let streamCompleted = false;
-
-      const syncDraftPreview = () => {
-        const parsed = tryParseDraft(draftJsonBuffer);
-        if (!parsed || parsed.nodes.length === 0) {
-          return;
-        }
-        latestDraft = parsed;
-        const preview = buildOptimisticDraftPreview(parsed);
-        onDraftApplyOptimistic?.({
-          draft: parsed,
-          preview,
-        });
-      };
 
       const processSseEvent = (eventBlock: string) => {
         const streamEvent = parseStreamEvent(parseSseEnvelope(eventBlock));
@@ -521,7 +546,22 @@ export function ProposeModelPanelTool({
 
         if (streamEvent.type === 'chunk') {
           draftJsonBuffer += streamEvent.content;
-          syncDraftPreview();
+          const parsed = tryParseDraft(draftJsonBuffer);
+          if (parsed) {
+            latestDraft = parsed;
+            setMessages((prev) => {
+              const message: ChatMessage = {
+                id: streamMessageId,
+                role: 'assistant',
+                content: formatDraftSummaryMessage(parsed, { streaming: true }),
+              };
+              const idx = prev.findIndex((item) => item.id === streamMessageId);
+              if (idx < 0) {
+                return [...prev, message];
+              }
+              return prev.map((item, index) => (index === idx ? message : item));
+            });
+          }
           return;
         }
 
@@ -575,6 +615,20 @@ export function ProposeModelPanelTool({
         throw new Error('模型流式响应异常中断。');
       }
 
+      setMessages((prev) => {
+        const message: ChatMessage = {
+          id: streamMessageId,
+          role: 'assistant',
+          content: formatDraftSummaryMessage(latestDraft),
+        };
+        const idx = prev.findIndex((item) => item.id === streamMessageId);
+        if (idx < 0) {
+          return [...prev, message];
+        }
+        return prev.map((item, index) => (index === idx ? message : item));
+      });
+      await waitForNextPaint();
+
       const preview = buildOptimisticDraftPreview(latestDraft);
       onDraftApplyOptimistic?.({
         draft: latestDraft,
@@ -585,7 +639,7 @@ export function ProposeModelPanelTool({
         {
           id: `assistant-complete-${Date.now()}`,
           role: 'assistant',
-          content: '草稿已生成，画布已更新。',
+          content: '已完成位置计算，画布已更新。',
         },
       ]);
     } catch (e) {
@@ -634,7 +688,7 @@ export function ProposeModelPanelTool({
                       <MessageContent>
                         <div className="text-muted-foreground flex items-center gap-2 text-sm">
                           <Spinner className="size-4" />
-                          正在生成草稿并更新画布...
+                          正在读取 AI 输出...
                         </div>
                       </MessageContent>
                     </Message>
