@@ -2,19 +2,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import path from 'path';
+import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/apps/web',
-  resolve: {
-    alias: {
-      '@shared/ui': path.resolve(
-        __dirname,
-        '../../libs/frontend/shared/ui/src',
-      ),
-    },
-  },
   server: {
     port: 4200,
     host: 'localhost',
@@ -30,6 +22,7 @@ export default defineConfig(() => ({
     host: 'localhost',
   },
   plugins: [
+    nxViteTsPaths(),
     react({
       babel: {
         plugins: [

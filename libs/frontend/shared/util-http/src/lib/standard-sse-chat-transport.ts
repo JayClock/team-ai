@@ -82,52 +82,52 @@ export class StandardSseChatTransport<
 
     return stream.pipeThrough(
       new TransformStream<Uint8Array<ArrayBufferLike>, UIMessageChunk>({
-          start(controller) {
-            controller.enqueue({ type: 'start' });
-            controller.enqueue({ type: 'start-step' });
-            controller.enqueue({ type: 'text-start', id: textPartId });
-          },
-          transform(chunk, controller) {
-            if (completed) {
-              return;
+        start(controller) {
+          controller.enqueue({ type: 'start' });
+          controller.enqueue({ type: 'start-step' });
+          controller.enqueue({ type: 'text-start', id: textPartId });
+        },
+        transform(chunk, controller) {
+          if (completed) {
+            return;
+          }
+
+          buffer += normalizeLineEndings(decoder.decode(chunk, { stream: true }));
+
+          let separatorIndex = buffer.indexOf('\n\n');
+          while (separatorIndex >= 0) {
+            const eventBlock = buffer.slice(0, separatorIndex).trim();
+            buffer = buffer.slice(separatorIndex + 2);
+
+            if (eventBlock.length > 0) {
+              processEvent(eventBlock, controller);
             }
 
-            buffer += normalizeLineEndings(decoder.decode(chunk, { stream: true }));
+            separatorIndex = buffer.indexOf('\n\n');
+          }
+        },
+        flush(controller) {
+          const finalChunk = decoder.decode();
+          if (!completed && finalChunk.length > 0) {
+            buffer += normalizeLineEndings(finalChunk);
+          }
 
-            let separatorIndex = buffer.indexOf('\n\n');
-            while (separatorIndex >= 0) {
-              const eventBlock = buffer.slice(0, separatorIndex).trim();
-              buffer = buffer.slice(separatorIndex + 2);
-
-              if (eventBlock.length > 0) {
-                processEvent(eventBlock, controller);
-              }
-
-              separatorIndex = buffer.indexOf('\n\n');
+          if (!completed) {
+            const finalBlock = buffer.trim();
+            if (finalBlock.length > 0) {
+              processEvent(finalBlock, controller);
             }
-          },
-          flush(controller) {
-            const finalChunk = decoder.decode();
-            if (!completed && finalChunk.length > 0) {
-              buffer += normalizeLineEndings(finalChunk);
-            }
+          }
 
-            if (!completed) {
-              const finalBlock = buffer.trim();
-              if (finalBlock.length > 0) {
-                processEvent(finalBlock, controller);
-              }
-            }
+          if (!completed) {
+            throw new Error('Chat stream interrupted before complete event');
+          }
 
-            if (!completed) {
-              throw new Error('Chat stream interrupted before complete event');
-            }
-
-            controller.enqueue({ type: 'text-end', id: textPartId });
-            controller.enqueue({ type: 'finish-step' });
-            controller.enqueue({ type: 'finish', finishReason: 'stop' });
-          },
-        }),
+          controller.enqueue({ type: 'text-end', id: textPartId });
+          controller.enqueue({ type: 'finish-step' });
+          controller.enqueue({ type: 'finish', finishReason: 'stop' });
+        },
+      }),
     );
   }
 }

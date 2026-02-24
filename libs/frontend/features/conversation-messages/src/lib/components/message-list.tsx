@@ -24,8 +24,8 @@ import {
   Suggestions,
   Suggestion,
 } from '@shared/ui';
+import { StandardSseChatTransport } from '@shared/util-http';
 import { useState } from 'react';
-import { StandardSseChatTransport } from './standard-sse-chat-transport';
 import { type Signal } from '@preact/signals-react';
 
 interface MessageListProps {
