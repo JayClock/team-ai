@@ -141,7 +141,9 @@ async function loadNextPageAndWait(
     void
   >['result'],
 ) {
-  await result.current.loadNextPage();
+  await act(async () => {
+    await result.current.loadNextPage();
+  });
 
   await waitFor(() => {
     expect(result.current.loading).toBe(false);
@@ -221,7 +223,9 @@ describe('useInfiniteCollection', () => {
 
     const { result } = await setupHookWithLoading(mockResource);
 
-    await result.current.loadNextPage();
+    await act(async () => {
+      await result.current.loadNextPage();
+    });
 
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       'loadNextPage was called, but there was no next page',
@@ -250,12 +254,13 @@ describe('useInfiniteCollection', () => {
     const { result } = await setupHookWithLoading(mockResource);
 
     // First call
-    const firstCall = result.current.loadNextPage();
-    // Second call immediately (should be ignored)
-    const secondCall = result.current.loadNextPage();
-
-    await firstCall;
-    await secondCall;
+    await act(async () => {
+      const firstCall = result.current.loadNextPage();
+      // Second call immediately (should be ignored)
+      const secondCall = result.current.loadNextPage();
+      await firstCall;
+      await secondCall;
+    });
 
     expect(consoleWarnSpy).toHaveBeenCalledWith(
       'You called loadNextPage(), but it was an old copy. You should not memoize or store a reference to this function, but instead always use the one that was returned last. We ignored this call',

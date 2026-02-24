@@ -1,7 +1,6 @@
 import { Entity, Resource, State } from '@hateoas-ts/resource';
-import { use, useMemo } from 'react';
 import { ResourceLike } from './use-resolve-resource';
-import { useSuspenseResolveResource } from './use-suspense-resolve-resource';
+import { useSuspenseReadResource } from './use-suspense-read-resource';
 
 /**
  * The result of a useSuspenseResource hook.
@@ -60,11 +59,7 @@ export type UseSuspenseResourceResponse<T extends Entity> = {
 export function useSuspenseResource<T extends Entity>(
   resourceLike: ResourceLike<T>,
 ): UseSuspenseResourceResponse<T> {
-  const resource = useSuspenseResolveResource(resourceLike);
-
-  const promise = useMemo(() => resource.get(), [resource]);
-
-  const resourceState = use(promise);
+  const { resource, resourceState } = useSuspenseReadResource(resourceLike);
 
   return {
     data: resourceState.data,

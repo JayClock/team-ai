@@ -4,9 +4,9 @@ import {
   Resource,
   State,
 } from '@hateoas-ts/resource';
-import { use, useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { ResourceLike } from './use-resolve-resource';
-import { useSuspenseResolveResource } from './use-suspense-resolve-resource';
+import { useSuspenseReadResource } from './use-suspense-read-resource';
 
 /**
  * The result of a useSuspenseInfiniteCollection hook.
@@ -81,11 +81,7 @@ export type UseSuspenseInfiniteCollectionResponse<T extends Entity> = {
 export function useSuspenseInfiniteCollection<T extends Entity>(
   resourceLike: ResourceLike<T>,
 ): UseSuspenseInfiniteCollectionResponse<T> {
-  const resource = useSuspenseResolveResource(resourceLike);
-
-  const initialPromise = useMemo(() => resource.get(), [resource]);
-
-  const initialState = use(initialPromise);
+  const { resourceState: initialState } = useSuspenseReadResource(resourceLike);
 
   const [items, setItems] = useState<State<ExtractCollectionElement<T>>[]>(
     () => [...initialState.collection],
