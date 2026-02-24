@@ -190,6 +190,27 @@ describe('useInfiniteCollection', () => {
     expect(result.current.hasNextPage).toBe(true);
   });
 
+  it('should initialize items from initialState option', async () => {
+    const initialCollection = [createMockItem('1', 'Item 1')];
+    const initialState = createMockResourceState(initialCollection, false);
+    const resource = createMockResource(initialState);
+
+    const { result } = renderHook(
+      () =>
+        useInfiniteCollection(resource, {
+          initialState,
+        }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.items).toEqual(initialCollection);
+    expect(result.current.hasNextPage).toBe(false);
+  });
+
   it('should load next page and append items', async () => {
     const firstPageCollection = [createMockItem('1', 'Item 1')];
     const secondPageCollection = [createMockItem('2', 'Item 2')];

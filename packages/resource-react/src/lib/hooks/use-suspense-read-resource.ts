@@ -1,5 +1,5 @@
 import { Entity, Resource, State } from '@hateoas-ts/resource';
-import { use, useMemo } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import { ResourceLike } from './use-resolve-resource';
 import { useSuspenseResolveResource } from './use-suspense-resolve-resource';
 
@@ -14,6 +14,12 @@ export type UseSuspenseReadResourceResponse<T extends Entity> = {
   resource: Resource<T>;
 };
 
+export type UseSuspenseReadResourceOptions<T extends Entity> = {
+  initialState?: State<T>;
+  refreshOnStale?: boolean;
+  initialGetRequestHeaders?: Record<string, string>;
+};
+
 /**
  * Internal Suspense-enabled hook for reading resource state.
  *
@@ -26,11 +32,65 @@ export type UseSuspenseReadResourceResponse<T extends Entity> = {
  */
 export function useSuspenseReadResource<T extends Entity>(
   resourceLike: ResourceLike<T>,
+  options: UseSuspenseReadResourceOptions<T> = {},
 ): UseSuspenseReadResourceResponse<T> {
+  const {
+    initialState,
+    refreshOnStale = false,
+    initialGetRequestHeaders,
+  } = options;
   const resource = useSuspenseResolveResource(resourceLike);
 
-  const getPromise = useMemo(() => resource.get(), [resource]);
-  const resourceState = use(getPromise);
+  const [liveState, setLiveState] = useState<State<T> | null>(null);
+  const [liveError, setLiveError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const onUpdate = (newState: State<T>) => {
+      setLiveState(newState.clone());
+      setLiveError(null);
+    };
+
+    const onStale = () => {
+      if (refreshOnStale) {
+        resource.refresh().catch((err: unknown) => {
+          setLiveError(err instanceof Error ? err : new Error(String(err)));
+        });
+      }
+    };
+
+    resource.on('update', onUpdate);
+    resource.on('stale', onStale);
+
+    return function unmount() {
+      resource.off('update', onUpdate);
+      resource.off('stale', onStale);
+    };
+  }, [refreshOnStale, resource]);
+
+  const localState =
+    liveState?.uri === resource.uri
+      ? liveState
+      : initialState?.uri === resource.uri
+        ? initialState
+        : null;
+
+  const getState = useMemo(
+    () => () => resource.get({ headers: initialGetRequestHeaders }),
+    [initialGetRequestHeaders, resource],
+  );
+
+  if (liveError) {
+    throw liveError;
+  }
+
+  if (localState) {
+    return {
+      resource,
+      resourceState: localState,
+    };
+  }
+
+  const resourceState = use(getState());
 
   return {
     resource,

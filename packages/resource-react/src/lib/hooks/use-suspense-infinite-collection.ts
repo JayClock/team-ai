@@ -6,7 +6,10 @@ import {
 } from '@hateoas-ts/resource';
 import { useRef, useState } from 'react';
 import { ResourceLike } from './use-resolve-resource';
-import { useSuspenseReadResource } from './use-suspense-read-resource';
+import {
+  UseSuspenseReadResourceOptions,
+  useSuspenseReadResource,
+} from './use-suspense-read-resource';
 
 /**
  * The result of a useSuspenseInfiniteCollection hook.
@@ -15,6 +18,8 @@ import { useSuspenseReadResource } from './use-suspense-read-resource';
 export type UseSuspenseInfiniteCollectionResponse<T extends Entity> = {
   /** Array of collection item states */
   items: State<ExtractCollectionElement<T>>[];
+  /** True when loading additional pages (alias for isLoadingMore) */
+  loading: boolean;
   /** Whether there's a next page available */
   hasNextPage: boolean;
   /** Function to load the next page of items */
@@ -24,6 +29,9 @@ export type UseSuspenseInfiniteCollectionResponse<T extends Entity> = {
   /** Error object if loading more pages failed */
   error: Error | null;
 };
+
+export type UseSuspenseInfiniteCollectionOptions<T extends Entity> =
+  UseSuspenseReadResourceOptions<T>;
 
 /**
  * Suspense-enabled hook for fetching a paginated collection.
@@ -80,8 +88,12 @@ export type UseSuspenseInfiniteCollectionResponse<T extends Entity> = {
  */
 export function useSuspenseInfiniteCollection<T extends Entity>(
   resourceLike: ResourceLike<T>,
+  options: UseSuspenseInfiniteCollectionOptions<T> = {},
 ): UseSuspenseInfiniteCollectionResponse<T> {
-  const { resourceState: initialState } = useSuspenseReadResource(resourceLike);
+  const { resourceState: initialState } = useSuspenseReadResource(
+    resourceLike,
+    options,
+  );
 
   const [items, setItems] = useState<State<ExtractCollectionElement<T>>[]>(
     () => [...initialState.collection],
@@ -131,6 +143,7 @@ export function useSuspenseInfiniteCollection<T extends Entity>(
 
   return {
     items,
+    loading: isLoadingMore,
     hasNextPage: nextPageResource.current !== null,
     loadNextPage,
     isLoadingMore,

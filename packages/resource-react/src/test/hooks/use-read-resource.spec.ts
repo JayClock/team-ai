@@ -110,6 +110,26 @@ describe('useReadResource', () => {
     expect(mockClient.cache.get).not.toHaveBeenCalled();
   });
 
+  it('uses initialState immediately and does not fetch when uri matches', async () => {
+    const { state } = createMockState('/api/users/initial');
+    const mockResource = createMockResource(state);
+
+    const { result } = renderHook(
+      () =>
+        useReadResource(mockResource.resource, {
+          initialState: state,
+        }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.resourceState).toBe(state);
+    expect(mockResource.get).not.toHaveBeenCalled();
+  });
+
   it('uses cached state and skips initial get request', async () => {
     const { state } = createMockState('/api/users/1');
     const mockResource = createMockResource(state);

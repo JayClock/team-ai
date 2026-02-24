@@ -6,7 +6,9 @@ import {
 } from '@hateoas-ts/resource';
 import { ResourceLike } from './use-resolve-resource';
 import { useEffect, useRef, useState } from 'react';
-import { useReadResource } from './use-read-resource';
+import { UseReadResourceOptions, useReadResource } from './use-read-resource';
+
+export type UseInfiniteCollectionOptions<T extends Entity> = UseReadResourceOptions<T>;
 
 /**
  * Hook for managing infinite scroll/pagination of HATEOAS collection resources.
@@ -52,10 +54,14 @@ import { useReadResource } from './use-read-resource';
  */
 export function useInfiniteCollection<T extends Entity>(
   resourceLike: ResourceLike<T>,
+  options: UseInfiniteCollectionOptions<T> = {},
 ) {
-  const [items, setItems] = useState<State<ExtractCollectionElement<T>>[]>([]);
-  const bc = useReadResource(resourceLike);
-  const [loading, setLoading] = useState(true);
+  const bc = useReadResource(resourceLike, options);
+  const [items, setItems] = useState<State<ExtractCollectionElement<T>>[]>(
+    () => [...(bc.resourceState?.collection ?? [])],
+  );
+  const baseCollectionUri = useRef<string | null>(bc.resourceState?.uri ?? null);
+  const [loading, setLoading] = useState(bc.loading);
 
   const nextPageResource = useRef<Resource<T> | null>(null);
   const [pageError, setPageError] = useState<Error | null>(null);
@@ -63,9 +69,10 @@ export function useInfiniteCollection<T extends Entity>(
   useEffect(() => {
     if (!bc.loading) {
       if (bc.resourceState) {
-        setItems((prevItems) => {
-          return prevItems.concat(bc.resourceState.collection);
-        });
+        if (baseCollectionUri.current !== bc.resourceState.uri) {
+          setItems([...bc.resourceState.collection]);
+          baseCollectionUri.current = bc.resourceState.uri;
+        }
         nextPageResource.current = bc.resourceState.hasLink('next')
           ? bc.resourceState.follow('next')
           : null;

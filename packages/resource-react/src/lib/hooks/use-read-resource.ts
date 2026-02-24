@@ -84,7 +84,7 @@ export function useReadResource<T extends Entity>(
   const client = useClient();
 
   const [resourceState, setResourceState] = useResourceState(resource, initialState, client);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialState == null);
   const [error, setError] = useState<null | Error>(null);
 
   useEffect(() => {
