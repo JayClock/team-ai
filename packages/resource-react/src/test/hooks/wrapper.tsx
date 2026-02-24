@@ -5,6 +5,9 @@ import { vi } from 'vitest';
 
 export const mockClient = {
   go: vi.fn(),
+  cache: {
+    get: vi.fn(),
+  },
 } as unknown as Client;
 
 export const wrapper = ({ children }: { children: React.ReactNode }) => {

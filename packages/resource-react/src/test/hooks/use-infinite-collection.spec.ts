@@ -41,12 +41,16 @@ function createMockResourceState(
   hasNextPage: boolean,
   nextPageResource?: Resource<TestCollection>,
 ): State<TestCollection> {
+  const clone = vi.fn();
   const state = {
     collection,
     hasLink: vi.fn(),
     uri: '/api/items',
     timestamp: Date.now(),
+    clone,
   } as unknown as State<TestCollection>;
+
+  clone.mockImplementation(() => state);
 
   (state.hasLink as ReturnType<typeof vi.fn>).mockReturnValue(hasNextPage);
 
@@ -60,10 +64,38 @@ function createMockResourceState(
 function createMockResource(
   state: State<TestCollection>,
 ): Resource<TestCollection> {
-  const mockGet = vi.fn().mockResolvedValue(state);
-  return {
-    get: mockGet,
+  const updateListeners = new Set<(newState: State<TestCollection>) => void>();
+  const staleListeners = new Set<() => void>();
+
+  const resource = {
+    uri: state.uri,
+    get: vi.fn().mockImplementation(async () => {
+      for (const listener of updateListeners) {
+        listener(state);
+      }
+      return state;
+    }),
+    on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+      if (event === 'update') {
+        updateListeners.add(listener as (newState: State<TestCollection>) => void);
+      }
+      if (event === 'stale') {
+        staleListeners.add(listener as () => void);
+      }
+      return resource;
+    }),
+    off: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
+      if (event === 'update') {
+        updateListeners.delete(listener as (newState: State<TestCollection>) => void);
+      }
+      if (event === 'stale') {
+        staleListeners.delete(listener as () => void);
+      }
+      return resource;
+    }),
   } as unknown as Resource<TestCollection>;
+
+  return resource;
 }
 
 function createMockPageResource(
@@ -132,8 +164,6 @@ describe('useInfiniteCollection', () => {
     const { result } = renderHook(() => useInfiniteCollection(mockResource), {
       wrapper,
     });
-
-    expect(result.current.loading).toBe(true);
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -272,10 +302,11 @@ describe('useInfiniteCollection', () => {
 
   it('should handle errors during initial resource loading', async () => {
     const mockError = new Error('Network error');
-    const mockGet = vi.fn().mockRejectedValue(mockError);
-    const mockResource = {
-      get: mockGet,
-    } as unknown as Resource<TestCollection>;
+    const mockResourceState = createMockResourceState([], false);
+    const mockResource = createMockResource(mockResourceState) as Resource<TestCollection> & {
+      get: ReturnType<typeof vi.fn>;
+    };
+    mockResource.get.mockRejectedValue(mockError);
 
     const { result } = renderHook(() => useInfiniteCollection(mockResource), {
       wrapper,

@@ -4,7 +4,7 @@ import { Entity } from './archtype/entity.js';
 import { NewLink } from './links/link.js';
 import { createContainer } from './container.js';
 import { FetchMiddleware } from './http/fetcher.js';
-import { Resource } from './index.js';
+import { Cache, Resource } from './index.js';
 import type { StateFactory } from './state/state.js';
 
 /**
@@ -85,6 +85,8 @@ export interface Client {
     factory: StateFactory,
     quality?: string,
   ): void;
+
+  cache: Pick<Cache, 'get'>
 }
 
 /**

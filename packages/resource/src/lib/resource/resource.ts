@@ -589,7 +589,7 @@ export declare interface Resource<TEntity extends Entity> {
    * @param listener The event listener function that receives the state object as a parameter
    * @returns Returns the current instance for method chaining
    */
-  on(event: 'update', listener: (state: State) => void): this;
+  on(event: 'update', listener: (state: State<TEntity>) => void): this;
 
   /**
    * Subscribe to the 'stale' event
@@ -623,7 +623,7 @@ export declare interface Resource<TEntity extends Entity> {
    * @param listener The event listener function that receives the state object as a parameter
    * @returns Returns the current instance for method chaining
    */
-  once(event: 'update', listener: (state: State) => void): this;
+  once(event: 'update', listener: (state: State<TEntity>) => void): this;
 
   /**
    * Subscribe to the 'stale' event once, unsubscribing after first trigger.
@@ -650,7 +650,7 @@ export declare interface Resource<TEntity extends Entity> {
    * @param listener - The event listener function to remove
    * @returns The current instance for method chaining
    */
-  off(event: 'update', listener: (state: State) => void): this;
+  off(event: 'update', listener: (state: State<TEntity>) => void): this;
 
   /**
    * Unsubscribe from the 'stale' event.
@@ -678,7 +678,7 @@ export declare interface Resource<TEntity extends Entity> {
    * @returns Whether any listeners handled the event
    * @internal
    */
-  emit(event: 'update', state: State): boolean;
+  emit(event: 'update', state: State<TEntity>): boolean;
 
   /**
    * Emit the 'stale' event.

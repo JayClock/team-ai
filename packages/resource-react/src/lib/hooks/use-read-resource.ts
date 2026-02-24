@@ -1,6 +1,7 @@
-import { Entity, Resource, State as ResourceState } from '@hateoas-ts/resource';
+import { Client, Entity, Resource, State as ResourceState } from '@hateoas-ts/resource';
 import { useEffect, useState } from 'react';
 import { ResourceLike, useResolveResource } from './use-resolve-resource';
+import { useClient } from './use-client';
 
 type UseReadResourceResponse<T extends Entity> = {
   // True if there is no data yet
@@ -33,6 +34,15 @@ type UseReadResourceResponse<T extends Entity> = {
 
 export type UseReadResourceOptions<T extends Entity> = {
   initialState?: ResourceState<T>;
+  refreshOnStale?: boolean;
+
+  /**
+   * HTTP headers to include if there was no existing cache, and the initial
+   * GET request must be done to get the state.
+   *
+   * These headers are not used on subsequent refreshes/stale cases.
+   */
+  initialGetRequestHeaders?: Record<string, string>;
 };
 
 /**
@@ -62,9 +72,18 @@ export type UseReadResourceOptions<T extends Entity> = {
  */
 export function useReadResource<T extends Entity>(
   resourceLike: ResourceLike<T>,
+  options: UseReadResourceOptions<T> = {},
 ): UseReadResourceResponse<T> {
   const { resource, setResource } = useResolveResource(resourceLike);
-  const [resourceState, setResourceState] = useState<ResourceState<T>>();
+
+  const {
+    initialState,
+    refreshOnStale = false,
+    initialGetRequestHeaders,
+  } = options;
+  const client = useClient();
+
+  const [resourceState, setResourceState] = useResourceState(resource, initialState, client);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<null | Error>(null);
 
@@ -74,17 +93,64 @@ export function useReadResource<T extends Entity>(
       // No need to fetch resourceState for these cases.
       return;
     }
+
+    const onUpdate = (newState: ResourceState<T>) => {
+      setResourceState(newState.clone());
+      setLoading(false);
+    };
+
+    const onStale = () => {
+      if (refreshOnStale) {
+        resource
+          .refresh()
+          .catch(err => {
+            setError(err);
+            setLoading(false);
+          });
+      }
+    };
+
+    resource.on('update', onUpdate);
+    resource.on('stale', onStale);
+
+    return function unmount() {
+      resource.off('update', onUpdate);
+      resource.off('stale', onStale);
+    };
+  }, [refreshOnStale, resource, setResourceState]);
+
+  useEffect(() => {
+
+    // This effect is for fetching the initial ResourceState
+    if (resource === null) {
+      // No need to fetch resourceState for these cases.
+      return;
+    }
+
+    if (resourceState && resourceState.uri === resource.uri) {
+      // Don't do anything if we already have a resourceState, and the
+      // resourceState's uri matches what we got.
+      return;
+    }
+
+    // The 'resource' property has changed, so lets get the new resourceState and data.
+    const cachedState = client.cache.get<T>(resource.uri);
+    if (cachedState) {
+      setResourceState(cachedState);
+      setLoading(false);
+
+      return;
+    }
+    setResourceState(undefined);
     setLoading(true);
-    resource
-      .get()
-      .then((state) => {
-        setResourceState(state);
-      })
-      .catch((error) => {
-        setError(error);
-      })
-      .finally(() => setLoading(false));
-  }, [resource]);
+
+    resource.get({ headers: initialGetRequestHeaders })
+      .catch(err => {
+        setError(err);
+        setLoading(false);
+      });
+
+  }, [client.cache, initialGetRequestHeaders, resource, resourceState, setResourceState]);
 
   return {
     loading,
@@ -93,4 +159,20 @@ export function useReadResource<T extends Entity>(
     resource: resource as Resource<T>,
     setResource,
   };
+}
+
+function useResourceState<T extends Entity>(
+  resource: Resource<T> | null,
+  initialData: undefined | ResourceState<T>,
+  client: Client,
+): [ResourceState<T> | undefined, (rs: ResourceState<T> | undefined) => void] {
+
+  let data: undefined | ResourceState<T> = undefined;
+  if (initialData) {
+    data = initialData;
+  } else if (resource instanceof Resource) {
+    data = client.cache.get(resource.uri) || undefined;
+  }
+  const [resourceState, setResourceState] = useState<ResourceState<T> | undefined>(data);
+  return [resourceState, setResourceState];
 }

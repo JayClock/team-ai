@@ -74,6 +74,6 @@ describe('useResolveResource', () => {
     });
 
     expect(mockResourceRelation.getResource).toHaveBeenCalled();
-    expect(result.current.resource).toBeUndefined();
+    expect(result.current.resource).toBe(null);
   });
 });

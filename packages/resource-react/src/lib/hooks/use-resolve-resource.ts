@@ -8,6 +8,7 @@ export type ResourceLike<T extends Entity> =
   | string;
 
 function isResourceRelation<T extends Entity>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   obj: any,
 ): obj is ResourceRelation<T> {
   return obj && typeof obj.getResource === 'function';
@@ -17,8 +18,8 @@ export function useResolveResource<T extends Entity>(
   resourceLike: ResourceLike<T>,
 ) {
   const client = useClient();
-  const [resource, setResource] = useState<Resource<T>>();
-  const [error, setError] = useState<Error>();
+  const [resource, setResource] = useState<Resource<T> | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   useEffect(() => {
     if (typeof resourceLike === 'string') {
       setResource(client.go(resourceLike));
