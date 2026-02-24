@@ -404,15 +404,11 @@ function formatDraftSummaryMessage(draft: {
 }
 
 function waitForNextPaint(): Promise<void> {
-  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-    return new Promise((resolve) => {
-      window.requestAnimationFrame(() => {
-        resolve();
-      });
-    });
-  }
+  // Keep this utility compatible with typecheck environments that don't include DOM typings.
   return new Promise((resolve) => {
-    setTimeout(resolve, 0);
+    setTimeout(() => {
+      resolve();
+    }, 0);
   });
 }
 
@@ -614,12 +610,13 @@ export function ProposeModelPanelTool({
       if (!streamCompleted) {
         throw new Error('模型流式响应异常中断。');
       }
+      const finalDraft = latestDraft;
 
       setMessages((prev) => {
         const message: ChatMessage = {
           id: streamMessageId,
           role: 'assistant',
-          content: formatDraftSummaryMessage(latestDraft),
+          content: formatDraftSummaryMessage(finalDraft),
         };
         const idx = prev.findIndex((item) => item.id === streamMessageId);
         if (idx < 0) {
@@ -629,9 +626,9 @@ export function ProposeModelPanelTool({
       });
       await waitForNextPaint();
 
-      const preview = buildOptimisticDraftPreview(latestDraft);
+      const preview = buildOptimisticDraftPreview(finalDraft);
       onDraftApplyOptimistic?.({
-        draft: latestDraft,
+        draft: finalDraft,
         preview,
       });
       setMessages((prev) => [
