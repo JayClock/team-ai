@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
@@ -109,7 +110,7 @@ public class DiagramApi {
   public Response commitDraft(@Valid CommitDraftRequest request, @Context UriInfo uriInfo) {
     List<Project.Diagrams.DraftNode> draftNodes = new ArrayList<>(request.safeNodes().size());
     for (CommitDraftNodeSchema nodeRequest : request.safeNodes()) {
-      draftNodes.add(nodeRequest.toDraftNode());
+      draftNodes.add(toDraftNode(nodeRequest));
     }
     List<Project.Diagrams.DraftEdge> draftEdges = new ArrayList<>(request.safeEdges().size());
     for (CommitDraftEdgeSchema edgeRequest : request.safeEdges()) {
@@ -136,6 +137,32 @@ public class DiagramApi {
 
   private static RuntimeException badRequest(String message) {
     return new jakarta.ws.rs.BadRequestException(message);
+  }
+
+  private Project.Diagrams.DraftNode toDraftNode(CommitDraftNodeSchema nodeRequest) {
+    NodeDescription description =
+        new NodeDescription(
+            nodeRequest.getType(),
+            nodeRequest.getLogicalEntity(),
+            nodeRequest.getParent(),
+            nodeRequest.getPositionX(),
+            nodeRequest.getPositionY(),
+            nodeRequest.getWidth(),
+            nodeRequest.getHeight(),
+            null,
+            toJsonBlob(nodeRequest.getLocalData()));
+    return new Project.Diagrams.DraftNode(nodeRequest.getId(), description);
+  }
+
+  private JsonBlob toJsonBlob(Object value) {
+    if (value == null) {
+      return null;
+    }
+    try {
+      return new JsonBlob(objectMapper.writeValueAsString(value));
+    } catch (JsonProcessingException error) {
+      throw badRequest("Node localData must be valid JSON.");
+    }
   }
 
   private void sendSseEvent(SseEventSink sseEventSink, Sse sse, String eventName, String data) {

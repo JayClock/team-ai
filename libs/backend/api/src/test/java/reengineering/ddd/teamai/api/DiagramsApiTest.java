@@ -415,6 +415,7 @@ public class DiagramsApiTest extends ApiTest {
     nodeRequest.setId("draft-node-1");
     nodeRequest.setType("fulfillment-node");
     nodeRequest.setLogicalEntity(new Ref<>("logical-101"));
+    nodeRequest.setLocalData(Map.of("name", "Order", "label", "订单", "type", "EVIDENCE"));
     nodeRequest.setPositionX(120);
     nodeRequest.setPositionY(120);
     nodeRequest.setWidth(220);
@@ -454,7 +455,26 @@ public class DiagramsApiTest extends ApiTest {
                             .equals(
                                 descriptions.iterator().next().logicalEntity() == null
                                     ? null
-                                    : descriptions.iterator().next().logicalEntity().id())));
+                                    : descriptions.iterator().next().logicalEntity().id())
+                        && descriptions.iterator().next().localData() != null
+                        && descriptions
+                            .iterator()
+                            .next()
+                            .localData()
+                            .json()
+                            .contains("\"name\":\"Order\"")
+                        && descriptions
+                            .iterator()
+                            .next()
+                            .localData()
+                            .json()
+                            .contains("\"label\":\"订单\"")
+                        && descriptions
+                            .iterator()
+                            .next()
+                            .localData()
+                            .json()
+                            .contains("\"type\":\"EVIDENCE\"")));
     verify(diagramEdges, times(1))
         .addAll(
             argThat(
