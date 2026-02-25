@@ -22,11 +22,7 @@ import {
   StandardSseChatTransport,
   StandardStructuredDataPayload,
 } from '@shared/util-http';
-import {
-  Diagram,
-  DiagramEdge,
-  DiagramNode,
-} from '@shared/schema';
+import { Diagram, DiagramEdge, DiagramNode } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
 import { Settings2 } from 'lucide-react';
 import {
@@ -80,45 +76,6 @@ type DraftGraphData = {
   nodes: DiagramNode['data'][];
   edges: DiagramEdge['data'][];
 };
-
-const API_KEY_STORAGE_KEY = 'api-key';
-const MODEL_STORAGE_KEY = 'ai-model';
-const API_KEY_HEADER = 'X-Api-Key';
-const MODEL_HEADER = 'X-AI-Model';
-
-type StorageLike = {
-  getItem(key: string): string | null;
-};
-
-function getBrowserStorage(): StorageLike | null {
-  const scope = globalThis as { localStorage?: StorageLike };
-  return scope.localStorage ?? null;
-}
-
-function withAiSettingsAndCredentialsInterceptor(fetcher: typeof fetch = fetch) {
-  return async (
-    input: Parameters<typeof fetch>[0],
-    init?: Parameters<typeof fetch>[1],
-  ) => {
-    const requestWithHeaders = new Request(input, {
-      ...init,
-      credentials: 'include',
-    });
-
-    const storage = getBrowserStorage();
-    const apiKey = storage?.getItem(API_KEY_STORAGE_KEY);
-    const model = storage?.getItem(MODEL_STORAGE_KEY);
-
-    if (apiKey) {
-      requestWithHeaders.headers.set(API_KEY_HEADER, apiKey);
-    }
-    if (model) {
-      requestWithHeaders.headers.set(MODEL_HEADER, model);
-    }
-
-    return fetcher(requestWithHeaders);
-  };
-}
 
 function getDefaultDraftNodePosition(index: number): { x: number; y: number } {
   return {
@@ -215,7 +172,10 @@ function normalizeDraftNode(
     definition?: unknown;
   };
 
-  if (typeof localData.name !== 'string' || typeof localData.label !== 'string') {
+  if (
+    typeof localData.name !== 'string' ||
+    typeof localData.label !== 'string'
+  ) {
     return null;
   }
 
@@ -235,8 +195,10 @@ function normalizeDraftNode(
     type: typeof raw.type === 'string' ? raw.type : 'fulfillment-node',
     logicalEntity: normalizeRef(raw.logicalEntity),
     parent: normalizeRef(raw.parent),
-    positionX: typeof raw.positionX === 'number' ? raw.positionX : defaultPosition.x,
-    positionY: typeof raw.positionY === 'number' ? raw.positionY : defaultPosition.y,
+    positionX:
+      typeof raw.positionX === 'number' ? raw.positionX : defaultPosition.x,
+    positionY:
+      typeof raw.positionY === 'number' ? raw.positionY : defaultPosition.y,
     width: typeof raw.width === 'number' ? raw.width : 220,
     height: typeof raw.height === 'number' ? raw.height : 120,
     localData: {
@@ -288,8 +250,10 @@ function normalizeDraftEdge(
     id: typeof raw.id === 'string' ? raw.id : `edge-${index + 1}`,
     sourceNode,
     targetNode,
-    sourceHandle: typeof raw.sourceHandle === 'string' ? raw.sourceHandle : null,
-    targetHandle: typeof raw.targetHandle === 'string' ? raw.targetHandle : null,
+    sourceHandle:
+      typeof raw.sourceHandle === 'string' ? raw.sourceHandle : null,
+    targetHandle:
+      typeof raw.targetHandle === 'string' ? raw.targetHandle : null,
     relationType:
       typeof raw.relationType === 'string'
         ? (raw.relationType as DiagramEdge['data']['relationType'])
@@ -333,7 +297,11 @@ function normalizeDraft(value: unknown): DraftGraphData | null {
 function extractLatestStructuredDraftJson(
   messages: ProposeModelChatMessage[],
 ): string {
-  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
+  for (
+    let messageIndex = messages.length - 1;
+    messageIndex >= 0;
+    messageIndex -= 1
+  ) {
     const message = messages[messageIndex];
     if (message.role !== 'assistant') {
       continue;
@@ -444,7 +412,7 @@ export function ProposeModelPanelTool({
   const { messages, sendMessage } = useChat<ProposeModelChatMessage>({
     transport: new StandardSseChatTransport({
       api: proposeModelApi,
-      fetch: withAiSettingsAndCredentialsInterceptor(),
+      includeCredentials: true,
       prepareSendMessagesRequest: ({ messages }) => {
         const lastMessage = messages.at(-1);
         let nextRequirement = '';
@@ -531,9 +499,7 @@ export function ProposeModelPanelTool({
       <SheetContent side="right" className="gap-0 p-0 sm:max-w-md">
         <SheetHeader>
           <SheetTitle>模型助手</SheetTitle>
-          <SheetDescription>
-            描述你的需求，生成领域模型草稿。
-          </SheetDescription>
+          <SheetDescription>描述你的需求，生成领域模型草稿。</SheetDescription>
         </SheetHeader>
 
         <div className="flex min-h-0 flex-1 flex-col border-t">

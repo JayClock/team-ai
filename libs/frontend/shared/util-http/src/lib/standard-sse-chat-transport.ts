@@ -11,6 +11,14 @@ type SseEnvelope = {
 };
 
 type SseDataEventParsers = Record<string, (payload: string) => unknown>;
+type StorageLike = {
+  getItem(key: string): string | null;
+};
+
+const API_KEY_STORAGE_KEY = 'api-key';
+const MODEL_STORAGE_KEY = 'ai-model';
+const API_KEY_HEADER = 'X-Api-Key';
+const MODEL_HEADER = 'X-AI-Model';
 
 export type StandardStructuredDataPayload = {
   kind: string;
@@ -22,6 +30,8 @@ export interface StandardSseChatTransportInitOptions<
   UI_MESSAGE extends UIMessage,
 > extends HttpChatTransportInitOptions<UI_MESSAGE> {
   dataEventParsers?: SseDataEventParsers;
+  includeCredentials?: boolean;
+  includeAiSettingsHeaders?: boolean;
 }
 
 export function parseStandardStructuredDataPayload(
@@ -56,6 +66,50 @@ export function parseStandardStructuredDataPayload(
 const DEFAULT_SSE_DATA_EVENT_PARSERS: SseDataEventParsers = {
   structured: parseStandardStructuredDataPayload,
 };
+
+function getBrowserStorage(): StorageLike | null {
+  const scope = globalThis as { localStorage?: StorageLike };
+  return scope.localStorage ?? null;
+}
+
+function createRequestEnhancer({
+  fetcher = fetch,
+  includeCredentials = false,
+  includeAiSettingsHeaders = true,
+}: {
+  fetcher?: typeof fetch;
+  includeCredentials?: boolean;
+  includeAiSettingsHeaders?: boolean;
+}) {
+  return async (
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1],
+  ) => {
+    if (!includeCredentials && !includeAiSettingsHeaders) {
+      return fetcher(input, init);
+    }
+
+    const requestWithHeaders = new Request(input, {
+      ...init,
+      credentials: includeCredentials ? 'include' : init?.credentials,
+    });
+
+    if (includeAiSettingsHeaders) {
+      const storage = getBrowserStorage();
+      const apiKey = storage?.getItem(API_KEY_STORAGE_KEY);
+      const model = storage?.getItem(MODEL_STORAGE_KEY);
+
+      if (apiKey) {
+        requestWithHeaders.headers.set(API_KEY_HEADER, apiKey);
+      }
+      if (model) {
+        requestWithHeaders.headers.set(MODEL_HEADER, model);
+      }
+    }
+
+    return fetcher(requestWithHeaders);
+  };
+}
 
 function normalizeLineEndings(input: string): string {
   return input.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
@@ -92,8 +146,21 @@ export class StandardSseChatTransport<
   private readonly dataEventParsers: SseDataEventParsers;
 
   constructor(options: StandardSseChatTransportInitOptions<UI_MESSAGE> = {}) {
-    const { dataEventParsers = {}, ...transportOptions } = options;
-    super(transportOptions);
+    const {
+      dataEventParsers = {},
+      includeCredentials = false,
+      includeAiSettingsHeaders = true,
+      fetch: fetcher,
+      ...transportOptions
+    } = options;
+    super({
+      ...transportOptions,
+      fetch: createRequestEnhancer({
+        fetcher,
+        includeCredentials,
+        includeAiSettingsHeaders,
+      }),
+    });
     this.dataEventParsers = {
       ...DEFAULT_SSE_DATA_EVENT_PARSERS,
       ...dataEventParsers,
