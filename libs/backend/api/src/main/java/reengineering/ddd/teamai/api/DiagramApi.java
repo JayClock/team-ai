@@ -2,9 +2,6 @@ package reengineering.ddd.teamai.api;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -18,24 +15,21 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
-import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
-import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.api.schema.WithJsonSchema;
-import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Project;
 
 public class DiagramApi {
   @Inject private Diagram.DomainArchitect domainArchitect;
-  @Inject private ObjectMapper objectMapper;
+  @Inject private DiagramSseEventWriter diagramSseEventWriter;
+  @Inject private DiagramCommitDraftMapper diagramCommitDraftMapper;
   @Context ResourceContext resourceContext;
 
   private final Project project;
@@ -85,21 +79,23 @@ public class DiagramApi {
               }
 
               structuredBuffer.append(payload);
-              sendSseEvent(sseEventSink, sse, null, payload);
-              sendStructuredChunk(sseEventSink, sse, "diagram-model", "json", payload);
+              diagramSseEventWriter.sendEvent(sseEventSink, sse, null, payload);
+              diagramSseEventWriter.sendStructuredChunk(
+                  sseEventSink, sse, "diagram-model", "json", payload);
             },
             error -> {
-              sendSseEvent(sseEventSink, sse, "error", error == null ? null : error.getMessage());
+              diagramSseEventWriter.sendEvent(
+                  sseEventSink, sse, "error", error == null ? null : error.getMessage());
               sseEventSink.close();
             },
             () -> {
-              if (!isValidJson(structuredBuffer.toString())) {
-                sendSseEvent(sseEventSink, sse, "error", "模型响应不是有效的草稿图 JSON。");
+              if (!diagramSseEventWriter.isValidJson(structuredBuffer.toString())) {
+                diagramSseEventWriter.sendEvent(sseEventSink, sse, "error", "模型响应不是有效的草稿图 JSON。");
                 sseEventSink.close();
                 return;
               }
 
-              sendSseEvent(sseEventSink, sse, "complete", "");
+              diagramSseEventWriter.sendEvent(sseEventSink, sse, "complete", "");
               sseEventSink.close();
             });
   }
@@ -108,17 +104,10 @@ public class DiagramApi {
   @Path("commit-draft")
   @Consumes(MediaType.APPLICATION_JSON)
   public Response commitDraft(@Valid CommitDraftRequest request, @Context UriInfo uriInfo) {
-    List<Project.Diagrams.DraftNode> draftNodes = new ArrayList<>(request.safeNodes().size());
-    for (CommitDraftNodeSchema nodeRequest : request.safeNodes()) {
-      draftNodes.add(toDraftNode(nodeRequest));
-    }
-    List<Project.Diagrams.DraftEdge> draftEdges = new ArrayList<>(request.safeEdges().size());
-    for (CommitDraftEdgeSchema edgeRequest : request.safeEdges()) {
-      draftEdges.add(edgeRequest.toDraftEdge());
-    }
+    DiagramCommitDraftMapper.DraftPayload draft = diagramCommitDraftMapper.map(request);
 
     try {
-      project.saveDiagram(diagram.getIdentity(), draftNodes, draftEdges);
+      project.saveDiagram(diagram.getIdentity(), draft.nodes(), draft.edges());
     } catch (Project.Diagrams.InvalidDraftException error) {
       throw badRequest(error.getMessage());
     }
@@ -138,70 +127,6 @@ public class DiagramApi {
   private static RuntimeException badRequest(String message) {
     return new jakarta.ws.rs.BadRequestException(message);
   }
-
-  private Project.Diagrams.DraftNode toDraftNode(CommitDraftNodeSchema nodeRequest) {
-    NodeDescription description =
-        new NodeDescription(
-            nodeRequest.getType(),
-            nodeRequest.getLogicalEntity(),
-            nodeRequest.getParent(),
-            nodeRequest.getPositionX(),
-            nodeRequest.getPositionY(),
-            nodeRequest.getWidth(),
-            nodeRequest.getHeight(),
-            null,
-            toJsonBlob(nodeRequest.getLocalData()));
-    return new Project.Diagrams.DraftNode(nodeRequest.getId(), description);
-  }
-
-  private JsonBlob toJsonBlob(Object value) {
-    if (value == null) {
-      return null;
-    }
-    try {
-      return new JsonBlob(objectMapper.writeValueAsString(value));
-    } catch (JsonProcessingException error) {
-      throw badRequest("Node localData must be valid JSON.");
-    }
-  }
-
-  private void sendSseEvent(SseEventSink sseEventSink, Sse sse, String eventName, String data) {
-    String payload = data == null ? "" : data;
-    OutboundSseEvent.Builder builder = sse.newEventBuilder();
-    if (eventName != null && !eventName.isBlank()) {
-      builder.name(eventName);
-    }
-    OutboundSseEvent event = builder.data(String.class, payload).build();
-    sseEventSink.send(event);
-  }
-
-  private void sendStructuredChunk(
-      SseEventSink sseEventSink, Sse sse, String kind, String format, String chunk) {
-    StructuredChunkPayload payload = new StructuredChunkPayload(kind, format, chunk);
-    try {
-      sendSseEvent(sseEventSink, sse, "structured", objectMapper.writeValueAsString(payload));
-    } catch (JsonProcessingException error) {
-      sendSseEvent(sseEventSink, sse, "error", "结构化事件序列化失败");
-    }
-  }
-
-  private boolean isValidJson(String payload) {
-    if (payload == null || payload.isBlank()) {
-      return false;
-    }
-
-    return tryParseJson(payload) != null;
-  }
-
-  private JsonNode tryParseJson(String content) {
-    try {
-      return objectMapper.readTree(content);
-    } catch (JsonProcessingException ignored) {
-      return null;
-    }
-  }
-
-  private record StructuredChunkPayload(String kind, String format, String chunk) {}
 
   @Data
   @NoArgsConstructor
@@ -257,15 +182,6 @@ public class DiagramApi {
     private Object localData;
     @NotNull private Integer width;
     @NotNull private Integer height;
-
-    public NodeDescription toDescription() {
-      return new NodeDescription(
-          type, logicalEntity, parent, positionX, positionY, width, height, null, null);
-    }
-
-    public Project.Diagrams.DraftNode toDraftNode() {
-      return new Project.Diagrams.DraftNode(id, toDescription());
-    }
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -281,17 +197,5 @@ public class DiagramApi {
     private String relationType;
     private String label;
     private Object styleProps;
-
-    public String getSourceNodeId() {
-      return sourceNode == null ? null : sourceNode.id();
-    }
-
-    public String getTargetNodeId() {
-      return targetNode == null ? null : targetNode.id();
-    }
-
-    public Project.Diagrams.DraftEdge toDraftEdge() {
-      return new Project.Diagrams.DraftEdge(getSourceNodeId(), getTargetNodeId());
-    }
   }
 }
