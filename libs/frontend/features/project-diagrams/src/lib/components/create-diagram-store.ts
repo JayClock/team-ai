@@ -30,6 +30,41 @@ export class DiagramStore {
     void this.load();
   }
 
+  addGeneratedNodesAndEdges(params: { nodes: DiagramNode['data'][], edges: DiagramEdge['data'][] }) {
+    const { nodes, edges } = params;
+    if (nodes.length === 0 && edges.length === 0) {
+      return;
+    }
+
+    const generatedNodes: Node<DiagramNode['data']>[] = nodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      position: {
+        x: node.positionX,
+        y: node.positionY,
+      },
+      data: node,
+    }));
+
+    const generatedEdges: Edge[] = edges.map((edge) => ({
+      id: edge.id,
+      source: edge.sourceNode.id,
+      target: edge.targetNode.id,
+      relationType: edge.relationType,
+    }));
+
+    batch(() => {
+      this._diagramNodes.value = [
+        ...this._diagramNodes.value,
+        ...generatedNodes,
+      ];
+      this._diagramEdges.value = [
+        ...this._diagramEdges.value,
+        ...generatedEdges,
+      ];
+    });
+  }
+
   private async load() {
     try {
       const [nodesState, edgesState]: [

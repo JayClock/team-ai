@@ -57,6 +57,37 @@ function createEdgeState(): State<DiagramEdge> {
   } as State<DiagramEdge>;
 }
 
+function createGeneratedNodeData(id: string): DiagramNode['data'] {
+  return {
+    id,
+    type: 'sticky-note',
+    logicalEntity: null,
+    parent: null,
+    positionX: 200,
+    positionY: 300,
+    width: 160,
+    height: 80,
+    localData: createLogicalEntityData(id, `Entity ${id}`),
+  };
+}
+
+function createGeneratedEdgeData(
+  id: string,
+  sourceNodeId: string,
+  targetNodeId: string,
+): DiagramEdge['data'] {
+  return {
+    id,
+    sourceNode: { id: sourceNodeId },
+    targetNode: { id: targetNodeId },
+    sourceHandle: null,
+    targetHandle: null,
+    relationType: 'FLOW',
+    label: null,
+    styleProps: null,
+  };
+}
+
 function createDiagramState(title: string): State<Diagram> {
   return {
     data: {
@@ -115,5 +146,35 @@ describe('createDiagramStore', () => {
 
     expect(storeA).not.toBe(storeB);
     expect(storeA.diagramTitle).not.toBe(storeB.diagramTitle);
+  });
+
+  it('appends generated nodes and edges into diagram state', async () => {
+    const store = createDiagramStore(createDiagramState('Diagram A'));
+    await waitForStoreLoad(store);
+
+    store.addGeneratedNodesAndEdges({
+      nodes: [createGeneratedNodeData('node-3')],
+      edges: [createGeneratedEdgeData('edge-2', 'node-2', 'node-3')],
+    });
+
+    expect(store.diagramNodes.value).toHaveLength(3);
+    expect(store.diagramEdges.value).toHaveLength(2);
+    expect(store.diagramNodes.value.at(-1)).toMatchObject({
+      id: 'node-3',
+      type: 'sticky-note',
+      position: {
+        x: 200,
+        y: 300,
+      },
+      data: {
+        id: 'node-3',
+      },
+    });
+    expect(store.diagramEdges.value.at(-1)).toMatchObject({
+      id: 'edge-2',
+      source: 'node-2',
+      target: 'node-3',
+      relationType: 'FLOW',
+    });
   });
 });
