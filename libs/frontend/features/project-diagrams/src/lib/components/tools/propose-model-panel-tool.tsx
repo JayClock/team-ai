@@ -22,11 +22,12 @@ import {
   StandardSseChatTransport,
   StandardStructuredDataPayload,
 } from '@shared/util-http';
-import { Diagram, DiagramEdge, DiagramNode } from '@shared/schema';
+import { Diagram } from '@shared/schema';
 import { Settings2 } from 'lucide-react';
 import { useSignal } from '@preact/signals-react';
 import { type FormEvent } from 'react';
 import { parse as parseBestEffortJson } from 'best-effort-json-parser';
+import type { DraftDiagramInput } from '../create-diagram-store';
 
 type ValueTarget = {
   value?: string;
@@ -34,7 +35,7 @@ type ValueTarget = {
 
 interface Props {
   state: State<Diagram>;
-  onDraftGenerated: (draft: DraftGraphData) => void;
+  onDraftGenerated: (draft: DraftDiagramInput) => void;
 }
 
 type ProposeModelDataTypes = {
@@ -43,12 +44,7 @@ type ProposeModelDataTypes = {
 
 type ProposeModelChatMessage = UIMessage<unknown, ProposeModelDataTypes>;
 
-type DraftGraphData = {
-  nodes: DiagramNode['data'][];
-  edges: DiagramEdge['data'][];
-};
-
-function parseDraftByBestEffort(jsonText: string): DraftGraphData {
+function parseDraftByBestEffort(jsonText: string): DraftDiagramInput {
   if (!jsonText.trim()) {
     return { nodes: [], edges: [] };
   }
@@ -80,7 +76,6 @@ export function ProposeModelPanelTool({
       prepareSendMessagesRequest: ({ body }) => {
         const nextRequirement =
           typeof body?.['requirement'] === 'string' ? body.requirement : '';
-
         return {
           body: {
             requirement: nextRequirement,

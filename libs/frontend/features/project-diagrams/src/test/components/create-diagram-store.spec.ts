@@ -3,6 +3,8 @@ import { Diagram, DiagramEdge, DiagramNode, LogicalEntity } from '@shared/schema
 import { describe, expect, it } from 'vitest';
 import {
   createDiagramStore,
+  type DraftDiagramEdgeInput,
+  type DraftDiagramNodeInput,
   DiagramStore,
 } from '../../lib/components/create-diagram-store';
 
@@ -57,34 +59,24 @@ function createEdgeState(): State<DiagramEdge> {
   } as State<DiagramEdge>;
 }
 
-function createGeneratedNodeData(id: string): DiagramNode['data'] {
+function createGeneratedNodeData(id: string): DraftDiagramNodeInput {
   return {
     id,
-    type: 'sticky-note',
-    logicalEntity: null,
-    parent: null,
-    positionX: 200,
-    positionY: 300,
-    width: 160,
-    height: 80,
-    localData: createLogicalEntityData(id, `Entity ${id}`),
+    localData: {
+      name: `Entity ${id}`,
+      label: `Entity ${id}`,
+      type: 'EVIDENCE',
+    },
   };
 }
 
 function createGeneratedEdgeData(
-  id: string,
   sourceNodeId: string,
   targetNodeId: string,
-): DiagramEdge['data'] {
+): DraftDiagramEdgeInput {
   return {
-    id,
     sourceNode: { id: sourceNodeId },
     targetNode: { id: targetNodeId },
-    sourceHandle: null,
-    targetHandle: null,
-    relationType: 'FLOW',
-    label: null,
-    styleProps: null,
   };
 }
 
@@ -152,28 +144,81 @@ describe('createDiagramStore', () => {
     const store = createDiagramStore(createDiagramState('Diagram A'));
     await waitForStoreLoad(store);
 
-    store.addGeneratedNodesAndEdges({
+    await store.addGeneratedNodesAndEdges({
       nodes: [createGeneratedNodeData('node-3')],
-      edges: [createGeneratedEdgeData('edge-2', 'node-2', 'node-3')],
+      edges: [createGeneratedEdgeData('node-2', 'node-3')],
     });
 
     expect(store.diagramNodes.value).toHaveLength(3);
     expect(store.diagramEdges.value).toHaveLength(2);
-    expect(store.diagramNodes.value.at(-1)).toMatchObject({
+    const generatedNode = store.diagramNodes.value.find(
+      (node) => node.id === 'node-3',
+    );
+    expect(generatedNode).toBeDefined();
+    expect(generatedNode).toMatchObject({
       id: 'node-3',
       type: 'sticky-note',
-      position: {
-        x: 200,
-        y: 300,
-      },
       data: {
         id: 'node-3',
       },
     });
-    expect(store.diagramEdges.value.at(-1)).toMatchObject({
-      id: 'edge-2',
+    expect(generatedNode?.position.x).toEqual(expect.any(Number));
+    expect(generatedNode?.position.y).toEqual(expect.any(Number));
+    const generatedEdge = store.diagramEdges.value.find((edge) => (
+      edge.source === 'node-2' && edge.target === 'node-3'
+    ));
+    expect(generatedEdge).toMatchObject({
       source: 'node-2',
       target: 'node-3',
     });
+  });
+
+  it('deduplicates generated nodes and edges by id', async () => {
+    const store = createDiagramStore(createDiagramState('Diagram A'));
+    await waitForStoreLoad(store);
+
+    await store.addGeneratedNodesAndEdges({
+      nodes: [createGeneratedNodeData('node-3'), createGeneratedNodeData('node-3')],
+      edges: [
+        createGeneratedEdgeData('node-2', 'node-3'),
+        createGeneratedEdgeData('node-2', 'node-3'),
+      ],
+    });
+
+    expect(store.diagramNodes.value.filter((node) => node.id === 'node-3'))
+      .toHaveLength(1);
+    expect(
+      store.diagramEdges.value.filter(
+        (edge) => edge.source === 'node-2' && edge.target === 'node-3',
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('accepts generated nodes without incoming positions and uses elk layout', async () => {
+    const store = createDiagramStore(createDiagramState('Diagram A'));
+    await waitForStoreLoad(store);
+
+    await store.addGeneratedNodesAndEdges({
+      nodes: [
+        {
+          id: 'node-4',
+          localData: {
+            name: 'Entity node-4',
+            label: 'Entity node-4',
+            type: 'EVIDENCE',
+          },
+        },
+      ],
+      edges: [createGeneratedEdgeData('node-2', 'node-4')],
+    });
+
+    const generatedNode = store.diagramNodes.value.find(
+      (node) => node.id === 'node-4',
+    );
+    expect(generatedNode).toBeDefined();
+    expect(generatedNode?.position.x).toEqual(expect.any(Number));
+    expect(generatedNode?.position.y).toEqual(expect.any(Number));
+    expect(generatedNode?.data.positionX).toBe(generatedNode?.position.x);
+    expect(generatedNode?.data.positionY).toBe(generatedNode?.position.y);
   });
 });
