@@ -28,7 +28,6 @@ import { Settings2 } from 'lucide-react';
 import {
   FormEvent,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -38,6 +37,7 @@ import {
   DraftApplyPayload,
   OptimisticDraftPreview,
 } from './draft-utils';
+import { parse as parseBestEffortJson } from 'best-effort-json-parser';
 
 type ValueTarget = {
   value?: string;
@@ -46,7 +46,7 @@ type ValueTarget = {
 interface Props {
   state: State<Diagram>;
   isSavingDraft?: boolean;
-  onDraftApplyOptimistic?: (payload: DraftApplyPayload) => void;
+  onDraftApplyOptimistic?: (draft: DraftGraphData) => void;
   onDraftApplyReverted?: () => void;
 }
 
@@ -58,7 +58,7 @@ interface UseProposeModelDraftOptions {
 interface UseProposeModelDraftResult {
   optimisticNodes: Node<CanvasNodeData>[];
   optimisticEdges: Edge[];
-  handleDraftApplyOptimistic: (payload: DraftApplyPayload) => void;
+  handleDraftApplyOptimistic: (draft: DraftGraphData) => void;
   handleDraftApplyReverted: () => void;
 }
 
@@ -76,223 +76,6 @@ type DraftGraphData = {
   nodes: DiagramNode['data'][];
   edges: DiagramEdge['data'][];
 };
-
-function getDefaultDraftNodePosition(index: number): { x: number; y: number } {
-  return {
-    x: 120 + (index % 3) * 300,
-    y: 120 + Math.floor(index / 3) * 180,
-  };
-}
-
-function normalizeDraftLogicalEntityType(
-  type: unknown,
-): DiagramNode['data']['localData']['type'] | null {
-  if (typeof type !== 'string') {
-    return null;
-  }
-
-  switch (type.trim().toUpperCase()) {
-    case 'EVIDENCE':
-      return 'EVIDENCE';
-    case 'PARTICIPANT':
-      return 'PARTICIPANT';
-    case 'ROLE':
-      return 'ROLE';
-    case 'CONTEXT':
-      return 'CONTEXT';
-    default:
-      return null;
-  }
-}
-
-function normalizeDraftSubType(
-  type: DiagramNode['data']['localData']['type'],
-  subType: unknown,
-): DiagramNode['data']['localData']['subType'] {
-  if (typeof subType === 'string') {
-    return subType as DiagramNode['data']['localData']['subType'];
-  }
-
-  switch (type) {
-    case 'EVIDENCE':
-      return 'other_evidence';
-    case 'PARTICIPANT':
-      return 'party';
-    case 'ROLE':
-      return 'party_role';
-    case 'CONTEXT':
-      return 'bounded_context';
-  }
-}
-
-function normalizeRef(value: unknown): { id: string } | null {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-
-  const id = (value as { id?: unknown }).id;
-  return typeof id === 'string' ? { id } : null;
-}
-
-function normalizeDraftNode(
-  entry: unknown,
-  index: number,
-): DiagramNode['data'] | null {
-  if (!entry || typeof entry !== 'object') {
-    return null;
-  }
-
-  const raw = entry as {
-    id?: unknown;
-    type?: unknown;
-    logicalEntity?: unknown;
-    parent?: unknown;
-    positionX?: unknown;
-    positionY?: unknown;
-    width?: unknown;
-    height?: unknown;
-    localData?: unknown;
-  };
-
-  const nodeId = typeof raw.id === 'string' ? raw.id.trim() : '';
-  if (nodeId.length === 0) {
-    return null;
-  }
-
-  if (!raw.localData || typeof raw.localData !== 'object') {
-    return null;
-  }
-
-  const localData = raw.localData as {
-    id?: unknown;
-    type?: unknown;
-    subType?: unknown;
-    name?: unknown;
-    label?: unknown;
-    definition?: unknown;
-  };
-
-  if (
-    typeof localData.name !== 'string' ||
-    typeof localData.label !== 'string'
-  ) {
-    return null;
-  }
-
-  const localDataType = normalizeDraftLogicalEntityType(localData.type);
-  if (!localDataType) {
-    return null;
-  }
-
-  const defaultPosition = getDefaultDraftNodePosition(index);
-  const definition =
-    localData.definition && typeof localData.definition === 'object'
-      ? (localData.definition as DiagramNode['data']['localData']['definition'])
-      : {};
-
-  return {
-    id: nodeId,
-    type: typeof raw.type === 'string' ? raw.type : 'fulfillment-node',
-    logicalEntity: normalizeRef(raw.logicalEntity),
-    parent: normalizeRef(raw.parent),
-    positionX:
-      typeof raw.positionX === 'number' ? raw.positionX : defaultPosition.x,
-    positionY:
-      typeof raw.positionY === 'number' ? raw.positionY : defaultPosition.y,
-    width: typeof raw.width === 'number' ? raw.width : 220,
-    height: typeof raw.height === 'number' ? raw.height : 120,
-    localData: {
-      id:
-        typeof localData.id === 'string'
-          ? localData.id
-          : `draft-entity-${index + 1}`,
-      type: localDataType,
-      subType: normalizeDraftSubType(localDataType, localData.subType),
-      name: localData.name,
-      label: localData.label,
-      definition,
-    },
-  };
-}
-
-function normalizeDraftEdge(
-  entry: unknown,
-  index: number,
-): DiagramEdge['data'] | null {
-  if (!entry || typeof entry !== 'object') {
-    return null;
-  }
-
-  const raw = entry as {
-    id?: unknown;
-    sourceNode?: unknown;
-    targetNode?: unknown;
-    sourceHandle?: unknown;
-    targetHandle?: unknown;
-    relationType?: unknown;
-    label?: unknown;
-    styleProps?: unknown;
-  };
-
-  const sourceNode = normalizeRef(raw.sourceNode);
-  const targetNode = normalizeRef(raw.targetNode);
-  if (!sourceNode || !targetNode) {
-    return null;
-  }
-
-  const rawStyleProps = raw.styleProps;
-  const styleProps =
-    rawStyleProps && typeof rawStyleProps === 'object'
-      ? (rawStyleProps as DiagramEdge['data']['styleProps'])
-      : null;
-
-  return {
-    id: typeof raw.id === 'string' ? raw.id : `edge-${index + 1}`,
-    sourceNode,
-    targetNode,
-    sourceHandle:
-      typeof raw.sourceHandle === 'string' ? raw.sourceHandle : null,
-    targetHandle:
-      typeof raw.targetHandle === 'string' ? raw.targetHandle : null,
-    relationType:
-      typeof raw.relationType === 'string'
-        ? (raw.relationType as DiagramEdge['data']['relationType'])
-        : null,
-    label: typeof raw.label === 'string' ? raw.label : null,
-    styleProps,
-  };
-}
-
-function normalizeDraft(value: unknown): DraftGraphData | null {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-
-  const raw = value as {
-    nodes?: unknown;
-    edges?: unknown;
-  };
-
-  if (!Array.isArray(raw.nodes) && !Array.isArray(raw.edges)) {
-    return null;
-  }
-
-  const nodes: DiagramNode['data'][] = Array.isArray(raw.nodes)
-    ? raw.nodes.flatMap((entry, index) => {
-        const node = normalizeDraftNode(entry, index);
-        return node ? [node] : [];
-      })
-    : [];
-
-  const edges: DiagramEdge['data'][] = Array.isArray(raw.edges)
-    ? raw.edges.flatMap((entry, index) => {
-        const edge = normalizeDraftEdge(entry, index);
-        return edge ? [edge] : [];
-      })
-    : [];
-
-  return { nodes, edges };
-}
 
 function extractLatestStructuredDraftJson(
   messages: ProposeModelChatMessage[],
@@ -326,13 +109,13 @@ function extractLatestStructuredDraftJson(
   return '';
 }
 
-function tryParseDraft(jsonText: string): DraftGraphData | null {
+function parseDraftByBestEffort(jsonText: string): DraftGraphData | null {
   if (!jsonText.trim()) {
     return null;
   }
 
   try {
-    return normalizeDraft(JSON.parse(jsonText));
+    return parseBestEffortJson(jsonText) as DraftGraphData;
   } catch {
     return null;
   }
@@ -346,7 +129,11 @@ export function useProposeModelDraft({
     useState<OptimisticDraftPreview | null>(null);
 
   const handleDraftApplyOptimistic = useCallback(
-    (payload: DraftApplyPayload) => {
+    (draft: DraftGraphData) => {
+      const payload: DraftApplyPayload = {
+        draft,
+        preview: buildOptimisticDraftPreview(draft),
+      };
       onDraftApplyOptimistic?.(payload);
       setOptimisticPreview(payload.preview);
     },
@@ -403,7 +190,7 @@ export function ProposeModelPanelTool({
   const [requirement, setRequirement] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>();
-  const lastAppliedDraftKeyRef = useRef<string | undefined>(undefined);
+  const messagesRef = useRef<ProposeModelChatMessage[]>([]);
 
   const proposeModelApi = state.hasLink('propose-model')
     ? state.action('propose-model').uri
@@ -431,34 +218,12 @@ export function ProposeModelPanelTool({
       },
     }),
   });
+  messagesRef.current = messages;
 
   const canSubmit = useMemo(
     () => requirement.trim().length > 0 && !isSubmitting && !isSavingDraft,
     [requirement, isSubmitting, isSavingDraft],
   );
-
-  useEffect(() => {
-    if (!onDraftApplyOptimistic) {
-      return;
-    }
-
-    const structuredDraftJson = extractLatestStructuredDraftJson(messages);
-    const draft = tryParseDraft(structuredDraftJson);
-    if (!draft) {
-      return;
-    }
-
-    const key = JSON.stringify(draft);
-    if (lastAppliedDraftKeyRef.current === key) {
-      return;
-    }
-
-    lastAppliedDraftKeyRef.current = key;
-    onDraftApplyOptimistic({
-      draft,
-      preview: buildOptimisticDraftPreview(draft),
-    });
-  }, [messages, onDraftApplyOptimistic]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -475,11 +240,19 @@ export function ProposeModelPanelTool({
     setIsSubmitting(true);
     setError(undefined);
     setRequirement('');
-    lastAppliedDraftKeyRef.current = undefined;
     onDraftApplyReverted?.();
 
     try {
       await sendMessage({ text: trimmedRequirement });
+      const structuredDraftJson = extractLatestStructuredDraftJson(
+        messagesRef.current,
+      );
+      const draft = parseDraftByBestEffort(structuredDraftJson);
+      if (!draft) {
+        return;
+      }
+
+      onDraftApplyOptimistic?.(draft);
     } catch (e) {
       onDraftApplyReverted?.();
       const message = e instanceof Error ? e.message : '模型提议失败';
