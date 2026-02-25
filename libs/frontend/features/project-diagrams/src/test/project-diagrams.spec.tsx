@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 
-import FeaturesProjectDiagrams from './project-diagrams';
+import FeaturesProjectDiagrams from '../lib/project-diagrams';
 
 describe('FeaturesProjectDiagrams', () => {
   it('should render successfully', () => {

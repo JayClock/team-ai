@@ -25,7 +25,7 @@
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
     "src/**/*.d.ts"
-  ],
+, "src/test/components/create-diagram-store.ts"  ],
   "references": [
     {
       "path": "./tsconfig.lib.json"

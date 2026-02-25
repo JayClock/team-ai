@@ -1,5 +1,8 @@
 import { DiagramEdge, DiagramNode } from '@shared/schema';
-import { buildOptimisticDraftPreview, toNodeReferenceKeys } from './draft-utils';
+import {
+  buildOptimisticDraftPreview,
+  toNodeReferenceKeys,
+} from '../../../lib/components/tools/draft-utils';
 
 function createDraftNode(id: string, name: string, label: string): DiagramNode['data'] {
   return {
