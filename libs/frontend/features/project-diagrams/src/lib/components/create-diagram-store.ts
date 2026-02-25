@@ -30,28 +30,57 @@ export class DiagramStore {
     void this.load();
   }
 
-  addGeneratedNodesAndEdges(params: { nodes: DiagramNode['data'][], edges: DiagramEdge['data'][] }) {
+  addGeneratedNodesAndEdges(params: {
+    nodes: DiagramNode['data'][];
+    edges: DiagramEdge['data'][];
+  }) {
     const { nodes, edges } = params;
     if (nodes.length === 0 && edges.length === 0) {
       return;
     }
 
-    const generatedNodes: Node<DiagramNode['data']>[] = nodes.map((node) => ({
-      id: node.id,
-      type: node.type,
-      position: {
-        x: node.positionX,
-        y: node.positionY,
-      },
-      data: node,
-    }));
+    const existingNodeIds = new Set(
+      this._diagramNodes.value.map((node) => node.id),
+    );
+    const existingEdgeIds = new Set(
+      this._diagramEdges.value.map((edge) => edge.id),
+    );
 
-    const generatedEdges: Edge[] = edges.map((edge) => ({
-      id: edge.id,
-      source: edge.sourceNode.id,
-      target: edge.targetNode.id,
-      relationType: edge.relationType,
-    }));
+    const generatedNodes: Node<DiagramNode['data']>[] = [];
+    for (const node of nodes) {
+      if (existingNodeIds.has(node.id)) {
+        continue;
+      }
+
+      existingNodeIds.add(node.id);
+      generatedNodes.push({
+        id: node.id,
+        type: node.type,
+        position: {
+          x: node.positionX,
+          y: node.positionY,
+        },
+        data: node,
+      });
+    }
+
+    const generatedEdges: Edge[] = [];
+    for (const edge of edges) {
+      if (existingEdgeIds.has(edge.id)) {
+        continue;
+      }
+
+      existingEdgeIds.add(edge.id);
+      generatedEdges.push({
+        id: edge.id,
+        source: edge.sourceNode.id,
+        target: edge.targetNode.id,
+      });
+    }
+
+    if (generatedNodes.length === 0 && generatedEdges.length === 0) {
+      return;
+    }
 
     batch(() => {
       this._diagramNodes.value = [
@@ -156,12 +185,13 @@ export class DiagramStore {
     });
   }
 
-  private toDiagramEdges(edgesStateCollection: State<DiagramEdge>[]): Edge[] {
+  private toDiagramEdges(
+    edgesStateCollection: State<DiagramEdge>[],
+  ): Edge[] {
     return edgesStateCollection.map((edgeState) => ({
       id: edgeState.data.id,
       source: edgeState.data.sourceNode.id,
       target: edgeState.data.targetNode.id,
-      relationType: edgeState.data.relationType,
     }));
   }
 }

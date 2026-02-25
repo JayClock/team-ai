@@ -174,7 +174,6 @@ describe('createDiagramStore', () => {
       id: 'edge-2',
       source: 'node-2',
       target: 'node-3',
-      relationType: 'FLOW',
     });
   });
 });

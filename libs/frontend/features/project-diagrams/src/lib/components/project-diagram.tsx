@@ -1,12 +1,13 @@
 import { State } from '@hateoas-ts/resource';
 import { Diagram } from '@shared/schema';
 import '@xyflow/react/dist/style.css';
-import { Background, Controls } from '@xyflow/react';
+import { Background, Controls, Panel } from '@xyflow/react';
 import { Canvas, Spinner } from '@shared/ui';
 import { type Signal } from '@preact/signals-react';
 import { useEffect, useState } from 'react';
 import { nodeTypes } from './node-types';
 import { createDiagramStore, type DiagramStore } from './create-diagram-store';
+import { ProposeModelPanelTool } from './tools';
 
 interface Props {
   state: Signal<State<Diagram>>;
@@ -47,6 +48,16 @@ export function ProjectDiagram(props: Props) {
         nodeTypes={nodeTypes}
         fitView
       >
+        <Panel position="center-left">
+          <div className="flex gap-1">
+            <ProposeModelPanelTool
+              state={diagramState}
+              onDraftGenerated={(draft) => {
+                diagramStore.addGeneratedNodesAndEdges(draft);
+              }}
+            />
+          </div>
+        </Panel>
         <Background />
         <Controls />
       </Canvas>
