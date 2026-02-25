@@ -10,6 +10,53 @@ type SseEnvelope = {
   data: string | null;
 };
 
+type SseDataEventParsers = Record<string, (payload: string) => unknown>;
+
+export type StandardStructuredDataPayload = {
+  kind: string;
+  format: string;
+  chunk: string;
+};
+
+export interface StandardSseChatTransportInitOptions<
+  UI_MESSAGE extends UIMessage,
+> extends HttpChatTransportInitOptions<UI_MESSAGE> {
+  dataEventParsers?: SseDataEventParsers;
+}
+
+export function parseStandardStructuredDataPayload(
+  payload: string,
+): StandardStructuredDataPayload {
+  const parsed = JSON.parse(payload);
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid structured payload.');
+  }
+
+  const raw = parsed as {
+    kind?: unknown;
+    format?: unknown;
+    chunk?: unknown;
+  };
+
+  if (
+    typeof raw.kind !== 'string' ||
+    typeof raw.format !== 'string' ||
+    typeof raw.chunk !== 'string'
+  ) {
+    throw new Error('Invalid structured payload shape.');
+  }
+
+  return {
+    kind: raw.kind,
+    format: raw.format,
+    chunk: raw.chunk,
+  };
+}
+
+const DEFAULT_SSE_DATA_EVENT_PARSERS: SseDataEventParsers = {
+  structured: parseStandardStructuredDataPayload,
+};
+
 function normalizeLineEndings(input: string): string {
   return input.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
@@ -42,8 +89,15 @@ function parseSseEnvelope(eventBlock: string): SseEnvelope {
 export class StandardSseChatTransport<
   UI_MESSAGE extends UIMessage,
 > extends HttpChatTransport<UI_MESSAGE> {
-  constructor(options: HttpChatTransportInitOptions<UI_MESSAGE> = {}) {
-    super(options);
+  private readonly dataEventParsers: SseDataEventParsers;
+
+  constructor(options: StandardSseChatTransportInitOptions<UI_MESSAGE> = {}) {
+    const { dataEventParsers = {}, ...transportOptions } = options;
+    super(transportOptions);
+    this.dataEventParsers = {
+      ...DEFAULT_SSE_DATA_EVENT_PARSERS,
+      ...dataEventParsers,
+    };
   }
 
   protected processResponseStream(
@@ -77,6 +131,15 @@ export class StandardSseChatTransport<
             delta: envelope.data,
           });
         }
+        return;
+      }
+
+      const parser = this.dataEventParsers[envelope.event];
+      if (parser && envelope.data != null) {
+        controller.enqueue({
+          type: `data-${envelope.event}` as `data-${string}`,
+          data: parser(envelope.data),
+        } as UIMessageChunk);
       }
     };
 

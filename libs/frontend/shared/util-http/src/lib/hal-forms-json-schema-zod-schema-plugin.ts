@@ -212,8 +212,11 @@ const readProperties = (schema: JsonObjectSchema): Record<string, JSONSchema> =>
 
 const applySchema = (
   schema: z.ZodTypeAny,
-  _jsonSchema: JsonObjectSchema,
-): z.ZodTypeAny => schema;
+  jsonSchema: JsonObjectSchema,
+): z.ZodTypeAny => {
+  void jsonSchema;
+  return schema;
+};
 
 const createStringSchema = (schema: JsonObjectSchema): z.ZodTypeAny => {
   let stringSchema = z.string();

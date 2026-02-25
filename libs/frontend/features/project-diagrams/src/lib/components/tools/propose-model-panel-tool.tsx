@@ -1,3 +1,4 @@
+import { UIMessage, useChat } from '@ai-sdk/react';
 import {
   Conversation,
   ConversationContent,
@@ -18,25 +19,29 @@ import {
 } from '@shared/ui';
 import { State } from '@hateoas-ts/resource';
 import {
+  StandardSseChatTransport,
+  StandardStructuredDataPayload,
+} from '@shared/util-http';
+import {
   Diagram,
   DiagramEdge,
   DiagramNode,
 } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
-import { parse as parseBestEffortJson } from 'best-effort-json-parser';
 import { Settings2 } from 'lucide-react';
-import { FormEvent, useCallback, useMemo, useState } from 'react';
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   buildOptimisticDraftPreview,
   DraftApplyPayload,
   OptimisticDraftPreview,
 } from './draft-utils';
-
-type ChatMessage = {
-  id: string;
-  role: 'assistant' | 'user';
-  content: string;
-};
 
 type ValueTarget = {
   value?: string;
@@ -65,68 +70,54 @@ type CanvasNodeData = Omit<DiagramNode['data'], 'localData'> & {
   localData: Record<string, unknown> | null;
 };
 
-type DraftLogicalEntityType =
-  DiagramNode['data']['localData']['type'];
-
-type ProposeModelStreamEvent =
-  | {
-      type: 'chunk';
-      content: string;
-    }
-  | {
-      type: 'error';
-      message: string;
-    }
-  | {
-      type: 'complete';
-    };
-
-type SseEnvelope = {
-  event: string | null;
-  data: string | null;
+type ProposeModelDataTypes = {
+  structured: StandardStructuredDataPayload;
 };
 
-function parseSseEnvelope(eventBlock: string): SseEnvelope {
-  const lines = eventBlock.split('\n');
-  let eventName: string | null = null;
-  const dataLines = lines
-    .filter((line) => !line.startsWith(':'))
-    .map((line) => line.trimEnd());
+type ProposeModelChatMessage = UIMessage<unknown, ProposeModelDataTypes>;
 
-  for (const line of dataLines) {
-    if (line.startsWith('event:')) {
-      const value = line.slice(6).trim();
-      eventName = value.length > 0 ? value : null;
-    }
-  }
+type DraftGraphData = {
+  nodes: DiagramNode['data'][];
+  edges: DiagramEdge['data'][];
+};
 
-  const payloadLines = dataLines
-    .filter((line) => line.startsWith('data:'))
-    .map((line) => line.slice(5).trimStart());
+const API_KEY_STORAGE_KEY = 'api-key';
+const MODEL_STORAGE_KEY = 'ai-model';
+const API_KEY_HEADER = 'X-Api-Key';
+const MODEL_HEADER = 'X-AI-Model';
 
-  return {
-    event: eventName,
-    data: payloadLines.length > 0 ? payloadLines.join('\n') : null,
-  };
+type StorageLike = {
+  getItem(key: string): string | null;
+};
+
+function getBrowserStorage(): StorageLike | null {
+  const scope = globalThis as { localStorage?: StorageLike };
+  return scope.localStorage ?? null;
 }
 
-function parseStreamEvent(envelope: SseEnvelope): ProposeModelStreamEvent | null {
-  const { event, data } = envelope;
+function withAiSettingsAndCredentialsInterceptor(fetcher: typeof fetch = fetch) {
+  return async (
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1],
+  ) => {
+    const requestWithHeaders = new Request(input, {
+      ...init,
+      credentials: 'include',
+    });
 
-  if (!event || event === 'message') {
-    if (data == null) {
-      return null;
+    const storage = getBrowserStorage();
+    const apiKey = storage?.getItem(API_KEY_STORAGE_KEY);
+    const model = storage?.getItem(MODEL_STORAGE_KEY);
+
+    if (apiKey) {
+      requestWithHeaders.headers.set(API_KEY_HEADER, apiKey);
     }
-    return { type: 'chunk', content: data };
-  }
+    if (model) {
+      requestWithHeaders.headers.set(MODEL_HEADER, model);
+    }
 
-  if (event === 'error') {
-    return { type: 'error', message: data ?? '模型提议失败' };
-  }
-  if (event === 'complete') {
-    return { type: 'complete' };
-  }
-  return null;
+    return fetcher(requestWithHeaders);
+  };
 }
 
 function getDefaultDraftNodePosition(index: number): { x: number; y: number } {
@@ -134,6 +125,56 @@ function getDefaultDraftNodePosition(index: number): { x: number; y: number } {
     x: 120 + (index % 3) * 300,
     y: 120 + Math.floor(index / 3) * 180,
   };
+}
+
+function normalizeDraftLogicalEntityType(
+  type: unknown,
+): DiagramNode['data']['localData']['type'] | null {
+  if (typeof type !== 'string') {
+    return null;
+  }
+
+  switch (type.trim().toUpperCase()) {
+    case 'EVIDENCE':
+      return 'EVIDENCE';
+    case 'PARTICIPANT':
+      return 'PARTICIPANT';
+    case 'ROLE':
+      return 'ROLE';
+    case 'CONTEXT':
+      return 'CONTEXT';
+    default:
+      return null;
+  }
+}
+
+function normalizeDraftSubType(
+  type: DiagramNode['data']['localData']['type'],
+  subType: unknown,
+): DiagramNode['data']['localData']['subType'] {
+  if (typeof subType === 'string') {
+    return subType as DiagramNode['data']['localData']['subType'];
+  }
+
+  switch (type) {
+    case 'EVIDENCE':
+      return 'other_evidence';
+    case 'PARTICIPANT':
+      return 'party';
+    case 'ROLE':
+      return 'party_role';
+    case 'CONTEXT':
+      return 'bounded_context';
+  }
+}
+
+function normalizeRef(value: unknown): { id: string } | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const id = (value as { id?: unknown }).id;
+  return typeof id === 'string' ? { id } : null;
 }
 
 function normalizeDraftNode(
@@ -156,16 +197,16 @@ function normalizeDraftNode(
     localData?: unknown;
   };
 
-  const localData = raw.localData;
-  if (!localData || typeof localData !== 'object') {
-    return null;
-  }
-  const id = raw.id;
-  if (typeof id !== 'string' || id.trim().length === 0) {
+  const nodeId = typeof raw.id === 'string' ? raw.id.trim() : '';
+  if (nodeId.length === 0) {
     return null;
   }
 
-  const localDataRaw = localData as {
+  if (!raw.localData || typeof raw.localData !== 'object') {
+    return null;
+  }
+
+  const localData = raw.localData as {
     id?: unknown;
     type?: unknown;
     subType?: unknown;
@@ -174,33 +215,40 @@ function normalizeDraftNode(
     definition?: unknown;
   };
 
-  const name = localDataRaw.name;
-  const label = localDataRaw.label;
-  const normalizedType = normalizeDraftLogicalEntityType(localDataRaw.type);
-  if (typeof name !== 'string' || typeof label !== 'string' || !normalizedType) {
+  if (typeof localData.name !== 'string' || typeof localData.label !== 'string') {
     return null;
   }
 
-  const position = getDefaultDraftNodePosition(index);
+  const localDataType = normalizeDraftLogicalEntityType(localData.type);
+  if (!localDataType) {
+    return null;
+  }
+
+  const defaultPosition = getDefaultDraftNodePosition(index);
+  const definition =
+    localData.definition && typeof localData.definition === 'object'
+      ? (localData.definition as DiagramNode['data']['localData']['definition'])
+      : {};
+
   return {
-    id,
+    id: nodeId,
     type: typeof raw.type === 'string' ? raw.type : 'fulfillment-node',
     logicalEntity: normalizeRef(raw.logicalEntity),
     parent: normalizeRef(raw.parent),
-    positionX: typeof raw.positionX === 'number' ? raw.positionX : position.x,
-    positionY: typeof raw.positionY === 'number' ? raw.positionY : position.y,
+    positionX: typeof raw.positionX === 'number' ? raw.positionX : defaultPosition.x,
+    positionY: typeof raw.positionY === 'number' ? raw.positionY : defaultPosition.y,
     width: typeof raw.width === 'number' ? raw.width : 220,
     height: typeof raw.height === 'number' ? raw.height : 120,
     localData: {
       id:
-        typeof localDataRaw.id === 'string'
-          ? localDataRaw.id
+        typeof localData.id === 'string'
+          ? localData.id
           : `draft-entity-${index + 1}`,
-      type: normalizedType,
-      subType: normalizeDraftSubType(normalizedType, localDataRaw.subType),
-      name,
-      label,
-      definition: normalizeDraftDefinition(localDataRaw.definition),
+      type: localDataType,
+      subType: normalizeDraftSubType(localDataType, localData.subType),
+      name: localData.name,
+      label: localData.label,
+      definition,
     },
   };
 }
@@ -230,6 +278,12 @@ function normalizeDraftEdge(
     return null;
   }
 
+  const rawStyleProps = raw.styleProps;
+  const styleProps =
+    rawStyleProps && typeof rawStyleProps === 'object'
+      ? (rawStyleProps as DiagramEdge['data']['styleProps'])
+      : null;
+
   return {
     id: typeof raw.id === 'string' ? raw.id : `edge-${index + 1}`,
     sourceNode,
@@ -241,16 +295,11 @@ function normalizeDraftEdge(
         ? (raw.relationType as DiagramEdge['data']['relationType'])
         : null,
     label: typeof raw.label === 'string' ? raw.label : null,
-    styleProps: normalizeDraftStyleProps(raw.styleProps),
+    styleProps,
   };
 }
 
-function normalizeDraft(
-  value: unknown,
-): {
-  nodes: DiagramNode['data'][];
-  edges: DiagramEdge['data'][];
-} | null {
+function normalizeDraft(value: unknown): DraftGraphData | null {
   if (!value || typeof value !== 'object') {
     return null;
   }
@@ -281,135 +330,44 @@ function normalizeDraft(
   return { nodes, edges };
 }
 
-function tryParseDraft(
-  jsonText: string,
-): {
-  nodes: DiagramNode['data'][];
-  edges: DiagramEdge['data'][];
-} | null {
+function extractLatestStructuredDraftJson(
+  messages: ProposeModelChatMessage[],
+): string {
+  for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
+    const message = messages[messageIndex];
+    if (message.role !== 'assistant') {
+      continue;
+    }
+
+    const chunks: string[] = [];
+    for (const part of message.parts) {
+      if (part.type !== 'data-structured') {
+        continue;
+      }
+      if (part.data.kind !== 'diagram-model' || part.data.format !== 'json') {
+        continue;
+      }
+      chunks.push(part.data.chunk);
+    }
+
+    if (chunks.length > 0) {
+      return chunks.join('');
+    }
+  }
+
+  return '';
+}
+
+function tryParseDraft(jsonText: string): DraftGraphData | null {
+  if (!jsonText.trim()) {
+    return null;
+  }
+
   try {
-    return normalizeDraft(parseBestEffortJson(jsonText));
+    return normalizeDraft(JSON.parse(jsonText));
   } catch {
     return null;
   }
-}
-
-function normalizeDraftLogicalEntityType(
-  type: unknown,
-): DraftLogicalEntityType | null {
-  if (typeof type !== 'string') {
-    return null;
-  }
-
-  switch (type.trim().toUpperCase()) {
-    case 'EVIDENCE':
-      return 'EVIDENCE';
-    case 'PARTICIPANT':
-      return 'PARTICIPANT';
-    case 'ROLE':
-      return 'ROLE';
-    case 'CONTEXT':
-      return 'CONTEXT';
-    default:
-      return null;
-  }
-}
-
-function normalizeDraftSubType(
-  type: DraftLogicalEntityType,
-  subType: unknown,
-): DiagramNode['data']['localData']['subType'] {
-  if (typeof subType === 'string') {
-    return subType as DiagramNode['data']['localData']['subType'];
-  }
-  switch (type) {
-    case 'EVIDENCE':
-      return 'other_evidence';
-    case 'PARTICIPANT':
-      return 'party';
-    case 'ROLE':
-      return 'party_role';
-    case 'CONTEXT':
-      return 'bounded_context';
-  }
-}
-
-function normalizeDraftDefinition(
-  definition: unknown,
-): DiagramNode['data']['localData']['definition'] {
-  if (!definition || typeof definition !== 'object') {
-    return {};
-  }
-  return definition as DiagramNode['data']['localData']['definition'];
-}
-
-function normalizeDraftStyleProps(
-  styleProps: unknown,
-): DiagramEdge['data']['styleProps'] {
-  if (!styleProps || typeof styleProps !== 'object') {
-    return null;
-  }
-  const raw = styleProps as {
-    lineStyle?: unknown;
-    color?: unknown;
-    arrowType?: unknown;
-    lineWidth?: unknown;
-  };
-  if (
-    typeof raw.lineStyle !== 'string' ||
-    typeof raw.color !== 'string' ||
-    typeof raw.arrowType !== 'string' ||
-    typeof raw.lineWidth !== 'number'
-  ) {
-    return null;
-  }
-  return {
-    lineStyle: raw.lineStyle,
-    color: raw.color,
-    arrowType: raw.arrowType,
-    lineWidth: raw.lineWidth,
-  };
-}
-
-function normalizeRef(value: unknown): { id: string } | null {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-  const id = (value as { id?: unknown }).id;
-  return typeof id === 'string' ? { id } : null;
-}
-
-function formatDraftSummaryMessage(draft: {
-  nodes: DiagramNode['data'][];
-  edges: DiagramEdge['data'][];
-}, options?: { streaming?: boolean }): string {
-  const nodeLines =
-    draft.nodes.length > 0
-      ? draft.nodes.map((node, index) => {
-          const displayName = node.localData.label || node.localData.name || node.id;
-          return `${index + 1}. ${displayName} [id=${node.id}, type=${node.localData.type}]`;
-        })
-      : ['(empty)'];
-
-  const edgeLines =
-    draft.edges.length > 0
-      ? draft.edges.map((edge, index) => {
-          const relation = edge.relationType ?? edge.label ?? '关联';
-          return `${index + 1}. ${edge.sourceNode.id} -> ${edge.targetNode.id} (${relation})`;
-        })
-      : ['(empty)'];
-
-  const title = options?.streaming ? 'AI 正在读取，当前草稿：' : 'AI 读取完成，草稿如下：';
-  return [title, 'Nodes:', ...nodeLines, 'Edges:', ...edgeLines].join('\n');
-}
-
-function waitForNextPaint(): Promise<void> {
-  // Keep this utility compatible with typecheck environments that don't include DOM typings.
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, 0);
-  });
 }
 
 export function useProposeModelDraft({
@@ -475,14 +433,64 @@ export function ProposeModelPanelTool({
   onDraftApplyReverted,
 }: Props) {
   const [requirement, setRequirement] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>();
+  const lastAppliedDraftKeyRef = useRef<string | undefined>(undefined);
+
+  const proposeModelApi = state.hasLink('propose-model')
+    ? state.action('propose-model').uri
+    : undefined;
+
+  const { messages, sendMessage } = useChat<ProposeModelChatMessage>({
+    transport: new StandardSseChatTransport({
+      api: proposeModelApi,
+      fetch: withAiSettingsAndCredentialsInterceptor(),
+      prepareSendMessagesRequest: ({ messages }) => {
+        const lastMessage = messages.at(-1);
+        let nextRequirement = '';
+
+        for (const part of lastMessage?.parts ?? []) {
+          if (part.type === 'text') {
+            nextRequirement += part.text;
+          }
+        }
+
+        return {
+          body: {
+            requirement: nextRequirement,
+          },
+        };
+      },
+    }),
+  });
 
   const canSubmit = useMemo(
     () => requirement.trim().length > 0 && !isSubmitting && !isSavingDraft,
     [requirement, isSubmitting, isSavingDraft],
   );
+
+  useEffect(() => {
+    if (!onDraftApplyOptimistic) {
+      return;
+    }
+
+    const structuredDraftJson = extractLatestStructuredDraftJson(messages);
+    const draft = tryParseDraft(structuredDraftJson);
+    if (!draft) {
+      return;
+    }
+
+    const key = JSON.stringify(draft);
+    if (lastAppliedDraftKeyRef.current === key) {
+      return;
+    }
+
+    lastAppliedDraftKeyRef.current = key;
+    onDraftApplyOptimistic({
+      draft,
+      preview: buildOptimisticDraftPreview(draft),
+    });
+  }, [messages, onDraftApplyOptimistic]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -491,154 +499,19 @@ export function ProposeModelPanelTool({
       return;
     }
 
-    if (!state.hasLink('propose-model')) {
+    if (!proposeModelApi) {
       setError('当前图表未提供 propose-model 操作。');
       return;
     }
 
-    const proposeModelAction = state.action('propose-model');
-    const payload = { requirement: trimmedRequirement };
-
     setIsSubmitting(true);
     setError(undefined);
     setRequirement('');
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: `user-${Date.now()}`,
-        role: 'user',
-        content: trimmedRequirement,
-      },
-    ]);
+    lastAppliedDraftKeyRef.current = undefined;
+    onDraftApplyReverted?.();
 
     try {
-      const result = await proposeModelAction.submit(payload);
-
-      const stream = result.data;
-      if (
-        !stream ||
-        typeof (stream as { getReader?: unknown }).getReader !== 'function'
-      ) {
-        throw new Error('模型提议接口未返回流式响应。');
-      }
-
-      const reader = stream.getReader();
-      const decoder = new TextDecoder();
-      let sseBuffer = '';
-      let draftJsonBuffer = '';
-      const streamMessageId = `assistant-stream-${Date.now()}`;
-      let latestDraft: {
-        nodes: DiagramNode['data'][];
-        edges: DiagramEdge['data'][];
-      } | null = null;
-      let streamCompleted = false;
-
-      const processSseEvent = (eventBlock: string) => {
-        const streamEvent = parseStreamEvent(parseSseEnvelope(eventBlock));
-        if (!streamEvent) {
-          return;
-        }
-
-        if (streamEvent.type === 'chunk') {
-          draftJsonBuffer += streamEvent.content;
-          const parsed = tryParseDraft(draftJsonBuffer);
-          if (parsed) {
-            latestDraft = parsed;
-            setMessages((prev) => {
-              const message: ChatMessage = {
-                id: streamMessageId,
-                role: 'assistant',
-                content: formatDraftSummaryMessage(parsed, { streaming: true }),
-              };
-              const idx = prev.findIndex((item) => item.id === streamMessageId);
-              if (idx < 0) {
-                return [...prev, message];
-              }
-              return prev.map((item, index) => (index === idx ? message : item));
-            });
-          }
-          return;
-        }
-
-        if (streamEvent.type === 'error') {
-          throw new Error(streamEvent.message);
-        }
-
-        streamCompleted = true;
-      };
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
-
-        sseBuffer += decoder
-          .decode(value, { stream: true })
-          .replace(/\r\n/g, '\n')
-          .replace(/\r/g, '\n');
-
-        let eventSeparatorIndex = sseBuffer.indexOf('\n\n');
-        while (eventSeparatorIndex >= 0) {
-          const eventBlock = sseBuffer.slice(0, eventSeparatorIndex).trim();
-          sseBuffer = sseBuffer.slice(eventSeparatorIndex + 2);
-          if (eventBlock.length > 0) {
-            processSseEvent(eventBlock);
-          }
-          eventSeparatorIndex = sseBuffer.indexOf('\n\n');
-        }
-      }
-
-      const finalChunk = decoder.decode().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      if (finalChunk) {
-        sseBuffer += finalChunk;
-      }
-      if (sseBuffer.trim().length > 0) {
-        processSseEvent(sseBuffer.trim());
-      }
-
-      if (!latestDraft) {
-        const parsed = tryParseDraft(draftJsonBuffer);
-        if (parsed) {
-          latestDraft = parsed;
-        }
-      }
-      if (!latestDraft) {
-        throw new Error('模型响应不是有效的草稿图 JSON。');
-      }
-      if (!streamCompleted) {
-        throw new Error('模型流式响应异常中断。');
-      }
-      const finalDraft = latestDraft;
-
-      setMessages((prev) => {
-        const message: ChatMessage = {
-          id: streamMessageId,
-          role: 'assistant',
-          content: formatDraftSummaryMessage(finalDraft),
-        };
-        const idx = prev.findIndex((item) => item.id === streamMessageId);
-        if (idx < 0) {
-          return [...prev, message];
-        }
-        return prev.map((item, index) => (index === idx ? message : item));
-      });
-      await waitForNextPaint();
-
-      const preview = buildOptimisticDraftPreview(finalDraft);
-      onDraftApplyOptimistic?.({
-        draft: finalDraft,
-        preview,
-      });
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-complete-${Date.now()}`,
-          role: 'assistant',
-          content: '已完成位置计算，画布已更新。',
-        },
-      ]);
+      await sendMessage({ text: trimmedRequirement });
     } catch (e) {
       onDraftApplyReverted?.();
       const message = e instanceof Error ? e.message : '模型提议失败';
@@ -674,9 +547,22 @@ export function ProposeModelPanelTool({
               ) : (
                 <>
                   {messages.map((message) => (
-                    <Message key={message.id} from={message.role}>
+                    <Message
+                      key={message.id}
+                      from={message.role === 'assistant' ? 'assistant' : 'user'}
+                    >
                       <MessageContent>
-                        <MessageResponse>{message.content}</MessageResponse>
+                        {message.parts.map((part, index) => {
+                          if (part.type !== 'text') {
+                            return null;
+                          }
+
+                          return (
+                            <MessageResponse key={`${message.id}-${index}`}>
+                              {part.text}
+                            </MessageResponse>
+                          );
+                        })}
                       </MessageContent>
                     </Message>
                   ))}

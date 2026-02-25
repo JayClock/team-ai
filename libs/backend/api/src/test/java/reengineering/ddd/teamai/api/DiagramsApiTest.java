@@ -614,10 +614,37 @@ public class DiagramsApiTest extends ApiTest {
         .statusCode(200)
         .contentType(containsString(MediaType.SERVER_SENT_EVENTS))
         .body(containsString("data: {\"nodes\""))
+        .body(containsString("event: structured"))
+        .body(containsString("\"kind\":\"diagram-model\""))
+        .body(containsString("\"format\":\"json\""))
         .body(containsString("Order"))
         .body(containsString("event: complete"));
 
     verify(domainArchitect, times(1)).proposeModel(requirement);
+  }
+
+  @Test
+  public void should_return_error_event_when_propose_model_stream_is_not_json() {
+    String requirement = "输出普通文本";
+    when(domainArchitect.proposeModel(requirement)).thenReturn(Flux.just("plain-text-output"));
+
+    DiagramApi.ProposeModelRequest request = new DiagramApi.ProposeModelRequest();
+    request.setRequirement(requirement);
+
+    given(documentationSpec)
+        .accept(MediaType.SERVER_SENT_EVENTS)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/propose-model",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .contentType(containsString(MediaType.SERVER_SENT_EVENTS))
+        .body(containsString("event: error"))
+        .body(containsString("模型响应不是有效的草稿图 JSON。"));
   }
 
   @Test

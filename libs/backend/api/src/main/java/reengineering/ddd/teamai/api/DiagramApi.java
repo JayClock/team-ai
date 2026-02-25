@@ -2,6 +2,9 @@ package reengineering.ddd.teamai.api;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -31,6 +34,7 @@ import reengineering.ddd.teamai.model.Project;
 
 public class DiagramApi {
   @Inject private Diagram.DomainArchitect domainArchitect;
+  @Inject private ObjectMapper objectMapper;
   @Context ResourceContext resourceContext;
 
   private final Project project;
@@ -68,15 +72,32 @@ public class DiagramApi {
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void proposeModel(
       @Valid ProposeModelRequest request, @Context SseEventSink sseEventSink, @Context Sse sse) {
+    StringBuilder structuredBuffer = new StringBuilder();
+
     diagram
         .proposeModel(request.getRequirement(), domainArchitect)
         .subscribe(
-            chunk -> sendSseEvent(sseEventSink, sse, null, chunk),
+            chunk -> {
+              String payload = chunk == null ? "" : chunk;
+              if (payload.isEmpty()) {
+                return;
+              }
+
+              structuredBuffer.append(payload);
+              sendSseEvent(sseEventSink, sse, null, payload);
+              sendStructuredChunk(sseEventSink, sse, "diagram-model", "json", payload);
+            },
             error -> {
               sendSseEvent(sseEventSink, sse, "error", error == null ? null : error.getMessage());
               sseEventSink.close();
             },
             () -> {
+              if (!isValidJson(structuredBuffer.toString())) {
+                sendSseEvent(sseEventSink, sse, "error", "模型响应不是有效的草稿图 JSON。");
+                sseEventSink.close();
+                return;
+              }
+
               sendSseEvent(sseEventSink, sse, "complete", "");
               sseEventSink.close();
             });
@@ -126,6 +147,34 @@ public class DiagramApi {
     OutboundSseEvent event = builder.data(String.class, payload).build();
     sseEventSink.send(event);
   }
+
+  private void sendStructuredChunk(
+      SseEventSink sseEventSink, Sse sse, String kind, String format, String chunk) {
+    StructuredChunkPayload payload = new StructuredChunkPayload(kind, format, chunk);
+    try {
+      sendSseEvent(sseEventSink, sse, "structured", objectMapper.writeValueAsString(payload));
+    } catch (JsonProcessingException error) {
+      sendSseEvent(sseEventSink, sse, "error", "结构化事件序列化失败");
+    }
+  }
+
+  private boolean isValidJson(String payload) {
+    if (payload == null || payload.isBlank()) {
+      return false;
+    }
+
+    return tryParseJson(payload) != null;
+  }
+
+  private JsonNode tryParseJson(String content) {
+    try {
+      return objectMapper.readTree(content);
+    } catch (JsonProcessingException ignored) {
+      return null;
+    }
+  }
+
+  private record StructuredChunkPayload(String kind, String format, String chunk) {}
 
   @Data
   @NoArgsConstructor
