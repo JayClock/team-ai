@@ -67,6 +67,19 @@ function createGeneratedNodeData(id: string): DraftDiagramNodeInput {
       name: `Entity ${id}`,
       label: `Entity ${id}`,
       type: 'EVIDENCE',
+      subType: 'rfp',
+    },
+  };
+}
+
+function createGeneratedContextNodeData(id: string): DraftDiagramNodeInput {
+  return {
+    id,
+    localData: {
+      name: `Context ${id}`,
+      label: `Context ${id}`,
+      type: 'CONTEXT',
+      subType: 'bounded_context',
     },
   };
 }
@@ -296,6 +309,7 @@ describe('createDiagramStore', () => {
             name: 'Entity node-4',
             label: 'Entity node-4',
             type: 'EVIDENCE',
+            subType: 'rfp',
           },
         },
       ],
@@ -316,6 +330,73 @@ describe('createDiagramStore', () => {
       label: 'Entity node-4',
       definition: {},
     });
+  });
+
+  it('supports generated parent relationship for context container', async () => {
+    const store = createDiagramStore(createDiagramState('Diagram A'));
+    await waitForStoreLoad(store);
+
+    await store.addGeneratedNodesAndEdges({
+      nodes: [
+        createGeneratedContextNodeData('context-1'),
+        {
+          id: 'node-3',
+          parent: { id: 'context-1' },
+          localData: {
+            name: 'Payment Request',
+            label: '支付申请',
+            type: 'EVIDENCE',
+            subType: 'fulfillment_request',
+          },
+        },
+      ],
+      edges: [createGeneratedEdgeData('context-1', 'node-3')],
+    });
+
+    const contextNode = store.diagramNodes.value.find((node) => node.id === 'context-1');
+    const childNode = store.diagramNodes.value.find((node) => node.id === 'node-3');
+    expect(contextNode).toBeDefined();
+    expect(childNode).toBeDefined();
+    expect(contextNode?.type).toBe('group-container');
+    expect(contextNode?.data).toMatchObject({
+      type: 'CONTEXT',
+      subType: 'bounded_context',
+    });
+    expect(childNode?.parentId).toBe('context-1');
+    expect(childNode?.extent).toBe('parent');
+  });
+
+  it('includes parent.id in commit-draft payload for nested nodes', async () => {
+    const submit = vi.fn(async () => ({}));
+    const store = createDiagramStore(
+      createDiagramStateWithCommitDraft('Diagram A', submit),
+    );
+    await waitForStoreLoad(store);
+
+    await store.addGeneratedNodesAndEdges({
+      nodes: [
+        createGeneratedContextNodeData('context-1'),
+        {
+          id: 'node-3',
+          parent: { id: 'context-1' },
+          localData: {
+            name: 'Invoice Confirmation',
+            label: '发票确认',
+            type: 'EVIDENCE',
+            subType: 'fulfillment_confirmation',
+          },
+        },
+      ],
+      edges: [],
+    });
+    await store.saveDiagram();
+
+    const payload = submit.mock.calls[0][0] as {
+      nodes: Array<{ id: string; parent?: { id: string } }>;
+    };
+    const nestedNode = payload.nodes.find((node) => node.id === 'node-3');
+    expect(nestedNode).toBeDefined();
+    expect(nestedNode?.parent).toEqual({ id: 'context-1' });
   });
 
   it('converts diagram nodes and edges to commit-draft payload and submits', async () => {

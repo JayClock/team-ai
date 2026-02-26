@@ -17,6 +17,7 @@ export const layoutRoutes: RouteObject[] = [
       {
         path: '*',
         loader: genericLoader,
+        hydrateFallbackElement: <div />,
         element: <ResourceRenderer />,
       },
     ],

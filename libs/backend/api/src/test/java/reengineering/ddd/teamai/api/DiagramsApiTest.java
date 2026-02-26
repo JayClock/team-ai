@@ -644,6 +644,36 @@ public class DiagramsApiTest extends ApiTest {
   }
 
   @Test
+  public void should_return_error_when_model_wraps_json_with_markdown() {
+    String requirement = "设计一个订单管理模型";
+    Flux<String> expected =
+        Flux.just(
+            "```json\n{\"nodes\":[{\"id\":\"node-1\"}],",
+            "\"edges\":[{\"sourceNode\":{\"id\":\"node-1\"},\"targetNode\":{\"id\":\"node-2\"}}]}\n```");
+    when(domainArchitect.proposeModel(requirement)).thenReturn(expected);
+
+    DiagramApi.ProposeModelRequest request = new DiagramApi.ProposeModelRequest();
+    request.setRequirement(requirement);
+
+    given(documentationSpec)
+        .accept(MediaType.SERVER_SENT_EVENTS)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/diagrams/{id}/propose-model",
+            project.getIdentity(),
+            diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .contentType(containsString(MediaType.SERVER_SENT_EVENTS))
+        .body(containsString("event: structured"))
+        .body(containsString("\"format\":\"json\""))
+        .body(containsString("event: error"))
+        .body(containsString("模型响应不是有效的草稿图 JSON。"));
+  }
+
+  @Test
   public void should_return_error_event_when_propose_model_stream_is_not_json() {
     String requirement = "输出普通文本";
     when(domainArchitect.proposeModel(requirement)).thenReturn(Flux.just("plain-text-output"));

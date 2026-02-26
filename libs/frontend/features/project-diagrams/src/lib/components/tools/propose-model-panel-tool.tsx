@@ -44,13 +44,39 @@ type ProposeModelDataTypes = {
 
 type ProposeModelChatMessage = UIMessage<unknown, ProposeModelDataTypes>;
 
-function parseDraftByBestEffort(jsonText: string): DraftDiagramInput {
-  if (!jsonText.trim()) {
+function extractJsonFromMarkdown(input: string): string {
+  const match = input.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return match?.[1]?.trim() ?? input;
+}
+
+function toDraftDiagramInput(value: unknown): DraftDiagramInput {
+  if (!value || typeof value !== 'object') {
     return { nodes: [], edges: [] };
   }
 
+  const candidate = value as { nodes?: unknown; edges?: unknown };
+  return {
+    nodes: Array.isArray(candidate.nodes) ? candidate.nodes : [],
+    edges: Array.isArray(candidate.edges) ? candidate.edges : [],
+  };
+}
+
+function parseDraftByBestEffort(jsonText: string): DraftDiagramInput {
+  const trimmed = jsonText.trim();
+  if (!trimmed) {
+    return { nodes: [], edges: [] };
+  }
+
+  const normalized = extractJsonFromMarkdown(trimmed);
+
   try {
-    return parseBestEffortJson(jsonText);
+    return toDraftDiagramInput(JSON.parse(normalized));
+  } catch {
+    // Fall through to tolerant parsing when model output is not strict JSON.
+  }
+
+  try {
+    return toDraftDiagramInput(parseBestEffortJson(normalized));
   } catch {
     return { nodes: [], edges: [] };
   }

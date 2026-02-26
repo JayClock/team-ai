@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.deepseek.api.ResponseFormat;
 import reactor.core.publisher.Flux;
 import reengineering.ddd.teamai.model.Diagram;
 
@@ -30,6 +31,15 @@ class SpringAIDomainArchitectTest {
   @Test
   void should_handle_api_unavailability_gracefully() {
     assertThat(domainArchitect).isNotNull();
+  }
+
+  @Test
+  void should_enable_json_mode_for_streaming_generation() {
+    var options = domainArchitect.buildJsonStreamOptions("deepseek-chat");
+
+    assertThat(options.getModel()).isEqualTo("deepseek-chat");
+    assertThat(options.getResponseFormat()).isNotNull();
+    assertThat(options.getResponseFormat().getType()).isEqualTo(ResponseFormat.Type.JSON_OBJECT);
   }
 
   @Test
