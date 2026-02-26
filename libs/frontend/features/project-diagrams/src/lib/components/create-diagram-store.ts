@@ -9,6 +9,7 @@ import {
 import { Edge, Node } from '@xyflow/react';
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api';
+import { calculateLayout } from './calculate-layout';
 
 const elk = new ELK();
 const DEFAULT_NODE_WIDTH = 160;
@@ -17,10 +18,6 @@ const CONTEXT_NODE_WIDTH = 420;
 const CONTEXT_NODE_HEIGHT = 280;
 const GENERATED_NODE_TYPE = 'fulfillment-node';
 const GENERATED_GROUP_NODE_TYPE = 'group-container';
-const PARENT_PADDING_X = 24;
-const PARENT_PADDING_Y = 56;
-const PARENT_NODE_GAP_X = 24;
-const PARENT_NODE_GAP_Y = 24;
 const ELK_LAYOUT_OPTIONS = {
   'elk.algorithm': 'layered',
   'elk.direction': 'RIGHT',
@@ -101,7 +98,6 @@ export class DiagramStore {
         id: node.id,
         type: generatedNodeType,
         parentId,
-        ...(parentId ? { extent: 'parent' as const } : {}),
         position: {
           x: 0,
           y: 0,
@@ -322,7 +318,6 @@ export class DiagramStore {
         id: nodeState.data.id,
         type: nodeState.data.type,
         parentId: nodeState.data.parent?.id ?? undefined,
-        ...(nodeState.data.parent?.id ? { extent: 'parent' as const } : {}),
         position: {
           x: nodeState.data.positionX,
           y: nodeState.data.positionY,
@@ -462,74 +457,7 @@ export class DiagramStore {
   private layoutNodesWithParentHierarchy(
     nodes: Node<LogicalEntity['data']>[],
   ): Node<LogicalEntity['data']>[] {
-    const nodesById = new Map(
-      nodes.map((node) => [node.id, { ...node }]),
-    );
-    const rootNodes = nodes.filter((node) => !node.parentId);
-
-    for (let index = 0; index < rootNodes.length; index += 1) {
-      const node = rootNodes[index];
-      const position = this.getGridPosition(index);
-      const target = nodesById.get(node.id);
-      if (!target) {
-        continue;
-      }
-      target.position = position;
-    }
-
-    for (const parent of rootNodes) {
-      const parentNode = nodesById.get(parent.id);
-      if (!parentNode) {
-        continue;
-      }
-      const children = nodes.filter((node) => node.parentId === parent.id);
-      if (children.length === 0) {
-        continue;
-      }
-
-      const columnCount = Math.max(1, Math.ceil(Math.sqrt(children.length)));
-      const rowCount = Math.ceil(children.length / columnCount);
-      const contentWidth =
-        columnCount * DEFAULT_NODE_WIDTH + (columnCount - 1) * PARENT_NODE_GAP_X;
-      const contentHeight =
-        rowCount * DEFAULT_NODE_HEIGHT + (rowCount - 1) * PARENT_NODE_GAP_Y;
-      parentNode.width = Math.max(
-        parentNode.width ?? CONTEXT_NODE_WIDTH,
-        PARENT_PADDING_X * 2 + contentWidth,
-      );
-      parentNode.height = Math.max(
-        parentNode.height ?? CONTEXT_NODE_HEIGHT,
-        PARENT_PADDING_Y + contentHeight + PARENT_PADDING_X,
-      );
-
-      for (let index = 0; index < children.length; index += 1) {
-        const child = children[index];
-        const childNode = nodesById.get(child.id);
-        if (!childNode) {
-          continue;
-        }
-        const column = index % columnCount;
-        const row = Math.floor(index / columnCount);
-        childNode.position = {
-          x: PARENT_PADDING_X + column * (DEFAULT_NODE_WIDTH + PARENT_NODE_GAP_X),
-          y: PARENT_PADDING_Y + row * (DEFAULT_NODE_HEIGHT + PARENT_NODE_GAP_Y),
-        };
-        childNode.extent = 'parent';
-        childNode.width = childNode.width ?? DEFAULT_NODE_WIDTH;
-        childNode.height = childNode.height ?? DEFAULT_NODE_HEIGHT;
-      }
-    }
-
-    return nodes.map((node) => nodesById.get(node.id) ?? node);
-  }
-
-  private getGridPosition(index: number): { x: number; y: number } {
-    const column = index % 3;
-    const row = Math.floor(index / 3);
-    return {
-      x: 120 + column * 300,
-      y: 120 + row * 200,
-    };
+    return calculateLayout(nodes);
   }
 }
 

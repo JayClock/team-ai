@@ -1,0 +1,440 @@
+[
+    {
+        "id": "node-1",
+        "type": "group-container",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 420,
+        "height": 280,
+        "data": {
+            "id": "node-1",
+            "type": "CONTEXT",
+            "subType": "bounded_context",
+            "name": "电商平台上下文",
+            "label": "上下文：电商平台",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-2",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-2",
+            "type": "PARTICIPANT",
+            "subType": "party",
+            "name": "买家",
+            "label": "参与者：买家",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-3",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-3",
+            "type": "PARTICIPANT",
+            "subType": "party",
+            "name": "卖家",
+            "label": "参与者：卖家",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-4",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-4",
+            "type": "PARTICIPANT",
+            "subType": "thing",
+            "name": "商品",
+            "label": "参与者：商品",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-5",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-5",
+            "type": "EVIDENCE",
+            "subType": "rfp",
+            "name": "商品展示RFP",
+            "label": "RFP: 商品展示 started_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-6",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-6",
+            "type": "EVIDENCE",
+            "subType": "proposal",
+            "name": "购物车报价Proposal",
+            "label": "Proposal: 购物车报价 created_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-7",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-7",
+            "type": "EVIDENCE",
+            "subType": "contract",
+            "name": "订单合同",
+            "label": "Contract: 订单合同 signed_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-8",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-8",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_request",
+            "name": "支付请求",
+            "label": "Fulfillment Request: 支付请求 created_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-9",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-9",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_confirmation",
+            "name": "支付确认",
+            "label": "Fulfillment Confirmation: 支付确认 confirmed_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-10",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-10",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_request",
+            "name": "发货请求",
+            "label": "Fulfillment Request: 发货请求 created_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-11",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-11",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_confirmation",
+            "name": "发货确认",
+            "label": "Fulfillment Confirmation: 发货确认 confirmed_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-12",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-12",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_request",
+            "name": "收货请求",
+            "label": "Fulfillment Request: 收货请求 created_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-13",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-13",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_confirmation",
+            "name": "收货确认",
+            "label": "Fulfillment Confirmation: 收货确认 confirmed_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-14",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-14",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_request",
+            "name": "退款请求",
+            "label": "Fulfillment Request: 退款请求 created_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-15",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-15",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_confirmation",
+            "name": "退款确认",
+            "label": "Fulfillment Confirmation: 退款确认 confirmed_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-16",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-16",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_request",
+            "name": "取消请求",
+            "label": "Fulfillment Request: 取消请求 created_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-17",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-17",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_confirmation",
+            "name": "取消确认",
+            "label": "Fulfillment Confirmation: 取消确认 confirmed_at",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-18",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-18",
+            "type": "ROLE",
+            "subType": "party_role",
+            "name": "买家角色",
+            "label": "Role: 买家 party_role",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-19",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-19",
+            "type": "ROLE",
+            "subType": "party_role",
+            "name": "卖家角色",
+            "label": "Role: 卖家 party_role",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-20",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-20",
+            "type": "ROLE",
+            "subType": "domain_logic_role",
+            "name": "价格计算角色",
+            "label": "Role: 价格计算 domain_logic_role",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-21",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-21",
+            "type": "ROLE",
+            "subType": "third_party_role",
+            "name": "支付网关角色",
+            "label": "Role: 支付网关 third_party_role",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-22",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "extent": "parent",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-22",
+            "type": "ROLE",
+            "subType": "context_role",
+            "name": "库存管理角色",
+            "label": "Role: 库存管理 context_role",
+            "definition": {}
+        }
+    }
+]

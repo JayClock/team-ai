@@ -363,7 +363,6 @@ describe('createDiagramStore', () => {
       subType: 'bounded_context',
     });
     expect(childNode?.parentId).toBe('context-1');
-    expect(childNode?.extent).toBe('parent');
   });
 
   it('includes parent.id in commit-draft payload for nested nodes', async () => {
