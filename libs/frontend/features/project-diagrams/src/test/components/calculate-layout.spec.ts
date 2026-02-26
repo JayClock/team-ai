@@ -18,6 +18,7 @@ type LEdge = Pick<Edge, 'id' | 'source' | 'target'>;
 const CONTRACT_ID = 'node-7';
 const RFP_ID = 'node-5';
 const PROPOSAL_ID = 'node-6';
+const CONTRACT_ROLE_IDS = ['node-2', 'node-3'] as const;
 const REQUEST_IDS = ['node-8', 'node-10', 'node-12'] as const;
 const CONFIRM_BY_REQUEST_ID = {
   'node-8': 'node-9',
@@ -59,6 +60,27 @@ describe('calculateLayout - fulfillment axis', () => {
 
     expect((rfp?.position.x ?? 0) < (proposal?.position.x ?? 0)).toBe(true);
     expect((proposal?.position.x ?? 0) < (contract?.position.x ?? 0)).toBe(true);
+  });
+
+  it('places contract roles above and below contract on the same column', () => {
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    const contract = nodeMap.get(CONTRACT_ID);
+    const roles = CONTRACT_ROLE_IDS
+      .map((id) => nodeMap.get(id))
+      .filter((node): node is LNode => Boolean(node))
+      .sort((a, b) => a.position.y - b.position.y);
+    const roleStepY = LAYOUT_NODE_HEIGHT + LAYOUT_GAP_Y;
+
+    expect(roles).toHaveLength(2);
+    expect(contract).toBeDefined();
+
+    for (const role of roles) {
+      expect(role.position.x).toBe(contract?.position.x);
+    }
+
+    expect(roles[0].position.y).toBe((contract?.position.y ?? 0) - roleStepY);
+    expect(roles[1].position.y).toBe((contract?.position.y ?? 0) + roleStepY);
   });
 
   it('places fulfillment requests to the right of contract from top to bottom', () => {

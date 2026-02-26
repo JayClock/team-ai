@@ -35,6 +35,13 @@ function isContractNode(node: DiagramNode): boolean {
   return isEvidenceNode(node) && node.data.subType === 'contract';
 }
 
+function isContractRoleNode(node: DiagramNode): boolean {
+  return (
+    (node.data.type === 'PARTICIPANT' && node.data.subType === 'party') ||
+    (node.data.type === 'ROLE' && node.data.subType === 'party_role')
+  );
+}
+
 function isFulfillmentRequestNode(node: DiagramNode): boolean {
   return isEvidenceNode(node) && node.data.subType === 'fulfillment_request';
 }
@@ -108,6 +115,66 @@ function collectRequestGroupsByContractId(
   }
 
   return requestsByContractId;
+}
+
+function collectContractRolesByContractId(
+  nodes: DiagramNode[],
+  edges: DiagramEdge[],
+): Map<string, DiagramNode[]> {
+  const nodeById = buildNodeById(nodes);
+  const rolesByContractId = new Map<string, DiagramNode[]>();
+
+  for (const edge of edges) {
+    const sourceNode = nodeById.get(edge.source);
+    const targetNode = nodeById.get(edge.target);
+    if (!sourceNode || !targetNode) {
+      continue;
+    }
+
+    const match = isContractNode(sourceNode) && isContractRoleNode(targetNode)
+      ? { contract: sourceNode, role: targetNode }
+      : isContractNode(targetNode) && isContractRoleNode(sourceNode)
+        ? { contract: targetNode, role: sourceNode }
+        : null;
+    if (!match) {
+      continue;
+    }
+
+    const roles = rolesByContractId.get(match.contract.id) ?? [];
+    if (!roles.some((role) => role.id === match.role.id)) {
+      roles.push(match.role);
+      rolesByContractId.set(match.contract.id, roles);
+    }
+  }
+
+  return rolesByContractId;
+}
+
+function buildContractRolePositionsById(params: {
+  contractById: Map<string, DiagramNode>;
+  rolesByContractId: Map<string, DiagramNode[]>;
+}): Map<string, Position> {
+  const { contractById, rolesByContractId } = params;
+  const rolePositionsById = new Map<string, Position>();
+  const roleStepY = LAYOUT_NODE_HEIGHT + LAYOUT_GAP_Y;
+
+  for (const [contractId, roles] of rolesByContractId.entries()) {
+    const contract = contractById.get(contractId);
+    if (!contract) {
+      continue;
+    }
+
+    roles.forEach((role, index) => {
+      const layer = Math.floor(index / 2) + 1;
+      const direction = index % 2 === 0 ? -1 : 1;
+      rolePositionsById.set(role.id, {
+        x: contract.position.x,
+        y: contract.position.y + direction * layer * roleStepY,
+      });
+    });
+  }
+
+  return rolePositionsById;
 }
 
 function buildRequestPositionsById(params: {
@@ -292,6 +359,11 @@ export function calculateLayout(
   const axisLayoutedNodes = layoutEvidenceAxis(nodes);
   const nodeById = buildNodeById(axisLayoutedNodes);
   const contractById = collectContractsById(axisLayoutedNodes);
+  const rolesByContractId = collectContractRolesByContractId(axisLayoutedNodes, edges);
+  const contractRolePositionsById = buildContractRolePositionsById({
+    contractById,
+    rolesByContractId,
+  });
   const requestsByContractId = collectRequestGroupsByContractId(
     axisLayoutedNodes,
     edges,
@@ -319,6 +391,7 @@ export function calculateLayout(
     otherEvidenceByConfirmationId,
   });
   const positionsById = new Map<string, Position>([
+    ...contractRolePositionsById.entries(),
     ...requestPositionsById.entries(),
     ...confirmationPositionsById.entries(),
     ...otherEvidencePositionsById.entries(),
