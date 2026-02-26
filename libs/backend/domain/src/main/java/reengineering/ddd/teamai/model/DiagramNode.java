@@ -29,6 +29,6 @@ public class DiagramNode implements Entity<String, NodeDescription> {
   }
 
   public LogicalEntity logicalEntity() {
-    return this.logicalEntity.get();
+    return this.logicalEntity == null ? null : this.logicalEntity.get();
   }
 }

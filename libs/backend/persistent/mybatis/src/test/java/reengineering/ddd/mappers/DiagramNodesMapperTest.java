@@ -2,9 +2,11 @@ package reengineering.ddd.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -34,6 +36,8 @@ public class DiagramNodesMapperTest {
   private final int nodeId = id();
   private final int logicalEntityId = id();
   private final int parentNodeId = id();
+  private final int otherProjectId = id();
+  private final int otherLogicalEntityId = id();
 
   private static int id() {
     return new Random().nextInt(100000);
@@ -43,7 +47,9 @@ public class DiagramNodesMapperTest {
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
     testData.insertProject(projectId, userId, "Test Project" + projectId);
+    testData.insertProject(otherProjectId, userId, "Other Project" + otherProjectId);
     testData.insertProjectMember(projectId, userId);
+    testData.insertProjectMember(otherProjectId, userId);
     testData.insertLogicalEntity(
         logicalEntityId,
         projectId,
@@ -51,6 +57,14 @@ public class DiagramNodesMapperTest {
         null,
         "TestEntity",
         "Test Entity Label",
+        "{}");
+    testData.insertLogicalEntity(
+        otherLogicalEntityId,
+        otherProjectId,
+        LogicalEntityDescription.Type.CONTEXT,
+        null,
+        "OtherEntity",
+        "Other Entity Label",
         "{}");
     testData.insertDiagram(
         diagramId,
@@ -122,6 +136,38 @@ public class DiagramNodesMapperTest {
   }
 
   @Test
+  void should_not_create_empty_shell_logical_entity_when_logical_entity_id_is_null() throws Exception {
+    DiagramNode parentNode = nodesMapper.findNodeByDiagramAndId(diagramId, parentNodeId);
+    assertNull(parentNode.getDescription().logicalEntity());
+    assertNull(parentNode.logicalEntity());
+    assertNull(readInternalLogicalEntity(parentNode));
+  }
+
+  @Test
+  void should_not_hydrate_logical_entity_when_referenced_entity_is_in_another_project()
+      throws Exception {
+    int crossProjectNodeId = id();
+    testData.insertDiagramNode(
+        crossProjectNodeId,
+        diagramId,
+        "class-node",
+        otherLogicalEntityId,
+        null,
+        120.0,
+        240.0,
+        300,
+        200,
+        "{}",
+        "{}");
+
+    DiagramNode node = nodesMapper.findNodeByDiagramAndId(diagramId, crossProjectNodeId);
+    assertNotNull(node.getDescription().logicalEntity());
+    assertEquals(String.valueOf(otherLogicalEntityId), node.getDescription().logicalEntity().id());
+    assertNull(node.logicalEntity());
+    assertNull(readInternalLogicalEntity(node));
+  }
+
+  @Test
   public void should_add_node_to_database() throws Exception {
     IdHolder idHolder = new IdHolder();
     String styleConfigJson =
@@ -174,5 +220,18 @@ public class DiagramNodesMapperTest {
   public void should_find_nodes_by_diagram_id() {
     List<DiagramNode> nodes = nodesMapper.findNodesByDiagramId(diagramId);
     assertEquals(2, nodes.size());
+  }
+
+  private Object readInternalLogicalEntity(DiagramNode node) throws Exception {
+    Field relationField = DiagramNode.class.getDeclaredField("logicalEntity");
+    relationField.setAccessible(true);
+    Object relation = relationField.get(node);
+    if (relation == null) {
+      return null;
+    }
+
+    Field entityField = relation.getClass().getDeclaredField("entity");
+    entityField.setAccessible(true);
+    return entityField.get(relation);
   }
 }

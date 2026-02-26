@@ -31,7 +31,7 @@
       </constructor>
     </association>
     <association property="logicalEntity" javaType="reengineering.ddd.mybatis.memory.Reference">
-      <association property="entity" resultMap="logicalEntity"/>
+      <association property="entity" resultMap="logicalEntity" notNullColumn="le_id"/>
     </association>
   </resultMap>
 
