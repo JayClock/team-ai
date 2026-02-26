@@ -14,8 +14,13 @@ import {
   SheetTitle,
   SheetDescription,
   Button,
+  PromptInput,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
   Spinner,
-  Textarea,
 } from '@shared/ui';
 import { State } from '@hateoas-ts/resource';
 import {
@@ -25,13 +30,8 @@ import {
 import { Diagram } from '@shared/schema';
 import { Settings2 } from 'lucide-react';
 import { useSignal } from '@preact/signals-react';
-import { type FormEvent } from 'react';
 import { parse as parseBestEffortJson } from 'best-effort-json-parser';
 import type { DraftDiagramInput } from '../create-diagram-store';
-
-type ValueTarget = {
-  value?: string;
-};
 
 interface Props {
   state: State<Diagram>;
@@ -86,7 +86,6 @@ export function ProposeModelPanelTool({
   state,
   onDraftGenerated,
 }: Props) {
-  const requirement = useSignal('');
   const isSubmitting = useSignal(false);
   const error = useSignal<string>();
   const structuredDraftJsonSignal = useSignal('');
@@ -125,9 +124,8 @@ export function ProposeModelPanelTool({
     },
   });
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedRequirement = requirement.value.trim();
+  const handleSubmit = async ({ text }: { text: string }) => {
+    const trimmedRequirement = text.trim();
     if (!trimmedRequirement || isSubmitting.value) {
       return;
     }
@@ -139,7 +137,6 @@ export function ProposeModelPanelTool({
 
     isSubmitting.value = true;
     error.value = undefined;
-    requirement.value = '';
     structuredDraftJsonSignal.value = '';
 
     try {
@@ -219,31 +216,31 @@ export function ProposeModelPanelTool({
           </Conversation>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex shrink-0 flex-col gap-3 border-t p-4"
+        <div className="shrink-0 border-t p-4"
         >
-          <Textarea
-            placeholder="示例：构建一个包含客户、订单、发货的履约上下文模型。"
-            value={requirement.value}
-            onChange={(event) => {
-              const target = event.target as ValueTarget;
-              requirement.value = target.value ?? '';
-            }}
-            disabled={isSubmitting.value}
-            className="min-h-24 resize-y"
-            aria-label="模型需求"
-          />
+          <PromptInput onSubmit={handleSubmit}>
+            <PromptInputBody>
+              <PromptInputTextarea
+                placeholder="示例：构建一个包含客户、订单、发货的履约上下文模型。"
+                disabled={isSubmitting.value}
+                className="min-h-24 resize-y"
+                aria-label="模型需求"
+              />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools />
+              <PromptInputSubmit
+                status={isSubmitting.value ? 'submitted' : undefined}
+                disabled={!proposeModelApi}
+              />
+            </PromptInputFooter>
+          </PromptInput>
           {error.value ? (
             <p className="text-destructive text-sm" role="alert">
               {error.value}
             </p>
           ) : null}
-          <Button type="submit">
-            {isSubmitting.value ? <Spinner className="size-4" /> : null}
-            生成模型
-          </Button>
-        </form>
+        </div>
       </SheetContent>
     </Sheet>
   );

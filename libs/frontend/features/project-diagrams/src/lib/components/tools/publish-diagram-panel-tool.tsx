@@ -28,9 +28,7 @@ export function PublishDiagramPanelTool({
       error: (error) =>
         error instanceof Error ? error.message : '发布图表失败',
     });
-    void publishPromise
-      .then(() => {})
-      .catch(() => {});
+    void publishPromise.catch(() => undefined);
   };
 
   return (
