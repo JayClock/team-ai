@@ -28,7 +28,7 @@ const ELK_LAYOUT_OPTIONS = {
 export type DraftDiagramNodeInput = Pick<DiagramNode['data'], 'id'> & {
   parent?: Pick<NonNullable<DiagramNode['data']['parent']>, 'id'> | null;
   localData: Pick<LogicalEntity['data'], 'name' | 'label' | 'type'> &
-    Partial<Pick<LogicalEntity['data'], 'subType'>>;
+  Partial<Pick<LogicalEntity['data'], 'subType'>>;
 };
 export type DraftDiagramEdgeInput = Pick<
   DiagramEdge['data'],
@@ -139,9 +139,11 @@ export class DiagramStore {
       ...generatedEdges,
     ];
 
+    console.log(nextNodes, nextEdges)
+
     const hasNestedNodes = nextNodes.some((node) => typeof node.parentId === 'string');
     const layoutedNodes = hasNestedNodes
-      ? this.layoutNodesWithParentHierarchy(nextNodes)
+      ? this.layoutNodesWithParentHierarchy(nextNodes, nextEdges)
       : await this.layoutNodesWithElk(nextNodes, nextEdges);
 
     batch(() => {
@@ -456,8 +458,9 @@ export class DiagramStore {
 
   private layoutNodesWithParentHierarchy(
     nodes: Node<LogicalEntity['data']>[],
+    edges: Edge[],
   ): Node<LogicalEntity['data']>[] {
-    return calculateLayout(nodes);
+    return calculateLayout(nodes, edges);
   }
 }
 

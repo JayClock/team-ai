@@ -1,7 +1,8 @@
 import { LogicalEntity } from '@shared/schema';
-import { Node } from '@xyflow/react';
+import { Edge, Node } from '@xyflow/react';
 
 type DiagramNode = Node<LogicalEntity['data']>;
+type DiagramEdge = Pick<Edge, 'id' | 'source' | 'target'>;
 type Position = { x: number; y: number };
 
 export const LAYOUT_NODE_WIDTH = 160;
@@ -10,7 +11,6 @@ export const LAYOUT_GAP_X = 80;
 export const LAYOUT_GAP_Y = 40;
 export const LAYOUT_START_X = 120;
 export const LAYOUT_AXIS_Y = 240;
-const ROOT_PARENT_KEY = '__root__';
 
 function getEvidenceAxisIndex(
   subType: LogicalEntity['data']['subType'],
@@ -39,10 +39,6 @@ function isFulfillmentRequestNode(node: DiagramNode): boolean {
   return isEvidenceNode(node) && node.data.subType === 'fulfillment_request';
 }
 
-function getParentKey(node: DiagramNode): string {
-  return node.parentId ?? ROOT_PARENT_KEY;
-}
-
 function layoutEvidenceAxis(nodes: DiagramNode[]): DiagramNode[] {
   return nodes.map((node) => {
     if (!isEvidenceNode(node)) {
@@ -65,50 +61,55 @@ function layoutEvidenceAxis(nodes: DiagramNode[]): DiagramNode[] {
   });
 }
 
-function collectRequestGroups(
-  nodes: DiagramNode[],
-): {
-  contractByParentKey: Map<string, DiagramNode>;
-  requestsByParentKey: Map<string, DiagramNode[]>;
-  fallbackContract: DiagramNode | undefined;
-} {
-  const contractByParentKey = new Map<string, DiagramNode>();
-  const requestsByParentKey = new Map<string, DiagramNode[]>();
-  let fallbackContract: DiagramNode | undefined;
-
+function buildNodeById(nodes: DiagramNode[]): Map<string, DiagramNode> {
+  const nodeById = new Map<string, DiagramNode>();
   for (const node of nodes) {
-    const parentKey = getParentKey(node);
-    if (isContractNode(node)) {
-      if (!contractByParentKey.has(parentKey)) {
-        contractByParentKey.set(parentKey, node);
-      }
-      fallbackContract ??= node;
+    nodeById.set(node.id, node);
+  }
+  return nodeById;
+}
+
+function collectRequestGroupsByContractId(
+  nodes: DiagramNode[],
+  edges: DiagramEdge[],
+): Map<string, DiagramNode[]> {
+  const nodeById = buildNodeById(nodes);
+  const requestsByContractId = new Map<string, DiagramNode[]>();
+
+  for (const edge of edges) {
+    const sourceNode = nodeById.get(edge.source);
+    const targetNode = nodeById.get(edge.target);
+    if (!sourceNode || !targetNode) {
       continue;
     }
 
-    if (isFulfillmentRequestNode(node)) {
-      const requests = requestsByParentKey.get(parentKey) ?? [];
-      requests.push(node);
-      requestsByParentKey.set(parentKey, requests);
+    const match = isContractNode(sourceNode) && isFulfillmentRequestNode(targetNode)
+      ? { contract: sourceNode, request: targetNode }
+      : isContractNode(targetNode) && isFulfillmentRequestNode(sourceNode)
+        ? { contract: targetNode, request: sourceNode }
+        : null;
+    if (!match) {
+      continue;
+    }
+
+    const requests = requestsByContractId.get(match.contract.id) ?? [];
+    if (!requests.some((request) => request.id === match.request.id)) {
+      requests.push(match.request);
+      requestsByContractId.set(match.contract.id, requests);
     }
   }
 
-  return { contractByParentKey, requestsByParentKey, fallbackContract };
+  return requestsByContractId;
 }
 
 function buildRequestPositionsById(params: {
-  contractByParentKey: Map<string, DiagramNode>;
-  requestsByParentKey: Map<string, DiagramNode[]>;
-  fallbackContract: DiagramNode | undefined;
+  contractById: Map<string, DiagramNode>;
+  requestsByContractId: Map<string, DiagramNode[]>;
 }): Map<string, Position> {
-  const {
-    contractByParentKey,
-    requestsByParentKey,
-    fallbackContract,
-  } = params;
+  const { contractById, requestsByContractId } = params;
   const requestPositionsById = new Map<string, Position>();
-  for (const [parentKey, requests] of requestsByParentKey.entries()) {
-    const contract = contractByParentKey.get(parentKey) ?? fallbackContract;
+  for (const [contractId, requests] of requestsByContractId.entries()) {
+    const contract = contractById.get(contractId);
     if (!contract) {
       continue;
     }
@@ -151,13 +152,33 @@ function applyRequestPositions(
   });
 }
 
-export function calculateLayout(nodes: DiagramNode[]): DiagramNode[] {
+function collectContractsById(nodes: DiagramNode[]): Map<string, DiagramNode> {
+  const contractsById = new Map<string, DiagramNode>();
+  for (const node of nodes) {
+    if (isContractNode(node)) {
+      contractsById.set(node.id, node);
+    }
+  }
+  return contractsById;
+}
+
+export function calculateLayout(
+  nodes: DiagramNode[],
+  edges: DiagramEdge[],
+): DiagramNode[] {
   const axisLayoutedNodes = layoutEvidenceAxis(nodes);
-  const requestGroups = collectRequestGroups(axisLayoutedNodes);
-  if (requestGroups.requestsByParentKey.size === 0) {
+  const contractById = collectContractsById(axisLayoutedNodes);
+  const requestsByContractId = collectRequestGroupsByContractId(
+    axisLayoutedNodes,
+    edges,
+  );
+  if (requestsByContractId.size === 0) {
     return axisLayoutedNodes;
   }
 
-  const requestPositionsById = buildRequestPositionsById(requestGroups);
+  const requestPositionsById = buildRequestPositionsById({
+    contractById,
+    requestsByContractId,
+  });
   return applyRequestPositions(axisLayoutedNodes, requestPositionsById);
 }

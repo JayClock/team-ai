@@ -1,6 +1,6 @@
 import { LogicalEntity } from '@shared/schema';
-import { Node } from '@xyflow/react';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { Edge, Node } from '@xyflow/react';
+import { describe, expect, it } from 'vitest';
 import {
   calculateLayout,
   LAYOUT_AXIS_Y,
@@ -11,60 +11,55 @@ import {
   LAYOUT_START_X,
 } from '../../lib/components/calculate-layout';
 import nodes from '../fixture/nodes.json' with { type: 'json' };
+import edges from '../fixture/edges.json' with { type: 'json' };
 
 type LNode = Node<LogicalEntity['data']>;
+type LEdge = Pick<Edge, 'id' | 'source' | 'target'>;
+const CONTRACT_ID = 'node-7';
+const RFP_ID = 'node-5';
+const PROPOSAL_ID = 'node-6';
+const REQUEST_IDS = ['node-8', 'node-10', 'node-12'] as const;
+const FIXTURE_NODES = nodes as LNode[];
+const FIXTURE_EDGES = edges as LEdge[];
+const CONTRACT_ANCHOR_X = LAYOUT_START_X + 2 * (LAYOUT_NODE_WIDTH + LAYOUT_GAP_X);
 
-const CONTRACT_INDEX = 2;
-
-const CONTRACT_ANCHOR_X =
-  LAYOUT_START_X + CONTRACT_INDEX * (LAYOUT_NODE_WIDTH + LAYOUT_GAP_X);
-const CONTRACT_ANCHOR_Y = LAYOUT_AXIS_Y;
-
-function getEvidenceBySubType(list: LNode[], subType: LogicalEntity['data']['subType']): LNode[] {
-  return list.filter(
-    (node) => node.data.type === 'EVIDENCE' && node.data.subType === subType,
-  );
-}
-
-function getSingleEvidenceBySubType(list: LNode[], subType: LogicalEntity['data']['subType']): LNode {
-  const matched = getEvidenceBySubType(list, subType);
-  if (matched.length !== 1) {
-    throw new Error(`Expected exactly one EVIDENCE:${subType}, got ${matched.length}`);
-  }
-  return matched[0];
+function toNodeMap(list: LNode[]): Map<string, LNode> {
+  return new Map(list.map((node) => [node.id, node] as const));
 }
 
 describe('calculateLayout - fulfillment axis', () => {
-  let layoutedNodes: LNode[] = [];
-
-  beforeAll(() => {
-    layoutedNodes = calculateLayout(nodes as LNode[]);
-  });
-
   it('uses a single contract as central anchor', () => {
-    const contract = getSingleEvidenceBySubType(layoutedNodes, 'contract');
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    const contract = nodeMap.get(CONTRACT_ID);
 
-    expect(contract.position.x).toBe(CONTRACT_ANCHOR_X);
-    expect(contract.position.y).toBe(CONTRACT_ANCHOR_Y);
+    expect(contract?.position.x).toBe(CONTRACT_ANCHOR_X);
+    expect(contract?.position.y).toBe(LAYOUT_AXIS_Y);
   });
 
   it('keeps rfp -> proposal -> contract on the same central axis', () => {
-    const rfp = getSingleEvidenceBySubType(layoutedNodes, 'rfp');
-    const proposal = getSingleEvidenceBySubType(layoutedNodes, 'proposal');
-    const contract = getSingleEvidenceBySubType(layoutedNodes, 'contract');
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    const rfp = nodeMap.get(RFP_ID);
+    const proposal = nodeMap.get(PROPOSAL_ID);
+    const contract = nodeMap.get(CONTRACT_ID);
 
-    expect(rfp.position.y).toBe(CONTRACT_ANCHOR_Y);
-    expect(proposal.position.y).toBe(CONTRACT_ANCHOR_Y);
-    expect(contract.position.y).toBe(CONTRACT_ANCHOR_Y);
+    expect(rfp?.position.y).toBe(LAYOUT_AXIS_Y);
+    expect(proposal?.position.y).toBe(LAYOUT_AXIS_Y);
+    expect(contract?.position.y).toBe(LAYOUT_AXIS_Y);
 
-    expect(rfp.position.x).toBeLessThan(proposal.position.x);
-    expect(proposal.position.x).toBeLessThan(contract.position.x);
+    expect((rfp?.position.x ?? 0) < (proposal?.position.x ?? 0)).toBe(true);
+    expect((proposal?.position.x ?? 0) < (contract?.position.x ?? 0)).toBe(true);
   });
 
   it('places fulfillment requests to the right of contract from top to bottom', () => {
-    const contract = getSingleEvidenceBySubType(layoutedNodes, 'contract');
-    const requests = getEvidenceBySubType(layoutedNodes, 'fulfillment_request');
-    const requestX = contract.position.x + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    const contract = nodeMap.get(CONTRACT_ID);
+    const requests = REQUEST_IDS
+      .map((id) => nodeMap.get(id))
+      .filter((node): node is LNode => Boolean(node));
+    const requestX = (contract?.position.x ?? 0) + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
     const requestStepY = LAYOUT_NODE_HEIGHT + LAYOUT_GAP_Y;
     const sortedByY = [...requests].sort((a, b) => a.position.y - b.position.y);
 
@@ -75,7 +70,7 @@ describe('calculateLayout - fulfillment axis', () => {
     }
 
     const expectedStartY =
-      contract.position.y - ((sortedByY.length - 1) * requestStepY) / 2;
+      (contract?.position.y ?? 0) - ((sortedByY.length - 1) * requestStepY) / 2;
     expect(sortedByY[0].position.y).toBe(expectedStartY);
 
     for (let index = 0; index < sortedByY.length - 1; index += 1) {
@@ -86,6 +81,6 @@ describe('calculateLayout - fulfillment axis', () => {
     const topEdgeY = sortedByY[0].position.y - LAYOUT_NODE_HEIGHT / 2;
     const bottomEdgeY =
       sortedByY[sortedByY.length - 1].position.y + LAYOUT_NODE_HEIGHT / 2;
-    expect((topEdgeY + bottomEdgeY) / 2).toBe(contract.position.y);
+    expect((topEdgeY + bottomEdgeY) / 2).toBe(contract?.position.y);
   });
 });
