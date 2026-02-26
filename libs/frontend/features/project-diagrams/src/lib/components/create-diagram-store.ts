@@ -7,23 +7,14 @@ import {
   LogicalEntity,
 } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
-import ELK from 'elkjs/lib/elk.bundled.js';
-import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api';
 import { calculateLayout } from './calculate-layout';
 
-const elk = new ELK();
 const DEFAULT_NODE_WIDTH = 160;
 const DEFAULT_NODE_HEIGHT = 80;
 const CONTEXT_NODE_WIDTH = 420;
 const CONTEXT_NODE_HEIGHT = 280;
 const GENERATED_NODE_TYPE = 'fulfillment-node';
 const GENERATED_GROUP_NODE_TYPE = 'group-container';
-const ELK_LAYOUT_OPTIONS = {
-  'elk.algorithm': 'layered',
-  'elk.direction': 'RIGHT',
-  'elk.layered.spacing.nodeNodeBetweenLayers': '120',
-  'elk.spacing.nodeNode': '80',
-} as const;
 
 export type DraftDiagramNodeInput = Pick<DiagramNode['data'], 'id'> & {
   parent?: Pick<NonNullable<DiagramNode['data']['parent']>, 'id'> | null;
@@ -68,7 +59,7 @@ export class DiagramStore {
     void this.load();
   }
 
-  async addGeneratedNodesAndEdges(params: DraftDiagramInput): Promise<void> {
+  addGeneratedNodesAndEdges(params: DraftDiagramInput): void {
     const { nodes, edges } = params;
     if (nodes.length === 0 && edges.length === 0) {
       return;
@@ -139,10 +130,7 @@ export class DiagramStore {
       ...generatedEdges,
     ];
 
-    const hasNestedNodes = nextNodes.some((node) => typeof node.parentId === 'string');
-    const layoutedNodes = hasNestedNodes
-      ? this.layoutNodesWithParentHierarchy(nextNodes, nextEdges)
-      : await this.layoutNodesWithElk(nextNodes, nextEdges);
+    const layoutedNodes = calculateLayout(nextNodes, nextEdges);
 
     batch(() => {
       this._diagramNodes.value = [
@@ -401,64 +389,6 @@ export class DiagramStore {
       default:
         return 'rfp';
     }
-  }
-
-  private async layoutNodesWithElk(
-    nodes: Node<LogicalEntity['data']>[],
-    edges: Edge[],
-  ): Promise<Node<LogicalEntity['data']>[]> {
-    if (nodes.length === 0) {
-      return nodes;
-    }
-
-    const elkGraph: ElkNode = {
-      id: 'diagram',
-      layoutOptions: ELK_LAYOUT_OPTIONS,
-      children: nodes.map((node) => ({
-        id: node.id,
-        width: DEFAULT_NODE_WIDTH,
-        height: DEFAULT_NODE_HEIGHT,
-      })),
-      edges: edges.map(
-        (edge): ElkExtendedEdge => ({
-          id: edge.id,
-          sources: [edge.source],
-          targets: [edge.target],
-        }),
-      ),
-    };
-
-    try {
-      const layoutedGraph = await elk.layout(elkGraph);
-      const positionsById = new Map<string, { x: number; y: number }>();
-      for (const node of layoutedGraph.children ?? []) {
-        positionsById.set(node.id, {
-          x: typeof node.x === 'number' ? node.x : 0,
-          y: typeof node.y === 'number' ? node.y : 0,
-        });
-      }
-
-      return nodes.map((node) => {
-        const position = positionsById.get(node.id);
-        if (!position) {
-          return node;
-        }
-
-        return {
-          ...node,
-          position,
-        };
-      });
-    } catch {
-      return nodes;
-    }
-  }
-
-  private layoutNodesWithParentHierarchy(
-    nodes: Node<LogicalEntity['data']>[],
-    edges: Edge[],
-  ): Node<LogicalEntity['data']>[] {
-    return calculateLayout(nodes, edges);
   }
 }
 

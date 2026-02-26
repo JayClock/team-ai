@@ -242,7 +242,7 @@ describe('createDiagramStore', () => {
     const store = createDiagramStore(createDiagramState('Diagram A'));
     await waitForStoreLoad(store);
 
-    await store.addGeneratedNodesAndEdges({
+    store.addGeneratedNodesAndEdges({
       nodes: [createGeneratedNodeData('node-3')],
       edges: [createGeneratedEdgeData('node-2', 'node-3')],
     });
@@ -280,7 +280,7 @@ describe('createDiagramStore', () => {
     const store = createDiagramStore(createDiagramState('Diagram A'));
     await waitForStoreLoad(store);
 
-    await store.addGeneratedNodesAndEdges({
+    store.addGeneratedNodesAndEdges({
       nodes: [createGeneratedNodeData('node-3'), createGeneratedNodeData('node-3')],
       edges: [
         createGeneratedEdgeData('node-2', 'node-3'),
@@ -301,7 +301,7 @@ describe('createDiagramStore', () => {
     const store = createDiagramStore(createDiagramState('Diagram A'));
     await waitForStoreLoad(store);
 
-    await store.addGeneratedNodesAndEdges({
+    const result = store.addGeneratedNodesAndEdges({
       nodes: [
         {
           id: 'node-4',
@@ -315,6 +315,7 @@ describe('createDiagramStore', () => {
       ],
       edges: [createGeneratedEdgeData('node-2', 'node-4')],
     });
+    expect(result).toBeUndefined();
 
     const generatedNode = store.diagramNodes.value.find(
       (node) => node.id === 'node-4',
@@ -336,7 +337,7 @@ describe('createDiagramStore', () => {
     const store = createDiagramStore(createDiagramState('Diagram A'));
     await waitForStoreLoad(store);
 
-    await store.addGeneratedNodesAndEdges({
+    store.addGeneratedNodesAndEdges({
       nodes: [
         createGeneratedContextNodeData('context-1'),
         {
@@ -372,7 +373,7 @@ describe('createDiagramStore', () => {
     );
     await waitForStoreLoad(store);
 
-    await store.addGeneratedNodesAndEdges({
+    store.addGeneratedNodesAndEdges({
       nodes: [
         createGeneratedContextNodeData('context-1'),
         {

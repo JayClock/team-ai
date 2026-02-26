@@ -66,7 +66,7 @@ export function ProjectDiagram(props: Props) {
             <ProposeModelPanelTool
               state={diagramState}
               onDraftGenerated={(draft) => {
-                void diagramStore.addGeneratedNodesAndEdges(draft);
+                diagramStore.addGeneratedNodesAndEdges(draft);
               }}
             />
           </div>
