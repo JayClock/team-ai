@@ -1,11 +1,7 @@
-import { DiagramNode } from '@shared/schema';
+import { LogicalEntity } from '@shared/schema';
 import { Node, NodeProps, Handle, Position } from '@xyflow/react';
 
-type FulfillmentNodeData = Omit<DiagramNode['data'], 'localData'> & {
-  localData: Record<string, unknown> | null;
-};
-
-type FulfillmentNodeType = Node<FulfillmentNodeData, 'fulfillment-node'>;
+type FulfillmentNodeType = Node<LogicalEntity['data'], 'fulfillment-node'>;
 
 function getNodeColor(type: string): string {
   switch (type) {
@@ -46,10 +42,9 @@ function getNodeIcon(type: string): string {
 }
 
 export function FulfillmentNode({ data }: NodeProps<FulfillmentNodeType>) {
-  const entity = data.localData;
-  const entityType = (entity?.type as string | undefined) ?? undefined;
-  const entityLabel = (entity?.label as string | undefined) ?? 'Unnamed Entity';
-  const entitySubType = (entity?.subType as string | undefined) ?? undefined;
+  const entityType = data.type;
+  const entityLabel = data.label;
+  const entitySubType = data.subType;
   const bgColorClass = entityType
     ? getNodeColor(entityType)
     : 'bg-white border-gray-200';

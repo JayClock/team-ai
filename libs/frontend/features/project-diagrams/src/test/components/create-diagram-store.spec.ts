@@ -157,9 +157,14 @@ describe('createDiagramStore', () => {
     expect(generatedNode).toBeDefined();
     expect(generatedNode).toMatchObject({
       id: 'node-3',
-      type: 'sticky-note',
+      type: 'fulfillment-node',
       data: {
         id: 'node-3',
+        type: 'EVIDENCE',
+        subType: 'rfp',
+        name: 'Entity node-3',
+        label: 'Entity node-3',
+        definition: {},
       },
     });
     expect(generatedNode?.position.x).toEqual(expect.any(Number));
@@ -218,7 +223,13 @@ describe('createDiagramStore', () => {
     expect(generatedNode).toBeDefined();
     expect(generatedNode?.position.x).toEqual(expect.any(Number));
     expect(generatedNode?.position.y).toEqual(expect.any(Number));
-    expect(generatedNode?.data.positionX).toBe(generatedNode?.position.x);
-    expect(generatedNode?.data.positionY).toBe(generatedNode?.position.y);
+    expect(generatedNode?.data).toMatchObject({
+      id: 'node-4',
+      type: 'EVIDENCE',
+      subType: 'rfp',
+      name: 'Entity node-4',
+      label: 'Entity node-4',
+      definition: {},
+    });
   });
 });

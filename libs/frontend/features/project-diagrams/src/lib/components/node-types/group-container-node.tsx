@@ -1,9 +1,7 @@
-import { DiagramNode } from '@shared/schema';
+import { LogicalEntity } from '@shared/schema';
 import { Node, NodeProps, Handle, Position } from '@xyflow/react';
 
-type GroupContainerNodeData = DiagramNode['data'];
-
-type GroupContainerNodeType = Node<GroupContainerNodeData, 'group-container'>;
+type GroupContainerNodeType = Node<LogicalEntity['data'], 'group-container'>;
 
 export function GroupContainerNode({
   data,

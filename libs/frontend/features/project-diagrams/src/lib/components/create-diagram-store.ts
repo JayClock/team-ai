@@ -13,7 +13,7 @@ import type { ElkExtendedEdge, ElkNode } from 'elkjs/lib/elk-api';
 const elk = new ELK();
 const DEFAULT_NODE_WIDTH = 160;
 const DEFAULT_NODE_HEIGHT = 80;
-const GENERATED_NODE_TYPE = 'sticky-note';
+const GENERATED_NODE_TYPE = 'fulfillment-node';
 const ELK_LAYOUT_OPTIONS = {
   'elk.algorithm': 'layered',
   'elk.direction': 'RIGHT',
@@ -36,14 +36,14 @@ export type DraftDiagramInput = {
 
 export class DiagramStore {
   private readonly _diagramTitle = signal<string>('');
-  private readonly _diagramNodes = signal<Node<DiagramNode['data']>[]>([]);
+  private readonly _diagramNodes = signal<Node<LogicalEntity['data']>[]>([]);
   private readonly _diagramEdges = signal<Edge[]>([]);
   private readonly _isDiagramLoading = signal<boolean>(true);
   private readonly _diagramError = signal<Error | null>(null);
 
   public readonly diagramTitle: ReadonlySignal<string> =
     this._diagramTitle;
-  public readonly diagramNodes: ReadonlySignal<Node<DiagramNode['data']>[]> =
+  public readonly diagramNodes: ReadonlySignal<Node<LogicalEntity['data']>[]> =
     this._diagramNodes;
   public readonly diagramEdges: ReadonlySignal<Edge[]> =
     this._diagramEdges;
@@ -70,7 +70,7 @@ export class DiagramStore {
       this._diagramEdges.value.map((edge) => this.toEdgeKey(edge.source, edge.target)),
     );
 
-    const generatedNodes: Node<DiagramNode['data']>[] = [];
+    const generatedNodes: Node<LogicalEntity['data']>[] = [];
     for (const node of nodes) {
       if (existingNodeIds.has(node.id)) {
         continue;
@@ -86,17 +86,7 @@ export class DiagramStore {
           x: 0,
           y: 0,
         },
-        data: {
-          id: node.id,
-          type: GENERATED_NODE_TYPE,
-          logicalEntity: null,
-          parent: null,
-          positionX: 0,
-          positionY: 0,
-          width: DEFAULT_NODE_WIDTH,
-          height: DEFAULT_NODE_HEIGHT,
-          localData: logicalEntityData,
-        },
+        data: logicalEntityData,
       });
     }
 
@@ -212,7 +202,7 @@ export class DiagramStore {
   private toDiagramNodes(
     nodesStateCollection: State<DiagramNode>[],
     logicalEntityDataByNodeId: Map<string, LogicalEntity['data'] | null>,
-  ): Node<DiagramNode['data']>[] {
+  ): Node<LogicalEntity['data']>[] {
     return nodesStateCollection.map((nodeState) => {
       const localData =
         logicalEntityDataByNodeId.get(nodeState.data.id) ??
@@ -226,10 +216,9 @@ export class DiagramStore {
           x: nodeState.data.positionX,
           y: nodeState.data.positionY,
         },
-        data: {
-          ...nodeState.data,
-          localData,
-        },
+        width: nodeState.data.width,
+        height: nodeState.data.height,
+        data: localData,
       };
     });
   }
@@ -293,9 +282,9 @@ export class DiagramStore {
   }
 
   private async layoutNodesWithElk(
-    nodes: Node<DiagramNode['data']>[],
+    nodes: Node<LogicalEntity['data']>[],
     edges: Edge[],
-  ): Promise<Node<DiagramNode['data']>[]> {
+  ): Promise<Node<LogicalEntity['data']>[]> {
     if (nodes.length === 0) {
       return nodes;
     }
@@ -305,14 +294,8 @@ export class DiagramStore {
       layoutOptions: ELK_LAYOUT_OPTIONS,
       children: nodes.map((node) => ({
         id: node.id,
-        width:
-          typeof node.data.width === 'number' && node.data.width > 0
-            ? node.data.width
-            : DEFAULT_NODE_WIDTH,
-        height:
-          typeof node.data.height === 'number' && node.data.height > 0
-            ? node.data.height
-            : DEFAULT_NODE_HEIGHT,
+        width: DEFAULT_NODE_WIDTH,
+        height: DEFAULT_NODE_HEIGHT,
       })),
       edges: edges.map(
         (edge): ElkExtendedEdge => ({
@@ -342,11 +325,6 @@ export class DiagramStore {
         return {
           ...node,
           position,
-          data: {
-            ...node.data,
-            positionX: position.x,
-            positionY: position.y,
-          },
         };
       });
     } catch {
