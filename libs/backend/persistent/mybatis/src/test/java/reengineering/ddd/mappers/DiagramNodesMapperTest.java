@@ -136,7 +136,8 @@ public class DiagramNodesMapperTest {
   }
 
   @Test
-  void should_not_create_empty_shell_logical_entity_when_logical_entity_id_is_null() throws Exception {
+  void should_not_create_empty_shell_logical_entity_when_logical_entity_id_is_null()
+      throws Exception {
     DiagramNode parentNode = nodesMapper.findNodeByDiagramAndId(diagramId, parentNodeId);
     assertNull(parentNode.getDescription().logicalEntity());
     assertNull(parentNode.logicalEntity());

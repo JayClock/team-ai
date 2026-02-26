@@ -3,8 +3,8 @@ package reengineering.ddd.teamai.infrastructure.providers;
 import java.util.Arrays;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.converter.BeanOutputConverter;
-import org.springframework.ai.deepseek.DeepSeekChatOptions;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
+import org.springframework.ai.deepseek.DeepSeekChatOptions;
 import org.springframework.ai.deepseek.api.DeepSeekApi;
 import org.springframework.ai.deepseek.api.ResponseFormat;
 import reactor.core.publisher.Flux;
@@ -54,10 +54,12 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
         String.join(
             ", ", Arrays.stream(LogicalEntityDescription.Type.values()).map(Enum::name).toList());
     String evidenceSubTypes =
-        String.join(", ", Arrays.stream(EvidenceSubType.values()).map(EvidenceSubType::getValue).toList());
+        String.join(
+            ", ", Arrays.stream(EvidenceSubType.values()).map(EvidenceSubType::getValue).toList());
     String participantSubTypes =
         String.join(
-            ", ", Arrays.stream(ParticipantSubType.values()).map(ParticipantSubType::getValue).toList());
+            ", ",
+            Arrays.stream(ParticipantSubType.values()).map(ParticipantSubType::getValue).toList());
     String roleSubTypes =
         String.join(", ", Arrays.stream(RoleSubType.values()).map(RoleSubType::getValue).toList());
     String contextSubTypes =

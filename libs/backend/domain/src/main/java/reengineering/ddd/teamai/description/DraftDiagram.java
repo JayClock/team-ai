@@ -9,8 +9,5 @@ public record DraftDiagram(List<DraftNode> nodes, List<DraftEdge> edges) {
   public static record DraftEdge(Ref<String> sourceNode, Ref<String> targetNode) {}
 
   public static record DraftEntity(
-      String name,
-      String label,
-      LogicalEntityDescription.Type type,
-      String subType) {}
+      String name, String label, LogicalEntityDescription.Type type, String subType) {}
 }
