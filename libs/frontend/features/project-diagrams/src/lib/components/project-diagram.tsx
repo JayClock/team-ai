@@ -22,7 +22,9 @@ export function ProjectDiagram(props: Props) {
     setDiagramStore(createDiagramStore(diagramState));
   }, [diagramState]);
 
-  if (!diagramStore || diagramStore.isDiagramLoading.value) {
+  const storeState = diagramStore?.state.value;
+
+  if (!diagramStore || !storeState || storeState.status === 'loading') {
     return (
       <div className="flex h-full w-full items-center justify-center gap-2 text-sm text-muted-foreground">
         <Spinner />
@@ -31,10 +33,10 @@ export function ProjectDiagram(props: Props) {
     );
   }
 
-  if (diagramStore.diagramError.value) {
+  if (storeState.status === 'load-error') {
     return (
       <div className="flex h-full w-full items-center justify-center text-sm text-destructive">
-        Failed to load diagram: {diagramStore.diagramError.value.message}
+        Failed to load diagram: {storeState.error.message}
       </div>
     );
   }

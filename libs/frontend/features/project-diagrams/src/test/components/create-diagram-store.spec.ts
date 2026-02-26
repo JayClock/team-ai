@@ -1,10 +1,11 @@
 import { State } from '@hateoas-ts/resource';
 import { Diagram, DiagramEdge, DiagramNode, LogicalEntity } from '@shared/schema';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createDiagramStore,
   type DraftDiagramEdgeInput,
   type DraftDiagramNodeInput,
+  type DiagramStoreState,
   DiagramStore,
 } from '../../lib/components/create-diagram-store';
 
@@ -104,12 +105,47 @@ function createDiagramState(title: string): State<Diagram> {
         }),
       } as never;
     },
+    hasLink: (rel: string) => rel === 'commit-draft',
+    action: () => ({
+      submit: async () => ({}) as never,
+    }),
+  } as unknown as State<Diagram>;
+}
+
+function createDiagramStateWithCommitDraft(
+  title: string,
+  submit: (payload: unknown) => Promise<unknown>,
+): State<Diagram> {
+  return {
+    ...createDiagramState(title),
+    hasLink: (rel: string) => rel === 'commit-draft',
+    action: () => ({
+      submit,
+    }),
+  } as unknown as State<Diagram>;
+}
+
+function createDiagramStateWithoutCommitDraftLink(title: string): State<Diagram> {
+  return {
+    ...createDiagramState(title),
+    hasLink: () => false,
   } as unknown as State<Diagram>;
 }
 
 async function waitForStoreLoad(store: DiagramStore) {
-  for (let i = 0; i < 20 && store.isDiagramLoading.value; i += 1) {
+  for (let i = 0; i < 20 && store.state.value.status === 'loading'; i += 1) {
     await Promise.resolve();
+  }
+}
+
+function expectStateError(
+  state: DiagramStoreState,
+  status: 'load-error' | 'save-error',
+  message: string,
+) {
+  expect(state.status).toBe(status);
+  if (state.status === status) {
+    expect(state.error.message).toBe(message);
   }
 }
 
@@ -125,8 +161,7 @@ describe('createDiagramStore', () => {
 
     await waitForStoreLoad(store);
 
-    expect(store.isDiagramLoading.value).toBe(false);
-    expect(store.diagramError.value).toBeNull();
+    expect(store.state.value).toEqual({ status: 'ready' });
     expect(store.diagramTitle.value).toBe('Diagram A');
     expect(store.diagramNodes.value).toHaveLength(2);
     expect(store.diagramEdges.value).toHaveLength(1);
@@ -231,5 +266,76 @@ describe('createDiagramStore', () => {
       label: 'Entity node-4',
       definition: {},
     });
+  });
+
+  it('converts diagram nodes and edges to commit-draft payload and submits', async () => {
+    const submit = vi.fn(async () => ({}));
+    const store = createDiagramStore(
+      createDiagramStateWithCommitDraft('Diagram A', submit),
+    );
+    await waitForStoreLoad(store);
+
+    await store.saveDiagram();
+
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledWith({
+      nodes: [
+        {
+          id: 'node-1',
+          type: 'fulfillment-node',
+          positionX: 10,
+          positionY: 20,
+          localData: createLogicalEntityData('node-1', 'Entity node-1'),
+          width: 100,
+          height: 80,
+        },
+        {
+          id: 'node-2',
+          type: 'fulfillment-node',
+          positionX: 10,
+          positionY: 20,
+          localData: createLogicalEntityData('node-2', 'Entity node-2'),
+          width: 100,
+          height: 80,
+        },
+      ],
+      edges: [
+        {
+          id: 'edge-1',
+          sourceNode: { id: 'node-1' },
+          targetNode: { id: 'node-2' },
+        },
+      ],
+    });
+    expect(store.state.value).toEqual({ status: 'ready' });
+  });
+
+  it('throws when commit-draft link is missing', async () => {
+    const store = createDiagramStore(
+      createDiagramStateWithoutCommitDraftLink('Diagram A'),
+    );
+    await waitForStoreLoad(store);
+
+    await expect(store.saveDiagram()).rejects.toThrow(
+      '当前图表缺少保存草稿所需的链接。',
+    );
+    expectStateError(
+      store.state.value,
+      'save-error',
+      '当前图表缺少保存草稿所需的链接。',
+    );
+  });
+
+  it('updates save loading and error state when save fails', async () => {
+    const submit = vi.fn(async () => {
+      throw new Error('保存失败');
+    });
+    const store = createDiagramStore(
+      createDiagramStateWithCommitDraft('Diagram A', submit),
+    );
+    await waitForStoreLoad(store);
+
+    await expect(store.saveDiagram()).rejects.toThrow('保存失败');
+    expectStateError(store.state.value, 'save-error', '保存失败');
   });
 });

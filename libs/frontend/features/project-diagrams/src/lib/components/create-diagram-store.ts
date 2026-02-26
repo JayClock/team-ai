@@ -34,12 +34,18 @@ export type DraftDiagramInput = {
   edges: DraftDiagramEdgeInput[];
 };
 
+export type DiagramStoreState =
+  | { status: 'loading' }
+  | { status: 'ready' }
+  | { status: 'saving' }
+  | { status: 'load-error'; error: Error }
+  | { status: 'save-error'; error: Error };
+
 export class DiagramStore {
   private readonly _diagramTitle = signal<string>('');
   private readonly _diagramNodes = signal<Node<LogicalEntity['data']>[]>([]);
   private readonly _diagramEdges = signal<Edge[]>([]);
-  private readonly _isDiagramLoading = signal<boolean>(true);
-  private readonly _diagramError = signal<Error | null>(null);
+  private readonly _state = signal<DiagramStoreState>({ status: 'loading' });
 
   public readonly diagramTitle: ReadonlySignal<string> =
     this._diagramTitle;
@@ -47,10 +53,8 @@ export class DiagramStore {
     this._diagramNodes;
   public readonly diagramEdges: ReadonlySignal<Edge[]> =
     this._diagramEdges;
-  public readonly isDiagramLoading: ReadonlySignal<boolean> =
-    this._isDiagramLoading;
-  public readonly diagramError: ReadonlySignal<Error | null> =
-    this._diagramError;
+  public readonly state: ReadonlySignal<DiagramStoreState> =
+    this._state;
 
   constructor(private readonly diagramState: State<Diagram>) {
     void this.load();
@@ -133,6 +137,43 @@ export class DiagramStore {
     });
   }
 
+  async saveDiagram(): Promise<void> {
+    if (!this.diagramState.hasLink('commit-draft')) {
+      const error = new Error('当前图表缺少保存草稿所需的链接。');
+      this._state.value = { status: 'save-error', error };
+      throw error;
+    }
+
+    const payload = {
+      nodes: this._diagramNodes.value.map((node) => ({
+        id: node.id,
+        type: node.type,
+        positionX: node.position.x,
+        positionY: node.position.y,
+        localData: node.data ?? null,
+        width: node.width,
+        height: node.height,
+      })),
+      edges: this._diagramEdges.value.map((edge) => ({
+        id: edge.id,
+        sourceNode: { id: edge.source },
+        targetNode: { id: edge.target },
+      })),
+    };
+
+    this._state.value = { status: 'saving' };
+
+    try {
+      await this.diagramState.action('commit-draft').submit(payload);
+      this._state.value = { status: 'ready' };
+    } catch (error) {
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      this._state.value = { status: 'save-error', error: normalizedError };
+      throw normalizedError;
+    }
+  }
+
   private async load() {
     try {
       const [nodesState, edgesState]: [
@@ -178,14 +219,12 @@ export class DiagramStore {
         this._diagramTitle.value = this.diagramState.data.title;
         this._diagramNodes.value = finalNodes;
         this._diagramEdges.value = finalEdges;
-        this._isDiagramLoading.value = false;
+        this._state.value = { status: 'ready' };
       });
     } catch (error) {
-      batch(() => {
-        this._diagramError.value =
-          error instanceof Error ? error : new Error(String(error));
-        this._isDiagramLoading.value = false;
-      });
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      this._state.value = { status: 'load-error', error: normalizedError };
     }
   }
 
