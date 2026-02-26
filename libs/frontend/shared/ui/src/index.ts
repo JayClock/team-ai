@@ -24,6 +24,7 @@ export * from './components/separator';
 export * from './components/sidebar';
 export * from './components/sheet';
 export * from './components/skeleton';
+export * from './components/sonner';
 export * from './components/spinner';
 export * from './components/textarea';
 export * from './components/tooltip';

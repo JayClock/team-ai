@@ -7,7 +7,7 @@ import { type Signal } from '@preact/signals-react';
 import { useEffect, useState } from 'react';
 import { nodeTypes } from './node-types';
 import { createDiagramStore, type DiagramStore } from './create-diagram-store';
-import { ProposeModelPanelTool } from './tools';
+import { CommitDraftPanelTool, ProposeModelPanelTool } from './tools';
 
 interface Props {
   state: Signal<State<Diagram>>;
@@ -50,6 +50,11 @@ export function ProjectDiagram(props: Props) {
         nodeTypes={nodeTypes}
         fitView
       >
+        <Panel position="top-right">
+          <div className="flex gap-2">
+            <CommitDraftPanelTool diagramStore={diagramStore} />
+          </div>
+        </Panel>
         <Panel position="center-left">
           <div className="flex gap-1">
             <ProposeModelPanelTool

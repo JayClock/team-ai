@@ -90,6 +90,8 @@ export class DiagramStore {
           x: 0,
           y: 0,
         },
+        width: DEFAULT_NODE_WIDTH,
+        height: DEFAULT_NODE_HEIGHT,
         data: logicalEntityData,
       });
     }
