@@ -139,8 +139,6 @@ export class DiagramStore {
       ...generatedEdges,
     ];
 
-    console.log(nextNodes, nextEdges)
-
     const hasNestedNodes = nextNodes.some((node) => typeof node.parentId === 'string');
     const layoutedNodes = hasNestedNodes
       ? this.layoutNodesWithParentHierarchy(nextNodes, nextEdges)

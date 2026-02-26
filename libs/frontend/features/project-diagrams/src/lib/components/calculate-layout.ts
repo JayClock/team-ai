@@ -39,6 +39,14 @@ function isFulfillmentRequestNode(node: DiagramNode): boolean {
   return isEvidenceNode(node) && node.data.subType === 'fulfillment_request';
 }
 
+function isFulfillmentConfirmationNode(node: DiagramNode): boolean {
+  return isEvidenceNode(node) && node.data.subType === 'fulfillment_confirmation';
+}
+
+function isOtherEvidenceNode(node: DiagramNode): boolean {
+  return isEvidenceNode(node) && node.data.subType === 'other_evidence';
+}
+
 function layoutEvidenceAxis(nodes: DiagramNode[]): DiagramNode[] {
   return nodes.map((node) => {
     if (!isEvidenceNode(node)) {
@@ -132,13 +140,128 @@ function buildRequestPositionsById(params: {
   return requestPositionsById;
 }
 
-function applyRequestPositions(
+function collectConfirmationByRequestId(
   nodes: DiagramNode[],
-  requestPositionsById: Map<string, Position>,
+  edges: DiagramEdge[],
+): Map<string, DiagramNode> {
+  const nodeById = buildNodeById(nodes);
+  const confirmationByRequestId = new Map<string, DiagramNode>();
+
+  for (const edge of edges) {
+    const sourceNode = nodeById.get(edge.source);
+    const targetNode = nodeById.get(edge.target);
+    if (!sourceNode || !targetNode) {
+      continue;
+    }
+
+    const match =
+      isFulfillmentRequestNode(sourceNode) && isFulfillmentConfirmationNode(targetNode)
+        ? { request: sourceNode, confirmation: targetNode }
+        : isFulfillmentRequestNode(targetNode) &&
+            isFulfillmentConfirmationNode(sourceNode)
+          ? { request: targetNode, confirmation: sourceNode }
+          : null;
+
+    if (!match) {
+      continue;
+    }
+
+    if (!confirmationByRequestId.has(match.request.id)) {
+      confirmationByRequestId.set(match.request.id, match.confirmation);
+    }
+  }
+
+  return confirmationByRequestId;
+}
+
+function buildConfirmationPositionsById(params: {
+  confirmationByRequestId: Map<string, DiagramNode>;
+  nodeById: Map<string, DiagramNode>;
+  requestPositionsById: Map<string, Position>;
+}): Map<string, Position> {
+  const { confirmationByRequestId, nodeById, requestPositionsById } = params;
+  const confirmationPositionsById = new Map<string, Position>();
+
+  for (const [requestId, confirmation] of confirmationByRequestId.entries()) {
+    const requestPosition =
+      requestPositionsById.get(requestId) ?? nodeById.get(requestId)?.position;
+    if (!requestPosition) {
+      continue;
+    }
+
+    confirmationPositionsById.set(confirmation.id, {
+      x: requestPosition.x + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X,
+      y: requestPosition.y,
+    });
+  }
+
+  return confirmationPositionsById;
+}
+
+function collectOtherEvidenceByConfirmationId(
+  nodes: DiagramNode[],
+  edges: DiagramEdge[],
+): Map<string, DiagramNode> {
+  const nodeById = buildNodeById(nodes);
+  const otherEvidenceByConfirmationId = new Map<string, DiagramNode>();
+
+  for (const edge of edges) {
+    const sourceNode = nodeById.get(edge.source);
+    const targetNode = nodeById.get(edge.target);
+    if (!sourceNode || !targetNode) {
+      continue;
+    }
+
+    const match =
+      isFulfillmentConfirmationNode(sourceNode) && isOtherEvidenceNode(targetNode)
+        ? { confirmation: sourceNode, otherEvidence: targetNode }
+        : isFulfillmentConfirmationNode(targetNode) && isOtherEvidenceNode(sourceNode)
+          ? { confirmation: targetNode, otherEvidence: sourceNode }
+          : null;
+    if (!match) {
+      continue;
+    }
+
+    if (!otherEvidenceByConfirmationId.has(match.confirmation.id)) {
+      otherEvidenceByConfirmationId.set(match.confirmation.id, match.otherEvidence);
+    }
+  }
+
+  return otherEvidenceByConfirmationId;
+}
+
+function buildOtherEvidencePositionsById(params: {
+  confirmationPositionsById: Map<string, Position>;
+  nodeById: Map<string, DiagramNode>;
+  otherEvidenceByConfirmationId: Map<string, DiagramNode>;
+}): Map<string, Position> {
+  const { confirmationPositionsById, nodeById, otherEvidenceByConfirmationId } = params;
+  const otherEvidencePositionsById = new Map<string, Position>();
+
+  for (const [confirmationId, otherEvidence] of otherEvidenceByConfirmationId.entries()) {
+    const confirmationPosition =
+      confirmationPositionsById.get(confirmationId) ??
+      nodeById.get(confirmationId)?.position;
+    if (!confirmationPosition) {
+      continue;
+    }
+
+    otherEvidencePositionsById.set(otherEvidence.id, {
+      x: confirmationPosition.x + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X,
+      y: confirmationPosition.y,
+    });
+  }
+
+  return otherEvidencePositionsById;
+}
+
+function applyPositionsById(
+  nodes: DiagramNode[],
+  positionsById: Map<string, Position>,
 ): DiagramNode[] {
   return nodes.map((node) => {
-    const requestPosition = requestPositionsById.get(node.id);
-    if (!requestPosition) {
+    const nodePosition = positionsById.get(node.id);
+    if (!nodePosition) {
       return node;
     }
 
@@ -146,7 +269,7 @@ function applyRequestPositions(
       ...node,
       position: {
         ...node.position,
-        ...requestPosition,
+        ...nodePosition,
       },
     };
   });
@@ -167,18 +290,42 @@ export function calculateLayout(
   edges: DiagramEdge[],
 ): DiagramNode[] {
   const axisLayoutedNodes = layoutEvidenceAxis(nodes);
+  const nodeById = buildNodeById(axisLayoutedNodes);
   const contractById = collectContractsById(axisLayoutedNodes);
   const requestsByContractId = collectRequestGroupsByContractId(
     axisLayoutedNodes,
     edges,
   );
-  if (requestsByContractId.size === 0) {
-    return axisLayoutedNodes;
-  }
-
   const requestPositionsById = buildRequestPositionsById({
     contractById,
     requestsByContractId,
   });
-  return applyRequestPositions(axisLayoutedNodes, requestPositionsById);
+  const confirmationByRequestId = collectConfirmationByRequestId(
+    axisLayoutedNodes,
+    edges,
+  );
+  const confirmationPositionsById = buildConfirmationPositionsById({
+    confirmationByRequestId,
+    nodeById,
+    requestPositionsById,
+  });
+  const otherEvidenceByConfirmationId = collectOtherEvidenceByConfirmationId(
+    axisLayoutedNodes,
+    edges,
+  );
+  const otherEvidencePositionsById = buildOtherEvidencePositionsById({
+    confirmationPositionsById,
+    nodeById,
+    otherEvidenceByConfirmationId,
+  });
+  const positionsById = new Map<string, Position>([
+    ...requestPositionsById.entries(),
+    ...confirmationPositionsById.entries(),
+    ...otherEvidencePositionsById.entries(),
+  ]);
+  if (positionsById.size === 0) {
+    return axisLayoutedNodes;
+  }
+
+  return applyPositionsById(axisLayoutedNodes, positionsById);
 }

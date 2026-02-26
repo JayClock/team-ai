@@ -19,6 +19,15 @@ const CONTRACT_ID = 'node-7';
 const RFP_ID = 'node-5';
 const PROPOSAL_ID = 'node-6';
 const REQUEST_IDS = ['node-8', 'node-10', 'node-12'] as const;
+const CONFIRM_BY_REQUEST_ID = {
+  'node-8': 'node-9',
+  'node-10': 'node-11',
+  'node-12': 'node-13',
+} as const;
+const OTHER_EVIDENCE_BY_CONFIRM_ID = {
+  'node-9': 'node-19',
+  'node-11': 'node-20',
+} as const;
 const FIXTURE_NODES = nodes as LNode[];
 const FIXTURE_EDGES = edges as LEdge[];
 const CONTRACT_ANCHOR_X = LAYOUT_START_X + 2 * (LAYOUT_NODE_WIDTH + LAYOUT_GAP_X);
@@ -82,5 +91,38 @@ describe('calculateLayout - fulfillment axis', () => {
     const bottomEdgeY =
       sortedByY[sortedByY.length - 1].position.y + LAYOUT_NODE_HEIGHT / 2;
     expect((topEdgeY + bottomEdgeY) / 2).toBe(contract?.position.y);
+  });
+
+  it('places each fulfillment_confirmation to the right of request on same row', () => {
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    for (const requestId of REQUEST_IDS) {
+      const confirmId = CONFIRM_BY_REQUEST_ID[requestId];
+      const request = nodeMap.get(requestId);
+      const confirm = nodeMap.get(confirmId);
+      expect(request).toBeDefined();
+      expect(confirm).toBeDefined();
+      expect(confirm?.position.x).toBe(
+        (request?.position.x ?? 0) + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X,
+      );
+      expect(confirm?.position.y).toBe(request?.position.y);
+    }
+  });
+
+  it('places other_evidence to the right of fulfillment_confirmation on same row', () => {
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    for (const [confirmId, otherEvidenceId] of Object.entries(
+      OTHER_EVIDENCE_BY_CONFIRM_ID,
+    )) {
+      const confirm = nodeMap.get(confirmId);
+      const otherEvidence = nodeMap.get(otherEvidenceId);
+      expect(confirm).toBeDefined();
+      expect(otherEvidence).toBeDefined();
+      expect(otherEvidence?.position.x).toBe(
+        (confirm?.position.x ?? 0) + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X,
+      );
+      expect(otherEvidence?.position.y).toBe(confirm?.position.y);
+    }
   });
 });
