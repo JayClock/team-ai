@@ -101,6 +101,92 @@
             #{description.localData, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler})
   </insert>
 
+  <select id="findNodeIdsWithoutLogicalEntityForPublish" resultType="int">
+    SELECT dn.id
+    FROM diagram_nodes dn
+    INNER JOIN diagrams d ON d.id = dn.diagram_id
+    WHERE d.project_id = #{project_id}
+      AND dn.diagram_id = #{diagram_id}
+      AND dn.logical_entity_id IS NULL
+    ORDER BY dn.id
+  </select>
+
+  <update id="promoteNodeLocalDataToLogicalEntity">
+    WITH source_node AS (
+      SELECT
+        d.project_id AS project_id,
+        dn.id AS node_id,
+        CASE UPPER(COALESCE(dn.local_data ->> 'type', ''))
+          WHEN 'EVIDENCE' THEN 'Evidence'
+          WHEN 'PARTICIPANT' THEN 'Participant'
+          WHEN 'ROLE' THEN 'Role'
+          WHEN 'CONTEXT' THEN 'Context'
+          ELSE NULL
+        END AS logical_type,
+        CASE UPPER(COALESCE(dn.local_data ->> 'type', ''))
+          WHEN 'EVIDENCE' THEN
+            CASE
+              WHEN POSITION(':' IN COALESCE(dn.local_data ->> 'subType', '')) > 0
+                THEN dn.local_data ->> 'subType'
+              ELSE 'EVIDENCE:' || COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'rfp')
+            END
+          WHEN 'PARTICIPANT' THEN
+            CASE
+              WHEN POSITION(':' IN COALESCE(dn.local_data ->> 'subType', '')) > 0
+                THEN dn.local_data ->> 'subType'
+              ELSE 'PARTICIPANT:' || COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'party')
+            END
+          WHEN 'ROLE' THEN
+            CASE
+              WHEN POSITION(':' IN COALESCE(dn.local_data ->> 'subType', '')) > 0
+                THEN dn.local_data ->> 'subType'
+              ELSE 'ROLE:' || COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'party_role')
+            END
+          WHEN 'CONTEXT' THEN
+            CASE
+              WHEN POSITION(':' IN COALESCE(dn.local_data ->> 'subType', '')) > 0
+                THEN dn.local_data ->> 'subType'
+              ELSE 'CONTEXT:' || COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'bounded_context')
+            END
+          ELSE NULL
+        END AS logical_sub_type,
+        NULLIF(BTRIM(dn.local_data ->> 'name'), '') AS logical_name,
+        COALESCE(
+          NULLIF(BTRIM(dn.local_data ->> 'label'), ''),
+          NULLIF(BTRIM(dn.local_data ->> 'name'), '')
+        ) AS logical_label,
+        COALESCE(dn.local_data -> 'definition', '{}'::jsonb) AS logical_definition
+      FROM diagram_nodes dn
+      INNER JOIN diagrams d ON d.id = dn.diagram_id
+      WHERE d.project_id = #{project_id}
+        AND dn.diagram_id = #{diagram_id}
+        AND dn.id = #{node_id}
+        AND dn.logical_entity_id IS NULL
+    ),
+    inserted_entity AS (
+      INSERT INTO logical_entities(project_id, type, sub_type, name, label, definition)
+      SELECT
+        project_id,
+        logical_type,
+        logical_sub_type,
+        logical_name,
+        logical_label,
+        logical_definition
+      FROM source_node
+      WHERE logical_type IS NOT NULL
+        AND logical_name IS NOT NULL
+      RETURNING id
+    )
+    UPDATE diagram_nodes dn
+    SET logical_entity_id = inserted_entity.id,
+        local_data = '{}'::jsonb,
+        updated_at = CURRENT_TIMESTAMP
+    FROM inserted_entity
+    WHERE dn.id = #{node_id}
+      AND dn.diagram_id = #{diagram_id}
+      AND dn.logical_entity_id IS NULL
+  </update>
+
   <select id="countNodesByDiagram" resultType="int">
     SELECT COUNT(id) FROM diagram_nodes WHERE diagram_id = #{diagram_id}
   </select>

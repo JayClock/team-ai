@@ -18,5 +18,13 @@ public interface DiagramNodesMapper {
       @Param("diagram_id") int diagramId,
       @Param("description") NodeDescription description);
 
+  List<Integer> findNodeIdsWithoutLogicalEntityForPublish(
+      @Param("project_id") int projectId, @Param("diagram_id") int diagramId);
+
+  int promoteNodeLocalDataToLogicalEntity(
+      @Param("project_id") int projectId,
+      @Param("diagram_id") int diagramId,
+      @Param("node_id") int nodeId);
+
   int countNodesByDiagram(@Param("diagram_id") int diagramId);
 }

@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Import;
 import reengineering.ddd.FlywayConfig;
 import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
-import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
@@ -35,7 +34,6 @@ import reengineering.ddd.teamai.mybatis.config.CacheConfig;
 public class ProjectDiagramsTest {
   @Inject private Users users;
   @Inject private CacheManager cacheManager;
-  @Inject private TestDataMapper testData;
 
   private User user;
   private Project project;

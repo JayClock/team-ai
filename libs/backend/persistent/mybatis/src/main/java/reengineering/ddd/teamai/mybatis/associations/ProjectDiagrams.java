@@ -87,7 +87,23 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
     if (diagramId == null || diagramId.isBlank()) {
       throw new Project.Diagrams.InvalidDraftException("Diagram id must be provided.");
     }
-    mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), Status.PUBLISHED);
+    int parsedDiagramId = Integer.parseInt(diagramId);
+    Diagram diagram =
+        findByIdentity(diagramId)
+            .orElseThrow(
+                () ->
+                    new Project.Diagrams.InvalidDraftException("Diagram not found: " + diagramId));
+
+    if (!(diagram.nodes() instanceof DiagramNodes diagramNodes)) {
+      throw new IllegalStateException("Diagram nodes association must be DiagramNodes.");
+    }
+
+    transactionDecorator.execute(
+        () -> {
+          diagramNodes.promoteNodeLocalDataToLogicalEntitiesForPublish(projectId);
+          mapper.updateDiagramStatus(projectId, parsedDiagramId, Status.PUBLISHED);
+          return null;
+        });
   }
 
   private void doCommitDraft(

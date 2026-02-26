@@ -1,6 +1,9 @@
 package reengineering.ddd.associations;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,12 +22,15 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.archtype.JsonBlob;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.EvidenceSubType;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramNode;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
+import reengineering.ddd.teamai.mybatis.associations.DiagramNodes;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 import reengineering.ddd.teamai.mybatis.config.CacheConfig;
 
@@ -39,18 +45,19 @@ public class DiagramNodesTest {
   @Inject private reengineering.ddd.TestDataMapper testData;
 
   private User user;
+  private Project project;
   private Diagram diagram;
 
   @BeforeEach
   public void setup() {
     cacheManager.getCacheNames().forEach(name -> cacheManager.getCache(name).clear());
     user = users.findByIdentity("1").get();
+    project = user.projects().findAll().stream().findFirst().get();
     diagram =
-        user.projects().findAll().stream().findFirst().get().diagrams().findAll().stream()
+        project.diagrams().findAll().stream()
             .findFirst()
             .orElseGet(
                 () -> {
-                  var project = user.projects().findAll().stream().findFirst().get();
                   return project.addDiagram(
                       new DiagramDescription("Test Diagram", Type.CLASS, new Viewport(0, 0, 1.0)));
                 });
@@ -486,6 +493,66 @@ public class DiagramNodesTest {
 
     int newSize = diagram.nodes().findAll().size();
     assertEquals(initialSize + 3, newSize);
+  }
+
+  @Test
+  public void should_promote_local_data_to_logical_entity_for_publish() {
+    int nodeId = 920001;
+    int projectId = Integer.parseInt(project.getIdentity());
+    int diagramId = Integer.parseInt(diagram.getIdentity());
+
+    testData.insertDiagramNode(
+        nodeId,
+        diagramId,
+        "fulfillment-node",
+        null,
+        null,
+        100.0,
+        200.0,
+        220,
+        120,
+        "{}",
+        "{\"name\":\"Order\",\"label\":\"订单\",\"type\":\"EVIDENCE\",\"subType\":\"rfp\",\"definition\":{\"description\":\"订单聚合\"}}");
+
+    ((DiagramNodes) diagram.nodes()).promoteNodeLocalDataToLogicalEntitiesForPublish(projectId);
+
+    DiagramNode promotedNode = diagram.nodes().findByIdentity(String.valueOf(nodeId)).orElseThrow();
+    assertNotNull(promotedNode.getDescription().logicalEntity());
+    assertNotNull(promotedNode.logicalEntity());
+    assertEquals("Order", promotedNode.logicalEntity().getDescription().name());
+    assertEquals("订单", promotedNode.logicalEntity().getDescription().label());
+    assertEquals(EvidenceSubType.RFP, promotedNode.logicalEntity().getDescription().subType());
+    assertNotNull(promotedNode.getDescription().localData());
+    assertEquals("{}", promotedNode.getDescription().localData().json());
+  }
+
+  @Test
+  public void should_skip_non_logical_entity_local_data_when_promoting_for_publish() {
+    int nodeId = 920002;
+    int projectId = Integer.parseInt(project.getIdentity());
+    int diagramId = Integer.parseInt(diagram.getIdentity());
+
+    testData.insertDiagramNode(
+        nodeId,
+        diagramId,
+        "sticky-note",
+        null,
+        null,
+        100.0,
+        200.0,
+        220,
+        120,
+        "{}",
+        "{\"content\":\"需要人工补充\",\"type\":\"sticky-note\"}");
+
+    ((DiagramNodes) diagram.nodes()).promoteNodeLocalDataToLogicalEntitiesForPublish(projectId);
+
+    DiagramNode promotedNode = diagram.nodes().findByIdentity(String.valueOf(nodeId)).orElseThrow();
+    assertNull(promotedNode.getDescription().logicalEntity());
+    assertNull(promotedNode.logicalEntity());
+    assertNotNull(promotedNode.getDescription().localData());
+    assertFalse(promotedNode.getDescription().localData().json().isBlank());
+    assertTrue(promotedNode.getDescription().localData().json().contains("\"content\""));
   }
 
   @Test

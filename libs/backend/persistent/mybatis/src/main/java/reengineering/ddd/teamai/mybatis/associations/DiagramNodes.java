@@ -67,4 +67,14 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
     }
     return List.copyOf(createdNodes);
   }
+
+  @CacheEvict(value = CACHE_NAME, key = "#root.target.diagramId + '*")
+  public void promoteNodeLocalDataToLogicalEntitiesForPublish(int projectId) {
+    List<Integer> nodeIds = mapper.findNodeIdsWithoutLogicalEntityForPublish(projectId, diagramId);
+    for (Integer nodeId : nodeIds) {
+      if (nodeId != null) {
+        mapper.promoteNodeLocalDataToLogicalEntity(projectId, diagramId, nodeId);
+      }
+    }
+  }
 }
