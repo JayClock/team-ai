@@ -13,7 +13,9 @@ export function CommitDraftPanelTool({ diagramStore }: Props) {
   const storeState = diagramStore.state.value;
   const isSavingDraft = storeState.status === 'saving';
   const canSaveDraft =
-    storeState.status === 'ready' || storeState.status === 'save-error';
+    storeState.status === 'ready' ||
+    storeState.status === 'save-error' ||
+    storeState.status === 'publish-error';
 
   const handleSave = () => {
     if (!canSaveDraft || isSavingDraft) {

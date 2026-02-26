@@ -38,8 +38,10 @@ export type DiagramStoreState =
   | { status: 'loading' }
   | { status: 'ready' }
   | { status: 'saving' }
+  | { status: 'publishing' }
   | { status: 'load-error'; error: Error }
-  | { status: 'save-error'; error: Error };
+  | { status: 'save-error'; error: Error }
+  | { status: 'publish-error'; error: Error };
 
 export class DiagramStore {
   private readonly _diagramTitle = signal<string>('');
@@ -56,7 +58,7 @@ export class DiagramStore {
   public readonly state: ReadonlySignal<DiagramStoreState> =
     this._state;
 
-  constructor(private readonly diagramState: State<Diagram>) {
+  constructor(private diagramState: State<Diagram>) {
     void this.load();
   }
 
@@ -172,6 +174,54 @@ export class DiagramStore {
       const normalizedError =
         error instanceof Error ? error : new Error(String(error));
       this._state.value = { status: 'save-error', error: normalizedError };
+      throw normalizedError;
+    }
+  }
+
+  canPublishDiagram(): boolean {
+    if (
+      this._state.value.status === 'loading' ||
+      this._state.value.status === 'saving' ||
+      this._state.value.status === 'publishing'
+    ) {
+      return false;
+    }
+
+    if (this.diagramState.data.status === 'published') {
+      return false;
+    }
+
+    return this.diagramState.hasLink('publish-diagram');
+  }
+
+  async publishDiagram(): Promise<void> {
+    if (!this.diagramState.hasLink('publish-diagram')) {
+      const error = new Error('当前图表缺少发布所需的链接。');
+      this._state.value = { status: 'publish-error', error };
+      throw error;
+    }
+
+    if (
+      this.diagramState.data.status === 'published' ||
+      this._state.value.status === 'publishing'
+    ) {
+      return;
+    }
+
+    this._state.value = { status: 'publishing' };
+
+    try {
+      await this.diagramState.action('publish-diagram').submit({});
+      this.diagramState = await this.diagramState.follow('self').get();
+
+      batch(() => {
+        this._diagramTitle.value = this.diagramState.data.title;
+        this._state.value = { status: 'ready' };
+      });
+    } catch (error) {
+      const normalizedError =
+        error instanceof Error ? error : new Error(String(error));
+      this._state.value = { status: 'publish-error', error: normalizedError };
       throw normalizedError;
     }
   }

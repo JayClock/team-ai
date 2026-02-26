@@ -132,6 +132,56 @@ function createDiagramStateWithoutCommitDraftLink(title: string): State<Diagram>
   } as unknown as State<Diagram>;
 }
 
+function createDiagramStateWithPublishDiagram(
+  title: string,
+  submit: (payload: unknown) => Promise<unknown>,
+): State<Diagram> {
+  const baseState = createDiagramState(title);
+
+  const publishedState = {
+    ...baseState,
+    data: {
+      ...baseState.data,
+      status: 'published' as const,
+    },
+    hasLink: (rel: string) => rel === 'commit-draft',
+  } as unknown as State<Diagram>;
+
+  return {
+    ...baseState,
+    hasLink: (rel: string) =>
+      rel === 'commit-draft' || rel === 'publish-diagram',
+    action: (rel: string) => {
+      if (rel === 'publish-diagram') {
+        return {
+          submit,
+        };
+      }
+      return {
+        submit: async () => ({}),
+      };
+    },
+    follow: (rel: string) => {
+      if (rel === 'self') {
+        return {
+          get: async () => publishedState,
+        } as never;
+      }
+
+      return baseState.follow(rel as never);
+    },
+  } as unknown as State<Diagram>;
+}
+
+function createDiagramStateWithoutPublishDiagramLink(
+  title: string,
+): State<Diagram> {
+  return {
+    ...createDiagramState(title),
+    hasLink: (rel: string) => rel === 'commit-draft',
+  } as unknown as State<Diagram>;
+}
+
 async function waitForStoreLoad(store: DiagramStore) {
   for (let i = 0; i < 20 && store.state.value.status === 'loading'; i += 1) {
     await Promise.resolve();
@@ -140,7 +190,7 @@ async function waitForStoreLoad(store: DiagramStore) {
 
 function expectStateError(
   state: DiagramStoreState,
-  status: 'load-error' | 'save-error',
+  status: 'load-error' | 'save-error' | 'publish-error',
   message: string,
 ) {
   expect(state.status).toBe(status);
@@ -337,5 +387,50 @@ describe('createDiagramStore', () => {
 
     await expect(store.saveDiagram()).rejects.toThrow('保存失败');
     expectStateError(store.state.value, 'save-error', '保存失败');
+  });
+
+  it('publishes diagram and refreshes publish status from self link', async () => {
+    const submit = vi.fn(async () => ({}));
+    const store = createDiagramStore(
+      createDiagramStateWithPublishDiagram('Diagram A', submit),
+    );
+    await waitForStoreLoad(store);
+
+    expect(store.canPublishDiagram()).toBe(true);
+    await store.publishDiagram();
+
+    expect(submit).toHaveBeenCalledTimes(1);
+    expect(submit).toHaveBeenCalledWith({});
+    expect(store.state.value).toEqual({ status: 'ready' });
+    expect(store.canPublishDiagram()).toBe(false);
+  });
+
+  it('throws when publish-diagram link is missing', async () => {
+    const store = createDiagramStore(
+      createDiagramStateWithoutPublishDiagramLink('Diagram A'),
+    );
+    await waitForStoreLoad(store);
+
+    await expect(store.publishDiagram()).rejects.toThrow(
+      '当前图表缺少发布所需的链接。',
+    );
+    expectStateError(
+      store.state.value,
+      'publish-error',
+      '当前图表缺少发布所需的链接。',
+    );
+  });
+
+  it('updates publish loading and error state when publish fails', async () => {
+    const submit = vi.fn(async () => {
+      throw new Error('发布失败');
+    });
+    const store = createDiagramStore(
+      createDiagramStateWithPublishDiagram('Diagram A', submit),
+    );
+    await waitForStoreLoad(store);
+
+    await expect(store.publishDiagram()).rejects.toThrow('发布失败');
+    expectStateError(store.state.value, 'publish-error', '发布失败');
   });
 });
