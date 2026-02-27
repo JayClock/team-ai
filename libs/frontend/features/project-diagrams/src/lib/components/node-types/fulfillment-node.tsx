@@ -8,6 +8,10 @@ import {
   useNodes,
 } from '@xyflow/react';
 import { useMemo } from 'react';
+import {
+  EVIDENCE_SOURCE_HANDLE_RIGHT,
+  EVIDENCE_TARGET_HANDLE_LEFT,
+} from '../calculate-evidence-edge-handles';
 import { resolveEvidencePartyRoleName } from '../resolve-evidence-party-role-names';
 
 type FulfillmentNodeType = Node<LogicalEntity['data'], 'fulfillment-node'>;
@@ -79,7 +83,14 @@ export function FulfillmentNode({ data, id }: NodeProps<FulfillmentNodeType>) {
     <div
       className={`relative rounded-lg px-4 py-3 shadow-md border-2 min-w-[120px] ${bgColorClass}`}
     >
-      <Handle type="target" position={Position.Top} />
+      <Handle id="default-target" type="target" position={Position.Top} />
+      {entityType === 'EVIDENCE' ? (
+        <Handle
+          id={EVIDENCE_TARGET_HANDLE_LEFT}
+          type="target"
+          position={Position.Left}
+        />
+      ) : null}
       {showPartyRoleName ? (
         <div
           className={`absolute top-0 right-0 max-w-[75%] translate-x-1/2 -translate-y-1/2 truncate rounded border px-1.5 py-0.5 text-[10px] text-right text-yellow-900 ${partyRoleBadgeColorClass}`}
@@ -97,7 +108,14 @@ export function FulfillmentNode({ data, id }: NodeProps<FulfillmentNodeType>) {
       {entitySubType ? (
         <div className="text-xs text-gray-500 mt-1">{entitySubType}</div>
       ) : null}
-      <Handle type="source" position={Position.Bottom} />
+      <Handle id="default-source" type="source" position={Position.Bottom} />
+      {entityType === 'EVIDENCE' ? (
+        <Handle
+          id={EVIDENCE_SOURCE_HANDLE_RIGHT}
+          type="source"
+          position={Position.Right}
+        />
+      ) : null}
     </div>
   );
 }

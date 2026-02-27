@@ -7,6 +7,7 @@ import {
   LogicalEntity,
 } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
+import { calculateEvidenceEdgeHandles } from './calculate-evidence-edge-handles';
 import { calculateEdgeVisibility } from './calculate-edge-visibility';
 import { calculateLayout } from './calculate-layout';
 
@@ -134,15 +135,19 @@ export class DiagramStore {
       nextNodes,
       nextEdges,
     );
+    const nextEdgesWithHandles = calculateEvidenceEdgeHandles(
+      nextNodes,
+      nextEdgesWithVisibility,
+    );
 
-    const layoutedNodes = calculateLayout(nextNodes, nextEdgesWithVisibility);
+    const layoutedNodes = calculateLayout(nextNodes, nextEdgesWithHandles);
 
     batch(() => {
       this._diagramNodes.value = [
         ...layoutedNodes,
       ];
       this._diagramEdges.value = [
-        ...nextEdgesWithVisibility,
+        ...nextEdgesWithHandles,
       ];
     });
   }
@@ -273,11 +278,15 @@ export class DiagramStore {
         logicalEntityDataByNodeId,
       );
       const finalEdges = this.toDiagramEdges(edgesState.collection);
+      const finalEdgesWithHandles = calculateEvidenceEdgeHandles(
+        finalNodes,
+        finalEdges,
+      );
 
       batch(() => {
         this._diagramTitle.value = this.diagramState.data.title;
         this._diagramNodes.value = finalNodes;
-        this._diagramEdges.value = finalEdges;
+        this._diagramEdges.value = finalEdgesWithHandles;
         this._state.value = { status: 'ready' };
       });
     } catch (error) {
