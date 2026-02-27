@@ -18,6 +18,11 @@ public interface DiagramNodesMapper {
       @Param("diagram_id") int diagramId,
       @Param("description") NodeDescription description);
 
+  int updateNode(
+      @Param("diagram_id") int diagramId,
+      @Param("id") int id,
+      @Param("description") NodeDescription description);
+
   List<Integer> findNodeIdsWithoutLogicalEntityForPublish(
       @Param("project_id") int projectId, @Param("diagram_id") int diagramId);
 

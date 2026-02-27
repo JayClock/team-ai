@@ -101,6 +101,22 @@
             #{description.localData, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler})
   </insert>
 
+  <update id="updateNode">
+    UPDATE diagram_nodes
+    SET type = #{description.type},
+        logical_entity_id = #{description.logicalEntity, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+        parent_id = #{description.parent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+        position_x = #{description.positionX},
+        position_y = #{description.positionY},
+        width = #{description.width},
+        height = #{description.height},
+        style_config = #{description.styleConfig, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler},
+        local_data = #{description.localData, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE diagram_id = #{diagram_id}
+      AND id = #{id}
+  </update>
+
   <select id="findNodeIdsWithoutLogicalEntityForPublish" resultType="int">
     SELECT dn.id
     FROM diagram_nodes dn

@@ -22,6 +22,7 @@ import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Diagram.Status;
 import reengineering.ddd.teamai.model.Diagram.Type;
+import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.DiagramVersion;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
@@ -193,6 +194,35 @@ public class ProjectDiagramsTest {
     Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     assertEquals(1, committed.nodes().findAll().size());
     assertEquals(1, committed.edges().findAll().size());
+    assertEquals(Status.DRAFT, committed.getDescription().status());
+  }
+
+  @Test
+  public void should_update_existing_node_when_saving_draft_via_project_diagrams_association() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("更新节点草稿图", Type.CLASS, Viewport.defaultViewport()));
+    diagram.addNode(
+        new NodeDescription("old-node", null, null, 100.0, 120.0, 200, 120, null, null));
+    DiagramNode existingNode = diagram.nodes().findAll().stream().findFirst().orElseThrow();
+    int nodeCountBefore = diagram.nodes().findAll().size();
+
+    project.saveDiagram(
+        diagram.getIdentity(),
+        List.of(
+            new Project.Diagrams.DraftNode(
+                existingNode.getIdentity(),
+                new NodeDescription(
+                    "updated-node", null, null, 520.0, 680.0, 320, 220, null, null))),
+        List.of());
+
+    Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
+    assertEquals(nodeCountBefore, committed.nodes().findAll().size());
+    DiagramNode updatedNode =
+        committed.nodes().findByIdentity(existingNode.getIdentity()).orElseThrow();
+    assertEquals("updated-node", updatedNode.getDescription().type());
+    assertEquals(520.0, updatedNode.getDescription().positionX());
+    assertEquals(680.0, updatedNode.getDescription().positionY());
     assertEquals(Status.DRAFT, committed.getDescription().status());
   }
 

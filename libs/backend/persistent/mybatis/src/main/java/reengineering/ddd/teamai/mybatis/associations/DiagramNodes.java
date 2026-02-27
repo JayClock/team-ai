@@ -24,6 +24,7 @@ import reengineering.ddd.teamai.mybatis.mappers.DiagramNodesMapper;
 public class DiagramNodes extends EntityList<String, DiagramNode> implements Diagram.Nodes {
 
   private static final String CACHE_NAME = "diagramNodes";
+  private static final String NEW_NODE_PLACEHOLDER_PATTERN = "node-\\d+";
 
   private int diagramId;
 
@@ -110,6 +111,7 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
       if (draftNodeId == null || draftNodeId.isBlank()) {
         throw new Project.Diagrams.InvalidDraftException("Node request must provide id.");
       }
+      validateDraftNodeIdentityFormat(draftNodeId);
       if (!uniqueDraftNodeIds.add(draftNodeId)) {
         throw new Project.Diagrams.InvalidDraftException("Duplicated node id: " + draftNodeId);
       }
@@ -132,16 +134,43 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
       String draftNodeId = draftNode.id();
       NodeDescription resolvedDescription =
           resolveParentNodeId(draftNode.description(), createdNodeIdByRef, draftNodeIdByAlias);
+      String persistedNodeId = commitNodeByDraftId(draftNodeId, resolvedDescription);
+      createdNodeIdByRef.put(draftNodeId, persistedNodeId);
+      // Backward compatibility with older indexed placeholder references.
+      String legacyAlias = legacyAliasByDraftNodeId.get(draftNodeId);
+      if (legacyAlias != null) {
+        createdNodeIdByRef.putIfAbsent(legacyAlias, persistedNodeId);
+      }
+    }
+    return createdNodeIdByRef;
+  }
+
+  private String commitNodeByDraftId(String draftNodeId, NodeDescription resolvedDescription) {
+    if (isNewNodePlaceholderId(draftNodeId)) {
       DiagramNode createdNode = add(resolvedDescription);
       String createdNodeId = createdNode.getIdentity();
       if (createdNodeId == null || createdNodeId.isBlank()) {
         throw new Project.Diagrams.InvalidDraftException("Created node id must not be blank.");
       }
-      createdNodeIdByRef.put(draftNodeId, createdNodeId);
-      // Backward compatibility with older indexed placeholder references.
-      createdNodeIdByRef.put(legacyAliasByDraftNodeId.get(draftNodeId), createdNodeId);
+      return createdNodeId;
     }
-    return createdNodeIdByRef;
+    return updateExistingNodeById(draftNodeId, resolvedDescription);
+  }
+
+  private String updateExistingNodeById(String draftNodeId, NodeDescription resolvedDescription) {
+    int persistedNodeId = parsePersistedNodeId(draftNodeId);
+    int affectedRows = mapper.updateNode(diagramId, persistedNodeId, resolvedDescription);
+    if (affectedRows == 0) {
+      throw new Project.Diagrams.InvalidDraftException("Node not found: " + draftNodeId);
+    }
+    DiagramNode updatedNode = findEntity(draftNodeId);
+    if (updatedNode == null
+        || updatedNode.getIdentity() == null
+        || updatedNode.getIdentity().isBlank()) {
+      throw new Project.Diagrams.InvalidDraftException(
+          "Updated node id must not be blank: " + draftNodeId);
+    }
+    return updatedNode.getIdentity();
   }
 
   private static List<Project.Diagrams.DraftNode> sortDraftNodesByParent(
@@ -209,10 +238,11 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
         throw new Project.Diagrams.InvalidDraftException(
             "Parent node must be created before child node: " + parentId);
       }
-      if (parentId.matches("node-\\d+")) {
+      if (isNewNodePlaceholderId(parentId)) {
         throw new Project.Diagrams.InvalidDraftException(
             "Unknown node placeholder id: " + parentId);
       }
+      validatePersistedNodeId(parentId);
       resolvedParentId = parentId;
     }
 
@@ -236,6 +266,30 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
       throw new Project.Diagrams.InvalidDraftException(blankIdMessage);
     }
     return nodeRef.id();
+  }
+
+  private static void validateDraftNodeIdentityFormat(String draftNodeId) {
+    if (isNewNodePlaceholderId(draftNodeId)) {
+      return;
+    }
+    validatePersistedNodeId(draftNodeId);
+  }
+
+  private static void validatePersistedNodeId(String nodeId) {
+    parsePersistedNodeId(nodeId);
+  }
+
+  private static int parsePersistedNodeId(String nodeId) {
+    try {
+      return Integer.parseInt(nodeId);
+    } catch (NumberFormatException error) {
+      throw new Project.Diagrams.InvalidDraftException(
+          "Existing node id must be numeric: " + nodeId);
+    }
+  }
+
+  private static boolean isNewNodePlaceholderId(String nodeId) {
+    return nodeId != null && nodeId.matches(NEW_NODE_PLACEHOLDER_PATTERN);
   }
 
   private record DraftNodeMappings(

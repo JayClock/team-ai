@@ -161,7 +161,7 @@ public class DiagramNodesTest {
   public void should_commit_draft_nodes_and_resolve_parent_placeholder() {
     NodeDescription childDescription =
         new NodeDescription(
-            "child-node", null, new Ref<>("draft-parent"), 220.0, 200.0, 300, 200, null, null);
+            "child-node", null, new Ref<>("node-1"), 220.0, 200.0, 300, 200, null, null);
     NodeDescription parentDescription =
         new NodeDescription("parent-node", null, null, 100.0, 200.0, 300, 200, null, null);
 
@@ -169,11 +169,11 @@ public class DiagramNodesTest {
         ((DiagramNodes) diagram.nodes())
             .commitDraftNodes(
                 List.of(
-                    new Project.Diagrams.DraftNode("draft-child", childDescription),
-                    new Project.Diagrams.DraftNode("draft-parent", parentDescription)));
+                    new Project.Diagrams.DraftNode("node-2", childDescription),
+                    new Project.Diagrams.DraftNode("node-1", parentDescription)));
 
-    String parentNodeId = createdNodeIdByRef.get("draft-parent");
-    String childNodeId = createdNodeIdByRef.get("draft-child");
+    String parentNodeId = createdNodeIdByRef.get("node-1");
+    String childNodeId = createdNodeIdByRef.get("node-2");
     assertNotNull(parentNodeId);
     assertNotNull(childNodeId);
 
@@ -186,10 +186,10 @@ public class DiagramNodesTest {
   public void should_reject_cyclic_parent_reference_in_commit_draft_nodes() {
     NodeDescription nodeA =
         new NodeDescription(
-            "node-a", null, new Ref<>("draft-b"), 100.0, 200.0, 300, 200, null, null);
+            "node-a", null, new Ref<>("node-2"), 100.0, 200.0, 300, 200, null, null);
     NodeDescription nodeB =
         new NodeDescription(
-            "node-b", null, new Ref<>("draft-a"), 220.0, 200.0, 300, 200, null, null);
+            "node-b", null, new Ref<>("node-1"), 220.0, 200.0, 300, 200, null, null);
 
     Project.Diagrams.InvalidDraftException error =
         assertThrows(
@@ -198,10 +198,98 @@ public class DiagramNodesTest {
                 ((DiagramNodes) diagram.nodes())
                     .commitDraftNodes(
                         List.of(
-                            new Project.Diagrams.DraftNode("draft-a", nodeA),
-                            new Project.Diagrams.DraftNode("draft-b", nodeB))));
+                            new Project.Diagrams.DraftNode("node-1", nodeA),
+                            new Project.Diagrams.DraftNode("node-2", nodeB))));
 
-    assertEquals("Cyclic parent reference detected: draft-a", error.getMessage());
+    assertEquals("Cyclic parent reference detected: node-1", error.getMessage());
+  }
+
+  @Test
+  public void should_update_existing_node_when_draft_node_id_is_persisted_id() {
+    DiagramNode existingNode =
+        diagram.addNode(
+            new NodeDescription("old-node", null, null, 100.0, 100.0, 200, 120, null, null));
+    int nodeCountBefore = diagram.nodes().findAll().size();
+
+    Map<String, String> createdNodeIdByRef =
+        ((DiagramNodes) diagram.nodes())
+            .commitDraftNodes(
+                List.of(
+                    new Project.Diagrams.DraftNode(
+                        existingNode.getIdentity(),
+                        new NodeDescription(
+                            "updated-node", null, null, 500.0, 600.0, 320, 220, null, null))));
+
+    assertEquals(existingNode.getIdentity(), createdNodeIdByRef.get(existingNode.getIdentity()));
+    assertEquals(nodeCountBefore, diagram.nodes().findAll().size());
+
+    DiagramNode updatedNode =
+        diagram.nodes().findByIdentity(existingNode.getIdentity()).orElseThrow();
+    assertEquals("updated-node", updatedNode.getDescription().type());
+    assertEquals(500.0, updatedNode.getDescription().positionX());
+    assertEquals(600.0, updatedNode.getDescription().positionY());
+    assertEquals(320, updatedNode.getDescription().width());
+    assertEquals(220, updatedNode.getDescription().height());
+  }
+
+  @Test
+  public void should_reject_non_numeric_existing_node_id_in_commit_draft_nodes() {
+    Project.Diagrams.InvalidDraftException error =
+        assertThrows(
+            Project.Diagrams.InvalidDraftException.class,
+            () ->
+                ((DiagramNodes) diagram.nodes())
+                    .commitDraftNodes(
+                        List.of(
+                            new Project.Diagrams.DraftNode(
+                                "draft-parent",
+                                new NodeDescription(
+                                    "parent-node",
+                                    null,
+                                    null,
+                                    100.0,
+                                    200.0,
+                                    300,
+                                    200,
+                                    null,
+                                    null)))));
+
+    assertEquals("Existing node id must be numeric: draft-parent", error.getMessage());
+  }
+
+  @Test
+  public void should_reject_duplicated_draft_node_id_in_commit_draft_nodes() {
+    NodeDescription nodeDescription =
+        new NodeDescription("class-node", null, null, 100.0, 200.0, 300, 200, null, null);
+
+    Project.Diagrams.InvalidDraftException error =
+        assertThrows(
+            Project.Diagrams.InvalidDraftException.class,
+            () ->
+                ((DiagramNodes) diagram.nodes())
+                    .commitDraftNodes(
+                        List.of(
+                            new Project.Diagrams.DraftNode("node-1", nodeDescription),
+                            new Project.Diagrams.DraftNode("node-1", nodeDescription))));
+
+    assertEquals("Duplicated node id: node-1", error.getMessage());
+  }
+
+  @Test
+  public void should_reject_unknown_parent_placeholder_in_commit_draft_nodes() {
+    NodeDescription nodeDescription =
+        new NodeDescription(
+            "child-node", null, new Ref<>("node-99"), 220.0, 200.0, 300, 200, null, null);
+
+    Project.Diagrams.InvalidDraftException error =
+        assertThrows(
+            Project.Diagrams.InvalidDraftException.class,
+            () ->
+                ((DiagramNodes) diagram.nodes())
+                    .commitDraftNodes(
+                        List.of(new Project.Diagrams.DraftNode("node-1", nodeDescription))));
+
+    assertEquals("Unknown node placeholder id: node-99", error.getMessage());
   }
 
   @Test
