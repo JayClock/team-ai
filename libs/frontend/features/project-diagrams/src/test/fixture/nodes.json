@@ -2,6 +2,7 @@
     {
         "id": "node-1",
         "type": "group-container",
+        "parentId": null,
         "position": {
             "x": 0,
             "y": 0
@@ -12,8 +13,8 @@
             "id": "node-1",
             "type": "CONTEXT",
             "subType": "bounded_context",
-            "name": "电商平台合同上下文（created_at）",
-            "label": "电商平台合同上下文",
+            "name": "电商平台业务上下文",
+            "label": "电商平台上下文",
             "definition": {}
         }
     },
@@ -88,8 +89,8 @@
             "id": "node-5",
             "type": "EVIDENCE",
             "subType": "rfp",
-            "name": "商品列表RFP（started_at）",
-            "label": "商品列表RFP",
+            "name": "商品上架要约邀请（created_at）",
+            "label": "商品上架RFP",
             "definition": {}
         }
     },
@@ -107,8 +108,8 @@
             "id": "node-6",
             "type": "EVIDENCE",
             "subType": "proposal",
-            "name": "商品详情Proposal（confirmed_at）",
-            "label": "商品详情Proposal",
+            "name": "商品上架报价（created_at）",
+            "label": "商品上架Proposal",
             "definition": {}
         }
     },
@@ -126,8 +127,8 @@
             "id": "node-7",
             "type": "EVIDENCE",
             "subType": "contract",
-            "name": "订单合同（signed_at）",
-            "label": "订单合同",
+            "name": "销售合同（signed_at）",
+            "label": "销售合同",
             "definition": {}
         }
     },
@@ -143,10 +144,10 @@
         "height": 80,
         "data": {
             "id": "node-8",
-            "type": "EVIDENCE",
-            "subType": "fulfillment_request",
-            "name": "支付请求（created_at）",
-            "label": "支付请求",
+            "type": "ROLE",
+            "subType": "party_role",
+            "name": "买家（Party Role）",
+            "label": "买家角色",
             "definition": {}
         }
     },
@@ -162,10 +163,10 @@
         "height": 80,
         "data": {
             "id": "node-9",
-            "type": "EVIDENCE",
-            "subType": "fulfillment_confirmation",
-            "name": "支付确认（confirmed_at）",
-            "label": "支付确认",
+            "type": "ROLE",
+            "subType": "party_role",
+            "name": "卖家（Party Role）",
+            "label": "卖家角色",
             "definition": {}
         }
     },
@@ -181,10 +182,10 @@
         "height": 80,
         "data": {
             "id": "node-10",
-            "type": "EVIDENCE",
-            "subType": "fulfillment_request",
-            "name": "发货请求（created_at）",
-            "label": "发货请求",
+            "type": "ROLE",
+            "subType": "domain_logic_role",
+            "name": "定价计算（Domain Logic Role）",
+            "label": "定价计算器",
             "definition": {}
         }
     },
@@ -201,9 +202,9 @@
         "data": {
             "id": "node-11",
             "type": "EVIDENCE",
-            "subType": "fulfillment_confirmation",
-            "name": "发货确认（confirmed_at）",
-            "label": "发货确认",
+            "subType": "fulfillment_request",
+            "name": "支付请求（created_at）",
+            "label": "支付履约请求",
             "definition": {}
         }
     },
@@ -220,35 +221,35 @@
         "data": {
             "id": "node-12",
             "type": "EVIDENCE",
-            "subType": "fulfillment_request",
-            "name": "退款请求（created_at）",
-            "label": "退款请求",
+            "subType": "fulfillment_confirmation",
+            "name": "支付确认（confirmed_at）",
+            "label": "支付履约确认",
             "definition": {}
         }
     },
     {
         "id": "node-13",
-        "type": "fulfillment-node",
-        "parentId": "node-1",
+        "type": "group-container",
+        "parentId": null,
         "position": {
             "x": 0,
             "y": 0
         },
-        "width": 160,
-        "height": 80,
+        "width": 420,
+        "height": 280,
         "data": {
             "id": "node-13",
-            "type": "EVIDENCE",
-            "subType": "fulfillment_confirmation",
-            "name": "退款确认（confirmed_at）",
-            "label": "退款确认",
+            "type": "CONTEXT",
+            "subType": "bounded_context",
+            "name": "支付业务上下文",
+            "label": "支付上下文",
             "definition": {}
         }
     },
     {
         "id": "node-14",
         "type": "fulfillment-node",
-        "parentId": "node-1",
+        "parentId": "node-13",
         "position": {
             "x": 0,
             "y": 0
@@ -258,16 +259,16 @@
         "data": {
             "id": "node-14",
             "type": "ROLE",
-            "subType": "party_role",
-            "name": "买家角色（Party Role）",
-            "label": "买家角色",
+            "subType": "third_party_role",
+            "name": "支付服务商（Third Party Role）",
+            "label": "支付服务商角色",
             "definition": {}
         }
     },
     {
         "id": "node-15",
         "type": "fulfillment-node",
-        "parentId": "node-1",
+        "parentId": "node-13",
         "position": {
             "x": 0,
             "y": 0
@@ -276,10 +277,10 @@
         "height": 80,
         "data": {
             "id": "node-15",
-            "type": "ROLE",
-            "subType": "party_role",
-            "name": "卖家角色（Party Role）",
-            "label": "卖家角色",
+            "type": "EVIDENCE",
+            "subType": "other_evidence",
+            "name": "支付凭证（Other Evidence）",
+            "label": "支付凭证",
             "definition": {}
         }
     },
@@ -295,10 +296,10 @@
         "height": 80,
         "data": {
             "id": "node-16",
-            "type": "ROLE",
-            "subType": "domain_logic_role",
-            "name": "价格计算角色（Domain Logic Role）",
-            "label": "价格计算角色",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_request",
+            "name": "发货请求（created_at）",
+            "label": "发货履约请求",
             "definition": {}
         }
     },
@@ -314,36 +315,36 @@
         "height": 80,
         "data": {
             "id": "node-17",
-            "type": "ROLE",
-            "subType": "third_party_role",
-            "name": "支付网关角色（Third Party Role）",
-            "label": "支付网关角色",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_confirmation",
+            "name": "发货确认（confirmed_at）",
+            "label": "发货履约确认",
             "definition": {}
         }
     },
     {
         "id": "node-18",
-        "type": "fulfillment-node",
-        "parentId": "node-1",
+        "type": "group-container",
+        "parentId": null,
         "position": {
             "x": 0,
             "y": 0
         },
-        "width": 160,
-        "height": 80,
+        "width": 420,
+        "height": 280,
         "data": {
             "id": "node-18",
-            "type": "ROLE",
-            "subType": "context_role",
-            "name": "库存上下文角色（Context Role）",
-            "label": "库存上下文角色",
+            "type": "CONTEXT",
+            "subType": "bounded_context",
+            "name": "物流业务上下文",
+            "label": "物流上下文",
             "definition": {}
         }
     },
     {
         "id": "node-19",
         "type": "fulfillment-node",
-        "parentId": "node-1",
+        "parentId": "node-18",
         "position": {
             "x": 0,
             "y": 0
@@ -352,17 +353,17 @@
         "height": 80,
         "data": {
             "id": "node-19",
-            "type": "EVIDENCE",
-            "subType": "other_evidence",
-            "name": "支付凭证（created_at）",
-            "label": "支付凭证",
+            "type": "ROLE",
+            "subType": "third_party_role",
+            "name": "物流服务商（Third Party Role）",
+            "label": "物流服务商角色",
             "definition": {}
         }
     },
     {
         "id": "node-20",
         "type": "fulfillment-node",
-        "parentId": "node-1",
+        "parentId": "node-18",
         "position": {
             "x": 0,
             "y": 0
@@ -373,8 +374,65 @@
             "id": "node-20",
             "type": "EVIDENCE",
             "subType": "other_evidence",
-            "name": "发货单（created_at）",
+            "name": "发货单（Other Evidence）",
             "label": "发货单",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-21",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-21",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_request",
+            "name": "退款请求（created_at）",
+            "label": "退款履约请求",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-22",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-22",
+            "type": "EVIDENCE",
+            "subType": "fulfillment_confirmation",
+            "name": "退款确认（confirmed_at）",
+            "label": "退款履约确认",
+            "definition": {}
+        }
+    },
+    {
+        "id": "node-23",
+        "type": "fulfillment-node",
+        "parentId": "node-1",
+        "position": {
+            "x": 0,
+            "y": 0
+        },
+        "width": 160,
+        "height": 80,
+        "data": {
+            "id": "node-23",
+            "type": "ROLE",
+            "subType": "domain_logic_role",
+            "name": "退款计算（Domain Logic Role）",
+            "label": "退款计算器",
             "definition": {}
         }
     }

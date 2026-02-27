@@ -130,6 +130,8 @@ export class DiagramStore {
       ...generatedEdges,
     ];
 
+    console.log(nextNodes, nextEdges);
+
     const layoutedNodes = calculateLayout(nextNodes, nextEdges);
 
     batch(() => {
