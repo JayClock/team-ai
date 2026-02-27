@@ -71,11 +71,11 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 需求：%s
 
                 请严格按以下 FM 流程建模：
-                1. 合同上下文优先：先识别 Contract（合同）及其参与者 Participant（Party/Thing）。
+                1. 合同上下文优先：先识别 Contract（合同）及其参与者 Participant（Party)。Participant 必须是成对出现的。
                 2. 售前凭证：按需识别 RFP（要约邀请）与 Proposal（报价/提案）。
                 3. 主要履约项：围绕合同责任，按「Fulfillment Request -> Fulfillment Confirmation」成对建模。
                 4. 异常与违约：补充退款、取消、服务中止等逆向履约对（Request -> Confirmation）。
-                5. 角色拆分：围绕每个凭证补齐 Role，区分 Party Role、Domain Logic Role（只负责规则/算法计算）、Third Party Role、Context Role。
+                5. 角色拆分：围绕每个凭证补齐 Role，区分 Party Role、Domain Logic Role（只负责规则/算法计算）、Third Party Role、Context Role、Evidence As Role（跨上下文凭证角色）。
                 6. 边界与流转：通过 Edge 明确凭证流转、角色参与、上下文协作，体现业务控制流与领域计算逻辑解耦。
 
                 Node 生成规则：
@@ -84,33 +84,34 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                    - 子节点必须设置 parent.id=<父节点id>
                 2. type 只能使用以下枚举值：%s
                 3. type 映射建议：
-                   - EVIDENCE：RFP、Proposal、Contract、Fulfillment Request、Fulfillment Confirmation、Other Evidence
+                   - EVIDENCE：RFP、Proposal、Contract、Fulfillment Request、Fulfillment Confirmation、Other Evidence（仅限不跨上下文的内部产物）
                    - PARTICIPANT：Party、Thing
-                   - ROLE：Party/Domain Logic/Third Party/Context 等执行角色
+                   - ROLE：Party、Domain Logic、Third Party、Context，以及 Evidence As Role（跨上下文凭证角色，当前值通常为 evidence_role）
                    - CONTEXT：相关业务上下文（如库存、支付、发票等）
                 4. subType 必须与 type 匹配，并使用以下子类型值（仅 value，不带前缀）：
                    - EVIDENCE -> %s
                    - PARTICIPANT -> %s
                    - ROLE -> %s
                    - CONTEXT -> %s
-                5. 请在 name 或 label 中体现凭证类别与关键时间语义（如 started_at/expired_at/confirmed_at/signed_at/created_at）。
+                5. 请在 name 或 label 中体现凭证类别与关键时间语义（如 started_at/expired_at/confirmed_at/signed_at/created_at）。特别是 OTHER_EVIDENCE 与 Evidence As Role 均建议携带 created_at。
                 6. 为了支持 Context 包裹节点：当节点 type=CONTEXT 时优先作为容器父节点，相关 Request/Confirmation/Role/Participant 可通过 parent.id 指向该 Context。
 
                 Edge 生成规则：
                 1. 每个 Edge 必须提供 sourceNode 和 targetNode，且 sourceNode.id / targetNode.id 必须引用已定义的 Node.id。
                 2. 凭证主线必须遵循时间线与因果关系，优先体现：RFP -> Proposal -> Contract -> Fulfillment Request -> Fulfillment Confirmation。
                 3. Contract -> Fulfillment Request 通常为 1 对 N：同一合同应可分支到多个不同履约申请（支付、发票、发货、开通等）。
-                4. Fulfillment Request -> Fulfillment Confirmation 必须成对，按 1 对 1 连接；异常链路（退费、取消、中止）同样遵循 Request -> Confirmation。
-                5. Fulfillment Confirmation -> Evidence 通常为 1 对 1，用于表示确认后生成的单据/凭证（如支付凭证、发货单）。
-                6. 参与者连接规则：
-                   - Thing 通常连接到 Contract，并按需连接到 RFP/Proposal。
-                   - Party 必须连接到 Contract，明确缔约方归属。
-                7. 角色连接规则：
-                   - Party Role 连接到对应 Fulfillment Request（谁发起申请）。
-                   - Domain Logic Role 连接到 RFP/Proposal/Request（只负责规则与算法计算）。
-                   - Third Party Role 通常连接到 Fulfillment Confirmation 或 Evidence（外部系统执行/生成）。
-                   - Context Role 通常连接到 Fulfillment Confirmation 或 Evidence（内部业务上下文协作）。
-                8. 连线方向默认从“前序原因”指向“后序结果”，避免无意义回环，保证图可以读出主干凭证流。
+                4. Fulfillment Request -> Fulfillment Confirmation 必须成对，按 1 对 1 连接；异常链路（退费、取消、中止）同样遵循 Request -> Confirmation。如果涉及外部渠道二次响应，允许 Fulfillment Confirmation -> Fulfillment Confirmation 的级联。
+                5. 通用凭证/副产品（按需生成）：当确认动作产生具体业务单据（如发票、发货单），且仅在当前领域内部存档时，生成 Fulfillment Confirmation -> Other Evidence（EVIDENCE 节点，通常 1 对 1）。
+                6. 跨上下文角色（Evidence As Role）：当生成的单据（如支付凭证）需要跨越边界触发另一个上下文协作或次级合同时，该节点应建模为 ROLE（Evidence As Role），而不是 EVIDENCE。连接建议：Fulfillment Confirmation -> Evidence As Role -> Context/Contract。
+                7. 参与者连接规则：
+                   - Thing 通常连接到 Contract，并按需连接到 RFP/Proposal/Fulfillment Request。
+                   - Party 设计一个 Party Role 来扮演法人，Party 先连接 Party Role 再连接到 Contract。
+                8. 角色连接规则：
+                   - Party Role 连接到对应 RFP、Proposal、Fulfillment Request、Fulfillment Confirmation、Other Evidence，表明是谁触发/提供。
+                   - Domain Logic Role 连接到 RFP/Proposal/Request（作为领域计算器，只负责算价、算权益等规则计算）。
+                   - Third Party Role 通常连接到 Fulfillment Confirmation 或 Other Evidence（外部系统执行/生成）。
+                   - Context Role 通常连接到 Fulfillment Confirmation 或 Other Evidence（内部业务上下文协作）。
+                9. 连线方向默认从“前序原因”指向“后序结果”或“发起方”指向“被发起动作”，避免无意义回环，保证图可以自左向右读出主干凭证流。
 
                 输出必须严格遵守以下结构化格式（不要输出额外文本，不要 Markdown 代码块，不要解释）：
                 %s
