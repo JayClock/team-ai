@@ -51,6 +51,9 @@ export function ProjectDiagram(props: Props) {
         title={diagramStore.diagramTitle.value}
         nodes={diagramStore.diagramNodes.value}
         edges={diagramStore.diagramEdges.value}
+        onNodesChange={(changes) => {
+          diagramStore.moveNodes(changes);
+        }}
         nodeTypes={nodeTypes}
         fitView
       >

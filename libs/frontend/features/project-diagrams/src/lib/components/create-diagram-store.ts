@@ -6,7 +6,7 @@ import {
   DiagramNode,
   LogicalEntity,
 } from '@shared/schema';
-import { Edge, Node } from '@xyflow/react';
+import { Edge, Node, NodeChange } from '@xyflow/react';
 import { calculateEvidenceEdgeHandles } from './calculate-evidence-edge-handles';
 import { calculateEdgeVisibility } from './calculate-edge-visibility';
 import { calculateLayout } from './calculate-layout';
@@ -59,6 +59,53 @@ export class DiagramStore {
 
   constructor(private diagramState: State<Diagram>) {
     void this.load();
+  }
+
+  moveNodes(changes: NodeChange<Node>[]): void {
+    if (changes.length === 0) {
+      return;
+    }
+
+    const nextPositionByNodeId = new Map<string, { x: number; y: number }>();
+    for (const change of changes) {
+      if (change.type !== 'position' || !change.position) {
+        continue;
+      }
+
+      nextPositionByNodeId.set(change.id, {
+        x: change.position.x,
+        y: change.position.y,
+      });
+    }
+
+    if (nextPositionByNodeId.size === 0) {
+      return;
+    }
+
+    let hasPositionChanged = false;
+    const nextNodes = this._diagramNodes.value.map((node) => {
+      const nextPosition = nextPositionByNodeId.get(node.id);
+      if (!nextPosition) {
+        return node;
+      }
+
+      if (
+        node.position.x === nextPosition.x &&
+        node.position.y === nextPosition.y
+      ) {
+        return node;
+      }
+
+      hasPositionChanged = true;
+      return {
+        ...node,
+        position: nextPosition,
+      };
+    });
+
+    if (hasPositionChanged) {
+      this._diagramNodes.value = nextNodes;
+    }
   }
 
   addGeneratedNodesAndEdges(params: DraftDiagramInput): void {

@@ -81,7 +81,7 @@ export function FulfillmentNode({ data, id }: NodeProps<FulfillmentNodeType>) {
 
   return (
     <div
-      className={`relative rounded-lg px-4 py-3 shadow-md border-2 min-w-[120px] ${bgColorClass}`}
+      className={`relative h-[80px] w-[160px] overflow-visible rounded-lg border-2 px-3 py-2 shadow-md ${bgColorClass}`}
     >
       <Handle id="default-target" type="target" position={Position.Top} />
       {entityType === 'EVIDENCE' ? (
@@ -98,16 +98,15 @@ export function FulfillmentNode({ data, id }: NodeProps<FulfillmentNodeType>) {
           {partyRoleName}
         </div>
       ) : null}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-lg">{icon}</span>
-        <div className="font-semibold text-sm">{entityLabel}</div>
+      <div className="flex h-full min-w-0 flex-col gap-1 overflow-hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-lg">{icon}</span>
+          <div className="min-w-0 truncate text-sm font-semibold">{entityLabel}</div>
+        </div>
+        {entitySubType ? (
+          <div className="truncate text-xs text-gray-500">{entitySubType}</div>
+        ) : null}
       </div>
-      <div className="text-xs text-gray-600 bg-white/50 rounded px-2 py-1 inline-block">
-        {entityType ?? data.type}
-      </div>
-      {entitySubType ? (
-        <div className="text-xs text-gray-500 mt-1">{entitySubType}</div>
-      ) : null}
       <Handle id="default-source" type="source" position={Position.Bottom} />
       {entityType === 'EVIDENCE' ? (
         <Handle

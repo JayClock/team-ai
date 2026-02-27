@@ -238,6 +238,40 @@ describe('createDiagramStore', () => {
     expect(storeA.diagramTitle).not.toBe(storeB.diagramTitle);
   });
 
+  it('updates node positions from move changes', async () => {
+    const store = createDiagramStore(createDiagramState('Diagram A'));
+    await waitForStoreLoad(store);
+
+    store.moveNodes([
+      {
+        id: 'node-1',
+        type: 'position',
+        position: { x: 120, y: 340 },
+      },
+    ]);
+
+    expect(store.diagramNodes.value.find((node) => node.id === 'node-1')?.position)
+      .toEqual({ x: 120, y: 340 });
+    expect(store.diagramNodes.value.find((node) => node.id === 'node-2')?.position)
+      .toEqual({ x: 10, y: 20 });
+  });
+
+  it('ignores non-position node changes when moving nodes', async () => {
+    const store = createDiagramStore(createDiagramState('Diagram A'));
+    await waitForStoreLoad(store);
+
+    store.moveNodes([
+      {
+        id: 'node-1',
+        type: 'select',
+        selected: true,
+      },
+    ]);
+
+    expect(store.diagramNodes.value.find((node) => node.id === 'node-1')?.position)
+      .toEqual({ x: 10, y: 20 });
+  });
+
   it('appends generated nodes and edges into diagram state', async () => {
     const store = createDiagramStore(createDiagramState('Diagram A'));
     await waitForStoreLoad(store);
