@@ -234,6 +234,39 @@ public class DiagramEdgesTest {
   }
 
   @Test
+  public void should_rebuild_all_edges_when_committing_draft_edges_snapshot() {
+    diagram.addEdge(
+        new EdgeDescription(
+            new Ref<>(node1.getIdentity()),
+            new Ref<>(node2.getIdentity()),
+            null,
+            null,
+            null,
+            null,
+            null));
+    diagram.addEdge(
+        new EdgeDescription(
+            new Ref<>(node2.getIdentity()),
+            new Ref<>(node1.getIdentity()),
+            null,
+            null,
+            null,
+            null,
+            null));
+    assertEquals(2, diagram.edges().findAll().size());
+
+    ((DiagramEdges) diagram.edges())
+        .commitDraftEdges(
+            List.of(new Project.Diagrams.DraftEdge("draft-source", "draft-target")),
+            Map.of("draft-source", node1.getIdentity(), "draft-target", node2.getIdentity()));
+
+    List<DiagramEdge> edgesAfterCommit = diagram.edges().findAll().stream().toList();
+    assertEquals(1, edgesAfterCommit.size());
+    assertEquals(node1.getIdentity(), edgesAfterCommit.get(0).getDescription().sourceNode().id());
+    assertEquals(node2.getIdentity(), edgesAfterCommit.get(0).getDescription().targetNode().id());
+  }
+
+  @Test
   public void should_find_single_edge_of_diagram() {
     JsonBlob styleProps = edgeStyleProps("dashed", "#666666", "diamond", 1);
     EdgeDescription description =

@@ -43,6 +43,11 @@
             #{description.styleProps, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler})
   </insert>
 
+  <delete id="deleteEdgesByDiagram">
+    DELETE FROM diagram_edges
+    WHERE diagram_id = #{diagram_id}
+  </delete>
+
   <select id="countEdgesByDiagram" resultType="int">
     SELECT COUNT(id) FROM diagram_edges WHERE diagram_id = #{diagram_id}
   </select>

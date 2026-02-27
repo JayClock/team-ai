@@ -78,6 +78,7 @@ public class DiagramEdges extends EntityList<String, DiagramEdge> implements Dia
         draftEdges == null ? List.of() : List.copyOf(draftEdges);
     Map<String, String> resolvedNodeIdByRef =
         createdNodeIdByRef == null ? Map.of() : Map.copyOf(createdNodeIdByRef);
+    mapper.deleteEdgesByDiagram(diagramId);
     List<EdgeDescription> edgeDescriptions =
         buildDraftEdgeDescriptions(requestedEdges, resolvedNodeIdByRef);
     addAll(edgeDescriptions);

@@ -18,5 +18,7 @@ public interface DiagramEdgesMapper {
       @Param("diagram_id") int diagramId,
       @Param("description") EdgeDescription description);
 
+  int deleteEdgesByDiagram(@Param("diagram_id") int diagramId);
+
   int countEdgesByDiagram(@Param("diagram_id") int diagramId);
 }

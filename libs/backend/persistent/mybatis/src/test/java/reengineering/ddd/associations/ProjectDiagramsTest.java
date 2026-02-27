@@ -16,12 +16,15 @@ import reengineering.ddd.FlywayConfig;
 import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataSetup;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Diagram.Status;
 import reengineering.ddd.teamai.model.Diagram.Type;
+import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.DiagramVersion;
 import reengineering.ddd.teamai.model.Project;
@@ -250,6 +253,56 @@ public class ProjectDiagramsTest {
     Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     assertTrue(committed.nodes().findByIdentity(keptNode.getIdentity()).isPresent());
     assertTrue(committed.nodes().findByIdentity(removedNode.getIdentity()).isEmpty());
+  }
+
+  @Test
+  public void should_rebuild_edges_when_saving_full_snapshot() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("全量重建边草稿图", Type.CLASS, Viewport.defaultViewport()));
+    DiagramNode node1 =
+        diagram.addNode(
+            new NodeDescription("node-1", null, null, 100.0, 120.0, 200, 120, null, null));
+    DiagramNode node2 =
+        diagram.addNode(
+            new NodeDescription("node-2", null, null, 220.0, 120.0, 200, 120, null, null));
+    diagram.addEdge(
+        new EdgeDescription(
+            new Ref<>(node1.getIdentity()),
+            new Ref<>(node2.getIdentity()),
+            null,
+            null,
+            null,
+            null,
+            null));
+    diagram.addEdge(
+        new EdgeDescription(
+            new Ref<>(node2.getIdentity()),
+            new Ref<>(node1.getIdentity()),
+            null,
+            null,
+            null,
+            null,
+            null));
+    assertEquals(2, diagram.edges().findAll().size());
+
+    project.saveDiagram(
+        diagram.getIdentity(),
+        List.of(
+            new Project.Diagrams.DraftNode(
+                node1.getIdentity(),
+                new NodeDescription("node-1", null, null, 100.0, 120.0, 200, 120, null, null)),
+            new Project.Diagrams.DraftNode(
+                node2.getIdentity(),
+                new NodeDescription("node-2", null, null, 220.0, 120.0, 200, 120, null, null))),
+        List.of(new Project.Diagrams.DraftEdge(node1.getIdentity(), node2.getIdentity())));
+
+    Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
+    List<DiagramEdge> edgesAfterCommit = committed.edges().findAll().stream().toList();
+    assertEquals(1, edgesAfterCommit.size());
+    DiagramEdge remainingEdge = edgesAfterCommit.get(0);
+    assertEquals(node1.getIdentity(), remainingEdge.getDescription().sourceNode().id());
+    assertEquals(node2.getIdentity(), remainingEdge.getDescription().targetNode().id());
   }
 
   @Test
