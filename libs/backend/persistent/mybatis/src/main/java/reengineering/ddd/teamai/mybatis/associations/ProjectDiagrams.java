@@ -119,9 +119,10 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
     List<Project.Diagrams.DraftEdge> requestedEdges =
         draftEdges == null ? List.of() : List.copyOf(draftEdges);
 
-    List<String> draftNodeIds = new ArrayList<>(requestedNodes.size());
     Set<String> uniqueDraftNodeIds = new HashSet<>();
-    List<NodeDescription> nodeDescriptions = new ArrayList<>(requestedNodes.size());
+    Map<String, Project.Diagrams.DraftNode> draftNodeById = new LinkedHashMap<>();
+    Map<String, String> legacyAliasByDraftNodeId = new LinkedHashMap<>();
+    Map<String, String> draftNodeIdByAlias = new LinkedHashMap<>();
     for (Project.Diagrams.DraftNode draftNode : requestedNodes) {
       if (draftNode == null || draftNode.description() == null) {
         throw new Project.Diagrams.InvalidDraftException("Node request must provide description.");
@@ -133,8 +134,12 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
       if (!uniqueDraftNodeIds.add(draftNodeId)) {
         throw new Project.Diagrams.InvalidDraftException("Duplicated node id: " + draftNodeId);
       }
-      draftNodeIds.add(draftNodeId);
-      nodeDescriptions.add(draftNode.description());
+      int draftNodeIndex = draftNodeById.size();
+      String legacyAlias = "node-" + (draftNodeIndex + 1);
+      draftNodeById.put(draftNodeId, draftNode);
+      legacyAliasByDraftNodeId.put(draftNodeId, legacyAlias);
+      draftNodeIdByAlias.put(draftNodeId, draftNodeId);
+      draftNodeIdByAlias.putIfAbsent(legacyAlias, draftNodeId);
     }
 
     Diagram diagram =
@@ -143,20 +148,21 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
                 () ->
                     new Project.Diagrams.InvalidDraftException("Diagram not found: " + diagramId));
 
-    List<DiagramNode> createdNodes = diagram.addNodes(nodeDescriptions);
-    if (createdNodes.size() != draftNodeIds.size()) {
-      throw new Project.Diagrams.InvalidDraftException("Node creation count mismatch.");
-    }
-
+    List<Project.Diagrams.DraftNode> sortedDraftNodes =
+        sortDraftNodesByParent(requestedNodes, draftNodeById, draftNodeIdByAlias);
     Map<String, String> createdNodeIdByRef = new LinkedHashMap<>();
-    for (int index = 0; index < createdNodes.size(); index += 1) {
-      String createdNodeId = createdNodes.get(index).getIdentity();
+    for (Project.Diagrams.DraftNode draftNode : sortedDraftNodes) {
+      String draftNodeId = draftNode.id();
+      NodeDescription resolvedDescription =
+          resolveParentNodeId(draftNode.description(), createdNodeIdByRef, draftNodeIdByAlias);
+      DiagramNode createdNode = diagram.addNode(resolvedDescription);
+      String createdNodeId = createdNode.getIdentity();
       if (createdNodeId == null || createdNodeId.isBlank()) {
         throw new Project.Diagrams.InvalidDraftException("Created node id must not be blank.");
       }
-      createdNodeIdByRef.put(draftNodeIds.get(index), createdNodeId);
+      createdNodeIdByRef.put(draftNodeId, createdNodeId);
       // Backward compatibility with older indexed placeholder references.
-      createdNodeIdByRef.put("node-" + (index + 1), createdNodeId);
+      createdNodeIdByRef.put(legacyAliasByDraftNodeId.get(draftNodeId), createdNodeId);
     }
 
     List<EdgeDescription> edgeDescriptions = new ArrayList<>(requestedEdges.size());
@@ -173,6 +179,100 @@ public class ProjectDiagrams extends EntityList<String, Diagram> implements Proj
 
     diagram.addEdges(edgeDescriptions);
     mapper.updateDiagramStatus(projectId, Integer.parseInt(diagramId), Status.DRAFT);
+  }
+
+  private static List<Project.Diagrams.DraftNode> sortDraftNodesByParent(
+      List<Project.Diagrams.DraftNode> requestedNodes,
+      Map<String, Project.Diagrams.DraftNode> draftNodeById,
+      Map<String, String> draftNodeIdByAlias) {
+    List<Project.Diagrams.DraftNode> sortedNodes = new ArrayList<>(requestedNodes.size());
+    Map<String, Integer> visitStateByNodeId = new LinkedHashMap<>();
+    for (Project.Diagrams.DraftNode draftNode : requestedNodes) {
+      visitDraftNode(
+          draftNode.id(), draftNodeById, draftNodeIdByAlias, visitStateByNodeId, sortedNodes);
+    }
+    return sortedNodes;
+  }
+
+  private static void visitDraftNode(
+      String draftNodeId,
+      Map<String, Project.Diagrams.DraftNode> draftNodeById,
+      Map<String, String> draftNodeIdByAlias,
+      Map<String, Integer> visitStateByNodeId,
+      List<Project.Diagrams.DraftNode> sortedNodes) {
+    int visitState = visitStateByNodeId.getOrDefault(draftNodeId, 0);
+    if (visitState == 2) {
+      return;
+    }
+    if (visitState == 1) {
+      throw new Project.Diagrams.InvalidDraftException(
+          "Cyclic parent reference detected: " + draftNodeId);
+    }
+    Project.Diagrams.DraftNode draftNode = draftNodeById.get(draftNodeId);
+    if (draftNode == null) {
+      throw new Project.Diagrams.InvalidDraftException(
+          "Unknown node placeholder id: " + draftNodeId);
+    }
+
+    visitStateByNodeId.put(draftNodeId, 1);
+    String parentId =
+        readRefId(draftNode.description().parent(), "Node parent id must not be blank.");
+    if (parentId != null) {
+      String parentDraftNodeId = draftNodeIdByAlias.get(parentId);
+      if (parentDraftNodeId != null) {
+        visitDraftNode(
+            parentDraftNodeId, draftNodeById, draftNodeIdByAlias, visitStateByNodeId, sortedNodes);
+      } else if (parentId.matches("node-\\d+")) {
+        throw new Project.Diagrams.InvalidDraftException(
+            "Unknown node placeholder id: " + parentId);
+      }
+    }
+    visitStateByNodeId.put(draftNodeId, 2);
+    sortedNodes.add(draftNode);
+  }
+
+  private static NodeDescription resolveParentNodeId(
+      NodeDescription description,
+      Map<String, String> createdNodeIdByRef,
+      Map<String, String> draftNodeIdByAlias) {
+    String parentId = readRefId(description.parent(), "Node parent id must not be blank.");
+    if (parentId == null) {
+      return description;
+    }
+
+    String resolvedParentId = createdNodeIdByRef.get(parentId);
+    if (resolvedParentId == null) {
+      if (draftNodeIdByAlias.containsKey(parentId)) {
+        throw new Project.Diagrams.InvalidDraftException(
+            "Parent node must be created before child node: " + parentId);
+      }
+      if (parentId.matches("node-\\d+")) {
+        throw new Project.Diagrams.InvalidDraftException(
+            "Unknown node placeholder id: " + parentId);
+      }
+      resolvedParentId = parentId;
+    }
+
+    return new NodeDescription(
+        description.type(),
+        description.logicalEntity(),
+        new Ref<>(resolvedParentId),
+        description.positionX(),
+        description.positionY(),
+        description.width(),
+        description.height(),
+        description.styleConfig(),
+        description.localData());
+  }
+
+  private static String readRefId(Ref<String> nodeRef, String blankIdMessage) {
+    if (nodeRef == null || nodeRef.id() == null) {
+      return null;
+    }
+    if (nodeRef.id().isBlank()) {
+      throw new Project.Diagrams.InvalidDraftException(blankIdMessage);
+    }
+    return nodeRef.id();
   }
 
   private static String resolveNodeId(String nodeId, Map<String, String> createdNodeIdByRef) {

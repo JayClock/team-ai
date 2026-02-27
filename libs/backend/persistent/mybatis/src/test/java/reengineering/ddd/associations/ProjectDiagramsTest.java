@@ -16,12 +16,14 @@ import reengineering.ddd.FlywayConfig;
 import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataSetup;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Diagram.Status;
 import reengineering.ddd.teamai.model.Diagram.Type;
+import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.DiagramVersion;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
@@ -239,5 +241,61 @@ public class ProjectDiagramsTest {
                     List.of()));
 
     assertEquals("Duplicated node id: dup-node", error.getMessage());
+  }
+
+  @Test
+  public void should_sort_parent_child_nodes_before_persisting_commit_draft() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("父子排序草稿图", Type.CLASS, Viewport.defaultViewport()));
+
+    NodeDescription childDescription =
+        new NodeDescription(
+            "child-node", null, new Ref<>("draft-parent"), 220.0, 200.0, 300, 200, null, null);
+    NodeDescription parentDescription =
+        new NodeDescription("parent-node", null, null, 100.0, 200.0, 300, 200, null, null);
+
+    project.saveDiagram(
+        diagram.getIdentity(),
+        List.of(
+            new Project.Diagrams.DraftNode("draft-child", childDescription),
+            new Project.Diagrams.DraftNode("draft-parent", parentDescription)),
+        List.of());
+
+    Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
+    DiagramNode parentNode =
+        committed.nodes().findAll().stream()
+            .filter(node -> "parent-node".equals(node.getDescription().type()))
+            .findFirst()
+            .orElseThrow();
+    DiagramNode childNode =
+        committed.nodes().findAll().stream()
+            .filter(node -> "child-node".equals(node.getDescription().type()))
+            .findFirst()
+            .orElseThrow();
+
+    assertEquals(parentNode.getIdentity(), childNode.getDescription().parent().id());
+  }
+
+  @Test
+  public void should_reject_unknown_parent_placeholder_in_commit_draft() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("非法父节点草稿图", Type.CLASS, Viewport.defaultViewport()));
+
+    NodeDescription nodeDescription =
+        new NodeDescription(
+            "child-node", null, new Ref<>("node-99"), 220.0, 200.0, 300, 200, null, null);
+
+    Project.Diagrams.InvalidDraftException error =
+        assertThrows(
+            Project.Diagrams.InvalidDraftException.class,
+            () ->
+                project.saveDiagram(
+                    diagram.getIdentity(),
+                    List.of(new Project.Diagrams.DraftNode("draft-child", nodeDescription)),
+                    List.of()));
+
+    assertEquals("Unknown node placeholder id: node-99", error.getMessage());
   }
 }
