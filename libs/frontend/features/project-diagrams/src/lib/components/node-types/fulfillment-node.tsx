@@ -1,5 +1,14 @@
 import { LogicalEntity } from '@shared/schema';
-import { Node, NodeProps, Handle, Position } from '@xyflow/react';
+import {
+  Node,
+  NodeProps,
+  Handle,
+  Position,
+  useEdges,
+  useNodes,
+} from '@xyflow/react';
+import { useMemo } from 'react';
+import { resolveEvidencePartyRoleName } from '../resolve-evidence-party-role-names';
 
 type FulfillmentNodeType = Node<LogicalEntity['data'], 'fulfillment-node'>;
 
@@ -41,7 +50,7 @@ function getNodeIcon(type: string): string {
   }
 }
 
-export function FulfillmentNode({ data }: NodeProps<FulfillmentNodeType>) {
+export function FulfillmentNode({ data, id }: NodeProps<FulfillmentNodeType>) {
   const entityType = data.type;
   const entityLabel = data.label;
   const entitySubType = data.subType;
@@ -49,12 +58,35 @@ export function FulfillmentNode({ data }: NodeProps<FulfillmentNodeType>) {
     ? getNodeColor(entityType)
     : 'bg-white border-gray-200';
   const icon = entityType ? getNodeIcon(entityType) : '📌';
+  const nodes = useNodes<FulfillmentNodeType>();
+  const edges = useEdges();
+  const partyRoleName = useMemo(
+    () =>
+      resolveEvidencePartyRoleName({
+        edges,
+        evidenceNodeId: id,
+        nodes,
+      }),
+    [edges, id, nodes],
+  );
+  const partyRoleBadgeColorClass = getNodeColor('ROLE');
+  const showPartyRoleName =
+    entityType === 'EVIDENCE' &&
+    entitySubType !== 'contract' &&
+    (partyRoleName?.length ?? 0) > 0;
 
   return (
     <div
-      className={`rounded-lg px-4 py-3 shadow-md border-2 min-w-[120px] ${bgColorClass}`}
+      className={`relative rounded-lg px-4 py-3 shadow-md border-2 min-w-[120px] ${bgColorClass}`}
     >
       <Handle type="target" position={Position.Top} />
+      {showPartyRoleName ? (
+        <div
+          className={`absolute top-0 right-0 max-w-[75%] translate-x-1/2 -translate-y-1/2 truncate rounded border px-1.5 py-0.5 text-[10px] text-right text-yellow-900 ${partyRoleBadgeColorClass}`}
+        >
+          {partyRoleName}
+        </div>
+      ) : null}
       <div className="flex items-center gap-2 mb-2">
         <span className="text-lg">{icon}</span>
         <div className="font-semibold text-sm">{entityLabel}</div>
