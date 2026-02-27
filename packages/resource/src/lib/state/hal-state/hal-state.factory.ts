@@ -163,7 +163,7 @@ export class HalStateFactory implements StateFactory {
           client,
           new Headers(),
           selfLink,
-          true,
+          false,
         );
       }
       client.cacheState(embeddedState[key])

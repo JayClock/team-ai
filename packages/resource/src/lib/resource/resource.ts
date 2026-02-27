@@ -573,7 +573,7 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 export declare interface Resource<TEntity extends Entity> {
   /**
    * Subscribe to the 'update' event
