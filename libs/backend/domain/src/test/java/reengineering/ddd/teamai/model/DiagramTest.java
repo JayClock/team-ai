@@ -205,7 +205,8 @@ public class DiagramTest {
               "left",
               "ASSOCIATION",
               "hasMany",
-              (JsonBlob) null);
+              (JsonBlob) null,
+              false);
       DiagramEdge expectedEdge = mock(DiagramEdge.class);
 
       when(edges.add(edgeDesc)).thenReturn(expectedEdge);
@@ -239,7 +240,8 @@ public class DiagramTest {
               "left",
               "ASSOCIATION",
               "contains",
-              (JsonBlob) null);
+              (JsonBlob) null,
+              false);
       DiagramEdge edge = new DiagramEdge("edge-1", edgeDescription);
 
       when(nodes.findAll()).thenReturn(manyOf(List.of(node)));
@@ -323,7 +325,8 @@ public class DiagramTest {
               "left",
               "ASSOCIATION",
               "hasMany",
-              (JsonBlob) null);
+              (JsonBlob) null,
+              false);
       DiagramEdge createdEdge = mock(DiagramEdge.class);
 
       when(edges.addAll(List.of(edgeDesc))).thenReturn(List.of(createdEdge));

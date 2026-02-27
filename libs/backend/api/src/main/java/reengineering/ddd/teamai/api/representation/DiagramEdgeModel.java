@@ -26,6 +26,7 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
   @JsonProperty private String relationType;
   @JsonProperty private String label;
   @JsonProperty private Map<String, Object> styleProps;
+  @JsonProperty private boolean hidden;
 
   public DiagramEdgeModel(Project project, Diagram diagram, DiagramEdge entity, UriInfo uriInfo) {
     EdgeDescription desc = entity.getDescription();
@@ -37,6 +38,7 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
     this.relationType = desc.relationType();
     this.label = desc.label();
     this.styleProps = JsonBlobReader.read(desc.styleProps());
+    this.hidden = desc.hidden();
 
     add(
         Affordances.of(

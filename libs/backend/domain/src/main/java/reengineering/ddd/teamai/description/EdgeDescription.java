@@ -10,4 +10,5 @@ public record EdgeDescription(
     String targetHandle,
     String relationType,
     String label,
-    JsonBlob styleProps) {}
+    JsonBlob styleProps,
+    Boolean hidden) {}

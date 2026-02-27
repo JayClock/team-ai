@@ -95,7 +95,14 @@ public class DiagramEdges extends EntityList<String, DiagramEdge> implements Dia
       String targetNodeId = resolveNodeId(draftEdge.targetNodeId(), createdNodeIdByRef);
       edgeDescriptions.add(
           new EdgeDescription(
-              new Ref<>(sourceNodeId), new Ref<>(targetNodeId), null, null, null, null, null));
+              new Ref<>(sourceNodeId),
+              new Ref<>(targetNodeId),
+              null,
+              null,
+              null,
+              null,
+              null,
+              draftEdge.hidden()));
     }
     return edgeDescriptions;
   }

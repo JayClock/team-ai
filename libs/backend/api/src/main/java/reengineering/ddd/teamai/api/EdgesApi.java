@@ -82,7 +82,8 @@ public class EdgesApi {
         null,
         null,
         null,
-        (JsonBlob) null);
+        (JsonBlob) null,
+        request.hidden);
   }
 
   @Data
@@ -95,5 +96,7 @@ public class EdgesApi {
     @JsonProperty("targetNode.id")
     @NotNull
     private String targetNodeId;
+
+    @NotNull private Boolean hidden;
   }
 }

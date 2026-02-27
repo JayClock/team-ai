@@ -99,7 +99,8 @@ public class DiagramVersionsMapperTest {
                 List.of(
                     new DiagramSnapshot.SnapshotEdge(
                         "edge-1",
-                        new EdgeDescription(null, null, null, null, "ASSOCIATION", "has", null))),
+                        new EdgeDescription(
+                            null, null, null, null, "ASSOCIATION", "has", null, false))),
                 new Viewport(10.0, 20.0, 1.2)));
 
     int result = mapper.insertVersion(holder, diagramId, description);

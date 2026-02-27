@@ -70,7 +70,8 @@ public class DiagramVersionsTest {
             null,
             "ASSOCIATION",
             "connects",
-            null));
+            null,
+            false));
 
     DiagramVersion version = diagram.createVersion();
 

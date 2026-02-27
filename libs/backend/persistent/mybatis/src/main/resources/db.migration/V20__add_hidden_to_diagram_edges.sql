@@ -1,0 +1,12 @@
+ALTER TABLE diagram_edges
+ADD COLUMN IF NOT EXISTS hidden BOOLEAN;
+
+UPDATE diagram_edges
+SET hidden = FALSE
+WHERE hidden IS NULL;
+
+ALTER TABLE diagram_edges
+ALTER COLUMN hidden SET DEFAULT FALSE;
+
+ALTER TABLE diagram_edges
+ALTER COLUMN hidden SET NOT NULL;

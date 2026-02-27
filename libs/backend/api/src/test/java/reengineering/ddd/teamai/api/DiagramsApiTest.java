@@ -135,7 +135,14 @@ public class DiagramsApiTest extends ApiTest {
       String targetNodeId = resolveNodeId(draftEdge.targetNodeId(), createdNodeIdByRef);
       edgeDescriptions.add(
           new EdgeDescription(
-              new Ref<>(sourceNodeId), new Ref<>(targetNodeId), null, null, null, null, null));
+              new Ref<>(sourceNodeId),
+              new Ref<>(targetNodeId),
+              null,
+              null,
+              null,
+              null,
+              null,
+              draftEdge.hidden()));
     }
 
     diagram.addEdges(edgeDescriptions);
@@ -172,7 +179,8 @@ public class DiagramsApiTest extends ApiTest {
                 "left",
                 "ASSOCIATION",
                 "relates-to",
-                (JsonBlob) null));
+                (JsonBlob) null,
+                false));
     when(diagramNodes.findAll()).thenReturn(new EntityList<>(node));
     when(diagramEdges.findAll()).thenReturn(new EntityList<>(edge));
 
@@ -339,7 +347,8 @@ public class DiagramsApiTest extends ApiTest {
                 null,
                 null,
                 null,
-                (JsonBlob) null));
+                (JsonBlob) null,
+                false));
 
     when(diagramNodes.addAll(any())).thenReturn(List.of(createdNode1, createdNode2));
     when(diagramEdges.addAll(any())).thenReturn(List.of(createdEdge));
@@ -363,6 +372,7 @@ public class DiagramsApiTest extends ApiTest {
     DiagramApi.CommitDraftEdgeSchema edge = new DiagramApi.CommitDraftEdgeSchema();
     edge.setSourceNode(new Ref<>("node-1"));
     edge.setTargetNode(new Ref<>("node-2"));
+    edge.setHidden(true);
 
     DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
     request.setNodes(List.of(node1, node2));
@@ -385,7 +395,11 @@ public class DiagramsApiTest extends ApiTest {
                 "/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()));
 
     verify(diagramNodes, times(1)).addAll(any());
-    verify(diagramEdges, times(1)).addAll(any());
+    verify(diagramEdges, times(1))
+        .addAll(
+            argThat(
+                descriptions ->
+                    descriptions.size() == 1 && descriptions.iterator().next().hidden()));
   }
 
   @Test
@@ -406,7 +420,8 @@ public class DiagramsApiTest extends ApiTest {
                 null,
                 null,
                 null,
-                (JsonBlob) null));
+                (JsonBlob) null,
+                false));
 
     when(diagramNodes.addAll(any())).thenReturn(List.of(createdNode));
     when(diagramEdges.addAll(any())).thenReturn(List.of(createdEdge));
@@ -424,6 +439,7 @@ public class DiagramsApiTest extends ApiTest {
     DiagramApi.CommitDraftEdgeSchema edgeRequest = new DiagramApi.CommitDraftEdgeSchema();
     edgeRequest.setSourceNode(new Ref<>("draft-node-1"));
     edgeRequest.setTargetNode(new Ref<>("draft-node-1"));
+    edgeRequest.setHidden(false);
 
     DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
     request.setNodes(List.of(nodeRequest));
@@ -489,6 +505,7 @@ public class DiagramsApiTest extends ApiTest {
     DiagramApi.CommitDraftEdgeSchema edge = new DiagramApi.CommitDraftEdgeSchema();
     edge.setSourceNode(new Ref<>("node-99"));
     edge.setTargetNode(new Ref<>("node-2"));
+    edge.setHidden(false);
 
     DiagramApi.CommitDraftRequest request = new DiagramApi.CommitDraftRequest();
     request.setEdges(List.of(edge));

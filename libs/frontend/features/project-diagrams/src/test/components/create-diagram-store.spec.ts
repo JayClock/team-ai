@@ -56,6 +56,7 @@ function createEdgeState(): State<DiagramEdge> {
       relationType: 'FLOW',
       label: null,
       styleProps: null,
+      hidden: true,
     },
   } as State<DiagramEdge>;
 }
@@ -469,6 +470,7 @@ describe('createDiagramStore', () => {
           id: 'edge-1',
           sourceNode: { id: 'node-1' },
           targetNode: { id: 'node-2' },
+          hidden: true,
         },
       ],
     });

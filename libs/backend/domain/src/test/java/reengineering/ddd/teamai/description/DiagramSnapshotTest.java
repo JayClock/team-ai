@@ -46,7 +46,14 @@ public class DiagramSnapshotTest {
 
     EdgeDescription edgeDescription =
         new EdgeDescription(
-            new Ref<>("node-1"), new Ref<>("node-2"), null, null, "ASSOCIATION", "hasMany", null);
+            new Ref<>("node-1"),
+            new Ref<>("node-2"),
+            null,
+            null,
+            "ASSOCIATION",
+            "hasMany",
+            null,
+            false);
     DiagramEdge edge = new DiagramEdge("edge-1", edgeDescription);
 
     when(nodes.findAll()).thenReturn(manyOf(List.of(node)));

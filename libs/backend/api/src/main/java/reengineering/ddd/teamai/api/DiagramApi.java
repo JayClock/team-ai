@@ -197,5 +197,6 @@ public class DiagramApi {
     private String relationType;
     private String label;
     private Object styleProps;
+    @NotNull private Boolean hidden;
   }
 }

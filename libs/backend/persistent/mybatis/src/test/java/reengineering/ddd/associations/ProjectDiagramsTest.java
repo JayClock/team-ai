@@ -192,7 +192,7 @@ public class ProjectDiagramsTest {
     project.saveDiagram(
         diagram.getIdentity(),
         List.of(new Project.Diagrams.DraftNode("node-1", nodeDescription)),
-        List.of(new Project.Diagrams.DraftEdge("node-1", "node-1")));
+        List.of(new Project.Diagrams.DraftEdge("node-1", "node-1", false)));
 
     Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     assertEquals(1, committed.nodes().findAll().size());
@@ -274,7 +274,8 @@ public class ProjectDiagramsTest {
             null,
             null,
             null,
-            null));
+            null,
+            false));
     diagram.addEdge(
         new EdgeDescription(
             new Ref<>(node2.getIdentity()),
@@ -283,7 +284,8 @@ public class ProjectDiagramsTest {
             null,
             null,
             null,
-            null));
+            null,
+            false));
     assertEquals(2, diagram.edges().findAll().size());
 
     project.saveDiagram(
@@ -295,7 +297,7 @@ public class ProjectDiagramsTest {
             new Project.Diagrams.DraftNode(
                 node2.getIdentity(),
                 new NodeDescription("node-2", null, null, 220.0, 120.0, 200, 120, null, null))),
-        List.of(new Project.Diagrams.DraftEdge(node1.getIdentity(), node2.getIdentity())));
+        List.of(new Project.Diagrams.DraftEdge(node1.getIdentity(), node2.getIdentity(), false)));
 
     Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     List<DiagramEdge> edgesAfterCommit = committed.edges().findAll().stream().toList();

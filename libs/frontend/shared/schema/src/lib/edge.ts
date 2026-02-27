@@ -36,6 +36,7 @@ export type DiagramEdge = Entity<
     relationType: EdgeRelationType | null;
     label: string | null;
     styleProps: EdgeStyleProps | null;
+    hidden: boolean;
   },
   {
     self: DiagramEdge;

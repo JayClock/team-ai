@@ -13,18 +13,19 @@
         <arg column="relation_type" jdbcType="VARCHAR" javaType="String"/>
         <arg column="label" jdbcType="VARCHAR" javaType="String"/>
         <arg column="style_props" jdbcType="OTHER" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler" javaType="reengineering.ddd.archtype.JsonBlob"/>
+        <arg column="hidden" jdbcType="BOOLEAN" javaType="java.lang.Boolean"/>
       </constructor>
     </association>
   </resultMap>
 
   <select id="findEdgeByDiagramAndId" resultMap="edge">
-    SELECT id, diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props
+    SELECT id, diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props, hidden
     FROM diagram_edges
     WHERE diagram_id = #{diagram_id} AND id = #{id}
   </select>
 
   <select id="findEdgesByDiagramId" resultMap="edge">
-    SELECT id, diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props
+    SELECT id, diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props, hidden
     FROM diagram_edges
     WHERE diagram_id = #{diagram_id}
     ORDER BY updated_at DESC
@@ -32,7 +33,7 @@
 
   <insert id="insertEdge" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
-    INSERT INTO diagram_edges(diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props)
+    INSERT INTO diagram_edges(diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props, hidden)
     VALUES (#{diagram_id},
             #{description.sourceNode, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
             #{description.targetNode, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
@@ -40,7 +41,8 @@
             #{description.targetHandle},
             #{description.relationType},
             #{description.label},
-            #{description.styleProps, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler})
+            #{description.styleProps, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.JsonBlobHandler},
+            #{description.hidden})
   </insert>
 
   <delete id="deleteEdgesByDiagram">

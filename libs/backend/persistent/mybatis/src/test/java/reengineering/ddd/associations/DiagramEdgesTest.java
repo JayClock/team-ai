@@ -147,7 +147,8 @@ public class DiagramEdgesTest {
             "targetHandle",
             "ASSOCIATION",
             "test edge",
-            styleProps);
+            styleProps,
+            false);
 
     DiagramEdge savedEdge = diagram.addEdge(description);
 
@@ -184,7 +185,8 @@ public class DiagramEdgesTest {
                         "target-a",
                         "ASSOCIATION",
                         "batch edge 1",
-                        edgeStyleProps("solid", "#333333", "arrow", 2)),
+                        edgeStyleProps("solid", "#333333", "arrow", 2),
+                        false),
                     new EdgeDescription(
                         new Ref<>(node2.getIdentity()),
                         new Ref<>(node1.getIdentity()),
@@ -192,7 +194,8 @@ public class DiagramEdgesTest {
                         "target-b",
                         "DEPENDENCY",
                         "batch edge 2",
-                        edgeStyleProps("dashed", "#666666", "diamond", 1))));
+                        edgeStyleProps("dashed", "#666666", "diamond", 1),
+                        false)));
 
     assertEquals(2, savedEdges.size());
     assertEquals("ASSOCIATION", savedEdges.get(0).getDescription().relationType());
@@ -204,7 +207,7 @@ public class DiagramEdgesTest {
   public void should_commit_draft_edges_with_resolved_node_mapping() {
     ((DiagramEdges) diagram.edges())
         .commitDraftEdges(
-            List.of(new Project.Diagrams.DraftEdge("draft-source", "draft-target")),
+            List.of(new Project.Diagrams.DraftEdge("draft-source", "draft-target", false)),
             Map.of("draft-source", node1.getIdentity(), "draft-target", node2.getIdentity()));
 
     DiagramEdge edge =
@@ -220,6 +223,25 @@ public class DiagramEdgesTest {
   }
 
   @Test
+  public void should_persist_hidden_flag_when_committing_draft_edges() {
+    ((DiagramEdges) diagram.edges())
+        .commitDraftEdges(
+            List.of(new Project.Diagrams.DraftEdge("draft-source", "draft-target", true)),
+            Map.of("draft-source", node1.getIdentity(), "draft-target", node2.getIdentity()));
+
+    DiagramEdge edge =
+        diagram.edges().findAll().stream()
+            .filter(
+                item ->
+                    node1.getIdentity().equals(item.getDescription().sourceNode().id())
+                        && node2.getIdentity().equals(item.getDescription().targetNode().id()))
+            .findFirst()
+            .orElseThrow();
+
+    assertTrue(edge.getDescription().hidden());
+  }
+
+  @Test
   public void should_reject_unknown_placeholder_in_commit_draft_edges() {
     Project.Diagrams.InvalidDraftException error =
         assertThrows(
@@ -227,7 +249,8 @@ public class DiagramEdgesTest {
             () ->
                 ((DiagramEdges) diagram.edges())
                     .commitDraftEdges(
-                        List.of(new Project.Diagrams.DraftEdge("node-99", node2.getIdentity())),
+                        List.of(
+                            new Project.Diagrams.DraftEdge("node-99", node2.getIdentity(), false)),
                         Map.of()));
 
     assertEquals("Unknown node placeholder id: node-99", error.getMessage());
@@ -243,7 +266,8 @@ public class DiagramEdgesTest {
             null,
             null,
             null,
-            null));
+            null,
+            false));
     diagram.addEdge(
         new EdgeDescription(
             new Ref<>(node2.getIdentity()),
@@ -252,12 +276,13 @@ public class DiagramEdgesTest {
             null,
             null,
             null,
-            null));
+            null,
+            false));
     assertEquals(2, diagram.edges().findAll().size());
 
     ((DiagramEdges) diagram.edges())
         .commitDraftEdges(
-            List.of(new Project.Diagrams.DraftEdge("draft-source", "draft-target")),
+            List.of(new Project.Diagrams.DraftEdge("draft-source", "draft-target", false)),
             Map.of("draft-source", node1.getIdentity(), "draft-target", node2.getIdentity()));
 
     List<DiagramEdge> edgesAfterCommit = diagram.edges().findAll().stream().toList();
@@ -277,7 +302,8 @@ public class DiagramEdgesTest {
             "target",
             "AGGREGATION",
             "aggregation edge",
-            styleProps);
+            styleProps,
+            false);
     DiagramEdge savedEdge = diagram.addEdge(description);
 
     DiagramEdge edge = diagram.edges().findByIdentity(savedEdge.getIdentity()).get();
@@ -308,7 +334,8 @@ public class DiagramEdgesTest {
             "targetHandle",
             "ASSOCIATION",
             "test edge",
-            styleProps);
+            styleProps,
+            false);
     diagram.addEdge(description);
 
     int newSize = diagram.edges().findAll().size();
@@ -328,7 +355,8 @@ public class DiagramEdgesTest {
             "targetHandle",
             "ASSOCIATION",
             "cache test edge",
-            styleProps);
+            styleProps,
+            false);
     diagram.addEdge(description);
 
     int newSize = diagram.edges().findAll().size();
@@ -348,7 +376,8 @@ public class DiagramEdgesTest {
               "target" + i,
               "ASSOCIATION",
               "edge " + i,
-              styleProps);
+              styleProps,
+              false);
       diagram.addEdge(description);
     }
 
@@ -388,7 +417,8 @@ public class DiagramEdgesTest {
                 "target",
                 "ASSOCIATION",
                 "assoc edge",
-                styleProps));
+                styleProps,
+                false));
     assertEquals("ASSOCIATION", association.getDescription().relationType());
 
     DiagramEdge aggregation =
@@ -400,7 +430,8 @@ public class DiagramEdgesTest {
                 "target",
                 "AGGREGATION",
                 "agg edge",
-                styleProps));
+                styleProps,
+                false));
     assertEquals("AGGREGATION", aggregation.getDescription().relationType());
 
     DiagramEdge composition =
@@ -412,7 +443,8 @@ public class DiagramEdgesTest {
                 "target",
                 "COMPOSITION",
                 "comp edge",
-                styleProps));
+                styleProps,
+                false));
     assertEquals("COMPOSITION", composition.getDescription().relationType());
 
     DiagramEdge dependency =
@@ -424,7 +456,8 @@ public class DiagramEdgesTest {
                 "target",
                 "DEPENDENCY",
                 "dep edge",
-                styleProps));
+                styleProps,
+                false));
     assertEquals("DEPENDENCY", dependency.getDescription().relationType());
   }
 
@@ -439,7 +472,8 @@ public class DiagramEdgesTest {
             "bottom-right",
             "ASSOCIATION",
             "handle test",
-            styleProps);
+            styleProps,
+            false);
     DiagramEdge edge = diagram.addEdge(description);
 
     assertEquals("top-left", edge.getDescription().sourceHandle());
@@ -458,7 +492,8 @@ public class DiagramEdgesTest {
                 "target",
                 "ASSOCIATION",
                 "solid",
-                solidProps));
+                solidProps,
+                false));
     Map<String, Object> solidStyle = parseStyleProps(solidEdge);
     assertEquals("solid", solidStyle.get("lineStyle"));
     assertEquals("#333333", solidStyle.get("color"));
@@ -475,7 +510,8 @@ public class DiagramEdgesTest {
                 "target",
                 "AGGREGATION",
                 "dashed",
-                dashedProps));
+                dashedProps,
+                false));
     Map<String, Object> dashedStyle = parseStyleProps(dashedEdge);
     assertEquals("dashed", dashedStyle.get("lineStyle"));
     assertEquals("#666666", dashedStyle.get("color"));
@@ -498,7 +534,8 @@ public class DiagramEdgesTest {
               "target-" + i,
               "ASSOCIATION",
               "edge " + i,
-              styleProps);
+              styleProps,
+              false);
       diagram.addEdge(description);
     }
 
@@ -517,7 +554,8 @@ public class DiagramEdgesTest {
             "targetHandle",
             "ASSOCIATION",
             "has many",
-            styleProps);
+            styleProps,
+            false);
     DiagramEdge savedEdge = diagram.addEdge(description);
 
     assertEquals("has many", savedEdge.getDescription().label());
@@ -534,7 +572,8 @@ public class DiagramEdgesTest {
             "targetHandle",
             "ASSOCIATION",
             "",
-            styleProps);
+            styleProps,
+            false);
     DiagramEdge savedEdge = diagram.addEdge(description);
 
     assertEquals("", savedEdge.getDescription().label());
@@ -551,7 +590,8 @@ public class DiagramEdgesTest {
             "target",
             "ASSOCIATION",
             "hydration test",
-            styleProps);
+            styleProps,
+            false);
     DiagramEdge savedEdge = diagram.addEdge(description);
 
     User firstUser = users.findByIdentity("1").get();

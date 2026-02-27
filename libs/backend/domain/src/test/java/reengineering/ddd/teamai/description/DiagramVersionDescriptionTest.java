@@ -15,7 +15,14 @@ public class DiagramVersionDescriptionTest {
             "class-node", new Ref<>("entity-1"), null, 100.0, 200.0, 300, 200, null, null);
     EdgeDescription edgeDescription =
         new EdgeDescription(
-            new Ref<>("node-1"), new Ref<>("node-2"), null, null, "ASSOCIATION", "hasMany", null);
+            new Ref<>("node-1"),
+            new Ref<>("node-2"),
+            null,
+            null,
+            "ASSOCIATION",
+            "hasMany",
+            null,
+            false);
     DiagramSnapshot snapshot =
         new DiagramSnapshot(
             List.of(new DiagramSnapshot.SnapshotNode("node-1", nodeDescription)),

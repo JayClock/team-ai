@@ -1,7 +1,9 @@
 package reengineering.ddd.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
@@ -73,6 +75,7 @@ public class DiagramEdgesMapperTest {
     assertEquals("target-handle-1", edge.getDescription().targetHandle());
     assertEquals("ASSOCIATION", edge.getDescription().relationType());
     assertEquals("hasRelation", edge.getDescription().label());
+    assertFalse(edge.getDescription().hidden());
   }
 
   @Test
@@ -112,11 +115,13 @@ public class DiagramEdgesMapperTest {
             "target-handle-2",
             "ASSOCIATION",
             "label-1",
-            styleProps);
+            styleProps,
+            true);
     edgesMapper.insertEdge(idHolder, diagramId, description);
 
     DiagramEdge edge = edgesMapper.findEdgeByDiagramAndId(diagramId, idHolder.id());
     assertEquals("label-1", edge.getDescription().label());
+    assertTrue(edge.getDescription().hidden());
   }
 
   @Test

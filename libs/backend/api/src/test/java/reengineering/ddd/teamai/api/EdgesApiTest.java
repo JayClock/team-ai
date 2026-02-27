@@ -69,7 +69,8 @@ public class EdgesApiTest extends ApiTest {
                 "top",
                 "ASSOCIATION",
                 "hasMany",
-                styleProps));
+                styleProps,
+                false));
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(diagrams.findByIdentity(diagram.getIdentity())).thenReturn(Optional.of(diagram));
@@ -122,13 +123,21 @@ public class EdgesApiTest extends ApiTest {
         .body("_templates.default.method", is("PUT"))
         .body("_templates.delete-edge.method", is("DELETE"))
         .body("_templates.create-edge.method", is("POST"))
-        .body("_templates.create-edge.properties", hasSize(2))
-        .body("_templates.create-edge.properties[0].name", is("sourceNode.id"))
-        .body("_templates.create-edge.properties[0].required", is(true))
-        .body("_templates.create-edge.properties[0].type", is("text"))
-        .body("_templates.create-edge.properties[1].name", is("targetNode.id"))
-        .body("_templates.create-edge.properties[1].required", is(true))
-        .body("_templates.create-edge.properties[1].type", is("text"));
+        .body("_templates.'create-edge'.properties", hasSize(3))
+        .body(
+            "_templates.'create-edge'.properties.find { it.name == 'sourceNode.id' }.required",
+            is(true))
+        .body(
+            "_templates.'create-edge'.properties.find { it.name == 'sourceNode.id' }.type",
+            is("text"))
+        .body(
+            "_templates.'create-edge'.properties.find { it.name == 'targetNode.id' }.required",
+            is(true))
+        .body(
+            "_templates.'create-edge'.properties.find { it.name == 'targetNode.id' }.type",
+            is("text"))
+        .body(
+            "_templates.'create-edge'.properties.find { it.name == 'hidden' }.required", is(true));
 
     verify(diagramEdges, times(1)).findByIdentity(edge.getIdentity());
   }
@@ -178,13 +187,15 @@ public class EdgesApiTest extends ApiTest {
                 "left",
                 "DEPENDENCY",
                 "dependsOn",
-                styleProps));
+                styleProps,
+                false));
 
     when(diagramEdges.add(any(EdgeDescription.class))).thenReturn(newEdge);
 
     EdgesApi.CreateEdgeRequest request = new EdgesApi.CreateEdgeRequest();
     request.setSourceNodeId("source-node-1");
     request.setTargetNodeId("target-node-2");
+    request.setHidden(false);
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
@@ -223,7 +234,8 @@ public class EdgesApiTest extends ApiTest {
                 "right",
                 "AGGREGATION",
                 "hasOne",
-                styleProps2));
+                styleProps2,
+                false));
 
     when(diagramEdges.findAll()).thenReturn(new EntityList<>(edge, edge2));
 

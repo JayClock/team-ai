@@ -221,6 +221,7 @@ export class DiagramStore {
         id: edge.id,
         sourceNode: { id: edge.source },
         targetNode: { id: edge.target },
+        hidden: edge.hidden ?? false,
       })),
     };
 
@@ -385,6 +386,7 @@ export class DiagramStore {
       id: edgeState.data.id,
       source: edgeState.data.sourceNode.id,
       target: edgeState.data.targetNode.id,
+      hidden: edgeState.data.hidden ?? false,
     }));
   }
 

@@ -110,7 +110,7 @@ public class Project implements Entity<String, ProjectDescription> {
 
     record DraftNode(String id, NodeDescription description) {}
 
-    record DraftEdge(String sourceNodeId, String targetNodeId) {}
+    record DraftEdge(String sourceNodeId, String targetNodeId, boolean hidden) {}
 
     class InvalidDraftException extends RuntimeException {
       public InvalidDraftException(String message) {

@@ -48,7 +48,9 @@ public class DiagramCommitDraftMapper {
 
   private Project.Diagrams.DraftEdge toDraftEdge(DiagramApi.CommitDraftEdgeSchema edgeRequest) {
     return new Project.Diagrams.DraftEdge(
-        extractNodeId(edgeRequest.getSourceNode()), extractNodeId(edgeRequest.getTargetNode()));
+        extractNodeId(edgeRequest.getSourceNode()),
+        extractNodeId(edgeRequest.getTargetNode()),
+        edgeRequest.getHidden());
   }
 
   private String extractNodeId(Ref<String> nodeRef) {

@@ -19,7 +19,8 @@ public class EdgeDescriptionTest {
             "target-handle-1",
             "ASSOCIATION",
             "hasMany",
-            styleProps);
+            styleProps,
+            false);
 
     assertEquals("node-1", description.sourceNode().id());
     assertEquals("node-2", description.targetNode().id());
@@ -28,6 +29,7 @@ public class EdgeDescriptionTest {
     assertEquals("ASSOCIATION", description.relationType());
     assertEquals("hasMany", description.label());
     assertEquals(styleProps, description.styleProps());
+    assertFalse(description.hidden());
   }
 
   @Test
@@ -35,7 +37,14 @@ public class EdgeDescriptionTest {
     JsonBlob styleProps = edgeStyleProps("solid", "#000000", "arrow", 1);
     EdgeDescription description =
         new EdgeDescription(
-            new Ref<>("node-1"), new Ref<>("node-2"), null, null, "ASSOCIATION", null, styleProps);
+            new Ref<>("node-1"),
+            new Ref<>("node-2"),
+            null,
+            null,
+            "ASSOCIATION",
+            null,
+            styleProps,
+            false);
 
     assertNull(description.sourceHandle());
     assertNull(description.targetHandle());
@@ -53,7 +62,8 @@ public class EdgeDescriptionTest {
             "left",
             "INHERITANCE",
             null,
-            styleProps);
+            styleProps,
+            false);
 
     assertNull(description.label());
   }
@@ -68,7 +78,8 @@ public class EdgeDescriptionTest {
             "left",
             "ASSOCIATION",
             "1..*",
-            (JsonBlob) null);
+            (JsonBlob) null,
+            false);
 
     assertNull(description.styleProps());
   }
@@ -85,10 +96,18 @@ public class EdgeDescriptionTest {
             null,
             "ASSOCIATION",
             "1..*",
-            styleProps);
+            styleProps,
+            false);
     EdgeDescription inheritance =
         new EdgeDescription(
-            new Ref<>("node-1"), new Ref<>("node-2"), null, null, "INHERITANCE", null, styleProps);
+            new Ref<>("node-1"),
+            new Ref<>("node-2"),
+            null,
+            null,
+            "INHERITANCE",
+            null,
+            styleProps,
+            false);
     EdgeDescription aggregation =
         new EdgeDescription(
             new Ref<>("node-1"),
@@ -97,7 +116,8 @@ public class EdgeDescriptionTest {
             null,
             "AGGREGATION",
             "contains",
-            styleProps);
+            styleProps,
+            false);
     EdgeDescription flow =
         new EdgeDescription(
             new Ref<>("node-1"),
@@ -106,7 +126,8 @@ public class EdgeDescriptionTest {
             "left",
             "FLOW",
             "triggers",
-            styleProps);
+            styleProps,
+            false);
     EdgeDescription dependency =
         new EdgeDescription(
             new Ref<>("node-1"),
@@ -115,7 +136,8 @@ public class EdgeDescriptionTest {
             null,
             "DEPENDENCY",
             "depends on",
-            styleProps);
+            styleProps,
+            false);
 
     assertEquals("ASSOCIATION", association.relationType());
     assertEquals("INHERITANCE", inheritance.relationType());
@@ -136,7 +158,8 @@ public class EdgeDescriptionTest {
             null,
             "ASSOCIATION",
             "1..*",
-            styleProps);
+            styleProps,
+            false);
     EdgeDescription hasMany =
         new EdgeDescription(
             new Ref<>("node-1"),
@@ -145,7 +168,8 @@ public class EdgeDescriptionTest {
             null,
             "ASSOCIATION",
             "hasMany",
-            styleProps);
+            styleProps,
+            false);
     EdgeDescription triggers =
         new EdgeDescription(
             new Ref<>("node-1"),
@@ -154,7 +178,8 @@ public class EdgeDescriptionTest {
             "left",
             "FLOW",
             "triggers",
-            styleProps);
+            styleProps,
+            false);
 
     assertEquals("1..*", oneToMany.label());
     assertEquals("hasMany", hasMany.label());
@@ -172,7 +197,8 @@ public class EdgeDescriptionTest {
             "left",
             "DEPENDENCY",
             "depends on",
-            styleProps);
+            styleProps,
+            false);
 
     assertEquals("node-1", description.sourceNode().id());
     assertEquals("node-2", description.targetNode().id());
@@ -182,6 +208,15 @@ public class EdgeDescriptionTest {
     assertEquals("depends on", description.label());
     assertTrue(description.styleProps().json().contains("\"lineStyle\":\"dashed\""));
     assertTrue(description.styleProps().json().contains("\"lineWidth\":2"));
+  }
+
+  @Test
+  void should_support_hidden_flag() {
+    EdgeDescription description =
+        new EdgeDescription(
+            new Ref<>("node-1"), new Ref<>("node-2"), null, null, "FLOW", null, null, true);
+
+    assertTrue(description.hidden());
   }
 
   private JsonBlob edgeStyleProps(

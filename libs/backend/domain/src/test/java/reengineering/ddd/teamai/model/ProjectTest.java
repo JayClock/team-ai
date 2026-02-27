@@ -178,7 +178,8 @@ public class ProjectTest {
               "class-node", new Ref<>("entity-1"), null, 100.0, 200.0, 300, 200, null, null);
       Project.Diagrams.DraftNode draftNode =
           new Project.Diagrams.DraftNode("node-1", nodeDescription);
-      Project.Diagrams.DraftEdge draftEdge = new Project.Diagrams.DraftEdge("node-1", "node-1");
+      Project.Diagrams.DraftEdge draftEdge =
+          new Project.Diagrams.DraftEdge("node-1", "node-1", false);
 
       doNothing().when(diagrams).saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
       project.saveDiagram(diagramId, List.of(draftNode), List.of(draftEdge));
