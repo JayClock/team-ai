@@ -233,6 +233,27 @@ public class DiagramNodesTest {
   }
 
   @Test
+  public void should_delete_missing_existing_nodes_in_full_sync_commit() {
+    DiagramNode keptNode =
+        diagram.addNode(
+            new NodeDescription("kept-node", null, null, 100.0, 100.0, 200, 120, null, null));
+    DiagramNode removedNode =
+        diagram.addNode(
+            new NodeDescription("removed-node", null, null, 220.0, 180.0, 200, 120, null, null));
+
+    ((DiagramNodes) diagram.nodes())
+        .commitDraftNodes(
+            List.of(
+                new Project.Diagrams.DraftNode(
+                    keptNode.getIdentity(),
+                    new NodeDescription(
+                        "kept-node-updated", null, null, 500.0, 600.0, 320, 220, null, null))));
+
+    assertTrue(diagram.nodes().findByIdentity(keptNode.getIdentity()).isPresent());
+    assertTrue(diagram.nodes().findByIdentity(removedNode.getIdentity()).isEmpty());
+  }
+
+  @Test
   public void should_reject_non_numeric_existing_node_id_in_commit_draft_nodes() {
     Project.Diagrams.InvalidDraftException error =
         assertThrows(

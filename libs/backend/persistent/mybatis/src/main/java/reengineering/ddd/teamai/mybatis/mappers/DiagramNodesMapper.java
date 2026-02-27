@@ -23,6 +23,8 @@ public interface DiagramNodesMapper {
       @Param("id") int id,
       @Param("description") NodeDescription description);
 
+  int deleteNodesByIds(@Param("diagram_id") int diagramId, @Param("ids") List<Integer> ids);
+
   List<Integer> findNodeIdsWithoutLogicalEntityForPublish(
       @Param("project_id") int projectId, @Param("diagram_id") int diagramId);
 

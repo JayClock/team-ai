@@ -117,6 +117,15 @@
       AND id = #{id}
   </update>
 
+  <delete id="deleteNodesByIds">
+    DELETE FROM diagram_nodes
+    WHERE diagram_id = #{diagram_id}
+      AND id IN
+      <foreach collection="ids" item="id" open="(" separator="," close=")">
+        #{id}
+      </foreach>
+  </delete>
+
   <select id="findNodeIdsWithoutLogicalEntityForPublish" resultType="int">
     SELECT dn.id
     FROM diagram_nodes dn

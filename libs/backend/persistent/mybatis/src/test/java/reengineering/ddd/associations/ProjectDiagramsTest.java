@@ -227,6 +227,32 @@ public class ProjectDiagramsTest {
   }
 
   @Test
+  public void should_delete_missing_existing_nodes_when_saving_full_snapshot() {
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("全量删除节点草稿图", Type.CLASS, Viewport.defaultViewport()));
+    DiagramNode keptNode =
+        diagram.addNode(
+            new NodeDescription("kept-node", null, null, 100.0, 120.0, 200, 120, null, null));
+    DiagramNode removedNode =
+        diagram.addNode(
+            new NodeDescription("removed-node", null, null, 220.0, 120.0, 200, 120, null, null));
+
+    project.saveDiagram(
+        diagram.getIdentity(),
+        List.of(
+            new Project.Diagrams.DraftNode(
+                keptNode.getIdentity(),
+                new NodeDescription(
+                    "kept-node-updated", null, null, 520.0, 680.0, 320, 220, null, null))),
+        List.of());
+
+    Diagram committed = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
+    assertTrue(committed.nodes().findByIdentity(keptNode.getIdentity()).isPresent());
+    assertTrue(committed.nodes().findByIdentity(removedNode.getIdentity()).isEmpty());
+  }
+
+  @Test
   public void should_reject_blank_diagram_id_when_saving_draft() {
     Project.Diagrams.InvalidDraftException error =
         assertThrows(

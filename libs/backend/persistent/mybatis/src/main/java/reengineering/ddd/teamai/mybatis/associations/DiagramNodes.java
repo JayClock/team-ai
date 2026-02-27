@@ -80,6 +80,7 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
     List<Project.Diagrams.DraftNode> requestedNodes =
         draftNodes == null ? List.of() : List.copyOf(draftNodes);
     DraftNodeMappings mappings = buildDraftNodeMappings(requestedNodes);
+    deleteMissingPersistedNodes(requestedNodes);
     List<Project.Diagrams.DraftNode> sortedDraftNodes =
         sortDraftNodesByParent(
             requestedNodes, mappings.draftNodeById(), mappings.draftNodeIdByAlias());
@@ -171,6 +172,35 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
           "Updated node id must not be blank: " + draftNodeId);
     }
     return updatedNode.getIdentity();
+  }
+
+  private void deleteMissingPersistedNodes(List<Project.Diagrams.DraftNode> requestedNodes) {
+    Set<Integer> incomingExistingNodeIds = extractIncomingExistingNodeIds(requestedNodes);
+    List<Integer> nodeIdsToDelete = new ArrayList<>();
+    for (DiagramNode persistedNode : mapper.findNodesByDiagramId(diagramId)) {
+      if (persistedNode == null || persistedNode.getIdentity() == null) {
+        continue;
+      }
+      int persistedNodeId = parsePersistedNodeId(persistedNode.getIdentity());
+      if (!incomingExistingNodeIds.contains(persistedNodeId)) {
+        nodeIdsToDelete.add(persistedNodeId);
+      }
+    }
+    if (!nodeIdsToDelete.isEmpty()) {
+      mapper.deleteNodesByIds(diagramId, nodeIdsToDelete);
+    }
+  }
+
+  private static Set<Integer> extractIncomingExistingNodeIds(
+      List<Project.Diagrams.DraftNode> requestedNodes) {
+    Set<Integer> incomingExistingNodeIds = new HashSet<>();
+    for (Project.Diagrams.DraftNode draftNode : requestedNodes) {
+      String draftNodeId = draftNode.id();
+      if (!isNewNodePlaceholderId(draftNodeId)) {
+        incomingExistingNodeIds.add(parsePersistedNodeId(draftNodeId));
+      }
+    }
+    return incomingExistingNodeIds;
   }
 
   private static List<Project.Diagrams.DraftNode> sortDraftNodesByParent(
