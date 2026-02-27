@@ -147,4 +147,61 @@ describe('calculateLayout - fulfillment axis', () => {
       expect(otherEvidence?.position.y).toBe(confirm?.position.y);
     }
   });
+
+  it('spreads request/confirmation/other_evidence columns to avoid vertical overlap', () => {
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    const requestNodes = [...REQUEST_IDS]
+      .map((id) => nodeMap.get(id))
+      .filter((node): node is LNode => Boolean(node))
+      .sort((a, b) => a.position.y - b.position.y);
+    const confirmationNodes = Object.values(CONFIRM_BY_REQUEST_ID)
+      .map((id) => nodeMap.get(id))
+      .filter((node): node is LNode => Boolean(node))
+      .sort((a, b) => a.position.y - b.position.y);
+    const evidenceNodes = Object.values(OTHER_EVIDENCE_BY_CONFIRM_ID)
+      .map((id) => nodeMap.get(id))
+      .filter((node): node is LNode => Boolean(node))
+      .sort((a, b) => a.position.y - b.position.y);
+    const verticalStep = LAYOUT_NODE_HEIGHT + LAYOUT_GAP_Y;
+    const requestX = LAYOUT_START_X + 3 * (LAYOUT_NODE_WIDTH + LAYOUT_GAP_X);
+    const confirmX = requestX + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
+    const evidenceX = confirmX + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
+
+    expect(requestNodes).toHaveLength(REQUEST_IDS.length);
+    expect(confirmationNodes).toHaveLength(Object.keys(CONFIRM_BY_REQUEST_ID).length);
+    expect(evidenceNodes).toHaveLength(
+      Object.keys(OTHER_EVIDENCE_BY_CONFIRM_ID).length,
+    );
+
+    for (const requestNode of requestNodes) {
+      expect(requestNode.position.x).toBe(requestX);
+    }
+
+    for (const confirmationNode of confirmationNodes) {
+      expect(confirmationNode.position.x).toBe(confirmX);
+    }
+
+    for (const evidenceNode of evidenceNodes) {
+      expect(evidenceNode.position.x).toBe(evidenceX);
+    }
+
+    for (let index = 0; index < requestNodes.length - 1; index += 1) {
+      expect(requestNodes[index + 1].position.y - requestNodes[index].position.y).toBeGreaterThanOrEqual(
+        verticalStep,
+      );
+    }
+
+    for (let index = 0; index < confirmationNodes.length - 1; index += 1) {
+      expect(
+        confirmationNodes[index + 1].position.y - confirmationNodes[index].position.y,
+      ).toBeGreaterThanOrEqual(verticalStep);
+    }
+
+    for (let index = 0; index < evidenceNodes.length - 1; index += 1) {
+      expect(evidenceNodes[index + 1].position.y - evidenceNodes[index].position.y).toBeGreaterThanOrEqual(
+        verticalStep,
+      );
+    }
+  });
 });

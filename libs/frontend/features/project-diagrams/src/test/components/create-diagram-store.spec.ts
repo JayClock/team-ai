@@ -367,7 +367,7 @@ describe('createDiagramStore', () => {
   });
 
   it('includes parent.id in commit-draft payload for nested nodes', async () => {
-    const submit = vi.fn(async () => ({}));
+    const submit = vi.fn(async (_payload: unknown) => ({}));
     const store = createDiagramStore(
       createDiagramStateWithCommitDraft('Diagram A', submit),
     );

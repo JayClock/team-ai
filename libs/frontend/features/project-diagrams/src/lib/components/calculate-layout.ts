@@ -11,6 +11,8 @@ export const LAYOUT_GAP_X = 80;
 export const LAYOUT_GAP_Y = 40;
 export const LAYOUT_START_X = 120;
 export const LAYOUT_AXIS_Y = 240;
+const COLUMN_STEP_X = LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
+const DEFAULT_REQUEST_COLUMN_X = LAYOUT_START_X + 3 * COLUMN_STEP_X;
 
 function getEvidenceAxisIndex(
   subType: LogicalEntity['data']['subType'],
@@ -82,6 +84,92 @@ function buildNodeById(nodes: DiagramNode[]): Map<string, DiagramNode> {
     nodeById.set(node.id, node);
   }
   return nodeById;
+}
+
+function getNodeHeight(node: DiagramNode | undefined): number {
+  return node?.height ?? LAYOUT_NODE_HEIGHT;
+}
+
+function normalizeFallbackY(node: DiagramNode): number {
+  if (node.position.x === 0 && node.position.y === 0) {
+    return LAYOUT_AXIS_Y;
+  }
+
+  return node.position.y;
+}
+
+function collectNodesByPredicate(
+  nodes: DiagramNode[],
+  predicate: (node: DiagramNode) => boolean,
+): DiagramNode[] {
+  return nodes.filter(predicate);
+}
+
+function spreadColumnNodesById(params: {
+  basePositionsById: Map<string, Position>;
+  defaultX: number;
+  nodeById: Map<string, DiagramNode>;
+  nodeIds: string[];
+}): Map<string, Position> {
+  const { basePositionsById, defaultX, nodeById, nodeIds } = params;
+  const nextPositionsById = new Map<string, Position>(basePositionsById);
+  const nodeIdsByX = new Map<number, string[]>();
+
+  for (const nodeId of nodeIds) {
+    const node = nodeById.get(nodeId);
+    if (!node) {
+      continue;
+    }
+
+    const basePosition = nextPositionsById.get(nodeId);
+    const x = basePosition?.x ?? defaultX;
+    const y = basePosition?.y ?? normalizeFallbackY(node);
+    nextPositionsById.set(nodeId, { x, y });
+    const nodeIdsOnColumn = nodeIdsByX.get(x) ?? [];
+    nodeIdsOnColumn.push(nodeId);
+    nodeIdsByX.set(x, nodeIdsOnColumn);
+  }
+
+  for (const columnNodeIds of nodeIdsByX.values()) {
+    const sortedNodeIds = [...columnNodeIds].sort((leftId, rightId) => {
+      const leftPosition = nextPositionsById.get(leftId);
+      const rightPosition = nextPositionsById.get(rightId);
+      if (!leftPosition || !rightPosition) {
+        return leftId.localeCompare(rightId);
+      }
+
+      if (leftPosition.y !== rightPosition.y) {
+        return leftPosition.y - rightPosition.y;
+      }
+
+      return leftId.localeCompare(rightId);
+    });
+
+    for (let index = 1; index < sortedNodeIds.length; index += 1) {
+      const previousNodeId = sortedNodeIds[index - 1];
+      const currentNodeId = sortedNodeIds[index];
+      const previousPosition = nextPositionsById.get(previousNodeId);
+      const currentPosition = nextPositionsById.get(currentNodeId);
+      if (!previousPosition || !currentPosition) {
+        continue;
+      }
+
+      const minDeltaY =
+        (getNodeHeight(nodeById.get(previousNodeId)) +
+          getNodeHeight(nodeById.get(currentNodeId))) /
+          2 +
+        LAYOUT_GAP_Y;
+      const minimumCurrentY = previousPosition.y + minDeltaY;
+      if (currentPosition.y < minimumCurrentY) {
+        nextPositionsById.set(currentNodeId, {
+          x: currentPosition.x,
+          y: minimumCurrentY,
+        });
+      }
+    }
+  }
+
+  return nextPositionsById;
 }
 
 function collectRequestGroupsByContractId(
@@ -372,6 +460,16 @@ export function calculateLayout(
     contractById,
     requestsByContractId,
   });
+  const requestNodes = collectNodesByPredicate(
+    axisLayoutedNodes,
+    isFulfillmentRequestNode,
+  );
+  const spreadRequestPositionsById = spreadColumnNodesById({
+    basePositionsById: requestPositionsById,
+    defaultX: DEFAULT_REQUEST_COLUMN_X,
+    nodeById,
+    nodeIds: requestNodes.map((node) => node.id),
+  });
   const confirmationByRequestId = collectConfirmationByRequestId(
     axisLayoutedNodes,
     edges,
@@ -379,7 +477,7 @@ export function calculateLayout(
   const confirmationPositionsById = buildConfirmationPositionsById({
     confirmationByRequestId,
     nodeById,
-    requestPositionsById,
+    requestPositionsById: spreadRequestPositionsById,
   });
   const otherEvidenceByConfirmationId = collectOtherEvidenceByConfirmationId(
     axisLayoutedNodes,
@@ -392,7 +490,7 @@ export function calculateLayout(
   });
   const positionsById = new Map<string, Position>([
     ...contractRolePositionsById.entries(),
-    ...requestPositionsById.entries(),
+    ...spreadRequestPositionsById.entries(),
     ...confirmationPositionsById.entries(),
     ...otherEvidencePositionsById.entries(),
   ]);
