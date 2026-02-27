@@ -68,9 +68,7 @@ export function ProjectDiagram(props: Props) {
           <div className="flex gap-1">
             <ProposeModelPanelTool
               state={diagramState}
-              onDraftGenerated={(draft) => {
-                diagramStore.addGeneratedNodesAndEdges(draft);
-              }}
+              diagramStore={diagramStore}
             />
           </div>
         </Panel>

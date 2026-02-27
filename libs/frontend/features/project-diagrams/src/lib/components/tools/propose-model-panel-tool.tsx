@@ -31,11 +31,11 @@ import { Diagram } from '@shared/schema';
 import { Settings2 } from 'lucide-react';
 import { useSignal } from '@preact/signals-react';
 import { parse as parseBestEffortJson } from 'best-effort-json-parser';
-import type { DraftDiagramInput } from '../create-diagram-store';
+import type { DiagramStore, DraftDiagramInput } from '../create-diagram-store';
 
 interface Props {
   state: State<Diagram>;
-  onDraftGenerated: (draft: DraftDiagramInput) => void;
+  diagramStore: DiagramStore;
 }
 
 type ProposeModelDataTypes = {
@@ -84,7 +84,7 @@ function parseDraftByBestEffort(jsonText: string): DraftDiagramInput {
 
 export function ProposeModelPanelTool({
   state,
-  onDraftGenerated,
+  diagramStore,
 }: Props) {
   const isSubmitting = useSignal(false);
   const error = useSignal<string>();
@@ -120,7 +120,7 @@ export function ProposeModelPanelTool({
     },
     onFinish: () => {
       const draft = parseDraftByBestEffort(structuredDraftJsonSignal.value);
-      onDraftGenerated(draft);
+      diagramStore.addGeneratedNodesAndEdges(draft);
     },
   });
 
@@ -140,6 +140,7 @@ export function ProposeModelPanelTool({
     structuredDraftJsonSignal.value = '';
 
     try {
+      await diagramStore.saveDiagram();
       await sendMessage(
         { text: trimmedRequirement },
         {
