@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +22,7 @@ import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.archtype.JsonBlob;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EvidenceSubType;
 import reengineering.ddd.teamai.description.NodeDescription;
@@ -153,6 +155,53 @@ public class DiagramNodesTest {
     assertEquals("batch-node-1", savedNodes.get(0).getDescription().type());
     assertEquals("batch-node-2", savedNodes.get(1).getDescription().type());
     assertEquals(initialSize + 2, diagram.nodes().findAll().size());
+  }
+
+  @Test
+  public void should_commit_draft_nodes_and_resolve_parent_placeholder() {
+    NodeDescription childDescription =
+        new NodeDescription(
+            "child-node", null, new Ref<>("draft-parent"), 220.0, 200.0, 300, 200, null, null);
+    NodeDescription parentDescription =
+        new NodeDescription("parent-node", null, null, 100.0, 200.0, 300, 200, null, null);
+
+    Map<String, String> createdNodeIdByRef =
+        ((DiagramNodes) diagram.nodes())
+            .commitDraftNodes(
+                List.of(
+                    new Project.Diagrams.DraftNode("draft-child", childDescription),
+                    new Project.Diagrams.DraftNode("draft-parent", parentDescription)));
+
+    String parentNodeId = createdNodeIdByRef.get("draft-parent");
+    String childNodeId = createdNodeIdByRef.get("draft-child");
+    assertNotNull(parentNodeId);
+    assertNotNull(childNodeId);
+
+    DiagramNode childNode = diagram.nodes().findByIdentity(childNodeId).orElseThrow();
+    assertNotNull(childNode.getDescription().parent());
+    assertEquals(parentNodeId, childNode.getDescription().parent().id());
+  }
+
+  @Test
+  public void should_reject_cyclic_parent_reference_in_commit_draft_nodes() {
+    NodeDescription nodeA =
+        new NodeDescription(
+            "node-a", null, new Ref<>("draft-b"), 100.0, 200.0, 300, 200, null, null);
+    NodeDescription nodeB =
+        new NodeDescription(
+            "node-b", null, new Ref<>("draft-a"), 220.0, 200.0, 300, 200, null, null);
+
+    Project.Diagrams.InvalidDraftException error =
+        assertThrows(
+            Project.Diagrams.InvalidDraftException.class,
+            () ->
+                ((DiagramNodes) diagram.nodes())
+                    .commitDraftNodes(
+                        List.of(
+                            new Project.Diagrams.DraftNode("draft-a", nodeA),
+                            new Project.Diagrams.DraftNode("draft-b", nodeB))));
+
+    assertEquals("Cyclic parent reference detected: draft-a", error.getMessage());
   }
 
   @Test

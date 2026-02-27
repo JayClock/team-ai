@@ -4,13 +4,16 @@ import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.mybatis.database.EntityList;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.EdgeDescription;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.DiagramEdge;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.mybatis.cache.AssociationMapping;
 import reengineering.ddd.teamai.mybatis.mappers.DiagramEdgesMapper;
 
@@ -66,5 +69,47 @@ public class DiagramEdges extends EntityList<String, DiagramEdge> implements Dia
       createdEdges.add(findEntity(String.valueOf(idHolder.id())));
     }
     return List.copyOf(createdEdges);
+  }
+
+  @CacheEvict(value = CACHE_NAME, key = "#root.target.diagramId + '*")
+  public void commitDraftEdges(
+      Collection<Project.Diagrams.DraftEdge> draftEdges, Map<String, String> createdNodeIdByRef) {
+    List<Project.Diagrams.DraftEdge> requestedEdges =
+        draftEdges == null ? List.of() : List.copyOf(draftEdges);
+    Map<String, String> resolvedNodeIdByRef =
+        createdNodeIdByRef == null ? Map.of() : Map.copyOf(createdNodeIdByRef);
+    List<EdgeDescription> edgeDescriptions =
+        buildDraftEdgeDescriptions(requestedEdges, resolvedNodeIdByRef);
+    addAll(edgeDescriptions);
+  }
+
+  private static List<EdgeDescription> buildDraftEdgeDescriptions(
+      List<Project.Diagrams.DraftEdge> requestedEdges, Map<String, String> createdNodeIdByRef) {
+    List<EdgeDescription> edgeDescriptions = new ArrayList<>(requestedEdges.size());
+    for (Project.Diagrams.DraftEdge draftEdge : requestedEdges) {
+      if (draftEdge == null) {
+        throw new Project.Diagrams.InvalidDraftException("Edge request must provide nodeId.");
+      }
+      String sourceNodeId = resolveNodeId(draftEdge.sourceNodeId(), createdNodeIdByRef);
+      String targetNodeId = resolveNodeId(draftEdge.targetNodeId(), createdNodeIdByRef);
+      edgeDescriptions.add(
+          new EdgeDescription(
+              new Ref<>(sourceNodeId), new Ref<>(targetNodeId), null, null, null, null, null));
+    }
+    return edgeDescriptions;
+  }
+
+  private static String resolveNodeId(String nodeId, Map<String, String> createdNodeIdByRef) {
+    if (nodeId == null || nodeId.isBlank()) {
+      throw new Project.Diagrams.InvalidDraftException("Edge request must provide nodeId.");
+    }
+    String resolvedId = createdNodeIdByRef.get(nodeId);
+    if (resolvedId != null) {
+      return resolvedId;
+    }
+    if (nodeId.matches("node-\\d+")) {
+      throw new Project.Diagrams.InvalidDraftException("Unknown node placeholder id: " + nodeId);
+    }
+    return nodeId;
   }
 }

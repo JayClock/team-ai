@@ -1,6 +1,7 @@
 package reengineering.ddd.associations;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,7 +28,9 @@ import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
+import reengineering.ddd.teamai.mybatis.associations.DiagramEdges;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 import reengineering.ddd.teamai.mybatis.config.CacheConfig;
 
@@ -195,6 +198,39 @@ public class DiagramEdgesTest {
     assertEquals("ASSOCIATION", savedEdges.get(0).getDescription().relationType());
     assertEquals("DEPENDENCY", savedEdges.get(1).getDescription().relationType());
     assertEquals(initialSize + 2, diagram.edges().findAll().size());
+  }
+
+  @Test
+  public void should_commit_draft_edges_with_resolved_node_mapping() {
+    ((DiagramEdges) diagram.edges())
+        .commitDraftEdges(
+            List.of(new Project.Diagrams.DraftEdge("draft-source", "draft-target")),
+            Map.of("draft-source", node1.getIdentity(), "draft-target", node2.getIdentity()));
+
+    DiagramEdge edge =
+        diagram.edges().findAll().stream()
+            .filter(
+                item ->
+                    node1.getIdentity().equals(item.getDescription().sourceNode().id())
+                        && node2.getIdentity().equals(item.getDescription().targetNode().id()))
+            .findFirst()
+            .orElseThrow();
+    assertEquals(node1.getIdentity(), edge.getDescription().sourceNode().id());
+    assertEquals(node2.getIdentity(), edge.getDescription().targetNode().id());
+  }
+
+  @Test
+  public void should_reject_unknown_placeholder_in_commit_draft_edges() {
+    Project.Diagrams.InvalidDraftException error =
+        assertThrows(
+            Project.Diagrams.InvalidDraftException.class,
+            () ->
+                ((DiagramEdges) diagram.edges())
+                    .commitDraftEdges(
+                        List.of(new Project.Diagrams.DraftEdge("node-99", node2.getIdentity())),
+                        Map.of()));
+
+    assertEquals("Unknown node placeholder id: node-99", error.getMessage());
   }
 
   @Test
