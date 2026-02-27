@@ -7,6 +7,7 @@ import {
   LogicalEntity,
 } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
+import { calculateEdgeVisibility } from './calculate-edge-visibility';
 import { calculateLayout } from './calculate-layout';
 
 const DEFAULT_NODE_WIDTH = 160;
@@ -129,17 +130,19 @@ export class DiagramStore {
       ...this._diagramEdges.value,
       ...generatedEdges,
     ];
+    const nextEdgesWithVisibility = calculateEdgeVisibility(
+      nextNodes,
+      nextEdges,
+    );
 
-    console.log(nextNodes, nextEdges);
-
-    const layoutedNodes = calculateLayout(nextNodes, nextEdges);
+    const layoutedNodes = calculateLayout(nextNodes, nextEdgesWithVisibility);
 
     batch(() => {
       this._diagramNodes.value = [
         ...layoutedNodes,
       ];
       this._diagramEdges.value = [
-        ...nextEdges,
+        ...nextEdgesWithVisibility,
       ];
     });
   }

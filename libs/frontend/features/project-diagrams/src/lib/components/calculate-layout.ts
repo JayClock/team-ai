@@ -2,7 +2,7 @@ import { LogicalEntity } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
 
 type DiagramNode = Node<LogicalEntity['data']>;
-type DiagramEdge = Pick<Edge, 'id' | 'source' | 'target'>;
+type DiagramEdge = Edge;
 type Position = { x: number; y: number };
 
 export const LAYOUT_NODE_WIDTH = 160;
@@ -158,7 +158,7 @@ function spreadColumnNodesById(params: {
       const minDeltaY =
         (getNodeHeight(nodeById.get(previousNodeId)) +
           getNodeHeight(nodeById.get(currentNodeId))) /
-          2 +
+        2 +
         LAYOUT_GAP_Y;
       const minimumCurrentY = previousPosition.y + minDeltaY;
       if (currentPosition.y < minimumCurrentY) {
@@ -389,7 +389,7 @@ function collectConfirmationByRequestId(
       isFulfillmentRequestNode(sourceNode) && isFulfillmentConfirmationNode(targetNode)
         ? { request: sourceNode, confirmation: targetNode }
         : isFulfillmentRequestNode(targetNode) &&
-            isFulfillmentConfirmationNode(sourceNode)
+          isFulfillmentConfirmationNode(sourceNode)
           ? { request: targetNode, confirmation: sourceNode }
           : null;
 
