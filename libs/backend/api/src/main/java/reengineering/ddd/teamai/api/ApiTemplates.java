@@ -59,6 +59,10 @@ public class ApiTemplates {
     return project(uriInfo).path("sidebar");
   }
 
+  public static UriBuilder breadcrumb(UriInfo uriInfo) {
+    return project(uriInfo).path("breadcrumb");
+  }
+
   public static UriBuilder diagram(UriInfo uriInfo) {
     return diagrams(uriInfo).path(DiagramsApi.class, "findById");
   }

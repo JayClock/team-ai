@@ -11,6 +11,7 @@ import java.io.IOException;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.preference.LayoutPreference;
+import reengineering.ddd.teamai.api.representation.BreadcrumbModel;
 import reengineering.ddd.teamai.api.representation.SidebarModel;
 
 @Component
@@ -26,7 +27,10 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
   public void filter(
       ContainerRequestContext requestContext, ContainerResponseContext responseContext)
       throws IOException {
-    if (!LayoutPreference.hasLayout(requestContext, LayoutPreference.SIDEBAR)) {
+    boolean includeSidebar = LayoutPreference.hasLayout(requestContext, LayoutPreference.SIDEBAR);
+    boolean includeBreadcrumb =
+        LayoutPreference.hasLayout(requestContext, LayoutPreference.BREADCRUMB);
+    if (!includeSidebar && !includeBreadcrumb) {
       return;
     }
 
@@ -46,7 +50,12 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
       return;
     }
 
-    injectSidebar(root, uriInfo, projectId);
+    if (includeSidebar) {
+      injectSidebar(root, uriInfo, projectId);
+    }
+    if (includeBreadcrumb) {
+      injectBreadcrumb(root, uriInfo, projectId);
+    }
     responseContext.setEntity(root);
   }
 
@@ -76,6 +85,24 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
           "sidebar",
           objectMapper.valueToTree(
               SidebarModel.project(sidebarPath, diagramsPath, conversationsPath)));
+    }
+  }
+
+  private void injectBreadcrumb(ObjectNode root, UriInfo uriInfo, String projectId) {
+    String breadcrumbPath = ApiTemplates.breadcrumb(uriInfo).build(projectId).getPath();
+
+    ObjectNode links = ensureObject(root, "_links");
+    if (!links.has("breadcrumb")) {
+      ObjectNode breadcrumbLink = objectMapper.createObjectNode();
+      breadcrumbLink.put("href", breadcrumbPath);
+      links.set("breadcrumb", breadcrumbLink);
+    }
+
+    ObjectNode embedded = ensureObject(root, "_embedded");
+    if (!embedded.has("breadcrumb")) {
+      embedded.set(
+          "breadcrumb",
+          objectMapper.valueToTree(BreadcrumbModel.fromUriInfo(breadcrumbPath, uriInfo)));
     }
   }
 

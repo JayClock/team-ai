@@ -7,6 +7,10 @@ export type {
   SidebarItem,
   SidebarItemType,
 } from './lib/sidebar.js';
+export type {
+  Breadcrumb,
+  BreadcrumbItem,
+} from './lib/breadcrumb.js';
 export type { Account } from './lib/account.js';
 export type { Conversation } from './lib/conversation.js';
 export type { Message } from './lib/message.js';

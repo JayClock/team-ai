@@ -101,6 +101,48 @@ public class LayoutPreferenceApiTest extends ApiTest {
   }
 
   @Test
+  public void should_embed_breadcrumb_for_project_when_prefer_layout_breadcrumb() {
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .header("Prefer", "layout=breadcrumb")
+        .when()
+        .get("/projects/{projectId}", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded.breadcrumb.items", hasSize(2))
+        .body("_embedded.breadcrumb.items[0].label", is("Projects"))
+        .body("_embedded.breadcrumb.items[0].path", is("/api/projects"))
+        .body("_embedded.breadcrumb.items[1].label", is("Project 1"))
+        .body("_embedded.breadcrumb.items[1].path", is("/api/projects/" + project.getIdentity()))
+        .body(
+            "_embedded.breadcrumb._links.self.href",
+            is("/api/projects/" + project.getIdentity() + "/breadcrumb"))
+        .body(
+            "_links.breadcrumb.href", is("/api/projects/" + project.getIdentity() + "/breadcrumb"));
+  }
+
+  @Test
+  public void should_embed_breadcrumb_for_diagram_when_prefer_layout_breadcrumb() {
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .header("Prefer", "layout=breadcrumb")
+        .when()
+        .get("/projects/{projectId}/diagrams/{id}", project.getIdentity(), diagram.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded.breadcrumb.items", hasSize(4))
+        .body("_embedded.breadcrumb.items[0].label", is("Projects"))
+        .body("_embedded.breadcrumb.items[1].label", is("Project 1"))
+        .body("_embedded.breadcrumb.items[2].label", is("Diagrams"))
+        .body("_embedded.breadcrumb.items[3].label", is("Diagram 1"))
+        .body(
+            "_embedded.breadcrumb._links.self.href",
+            is("/api/projects/" + project.getIdentity() + "/breadcrumb"))
+        .body(
+            "_links.breadcrumb.href", is("/api/projects/" + project.getIdentity() + "/breadcrumb"));
+  }
+
+  @Test
   public void should_not_embed_sidebar_when_prefer_not_set() {
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
@@ -109,7 +151,9 @@ public class LayoutPreferenceApiTest extends ApiTest {
         .then()
         .statusCode(200)
         .body("_embedded.sidebar", nullValue())
-        .body("_links.sidebar", nullValue());
+        .body("_links.sidebar", nullValue())
+        .body("_embedded.breadcrumb", nullValue())
+        .body("_links.breadcrumb", nullValue());
   }
 
   @Test

@@ -10,7 +10,8 @@ public final class LayoutPreference {
   public static final String PREFER_HEADER = "Prefer";
   public static final String REQUEST_PROPERTY_LAYOUTS = "teamai.prefer.layouts";
   public static final String SIDEBAR = "sidebar";
-  public static final Set<String> SUPPORTED_LAYOUTS = Set.of(SIDEBAR);
+  public static final String BREADCRUMB = "breadcrumb";
+  public static final Set<String> SUPPORTED_LAYOUTS = Set.of(SIDEBAR, BREADCRUMB);
 
   private LayoutPreference() {}
 
