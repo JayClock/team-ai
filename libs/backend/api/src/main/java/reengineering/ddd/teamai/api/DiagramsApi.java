@@ -46,6 +46,7 @@ public class DiagramsApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.DIAGRAM_COLLECTION)
   public CollectionModel<DiagramModel> findAll(
       @Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
     return new Pagination<>(project.diagrams().findAll(), 20)

@@ -41,6 +41,7 @@ public class DiagramVersionsApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.DIAGRAM_VERSION_COLLECTION)
   public CollectionModel<DiagramVersionModel> findAll(@Context UriInfo uriInfo) {
     return CollectionModel.of(
         diagram.versions().findAll().stream()

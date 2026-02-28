@@ -46,6 +46,7 @@ public class ConversationsApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.CONVERSATION_COLLECTION)
   public CollectionModel<ConversationModel> findAll(
       @Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
     return new Pagination<>(project.conversations().findAll(), 40)

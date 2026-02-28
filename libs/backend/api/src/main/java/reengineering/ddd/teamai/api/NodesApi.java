@@ -50,6 +50,7 @@ public class NodesApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.NODE_COLLECTION)
   public CollectionModel<DiagramNodeModel> findAll(@Context UriInfo uriInfo) {
     return CollectionModel.of(
         diagram.nodes().findAll().stream()

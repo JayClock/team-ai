@@ -51,6 +51,7 @@ public class EdgesApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.EDGE_COLLECTION)
   public CollectionModel<DiagramEdgeModel> findAll(@Context UriInfo uriInfo) {
     return CollectionModel.of(
         diagram.edges().findAll().stream()

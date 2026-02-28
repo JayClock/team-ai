@@ -49,6 +49,7 @@ public class LogicalEntitiesApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.LOGICAL_ENTITY_COLLECTION)
   public CollectionModel<LogicalEntityModel> findAll(
       @Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
     return new Pagination<>(project.logicalEntities().findAll(), 40)

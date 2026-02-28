@@ -18,6 +18,7 @@ public class MessagesApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.MESSAGE_COLLECTION)
   public CollectionModel<MessageModel> findAll(@Context UriInfo uriInfo) {
     var messages =
         conversation.messages().findAll().stream()

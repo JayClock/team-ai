@@ -21,6 +21,7 @@ public class AccountsApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.ACCOUNT_COLLECTION)
   public CollectionModel<AccountModel> findAll(@Context UriInfo uriInfo) {
     List<AccountModel> accounts =
         user.accounts().findAll().stream()
@@ -31,6 +32,7 @@ public class AccountsApi {
 
   @GET
   @Path("{account-id}")
+  @VendorMediaType(ResourceTypes.ACCOUNT)
   public AccountModel findById(@PathParam("account-id") String id, @Context UriInfo uriInfo) {
     return user.accounts()
         .findByIdentity(id)

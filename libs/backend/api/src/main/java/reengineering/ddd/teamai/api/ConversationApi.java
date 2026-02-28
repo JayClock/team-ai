@@ -36,6 +36,7 @@ public class ConversationApi {
   }
 
   @GET
+  @VendorMediaType(ResourceTypes.CONVERSATION)
   public ConversationModel get(@Context UriInfo uriInfo) {
     return new ConversationModel(project, conversation, uriInfo);
   }
