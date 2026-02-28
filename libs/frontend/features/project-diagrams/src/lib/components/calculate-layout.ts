@@ -41,10 +41,6 @@ function isContractRoleNode(node: DiagramNode): boolean {
   return node.data.type === 'ROLE' && node.data.subType === 'party_role';
 }
 
-function isPartyNode(node: DiagramNode): boolean {
-  return node.data.type === 'PARTICIPANT' && node.data.subType === 'party';
-}
-
 function isFulfillmentRequestNode(node: DiagramNode): boolean {
   return isEvidenceNode(node) && node.data.subType === 'fulfillment_request';
 }
@@ -239,39 +235,6 @@ function collectContractRolesByContractId(
   return rolesByContractId;
 }
 
-function collectPartiesByRoleId(
-  nodes: DiagramNode[],
-  edges: DiagramEdge[],
-): Map<string, DiagramNode[]> {
-  const nodeById = buildNodeById(nodes);
-  const partiesByRoleId = new Map<string, DiagramNode[]>();
-
-  for (const edge of edges) {
-    const sourceNode = nodeById.get(edge.source);
-    const targetNode = nodeById.get(edge.target);
-    if (!sourceNode || !targetNode) {
-      continue;
-    }
-
-    const match = isContractRoleNode(sourceNode) && isPartyNode(targetNode)
-      ? { role: sourceNode, party: targetNode }
-      : isContractRoleNode(targetNode) && isPartyNode(sourceNode)
-        ? { role: targetNode, party: sourceNode }
-        : null;
-    if (!match) {
-      continue;
-    }
-
-    const parties = partiesByRoleId.get(match.role.id) ?? [];
-    if (!parties.some((party) => party.id === match.party.id)) {
-      parties.push(match.party);
-      partiesByRoleId.set(match.role.id, parties);
-    }
-  }
-
-  return partiesByRoleId;
-}
-
 function buildContractRolePositionsById(params: {
   contractById: Map<string, DiagramNode>;
   rolesByContractId: Map<string, DiagramNode[]>;
@@ -297,48 +260,6 @@ function buildContractRolePositionsById(params: {
   }
 
   return rolePositionsById;
-}
-
-function buildPartyPositionsById(params: {
-  contractById: Map<string, DiagramNode>;
-  partiesByRoleId: Map<string, DiagramNode[]>;
-  rolePositionsById: Map<string, Position>;
-  rolesByContractId: Map<string, DiagramNode[]>;
-}): Map<string, Position> {
-  const { contractById, partiesByRoleId, rolePositionsById, rolesByContractId } = params;
-  const partyPositionsById = new Map<string, Position>();
-  const stepY = LAYOUT_NODE_HEIGHT + LAYOUT_GAP_Y;
-
-  for (const [contractId, roles] of rolesByContractId.entries()) {
-    const contract = contractById.get(contractId);
-    if (!contract) {
-      continue;
-    }
-
-    for (const role of roles) {
-      const rolePosition = rolePositionsById.get(role.id);
-      if (!rolePosition) {
-        continue;
-      }
-
-      const parties = partiesByRoleId.get(role.id) ?? [];
-      if (parties.length === 0) {
-        continue;
-      }
-
-      const direction = rolePosition.y < contract.position.y ? -1 : 1;
-      const orderedParties = [...parties].sort((left, right) => left.id.localeCompare(right.id));
-
-      orderedParties.forEach((party, index) => {
-        partyPositionsById.set(party.id, {
-          x: rolePosition.x,
-          y: rolePosition.y + direction * (index + 1) * stepY,
-        });
-      });
-    }
-  }
-
-  return partyPositionsById;
 }
 
 function buildRequestPositionsById(params: {
@@ -528,13 +449,6 @@ export function calculateLayout(
     contractById,
     rolesByContractId,
   });
-  const partiesByRoleId = collectPartiesByRoleId(axisLayoutedNodes, edges);
-  const partyPositionsById = buildPartyPositionsById({
-    contractById,
-    partiesByRoleId,
-    rolePositionsById: contractRolePositionsById,
-    rolesByContractId,
-  });
   const requestsByContractId = collectRequestGroupsByContractId(
     axisLayoutedNodes,
     edges,
@@ -573,7 +487,6 @@ export function calculateLayout(
   });
   const positionsById = new Map<string, Position>([
     ...contractRolePositionsById.entries(),
-    ...partyPositionsById.entries(),
     ...spreadRequestPositionsById.entries(),
     ...confirmationPositionsById.entries(),
     ...otherEvidencePositionsById.entries(),

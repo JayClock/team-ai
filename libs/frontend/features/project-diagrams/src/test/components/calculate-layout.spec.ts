@@ -19,10 +19,6 @@ const CONTRACT_ID = 'node-7';
 const RFP_ID = 'node-5';
 const PROPOSAL_ID = 'node-6';
 const PARTY_ROLE_IDS = ['node-8', 'node-9'] as const;
-const PARTY_BY_PARTY_ROLE_ID = {
-  'node-8': 'node-2',
-  'node-9': 'node-3',
-} as const;
 const REQUEST_IDS = ['node-11', 'node-16', 'node-21'] as const;
 const CONFIRM_BY_REQUEST_ID = {
   'node-11': 'node-12',
@@ -85,31 +81,6 @@ describe('calculateLayout - fulfillment axis', () => {
 
     expect(roles[0].position.y).toBe((contract?.position.y ?? 0) - roleStepY);
     expect(roles[1].position.y).toBe((contract?.position.y ?? 0) + roleStepY);
-  });
-
-  it('extends contract party_role to its corresponding PARTY in same direction', () => {
-    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
-    const nodeMap = toNodeMap(layoutedNodes);
-    const contract = nodeMap.get(CONTRACT_ID);
-    const stepY = LAYOUT_NODE_HEIGHT + LAYOUT_GAP_Y;
-
-    expect(contract).toBeDefined();
-
-    for (const roleId of PARTY_ROLE_IDS) {
-      const partyId = PARTY_BY_PARTY_ROLE_ID[roleId];
-      const role = nodeMap.get(roleId);
-      const party = nodeMap.get(partyId);
-      const isRoleAboveContract = (role?.position.y ?? 0) < (contract?.position.y ?? 0);
-
-      expect(role).toBeDefined();
-      expect(party).toBeDefined();
-      expect(party?.position.x).toBe(role?.position.x);
-      expect(party?.position.y).toBe(
-        isRoleAboveContract
-          ? (role?.position.y ?? 0) - stepY
-          : (role?.position.y ?? 0) + stepY,
-      );
-    }
   });
 
   it('places fulfillment requests to the right of contract from top to bottom', () => {
