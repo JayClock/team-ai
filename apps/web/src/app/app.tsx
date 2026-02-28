@@ -2,12 +2,12 @@ import Homepage from '../features/landing/homepage';
 import SmartDomainPage from '../features/landing/smart-domain-page';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { layoutRoutes } from '@shells/layout';
-import { ApiPrefixGuard } from './api-prefix-guard';
+import { apiPrefixGuardLoader } from './api-prefix-guard';
 
 const router = createBrowserRouter([
   {
     path: '/api/*',
-    element: <ApiPrefixGuard />,
+    loader: apiPrefixGuardLoader,
   },
   ...layoutRoutes,
   {

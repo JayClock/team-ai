@@ -108,7 +108,7 @@ function mapSectionsToNavMain(sections: SidebarSection[]): SidebarMainItem[] {
     isActive: section.defaultOpen,
     items: section.items.map((item) => ({
       title: item.label,
-      url: normalizeSidebarPath(item.path),
+      url: item.path || '#',
     })),
   }));
 }
@@ -118,11 +118,4 @@ function resolveSidebarIcon(iconName: string | null | undefined): LucideIcon {
     return SquareTerminalIcon;
   }
   return SIDEBAR_ICON_MAP[iconName] ?? SquareTerminalIcon;
-}
-
-function normalizeSidebarPath(path: string | null | undefined): string {
-  if (!path) {
-    return '#';
-  }
-  return path;
 }
