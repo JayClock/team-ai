@@ -13,6 +13,18 @@ const Diagram = lazy(() =>
   import('@shells/diagram').then((m) => ({ default: m.ShellsDiagram })),
 );
 
+const COMPONENT_MAP: Record<
+  string,
+  React.LazyExoticComponent<
+    React.ComponentType<{ state: Signal<State<Entity<never, never>>> }>
+  >
+> = {
+  'application/vnd.business-driven-ai.project+json': Cockpit,
+  'application/vnd.business-driven-ai.diagram+json': Diagram,
+};
+
+export type ResourceRendererContentType = keyof typeof COMPONENT_MAP;
+
 export function ResourceRenderer() {
   const client = useClient();
   const { apiUrl, contentType } = useLoaderData<LoaderType>();
@@ -32,16 +44,6 @@ export function ResourceRenderer() {
     </Suspense>
   );
 }
-
-const COMPONENT_MAP: Record<
-  string,
-  React.LazyExoticComponent<
-    React.ComponentType<{ state: Signal<State<Entity<never, never>>> }>
-  >
-> = {
-  'application/vnd.business-driven-ai.project+json': Cockpit,
-  'application/vnd.business-driven-ai.diagram+json': Diagram,
-};
 
 function UnknownResource(props: {
   contentType: string;
