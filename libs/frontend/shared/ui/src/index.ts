@@ -6,9 +6,12 @@ export * from './components/ai-elements/panel';
 export * from './components/ai-elements/prompt-input';
 export * from './components/ai-elements/suggestion';
 
+export * from './components/avatar';
 export * from './components/button';
 export * from './components/button-group';
+export * from './components/breadcrumb';
 export * from './components/card';
+export * from './components/collapsible';
 export * from './components/command';
 export * from './components/dialog';
 export * from './components/dropdown-menu';

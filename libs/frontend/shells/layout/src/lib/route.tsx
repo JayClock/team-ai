@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { genericLoader } from './generic-loader';
 import { ResourceRenderer } from './resource-rendener';
 
+export const RESOURCE_ROUTE_ID = 'resource-route';
 
 export const layoutRoutes: RouteObject[] = [
   {
@@ -15,6 +16,7 @@ export const layoutRoutes: RouteObject[] = [
     ),
     children: [
       {
+        id: RESOURCE_ROUTE_ID,
         path: '*',
         loader: genericLoader,
         hydrateFallbackElement: <div />,
