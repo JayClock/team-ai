@@ -15,10 +15,10 @@ describe('resolveEvidencePartyRoleName', () => {
     expect(
       resolveEvidencePartyRoleName({
         edges: FIXTURE_EDGES,
-        evidenceNodeId: 'node-11',
+        evidenceNodeId: 'node-5',
         nodes: FIXTURE_NODES,
       }),
-    ).toBe('买家（Party Role）');
+    ).toBe('买家');
 
     expect(
       resolveEvidencePartyRoleName({
@@ -26,20 +26,20 @@ describe('resolveEvidencePartyRoleName', () => {
         evidenceNodeId: 'node-16',
         nodes: FIXTURE_NODES,
       }),
-    ).toBe('卖家（Party Role）');
+    ).toBe('寄件人');
 
     expect(
       resolveEvidencePartyRoleName({
         edges: FIXTURE_EDGES,
-        evidenceNodeId: 'node-21',
+        evidenceNodeId: 'node-24',
         nodes: FIXTURE_NODES,
       }),
-    ).toBe('买家（Party Role）');
+    ).toBe('付款人');
 
     expect(
       resolveEvidencePartyRoleName({
         edges: FIXTURE_EDGES,
-        evidenceNodeId: 'node-7',
+        evidenceNodeId: 'node-2',
         nodes: FIXTURE_NODES,
       }),
     ).toBeNull();

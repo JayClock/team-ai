@@ -14,11 +14,11 @@ describe('calculateEdgeVisibility', () => {
   it('only applies to party_role <-> evidence edges and excludes contract', () => {
     const nodeById = new Map(FIXTURE_NODES.map((node) => [node.id, node] as const));
     const edgesWithOverrides = FIXTURE_EDGES.map((edge) => {
-      if (edge.id === 'generated:node-8::node-7') {
+      if (edge.id === 'generated:node-3::node-2') {
         return { ...edge, hidden: true };
       }
-      if (edge.id === 'generated:node-2::node-8') {
-        return { ...edge, hidden: true };
+      if (edge.id === 'generated:node-3::node-5') {
+        return { ...edge, hidden: false };
       }
       if (edge.id === 'generated:node-5::node-6') {
         return { ...edge, hidden: true };
@@ -52,9 +52,9 @@ describe('calculateEdgeVisibility', () => {
       expect(edge.hidden).toBe(connectedNode.data.subType !== 'contract');
     }
 
-    expect(edgeById.get('generated:node-8::node-7')?.hidden).toBe(false);
-    expect(edgeById.get('generated:node-8::node-11')?.hidden).toBe(true);
-    expect(edgeById.get('generated:node-2::node-8')?.hidden).toBe(true);
+    expect(edgeById.get('generated:node-3::node-2')?.hidden).toBe(false);
+    expect(edgeById.get('generated:node-3::node-5')?.hidden).toBe(true);
+    expect(edgeById.get('generated:node-4::node-7')?.hidden).toBe(true);
     expect(edgeById.get('generated:node-5::node-6')?.hidden).toBe(true);
   });
 });

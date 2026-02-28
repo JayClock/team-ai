@@ -175,13 +175,13 @@ function spreadColumnNodesById(params: {
   return nextPositionsById;
 }
 
-function collectRequestsByFirstContract(params: {
+function collectRequestsByContract(params: {
   edges: DiagramEdge[];
-  firstContractId: string | null;
+  contractId: string | null;
   nodes: DiagramNode[];
 }): DiagramNode[] {
-  const { nodes, edges, firstContractId } = params;
-  if (!firstContractId) {
+  const { nodes, edges, contractId } = params;
+  if (!contractId) {
     return [];
   }
 
@@ -204,7 +204,7 @@ function collectRequestsByFirstContract(params: {
       continue;
     }
 
-    if (match.contract.id !== firstContractId) {
+    if (match.contract.id !== contractId) {
       continue;
     }
 
@@ -216,13 +216,13 @@ function collectRequestsByFirstContract(params: {
   return requests;
 }
 
-function collectContractRolesByFirstContract(params: {
+function collectContractRolesByContract(params: {
   edges: DiagramEdge[];
-  firstContractId: string | null;
+  contractId: string | null;
   nodes: DiagramNode[];
 }): DiagramNode[] {
-  const { nodes, edges, firstContractId } = params;
-  if (!firstContractId) {
+  const { nodes, edges, contractId } = params;
+  if (!contractId) {
     return [];
   }
 
@@ -245,7 +245,7 @@ function collectContractRolesByFirstContract(params: {
       continue;
     }
 
-    if (match.contract.id !== firstContractId) {
+    if (match.contract.id !== contractId) {
       continue;
     }
 
@@ -444,26 +444,11 @@ function applyPositionsById(
   });
 }
 
-function findFirstContract(nodes: DiagramNode[]): DiagramNode | undefined {
-  for (const node of nodes) {
-    if (isContractNode(node)) {
-      return node;
-    }
-  }
-
-  return undefined;
-}
-
 function collectContextScopedNodes(params: {
-  firstContract: DiagramNode | undefined;
+  contextId: string | undefined;
   nodes: DiagramNode[];
 }): DiagramNode[] {
-  const { firstContract, nodes } = params;
-  if (!firstContract) {
-    return [];
-  }
-
-  const contextId = firstContract.parentId;
+  const { contextId, nodes } = params;
   if (!contextId) {
     return nodes;
   }
@@ -548,87 +533,106 @@ export function calculateLayout(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
 ): DiagramNode[] {
-  const firstContract = findFirstContract(nodes);
-  if (!firstContract) {
-    return layoutEvidenceAxis(nodes);
+  const axisLayoutedNodes = layoutEvidenceAxis(nodes);
+  const contracts = collectNodesByPredicate(axisLayoutedNodes, isContractNode);
+  if (contracts.length === 0) {
+    return axisLayoutedNodes;
   }
 
-  const scopedNodes = collectContextScopedNodes({ firstContract, nodes });
-  const scopedNodeIds = new Set(scopedNodes.map((node) => node.id));
-  const scopedEdges = collectScopedEdges({ edges, scopedNodeIds });
-  const axisLayoutedScopedNodes = layoutEvidenceAxis(scopedNodes);
-  const nodeById = buildNodeById(axisLayoutedScopedNodes);
-  const axisFirstContract = findFirstContract(axisLayoutedScopedNodes);
-  const roles = collectContractRolesByFirstContract({
-    nodes: axisLayoutedScopedNodes,
-    edges: scopedEdges,
-    firstContractId: axisFirstContract?.id ?? null,
-  });
-  const contractRolePositionsById = buildContractRolePositionsById({
-    contract: axisFirstContract,
-    roles,
-  });
-  const requests = collectRequestsByFirstContract({
-    nodes: axisLayoutedScopedNodes,
-    edges: scopedEdges,
-    firstContractId: axisFirstContract?.id ?? null,
-  });
-  const requestPositionsById = buildRequestPositionsById({
-    contract: axisFirstContract,
-    requests,
-  });
-  const requestNodes = collectNodesByPredicate(
-    axisLayoutedScopedNodes,
-    isFulfillmentRequestNode,
-  );
-  const spreadRequestPositionsById = spreadColumnNodesById({
-    basePositionsById: requestPositionsById,
-    defaultX: DEFAULT_REQUEST_COLUMN_X,
-    nodeById,
-    nodeIds: requestNodes.map((node) => node.id),
-  });
-  const confirmationByRequestId = collectConfirmationByRequestId(
-    axisLayoutedScopedNodes,
-    scopedEdges,
-  );
-  const confirmationPositionsById = buildConfirmationPositionsById({
-    confirmationByRequestId,
-    nodeById,
-    requestPositionsById: spreadRequestPositionsById,
-  });
-  const otherEvidenceByConfirmationId = collectOtherEvidenceByConfirmationId(
-    axisLayoutedScopedNodes,
-    scopedEdges,
-  );
-  const otherEvidencePositionsById = buildOtherEvidencePositionsById({
-    confirmationPositionsById,
-    nodeById,
-    otherEvidenceByConfirmationId,
-  });
-  const positionsById = new Map<string, Position>([
-    ...contractRolePositionsById.entries(),
-    ...spreadRequestPositionsById.entries(),
-    ...confirmationPositionsById.entries(),
-    ...otherEvidencePositionsById.entries(),
-  ]);
-  if (positionsById.size === 0) {
-    const axisLayoutedNodes = applyPositionsById(
-      nodes,
-      new Map(axisLayoutedScopedNodes.map((node) => [node.id, node.position])),
-    );
-    return applyContextSizeById({
-      contextId: firstContract.parentId,
+  const positionsById = new Map<string, Position>();
+  const contextIds = new Set<string>();
+
+  for (const contract of contracts) {
+    const scopedNodes = collectContextScopedNodes({
+      contextId: contract.parentId,
       nodes: axisLayoutedNodes,
+    });
+    const scopedNodeIds = new Set(scopedNodes.map((node) => node.id));
+    const scopedEdges = collectScopedEdges({ edges, scopedNodeIds });
+    const nodeById = buildNodeById(scopedNodes);
+
+    const roles = collectContractRolesByContract({
+      nodes: scopedNodes,
+      edges: scopedEdges,
+      contractId: contract.id,
+    });
+    const contractRolePositionsById = buildContractRolePositionsById({
+      contract,
+      roles,
+    });
+    for (const [id, position] of contractRolePositionsById.entries()) {
+      positionsById.set(id, position);
+    }
+
+    const requests = collectRequestsByContract({
+      nodes: scopedNodes,
+      edges: scopedEdges,
+      contractId: contract.id,
+    });
+    const requestPositionsById = buildRequestPositionsById({
+      contract,
+      requests,
+    });
+    const spreadRequestPositionsById = spreadColumnNodesById({
+      basePositionsById: requestPositionsById,
+      defaultX: DEFAULT_REQUEST_COLUMN_X,
+      nodeById,
+      nodeIds: requests.map((node) => node.id),
+    });
+    for (const [id, position] of spreadRequestPositionsById.entries()) {
+      positionsById.set(id, position);
+    }
+
+    const requestIds = new Set(requests.map((request) => request.id));
+    const confirmationByRequestId = collectConfirmationByRequestId(scopedNodes, scopedEdges);
+    const scopedConfirmationByRequestId = new Map(
+      [...confirmationByRequestId.entries()].filter(([requestId]) =>
+        requestIds.has(requestId),
+      ),
+    );
+    const confirmationPositionsById = buildConfirmationPositionsById({
+      confirmationByRequestId: scopedConfirmationByRequestId,
+      nodeById,
+      requestPositionsById: spreadRequestPositionsById,
+    });
+    for (const [id, position] of confirmationPositionsById.entries()) {
+      positionsById.set(id, position);
+    }
+
+    const confirmationIds = new Set(
+      [...scopedConfirmationByRequestId.values()].map((node) => node.id),
+    );
+    const otherEvidenceByConfirmationId = collectOtherEvidenceByConfirmationId(
+      scopedNodes,
+      scopedEdges,
+    );
+    const scopedOtherEvidenceByConfirmationId = new Map(
+      [...otherEvidenceByConfirmationId.entries()].filter(([confirmationId]) =>
+        confirmationIds.has(confirmationId),
+      ),
+    );
+    const otherEvidencePositionsById = buildOtherEvidencePositionsById({
+      confirmationPositionsById,
+      nodeById,
+      otherEvidenceByConfirmationId: scopedOtherEvidenceByConfirmationId,
+    });
+    for (const [id, position] of otherEvidencePositionsById.entries()) {
+      positionsById.set(id, position);
+    }
+
+    if (contract.parentId) {
+      contextIds.add(contract.parentId);
+    }
+  }
+
+  const layoutedNodes = applyPositionsById(axisLayoutedNodes, positionsById);
+  let sizedNodes = layoutedNodes;
+  for (const contextId of contextIds) {
+    sizedNodes = applyContextSizeById({
+      contextId,
+      nodes: sizedNodes,
     });
   }
 
-  const scopedLayoutedNodes = applyPositionsById(axisLayoutedScopedNodes, positionsById);
-  const scopedPositionById = new Map(
-    scopedLayoutedNodes.map((node) => [node.id, node.position]),
-  );
-  const layoutedNodes = applyPositionsById(nodes, scopedPositionById);
-  return applyContextSizeById({
-    contextId: firstContract.parentId,
-    nodes: layoutedNodes,
-  });
+  return sizedNodes;
 }

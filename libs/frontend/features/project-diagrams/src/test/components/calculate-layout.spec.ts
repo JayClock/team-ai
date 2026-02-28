@@ -7,10 +7,17 @@ import edges from '../fixture/edges.json' with { type: 'json' };
 
 type LNode = Node<LogicalEntity['data']>;
 type LEdge = Pick<Edge, 'id' | 'source' | 'target'>;
-const CONTRACT_ID = 'node-7';
+const CONTRACT_ID = 'node-2';
 const CONTRACT_CONTEXT_ID = 'node-1';
-const RFP_ID = 'node-5';
-const PROPOSAL_ID = 'node-6';
+const REQUEST_1_ID = 'node-5';
+const REQUEST_2_ID = 'node-7';
+const CONFIRMATION_1_ID = 'node-6';
+const CONFIRMATION_2_ID = 'node-8';
+const CONTRACT_ROLE_1_ID = 'node-3';
+const CONTRACT_ROLE_2_ID = 'node-4';
+const OTHER_EVIDENCE_IN_CONTEXT_ID = 'node-9';
+const OUT_OF_CONTEXT_OTHER_EVIDENCE_1_ID = 'node-18';
+const OUT_OF_CONTEXT_OTHER_EVIDENCE_2_ID = 'node-26';
 const FIXTURE_NODES = nodes as LNode[];
 const FIXTURE_EDGES = edges as LEdge[];
 
@@ -39,52 +46,49 @@ describe('calculateLayout - fulfillment axis', () => {
   it('keeps rfp -> proposal -> contract on the same central axis', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
-    expectNodePosition(nodeMap, RFP_ID, { x: 120, y: 240 });
-    expectNodePosition(nodeMap, PROPOSAL_ID, { x: 360, y: 240 });
+    expectNodePosition(nodeMap, REQUEST_1_ID, { x: 840, y: 180 });
+    expectNodePosition(nodeMap, CONFIRMATION_1_ID, { x: 1080, y: 180 });
     expectNodePosition(nodeMap, CONTRACT_ID, { x: 600, y: 240 });
   });
 
   it('places contract roles above and below contract on the same column', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
-    expectNodePosition(nodeMap, 'node-8', { x: 600, y: 120 });
-    expectNodePosition(nodeMap, 'node-9', { x: 600, y: 360 });
+    expectNodePosition(nodeMap, CONTRACT_ROLE_1_ID, { x: 600, y: 120 });
+    expectNodePosition(nodeMap, CONTRACT_ROLE_2_ID, { x: 600, y: 360 });
   });
 
   it('places fulfillment requests to the right of contract from top to bottom', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
-    expectNodePosition(nodeMap, 'node-11', { x: 840, y: 120 });
-    expectNodePosition(nodeMap, 'node-16', { x: 840, y: 240 });
-    expectNodePosition(nodeMap, 'node-21', { x: 840, y: 360 });
+    expectNodePosition(nodeMap, REQUEST_1_ID, { x: 840, y: 180 });
+    expectNodePosition(nodeMap, REQUEST_2_ID, { x: 840, y: 300 });
   });
 
   it('places each fulfillment_confirmation to the right of request on same row', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
-    expectNodePosition(nodeMap, 'node-12', { x: 1080, y: 120 });
-    expectNodePosition(nodeMap, 'node-17', { x: 1080, y: 240 });
-    expectNodePosition(nodeMap, 'node-22', { x: 1080, y: 360 });
+    expectNodePosition(nodeMap, CONFIRMATION_1_ID, { x: 1080, y: 180 });
+    expectNodePosition(nodeMap, CONFIRMATION_2_ID, { x: 1080, y: 300 });
   });
 
-  it('keeps other_evidence outside first contract context unchanged', () => {
+  it('lays out other_evidence for every contract context', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
-    expectNodePosition(nodeMap, 'node-15', { x: 0, y: 0 });
-    expectNodePosition(nodeMap, 'node-20', { x: 0, y: 0 });
+    expectNodePosition(nodeMap, OUT_OF_CONTEXT_OTHER_EVIDENCE_1_ID, { x: 1320, y: 240 });
+    expectNodePosition(nodeMap, OUT_OF_CONTEXT_OTHER_EVIDENCE_2_ID, { x: 1320, y: 240 });
   });
 
-  it('spreads request/confirmation columns and skips out-of-context evidence layout', () => {
+  it('spreads request/confirmation columns and keeps all contract chains aligned', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
-    expectNodePosition(nodeMap, 'node-11', { x: 840, y: 120 });
-    expectNodePosition(nodeMap, 'node-16', { x: 840, y: 240 });
-    expectNodePosition(nodeMap, 'node-21', { x: 840, y: 360 });
-    expectNodePosition(nodeMap, 'node-12', { x: 1080, y: 120 });
-    expectNodePosition(nodeMap, 'node-17', { x: 1080, y: 240 });
-    expectNodePosition(nodeMap, 'node-22', { x: 1080, y: 360 });
-    expectNodePosition(nodeMap, 'node-15', { x: 0, y: 0 });
-    expectNodePosition(nodeMap, 'node-20', { x: 0, y: 0 });
+    expectNodePosition(nodeMap, REQUEST_1_ID, { x: 840, y: 180 });
+    expectNodePosition(nodeMap, REQUEST_2_ID, { x: 840, y: 300 });
+    expectNodePosition(nodeMap, CONFIRMATION_1_ID, { x: 1080, y: 180 });
+    expectNodePosition(nodeMap, CONFIRMATION_2_ID, { x: 1080, y: 300 });
+    expectNodePosition(nodeMap, OTHER_EVIDENCE_IN_CONTEXT_ID, { x: 1320, y: 300 });
+    expectNodePosition(nodeMap, OUT_OF_CONTEXT_OTHER_EVIDENCE_1_ID, { x: 1320, y: 240 });
+    expectNodePosition(nodeMap, OUT_OF_CONTEXT_OTHER_EVIDENCE_2_ID, { x: 1320, y: 240 });
   });
 
   it('calculates first contract context width and height from child bounds', () => {
@@ -93,13 +97,13 @@ describe('calculateLayout - fulfillment axis', () => {
     const contextNode = nodeMap.get(CONTRACT_CONTEXT_ID);
 
     expect(contextNode).toBeDefined();
-    expect(contextNode?.width).toBe(1400);
+    expect(contextNode?.width).toBe(1640);
     expect(contextNode?.height).toBe(600);
   });
 
   it('keeps context size large enough when mock nodes are shifted away from origin', () => {
     const localNodes = FIXTURE_NODES
-      .filter((node) => node.id !== RFP_ID && node.id !== PROPOSAL_ID)
+      .filter((node) => node.id !== REQUEST_1_ID && node.id !== CONFIRMATION_1_ID)
       .map((node) =>
         node.parentId === CONTRACT_CONTEXT_ID
           ? {
@@ -114,7 +118,7 @@ describe('calculateLayout - fulfillment axis', () => {
     const contextNode = nodeMap.get(CONTRACT_CONTEXT_ID);
 
     expect(contextNode).toBeDefined();
-    expect(contextNode?.width).toBe(1320);
+    expect(contextNode?.width).toBe(1560);
     expect(contextNode?.height).toBe(520);
   });
 });
