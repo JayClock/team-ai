@@ -11,6 +11,8 @@ export const LAYOUT_GAP_X = 80;
 export const LAYOUT_GAP_Y = 40;
 export const LAYOUT_START_X = 120;
 export const LAYOUT_AXIS_Y = 240;
+export const CONTEXT_LAYOUT_PADDING_X = 80;
+export const CONTEXT_LAYOUT_PADDING_Y = 80;
 const COLUMN_STEP_X = LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
 const DEFAULT_REQUEST_COLUMN_X = LAYOUT_START_X + 3 * COLUMN_STEP_X;
 
@@ -85,6 +87,10 @@ function buildNodeById(nodes: DiagramNode[]): Map<string, DiagramNode> {
 
 function getNodeHeight(node: DiagramNode | undefined): number {
   return node?.height ?? LAYOUT_NODE_HEIGHT;
+}
+
+function getNodeWidth(node: DiagramNode | undefined): number {
+  return node?.width ?? LAYOUT_NODE_WIDTH;
 }
 
 function normalizeFallbackY(node: DiagramNode): number {
@@ -475,6 +481,63 @@ function collectScopedEdges(params: {
   );
 }
 
+function applyContextSizeById(params: {
+  contextId: string | undefined;
+  nodes: DiagramNode[];
+}): DiagramNode[] {
+  const { contextId, nodes } = params;
+  if (!contextId) {
+    return nodes;
+  }
+
+  const context = nodes.find((node) => node.id === contextId);
+  if (!context) {
+    return nodes;
+  }
+
+  const childNodes = nodes.filter((node) => node.parentId === contextId);
+  if (childNodes.length === 0) {
+    return nodes;
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const childNode of childNodes) {
+    const width = getNodeWidth(childNode);
+    const height = getNodeHeight(childNode);
+    const left = childNode.position.x - width / 2;
+    const right = childNode.position.x + width / 2;
+    const top = childNode.position.y - height / 2;
+    const bottom = childNode.position.y + height / 2;
+    minX = Math.min(minX, left);
+    maxX = Math.max(maxX, right);
+    minY = Math.min(minY, top);
+    maxY = Math.max(maxY, bottom);
+  }
+
+  const computedWidth = Math.ceil(maxX - minX + CONTEXT_LAYOUT_PADDING_X * 2);
+  const computedHeight = Math.ceil(maxY - minY + CONTEXT_LAYOUT_PADDING_Y * 2);
+  const nextWidth = computedWidth;
+  const nextHeight = computedHeight;
+
+  if (context.width === nextWidth && context.height === nextHeight) {
+    return nodes;
+  }
+
+  return nodes.map((node) =>
+    node.id === contextId
+      ? {
+        ...node,
+        width: nextWidth,
+        height: nextHeight,
+      }
+      : node,
+  );
+}
+
 export function calculateLayout(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
@@ -543,15 +606,23 @@ export function calculateLayout(
     ...otherEvidencePositionsById.entries(),
   ]);
   if (positionsById.size === 0) {
-    return applyPositionsById(
+    const axisLayoutedNodes = applyPositionsById(
       nodes,
       new Map(axisLayoutedScopedNodes.map((node) => [node.id, node.position])),
     );
+    return applyContextSizeById({
+      contextId: firstContract.parentId,
+      nodes: axisLayoutedNodes,
+    });
   }
 
   const scopedLayoutedNodes = applyPositionsById(axisLayoutedScopedNodes, positionsById);
   const scopedPositionById = new Map(
     scopedLayoutedNodes.map((node) => [node.id, node.position]),
   );
-  return applyPositionsById(nodes, scopedPositionById);
+  const layoutedNodes = applyPositionsById(nodes, scopedPositionById);
+  return applyContextSizeById({
+    contextId: firstContract.parentId,
+    nodes: layoutedNodes,
+  });
 }
