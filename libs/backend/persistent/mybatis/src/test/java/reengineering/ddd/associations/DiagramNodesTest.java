@@ -72,6 +72,78 @@ public class DiagramNodesTest {
   }
 
   @Test
+  public void should_sort_nodes_with_parent_before_child_when_loading() {
+    Diagram orderingDiagram =
+        project.addDiagram(
+            new DiagramDescription("Ordering Diagram", Type.CLASS, new Viewport(0, 0, 1.0)));
+    int orderingDiagramId = Integer.parseInt(orderingDiagram.getIdentity());
+
+    int parentId = 930001;
+    int childId = 930002;
+
+    testData.insertDiagramNode(
+        parentId, orderingDiagramId, "group-container", null, null, 0.0, 0.0, 420, 280, "{}", "{}");
+    testData.insertDiagramNode(
+        childId,
+        orderingDiagramId,
+        "fulfillment-node",
+        null,
+        parentId,
+        120.0,
+        120.0,
+        160,
+        80,
+        "{}",
+        "{}");
+
+    List<DiagramNode> loadedNodes = orderingDiagram.nodes().findAll().stream().toList();
+    assertEquals(2, loadedNodes.size());
+    assertEquals(String.valueOf(parentId), loadedNodes.get(0).getIdentity());
+    assertEquals(String.valueOf(childId), loadedNodes.get(1).getIdentity());
+  }
+
+  @Test
+  public void should_reject_cyclic_parent_reference_when_loading() {
+    Diagram integrityDiagram =
+        project.addDiagram(
+            new DiagramDescription("Integrity Diagram", Type.CLASS, new Viewport(0, 0, 1.0)));
+    int integrityDiagramId = Integer.parseInt(integrityDiagram.getIdentity());
+
+    testData.insertDiagramNode(
+        930003,
+        integrityDiagramId,
+        "fulfillment-node",
+        null,
+        null,
+        120.0,
+        120.0,
+        160,
+        80,
+        "{}",
+        "{}");
+    testData.insertDiagramNode(
+        930004,
+        integrityDiagramId,
+        "fulfillment-node",
+        null,
+        930003,
+        220.0,
+        220.0,
+        160,
+        80,
+        "{}",
+        "{}");
+    testData.updateDiagramNodeParent(integrityDiagramId, 930003, 930004);
+
+    IllegalStateException error =
+        assertThrows(
+            IllegalStateException.class,
+            () -> integrityDiagram.nodes().findAll().stream().toList());
+    assertTrue(
+        error.getMessage().startsWith("Cyclic parent reference detected in persisted nodes:"));
+  }
+
+  @Test
   public void should_add_node_and_return_saved_entity() throws Exception {
     int initialSize = diagram.nodes().findAll().size();
 

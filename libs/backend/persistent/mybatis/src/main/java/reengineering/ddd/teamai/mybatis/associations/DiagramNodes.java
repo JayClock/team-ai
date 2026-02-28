@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -8,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import reengineering.ddd.archtype.Ref;
@@ -33,7 +35,7 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
   @Override
   @Cacheable(value = CACHE_NAME, key = "#root.target.diagramId")
   protected List<DiagramNode> findEntities(int from, int to) {
-    return mapper.findNodesByDiagramId(diagramId);
+    return sortPersistedNodesByParent(mapper.findNodesByDiagramId(diagramId));
   }
 
   @Override
@@ -207,50 +209,46 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
       List<Project.Diagrams.DraftNode> requestedNodes,
       Map<String, Project.Diagrams.DraftNode> draftNodeById,
       Map<String, String> draftNodeIdByAlias) {
-    List<Project.Diagrams.DraftNode> sortedNodes = new ArrayList<>(requestedNodes.size());
-    Map<String, Integer> visitStateByNodeId = new LinkedHashMap<>();
+    List<String> orderedDraftNodeIds = new ArrayList<>(requestedNodes.size());
+    Map<String, String> parentDraftNodeIdByDraftNodeId = new LinkedHashMap<>(requestedNodes.size());
     for (Project.Diagrams.DraftNode draftNode : requestedNodes) {
-      visitDraftNode(
-          draftNode.id(), draftNodeById, draftNodeIdByAlias, visitStateByNodeId, sortedNodes);
-    }
-    return sortedNodes;
-  }
-
-  private static void visitDraftNode(
-      String draftNodeId,
-      Map<String, Project.Diagrams.DraftNode> draftNodeById,
-      Map<String, String> draftNodeIdByAlias,
-      Map<String, Integer> visitStateByNodeId,
-      List<Project.Diagrams.DraftNode> sortedNodes) {
-    int visitState = visitStateByNodeId.getOrDefault(draftNodeId, 0);
-    if (visitState == 2) {
-      return;
-    }
-    if (visitState == 1) {
-      throw new Project.Diagrams.InvalidDraftException(
-          "Cyclic parent reference detected: " + draftNodeId);
-    }
-    Project.Diagrams.DraftNode draftNode = draftNodeById.get(draftNodeId);
-    if (draftNode == null) {
-      throw new Project.Diagrams.InvalidDraftException(
-          "Unknown node placeholder id: " + draftNodeId);
-    }
-
-    visitStateByNodeId.put(draftNodeId, 1);
-    String parentId =
-        readRefId(draftNode.description().parent(), "Node parent id must not be blank.");
-    if (parentId != null) {
+      String draftNodeId = draftNode.id();
+      orderedDraftNodeIds.add(draftNodeId);
+      String parentId =
+          readRefId(draftNode.description().parent(), "Node parent id must not be blank.");
+      if (parentId == null) {
+        parentDraftNodeIdByDraftNodeId.put(draftNodeId, null);
+        continue;
+      }
       String parentDraftNodeId = draftNodeIdByAlias.get(parentId);
       if (parentDraftNodeId != null) {
-        visitDraftNode(
-            parentDraftNodeId, draftNodeById, draftNodeIdByAlias, visitStateByNodeId, sortedNodes);
-      } else if (parentId.matches("node-\\d+")) {
+        parentDraftNodeIdByDraftNodeId.put(draftNodeId, parentDraftNodeId);
+      } else if (parentId.matches(NEW_NODE_PLACEHOLDER_PATTERN)) {
         throw new Project.Diagrams.InvalidDraftException(
             "Unknown node placeholder id: " + parentId);
+      } else {
+        parentDraftNodeIdByDraftNodeId.put(draftNodeId, null);
       }
     }
-    visitStateByNodeId.put(draftNodeId, 2);
-    sortedNodes.add(draftNode);
+
+    List<String> sortedDraftNodeIds =
+        sortNodeIdsByParentDependency(
+            orderedDraftNodeIds,
+            parentDraftNodeIdByDraftNodeId,
+            unresolvedNodeIds ->
+                new Project.Diagrams.InvalidDraftException(
+                    "Cyclic parent reference detected: " + unresolvedNodeIds.get(0)));
+
+    List<Project.Diagrams.DraftNode> sortedNodes = new ArrayList<>(sortedDraftNodeIds.size());
+    for (String sortedDraftNodeId : sortedDraftNodeIds) {
+      Project.Diagrams.DraftNode draftNode = draftNodeById.get(sortedDraftNodeId);
+      if (draftNode == null) {
+        throw new Project.Diagrams.InvalidDraftException(
+            "Unknown node placeholder id: " + sortedDraftNodeId);
+      }
+      sortedNodes.add(draftNode);
+    }
+    return List.copyOf(sortedNodes);
   }
 
   private static NodeDescription resolveParentNodeId(
@@ -316,6 +314,126 @@ public class DiagramNodes extends EntityList<String, DiagramNode> implements Dia
       throw new Project.Diagrams.InvalidDraftException(
           "Existing node id must be numeric: " + nodeId);
     }
+  }
+
+  private static List<DiagramNode> sortPersistedNodesByParent(List<DiagramNode> nodes) {
+    if (nodes == null || nodes.size() < 2) {
+      return nodes == null ? List.of() : List.copyOf(nodes);
+    }
+
+    Map<String, DiagramNode> nodeById = new LinkedHashMap<>(nodes.size());
+    Map<String, String> parentNodeIdByNodeId = new LinkedHashMap<>(nodes.size());
+    List<String> orderedNodeIds = new ArrayList<>(nodes.size());
+
+    for (DiagramNode node : nodes) {
+      String nodeId = readPersistedNodeId(node);
+      if (nodeById.putIfAbsent(nodeId, node) != null) {
+        throw new IllegalStateException("Duplicated persisted node id: " + nodeId);
+      }
+      orderedNodeIds.add(nodeId);
+      parentNodeIdByNodeId.put(nodeId, null);
+    }
+
+    for (DiagramNode node : nodes) {
+      String nodeId = readPersistedNodeId(node);
+      String parentId = readPersistedParentId(node);
+      if (parentId == null) {
+        continue;
+      }
+      if (!nodeById.containsKey(parentId)) {
+        throw new IllegalStateException(
+            "Parent node not found for node " + nodeId + ": " + parentId);
+      }
+      parentNodeIdByNodeId.put(nodeId, parentId);
+    }
+
+    List<String> sortedNodeIds =
+        sortNodeIdsByParentDependency(
+            orderedNodeIds,
+            parentNodeIdByNodeId,
+            unresolvedNodeIds ->
+                new IllegalStateException(
+                    "Cyclic parent reference detected in persisted nodes: "
+                        + String.join(", ", unresolvedNodeIds)));
+
+    List<DiagramNode> sortedNodes = new ArrayList<>(sortedNodeIds.size());
+    for (String sortedNodeId : sortedNodeIds) {
+      sortedNodes.add(nodeById.get(sortedNodeId));
+    }
+    return List.copyOf(sortedNodes);
+  }
+
+  private static <E extends RuntimeException> List<String> sortNodeIdsByParentDependency(
+      List<String> orderedNodeIds,
+      Map<String, String> parentNodeIdByNodeId,
+      Function<List<String>, E> cycleExceptionFactory) {
+    Map<String, Integer> indegreeByNodeId = new LinkedHashMap<>(orderedNodeIds.size());
+    Map<String, List<String>> childIdsByParentId = new LinkedHashMap<>();
+
+    for (String nodeId : orderedNodeIds) {
+      indegreeByNodeId.put(nodeId, 0);
+    }
+    for (String nodeId : orderedNodeIds) {
+      String parentNodeId = parentNodeIdByNodeId.get(nodeId);
+      if (parentNodeId == null) {
+        continue;
+      }
+      indegreeByNodeId.put(nodeId, indegreeByNodeId.get(nodeId) + 1);
+      childIdsByParentId.computeIfAbsent(parentNodeId, key -> new ArrayList<>()).add(nodeId);
+    }
+
+    ArrayDeque<String> queue = new ArrayDeque<>();
+    for (String nodeId : orderedNodeIds) {
+      if (indegreeByNodeId.get(nodeId) == 0) {
+        queue.addLast(nodeId);
+      }
+    }
+
+    List<String> sortedNodeIds = new ArrayList<>(orderedNodeIds.size());
+    while (!queue.isEmpty()) {
+      String nodeId = queue.removeFirst();
+      sortedNodeIds.add(nodeId);
+
+      for (String childId : childIdsByParentId.getOrDefault(nodeId, List.of())) {
+        int indegree = indegreeByNodeId.get(childId) - 1;
+        indegreeByNodeId.put(childId, indegree);
+        if (indegree == 0) {
+          queue.addLast(childId);
+        }
+      }
+    }
+
+    if (sortedNodeIds.size() == orderedNodeIds.size()) {
+      return List.copyOf(sortedNodeIds);
+    }
+
+    List<String> unresolvedNodeIds = new ArrayList<>();
+    for (String nodeId : orderedNodeIds) {
+      if (indegreeByNodeId.getOrDefault(nodeId, 0) > 0) {
+        unresolvedNodeIds.add(nodeId);
+      }
+    }
+    throw cycleExceptionFactory.apply(List.copyOf(unresolvedNodeIds));
+  }
+
+  private static String readPersistedNodeId(DiagramNode node) {
+    if (node == null || node.getIdentity() == null || node.getIdentity().isBlank()) {
+      throw new IllegalStateException("Persisted node id must not be blank.");
+    }
+    return node.getIdentity();
+  }
+
+  private static String readPersistedParentId(DiagramNode node) {
+    NodeDescription description = node.getDescription();
+    if (description == null || description.parent() == null || description.parent().id() == null) {
+      return null;
+    }
+    String parentId = description.parent().id();
+    if (parentId.isBlank()) {
+      throw new IllegalStateException(
+          "Node parent id must not be blank for node: " + readPersistedNodeId(node));
+    }
+    return parentId;
   }
 
   private static boolean isNewNodePlaceholderId(String nodeId) {

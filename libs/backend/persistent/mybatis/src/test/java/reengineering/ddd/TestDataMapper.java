@@ -3,6 +3,7 @@ package reengineering.ddd;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 
 @Mapper
@@ -73,6 +74,13 @@ public interface TestDataMapper {
       @Param("height") Integer height,
       @Param("style_config") String styleConfig,
       @Param("local_data") String localData);
+
+  @Update(
+      "UPDATE diagram_nodes SET parent_id = #{parent_id} WHERE diagram_id = #{diagram_id} AND id = #{id}")
+  void updateDiagramNodeParent(
+      @Param("diagram_id") int diagramId,
+      @Param("id") int nodeId,
+      @Param("parent_id") Integer parentId);
 
   @Insert(
       "INSERT INTO diagram_edges(id, diagram_id, source_node_id, target_node_id, source_handle, target_handle, relation_type, label, style_props) "
