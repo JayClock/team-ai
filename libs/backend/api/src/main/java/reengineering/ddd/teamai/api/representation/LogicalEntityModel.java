@@ -41,7 +41,7 @@ public class LogicalEntityModel extends RepresentationModel<LogicalEntityModel> 
 
     model.add(
         Link.of(ApiTemplates.logicalEntities(uriInfo).build(project.getIdentity()).getPath())
-            .withRel("logical-entities"));
+            .withRel("collection"));
     return model;
   }
 

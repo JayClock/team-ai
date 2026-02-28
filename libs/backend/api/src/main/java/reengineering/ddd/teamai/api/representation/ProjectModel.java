@@ -76,6 +76,8 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .withName("create-logical-entity")
             .toLink());
 
+    model.add(Link.of(ApiTemplates.projects(uriInfo).build().getPath()).withRel("collection"));
+
     return model;
   }
 }

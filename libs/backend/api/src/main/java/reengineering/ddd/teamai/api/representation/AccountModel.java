@@ -25,5 +25,8 @@ public class AccountModel extends RepresentationModel<AccountModel> {
                     .build(user.getIdentity(), account.getIdentity())
                     .getPath())
             .withSelfRel());
+    add(
+        Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath())
+            .withRel("collection"));
   }
 }

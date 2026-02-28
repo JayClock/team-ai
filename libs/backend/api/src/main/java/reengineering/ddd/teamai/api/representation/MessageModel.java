@@ -27,5 +27,11 @@ public class MessageModel extends RepresentationModel<MessageModel> {
                     .build(project.getIdentity(), conversation.getIdentity(), message.getIdentity())
                     .getPath())
             .withSelfRel());
+    add(
+        Link.of(
+                ApiTemplates.messages(uriInfo)
+                    .build(project.getIdentity(), conversation.getIdentity())
+                    .getPath())
+            .withRel("collection"));
   }
 }

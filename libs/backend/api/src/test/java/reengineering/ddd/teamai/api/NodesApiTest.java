@@ -127,6 +127,14 @@ public class NodesApiTest extends ApiTest {
                     + "/nodes/"
                     + node.getIdentity()))
         .body(
+            "_links.collection.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/nodes"))
+        .body(
             "_links.logical-entity.href",
             is(
                 "/api/projects/"

@@ -58,5 +58,8 @@ public class ConversationModel extends RepresentationModel<ConversationModel> {
                     .build(project.getIdentity(), conversation.getIdentity())
                     .getPath())
             .withRel("messages"));
+    add(
+        Link.of(ApiTemplates.conversations(uriInfo).build(project.getIdentity()).getPath())
+            .withRel("collection"));
   }
 }

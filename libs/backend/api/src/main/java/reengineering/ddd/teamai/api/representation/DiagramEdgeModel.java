@@ -60,7 +60,7 @@ public class DiagramEdgeModel extends RepresentationModel<DiagramEdgeModel> {
                         ApiTemplates.edges(uriInfo)
                             .build(project.getIdentity(), diagram.getIdentity())
                             .getPath())
-                    .withRel("edges"))
+                    .withRel("collection"))
             .afford(HttpMethod.POST)
             .withInput(EdgesApi.CreateEdgeRequest.class)
             .withName("create-edge")

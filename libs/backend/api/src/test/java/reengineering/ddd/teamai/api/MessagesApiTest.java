@@ -96,6 +96,14 @@ public class MessagesApiTest extends ApiTest {
                     + conversation.getIdentity()
                     + "/messages/"
                     + message.getIdentity()))
+        .body(
+            "_embedded.messages[0]._links.collection.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/conversations/"
+                    + conversation.getIdentity()
+                    + "/messages"))
         .body("_embedded.messages[1].id", is(message2.getIdentity()))
         .body("_embedded.messages[1].role", is(message2.getDescription().role()))
         .body("_embedded.messages[1].content", is(message2.getDescription().content()))

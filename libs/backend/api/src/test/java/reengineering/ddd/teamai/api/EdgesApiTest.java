@@ -110,7 +110,7 @@ public class EdgesApiTest extends ApiTest {
                     + "/edges/"
                     + edge.getIdentity()))
         .body(
-            "_links.edges.href",
+            "_links.collection.href",
             is(
                 "/api/projects/"
                     + project.getIdentity()

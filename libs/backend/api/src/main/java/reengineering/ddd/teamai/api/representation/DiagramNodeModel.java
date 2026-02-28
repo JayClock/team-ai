@@ -83,6 +83,13 @@ public class DiagramNodeModel extends RepresentationModel<DiagramNodeModel> {
               .withRel("logical-entity"));
     }
 
+    model.add(
+        Link.of(
+                ApiTemplates.nodes(uriInfo)
+                    .build(project.getIdentity(), diagram.getIdentity())
+                    .getPath())
+            .withRel("collection"));
+
     return model;
   }
 

@@ -115,6 +115,9 @@ public class ConversationsApiTest extends ApiTest {
                     + conversation.getIdentity()
                     + "/messages"))
         .body(
+            "_embedded.conversations[0]._links.collection.href",
+            is("/api/projects/" + project.getIdentity() + "/conversations"))
+        .body(
             "_embedded.conversations[0]._links.chat.href",
             is(
                 "/api/projects/"
@@ -213,6 +216,9 @@ public class ConversationsApiTest extends ApiTest {
                     + "/conversations/"
                     + conversation.getIdentity()
                     + "/messages"))
+        .body(
+            "_links.collection.href",
+            is("/api/projects/" + project.getIdentity() + "/conversations"))
         .body(
             "_links.chat.href",
             is(

@@ -61,7 +61,10 @@ public class AccountsApiTest extends ApiTest {
         .body("_embedded.accounts[0].providerId", is(account.getDescription().providerId()))
         .body(
             "_embedded.accounts[0]._links.self.href",
-            is("/api/users/" + user.getIdentity() + "/accounts/" + account.getIdentity()));
+            is("/api/users/" + user.getIdentity() + "/accounts/" + account.getIdentity()))
+        .body(
+            "_embedded.accounts[0]._links.collection.href",
+            is("/api/users/" + user.getIdentity() + "/accounts"));
 
     verify(user.accounts(), times(1)).findAll();
   }

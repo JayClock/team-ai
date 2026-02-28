@@ -130,7 +130,15 @@ public class DiagramVersionsApiTest extends ApiTest {
         .body("snapshot.viewport.zoom", is(1.2F))
         .body(
             "_links.diagram.href",
-            is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()));
+            is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
+        .body(
+            "_links.collection.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/versions"));
   }
 
   @Test

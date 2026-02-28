@@ -207,6 +207,7 @@ public class DiagramsApiTest extends ApiTest {
             "_links.self.href",
             is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
         .body("_links.project.href", is("/api/projects/" + project.getIdentity()))
+        .body("_links.collection.href", is("/api/projects/" + project.getIdentity() + "/diagrams"))
         .body(
             "_links.edges.href",
             is(

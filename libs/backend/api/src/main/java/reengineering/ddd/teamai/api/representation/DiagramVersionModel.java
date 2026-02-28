@@ -44,7 +44,7 @@ public class DiagramVersionModel extends RepresentationModel<DiagramVersionModel
                 ApiTemplates.versions(uriInfo)
                     .build(project.getIdentity(), diagram.getIdentity())
                     .getPath())
-            .withRel("versions"));
+            .withRel("collection"));
     return model;
   }
 

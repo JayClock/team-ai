@@ -88,7 +88,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
                     + "/logical-entities/"
                     + logicalEntity.getIdentity()))
         .body(
-            "_links.logical-entities.href",
+            "_links.collection.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(5))

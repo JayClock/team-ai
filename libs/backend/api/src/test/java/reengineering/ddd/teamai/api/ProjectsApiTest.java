@@ -60,6 +60,7 @@ public class ProjectsApiTest extends ApiTest {
         .body("id", is(project.getIdentity()))
         .body("name", is(project.getDescription().name()))
         .body("_links.self.href", is("/api/projects/" + project.getIdentity()))
+        .body("_links.collection.href", is("/api/projects"))
         .body("_templates.delete-project.method", is("DELETE"))
         .body(
             "_links.conversations.href",
