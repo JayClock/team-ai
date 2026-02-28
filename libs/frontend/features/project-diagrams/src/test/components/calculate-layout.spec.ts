@@ -16,6 +16,7 @@ const CONFIRMATION_2_ID = 'node-8';
 const CONTRACT_ROLE_1_ID = 'node-3';
 const CONTRACT_ROLE_2_ID = 'node-4';
 const OTHER_EVIDENCE_IN_CONTEXT_ID = 'node-9';
+const EVIDENCE_AS_ROLE_IN_CONTEXT_ID = 'node-10';
 const OUT_OF_CONTEXT_OTHER_EVIDENCE_1_ID = 'node-18';
 const OUT_OF_CONTEXT_OTHER_EVIDENCE_2_ID = 'node-26';
 const FIXTURE_NODES = nodes as LNode[];
@@ -72,11 +73,20 @@ describe('calculateLayout - fulfillment axis', () => {
     expectNodePosition(nodeMap, CONFIRMATION_2_ID, { x: 1080, y: 300 });
   });
 
-  it('lays out other_evidence for every contract context', () => {
+  it('lays out confirmation-connected other_evidence for every contract context', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
+    expectNodePosition(nodeMap, OTHER_EVIDENCE_IN_CONTEXT_ID, { x: 1320, y: 240 });
     expectNodePosition(nodeMap, OUT_OF_CONTEXT_OTHER_EVIDENCE_1_ID, { x: 1320, y: 240 });
     expectNodePosition(nodeMap, OUT_OF_CONTEXT_OTHER_EVIDENCE_2_ID, { x: 1320, y: 240 });
+  });
+
+  it('places other_evidence and evidence as role to the right of confirmation in order', () => {
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    expectNodePosition(nodeMap, CONFIRMATION_2_ID, { x: 1080, y: 300 });
+    expectNodePosition(nodeMap, OTHER_EVIDENCE_IN_CONTEXT_ID, { x: 1320, y: 240 });
+    expectNodePosition(nodeMap, EVIDENCE_AS_ROLE_IN_CONTEXT_ID, { x: 1320, y: 360 });
   });
 
   it('spreads request/confirmation columns and keeps all contract chains aligned', () => {
@@ -86,7 +96,8 @@ describe('calculateLayout - fulfillment axis', () => {
     expectNodePosition(nodeMap, REQUEST_2_ID, { x: 840, y: 300 });
     expectNodePosition(nodeMap, CONFIRMATION_1_ID, { x: 1080, y: 180 });
     expectNodePosition(nodeMap, CONFIRMATION_2_ID, { x: 1080, y: 300 });
-    expectNodePosition(nodeMap, OTHER_EVIDENCE_IN_CONTEXT_ID, { x: 1320, y: 300 });
+    expectNodePosition(nodeMap, OTHER_EVIDENCE_IN_CONTEXT_ID, { x: 1320, y: 240 });
+    expectNodePosition(nodeMap, EVIDENCE_AS_ROLE_IN_CONTEXT_ID, { x: 1320, y: 360 });
     expectNodePosition(nodeMap, OUT_OF_CONTEXT_OTHER_EVIDENCE_1_ID, { x: 1320, y: 240 });
     expectNodePosition(nodeMap, OUT_OF_CONTEXT_OTHER_EVIDENCE_2_ID, { x: 1320, y: 240 });
   });
@@ -97,8 +108,8 @@ describe('calculateLayout - fulfillment axis', () => {
     const contextNode = nodeMap.get(CONTRACT_CONTEXT_ID);
 
     expect(contextNode).toBeDefined();
-    expect(contextNode?.width).toBe(1640);
-    expect(contextNode?.height).toBe(600);
+    expect(contextNode?.width).toBe(1560);
+    expect(contextNode?.height).toBe(520);
   });
 
   it('keeps context size large enough when mock nodes are shifted away from origin', () => {

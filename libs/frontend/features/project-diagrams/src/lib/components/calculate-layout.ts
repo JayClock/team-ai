@@ -55,6 +55,14 @@ function isOtherEvidenceNode(node: DiagramNode): boolean {
   return isEvidenceNode(node) && node.data.subType === 'other_evidence';
 }
 
+function isEvidenceAsRoleNode(node: DiagramNode): boolean {
+  return node.data.type === 'ROLE' && node.data.subType === 'evidence_role';
+}
+
+function isConfirmationRightNode(node: DiagramNode): boolean {
+  return isOtherEvidenceNode(node) || isEvidenceAsRoleNode(node);
+}
+
 function layoutEvidenceAxis(nodes: DiagramNode[]): DiagramNode[] {
   return nodes.map((node) => {
     if (!isEvidenceNode(node)) {
@@ -367,12 +375,12 @@ function buildConfirmationPositionsById(params: {
   return confirmationPositionsById;
 }
 
-function collectOtherEvidenceByConfirmationId(
+function collectConfirmationRightNodesByConfirmationId(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
-): Map<string, DiagramNode> {
+): Map<string, DiagramNode[]> {
   const nodeById = buildNodeById(nodes);
-  const otherEvidenceByConfirmationId = new Map<string, DiagramNode>();
+  const confirmationRightNodesByConfirmationId = new Map<string, DiagramNode[]>();
 
   for (const edge of edges) {
     const sourceNode = nodeById.get(edge.source);
@@ -382,32 +390,42 @@ function collectOtherEvidenceByConfirmationId(
     }
 
     const match =
-      isFulfillmentConfirmationNode(sourceNode) && isOtherEvidenceNode(targetNode)
-        ? { confirmation: sourceNode, otherEvidence: targetNode }
-        : isFulfillmentConfirmationNode(targetNode) && isOtherEvidenceNode(sourceNode)
-          ? { confirmation: targetNode, otherEvidence: sourceNode }
+      isFulfillmentConfirmationNode(sourceNode) && isConfirmationRightNode(targetNode)
+        ? { confirmation: sourceNode, node: targetNode }
+        : isFulfillmentConfirmationNode(targetNode) && isConfirmationRightNode(sourceNode)
+          ? { confirmation: targetNode, node: sourceNode }
           : null;
     if (!match) {
       continue;
     }
 
-    if (!otherEvidenceByConfirmationId.has(match.confirmation.id)) {
-      otherEvidenceByConfirmationId.set(match.confirmation.id, match.otherEvidence);
+    const confirmationRightNodes =
+      confirmationRightNodesByConfirmationId.get(match.confirmation.id) ?? [];
+    if (!confirmationRightNodes.some((node) => node.id === match.node.id)) {
+      confirmationRightNodes.push(match.node);
     }
+    confirmationRightNodesByConfirmationId.set(
+      match.confirmation.id,
+      confirmationRightNodes,
+    );
   }
 
-  return otherEvidenceByConfirmationId;
+  return confirmationRightNodesByConfirmationId;
 }
 
-function buildOtherEvidencePositionsById(params: {
+function buildConfirmationRightNodePositionsById(params: {
   confirmationPositionsById: Map<string, Position>;
+  confirmationRightNodesByConfirmationId: Map<string, DiagramNode[]>;
   nodeById: Map<string, DiagramNode>;
-  otherEvidenceByConfirmationId: Map<string, DiagramNode>;
 }): Map<string, Position> {
-  const { confirmationPositionsById, nodeById, otherEvidenceByConfirmationId } = params;
-  const otherEvidencePositionsById = new Map<string, Position>();
+  const { confirmationPositionsById, confirmationRightNodesByConfirmationId, nodeById } =
+    params;
+  const confirmationRightNodePositionsById = new Map<string, Position>();
 
-  for (const [confirmationId, otherEvidence] of otherEvidenceByConfirmationId.entries()) {
+  for (const [confirmationId, confirmationRightNodes] of confirmationRightNodesByConfirmationId.entries()) {
+    if (confirmationRightNodes.length === 0) {
+      continue;
+    }
     const confirmationPosition =
       confirmationPositionsById.get(confirmationId) ??
       nodeById.get(confirmationId)?.position;
@@ -415,13 +433,23 @@ function buildOtherEvidencePositionsById(params: {
       continue;
     }
 
-    otherEvidencePositionsById.set(otherEvidence.id, {
-      x: confirmationPosition.x + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X,
-      y: confirmationPosition.y,
+    const rightColumnX = confirmationPosition.x + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
+    const rightNodeStepY = LAYOUT_NODE_HEIGHT + LAYOUT_GAP_Y;
+    const totalRightNodesHeight =
+      confirmationRightNodes.length * LAYOUT_NODE_HEIGHT +
+      (confirmationRightNodes.length - 1) * LAYOUT_GAP_Y;
+    const rightNodesTopY = confirmationPosition.y - totalRightNodesHeight / 2;
+    const rightNodeStartY = rightNodesTopY + LAYOUT_NODE_HEIGHT / 2;
+
+    confirmationRightNodes.forEach((rightNode, index) => {
+      confirmationRightNodePositionsById.set(rightNode.id, {
+        x: rightColumnX,
+        y: rightNodeStartY + index * rightNodeStepY,
+      });
     });
   }
 
-  return otherEvidencePositionsById;
+  return confirmationRightNodePositionsById;
 }
 
 function applyPositionsById(
@@ -602,21 +630,34 @@ export function calculateLayout(
     const confirmationIds = new Set(
       [...scopedConfirmationByRequestId.values()].map((node) => node.id),
     );
-    const otherEvidenceByConfirmationId = collectOtherEvidenceByConfirmationId(
+    const confirmationRightNodesByConfirmationId = collectConfirmationRightNodesByConfirmationId(
       scopedNodes,
       scopedEdges,
     );
-    const scopedOtherEvidenceByConfirmationId = new Map(
-      [...otherEvidenceByConfirmationId.entries()].filter(([confirmationId]) =>
+    const scopedConfirmationRightNodesByConfirmationId = new Map(
+      [...confirmationRightNodesByConfirmationId.entries()].filter(([confirmationId]) =>
         confirmationIds.has(confirmationId),
       ),
     );
-    const otherEvidencePositionsById = buildOtherEvidencePositionsById({
+    const confirmationRightNodePositionsById = buildConfirmationRightNodePositionsById({
       confirmationPositionsById,
       nodeById,
-      otherEvidenceByConfirmationId: scopedOtherEvidenceByConfirmationId,
+      confirmationRightNodesByConfirmationId: scopedConfirmationRightNodesByConfirmationId,
     });
-    for (const [id, position] of otherEvidencePositionsById.entries()) {
+    const confirmationRightNodeIds = [
+      ...new Set(
+        [...scopedConfirmationRightNodesByConfirmationId.values()].flatMap((connectedNodes) =>
+          connectedNodes.map((node) => node.id),
+        ),
+      ),
+    ];
+    const spreadConfirmationRightNodePositionsById = spreadColumnNodesById({
+      basePositionsById: confirmationRightNodePositionsById,
+      defaultX: DEFAULT_REQUEST_COLUMN_X + 2 * COLUMN_STEP_X,
+      nodeById,
+      nodeIds: confirmationRightNodeIds,
+    });
+    for (const [id, position] of spreadConfirmationRightNodePositionsById.entries()) {
       positionsById.set(id, position);
     }
 
