@@ -29,6 +29,7 @@ const OTHER_EVIDENCE_BY_CONFIRM_ID = {
   'node-12': 'node-15',
   'node-17': 'node-20',
 } as const;
+const OUT_OF_CONTEXT_OTHER_EVIDENCE_IDS = ['node-15', 'node-20'] as const;
 const FIXTURE_NODES = nodes as LNode[];
 const FIXTURE_EDGES = edges as LEdge[];
 const CONTRACT_ANCHOR_X = LAYOUT_START_X + 2 * (LAYOUT_NODE_WIDTH + LAYOUT_GAP_X);
@@ -131,26 +132,24 @@ describe('calculateLayout - fulfillment axis', () => {
     }
   });
 
-  it('places other_evidence to the right of fulfillment_confirmation on same row', () => {
+  it('keeps other_evidence outside first contract context unchanged', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
-    for (const [confirmId, otherEvidenceId] of Object.entries(
-      OTHER_EVIDENCE_BY_CONFIRM_ID,
-    )) {
-      const confirm = nodeMap.get(confirmId);
+    const originalNodeMap = toNodeMap(FIXTURE_NODES);
+    for (const otherEvidenceId of OUT_OF_CONTEXT_OTHER_EVIDENCE_IDS) {
       const otherEvidence = nodeMap.get(otherEvidenceId);
-      expect(confirm).toBeDefined();
+      const originalOtherEvidence = originalNodeMap.get(otherEvidenceId);
       expect(otherEvidence).toBeDefined();
-      expect(otherEvidence?.position.x).toBe(
-        (confirm?.position.x ?? 0) + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X,
-      );
-      expect(otherEvidence?.position.y).toBe(confirm?.position.y);
+      expect(originalOtherEvidence).toBeDefined();
+      expect(otherEvidence?.position.x).toBe(originalOtherEvidence?.position.x);
+      expect(otherEvidence?.position.y).toBe(originalOtherEvidence?.position.y);
     }
   });
 
-  it('spreads request/confirmation/other_evidence columns to avoid vertical overlap', () => {
+  it('spreads request/confirmation columns and skips out-of-context evidence layout', () => {
     const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
     const nodeMap = toNodeMap(layoutedNodes);
+    const originalNodeMap = toNodeMap(FIXTURE_NODES);
     const requestNodes = [...REQUEST_IDS]
       .map((id) => nodeMap.get(id))
       .filter((node): node is LNode => Boolean(node))
@@ -166,7 +165,6 @@ describe('calculateLayout - fulfillment axis', () => {
     const verticalStep = LAYOUT_NODE_HEIGHT + LAYOUT_GAP_Y;
     const requestX = LAYOUT_START_X + 3 * (LAYOUT_NODE_WIDTH + LAYOUT_GAP_X);
     const confirmX = requestX + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
-    const evidenceX = confirmX + LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
 
     expect(requestNodes).toHaveLength(REQUEST_IDS.length);
     expect(confirmationNodes).toHaveLength(Object.keys(CONFIRM_BY_REQUEST_ID).length);
@@ -183,7 +181,10 @@ describe('calculateLayout - fulfillment axis', () => {
     }
 
     for (const evidenceNode of evidenceNodes) {
-      expect(evidenceNode.position.x).toBe(evidenceX);
+      const originalEvidenceNode = originalNodeMap.get(evidenceNode.id);
+      expect(originalEvidenceNode).toBeDefined();
+      expect(evidenceNode.position.x).toBe(originalEvidenceNode?.position.x);
+      expect(evidenceNode.position.y).toBe(originalEvidenceNode?.position.y);
     }
 
     for (let index = 0; index < requestNodes.length - 1; index += 1) {
@@ -198,10 +199,5 @@ describe('calculateLayout - fulfillment axis', () => {
       ).toBeGreaterThanOrEqual(verticalStep);
     }
 
-    for (let index = 0; index < evidenceNodes.length - 1; index += 1) {
-      expect(evidenceNodes[index + 1].position.y - evidenceNodes[index].position.y).toBeGreaterThanOrEqual(
-        verticalStep,
-      );
-    }
   });
 });
