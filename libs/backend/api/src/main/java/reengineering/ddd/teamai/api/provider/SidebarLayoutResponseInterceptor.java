@@ -54,7 +54,7 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
       injectSidebar(root, uriInfo, projectId);
     }
     if (includeBreadcrumb) {
-      injectBreadcrumb(root, uriInfo, projectId);
+      injectBreadcrumb(root, uriInfo);
     }
     responseContext.setEntity(root);
   }
@@ -70,7 +70,7 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
   private void injectSidebar(ObjectNode root, UriInfo uriInfo, String projectId) {
     String diagramsPath = ApiTemplates.diagrams(uriInfo).build(projectId).getPath();
     String conversationsPath = ApiTemplates.conversations(uriInfo).build(projectId).getPath();
-    String sidebarPath = ApiTemplates.sidebar(uriInfo).build(projectId).getPath();
+    String sidebarPath = ApiTemplates.project(uriInfo).build(projectId).getPath() + "/sidebar";
 
     ObjectNode links = ensureObject(root, "_links");
     if (!links.has("sidebar")) {
@@ -88,8 +88,8 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
     }
   }
 
-  private void injectBreadcrumb(ObjectNode root, UriInfo uriInfo, String projectId) {
-    String breadcrumbPath = ApiTemplates.breadcrumb(uriInfo).build(projectId).getPath();
+  private void injectBreadcrumb(ObjectNode root, UriInfo uriInfo) {
+    String breadcrumbPath = uriInfo.getAbsolutePathBuilder().path("breadmenu").build().getPath();
 
     ObjectNode links = ensureObject(root, "_links");
     if (!links.has("breadcrumb")) {

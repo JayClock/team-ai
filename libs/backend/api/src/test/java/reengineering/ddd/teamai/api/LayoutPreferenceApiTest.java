@@ -116,9 +116,9 @@ public class LayoutPreferenceApiTest extends ApiTest {
         .body("_embedded.breadcrumb.items[1].path", is("/api/projects/" + project.getIdentity()))
         .body(
             "_embedded.breadcrumb._links.self.href",
-            is("/api/projects/" + project.getIdentity() + "/breadcrumb"))
+            is("/api/projects/" + project.getIdentity() + "/breadmenu"))
         .body(
-            "_links.breadcrumb.href", is("/api/projects/" + project.getIdentity() + "/breadcrumb"));
+            "_links.breadcrumb.href", is("/api/projects/" + project.getIdentity() + "/breadmenu"));
   }
 
   @Test
@@ -137,9 +137,20 @@ public class LayoutPreferenceApiTest extends ApiTest {
         .body("_embedded.breadcrumb.items[3].label", is("Diagram 1"))
         .body(
             "_embedded.breadcrumb._links.self.href",
-            is("/api/projects/" + project.getIdentity() + "/breadcrumb"))
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/breadmenu"))
         .body(
-            "_links.breadcrumb.href", is("/api/projects/" + project.getIdentity() + "/breadcrumb"));
+            "_links.breadcrumb.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/diagrams/"
+                    + diagram.getIdentity()
+                    + "/breadmenu"));
   }
 
   @Test
