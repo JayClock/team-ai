@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.hateoas.config.EnableHypermediaSupport;
 import org.springframework.hateoas.config.EnableHypermediaSupport.HypermediaType;
 import reengineering.ddd.teamai.api.RootApi;
+import reengineering.ddd.teamai.api.provider.PreferHeaderInterceptor;
+import reengineering.ddd.teamai.api.provider.SidebarLayoutResponseInterceptor;
 import reengineering.ddd.teamai.api.provider.VendorMediaTypeInterceptor;
 
 @Configuration
@@ -15,6 +17,8 @@ public class Jersey extends ResourceConfig {
   public Jersey() {
     setProperties(Map.of(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, true));
     register(RootApi.class);
+    register(PreferHeaderInterceptor.class);
+    register(SidebarLayoutResponseInterceptor.class);
     register(VendorMediaTypeInterceptor.class);
   }
 }

@@ -59,25 +59,6 @@ public class ProjectsApiTest extends ApiTest {
         .contentType(startsWith(ResourceTypes.PROJECT))
         .body("id", is(project.getIdentity()))
         .body("name", is(project.getDescription().name()))
-        .body("_embedded.sidebar.sections", hasSize(1))
-        .body("_embedded.sidebar.sections[0].title", is("PROJECT"))
-        .body("_embedded.sidebar.sections[0].key", is("project"))
-        .body("_embedded.sidebar.sections[0].defaultOpen", is(true))
-        .body("_embedded.sidebar.sections[0].items", hasSize(2))
-        .body("_embedded.sidebar.sections[0].items[0].label", is("Diagrams"))
-        .body(
-            "_embedded.sidebar.sections[0].items[0].path",
-            is("/api/projects/" + project.getIdentity() + "/diagrams"))
-        .body("_embedded.sidebar.sections[0].items[0].icon", is("workflow"))
-        .body("_embedded.sidebar.sections[0].items[1].label", is("Conversations"))
-        .body(
-            "_embedded.sidebar.sections[0].items[1].path",
-            is("/api/projects/" + project.getIdentity() + "/conversations"))
-        .body("_embedded.sidebar.sections[0].items[1].icon", is("messages-square"))
-        .body(
-            "_embedded.sidebar._links.self.href",
-            is("/api/projects/" + project.getIdentity() + "/sidebar"))
-        .body("_links.sidebar.href", is("/api/projects/" + project.getIdentity() + "/sidebar"))
         .body("_links.self.href", is("/api/projects/" + project.getIdentity()))
         .body("_links.collection.href", is("/api/projects"))
         .body("_templates.delete-project.method", is("DELETE"))

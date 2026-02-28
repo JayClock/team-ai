@@ -44,20 +44,15 @@ export function LayoutSidebar() {
     return <LayoutSidebarBase />;
   }
 
-  return (
-    <LayoutSidebarWithState apiUrl={data.apiUrl} contentType={data.contentType} />
-  );
+  return <LayoutSidebarWithState apiUrl={data.apiUrl} />;
 }
 
-function LayoutSidebarWithState(props: { apiUrl: string; contentType: string }) {
-  const { apiUrl, contentType } = props;
+function LayoutSidebarWithState(props: { apiUrl: string }) {
+  const { apiUrl } = props;
   const client = useClient();
   const { resourceState } = useSuspenseResource<Entity>(client.go(apiUrl));
 
-  if (
-    contentType === 'application/vnd.business-driven-ai.project+json' &&
-    resourceState.hasLink('sidebar')
-  ) {
+  if (resourceState.hasLink('sidebar')) {
     return (
       <LayoutSidebarWithSidebarResource
         resourceUri={resourceState.uri}

@@ -15,7 +15,11 @@ export async function genericLoader({ request }: LoaderFunctionArgs): Promise<Lo
 
   const apiUrl = `${apiPath}${url.search}`;
 
-  const res = await apiClient.go(apiUrl).get()
+  const res = await apiClient.go(apiUrl).get({
+    headers: {
+      Prefer: 'layout=sidebar',
+    },
+  })
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const rawType = res.contentHeaders().get('content-type')!;
   const contentType = rawType.split(';')[0].trim() as ResourceRendererContentType;
