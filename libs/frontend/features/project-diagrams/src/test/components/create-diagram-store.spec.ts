@@ -449,8 +449,8 @@ describe('createDiagramStore', () => {
         {
           id: 'node-1',
           type: 'fulfillment-node',
-          positionX: 10,
-          positionY: 20,
+          positionX: 120,
+          positionY: 240,
           localData: createLogicalEntityData('node-1', 'Entity node-1'),
           width: 100,
           height: 80,
@@ -458,8 +458,8 @@ describe('createDiagramStore', () => {
         {
           id: 'node-2',
           type: 'fulfillment-node',
-          positionX: 10,
-          positionY: 20,
+          positionX: 120,
+          positionY: 240,
           localData: createLogicalEntityData('node-2', 'Entity node-2'),
           width: 100,
           height: 80,

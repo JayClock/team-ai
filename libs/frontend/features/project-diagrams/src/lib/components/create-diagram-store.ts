@@ -42,6 +42,11 @@ export type DiagramStoreState =
   | { status: 'save-error'; error: Error }
   | { status: 'publish-error'; error: Error };
 
+type DiagramGraph = {
+  nodes: Node<LogicalEntity['data']>[];
+  edges: Edge[];
+};
+
 export class DiagramStore {
   private readonly _diagramTitle = signal<string>('');
   private readonly _diagramNodes = signal<Node<LogicalEntity['data']>[]>([]);
@@ -178,25 +183,11 @@ export class DiagramStore {
       ...this._diagramEdges.value,
       ...generatedEdges,
     ];
-    const nextEdgesWithVisibility = calculateEdgeVisibility(
+    const nextGraph = this.calculateDiagramGraph(
       nextNodes,
       nextEdges,
     );
-    const nextEdgesWithHandles = calculateEvidenceEdgeHandles(
-      nextNodes,
-      nextEdgesWithVisibility,
-    );
-
-    const layoutedNodes = calculateLayout(nextNodes, nextEdgesWithHandles);
-
-    batch(() => {
-      this._diagramNodes.value = [
-        ...layoutedNodes,
-      ];
-      this._diagramEdges.value = [
-        ...nextEdgesWithHandles,
-      ];
-    });
+    this.updateDiagramGraph(nextGraph);
   }
 
   async saveDiagram(): Promise<void> {
@@ -206,8 +197,14 @@ export class DiagramStore {
       throw error;
     }
 
+    const nextGraph = this.calculateDiagramGraph(
+      this._diagramNodes.value,
+      this._diagramEdges.value,
+    );
+    this.updateDiagramGraph(nextGraph);
+
     const payload = {
-      nodes: this._diagramNodes.value.map((node) => ({
+      nodes: nextGraph.nodes.map((node) => ({
         id: node.id,
         type: node.type,
         ...(node.parentId ? { parent: { id: node.parentId } } : {}),
@@ -217,7 +214,7 @@ export class DiagramStore {
         width: node.width,
         height: node.height,
       })),
-      edges: this._diagramEdges.value.map((edge) => ({
+      edges: nextGraph.edges.map((edge) => ({
         id: edge.id,
         sourceNode: { id: edge.source },
         targetNode: { id: edge.target },
@@ -452,6 +449,33 @@ export class DiagramStore {
       default:
         return 'rfp';
     }
+  }
+
+  private calculateDiagramGraph(
+    nodes: Node<LogicalEntity['data']>[],
+    edges: Edge[],
+  ): DiagramGraph {
+    const nextEdgesWithVisibility = calculateEdgeVisibility(
+      nodes,
+      edges,
+    );
+    const nextEdgesWithHandles = calculateEvidenceEdgeHandles(
+      nodes,
+      nextEdgesWithVisibility,
+    );
+    const layoutedNodes = calculateLayout(nodes, nextEdgesWithHandles);
+
+    return {
+      nodes: [...layoutedNodes],
+      edges: [...nextEdgesWithHandles],
+    };
+  }
+
+  private updateDiagramGraph(nextGraph: DiagramGraph): void {
+    batch(() => {
+      this._diagramNodes.value = nextGraph.nodes;
+      this._diagramEdges.value = nextGraph.edges;
+    });
   }
 }
 
