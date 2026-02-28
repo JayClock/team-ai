@@ -78,8 +78,10 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 5. 异常与违约：补充退款、取消、服务中止等逆向履约对（Request -> Confirmation）。
                 6. 角色拆分总则：按业务意图补齐 Role；Party Role、Evidence As Role 及 Third/Context 参与边界分别以第 2、9、10 条为准。对 Domain Logic、Third Party 必须先思考“在没有软件时代由什么真实岗位承担该工作”，再据此生成拟人化角色命名（职位/岗位语义），避免纯技术命名。
                 7. 参与方判定：新增 RFP、Proposal、Fulfillment Request、Fulfillment Confirmation、Other Evidence 时，必须先思考并明确唯一的 Party Role 参与再连线；上述每个节点必须有一个 Party Role 参与。
-                8. 通用凭证/副产品：当确认动作产生具体业务单据（如发票、发货单）时，先建模为 Fulfillment Confirmation -> Other Evidence（EVIDENCE 节点，通常 1 对 1）。
-                9. 跨上下文角色：当第 8 条中的 Other Evidence 需要跨越边界触发另一个上下文协作或次级合同时，必须将其转化为 ROLE（Evidence As Role），并可选连接到另一个 Contract 上下文中的 Fulfillment Confirmation。Evidence As Role 的所属 Context 必须继承其原始 Other Evidence 的生成来源 Fulfillment Confirmation（source confirmation）的 Context，禁止重新归属到其他 Context。同一业务语义在同一张图中只能保留一个节点表示（Other Evidence 与 Evidence As Role 二选一，禁止并存）。
+                8. 通用凭证/副产品：当确认动作产生具体业务单据（如发票、发货单）时，先判断是否需要跨上下文桥接：
+                   - 不跨上下文：建模为 Fulfillment Confirmation -> Other Evidence（EVIDENCE 节点，通常 1 对 1）。
+                   - 跨上下文：直接建模为 Evidence As Role（ROLE:evidence_role），不要再保留同语义 Other Evidence。
+                9. 跨上下文角色：Evidence As Role 仅用于桥接，且必须严格满足 Fulfillment Confirmation -> Evidence As Role -> Fulfillment Confirmation。禁止 Evidence As Role 连接 Contract、Fulfillment Request、Proposal、RFP。Evidence As Role 的所属 Context 必须继承其原始 Other Evidence 的生成来源 Fulfillment Confirmation（source confirmation）的 Context，禁止重新归属到其他 Context。同一业务语义在同一张图中只能保留一个节点表示（Other Evidence 与 Evidence As Role 二选一，禁止并存）。
                 10. 角色参与约束：Third Party Role、Context Role 只能参与 Other Evidence 或 Evidence As Role，不得直接参与 RFP、Proposal、Contract、Fulfillment Request、Fulfillment Confirmation。
                 11. 多合同上下文处理：若需求涉及多个 Contract 上下文，必须按“一合同一主链”分别建模；并且每个合同上下文都必须独立、完整遵循本流程第 1-10 条（合同识别、参与方角色化、凭证主线、角色约束、Evidence As Role 规则均不可省略或合并）。每个 Context 节点应包裹该上下文内从 RFP 到终点节点（Other Evidence 或 Evidence As Role）的全部相关节点；当终点为 Evidence As Role 时，将其作为上下文划分边界标记。Context 内不包含 Participant（Party），若需要补充主体实体信息，应将 Participant（Party）放在 Context 外并连接到对应 Party Role。涉及多个 Contract 时，必须先进行主体同一性判断：同一真实主体可在不同上下文扮演不同 Party Role（同一 Participant 的不同“马甲”），例如“商品采购合同中的客户 Party Role”与“微信支付合同中的微信用户 Party Role”可归属于同一 Participant（Party）。多个 Contract 上下文之间只允许通过 Fulfillment Confirmation 与 Evidence As Role 进行桥接（Fulfillment Confirmation -> Evidence As Role -> Fulfillment Confirmation）；禁止 Contract 与 Contract、Contract 与对方主链节点直接连线。
                 12. 边界与流转：通过 Edge 明确凭证流转、角色参与、上下文协作，体现业务控制流与领域计算逻辑解耦。
@@ -107,10 +109,13 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 - 正确做法：同语义节点二选一。仅在本上下文留存时使用 Other Evidence；需要跨上下文桥接时，将其转化为 Evidence As Role，并移除同语义 Other Evidence。
 
                 Edge 生成规则：
-                1. 每个 Edge 必须提供 sourceNode 和 targetNode，且 sourceNode.id / targetNode.id 必须引用已定义的 Node.id。
+                1. 每个 Edge 必须提供 sourceNode 和 targetNode，且 sourceNode.id / targetNode.id 必须引用已定义的 Node.id（source-target 必须是已有 Id）。
+                   - “已有 Id”定义：必须已出现在本次输出的 nodes[*].id 中；禁止在 edges 中发明新节点 id。
+                   - 严禁输出无效边：sourceNode/targetNode 不能为空对象（如 {}），sourceNode.id/targetNode.id 不能为 null、undefined、空字符串或不存在的节点 id。
+                   - 当某条边无法确定两端节点时，必须直接删除该边，禁止以占位值（如 "undefined"、"node-unknown"）凑数。
                 2. 凭证主线必须遵循时间线与因果关系，优先体现：RFP -> Proposal -> Contract -> Fulfillment Request -> Fulfillment Confirmation。
                 3. Proposal / Contract / Request 连线规则（强约束）：
-                   - Proposal -> Contract：Contract 必须由已存在的 Proposal 驱动生成；同一 Contract 至少连接一个上游 Proposal。
+                   - 若需求中明确存在售前阶段，则 Proposal -> Contract 必须成立；若需求未提供售前信息，可省略 Proposal，主链可从 Contract 开始。
                    - Contract -> Fulfillment Request：Fulfillment Request 必须以 Contract 作为直接前置来源，禁止脱离 Contract 独立出现。
                    - Proposal -X-> Fulfillment Request：禁止 Proposal 直接连接 Fulfillment Request，必须经由 Contract 中转（Proposal -> Contract -> Fulfillment Request）。
                 4. Contract -> Fulfillment Request 通常为 1 对 N：同一合同应可分支到多个不同履约申请（支付、发票、发货、开通等）。
@@ -126,6 +131,12 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                    - Third Party Role、Context Role 的参与范围遵循「流程建模第 10 条」约束；其中 Third Party Role 命名同样需先映射无软件时代真实岗位并采用拟人化职位语义。
                    - Evidence As Role 仅可由同语义 Other Evidence 转化而来，并可作为跨上下文桥接节点连接到另一个 Contract 上下文中的 Fulfillment Confirmation（强制链路：Fulfillment Confirmation -> Evidence As Role -> Fulfillment Confirmation）。其所属 Context 必须由原始 Other Evidence 的 source confirmation 决定；跨上下文连线不改变该归属。同一语义仅允许一个节点表示，禁止与同语义 Other Evidence 并存。
                 9. 连线方向默认从“前序原因”指向“后序结果”或“发起方”指向“被发起动作”，避免无意义回环，保证图可以自左向右读出主干凭证流。
+                10. 输出前必须执行 Edge 完整性自检：逐条校验 sourceNode.id 与 targetNode.id 是否均存在且可在 nodes 中找到；任一不满足则删除该边，不得输出。
+                11. 输出前必须执行关系约束自检（任一不满足则修正；无法修正就删除对应边/节点）：
+                   - 对每个 RFP、Proposal、Fulfillment Request、Fulfillment Confirmation、Other Evidence，统计其相邻 Party Role 数量，必须恰好为 1。
+                   - 所有跨 Context 边必须属于以下两类之一：Fulfillment Confirmation -> Evidence As Role，Evidence As Role -> Fulfillment Confirmation。
+                   - 禁止 Evidence As Role -> Fulfillment Request。
+                   - 同一 Context 内同一语义禁止 Other Evidence 与 Evidence As Role 并存（二选一）。
 
                 输出必须严格遵守以下结构化格式（不要输出额外文本，不要 Markdown 代码块，不要解释）：
                 %s
