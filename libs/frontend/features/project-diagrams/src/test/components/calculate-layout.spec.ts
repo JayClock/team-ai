@@ -1,7 +1,10 @@
 import { LogicalEntity } from '@shared/schema';
 import { Edge, Node } from '@xyflow/react';
 import { describe, expect, it } from 'vitest';
-import { calculateLayout } from '../../lib/components/calculate-layout';
+import {
+  calculateLayout,
+  CONTEXT_LAYOUT_GAP_X,
+} from '../../lib/components/calculate-layout';
 import nodes from '../fixture/nodes.json' with { type: 'json' };
 import edges from '../fixture/edges.json' with { type: 'json' };
 
@@ -9,6 +12,8 @@ type LNode = Node<LogicalEntity['data']>;
 type LEdge = Pick<Edge, 'id' | 'source' | 'target'>;
 const CONTRACT_ID = 'node-2';
 const CONTRACT_CONTEXT_ID = 'node-1';
+const LOGISTICS_CONTEXT_ID = 'node-11';
+const PAYMENT_CONTEXT_ID = 'node-19';
 const REQUEST_1_ID = 'node-5';
 const REQUEST_2_ID = 'node-7';
 const CONFIRMATION_1_ID = 'node-6';
@@ -131,5 +136,30 @@ describe('calculateLayout - fulfillment axis', () => {
     expect(contextNode).toBeDefined();
     expect(contextNode?.width).toBe(1560);
     expect(contextNode?.height).toBe(520);
+  });
+
+  it('lays out contract contexts from left to right by node order', () => {
+    const layoutedNodes = calculateLayout(FIXTURE_NODES, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    const contractContext = nodeMap.get(CONTRACT_CONTEXT_ID);
+    const logisticsContext = nodeMap.get(LOGISTICS_CONTEXT_ID);
+    const paymentContext = nodeMap.get(PAYMENT_CONTEXT_ID);
+
+    expect(contractContext).toBeDefined();
+    expect(logisticsContext).toBeDefined();
+    expect(paymentContext).toBeDefined();
+
+    expect(logisticsContext?.position.y).toBe(contractContext?.position.y);
+    expect(paymentContext?.position.y).toBe(contractContext?.position.y);
+    expect(logisticsContext?.position.x).toBe(
+      (contractContext?.position.x ?? 0) +
+      (contractContext?.width ?? 0) +
+      CONTEXT_LAYOUT_GAP_X,
+    );
+    expect(paymentContext?.position.x).toBe(
+      (logisticsContext?.position.x ?? 0) +
+      (logisticsContext?.width ?? 0) +
+      CONTEXT_LAYOUT_GAP_X,
+    );
   });
 });

@@ -13,6 +13,7 @@ export const LAYOUT_START_X = 120;
 export const LAYOUT_AXIS_Y = 240;
 export const CONTEXT_LAYOUT_PADDING_X = 80;
 export const CONTEXT_LAYOUT_PADDING_Y = 80;
+export const CONTEXT_LAYOUT_GAP_X = 80;
 const COLUMN_STEP_X = LAYOUT_NODE_WIDTH + LAYOUT_GAP_X;
 const DEFAULT_REQUEST_COLUMN_X = LAYOUT_START_X + 3 * COLUMN_STEP_X;
 
@@ -57,6 +58,10 @@ function isOtherEvidenceNode(node: DiagramNode): boolean {
 
 function isEvidenceAsRoleNode(node: DiagramNode): boolean {
   return node.data.type === 'ROLE' && node.data.subType === 'evidence_role';
+}
+
+function isContextNode(node: DiagramNode): boolean {
+  return node.data.type === 'CONTEXT';
 }
 
 function isConfirmationRightNode(node: DiagramNode): boolean {
@@ -557,6 +562,33 @@ function applyContextSizeById(params: {
   );
 }
 
+function applyContextHorizontalLayoutByNodeOrder(params: {
+  contextIds: Set<string>;
+  nodes: DiagramNode[];
+}): DiagramNode[] {
+  const { contextIds, nodes } = params;
+  if (contextIds.size <= 1) {
+    return nodes;
+  }
+
+  const orderedContextNodes = nodes.filter(
+    (node) => isContextNode(node) && contextIds.has(node.id),
+  );
+  if (orderedContextNodes.length <= 1) {
+    return nodes;
+  }
+
+  let currentX = orderedContextNodes[0].position.x;
+  const baseY = orderedContextNodes[0].position.y;
+  const contextPositionById = new Map<string, Position>();
+  for (const contextNode of orderedContextNodes) {
+    contextPositionById.set(contextNode.id, { x: currentX, y: baseY });
+    currentX += getNodeWidth(contextNode) + CONTEXT_LAYOUT_GAP_X;
+  }
+
+  return applyPositionsById(nodes, contextPositionById);
+}
+
 export function calculateLayout(
   nodes: DiagramNode[],
   edges: DiagramEdge[],
@@ -675,5 +707,8 @@ export function calculateLayout(
     });
   }
 
-  return sizedNodes;
+  return applyContextHorizontalLayoutByNodeOrder({
+    contextIds,
+    nodes: sizedNodes,
+  });
 }

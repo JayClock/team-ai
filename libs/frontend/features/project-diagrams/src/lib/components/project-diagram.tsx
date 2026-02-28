@@ -56,6 +56,8 @@ export function ProjectDiagram(props: Props) {
         }}
         nodeTypes={nodeTypes}
         fitView
+        panOnDrag
+        selectionOnDrag={false}
       >
         <Panel position="top-right">
           <div className="bg-background/90 flex items-center gap-2 rounded-md border p-1 shadow-sm">
