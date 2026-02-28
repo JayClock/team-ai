@@ -508,18 +508,24 @@ function applyContextSizeById(params: {
   for (const childNode of childNodes) {
     const width = getNodeWidth(childNode);
     const height = getNodeHeight(childNode);
-    const left = childNode.position.x - width / 2;
-    const right = childNode.position.x + width / 2;
-    const top = childNode.position.y - height / 2;
-    const bottom = childNode.position.y + height / 2;
+    const left = childNode.position.x;
+    const right = childNode.position.x + width;
+    const top = childNode.position.y;
+    const bottom = childNode.position.y + height;
     minX = Math.min(minX, left);
     maxX = Math.max(maxX, right);
     minY = Math.min(minY, top);
     maxY = Math.max(maxY, bottom);
   }
 
-  const computedWidth = Math.ceil(maxX - minX + CONTEXT_LAYOUT_PADDING_X * 2);
-  const computedHeight = Math.ceil(maxY - minY + CONTEXT_LAYOUT_PADDING_Y * 2);
+  const widthCompensation = Math.max(CONTEXT_LAYOUT_PADDING_X - minX, 0);
+  const heightCompensation = Math.max(CONTEXT_LAYOUT_PADDING_Y - minY, 0);
+  const computedWidth = Math.ceil(
+    maxX + CONTEXT_LAYOUT_PADDING_X + widthCompensation,
+  );
+  const computedHeight = Math.ceil(
+    maxY + CONTEXT_LAYOUT_PADDING_Y + heightCompensation,
+  );
   const nextWidth = computedWidth;
   const nextHeight = computedHeight;
 

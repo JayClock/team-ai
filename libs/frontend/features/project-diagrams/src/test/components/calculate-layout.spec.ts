@@ -96,4 +96,25 @@ describe('calculateLayout - fulfillment axis', () => {
     expect(contextNode?.width).toBe(1400);
     expect(contextNode?.height).toBe(600);
   });
+
+  it('keeps context size large enough when mock nodes are shifted away from origin', () => {
+    const localNodes = FIXTURE_NODES
+      .filter((node) => node.id !== RFP_ID && node.id !== PROPOSAL_ID)
+      .map((node) =>
+        node.parentId === CONTRACT_CONTEXT_ID
+          ? {
+            ...node,
+            position: { x: 320, y: 220 },
+          }
+          : node,
+      );
+
+    const layoutedNodes = calculateLayout(localNodes, FIXTURE_EDGES);
+    const nodeMap = toNodeMap(layoutedNodes);
+    const contextNode = nodeMap.get(CONTRACT_CONTEXT_ID);
+
+    expect(contextNode).toBeDefined();
+    expect(contextNode?.width).toBe(1320);
+    expect(contextNode?.height).toBe(520);
+  });
 });
