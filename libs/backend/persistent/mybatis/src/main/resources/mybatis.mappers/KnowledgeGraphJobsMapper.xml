@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.KnowledgeGraphJobsMapper">
+
+  <insert id="upsertPublishJob">
+    INSERT INTO kg_publish_jobs (
+      project_id,
+      diagram_id,
+      status,
+      attempt_count,
+      requested_at,
+      next_run_at,
+      updated_at,
+      last_error,
+      started_at,
+      finished_at
+    )
+    VALUES (
+      #{project_id},
+      #{diagram_id},
+      'PENDING',
+      0,
+      #{requested_at},
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP,
+      NULL,
+      NULL,
+      NULL
+    )
+    ON CONFLICT (project_id, diagram_id)
+    DO UPDATE SET
+      status = 'PENDING',
+      attempt_count = 0,
+      requested_at = EXCLUDED.requested_at,
+      next_run_at = CURRENT_TIMESTAMP,
+      updated_at = CURRENT_TIMESTAMP,
+      last_error = NULL,
+      started_at = NULL,
+      finished_at = NULL
+  </insert>
+
+  <select id="claimPendingJobs" resultType="reengineering.ddd.teamai.mybatis.knowledgegraph.KnowledgeGraphJobRow">
+    WITH candidates AS (
+      SELECT id
+      FROM kg_publish_jobs
+      WHERE status = 'PENDING'
+        AND next_run_at &lt;= CURRENT_TIMESTAMP
+      ORDER BY requested_at ASC, id ASC
+      LIMIT #{limit}
+      FOR UPDATE SKIP LOCKED
+    )
+    UPDATE kg_publish_jobs jobs
+    SET status = 'RUNNING',
+        started_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+    FROM candidates
+    WHERE jobs.id = candidates.id
+    RETURNING jobs.id, jobs.project_id AS projectId, jobs.diagram_id AS diagramId, jobs.attempt_count AS attemptCount
+  </select>
+
+  <update id="markSucceeded">
+    UPDATE kg_publish_jobs
+    SET status = 'SUCCEEDED',
+        finished_at = CURRENT_TIMESTAMP,
+        last_error = NULL,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = #{id}
+  </update>
+
+  <update id="requeue">
+    UPDATE kg_publish_jobs
+    SET status = 'PENDING',
+        attempt_count = attempt_count + 1,
+        next_run_at = CURRENT_TIMESTAMP + (#{retry_seconds} * INTERVAL '1 second'),
+        last_error = #{last_error},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = #{id}
+  </update>
+
+  <update id="markFailed">
+    UPDATE kg_publish_jobs
+    SET status = 'FAILED',
+        attempt_count = attempt_count + 1,
+        finished_at = CURRENT_TIMESTAMP,
+        last_error = #{last_error},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = #{id}
+  </update>
+
+</mapper>

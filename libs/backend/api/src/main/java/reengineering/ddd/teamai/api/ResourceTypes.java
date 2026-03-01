@@ -32,4 +32,7 @@ public class ResourceTypes {
 
   public static final String EDGE = VENDOR + ".edge+json";
   public static final String EDGE_COLLECTION = VENDOR + ".edges+json";
+
+  public static final String KNOWLEDGE_GRAPH = VENDOR + ".knowledge-graph+json";
+  public static final String KNOWLEDGE_GRAPH_COLLECTION = VENDOR + ".knowledge-graphs+json";
 }

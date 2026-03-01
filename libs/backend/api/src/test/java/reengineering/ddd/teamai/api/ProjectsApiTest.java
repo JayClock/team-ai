@@ -79,6 +79,9 @@ public class ProjectsApiTest extends ApiTest {
         .body(
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
+        .body(
+            "_links.knowledge-graph.href",
+            is("/api/projects/" + project.getIdentity() + "/knowledge-graph"))
         .body("_templates.create-logical-entity.method", is("POST"))
         .body("_templates.create-logical-entity.properties", hasSize(4))
         .body("_templates.create-logical-entity.properties[0].name", is("label"))

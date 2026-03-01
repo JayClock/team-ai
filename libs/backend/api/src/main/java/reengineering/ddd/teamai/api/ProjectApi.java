@@ -40,6 +40,11 @@ public class ProjectApi {
     return resourceContext.initResource(new DiagramsApi(project));
   }
 
+  @Path("knowledge-graph")
+  public KnowledgeGraphApi knowledgeGraph() {
+    return resourceContext.initResource(new KnowledgeGraphApi(project));
+  }
+
   @Data
   @NoArgsConstructor
   public static class UpdateProjectRequest {

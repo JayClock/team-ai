@@ -19,6 +19,9 @@ import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
+import reengineering.ddd.teamai.description.EntityDefinition;
+import reengineering.ddd.teamai.description.EvidenceSubType;
+import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
@@ -27,10 +30,14 @@ import reengineering.ddd.teamai.model.Diagram.Type;
 import reengineering.ddd.teamai.model.DiagramEdge;
 import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.DiagramVersion;
+import reengineering.ddd.teamai.model.KnowledgeGraph;
+import reengineering.ddd.teamai.model.KnowledgeGraphReader;
+import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 import reengineering.ddd.teamai.mybatis.associations.Users;
 import reengineering.ddd.teamai.mybatis.config.CacheConfig;
+import reengineering.ddd.teamai.mybatis.knowledgegraph.KnowledgeGraphPublishWorker;
 
 @MybatisTest
 @Import({TestContainerConfig.class, FlywayConfig.class, TestCacheConfig.class, CacheConfig.class})
@@ -38,6 +45,9 @@ import reengineering.ddd.teamai.mybatis.config.CacheConfig;
 public class ProjectDiagramsTest {
   @Inject private Users users;
   @Inject private CacheManager cacheManager;
+  @Inject private Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
+  @Inject private KnowledgeGraphPublishWorker knowledgeGraphPublishWorker;
+  @Inject private KnowledgeGraphReader knowledgeGraphReader;
 
   private User user;
   private Project project;
@@ -345,6 +355,82 @@ public class ProjectDiagramsTest {
 
     Diagram published = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     assertEquals(Status.PUBLISHED, published.getDescription().status());
+  }
+
+  @Test
+  public void should_enqueue_and_build_knowledge_graph_after_publish() {
+    LogicalEntity contract =
+        project.addLogicalEntity(
+            new LogicalEntityDescription(
+                LogicalEntityDescription.Type.EVIDENCE,
+                EvidenceSubType.CONTRACT,
+                "OrderContract",
+                "订单合同",
+                new EntityDefinition("合同定义", null, null, null)));
+    LogicalEntity request =
+        project.addLogicalEntity(
+            new LogicalEntityDescription(
+                LogicalEntityDescription.Type.EVIDENCE,
+                EvidenceSubType.FULFILLMENT_REQUEST,
+                "CreatePayment",
+                "创建支付请求",
+                new EntityDefinition("履约请求", null, null, null)));
+
+    Diagram diagram =
+        project.addDiagram(new DiagramDescription("图谱发布图", Type.CLASS, Viewport.defaultViewport()));
+    DiagramNode contractNode =
+        diagram.addNode(
+            new NodeDescription(
+                "fulfillment-node",
+                new Ref<>(contract.getIdentity()),
+                null,
+                100.0,
+                100.0,
+                220,
+                120,
+                null,
+                null));
+    DiagramNode requestNode =
+        diagram.addNode(
+            new NodeDescription(
+                "fulfillment-node",
+                new Ref<>(request.getIdentity()),
+                null,
+                300.0,
+                100.0,
+                220,
+                120,
+                null,
+                null));
+    diagram.addEdge(
+        new EdgeDescription(
+            new Ref<>(contractNode.getIdentity()),
+            new Ref<>(requestNode.getIdentity()),
+            null,
+            null,
+            null,
+            null,
+            null,
+            false));
+
+    project.publishDiagram(diagram.getIdentity(), knowledgeGraphPublisher);
+    knowledgeGraphPublishWorker.processPendingJobs();
+
+    KnowledgeGraph graph = knowledgeGraphReader.readProjectKnowledgeGraph(project.getIdentity());
+    assertTrue(
+        graph.nodes().stream()
+            .anyMatch(node -> node.logicalEntityId().equals(contract.getIdentity())));
+    assertTrue(
+        graph.nodes().stream()
+            .anyMatch(node -> node.logicalEntityId().equals(request.getIdentity())));
+    assertTrue(
+        graph.edges().stream()
+            .anyMatch(
+                edge ->
+                    edge.diagramId().equals(diagram.getIdentity())
+                        && edge.sourceLogicalEntityId().equals(contract.getIdentity())
+                        && edge.targetLogicalEntityId().equals(request.getIdentity())
+                        && edge.relationType().equals("AUTHORIZES")));
   }
 
   @Test

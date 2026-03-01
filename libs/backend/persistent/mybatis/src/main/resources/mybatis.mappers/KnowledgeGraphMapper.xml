@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.KnowledgeGraphMapper">
+
+  <delete id="deleteEdgesByProjectAndDiagram">
+    DELETE FROM kg_edges
+    WHERE project_id = #{project_id}
+      AND diagram_id = #{diagram_id}
+  </delete>
+
+  <insert id="upsertNode">
+    INSERT INTO kg_nodes (
+      project_id,
+      logical_entity_id,
+      logical_entity_type,
+      logical_entity_sub_type,
+      logical_entity_name,
+      logical_entity_label,
+      logical_entity_definition,
+      updated_at
+    )
+    VALUES (
+      #{project_id},
+      #{logical_entity_id},
+      #{logical_entity_type},
+      #{logical_entity_sub_type},
+      #{logical_entity_name},
+      #{logical_entity_label},
+      CAST(#{logical_entity_definition} AS jsonb),
+      CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (project_id, logical_entity_id)
+    DO UPDATE SET
+      logical_entity_type = EXCLUDED.logical_entity_type,
+      logical_entity_sub_type = EXCLUDED.logical_entity_sub_type,
+      logical_entity_name = EXCLUDED.logical_entity_name,
+      logical_entity_label = EXCLUDED.logical_entity_label,
+      logical_entity_definition = EXCLUDED.logical_entity_definition,
+      updated_at = CURRENT_TIMESTAMP
+  </insert>
+
+  <insert id="upsertEdge">
+    INSERT INTO kg_edges (
+      project_id,
+      diagram_id,
+      source_node_id,
+      target_node_id,
+      source_logical_entity_id,
+      target_logical_entity_id,
+      relation_type,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      #{project_id},
+      #{diagram_id},
+      #{source_node_id},
+      #{target_node_id},
+      #{source_logical_entity_id},
+      #{target_logical_entity_id},
+      #{relation_type},
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (
+      project_id,
+      diagram_id,
+      source_logical_entity_id,
+      target_logical_entity_id,
+      relation_type
+    )
+    DO UPDATE SET
+      source_node_id = EXCLUDED.source_node_id,
+      target_node_id = EXCLUDED.target_node_id,
+      updated_at = CURRENT_TIMESTAMP
+  </insert>
+
+  <insert id="upsertEmbedding">
+    INSERT INTO kg_embeddings (
+      project_id,
+      logical_entity_id,
+      source_text,
+      embedding,
+      updated_at
+    )
+    VALUES (
+      #{project_id},
+      #{logical_entity_id},
+      #{source_text},
+      CAST(#{embedding_literal} AS double precision[]),
+      CURRENT_TIMESTAMP
+    )
+    ON CONFLICT (project_id, logical_entity_id)
+    DO UPDATE SET
+      source_text = EXCLUDED.source_text,
+      embedding = EXCLUDED.embedding,
+      updated_at = CURRENT_TIMESTAMP
+  </insert>
+
+  <select id="findNodesByProjectId" resultType="reengineering.ddd.teamai.mybatis.knowledgegraph.KnowledgeGraphNodeRow">
+    SELECT
+      logical_entity_id AS logicalEntityId,
+      logical_entity_type AS logicalEntityType,
+      logical_entity_sub_type AS logicalEntitySubType,
+      logical_entity_name AS logicalEntityName,
+      logical_entity_label AS logicalEntityLabel,
+      logical_entity_definition::text AS logicalEntityDefinition
+    FROM kg_nodes
+    WHERE project_id = #{project_id}
+    ORDER BY logical_entity_id ASC
+  </select>
+
+  <select id="findEdgesByProjectId" resultType="reengineering.ddd.teamai.mybatis.knowledgegraph.KnowledgeGraphEdgeRow">
+    SELECT
+      diagram_id AS diagramId,
+      source_logical_entity_id AS sourceLogicalEntityId,
+      target_logical_entity_id AS targetLogicalEntityId,
+      relation_type AS relationType
+    FROM kg_edges
+    WHERE project_id = #{project_id}
+    ORDER BY diagram_id ASC, source_logical_entity_id ASC, target_logical_entity_id ASC
+  </select>
+
+</mapper>

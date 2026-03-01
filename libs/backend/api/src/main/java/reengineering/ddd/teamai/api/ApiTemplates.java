@@ -55,6 +55,10 @@ public class ApiTemplates {
     return project(uriInfo).path(ProjectApi.class, "diagrams");
   }
 
+  public static UriBuilder knowledgeGraph(UriInfo uriInfo) {
+    return project(uriInfo).path(ProjectApi.class, "knowledgeGraph");
+  }
+
   public static UriBuilder diagram(UriInfo uriInfo) {
     return diagrams(uriInfo).path(DiagramsApi.class, "findById");
   }

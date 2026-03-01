@@ -16,6 +16,7 @@ import org.springframework.restdocs.RestDocumentationExtension;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.teamai.api.config.TestApplication;
 import reengineering.ddd.teamai.model.Diagram;
+import reengineering.ddd.teamai.model.KnowledgeGraphReader;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 import reengineering.ddd.teamai.model.Users;
@@ -27,6 +28,7 @@ public class ApiTest {
   @MockitoBean protected Projects projects;
   @MockitoBean protected Diagram.DomainArchitect domainArchitect;
   @MockitoBean protected Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
+  @MockitoBean protected KnowledgeGraphReader knowledgeGraphReader;
 
   @Value("${local.server.port}")
   private int port;
