@@ -625,6 +625,7 @@ public class DiagramsApiTest extends ApiTest {
         .statusCode(204);
 
     verify(diagrams, times(1)).publishDiagram(diagram.getIdentity());
+    verify(knowledgeGraphPublisher, times(1)).publish(any());
   }
 
   @Test

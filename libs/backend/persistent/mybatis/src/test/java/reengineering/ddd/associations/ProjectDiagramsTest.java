@@ -341,7 +341,7 @@ public class ProjectDiagramsTest {
         project.addDiagram(new DiagramDescription("发布图", Type.CLASS, Viewport.defaultViewport()));
     assertEquals(Status.DRAFT, diagram.getDescription().status());
 
-    project.publishDiagram(diagram.getIdentity());
+    project.publishDiagram(diagram.getIdentity(), request -> {});
 
     Diagram published = project.diagrams().findByIdentity(diagram.getIdentity()).orElseThrow();
     assertEquals(Status.PUBLISHED, published.getDescription().status());

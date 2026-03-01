@@ -28,6 +28,7 @@ import reengineering.ddd.teamai.model.Project;
 
 public class DiagramApi {
   @Inject private Diagram.DomainArchitect domainArchitect;
+  @Inject private Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
   @Inject private DiagramSseEventWriter diagramSseEventWriter;
   @Inject private DiagramCommitDraftMapper diagramCommitDraftMapper;
   @Context ResourceContext resourceContext;
@@ -120,7 +121,7 @@ public class DiagramApi {
   @POST
   @Path("publish")
   public Response publishDiagram() {
-    project.publishDiagram(diagram.getIdentity());
+    project.publishDiagram(diagram.getIdentity(), knowledgeGraphPublisher);
     return Response.noContent().build();
   }
 

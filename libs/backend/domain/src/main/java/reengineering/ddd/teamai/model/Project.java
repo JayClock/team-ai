@@ -1,6 +1,8 @@
 package reengineering.ddd.teamai.model;
 
+import java.time.Instant;
 import java.util.Collection;
+import java.util.Objects;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -88,8 +90,10 @@ public class Project implements Entity<String, ProjectDescription> {
     diagrams.saveDiagram(diagramId, draftNodes, draftEdges);
   }
 
-  public void publishDiagram(String diagramId) {
+  public void publishDiagram(String diagramId, KnowledgeGraphPublisher graphPublisher) {
     diagrams.publishDiagram(diagramId);
+    Objects.requireNonNull(graphPublisher, "graphPublisher must not be null")
+        .publish(new KnowledgeGraphPublishRequest(identity, diagramId, Instant.now()));
   }
 
   public interface Members extends HasMany<String, Member> {
@@ -118,6 +122,13 @@ public class Project implements Entity<String, ProjectDescription> {
       }
     }
   }
+
+  public interface KnowledgeGraphPublisher {
+    void publish(KnowledgeGraphPublishRequest request);
+  }
+
+  public record KnowledgeGraphPublishRequest(
+      String projectId, String diagramId, Instant publishedAt) {}
 
   public enum Role {
     OWNER,

@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.model;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +27,7 @@ public class ProjectTest {
   @Mock private Project.Conversations conversations;
   @Mock private Project.LogicalEntities logicalEntities;
   @Mock private Project.Diagrams diagrams;
+  @Mock private Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
 
   private Project project;
   private ProjectDescription projectDescription;
@@ -191,9 +193,18 @@ public class ProjectTest {
     void shouldDelegatePublishDiagram() {
       String diagramId = "diagram-1";
 
-      project.publishDiagram(diagramId);
+      project.publishDiagram(diagramId, knowledgeGraphPublisher);
 
       verify(diagrams).publishDiagram(diagramId);
+      verify(knowledgeGraphPublisher)
+          .publish(
+              argThat(
+                  request ->
+                      request != null
+                          && "project-1".equals(request.projectId())
+                          && diagramId.equals(request.diagramId())
+                          && request.publishedAt() != null
+                          && !request.publishedAt().isAfter(Instant.now())));
     }
   }
 }
