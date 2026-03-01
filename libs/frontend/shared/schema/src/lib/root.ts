@@ -5,6 +5,7 @@ export type Root = Entity<
   never,
   {
     login: never;
+    'login-oauth-github': never;
     me: User;
     logout: never;
   }
