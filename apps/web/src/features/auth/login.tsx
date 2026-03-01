@@ -1,13 +1,28 @@
 import { Button } from '@shared/ui/components/button';
-import { Card } from '@shared/ui/components/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@shared/ui/components/card';
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from '@shared/ui/components/field';
+import { Input } from '@shared/ui/components/input';
 import { Github } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useSuspenseResource } from '@hateoas-ts/resource-react';
+import { useResource } from '@hateoas-ts/resource-react';
 import { rootResource } from '../../lib/api-client';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 export function Login() {
-  const { resourceState: rootState } = useSuspenseResource(rootResource);
+  const { loading, error: rootError, resourceState: rootState } =
+    useResource(rootResource);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [username, setUsername] = useState('');
@@ -15,15 +30,27 @@ export function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loginLink = rootState.getLink('login');
-  const githubLoginLink = rootState.getLink('login-oauth-github');
+  const loginLink = rootState?.getLink('login');
+  const githubLoginLink = rootState?.getLink('login-oauth-github');
   const returnTo = useMemo(() => searchParams.get('return_to') || '/', [searchParams]);
 
   useEffect(() => {
-    if (!loginLink) {
+    if (!loading && !rootError && !loginLink) {
       navigate('/');
     }
-  }, [loginLink, navigate]);
+  }, [loading, loginLink, navigate, rootError]);
+
+  if (loading) {
+    return null;
+  }
+
+  if (rootError) {
+    return (
+      <div className="bg-muted/50 flex min-h-screen items-center justify-center p-6 md:p-10">
+        <div className="text-muted-foreground text-sm">加载登录信息失败，请稍后重试</div>
+      </div>
+    );
+  }
 
   const handleLocalLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -62,75 +89,72 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Team AI</h1>
-          <p className="text-gray-500">使用本地账号登录</p>
-        </div>
+    <div className="bg-muted/50 flex min-h-screen items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-sm">
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl">登录 Team AI</CardTitle>
+            <CardDescription>使用本地账号或 GitHub 登录</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLocalLogin}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="username">用户名</FieldLabel>
+                  <Input
+                    id="username"
+                    type="text"
+                    autoComplete="username"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    required
+                    maxLength={255}
+                  />
+                </Field>
 
-        <form className="space-y-4" onSubmit={handleLocalLogin}>
-          <div className="space-y-2">
-            <label className="block text-sm text-gray-600" htmlFor="username">
-              用户名
-            </label>
-            <input
-              id="username"
-              className="w-full h-10 px-3 border rounded-md"
-              type="text"
-              autoComplete="username"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              required
-              maxLength={255}
-            />
-          </div>
+                <Field>
+                  <FieldLabel htmlFor="password">密码</FieldLabel>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                    minLength={8}
+                    maxLength={255}
+                  />
+                </Field>
 
-          <div className="space-y-2">
-            <label className="block text-sm text-gray-600" htmlFor="password">
-              密码
-            </label>
-            <input
-              id="password"
-              className="w-full h-10 px-3 border rounded-md"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              minLength={8}
-              maxLength={255}
-            />
-          </div>
+                {error ? <FieldError>{error}</FieldError> : null}
 
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
-
-          <Button className="w-full h-12" type="submit" disabled={!loginLink || submitting}>
-            {submitting ? '登录中...' : '账号密码登录'}
-          </Button>
-        </form>
-
-        <div className="relative my-5">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white px-2 text-gray-500">或</span>
-          </div>
-        </div>
-
-        <Button
-          className="w-full h-12"
-          onClick={handleGithubLogin}
-          disabled={!githubLoginLink}
-          variant="outline"
-        >
-          <div className="flex items-center gap-2">
-            <Github className="h-5 w-5" />
-            GitHub 登录
-          </div>
-        </Button>
-      </Card>
+                <Field className="gap-3">
+                  <Button
+                    type="submit"
+                    disabled={!loginLink || submitting}
+                    className="w-full"
+                  >
+                    {submitting ? '登录中...' : '账号密码登录'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={handleGithubLogin}
+                    disabled={!githubLoginLink}
+                    className="w-full"
+                  >
+                    <Github className="size-4" />
+                    GitHub 登录
+                  </Button>
+                  <FieldDescription className="text-center">
+                    登录后将跳转到请求页面
+                  </FieldDescription>
+                </Field>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

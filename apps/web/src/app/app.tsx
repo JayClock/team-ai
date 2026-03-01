@@ -1,14 +1,15 @@
 import Homepage from '../features/landing/homepage';
 import SmartDomainPage from '../features/landing/smart-domain-page';
 import { Login } from '../features/auth/login';
-import { ProtectedRoute } from '../features/auth/protected-route';
+import { Signup } from '../features/auth/signup';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
+import { protectedRouteLoader } from './protected-route-loader';
 
 const protectedLayoutRoutes = layoutRoutes.map((route) => ({
   ...route,
-  element: <ProtectedRoute>{route.element}</ProtectedRoute>,
+  loader: protectedRouteLoader,
 }));
 
 const router = createBrowserRouter([
@@ -19,6 +20,10 @@ const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/signup',
+    element: <Signup />,
   },
   ...protectedLayoutRoutes,
   {
