@@ -7,6 +7,7 @@
   },
   "private": true,
   "dependencies": {
+    "@antv/g6": "^5.0.51",
     "@features/user-projects": "workspace:*",
     "@hateoas-ts/resource": "workspace:*",
     "@hateoas-ts/resource-react": "workspace:*",

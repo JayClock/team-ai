@@ -41,6 +41,12 @@
     },
     {
       "path": "./libs/frontend/shells/diagram"
+    },
+    {
+      "path": "./libs/frontend/features/projects"
+    },
+    {
+      "path": "./libs/frontend/shells/project"
     }
   ]
 }

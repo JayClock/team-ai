@@ -14,12 +14,17 @@ const Diagram = lazy(() =>
   import('@shells/diagram').then((m) => ({ default: m.ShellsDiagram })),
 );
 
+const Project = lazy(() =>
+  import('@shells/project').then((m) => ({ default: m.ShellsProject })),
+);
+
 const COMPONENT_MAP: Record<
   string,
   React.LazyExoticComponent<
     React.ComponentType<{ state: Signal<State<Entity<never, never>>> }>
   >
 > = {
+  'application/vnd.business-driven-ai.project+json': Project,
   'application/vnd.business-driven-ai.diagrams+json': ProjectDiagrams,
   'application/vnd.business-driven-ai.diagram+json': Diagram,
 };

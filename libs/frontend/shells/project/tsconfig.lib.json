@@ -41,28 +41,13 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../../../packages/resource-react/tsconfig.lib.json"
-    },
-    {
       "path": "../../../../packages/resource/tsconfig.lib.json"
-    },
-    {
-      "path": "../../shared/ui/tsconfig.lib.json"
-    },
-    {
-      "path": "../project/tsconfig.lib.json"
-    },
-    {
-      "path": "../diagram/tsconfig.lib.json"
-    },
-    {
-      "path": "../../shared/util-http/tsconfig.lib.json"
     },
     {
       "path": "../../shared/schema/tsconfig.lib.json"
     },
     {
-      "path": "../../features/project-diagrams/tsconfig.lib.json"
+      "path": "../../features/projects/tsconfig.lib.json"
     }
   ]
 }

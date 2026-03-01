@@ -40,3 +40,8 @@ export type {
   EntityAttribute,
   EntityBehavior,
 } from './lib/logical-entity.js';
+export type {
+  KnowledgeGraph,
+  KnowledgeGraphNode,
+  KnowledgeGraphEdge,
+} from './lib/knowledge-graph.js';
