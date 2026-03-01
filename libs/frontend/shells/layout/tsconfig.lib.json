@@ -41,9 +41,6 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../cockpit/tsconfig.lib.json"
-    },
-    {
       "path": "../../../../packages/resource-react/tsconfig.lib.json"
     },
     {
@@ -60,6 +57,9 @@
     },
     {
       "path": "../../shared/schema/tsconfig.lib.json"
+    },
+    {
+      "path": "../../features/project-diagrams/tsconfig.lib.json"
     }
   ]
 }

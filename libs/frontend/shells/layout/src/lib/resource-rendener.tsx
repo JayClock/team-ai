@@ -1,12 +1,14 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useMemo } from 'react';
 import { useLoaderData } from 'react-router-dom';
 import { LoaderType } from './generic-loader';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Entity, State } from '@hateoas-ts/resource';
-import { type Signal, useSignal } from '@preact/signals-react';
+import { type Signal, signal } from '@preact/signals-react';
 
-const Cockpit = lazy(() =>
-  import('@shells/cockpit').then((m) => ({ default: m.Cockpit })),
+const ProjectDiagrams = lazy(() =>
+  import('@features/project-diagrams').then((m) => ({
+    default: m.FeaturesProjectDiagrams,
+  })),
 );
 
 const Diagram = lazy(() =>
@@ -19,7 +21,7 @@ const COMPONENT_MAP: Record<
     React.ComponentType<{ state: Signal<State<Entity<never, never>>> }>
   >
 > = {
-  'application/vnd.business-driven-ai.project+json': Cockpit,
+  'application/vnd.business-driven-ai.diagrams+json': ProjectDiagrams,
   'application/vnd.business-driven-ai.diagram+json': Diagram,
 };
 
@@ -32,15 +34,21 @@ export function ResourceRenderer() {
     client.go(apiUrl),
   );
   const Component = COMPONENT_MAP[contentType];
-  const signal = useSignal(resourceState);
+  const stateSignal = useMemo(() => signal(resourceState), [resourceState]);
 
   if (!Component) {
-    return <UnknownResource contentType={contentType} state={signal} />;
+    return (
+      <UnknownResource
+        key={apiUrl}
+        contentType={contentType}
+        state={stateSignal}
+      />
+    );
   }
 
   return (
     <Suspense>
-      <Component state={signal}></Component>
+      <Component key={apiUrl} state={stateSignal}></Component>
     </Suspense>
   );
 }

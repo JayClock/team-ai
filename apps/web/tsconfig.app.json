@@ -35,15 +35,6 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../libs/frontend/shared/schema/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/resource/tsconfig.lib.json"
-    },
-    {
-      "path": "../../libs/frontend/shared/util-http/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/resource-react/tsconfig.lib.json"
     },
     {
@@ -54,6 +45,9 @@
     },
     {
       "path": "../../libs/frontend/features/user-projects/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/frontend/shared/util-http/tsconfig.lib.json"
     },
     {
       "path": "../../libs/frontend/features/project-conversations/tsconfig.lib.json"

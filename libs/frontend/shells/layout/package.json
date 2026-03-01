@@ -12,6 +12,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@features/project-diagrams": "workspace:*",
     "@shared/schema": "workspace:*",
     "@shared/util-http": "workspace:*",
     "@shells/diagram": "workspace:*"
