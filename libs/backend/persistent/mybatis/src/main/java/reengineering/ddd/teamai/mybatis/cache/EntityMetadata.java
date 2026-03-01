@@ -28,5 +28,7 @@ public record EntityMetadata(
       Class<?> associationType,
       Field parentIdField,
       boolean eager,
-      Field listField) {}
+      Field listField,
+      boolean hasOne,
+      Field hasOneEntityField) {}
 }

@@ -3,7 +3,9 @@ package reengineering.ddd.teamai.mybatis.cache;
 import jakarta.annotation.PostConstruct;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +17,8 @@ import org.springframework.context.annotation.ClassPathScanningCandidateComponen
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.archtype.Entity;
+import reengineering.ddd.archtype.HasOne;
+import reengineering.ddd.mybatis.memory.Reference;
 import reengineering.ddd.mybatis.support.InjectableObjectFactory;
 import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.Message;
@@ -111,32 +115,42 @@ public class GenericEntityHydrator {
   }
 
   private Map<String, List<CacheEntry<?, ?>>> extractNestedCollections(Entity<?, ?> entity) {
-    List<AssociationConfig> configs = registry.getOrDefault(entity.getClass(), List.of());
+    EntityMetadata metadata = getOrCreateMetadata(entity.getClass());
     Map<String, List<CacheEntry<?, ?>>> nestedCollections = new HashMap<>();
 
-    for (AssociationConfig config : configs) {
-      if (config.eager()) {
-        try {
-          Field field = entity.getClass().getDeclaredField(config.fieldName());
-          field.setAccessible(true);
-          Object association = field.get(entity);
+    for (EntityMetadata.AssociationFieldMeta meta : metadata.associations()) {
+      try {
+        Field field = entity.getClass().getDeclaredField(meta.fieldName());
+        field.setAccessible(true);
+        Object association = field.get(entity);
 
-          if (isMemoryEntityList(association)) {
-            List<?> nestedEntities = extractListFromMemoryEntityList(association);
-            List<CacheEntry<?, ?>> nestedEntries = new ArrayList<>();
-
-            for (Object nestedEntity : nestedEntities) {
-              if (nestedEntity instanceof Entity<?, ?> e) {
-                nestedEntries.add(extract(e));
-              }
+        if (meta.hasOne()) {
+          List<CacheEntry<?, ?>> nestedEntries = new ArrayList<>();
+          if (association instanceof HasOne<?> hasOne) {
+            Object nestedEntity = hasOne.get();
+            if (nestedEntity instanceof Entity<?, ?> nested) {
+              nestedEntries.add(extract(nested));
             }
-
-            nestedCollections.put(config.fieldName(), nestedEntries);
           }
-        } catch (ReflectiveOperationException e) {
-          throw new IllegalStateException(
-              "Failed to extract nested collection: " + config.fieldName(), e);
+          nestedCollections.put(meta.fieldName(), nestedEntries);
+          continue;
         }
+
+        if (meta.eager() && isMemoryEntityList(association)) {
+          List<?> nestedEntities = extractListFromMemoryEntityList(association);
+          List<CacheEntry<?, ?>> nestedEntries = new ArrayList<>();
+
+          for (Object nestedEntity : nestedEntities) {
+            if (nestedEntity instanceof Entity<?, ?> nested) {
+              nestedEntries.add(extract(nested));
+            }
+          }
+
+          nestedCollections.put(meta.fieldName(), nestedEntries);
+        }
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalStateException(
+            "Failed to extract nested collection: " + meta.fieldName(), e);
       }
     }
 
@@ -165,7 +179,9 @@ public class GenericEntityHydrator {
       for (int i = 0; i < metadata.associations().size(); i++) {
         EntityMetadata.AssociationFieldMeta assocMeta = metadata.associations().get(i);
 
-        if (assocMeta.eager()) {
+        if (assocMeta.hasOne()) {
+          args[2 + i] = createHasOneAssociation(assocMeta, entry.nestedCollections());
+        } else if (assocMeta.eager()) {
           args[2 + i] = createEagerAssociation(assocMeta, entry.nestedCollections());
         } else {
           args[2 + i] = createLazyAssociation(assocMeta, entry.internalId());
@@ -229,48 +245,91 @@ public class GenericEntityHydrator {
     }
   }
 
+  @SuppressWarnings("unchecked")
+  private Object createHasOneAssociation(
+      EntityMetadata.AssociationFieldMeta meta,
+      Map<String, List<CacheEntry<?, ?>>> nestedCollections) {
+    try {
+      InjectableObjectFactory factory = objectFactorySupplier.get();
+      Object association = factory.create((Class<Object>) meta.associationType());
+      List<CacheEntry<?, ?>> nestedEntries =
+          nestedCollections.getOrDefault(meta.fieldName(), List.of());
+      if (!nestedEntries.isEmpty() && meta.hasOneEntityField() != null) {
+        Object entity = hydrate(nestedEntries.get(0));
+        meta.hasOneEntityField().set(association, entity);
+      }
+      return association;
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Failed to create has-one association", e);
+    }
+  }
+
   private EntityMetadata getOrCreateMetadata(Class<?> entityType) {
     return metadataCache.computeIfAbsent(entityType, this::buildMetadata);
   }
 
   private EntityMetadata buildMetadata(Class<?> entityType) {
     List<AssociationConfig> configs = registry.getOrDefault(entityType, List.of());
+    Map<String, AssociationConfig> configByFieldName = new HashMap<>();
+    for (AssociationConfig config : configs) {
+      configByFieldName.put(config.fieldName(), config);
+    }
 
     try {
-      // Sort configs by constructor parameter order to ensure correct hydration
-      List<AssociationConfig> sortedConfigs = sortConfigsByConstructorOrder(entityType, configs);
-
-      Class<?>[] paramTypes = new Class<?>[2 + sortedConfigs.size()];
-      paramTypes[0] = String.class;
-      paramTypes[1] = entityType.getMethod("getDescription").getReturnType();
+      Class<?> descriptionType = entityType.getMethod("getDescription").getReturnType();
+      Constructor<?> constructor = findTargetConstructor(entityType, descriptionType);
+      List<Field> constructorAssociationFields =
+          resolveConstructorAssociationFields(entityType, constructor);
 
       List<EntityMetadata.AssociationFieldMeta> assocMetas = new ArrayList<>();
-      for (int i = 0; i < sortedConfigs.size(); i++) {
-        AssociationConfig config = sortedConfigs.get(i);
-        Field entityField = entityType.getDeclaredField(config.fieldName());
-        paramTypes[2 + i] = entityField.getType();
+      for (Field entityField : constructorAssociationFields) {
+        AssociationConfig config = configByFieldName.get(entityField.getName());
+        if (config != null) {
+          Field parentIdField = config.associationType().getDeclaredField(config.parentIdField());
+          parentIdField.setAccessible(true);
 
-        Field parentIdField = config.associationType().getDeclaredField(config.parentIdField());
-        parentIdField.setAccessible(true);
-
-        Field listField = null;
-        if (config.eager()) {
-          listField = findListField(config.associationType());
-          if (listField != null) {
-            listField.setAccessible(true);
+          Field listField = null;
+          if (config.eager()) {
+            listField = findListField(config.associationType());
+            if (listField != null) {
+              listField.setAccessible(true);
+            }
           }
+
+          assocMetas.add(
+              new EntityMetadata.AssociationFieldMeta(
+                  config.fieldName(),
+                  config.associationType(),
+                  parentIdField,
+                  config.eager(),
+                  listField,
+                  false,
+                  null));
+          continue;
         }
 
-        assocMetas.add(
-            new EntityMetadata.AssociationFieldMeta(
-                config.fieldName(),
-                config.associationType(),
-                parentIdField,
-                config.eager(),
-                listField));
+        if (HasOne.class.isAssignableFrom(entityField.getType())) {
+          Field hasOneEntityField = Reference.class.getDeclaredField("entity");
+          hasOneEntityField.setAccessible(true);
+          assocMetas.add(
+              new EntityMetadata.AssociationFieldMeta(
+                  entityField.getName(),
+                  Reference.class,
+                  null,
+                  true,
+                  null,
+                  true,
+                  hasOneEntityField));
+          continue;
+        }
+
+        throw new IllegalStateException(
+            "No association mapping found for constructor field: "
+                + entityType.getName()
+                + "."
+                + entityField.getName());
       }
 
-      Constructor<?> constructor = entityType.getConstructor(paramTypes);
       return new EntityMetadata(entityType, constructor, assocMetas);
 
     } catch (ReflectiveOperationException e) {
@@ -278,64 +337,70 @@ public class GenericEntityHydrator {
     }
   }
 
-  /**
-   * Sort association configs to match the constructor parameter order.
-   *
-   * <p>This is necessary because classpath scanning order is non-deterministic (depends on
-   * filesystem order), but constructor parameters have a fixed order. Without sorting, hydration
-   * would fail with wrong argument types or create incorrectly initialized objects.
-   */
-  private List<AssociationConfig> sortConfigsByConstructorOrder(
-      Class<?> entityType, List<AssociationConfig> configs) throws NoSuchMethodException {
-    if (configs.isEmpty()) {
-      return configs;
-    }
-
-    Class<?> descriptionType = entityType.getMethod("getDescription").getReturnType();
-    int expectedParamCount = 2 + configs.size();
-
+  private Constructor<?> findTargetConstructor(Class<?> entityType, Class<?> descriptionType)
+      throws NoSuchMethodException {
     Constructor<?> targetConstructor = null;
     for (Constructor<?> ctor : entityType.getConstructors()) {
-      if (ctor.getParameterCount() == expectedParamCount) {
-        Class<?>[] paramTypes = ctor.getParameterTypes();
-        if (paramTypes[0] == String.class && paramTypes[1] == descriptionType) {
+      Class<?>[] paramTypes = ctor.getParameterTypes();
+      if (paramTypes.length >= 2
+          && paramTypes[0] == String.class
+          && paramTypes[1] == descriptionType) {
+        if (targetConstructor == null
+            || ctor.getParameterCount() > targetConstructor.getParameterCount()) {
           targetConstructor = ctor;
-          break;
         }
       }
     }
-
     if (targetConstructor == null) {
       throw new NoSuchMethodException(
           "No matching constructor found for "
               + entityType.getName()
-              + " with "
-              + expectedParamCount
-              + " parameters");
+              + " with identity and description parameters");
+    }
+    return targetConstructor;
+  }
+
+  private List<Field> resolveConstructorAssociationFields(
+      Class<?> entityType, Constructor<?> constructor) {
+    Class<?>[] paramTypes = constructor.getParameterTypes();
+    if (paramTypes.length <= 2) {
+      return List.of();
     }
 
-    Map<Class<?>, AssociationConfig> configByFieldType = new HashMap<>();
-    for (AssociationConfig config : configs) {
-      try {
-        Field field = entityType.getDeclaredField(config.fieldName());
-        configByFieldType.put(field.getType(), config);
-      } catch (NoSuchFieldException e) {
-        throw new IllegalStateException("Field not found: " + config.fieldName(), e);
+    List<Field> candidateFields =
+        Arrays.stream(entityType.getDeclaredFields())
+            .filter(field -> !Modifier.isStatic(field.getModifiers()))
+            .filter(field -> !field.isSynthetic())
+            .filter(field -> !"identity".equals(field.getName()))
+            .filter(field -> !"description".equals(field.getName()))
+            .toList();
+
+    boolean[] used = new boolean[candidateFields.size()];
+    List<Field> orderedFields = new ArrayList<>();
+
+    for (int paramIndex = 2; paramIndex < paramTypes.length; paramIndex++) {
+      Class<?> paramType = paramTypes[paramIndex];
+      int matchedFieldIndex = -1;
+      for (int fieldIndex = 0; fieldIndex < candidateFields.size(); fieldIndex++) {
+        if (!used[fieldIndex] && candidateFields.get(fieldIndex).getType() == paramType) {
+          matchedFieldIndex = fieldIndex;
+          break;
+        }
       }
-    }
 
-    List<AssociationConfig> sortedConfigs = new ArrayList<>();
-    Class<?>[] paramTypes = targetConstructor.getParameterTypes();
-    for (int i = 2; i < paramTypes.length; i++) {
-      AssociationConfig config = configByFieldType.get(paramTypes[i]);
-      if (config == null) {
+      if (matchedFieldIndex < 0) {
         throw new IllegalStateException(
-            "No association config found for parameter type: " + paramTypes[i].getName());
+            "Cannot match constructor parameter type "
+                + paramType.getName()
+                + " for entity "
+                + entityType.getName());
       }
-      sortedConfigs.add(config);
+
+      used[matchedFieldIndex] = true;
+      orderedFields.add(candidateFields.get(matchedFieldIndex));
     }
 
-    return sortedConfigs;
+    return orderedFields;
   }
 
   private boolean isMemoryEntityList(Object obj) {
