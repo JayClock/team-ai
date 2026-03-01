@@ -1,7 +1,7 @@
 package reengineering.ddd.teamai.api;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -18,8 +18,12 @@ import jakarta.ws.rs.core.UriInfo;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.mediatype.Affordances;
+import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.representation.DiagramModel;
 import reengineering.ddd.teamai.description.DiagramDescription;
+import reengineering.ddd.teamai.description.Viewport;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.Project;
 
@@ -49,17 +53,35 @@ public class DiagramsApi {
   @VendorMediaType(ResourceTypes.DIAGRAM_COLLECTION)
   public CollectionModel<DiagramModel> findAll(
       @Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
-    return new Pagination<>(project.diagrams().findAll(), 20)
-        .page(
-            page,
-            diagram -> DiagramModel.simple(project, diagram, uriInfo),
-            p -> ApiTemplates.diagrams(uriInfo).queryParam("page", p).build(project.getIdentity()));
+    CollectionModel<DiagramModel> model =
+        new Pagination<>(project.diagrams().findAll(), 20)
+            .page(
+                page,
+                diagram -> DiagramModel.simple(project, diagram, uriInfo),
+                p ->
+                    ApiTemplates.diagrams(uriInfo)
+                        .queryParam("page", p)
+                        .build(project.getIdentity()));
+
+    model.add(
+        Affordances.of(
+                Link.of(ApiTemplates.diagrams(uriInfo).build(project.getIdentity()).getPath())
+                    .withRel("create-diagram"))
+            .afford(HttpMethod.POST)
+            .withInput(CreateDiagramRequest.class)
+            .andAfford(HttpMethod.POST)
+            .withInput(CreateDiagramRequest.class)
+            .withName("create-diagram")
+            .toLink());
+    return model;
   }
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public Response create(@Valid DiagramDescription change, @Context UriInfo uriInfo) {
-    Diagram created = project.addDiagram(change);
+  public Response create(@Valid CreateDiagramRequest request, @Context UriInfo uriInfo) {
+    DiagramDescription description =
+        new DiagramDescription(request.getTitle(), Diagram.Type.CLASS, Viewport.defaultViewport());
+    Diagram created = project.addDiagram(description);
     DiagramModel model = DiagramModel.of(project, created, uriInfo);
     return Response.created(
             ApiTemplates.diagram(uriInfo).build(project.getIdentity(), created.getIdentity()))
@@ -70,6 +92,6 @@ public class DiagramsApi {
   @Data
   @NoArgsConstructor
   public static class CreateDiagramRequest {
-    @NotNull private String title;
+    @NotBlank private String title;
   }
 }

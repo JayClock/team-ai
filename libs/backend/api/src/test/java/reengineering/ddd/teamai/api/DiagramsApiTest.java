@@ -28,6 +28,7 @@ import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
 import reactor.core.publisher.Flux;
 import reengineering.ddd.archtype.JsonBlob;
+import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.EdgeDescription;
@@ -48,6 +49,7 @@ public class DiagramsApiTest extends ApiTest {
   @Mock private Project.Conversations projectConversations;
   @Mock private Project.LogicalEntities projectLogicalEntities;
   @Mock private Project.Diagrams diagrams;
+  @Mock private Many<Diagram> pagedDiagrams;
   @Mock private Diagram.Nodes diagramNodes;
   @Mock private Diagram.Edges diagramEdges;
   @Mock private Diagram.Versions diagramVersions;
@@ -160,6 +162,73 @@ public class DiagramsApiTest extends ApiTest {
       throw new Project.Diagrams.InvalidDraftException("Unknown node placeholder id: " + nodeId);
     }
     return nodeId;
+  }
+
+  @Test
+  public void should_return_diagrams_collection_with_create_diagram_template() {
+    when(diagrams.findAll()).thenReturn(pagedDiagrams);
+    when(pagedDiagrams.size()).thenReturn(1);
+    when(pagedDiagrams.subCollection(eq(0), eq(1))).thenReturn(new EntityList<>(diagram));
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .when()
+        .get("/projects/{projectId}/diagrams", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("_embedded.diagrams", hasSize(1))
+        .body("_embedded.diagrams[0].id", is(diagram.getIdentity()))
+        .body(
+            "_embedded.diagrams[0]._links.self.href",
+            is("/api/projects/" + project.getIdentity() + "/diagrams/" + diagram.getIdentity()))
+        .body("_links.self.href", is("/api/projects/" + project.getIdentity() + "/diagrams?page=0"))
+        .body("_templates.create-diagram.method", is("POST"))
+        .body("_templates.create-diagram.properties", hasSize(1))
+        .body("_templates.create-diagram.properties[0].name", is("title"))
+        .body("_templates.create-diagram.properties[0].required", is(true))
+        .body("_templates.create-diagram.properties[0].type", is("text"));
+
+    verify(diagrams, times(1)).findAll();
+  }
+
+  @Test
+  public void should_create_diagram_with_default_type_and_viewport() {
+    Diagram created =
+        new Diagram(
+            "diagram-2",
+            new DiagramDescription("New Diagram", Type.CLASS, Viewport.defaultViewport()),
+            diagramNodes,
+            diagramEdges,
+            diagramVersions);
+    when(diagrams.add(any())).thenReturn(created);
+    when(diagramNodes.findAll()).thenReturn(new EntityList<>());
+    when(diagramEdges.findAll()).thenReturn(new EntityList<>());
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body("{\"title\":\"New Diagram\"}")
+        .when()
+        .post("/projects/{projectId}/diagrams", project.getIdentity())
+        .then()
+        .statusCode(201)
+        .body("id", is("diagram-2"))
+        .body("title", is("New Diagram"))
+        .body("type", is("class"))
+        .body("viewport.x", is(0.0F))
+        .body("viewport.y", is(0.0F))
+        .body("viewport.zoom", is(1.0F));
+
+    verify(diagrams)
+        .add(
+            argThat(
+                description ->
+                    "New Diagram".equals(description.title())
+                        && Type.CLASS.equals(description.type())
+                        && description.viewport() != null
+                        && description.viewport().x() == 0
+                        && description.viewport().y() == 0
+                        && description.viewport().zoom() == 1));
   }
 
   @Test

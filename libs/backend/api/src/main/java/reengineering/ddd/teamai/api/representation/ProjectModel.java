@@ -10,7 +10,6 @@ import org.springframework.hateoas.server.core.Relation;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.ConversationsApi;
-import reengineering.ddd.teamai.api.DiagramsApi;
 import reengineering.ddd.teamai.api.LogicalEntitiesApi;
 import reengineering.ddd.teamai.api.ProjectApi;
 import reengineering.ddd.teamai.description.ProjectDescription;
@@ -56,13 +55,8 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .toLink());
 
     model.add(
-        Affordances.of(
-                Link.of(ApiTemplates.diagrams(uriInfo).build(project.getIdentity()).getPath())
-                    .withRel("diagrams"))
-            .afford(HttpMethod.POST)
-            .withInput(DiagramsApi.CreateDiagramRequest.class)
-            .withName("create-diagram")
-            .toLink());
+        Link.of(ApiTemplates.diagrams(uriInfo).build(project.getIdentity()).getPath())
+            .withRel("diagrams"));
 
     model.add(
         Affordances.of(

@@ -71,11 +71,6 @@ public class ProjectsApiTest extends ApiTest {
         .body("_templates.create-conversation.properties[0].required", is(true))
         .body("_templates.create-conversation.properties[0].type", is("text"))
         .body("_links.diagrams.href", is("/api/projects/" + project.getIdentity() + "/diagrams"))
-        .body("_templates.create-diagram.method", is("POST"))
-        .body("_templates.create-diagram.properties", hasSize(1))
-        .body("_templates.create-diagram.properties[0].name", is("title"))
-        .body("_templates.create-diagram.properties[0].required", is(true))
-        .body("_templates.create-diagram.properties[0].type", is("text"))
         .body(
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
