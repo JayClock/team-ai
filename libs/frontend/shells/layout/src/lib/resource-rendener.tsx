@@ -1,9 +1,8 @@
 import { lazy, Suspense, useMemo } from 'react';
-import { useLoaderData } from 'react-router-dom';
-import { LoaderType } from './generic-loader';
-import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
+import { useOutletContext } from 'react-router-dom';
 import { Entity, State } from '@hateoas-ts/resource';
 import { type Signal, signal } from '@preact/signals-react';
+import { LayoutOutletContext } from './layout-outlet-context';
 
 const ProjectDiagrams = lazy(() =>
   import('@features/project-diagrams').then((m) => ({
@@ -28,18 +27,28 @@ const COMPONENT_MAP: Record<
 export type ResourceRendererContentType = keyof typeof COMPONENT_MAP;
 
 export function ResourceRenderer() {
-  const client = useClient();
-  const { apiUrl, contentType } = useLoaderData<LoaderType>();
-  const { resourceState } = useSuspenseResource<Entity<never, never>>(
-    client.go(apiUrl),
+  const { resourceState } = useOutletContext<LayoutOutletContext>();
+  const stateSignal = useMemo(
+    () =>
+      resourceState
+        ? signal(resourceState as State<Entity<never, never>>)
+        : undefined,
+    [resourceState],
   );
+  if (!resourceState || !stateSignal) {
+    return null;
+  }
+
+  const rawType = resourceState.contentHeaders().get('content-type') ?? '';
+  const contentType = rawType
+    .split(';')[0]
+    .trim() as ResourceRendererContentType;
   const Component = COMPONENT_MAP[contentType];
-  const stateSignal = useMemo(() => signal(resourceState), [resourceState]);
 
   if (!Component) {
     return (
       <UnknownResource
-        key={apiUrl}
+        key={resourceState.uri}
         contentType={contentType}
         state={stateSignal}
       />
@@ -48,7 +57,7 @@ export function ResourceRenderer() {
 
   return (
     <Suspense>
-      <Component key={apiUrl} state={stateSignal}></Component>
+      <Component key={resourceState.uri} state={stateSignal}></Component>
     </Suspense>
   );
 }

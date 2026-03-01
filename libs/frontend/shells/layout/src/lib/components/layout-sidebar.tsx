@@ -22,11 +22,8 @@ import { LayoutSidebarNavMain } from './layout-sidebar-nav-main';
 import { LayoutSidebarProjects } from './layout-sidebar-projects';
 import { LayoutSidebarTeamSwitcher } from './layout-sidebar-team-switcher';
 import { LayoutSidebarUserMenu } from './layout-sidebar-user-menu';
-import { useRouteLoaderData } from 'react-router-dom';
-import { RESOURCE_ROUTE_ID } from '../route';
-import { LoaderType } from '../generic-loader';
-import { Entity, Resource } from '@hateoas-ts/resource';
-import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
+import { Entity, Resource, State } from '@hateoas-ts/resource';
+import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Sidebar as SidebarResource, SidebarSection } from '@shared/schema';
 
 const SIDEBAR_ICON_MAP: Record<string, LucideIcon> = {
@@ -37,20 +34,11 @@ const SIDEBAR_ICON_MAP: Record<string, LucideIcon> = {
   settings: Settings2Icon,
 };
 
-export function LayoutSidebar() {
-  const data = useRouteLoaderData(RESOURCE_ROUTE_ID) as LoaderType | undefined;
-
-  if (!data) {
+export function LayoutSidebar(props: { resourceState?: State<Entity> }) {
+  const { resourceState } = props;
+  if (!resourceState) {
     return <LayoutSidebarBase />;
   }
-
-  return <LayoutSidebarWithState apiUrl={data.apiUrl} />;
-}
-
-function LayoutSidebarWithState(props: { apiUrl: string }) {
-  const { apiUrl } = props;
-  const client = useClient();
-  const { resourceState } = useSuspenseResource<Entity>(client.go(apiUrl));
 
   if (resourceState.hasLink('sidebar')) {
     return (

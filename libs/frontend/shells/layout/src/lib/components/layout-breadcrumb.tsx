@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { Link, useRouteLoaderData } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Breadcrumb as UIBreadcrumb,
   BreadcrumbItem,
@@ -8,10 +8,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@shared/ui';
-import { RESOURCE_ROUTE_ID } from '../route';
-import { LoaderType } from '../generic-loader';
-import { Entity, Resource } from '@hateoas-ts/resource';
-import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
+import { Entity, Resource, State } from '@hateoas-ts/resource';
+import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { Breadcrumb as BreadcrumbResource, BreadcrumbItem as BreadcrumbResourceItem } from '@shared/schema';
 
 type BreadcrumbSegment = {
@@ -21,6 +19,7 @@ type BreadcrumbSegment = {
 
 type LayoutBreadcrumbProps = {
   pathname: string;
+  resourceState?: State<Entity>;
 };
 
 function titleCaseSegment(segment: string) {
@@ -91,19 +90,11 @@ function renderBreadcrumb(pathname: string, breadcrumbs: BreadcrumbSegment[]) {
   );
 }
 
-export function LayoutBreadcrumb({ pathname }: LayoutBreadcrumbProps) {
-  const data = useRouteLoaderData(RESOURCE_ROUTE_ID) as LoaderType | undefined;
-  if (!data) {
+export function LayoutBreadcrumb(props: LayoutBreadcrumbProps) {
+  const { pathname, resourceState } = props;
+  if (!resourceState) {
     return renderBreadcrumb(pathname, buildBreadcrumbSegments(pathname));
   }
-
-  return <LayoutBreadcrumbWithState pathname={pathname} apiUrl={data.apiUrl} />;
-}
-
-function LayoutBreadcrumbWithState(props: { pathname: string; apiUrl: string }) {
-  const { pathname, apiUrl } = props;
-  const client = useClient();
-  const { resourceState } = useSuspenseResource<Entity>(client.go(apiUrl));
 
   if (!resourceState.hasLink('breadcrumb')) {
     return renderBreadcrumb(pathname, buildBreadcrumbSegments(pathname));
