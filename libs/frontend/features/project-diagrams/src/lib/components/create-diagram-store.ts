@@ -357,7 +357,7 @@ export class DiagramStore {
   ): Node<LogicalEntity['data']>[] {
     return nodesStateCollection.map((nodeState) => {
       const localData =
-        logicalEntityDataByNodeId.get(nodeState.data.id) ??
+        logicalEntityDataByNodeId.get(nodeState.data.logicalEntity?.id ?? '') ??
         nodeState.data.localData ??
         null;
 
