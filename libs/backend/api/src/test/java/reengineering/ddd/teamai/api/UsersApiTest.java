@@ -15,6 +15,7 @@ import static org.springframework.restdocs.request.RequestDocumentation.paramete
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.accountsLink;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.defaultProjectLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.selfLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.userResponseFields;
@@ -26,9 +27,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.hateoas.MediaTypes;
 import reengineering.ddd.archtype.HasOne;
 import reengineering.ddd.teamai.description.AccountDescription;
+import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Account;
 import reengineering.ddd.teamai.model.LocalCredential;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
 public class UsersApiTest extends ApiTest {
@@ -67,9 +70,13 @@ public class UsersApiTest extends ApiTest {
         new Account("account-1", new AccountDescription("github", "github-user-123"));
     Account account2 =
         new Account("account-2", new AccountDescription("google", "google-user-456"));
+    Project project = mock(Project.class);
+    when(project.getIdentity()).thenReturn("project-1");
+    when(project.getDescription()).thenReturn(new ProjectDescription("Default Project"));
 
     when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.of(user));
     when(accounts.findAll()).thenReturn(new EntityList<>(List.of(account1, account2)));
+    when(projects.findAll()).thenReturn(new EntityList<>(List.of(project)));
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
@@ -79,7 +86,7 @@ public class UsersApiTest extends ApiTest {
                 pathParameters(
                     parameterWithName("userId").description("Unique identifier of the user")),
                 responseFields(userResponseFields()),
-                halLinksSnippet(selfLink(), accountsLink())))
+                halLinksSnippet(selfLink(), accountsLink(), defaultProjectLink())))
         .when()
         .get("/users/{userId}", user.getIdentity())
         .then()
@@ -101,8 +108,12 @@ public class UsersApiTest extends ApiTest {
         .body(
             "_embedded.accounts[1]._links.self.href",
             is("/api/users/john.smith/accounts/account-2"))
+        .body("_embedded['default-project'].id", is("project-1"))
+        .body("_embedded['default-project'].name", is("Default Project"))
+        .body("_embedded['default-project']._links.self.href", is("/api/projects/project-1"))
         .body("_links.self.href", is("/api/users/john.smith"))
         .body("_links.accounts.href", is("/api/users/john.smith/accounts"))
+        .body("_links.default-project.href", is("/api/projects/project-1"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(2))
         .body("_templates.default.properties[0].name", is("email"))
@@ -130,10 +141,14 @@ public class UsersApiTest extends ApiTest {
             accounts,
             credential,
             projects);
+    Project project = mock(Project.class);
+    when(project.getIdentity()).thenReturn("project-1");
+    when(project.getDescription()).thenReturn(new ProjectDescription("Default Project"));
     when(users.findByIdentity(user.getIdentity()))
         .thenReturn(Optional.of(user))
         .thenReturn(Optional.of(updatedUser));
     when(accounts.findAll()).thenReturn(new EntityList<>());
+    when(projects.findAll()).thenReturn(new EntityList<>(List.of(project)));
 
     given(documentationSpec)
         .contentType(ContentType.JSON)

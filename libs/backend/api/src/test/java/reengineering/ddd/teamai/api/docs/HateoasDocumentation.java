@@ -54,6 +54,10 @@ public final class HateoasDocumentation {
     return linkWithRel("projects").description("Link to user's projects collection");
   }
 
+  public static LinkDescriptor defaultProjectLink() {
+    return linkWithRel("default-project").description("Link to user's default project resource");
+  }
+
   public static LinkDescriptor messagesLink() {
     return linkWithRel("messages").description("Link to conversation messages collection");
   }
@@ -140,6 +144,7 @@ public final class HateoasDocumentation {
       fieldWithPath("name").description("User's display name"),
       fieldWithPath("email").description("User's email address"),
       subsectionWithPath("_embedded.accounts[]").description("Embedded accounts collection"),
+      subsectionWithPath("_embedded['default-project']").description("Embedded default project"),
       subsectionWithPath("_links").description("HATEOAS navigation links"),
       subsectionWithPath("_templates").description("HAL-FORMS action templates for AI agents")
     };

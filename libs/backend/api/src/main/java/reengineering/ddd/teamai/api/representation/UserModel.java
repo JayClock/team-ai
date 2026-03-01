@@ -11,6 +11,7 @@ import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.UserApi.UpdateUserRequest;
 import reengineering.ddd.teamai.description.UserDescription;
+import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.User;
 
 public class UserModel extends RepresentationModel<UserModel> {
@@ -38,12 +39,20 @@ public class UserModel extends RepresentationModel<UserModel> {
         Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath())
             .withRel("accounts"));
 
+    Project firstProject = user.projects().findAll().iterator().next();
+    add(
+        Link.of(ApiTemplates.project(uriInfo).build(firstProject.getIdentity()).getPath())
+            .withRel("default-project"));
+
     this.embedded =
         new EmbeddedResources(
             user.accounts().findAll().stream()
                 .map(account -> new AccountModel(user, account, uriInfo))
-                .toList());
+                .toList(),
+            ProjectModel.simple(firstProject, uriInfo));
   }
 
-  public record EmbeddedResources(@JsonProperty("accounts") List<AccountModel> accounts) {}
+  public record EmbeddedResources(
+      @JsonProperty("accounts") List<AccountModel> accounts,
+      @JsonProperty("default-project") ProjectModel defaultProject) {}
 }

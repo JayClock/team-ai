@@ -7,6 +7,7 @@ export type User = Entity<
   {
     self: User;
     accounts: Collection<Account>;
+    'default-project': Project;
     projects: Collection<Project>;
   }
 >;
