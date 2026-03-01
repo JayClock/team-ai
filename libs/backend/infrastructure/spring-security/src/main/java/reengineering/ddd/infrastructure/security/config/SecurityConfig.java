@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -54,17 +55,20 @@ public class SecurityConfig {
   private final JwtUtil jwtUtil;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
   private final Environment environment;
+  private final boolean devAutoAuthenticate;
 
   @Inject
   public SecurityConfig(
       OAuth2UserService oAuth2UserService,
       JwtUtil jwtUtil,
       JwtAuthenticationFilter jwtAuthenticationFilter,
-      Environment environment) {
+      Environment environment,
+      @Value("${teamai.security.dev-auto-authenticate:false}") boolean devAutoAuthenticate) {
     this.oAuth2UserService = oAuth2UserService;
     this.jwtUtil = jwtUtil;
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     this.environment = environment;
+    this.devAutoAuthenticate = devAutoAuthenticate;
   }
 
   private boolean isSecureEnvironment() {
@@ -157,25 +161,31 @@ public class SecurityConfig {
     http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
         .addFilterBefore(
             new ApiKeyHeaderNormalizationFilter(), UsernamePasswordAuthenticationFilter.class)
-        .addFilterBefore(
-            new OncePerRequestFilter() {
-              @Override
-              protected void doFilterInternal(
-                  @NonNull HttpServletRequest request,
-                  @NonNull HttpServletResponse response,
-                  @NonNull FilterChain filterChain)
-                  throws ServletException, IOException {
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .csrf(AbstractHttpConfigurer::disable)
+        .headers(headers -> headers.cacheControl(HeadersConfigurer.CacheControlConfig::disable));
+
+    if (devAutoAuthenticate) {
+      http.addFilterBefore(
+          new OncePerRequestFilter() {
+            @Override
+            protected void doFilterInternal(
+                @NonNull HttpServletRequest request,
+                @NonNull HttpServletResponse response,
+                @NonNull FilterChain filterChain)
+                throws ServletException, IOException {
+              if (SecurityContextHolder.getContext().getAuthentication() == null) {
                 SecurityContext context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(
                     new UsernamePasswordAuthenticationToken(
                         "1", "N/A", List.of(new SimpleGrantedAuthority("ROLE_USER"))));
                 SecurityContextHolder.setContext(context);
-                filterChain.doFilter(request, response);
               }
-            },
-            AnonymousAuthenticationFilter.class)
-        .csrf(AbstractHttpConfigurer::disable)
-        .headers(headers -> headers.cacheControl(HeadersConfigurer.CacheControlConfig::disable));
+              filterChain.doFilter(request, response);
+            }
+          },
+          AnonymousAuthenticationFilter.class);
+    }
     return http.build();
   }
 
