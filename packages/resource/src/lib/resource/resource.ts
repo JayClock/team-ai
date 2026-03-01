@@ -229,7 +229,9 @@ export class Resource<TEntity extends Entity> extends EventEmitter {
    */
   async refresh(requestOptions?: GetRequestOptions): Promise<State<TEntity>> {
     const requestInit = this.optionsToRequestInit('GET', requestOptions ?? {});
-    requestInit.cache = 'no-cache';
+    const headers = new Headers(requestInit.headers);
+    headers.set('Cache-Control', 'no-cache');
+    requestInit.headers = headers;
 
     const hash = this.requestHash(this.uri, requestOptions);
 

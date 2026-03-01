@@ -15,7 +15,7 @@ describe('Resource REFRESH Requests', () => {
     clearAllMocks();
   });
 
-  it('should bypass cache and force a no-cache GET request', async () => {
+  it('should bypass cache and send a no-cache GET request', async () => {
     const refreshedState = { uri: resource.uri } as State<User>;
 
     vi.spyOn(mockClient.cache, 'get').mockReturnValue(refreshedState);
@@ -31,9 +31,11 @@ describe('Resource REFRESH Requests', () => {
       resource.uri,
       expect.objectContaining({
         method: 'GET',
-        cache: 'no-cache',
       }),
     );
+    const requestInit = vi.mocked(mockClient.fetcher.fetchOrThrow).mock.calls[0][1];
+    const headers = new Headers(requestInit?.headers);
+    expect(headers.get('Cache-Control')).toBe('no-cache');
   });
 
   it('should de-duplicate identical refresh requests made concurrently', async () => {
