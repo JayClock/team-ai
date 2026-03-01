@@ -16,7 +16,10 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.lang.NonNull;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -25,6 +28,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
@@ -35,6 +40,7 @@ import reengineering.ddd.infrastructure.security.filter.ApiKeyHeaderNormalizatio
 import reengineering.ddd.infrastructure.security.filter.RedirectUrlCookieFilter;
 import reengineering.ddd.infrastructure.security.jwt.JwtAuthenticationFilter;
 import reengineering.ddd.infrastructure.security.jwt.JwtUtil;
+import reengineering.ddd.infrastructure.security.local.LocalUserDetailsService;
 import reengineering.ddd.infrastructure.security.oauth2.OAuth2UserService;
 
 @Configuration
@@ -70,7 +76,8 @@ public class SecurityConfig {
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http.authorizeHttpRequests(
             auth ->
-                auth.requestMatchers("/", "/public/**", "/api", "/oauth2/**", "/login/**")
+                auth.requestMatchers(
+                        "/", "/public/**", "/api", "/oauth2/**", "/login/**", "/api/auth/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
@@ -170,6 +177,20 @@ public class SecurityConfig {
         .csrf(AbstractHttpConfigurer::disable)
         .headers(headers -> headers.cacheControl(HeadersConfigurer.CacheControlConfig::disable));
     return http.build();
+  }
+
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+  }
+
+  @Bean
+  public AuthenticationManager authenticationManager(
+      LocalUserDetailsService userDetailsService, PasswordEncoder passwordEncoder) {
+    DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+    provider.setUserDetailsService(userDetailsService);
+    provider.setPasswordEncoder(passwordEncoder);
+    return new ProviderManager(provider);
   }
 
   @Bean
