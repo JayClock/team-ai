@@ -57,6 +57,11 @@ public interface TestDataMapper {
       @Param("label") String label,
       @Param("definition") String definition);
 
+  @Update(
+      "UPDATE logical_entities SET label = #{label}, updated_at = CURRENT_TIMESTAMP WHERE project_id = #{project_id} AND id = #{id}")
+  void updateLogicalEntityLabel(
+      @Param("project_id") int projectId, @Param("id") int id, @Param("label") String label);
+
   @Insert(
       "INSERT INTO diagrams(id, project_id, title, type, viewport) VALUES (#{id}, #{project_id}, #{title}, #{type}, CAST(#{viewport} AS jsonb))")
   void insertDiagram(

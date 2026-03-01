@@ -12,13 +12,7 @@ public interface KnowledgeGraphMapper {
       @Param("project_id") int projectId, @Param("diagram_id") int diagramId);
 
   void upsertNode(
-      @Param("project_id") int projectId,
-      @Param("logical_entity_id") int logicalEntityId,
-      @Param("logical_entity_type") String logicalEntityType,
-      @Param("logical_entity_sub_type") String logicalEntitySubType,
-      @Param("logical_entity_name") String logicalEntityName,
-      @Param("logical_entity_label") String logicalEntityLabel,
-      @Param("logical_entity_definition") String logicalEntityDefinition);
+      @Param("project_id") int projectId, @Param("logical_entity_id") int logicalEntityId);
 
   void upsertEdge(
       @Param("project_id") int projectId,

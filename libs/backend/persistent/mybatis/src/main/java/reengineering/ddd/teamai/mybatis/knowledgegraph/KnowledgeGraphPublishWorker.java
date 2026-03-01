@@ -93,19 +93,7 @@ public class KnowledgeGraphPublishWorker {
     if (logicalEntityId == null) {
       return;
     }
-    String subType =
-        logicalEntity.getDescription().subType() == null
-            ? null
-            : logicalEntity.getDescription().subType().getValue();
-    String definition = toDefinitionJson(logicalEntity);
-    graphMapper.upsertNode(
-        projectId,
-        logicalEntityId,
-        logicalEntity.getDescription().type().name(),
-        subType,
-        logicalEntity.getDescription().name(),
-        logicalEntity.getDescription().label(),
-        definition);
+    graphMapper.upsertNode(projectId, logicalEntityId);
 
     String sourceText = buildSourceText(logicalEntity);
     String literal =
@@ -182,22 +170,6 @@ public class KnowledgeGraphPublishWorker {
             entity.getDescription().label() == null ? "" : entity.getDescription().label(),
             description == null ? "" : description)
         .trim();
-  }
-
-  private static String toDefinitionJson(LogicalEntity entity) {
-    if (entity.getDescription().definition() == null
-        || entity.getDescription().definition().description() == null
-        || entity.getDescription().definition().description().isBlank()) {
-      return "{}";
-    }
-    String escaped =
-        entity
-            .getDescription()
-            .definition()
-            .description()
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"");
-    return "{\"description\":\"" + escaped + "\"}";
   }
 
   private static String shortenError(Exception error) {

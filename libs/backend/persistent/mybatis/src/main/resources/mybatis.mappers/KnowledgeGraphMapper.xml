@@ -12,30 +12,15 @@
     INSERT INTO kg_nodes (
       project_id,
       logical_entity_id,
-      logical_entity_type,
-      logical_entity_sub_type,
-      logical_entity_name,
-      logical_entity_label,
-      logical_entity_definition,
       updated_at
     )
     VALUES (
       #{project_id},
       #{logical_entity_id},
-      #{logical_entity_type},
-      #{logical_entity_sub_type},
-      #{logical_entity_name},
-      #{logical_entity_label},
-      CAST(#{logical_entity_definition} AS jsonb),
       CURRENT_TIMESTAMP
     )
     ON CONFLICT (project_id, logical_entity_id)
     DO UPDATE SET
-      logical_entity_type = EXCLUDED.logical_entity_type,
-      logical_entity_sub_type = EXCLUDED.logical_entity_sub_type,
-      logical_entity_name = EXCLUDED.logical_entity_name,
-      logical_entity_label = EXCLUDED.logical_entity_label,
-      logical_entity_definition = EXCLUDED.logical_entity_definition,
       updated_at = CURRENT_TIMESTAMP
   </insert>
 
@@ -99,15 +84,18 @@
 
   <select id="findNodesByProjectId" resultType="reengineering.ddd.teamai.mybatis.knowledgegraph.KnowledgeGraphNodeRow">
     SELECT
-      logical_entity_id AS logicalEntityId,
-      logical_entity_type AS logicalEntityType,
-      logical_entity_sub_type AS logicalEntitySubType,
-      logical_entity_name AS logicalEntityName,
-      logical_entity_label AS logicalEntityLabel,
-      logical_entity_definition::text AS logicalEntityDefinition
-    FROM kg_nodes
-    WHERE project_id = #{project_id}
-    ORDER BY logical_entity_id ASC
+      n.logical_entity_id AS logicalEntityId,
+      le.type AS logicalEntityType,
+      le.sub_type AS logicalEntitySubType,
+      le.name AS logicalEntityName,
+      le.label AS logicalEntityLabel,
+      le.definition::text AS logicalEntityDefinition
+    FROM kg_nodes n
+      INNER JOIN logical_entities le
+        ON le.id = n.logical_entity_id
+       AND le.project_id = n.project_id
+    WHERE n.project_id = #{project_id}
+    ORDER BY n.logical_entity_id ASC
   </select>
 
   <select id="findEdgesByProjectId" resultType="reengineering.ddd.teamai.mybatis.knowledgegraph.KnowledgeGraphEdgeRow">

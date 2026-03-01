@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Import;
 import reengineering.ddd.FlywayConfig;
 import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
+import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.DiagramDescription;
@@ -48,6 +49,7 @@ public class ProjectDiagramsTest {
   @Inject private Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
   @Inject private KnowledgeGraphPublishWorker knowledgeGraphPublishWorker;
   @Inject private KnowledgeGraphReader knowledgeGraphReader;
+  @Inject private TestDataMapper testDataMapper;
 
   private User user;
   private Project project;
@@ -434,6 +436,90 @@ public class ProjectDiagramsTest {
   }
 
   @Test
+  public void should_reflect_logical_entity_updates_without_rebuilding_graph_nodes() {
+    LogicalEntity contract =
+        project.addLogicalEntity(
+            new LogicalEntityDescription(
+                LogicalEntityDescription.Type.EVIDENCE,
+                EvidenceSubType.CONTRACT,
+                "OrderContract",
+                "订单合同",
+                new EntityDefinition("合同定义", null, null, null)));
+    LogicalEntity request =
+        project.addLogicalEntity(
+            new LogicalEntityDescription(
+                LogicalEntityDescription.Type.EVIDENCE,
+                EvidenceSubType.FULFILLMENT_REQUEST,
+                "CreatePayment",
+                "创建支付请求",
+                new EntityDefinition("履约请求", null, null, null)));
+
+    Diagram diagram =
+        project.addDiagram(
+            new DiagramDescription("图谱引用回归图", Type.CLASS, Viewport.defaultViewport()));
+    DiagramNode contractNode =
+        diagram.addNode(
+            new NodeDescription(
+                "fulfillment-node",
+                new Ref<>(contract.getIdentity()),
+                null,
+                100.0,
+                100.0,
+                220,
+                120,
+                null,
+                null));
+    DiagramNode requestNode =
+        diagram.addNode(
+            new NodeDescription(
+                "fulfillment-node",
+                new Ref<>(request.getIdentity()),
+                null,
+                300.0,
+                100.0,
+                220,
+                120,
+                null,
+                null));
+    diagram.addEdge(
+        new EdgeDescription(
+            new Ref<>(contractNode.getIdentity()),
+            new Ref<>(requestNode.getIdentity()),
+            null,
+            null,
+            null,
+            null,
+            null,
+            false));
+
+    project.publishDiagram(diagram.getIdentity(), knowledgeGraphPublisher);
+    knowledgeGraphPublishWorker.processPendingJobs();
+
+    KnowledgeGraph before = knowledgeGraphReader.readProjectKnowledgeGraph(project.getIdentity());
+    KnowledgeGraph.Node beforeContractNode =
+        findNodeByLogicalEntityId(before, contract.getIdentity());
+    assertEquals("订单合同", beforeContractNode.label());
+
+    testDataMapper.updateLogicalEntityLabel(
+        Integer.parseInt(project.getIdentity()),
+        Integer.parseInt(contract.getIdentity()),
+        "订单合同-已更新");
+
+    KnowledgeGraph after = knowledgeGraphReader.readProjectKnowledgeGraph(project.getIdentity());
+    KnowledgeGraph.Node afterContractNode =
+        findNodeByLogicalEntityId(after, contract.getIdentity());
+    assertEquals("订单合同-已更新", afterContractNode.label());
+    assertTrue(
+        after.edges().stream()
+            .anyMatch(
+                edge ->
+                    edge.diagramId().equals(diagram.getIdentity())
+                        && edge.sourceLogicalEntityId().equals(contract.getIdentity())
+                        && edge.targetLogicalEntityId().equals(request.getIdentity())
+                        && edge.relationType().equals("AUTHORIZES")));
+  }
+
+  @Test
   public void should_create_diagram_version_from_persisted_diagram() {
     Diagram diagram =
         project.addDiagram(new DiagramDescription("版本图", Type.CLASS, Viewport.defaultViewport()));
@@ -446,5 +532,12 @@ public class ProjectDiagramsTest {
 
   private static NodeDescription minimalNodeDescription() {
     return new NodeDescription("class-node", null, null, 100.0, 200.0, 300, 200, null, null);
+  }
+
+  private static KnowledgeGraph.Node findNodeByLogicalEntityId(KnowledgeGraph graph, String id) {
+    return graph.nodes().stream()
+        .filter(node -> node.logicalEntityId().equals(id))
+        .findFirst()
+        .orElseThrow();
   }
 }
