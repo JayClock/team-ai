@@ -28,7 +28,7 @@ export function Layout() {
   const resourceState = use(resourcePromise) as State<Entity> | undefined;
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-full">
       <LayoutSidebar resourceState={resourceState} />
       <SidebarInset>
         <LayoutHeader pathname={location.pathname} resourceState={resourceState} />
