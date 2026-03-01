@@ -4,6 +4,7 @@ import jakarta.ws.rs.core.UriInfo;
 import java.net.URI;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
+import reengineering.ddd.teamai.api.RootApi;
 import reengineering.ddd.teamai.api.UsersApi;
 
 public class RootModel extends RepresentationModel<RootModel> {
@@ -14,7 +15,10 @@ public class RootModel extends RepresentationModel<RootModel> {
     RootModel model = new RootModel();
 
     model.add(Link.of(uriInfo.getRequestUri().getPath()).withSelfRel());
-    model.add(Link.of("/oauth2/authorization/github", "login"));
+    URI localLoginUri =
+        uriInfo.getBaseUriBuilder().path(RootApi.class).path(RootApi.class, "login").build();
+    model.add(Link.of(localLoginUri.getPath(), "login"));
+    model.add(Link.of("/oauth2/authorization/github", "login-oauth-github"));
 
     return model;
   }

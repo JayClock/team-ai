@@ -31,7 +31,11 @@ public final class HateoasDocumentation {
   }
 
   public static LinkDescriptor loginLink() {
-    return linkWithRel("login").description("OAuth2 login endpoint for authentication");
+    return linkWithRel("login").description("Local username/password login endpoint");
+  }
+
+  public static LinkDescriptor loginOauthGithubLink() {
+    return linkWithRel("login-oauth-github").description("OAuth2 GitHub login endpoint");
   }
 
   public static LinkDescriptor userLink() {

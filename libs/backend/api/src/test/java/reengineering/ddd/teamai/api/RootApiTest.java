@@ -20,13 +20,14 @@ public class RootApiTest extends ApiTest {
             document(
                 "root/anonymous",
                 responseFields(rootResponseFields()),
-                halLinksSnippet(selfLink(), loginLink())))
+                halLinksSnippet(selfLink(), loginLink(), loginOauthGithubLink())))
         .when()
         .get("/")
         .then()
         .statusCode(200)
         .contentType(ContentType.JSON)
         .body("_links.self.href", notNullValue())
-        .body("_links.login.href", equalTo("/oauth2/authorization/github"));
+        .body("_links.login.href", equalTo("/api/auth/login"))
+        .body("_links.login-oauth-github.href", equalTo("/oauth2/authorization/github"));
   }
 }

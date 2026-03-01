@@ -8,6 +8,9 @@ ext {
 
 dependencies {
     implementation project(':backend:domain')
+    implementation project(':backend:infrastructure:spring-security')
+    implementation 'org.springframework.security:spring-security-core'
+    implementation 'org.springframework.security:spring-security-crypto'
     implementation 'jakarta.inject:jakarta.inject-api'
     implementation 'jakarta.ws.rs:jakarta.ws.rs-api'
     implementation 'org.springframework.hateoas:spring-hateoas'

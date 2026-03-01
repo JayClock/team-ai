@@ -13,7 +13,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.restdocs.RestDocumentationExtension;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import reengineering.ddd.infrastructure.security.jwt.JwtUtil;
 import reengineering.ddd.teamai.api.config.TestApplication;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.KnowledgeGraphReader;
@@ -29,6 +32,9 @@ public class ApiTest {
   @MockitoBean protected Diagram.DomainArchitect domainArchitect;
   @MockitoBean protected Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
   @MockitoBean protected KnowledgeGraphReader knowledgeGraphReader;
+  @MockitoBean protected AuthenticationManager authenticationManager;
+  @MockitoBean protected PasswordEncoder passwordEncoder;
+  @MockitoBean protected JwtUtil jwtUtil;
 
   @Value("${local.server.port}")
   private int port;
