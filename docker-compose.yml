@@ -12,7 +12,7 @@ services:
   # PostgreSQL Database
   # ---------------------------------------------------------------------------
   postgres:
-    image: postgres:15-alpine
+    image: pgvector/pgvector:pg15
     container_name: teamai-postgres
     environment:
       POSTGRES_DB: ${DB_NAME:-teamai_dev}
