@@ -7,12 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.inject.Inject;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mybatis.spring.boot.test.autoconfigure.MybatisTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import reengineering.ddd.FlywayConfig;
 import reengineering.ddd.TestCacheConfig;
 import reengineering.ddd.TestContainerConfig;
@@ -21,6 +23,7 @@ import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.context.ProjectContext;
 import reengineering.ddd.teamai.description.LocalCredentialDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
+import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 import reengineering.ddd.teamai.model.User;
@@ -37,6 +40,7 @@ public class UsersTest {
   @Inject private Users users;
   @Inject private CacheManager cacheManager;
   @Inject private Projects projects;
+  @Inject private JdbcTemplate jdbcTemplate;
 
   private User user;
   private Project project;
@@ -138,5 +142,19 @@ public class UsersTest {
 
     assertTrue(byEmail.isPresent());
     assertEquals(user.getIdentity(), byEmail.get().getIdentity());
+  }
+
+  @Test
+  public void should_create_default_project_when_creating_user() {
+    jdbcTemplate.execute(
+        "SELECT setval(pg_get_serial_sequence('users', 'id'), "
+            + "(SELECT COALESCE(MAX(id), 0) FROM users), true)");
+
+    String email = "new-user-default-project+" + UUID.randomUUID() + "@email.com";
+    User created = users.createUser(new UserDescription("New User", email));
+
+    var projects = created.projects().findAll();
+    assertEquals(1, projects.size());
+    assertEquals("Default Project", projects.iterator().next().getDescription().name());
   }
 }

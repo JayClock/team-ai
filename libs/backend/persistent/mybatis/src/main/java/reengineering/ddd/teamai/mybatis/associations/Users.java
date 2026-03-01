@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.context.ProjectContext;
 import reengineering.ddd.teamai.description.LocalCredentialDescription;
+import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.LocalCredential;
 import reengineering.ddd.teamai.model.Member;
@@ -24,6 +25,7 @@ import reengineering.ddd.teamai.role.ProjectViewer;
 public class Users implements reengineering.ddd.teamai.model.Users {
 
   private static final String CACHE_NAME = "users";
+  private static final String DEFAULT_PROJECT_NAME = "Default Project";
 
   private final UsersMapper mapper;
   private final Projects projects;
@@ -66,7 +68,11 @@ public class Users implements reengineering.ddd.teamai.model.Users {
   public User createUser(UserDescription description) {
     IdHolder idHolder = new IdHolder();
     mapper.insertUser(idHolder, description);
-    return mapper.findUserById(idHolder.id());
+    User user = mapper.findUserById(idHolder.id());
+    if (user.projects().findAll().size() == 0) {
+      user.add(new ProjectDescription(DEFAULT_PROJECT_NAME));
+    }
+    return user;
   }
 
   @Override
