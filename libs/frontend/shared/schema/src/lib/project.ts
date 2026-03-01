@@ -5,6 +5,13 @@ import { KnowledgeGraph } from './knowledge-graph.js';
 import { LogicalEntity } from './logical-entity.js';
 import { Sidebar } from './sidebar.js';
 
+export type DiagramCollection = Entity<
+  Collection<Diagram>['data'],
+  Collection<Diagram>['links'] & {
+    'create-diagram': Diagram;
+  }
+>;
+
 export type Project = Entity<
   {
     id: string;
@@ -13,11 +20,10 @@ export type Project = Entity<
   {
     self: Project;
     conversations: Collection<Conversation>;
-    diagrams: Collection<Diagram>;
+    diagrams: DiagramCollection;
     'knowledge-graph': KnowledgeGraph;
     'logical-entities': Collection<LogicalEntity>;
     sidebar: Sidebar;
-    'create-digram': Diagram;
     default: Project;
   }
 >;
