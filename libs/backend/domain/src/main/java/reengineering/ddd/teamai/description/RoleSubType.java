@@ -23,8 +23,11 @@ public enum RoleSubType implements LogicalEntityDescription.SubType {
   }
 
   public static RoleSubType fromValue(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Unknown role sub-type: " + value);
+    }
     for (RoleSubType type : values()) {
-      if (type.value.equals(value)) {
+      if (type.value.equalsIgnoreCase(value.trim())) {
         return type;
       }
     }

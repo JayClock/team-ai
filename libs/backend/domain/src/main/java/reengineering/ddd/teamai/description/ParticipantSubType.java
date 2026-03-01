@@ -20,8 +20,11 @@ public enum ParticipantSubType implements LogicalEntityDescription.SubType {
   }
 
   public static ParticipantSubType fromValue(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Unknown participant sub-type: " + value);
+    }
     for (ParticipantSubType type : values()) {
-      if (type.value.equals(value)) {
+      if (type.value.equalsIgnoreCase(value.trim())) {
         return type;
       }
     }

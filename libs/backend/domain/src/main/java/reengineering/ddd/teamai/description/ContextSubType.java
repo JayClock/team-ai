@@ -19,8 +19,11 @@ public enum ContextSubType implements LogicalEntityDescription.SubType {
   }
 
   public static ContextSubType fromValue(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Unknown context sub-type: " + value);
+    }
     for (ContextSubType type : values()) {
-      if (type.value.equals(value)) {
+      if (type.value.equalsIgnoreCase(value.trim())) {
         return type;
       }
     }

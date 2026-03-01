@@ -30,8 +30,11 @@ public enum EvidenceSubType implements LogicalEntityDescription.SubType {
   }
 
   public static EvidenceSubType fromValue(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Unknown evidence sub-type: " + value);
+    }
     for (EvidenceSubType type : values()) {
-      if (type.value.equals(value)) {
+      if (type.value.equalsIgnoreCase(value.trim())) {
         return type;
       }
     }

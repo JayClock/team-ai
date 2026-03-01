@@ -4,6 +4,7 @@ import java.sql.CallableStatement;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Locale;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
 import org.apache.ibatis.type.MappedTypes;
@@ -77,8 +78,8 @@ public class SubTypeHandler extends BaseTypeHandler<LogicalEntityDescription.Sub
           "Invalid SubType format, expected 'PREFIX:value': " + value);
     }
 
-    String prefix = value.substring(0, separatorIndex);
-    String subValue = value.substring(separatorIndex + 1);
+    String prefix = value.substring(0, separatorIndex).trim().toUpperCase(Locale.ROOT);
+    String subValue = value.substring(separatorIndex + 1).trim();
 
     return switch (prefix) {
       case "EVIDENCE" -> EvidenceSubType.fromValue(subValue);
