@@ -7,16 +7,19 @@ import { layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
 import { protectedRouteLoader } from './protected-route-loader';
 
-const protectedLayoutRoutes = layoutRoutes.map((route) => ({
-  ...route,
-  loader: protectedRouteLoader,
-}));
-
-const router = createBrowserRouter([
+const protectedLayoutRoutes = [
   {
     path: '/api/*',
     loader: apiPrefixGuardLoader,
   },
+  ...layoutRoutes.map((route) => ({
+    ...route,
+    loader: protectedRouteLoader,
+  })),
+];
+
+const router = createBrowserRouter([
+  ...protectedLayoutRoutes,
   {
     path: '/login',
     element: <Login />,
@@ -25,7 +28,6 @@ const router = createBrowserRouter([
     path: '/signup',
     element: <Signup />,
   },
-  ...protectedLayoutRoutes,
   {
     path: '/home',
     element: <Homepage />,

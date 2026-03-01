@@ -32,18 +32,14 @@ export function Signup() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loginLink = rootState?.getLink('login');
-  const registerUrl = useMemo(
-    () => loginLink?.href?.replace('/auth/login', '/auth/register') ?? null,
-    [loginLink]
-  );
+  const registerLink = rootState?.getLink('register');
   const returnTo = useMemo(() => searchParams.get('return_to') || '/', [searchParams]);
 
   useEffect(() => {
-    if (!loading && !rootError && !loginLink) {
+    if (!loading && !rootError && !registerLink) {
       navigate('/');
     }
-  }, [loading, loginLink, navigate, rootError]);
+  }, [loading, navigate, registerLink, rootError]);
 
   if (loading) {
     return null;
@@ -59,7 +55,7 @@ export function Signup() {
 
   const handleSignup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!registerUrl || submitting) {
+    if (!registerLink?.href || submitting) {
       return;
     }
 
@@ -71,7 +67,7 @@ export function Signup() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(registerUrl, {
+      const response = await fetch(registerLink.href, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -177,7 +173,11 @@ export function Signup() {
                 {error ? <FieldError>{error}</FieldError> : null}
 
                 <Field className="gap-3">
-                  <Button type="submit" disabled={!registerUrl || submitting} className="w-full">
+                  <Button
+                    type="submit"
+                    disabled={!registerLink || submitting}
+                    className="w-full"
+                  >
                     {submitting ? '注册中...' : '创建账号'}
                   </Button>
                   <FieldDescription className="px-6 text-center">

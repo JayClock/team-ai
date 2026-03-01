@@ -83,8 +83,9 @@ export function Login() {
 
   const handleGithubLogin = () => {
     if (githubLoginLink?.href) {
-      const redirectParam = encodeURIComponent(returnTo);
-      window.location.href = `${githubLoginLink.href}?redirect_uri=${redirectParam}`;
+      const oauthLoginUrl = new URL(githubLoginLink.href, window.location.origin);
+      oauthLoginUrl.searchParams.set('return_to', returnTo);
+      window.location.href = oauthLoginUrl.toString();
     }
   };
 
