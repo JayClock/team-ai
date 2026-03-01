@@ -24,9 +24,11 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.hateoas.MediaTypes;
+import reengineering.ddd.archtype.HasOne;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Account;
+import reengineering.ddd.teamai.model.LocalCredential;
 import reengineering.ddd.teamai.model.User;
 
 public class UsersApiTest extends ApiTest {
@@ -51,12 +53,14 @@ public class UsersApiTest extends ApiTest {
   @Test
   public void should_return_user_if_user_exists() {
     User.Accounts accounts = mock(User.Accounts.class);
+    HasOne<LocalCredential> credential = mock(HasOne.class);
     User.Projects projects = mock(User.Projects.class);
     User user =
         new User(
             "john.smith",
             new UserDescription("John Smith", "john.smith@email.com"),
             accounts,
+            credential,
             projects);
 
     Account account1 =
@@ -110,18 +114,21 @@ public class UsersApiTest extends ApiTest {
   @Test
   public void should_update_user() {
     User.Accounts accounts = mock(User.Accounts.class);
+    HasOne<LocalCredential> credential = mock(HasOne.class);
     User.Projects projects = mock(User.Projects.class);
     User user =
         new User(
             "john.smith",
             new UserDescription("John Smith", "john.smith@email.com"),
             accounts,
+            credential,
             projects);
     User updatedUser =
         new User(
             "john.smith",
             new UserDescription("John Updated", "john.updated@email.com"),
             accounts,
+            credential,
             projects);
     when(users.findByIdentity(user.getIdentity()))
         .thenReturn(Optional.of(user))

@@ -1,6 +1,7 @@
 package reengineering.ddd.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.inject.Inject;
 import java.util.Random;
@@ -29,6 +30,7 @@ public class UsersMapperTest {
   @BeforeEach
   public void before() {
     testData.insertUser(userId, "John Smith", "john.smith+" + userId + "@email.com");
+    testData.insertUserCredential(userId, "john-" + userId, "hashed-password");
   }
 
   @Test
@@ -65,5 +67,22 @@ public class UsersMapperTest {
     usersMapper.insertUser(idHolder, new UserDescription("John Smith", "JayClock@email.com"));
     User user = usersMapper.findUserById(idHolder.id());
     assertEquals("John Smith", user.getDescription().name());
+  }
+
+  @Test
+  public void should_find_user_by_username() {
+    User user = usersMapper.findUserByUsername("john-" + userId);
+
+    assertEquals(String.valueOf(userId), user.getIdentity());
+    assertTrue(user.credential().isPresent());
+    assertEquals("john-" + userId, user.credential().orElseThrow().getDescription().username());
+  }
+
+  @Test
+  public void should_find_user_by_email() {
+    User user = usersMapper.findUserByEmail("john.smith+" + userId + "@email.com");
+
+    assertEquals(String.valueOf(userId), user.getIdentity());
+    assertTrue(user.credential().isPresent());
   }
 }

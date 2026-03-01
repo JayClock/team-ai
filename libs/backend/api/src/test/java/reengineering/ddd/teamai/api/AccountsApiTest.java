@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
+import reengineering.ddd.archtype.HasOne;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 import reengineering.ddd.teamai.model.Account;
@@ -35,6 +36,7 @@ public class AccountsApiTest extends ApiTest {
             "JayClock",
             new UserDescription("JayClock", "JayClock@email"),
             accounts,
+            mock(HasOne.class),
             mock(User.Projects.class));
     when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.ofNullable(user));
     account = new Account("2", new AccountDescription("github", "github02"));

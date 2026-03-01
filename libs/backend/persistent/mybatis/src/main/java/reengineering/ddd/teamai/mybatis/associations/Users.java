@@ -7,7 +7,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.context.ProjectContext;
+import reengineering.ddd.teamai.description.LocalCredentialDescription;
 import reengineering.ddd.teamai.description.UserDescription;
+import reengineering.ddd.teamai.model.LocalCredential;
 import reengineering.ddd.teamai.model.Member;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
@@ -39,7 +41,28 @@ public class Users implements reengineering.ddd.teamai.model.Users {
   }
 
   @Override
-  @CacheEvict(value = CACHE_NAME, key = "#result.getIdentity()")
+  @Cacheable(value = CACHE_NAME, key = "'username:' + #username", unless = "#result == null")
+  public Optional<User> findByUsername(String username) {
+    return Optional.ofNullable(mapper.findUserByUsername(username));
+  }
+
+  @Override
+  @Cacheable(value = CACHE_NAME, key = "'email:' + #email", unless = "#result == null")
+  public Optional<User> findByEmail(String email) {
+    return Optional.ofNullable(mapper.findUserByEmail(email));
+  }
+
+  @Override
+  @CacheEvict(value = CACHE_NAME, allEntries = true)
+  public LocalCredential bindLocalCredential(
+      String userId, LocalCredentialDescription description) {
+    int intUserId = Integer.parseInt(userId);
+    mapper.upsertCredential(intUserId, description);
+    return mapper.findCredentialByUserId(intUserId);
+  }
+
+  @Override
+  @CacheEvict(value = CACHE_NAME, allEntries = true)
   public User createUser(UserDescription description) {
     IdHolder idHolder = new IdHolder();
     mapper.insertUser(idHolder, description);
@@ -47,7 +70,7 @@ public class Users implements reengineering.ddd.teamai.model.Users {
   }
 
   @Override
-  @CacheEvict(value = CACHE_NAME, key = "#id")
+  @CacheEvict(value = CACHE_NAME, allEntries = true)
   public void update(String id, UserDescription request) {
     mapper.updateUser(Integer.parseInt(id), request);
   }

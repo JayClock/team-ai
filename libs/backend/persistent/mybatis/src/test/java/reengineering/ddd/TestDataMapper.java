@@ -20,6 +20,13 @@ public interface TestDataMapper {
       @Param("user_id") int userId);
 
   @Insert(
+      "INSERT INTO user_credentials(user_id, username, password_hash) VALUES (#{user_id}, #{username}, #{password_hash})")
+  void insertUserCredential(
+      @Param("user_id") int userId,
+      @Param("username") String username,
+      @Param("password_hash") String passwordHash);
+
+  @Insert(
       "INSERT INTO conversations(id,title,project_id) VALUES ( #{id} ,#{title} ,#{project_id} )")
   void insertConversation(
       @Param("id") int id, @Param("title") String title, @Param("project_id") int projectId);

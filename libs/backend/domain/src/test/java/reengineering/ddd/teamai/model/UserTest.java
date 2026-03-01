@@ -9,12 +9,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reengineering.ddd.archtype.HasMany;
+import reengineering.ddd.archtype.HasOne;
 import reengineering.ddd.teamai.description.AccountDescription;
 import reengineering.ddd.teamai.description.UserDescription;
 
 @ExtendWith(MockitoExtension.class)
 public class UserTest {
   @Mock private User.Accounts accounts;
+  @Mock private HasOne<LocalCredential> credential;
   @Mock private User.Projects projects;
 
   private User user;
@@ -23,7 +25,7 @@ public class UserTest {
   @BeforeEach
   public void setUp() {
     userDescription = new UserDescription("John Doe", "john@example.com");
-    user = new User("user-1", userDescription, accounts, projects);
+    user = new User("user-1", userDescription, accounts, credential, projects);
   }
 
   @Test
@@ -62,5 +64,12 @@ public class UserTest {
 
     assertSame(expectedAccount, result);
     verify(accounts).add(accountDescription);
+  }
+
+  @Test
+  public void should_return_empty_credential_when_not_bound() {
+    when(credential.get()).thenReturn(null);
+
+    assertTrue(user.credential().isEmpty());
   }
 }

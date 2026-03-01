@@ -1,0 +1,9 @@
+CREATE TABLE user_credentials
+(
+  user_id       BIGINT PRIMARY KEY,
+  username      VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at    TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_credential_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);

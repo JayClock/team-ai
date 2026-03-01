@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="reengineering.ddd.teamai.mybatis.mappers.UsersMapper">
+  <resultMap id="localCredential" type="reengineering.ddd.teamai.model.LocalCredential">
+    <id property="identity" column="credential_user_id" jdbcType="BIGINT" javaType="String"/>
+    <association property="description"
+                 javaType="reengineering.ddd.teamai.description.LocalCredentialDescription">
+      <constructor>
+        <arg column="credential_username" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="credential_password_hash" jdbcType="VARCHAR" javaType="String"/>
+      </constructor>
+    </association>
+  </resultMap>
+
   <resultMap id="user" type="reengineering.ddd.teamai.model.User">
     <id property="identity" column="id" jdbcType="BIGINT" javaType="String"/>
     <association property="description" javaType="reengineering.ddd.teamai.description.UserDescription">
@@ -14,6 +25,9 @@
       <collection property="list" resultMap="reengineering.ddd.teamai.mybatis.mappers.UserAccountsMapper.account"
                   ofType="reengineering.ddd.teamai.model.Account"/>
     </association>
+    <association property="credential" javaType="reengineering.ddd.mybatis.memory.Reference">
+      <association property="entity" resultMap="localCredential" notNullColumn="credential_user_id"/>
+    </association>
     <association property="projects" javaType="reengineering.ddd.teamai.mybatis.associations.UserProjects">
       <result column="id" property="userId" javaType="int"/>
     </association>
@@ -26,14 +40,75 @@
            a.id as account_id,
            a.provider,
            a.provider_id,
+           uc.user_id as credential_user_id,
+           uc.username as credential_username,
+           uc.password_hash as credential_password_hash,
            p.id as project_id,
            p.name
     from users u
            left join accounts a on u.id = a.user_id
+           left join user_credentials uc on u.id = uc.user_id
            left join project_members pm on u.id = pm.user_id
            left join projects p on pm.project_id = p.id
     where u.id = #{id}
   </select>
+
+  <select id="findUserByUsername" resultMap="user">
+    select u.id,
+           u.name,
+           u.email,
+           a.id as account_id,
+           a.provider,
+           a.provider_id,
+           uc.user_id as credential_user_id,
+           uc.username as credential_username,
+           uc.password_hash as credential_password_hash,
+           p.id as project_id,
+           p.name
+    from users u
+           join user_credentials uc on u.id = uc.user_id
+           left join accounts a on u.id = a.user_id
+           left join project_members pm on u.id = pm.user_id
+           left join projects p on pm.project_id = p.id
+    where uc.username = #{username}
+  </select>
+
+  <select id="findUserByEmail" resultMap="user">
+    select u.id,
+           u.name,
+           u.email,
+           a.id as account_id,
+           a.provider,
+           a.provider_id,
+           uc.user_id as credential_user_id,
+           uc.username as credential_username,
+           uc.password_hash as credential_password_hash,
+           p.id as project_id,
+           p.name
+    from users u
+           left join accounts a on u.id = a.user_id
+           left join user_credentials uc on u.id = uc.user_id
+           left join project_members pm on u.id = pm.user_id
+           left join projects p on pm.project_id = p.id
+    where u.email = #{email}
+  </select>
+
+  <select id="findCredentialByUserId" resultMap="localCredential">
+    select uc.user_id as credential_user_id,
+           uc.username as credential_username,
+           uc.password_hash as credential_password_hash
+    from user_credentials uc
+    where uc.user_id = #{user_id}
+  </select>
+
+  <insert id="upsertCredential">
+    insert into user_credentials(user_id, username, password_hash)
+    values (#{user_id}, #{description.username}, #{description.passwordHash})
+    on conflict (user_id) do update
+    set username = excluded.username,
+        password_hash = excluded.password_hash,
+        updated_at = current_timestamp
+  </insert>
 
   <insert id="insertUser" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">

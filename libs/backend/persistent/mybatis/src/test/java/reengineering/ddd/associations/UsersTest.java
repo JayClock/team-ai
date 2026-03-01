@@ -19,6 +19,7 @@ import reengineering.ddd.TestContainerConfig;
 import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.context.ProjectContext;
+import reengineering.ddd.teamai.description.LocalCredentialDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
@@ -115,5 +116,27 @@ public class UsersTest {
         context.asParticipant(nonMemberUserOpt.get(), project);
 
     assertTrue(participant.isEmpty());
+  }
+
+  @Test
+  public void should_bind_and_find_user_by_username() {
+    users.bindLocalCredential(
+        user.getIdentity(), new LocalCredentialDescription("john.smith", "hashed-password"));
+
+    Optional<User> byUsername = users.findByUsername("john.smith");
+
+    assertTrue(byUsername.isPresent());
+    assertEquals(user.getIdentity(), byUsername.get().getIdentity());
+    assertTrue(byUsername.get().credential().isPresent());
+    assertEquals(
+        "john.smith", byUsername.get().credential().orElseThrow().getDescription().username());
+  }
+
+  @Test
+  public void should_find_user_by_email() {
+    Optional<User> byEmail = users.findByEmail("john.smith@email.com");
+
+    assertTrue(byEmail.isPresent());
+    assertEquals(user.getIdentity(), byEmail.get().getIdentity());
   }
 }
