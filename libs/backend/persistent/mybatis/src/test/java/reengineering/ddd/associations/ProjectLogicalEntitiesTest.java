@@ -57,14 +57,15 @@ public class ProjectLogicalEntitiesTest {
     EntityDefinition definition =
         new EntityDefinition("订单业务定义", List.of("Core"), List.of(), List.of());
     var description =
-        new LogicalEntityDescription(Type.EVIDENCE, EvidenceSubType.RFP, "Order", "订单", definition);
+        new LogicalEntityDescription(
+            Type.EVIDENCE, EvidenceSubType.REQUEST_FOR_PROPOSAL, "Order", "订单", definition);
 
     LogicalEntity savedEntity = project.addLogicalEntity(description);
 
     assertEquals("Order", savedEntity.getDescription().name());
     assertEquals("订单", savedEntity.getDescription().label());
     assertEquals(Type.EVIDENCE, savedEntity.getDescription().type());
-    assertEquals(EvidenceSubType.RFP, savedEntity.getDescription().subType());
+    assertEquals(EvidenceSubType.REQUEST_FOR_PROPOSAL, savedEntity.getDescription().subType());
     assertEquals("订单业务定义", savedEntity.getDescription().definition().description());
 
     var retrievedEntity = project.logicalEntities().findByIdentity(savedEntity.getIdentity()).get();
@@ -115,7 +116,7 @@ public class ProjectLogicalEntitiesTest {
 
     EntityDefinition definition = new EntityDefinition("", List.of(), List.of(), List.of());
     var description =
-        new LogicalEntityDescription(Type.ROLE, RoleSubType.PARTY_ROLE, "Money", "金额", definition);
+        new LogicalEntityDescription(Type.ROLE, RoleSubType.PARTY, "Money", "金额", definition);
     project.addLogicalEntity(description);
 
     int newSize = project.logicalEntities().findAll().size();

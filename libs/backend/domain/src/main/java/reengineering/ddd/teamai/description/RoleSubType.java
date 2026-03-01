@@ -5,11 +5,11 @@ package reengineering.ddd.teamai.description;
  * by concrete participants.
  */
 public enum RoleSubType implements LogicalEntityDescription.SubType {
-  PARTY_ROLE("party_role"),
-  DOMAIN_LOGIC_ROLE("domain_logic_role"),
-  THIRD_PARTY_ROLE("third_party_role"),
-  CONTEXT_ROLE("context_role"),
-  EVIDENCE_ROLE("evidence_role");
+  PARTY("party"),
+  DOMAIN("domain"),
+  THIRD_PARTY_SYSTEM("3rd system"),
+  OTHER_CONTEXT("context"),
+  EVIDENCE("evidence");
 
   private final String value;
 
@@ -26,8 +26,12 @@ public enum RoleSubType implements LogicalEntityDescription.SubType {
     if (value == null) {
       throw new IllegalArgumentException("Unknown role sub-type: " + value);
     }
+    String trimmed = value.trim();
+    if (trimmed.isEmpty()) {
+      throw new IllegalArgumentException("Unknown role sub-type: " + value);
+    }
     for (RoleSubType type : values()) {
-      if (type.value.equalsIgnoreCase(value.trim())) {
+      if (type.value.equalsIgnoreCase(trimmed)) {
         return type;
       }
     }

@@ -57,7 +57,7 @@ public class LogicalEntitiesApiTest extends ApiTest {
         new LogicalEntity(
             "entity-1",
             new LogicalEntityDescription(
-                Type.EVIDENCE, EvidenceSubType.RFP, "Order", "订单", definition));
+                Type.EVIDENCE, EvidenceSubType.REQUEST_FOR_PROPOSAL, "Order", "订单", definition));
 
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(projectLogicalEntities.findByIdentity(logicalEntity.getIdentity()))

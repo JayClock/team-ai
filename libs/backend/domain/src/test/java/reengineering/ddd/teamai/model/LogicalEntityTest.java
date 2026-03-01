@@ -36,7 +36,7 @@ public class LogicalEntityTest {
 
     description =
         new LogicalEntityDescription(
-            Type.EVIDENCE, EvidenceSubType.RFP, "Order", "销售订单", entityDefinition);
+            Type.EVIDENCE, EvidenceSubType.REQUEST_FOR_PROPOSAL, "Order", "销售订单", entityDefinition);
 
     entity = new LogicalEntity("entity-1", description);
   }

@@ -80,7 +80,7 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 7. 参与方判定：新增 RFP、Proposal、Fulfillment Request、Fulfillment Confirmation、Other Evidence 时，必须先思考并明确唯一的 Party Role 参与再连线；上述每个节点必须有一个 Party Role 参与。
                 8. 通用凭证/副产品：当确认动作产生具体业务单据（如发票、发货单）时，先判断是否需要跨上下文桥接：
                    - 不跨上下文：建模为 Fulfillment Confirmation -> Other Evidence（EVIDENCE 节点，通常 1 对 1）。
-                   - 跨上下文：直接建模为 Evidence As Role（ROLE:evidence_role），不要再保留同语义 Other Evidence。
+                   - 跨上下文：直接建模为 Evidence As Role（ROLE:evidence），不要再保留同语义 Other Evidence。
                 9. 跨上下文角色：Evidence As Role 仅用于桥接，且必须严格满足 Fulfillment Confirmation -> Evidence As Role -> Fulfillment Confirmation。禁止 Evidence As Role 连接 Contract、Fulfillment Request、Proposal、RFP。Evidence As Role 的所属 Context 必须继承其原始 Other Evidence 的生成来源 Fulfillment Confirmation（source confirmation）的 Context，禁止重新归属到其他 Context。同一业务语义在同一张图中只能保留一个节点表示（Other Evidence 与 Evidence As Role 二选一，禁止并存）。
                 10. 角色参与约束：Third Party Role、Context Role 只能参与 Other Evidence 或 Evidence As Role，不得直接参与 RFP、Proposal、Contract、Fulfillment Request、Fulfillment Confirmation。
                 11. 多合同上下文处理：若需求涉及多个 Contract 上下文，必须按“一合同一主链”分别建模；并且每个合同上下文都必须独立、完整遵循本流程第 1-10 条（合同识别、参与方角色化、凭证主线、角色约束、Evidence As Role 规则均不可省略或合并）。每个 Context 节点应包裹该上下文内从 RFP 到终点节点（Other Evidence 或 Evidence As Role）的全部相关节点；当终点为 Evidence As Role 时，将其作为上下文划分边界标记。Context 内不包含 Participant（Party），若需要补充主体实体信息，应将 Participant（Party）放在 Context 外并连接到对应 Party Role。涉及多个 Contract 时，必须先进行主体同一性判断：同一真实主体可在不同上下文扮演不同 Party Role（同一 Participant 的不同“马甲”），例如“商品采购合同中的客户 Party Role”与“微信支付合同中的微信用户 Party Role”可归属于同一 Participant（Party）。多个 Contract 上下文之间只允许通过 Fulfillment Confirmation 与 Evidence As Role 进行桥接（Fulfillment Confirmation -> Evidence As Role -> Fulfillment Confirmation）；禁止 Contract 与 Contract、Contract 与对方主链节点直接连线。
@@ -94,7 +94,7 @@ public class SpringAIDomainArchitect implements Diagram.DomainArchitect, Request
                 3. type 映射建议：
                    - EVIDENCE：RFP、Proposal、Contract、Fulfillment Request、Fulfillment Confirmation、Other Evidence（仅限不跨上下文的内部产物）
                    - PARTICIPANT：Party、Thing
-                   - ROLE：Party、Domain Logic、Third Party、Context，以及 Evidence As Role（跨上下文凭证角色，当前值通常为 evidence_role）
+                   - ROLE：Party、Domain、Third Party、Other Context，以及 Evidence As Role（跨上下文凭证角色，当前值通常为 evidence）
                    - CONTEXT：相关业务上下文（如库存、支付、发票等）
                 4. subType 必须与 type 匹配，并使用以下子类型值（仅 value，不带前缀）：
                    - EVIDENCE -> %s

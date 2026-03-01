@@ -43,7 +43,7 @@ public class ProjectLogicalEntitiesMapperTest {
         entityId,
         projectId,
         Type.EVIDENCE,
-        EvidenceSubType.RFP,
+        EvidenceSubType.REQUEST_FOR_PROPOSAL,
         "Order",
         "订单",
         "{\"description\":\"测试实体\",\"tags\":[],\"attributes\":[],\"behaviors\":[]}");

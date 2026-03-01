@@ -106,11 +106,11 @@ public class ProjectsApiTest extends ApiTest {
                 "EVIDENCE:other_evidence",
                 "PARTICIPANT:party",
                 "PARTICIPANT:thing",
-                "ROLE:party_role",
-                "ROLE:domain_logic_role",
-                "ROLE:third_party_role",
-                "ROLE:context_role",
-                "ROLE:evidence_role",
+                "ROLE:party",
+                "ROLE:domain",
+                "ROLE:3rd system",
+                "ROLE:context",
+                "ROLE:evidence",
                 "CONTEXT:bounded_context"))
         .body("_templates.create-logical-entity.properties[3].name", is("type"))
         .body("_templates.create-logical-entity.properties[3].required", is(true))

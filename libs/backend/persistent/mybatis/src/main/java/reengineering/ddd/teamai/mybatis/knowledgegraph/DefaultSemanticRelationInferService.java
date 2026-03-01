@@ -2,6 +2,7 @@ package reengineering.ddd.teamai.mybatis.knowledgegraph;
 
 import org.springframework.stereotype.Component;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.RoleSubType;
 import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.service.SemanticRelationInferService;
@@ -37,16 +38,20 @@ public class DefaultSemanticRelationInferService implements SemanticRelationInfe
     if ("EVIDENCE".equals(sourceType)
         && "ROLE".equals(targetType)
         && "fulfillment_confirmation".equals(sourceSubType)
-        && "evidence_role".equals(targetSubType)) {
+        && isEvidenceRoleSubType(targetSubType)) {
       return "BRIDGES_TO";
     }
     if ("ROLE".equals(sourceType)
         && "EVIDENCE".equals(targetType)
-        && "evidence_role".equals(sourceSubType)
+        && isEvidenceRoleSubType(sourceSubType)
         && "fulfillment_confirmation".equals(targetSubType)) {
       return "BRIDGES_TO";
     }
     return "RELATES_TO";
+  }
+
+  private static boolean isEvidenceRoleSubType(String subType) {
+    return RoleSubType.EVIDENCE.getValue().equals(subType);
   }
 
   private static String inferEvidenceRelation(String sourceSubType, String targetSubType) {

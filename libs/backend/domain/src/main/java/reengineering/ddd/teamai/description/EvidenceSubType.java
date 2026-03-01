@@ -5,7 +5,7 @@ package reengineering.ddd.teamai.description;
  * in a business fulfillment process.
  */
 public enum EvidenceSubType implements LogicalEntityDescription.SubType {
-  RFP("rfp", TemporalType.INTERVAL),
+  REQUEST_FOR_PROPOSAL("rfp", TemporalType.INTERVAL),
   PROPOSAL("proposal", TemporalType.INTERVAL),
   CONTRACT("contract", TemporalType.MOMENT),
   FULFILLMENT_REQUEST("fulfillment_request", TemporalType.INTERVAL),
@@ -33,8 +33,12 @@ public enum EvidenceSubType implements LogicalEntityDescription.SubType {
     if (value == null) {
       throw new IllegalArgumentException("Unknown evidence sub-type: " + value);
     }
+    String trimmed = value.trim();
+    if (trimmed.isEmpty()) {
+      throw new IllegalArgumentException("Unknown evidence sub-type: " + value);
+    }
     for (EvidenceSubType type : values()) {
-      if (type.value.equalsIgnoreCase(value.trim())) {
+      if (type.value.equalsIgnoreCase(trimmed)) {
         return type;
       }
     }

@@ -152,26 +152,26 @@
           WHEN 'EVIDENCE' THEN
             CASE
               WHEN POSITION(':' IN COALESCE(dn.local_data ->> 'subType', '')) > 0
-                THEN dn.local_data ->> 'subType'
-              ELSE 'EVIDENCE:' || COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'rfp')
+                THEN SPLIT_PART(dn.local_data ->> 'subType', ':', 2)
+              ELSE COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'rfp')
             END
           WHEN 'PARTICIPANT' THEN
             CASE
               WHEN POSITION(':' IN COALESCE(dn.local_data ->> 'subType', '')) > 0
-                THEN dn.local_data ->> 'subType'
-              ELSE 'PARTICIPANT:' || COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'party')
+                THEN SPLIT_PART(dn.local_data ->> 'subType', ':', 2)
+              ELSE COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'party')
             END
           WHEN 'ROLE' THEN
             CASE
               WHEN POSITION(':' IN COALESCE(dn.local_data ->> 'subType', '')) > 0
-                THEN dn.local_data ->> 'subType'
-              ELSE 'ROLE:' || COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'party_role')
+                THEN SPLIT_PART(dn.local_data ->> 'subType', ':', 2)
+              ELSE COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'party')
             END
           WHEN 'CONTEXT' THEN
             CASE
               WHEN POSITION(':' IN COALESCE(dn.local_data ->> 'subType', '')) > 0
-                THEN dn.local_data ->> 'subType'
-              ELSE 'CONTEXT:' || COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'bounded_context')
+                THEN SPLIT_PART(dn.local_data ->> 'subType', ':', 2)
+              ELSE COALESCE(NULLIF(dn.local_data ->> 'subType', ''), 'bounded_context')
             END
           ELSE NULL
         END AS logical_sub_type,

@@ -14,7 +14,7 @@ public class SubTypeParsingTest {
 
   @Test
   void should_parse_evidence_sub_type_case_insensitively() {
-    assertEquals(EvidenceSubType.RFP, EvidenceSubType.fromValue("RFP"));
+    assertEquals(EvidenceSubType.REQUEST_FOR_PROPOSAL, EvidenceSubType.fromValue("RFP"));
     assertEquals(
         EvidenceSubType.FULFILLMENT_CONFIRMATION,
         EvidenceSubType.fromValue(" fulfillment_confirmation "));
@@ -22,8 +22,11 @@ public class SubTypeParsingTest {
 
   @Test
   void should_parse_role_sub_type_case_insensitively() {
-    assertEquals(RoleSubType.PARTY_ROLE, RoleSubType.fromValue("PARTY_ROLE"));
-    assertEquals(RoleSubType.CONTEXT_ROLE, RoleSubType.fromValue(" context_role "));
+    assertEquals(RoleSubType.PARTY, RoleSubType.fromValue("PARTY"));
+    assertEquals(RoleSubType.OTHER_CONTEXT, RoleSubType.fromValue(" context "));
+    assertEquals(RoleSubType.DOMAIN, RoleSubType.fromValue("DOMAIN"));
+    assertEquals(RoleSubType.THIRD_PARTY_SYSTEM, RoleSubType.fromValue("3RD SYSTEM"));
+    assertEquals(RoleSubType.EVIDENCE, RoleSubType.fromValue("evidence"));
   }
 
   @Test
@@ -36,6 +39,7 @@ public class SubTypeParsingTest {
     assertThrows(IllegalArgumentException.class, () -> ParticipantSubType.fromValue("unknown"));
     assertThrows(IllegalArgumentException.class, () -> EvidenceSubType.fromValue("unknown"));
     assertThrows(IllegalArgumentException.class, () -> RoleSubType.fromValue("unknown"));
+    assertThrows(IllegalArgumentException.class, () -> RoleSubType.fromValue("role"));
     assertThrows(IllegalArgumentException.class, () -> ContextSubType.fromValue("unknown"));
   }
 }

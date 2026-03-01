@@ -751,7 +751,9 @@ public class DiagramNodesTest {
     assertNotNull(promotedNode.logicalEntity());
     assertEquals("Order", promotedNode.logicalEntity().getDescription().name());
     assertEquals("订单", promotedNode.logicalEntity().getDescription().label());
-    assertEquals(EvidenceSubType.RFP, promotedNode.logicalEntity().getDescription().subType());
+    assertEquals(
+        EvidenceSubType.REQUEST_FOR_PROPOSAL,
+        promotedNode.logicalEntity().getDescription().subType());
     assertNotNull(promotedNode.getDescription().localData());
     assertEquals("{}", promotedNode.getDescription().localData().json());
   }
