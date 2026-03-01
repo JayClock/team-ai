@@ -52,6 +52,12 @@ public class UserApi {
     return resourceContext.initResource(accountsApi);
   }
 
+  @Path("projects")
+  public UserProjectsApi projects() {
+    UserProjectsApi userProjectsApi = new UserProjectsApi(user);
+    return resourceContext.initResource(userProjectsApi);
+  }
+
   @Data
   @NoArgsConstructor
   public static class UpdateUserRequest {

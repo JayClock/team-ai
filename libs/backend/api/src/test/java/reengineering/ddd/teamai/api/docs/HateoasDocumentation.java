@@ -34,6 +34,10 @@ public final class HateoasDocumentation {
     return linkWithRel("login").description("Local username/password login endpoint");
   }
 
+  public static LinkDescriptor registerLink() {
+    return linkWithRel("register").description("Local username/password registration endpoint");
+  }
+
   public static LinkDescriptor loginOauthGithubLink() {
     return linkWithRel("login-oauth-github").description("OAuth2 GitHub login endpoint");
   }
@@ -214,6 +218,16 @@ public final class HateoasDocumentation {
       fieldWithPath("_embedded.accounts[].provider").description("OAuth provider name"),
       fieldWithPath("_embedded.accounts[].providerId").description("Provider-specific user ID"),
       subsectionWithPath("_embedded.accounts[]._links").description("Links for each account")
+    };
+  }
+
+  public static FieldDescriptor[] projectsCollectionResponseFields() {
+    return new FieldDescriptor[] {
+      subsectionWithPath("_embedded.projects[]").description("Array of project resources"),
+      fieldWithPath("_embedded.projects[].id").description("Unique project identifier"),
+      fieldWithPath("_embedded.projects[].name").description("Project name"),
+      subsectionWithPath("_embedded.projects[]._links").description("Links for each project"),
+      subsectionWithPath("_links").description("Collection-level HATEOAS links")
     };
   }
 

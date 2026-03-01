@@ -18,6 +18,9 @@ public class RootModel extends RepresentationModel<RootModel> {
     URI localLoginUri =
         uriInfo.getBaseUriBuilder().path(RootApi.class).path(RootApi.class, "login").build();
     model.add(Link.of(localLoginUri.getPath(), "login"));
+    URI localRegisterUri =
+        uriInfo.getBaseUriBuilder().path(RootApi.class).path(RootApi.class, "register").build();
+    model.add(Link.of(localRegisterUri.getPath(), "register"));
     model.add(Link.of("/oauth2/authorization/github", "login-oauth-github"));
 
     return model;

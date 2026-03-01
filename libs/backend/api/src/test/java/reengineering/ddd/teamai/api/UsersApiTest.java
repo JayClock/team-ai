@@ -17,6 +17,7 @@ import static org.springframework.restdocs.restassured.RestAssuredRestDocumentat
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.accountsLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.defaultProjectLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.halLinksSnippet;
+import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.projectsLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.selfLink;
 import static reengineering.ddd.teamai.api.docs.HateoasDocumentation.userResponseFields;
 
@@ -86,7 +87,7 @@ public class UsersApiTest extends ApiTest {
                 pathParameters(
                     parameterWithName("userId").description("Unique identifier of the user")),
                 responseFields(userResponseFields()),
-                halLinksSnippet(selfLink(), accountsLink(), defaultProjectLink())))
+                halLinksSnippet(selfLink(), accountsLink(), projectsLink(), defaultProjectLink())))
         .when()
         .get("/users/{userId}", user.getIdentity())
         .then()
@@ -113,6 +114,7 @@ public class UsersApiTest extends ApiTest {
         .body("_embedded['default-project']._links.self.href", is("/api/projects/project-1"))
         .body("_links.self.href", is("/api/users/john.smith"))
         .body("_links.accounts.href", is("/api/users/john.smith/accounts"))
+        .body("_links.projects.href", is("/api/users/john.smith/projects"))
         .body("_links.default-project.href", is("/api/projects/project-1"))
         .body("_templates.default.method", is("PUT"))
         .body("_templates.default.properties", hasSize(2))

@@ -39,6 +39,10 @@ public class UserModel extends RepresentationModel<UserModel> {
         Link.of(ApiTemplates.accounts(uriInfo).build(user.getIdentity()).getPath())
             .withRel("accounts"));
 
+    add(
+        Link.of(ApiTemplates.userProjects(uriInfo).build(user.getIdentity()).getPath())
+            .withRel("projects"));
+
     Project firstProject = user.projects().findAll().iterator().next();
     add(
         Link.of(ApiTemplates.project(uriInfo).build(firstProject.getIdentity()).getPath())

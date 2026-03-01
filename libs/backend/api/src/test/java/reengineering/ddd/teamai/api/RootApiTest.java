@@ -20,7 +20,7 @@ public class RootApiTest extends ApiTest {
             document(
                 "root/anonymous",
                 responseFields(rootResponseFields()),
-                halLinksSnippet(selfLink(), loginLink(), loginOauthGithubLink())))
+                halLinksSnippet(selfLink(), loginLink(), registerLink(), loginOauthGithubLink())))
         .when()
         .get("/")
         .then()
@@ -28,6 +28,7 @@ public class RootApiTest extends ApiTest {
         .contentType(ContentType.JSON)
         .body("_links.self.href", notNullValue())
         .body("_links.login.href", equalTo("/api/auth/login"))
+        .body("_links.register.href", equalTo("/api/auth/register"))
         .body("_links.login-oauth-github.href", equalTo("/oauth2/authorization/github"));
   }
 }
