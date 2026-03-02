@@ -6,6 +6,7 @@
     "prepare": "husky"
   },
   "private": true,
+  "packageManager": "pnpm@9.0.0",
   "dependencies": {
     "@antv/g6": "^5.0.51",
     "@features/user-projects": "workspace:*",
