@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.Agent;
@@ -101,5 +102,46 @@ public class AgentsApiTest extends ApiTest {
         .body("_links.collection.href", is("/api/projects/" + project.getIdentity() + "/agents"));
 
     verify(agents, times(1)).create(any(AgentDescription.class));
+  }
+
+  @Test
+  void should_return_agent_with_update_status_affordance() {
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .when()
+        .get("/projects/{projectId}/agents/{agentId}", project.getIdentity(), agent.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("id", is(agent.getIdentity()))
+        .body(
+            "_links.update-agent-status.href",
+            is(
+                "/api/projects/"
+                    + project.getIdentity()
+                    + "/agents/"
+                    + agent.getIdentity()
+                    + "/status"));
+  }
+
+  @Test
+  void should_update_agent_status() {
+    AgentApi.UpdateAgentStatusRequest request = new AgentApi.UpdateAgentStatusRequest();
+    request.setStatus(AgentDescription.Status.ACTIVE);
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/agents/{agentId}/status",
+            project.getIdentity(),
+            agent.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("id", is(agent.getIdentity()));
+
+    verify(agents, times(1))
+        .updateStatus(new Ref<>(agent.getIdentity()), AgentDescription.Status.ACTIVE);
   }
 }

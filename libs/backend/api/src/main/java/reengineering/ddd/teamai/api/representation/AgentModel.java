@@ -5,8 +5,11 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.ws.rs.core.UriInfo;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
+import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
+import org.springframework.http.HttpMethod;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.api.AgentApi;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.model.Agent;
@@ -35,6 +38,19 @@ public class AgentModel extends RepresentationModel<AgentModel> {
     model.add(
         Link.of(ApiTemplates.agents(uriInfo).build(project.getIdentity()).getPath())
             .withRel("collection"));
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.agent(uriInfo)
+                            .path(AgentApi.class, "updateStatus")
+                            .build(project.getIdentity(), agent.getIdentity())
+                            .getPath())
+                    .withRel("update-agent-status"))
+            .afford(HttpMethod.POST)
+            .withInput(AgentApi.UpdateAgentStatusRequest.class)
+            .withName("update-agent-status")
+            .toLink());
     return model;
   }
 

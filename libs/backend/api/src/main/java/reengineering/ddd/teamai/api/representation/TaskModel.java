@@ -5,9 +5,12 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.ws.rs.core.UriInfo;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.RepresentationModel;
+import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.hateoas.server.core.Relation;
+import org.springframework.http.HttpMethod;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.ApiTemplates;
+import reengineering.ddd.teamai.api.TaskApi;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Task;
@@ -35,6 +38,58 @@ public class TaskModel extends RepresentationModel<TaskModel> {
     model.add(
         Link.of(ApiTemplates.tasks(uriInfo).build(project.getIdentity()).getPath())
             .withRel("collection"));
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.task(uriInfo)
+                            .path(TaskApi.class, "delegate")
+                            .build(project.getIdentity(), task.getIdentity())
+                            .getPath())
+                    .withRel("delegate-task"))
+            .afford(HttpMethod.POST)
+            .withInput(TaskApi.DelegateTaskRequest.class)
+            .withName("delegate-task")
+            .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.task(uriInfo)
+                            .path(TaskApi.class, "submitForReview")
+                            .build(project.getIdentity(), task.getIdentity())
+                            .getPath())
+                    .withRel("submit-task-for-review"))
+            .afford(HttpMethod.POST)
+            .withInput(TaskApi.SubmitTaskForReviewRequest.class)
+            .withName("submit-task-for-review")
+            .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.task(uriInfo)
+                            .path(TaskApi.class, "approve")
+                            .build(project.getIdentity(), task.getIdentity())
+                            .getPath())
+                    .withRel("approve-task"))
+            .afford(HttpMethod.POST)
+            .withInput(TaskApi.VerifyTaskRequest.class)
+            .withName("approve-task")
+            .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.task(uriInfo)
+                            .path(TaskApi.class, "requestFix")
+                            .build(project.getIdentity(), task.getIdentity())
+                            .getPath())
+                    .withRel("request-task-fix"))
+            .afford(HttpMethod.POST)
+            .withInput(TaskApi.VerifyTaskRequest.class)
+            .withName("request-task-fix")
+            .toLink());
     return model;
   }
 

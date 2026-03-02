@@ -5,11 +5,13 @@ import static org.mockito.Mockito.*;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reengineering.ddd.archtype.Ref;
@@ -347,6 +349,184 @@ public class ProjectTest {
 
       assertSame(expectedEvent, result);
       verify(events).append(description);
+    }
+  }
+
+  @Nested
+  @DisplayName("Multi-agent orchestration")
+  class MultiAgentOrchestration {
+
+    @Test
+    @DisplayName("should delegate task for execution and emit orchestration events")
+    void shouldDelegateTaskForExecution() {
+      Task task =
+          new Task(
+              "task-1",
+              new TaskDescription(
+                  "Implement API",
+                  "Build endpoint",
+                  "api",
+                  List.of("done"),
+                  List.of("test"),
+                  Status.PENDING,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null));
+      Agent assignee =
+          new Agent(
+              "agent-1",
+              new AgentDescription(
+                  "Crafter", Role.CRAFTER, "SMART", AgentDescription.Status.PENDING, null));
+      Agent caller =
+          new Agent(
+              "agent-2",
+              new AgentDescription(
+                  "Routa", Role.ROUTA, "SMART", AgentDescription.Status.ACTIVE, null));
+
+      when(tasks.findByIdentity("task-1")).thenReturn(Optional.of(task));
+      when(agents.findByIdentity("agent-1")).thenReturn(Optional.of(assignee));
+      when(agents.findByIdentity("agent-2")).thenReturn(Optional.of(caller));
+
+      Instant occurredAt = Instant.parse("2026-03-02T12:00:00Z");
+      project.delegateTaskForExecution(
+          "task-1", new Ref<>("agent-1"), new Ref<>("agent-2"), occurredAt);
+
+      verify(tasks).assign("task-1", new Ref<>("agent-1"), new Ref<>("agent-2"));
+      verify(tasks).updateStatus("task-1", Status.IN_PROGRESS, null);
+      verify(agents).updateStatus(new Ref<>("agent-1"), AgentDescription.Status.ACTIVE);
+
+      ArgumentCaptor<AgentEventDescription> eventCaptor =
+          ArgumentCaptor.forClass(AgentEventDescription.class);
+      verify(events, times(3)).append(eventCaptor.capture());
+      assertEquals(
+          List.of(Type.TASK_ASSIGNED, Type.TASK_STATUS_CHANGED, Type.AGENT_ACTIVATED),
+          eventCaptor.getAllValues().stream().map(AgentEventDescription::type).toList());
+      assertTrue(
+          eventCaptor.getAllValues().stream()
+              .allMatch(event -> occurredAt.equals(event.occurredAt())));
+    }
+
+    @Test
+    @DisplayName("should submit task for review")
+    void shouldSubmitTaskForReview() {
+      Ref<String> implementer = new Ref<>("agent-1");
+      Task task =
+          new Task(
+              "task-1",
+              new TaskDescription(
+                  "Implement API",
+                  "Build endpoint",
+                  "api",
+                  List.of("done"),
+                  List.of("test"),
+                  Status.IN_PROGRESS,
+                  implementer,
+                  new Ref<>("agent-2"),
+                  null,
+                  null,
+                  null));
+      Agent assignee =
+          new Agent(
+              "agent-1",
+              new AgentDescription(
+                  "Crafter", Role.CRAFTER, "SMART", AgentDescription.Status.ACTIVE, null));
+
+      when(tasks.findByIdentity("task-1")).thenReturn(Optional.of(task));
+      when(agents.findByIdentity("agent-1")).thenReturn(Optional.of(assignee));
+
+      project.submitTaskForReview(
+          "task-1", implementer, "Implemented all acceptance criteria", Instant.now());
+
+      verify(tasks)
+          .updateStatus("task-1", Status.REVIEW_REQUIRED, "Implemented all acceptance criteria");
+      verify(agents).updateStatus(implementer, AgentDescription.Status.COMPLETED);
+      verify(events, times(3)).append(any(AgentEventDescription.class));
+    }
+
+    @Test
+    @DisplayName("should approve reviewed task and complete implementer")
+    void shouldApproveTask() {
+      Ref<String> implementer = new Ref<>("agent-1");
+      Ref<String> reviewer = new Ref<>("agent-2");
+      Task task =
+          new Task(
+              "task-1",
+              new TaskDescription(
+                  "Implement API",
+                  "Build endpoint",
+                  "api",
+                  List.of("done"),
+                  List.of("test"),
+                  Status.REVIEW_REQUIRED,
+                  implementer,
+                  new Ref<>("agent-parent"),
+                  "Ready for verification",
+                  null,
+                  null));
+      Agent gate =
+          new Agent(
+              "agent-2",
+              new AgentDescription(
+                  "Gate", Role.GATE, "SMART", AgentDescription.Status.ACTIVE, null));
+
+      when(tasks.findByIdentity("task-1")).thenReturn(Optional.of(task));
+      when(agents.findByIdentity("agent-2")).thenReturn(Optional.of(gate));
+
+      project.approveTask("task-1", reviewer, "verification passed", Instant.now());
+
+      verify(tasks)
+          .report(
+              "task-1",
+              reviewer,
+              new TaskReportDescription("Verification approved", true, "verification passed"));
+      verify(tasks).updateStatus("task-1", Status.COMPLETED, "Ready for verification");
+      verify(agents).updateStatus(reviewer, AgentDescription.Status.COMPLETED);
+      verify(agents).updateStatus(implementer, AgentDescription.Status.COMPLETED);
+      verify(events, times(5)).append(any(AgentEventDescription.class));
+    }
+
+    @Test
+    @DisplayName("should reject fix request from non-reviewer role")
+    void shouldRejectFixRequestForInvalidRole() {
+      Ref<String> reviewer = new Ref<>("agent-2");
+      Task task =
+          new Task(
+              "task-1",
+              new TaskDescription(
+                  "Implement API",
+                  "Build endpoint",
+                  "api",
+                  List.of("done"),
+                  List.of("test"),
+                  Status.REVIEW_REQUIRED,
+                  new Ref<>("agent-1"),
+                  new Ref<>("agent-parent"),
+                  "Ready for verification",
+                  null,
+                  null));
+      Agent crafter =
+          new Agent(
+              "agent-2",
+              new AgentDescription(
+                  "Crafter", Role.CRAFTER, "SMART", AgentDescription.Status.ACTIVE, null));
+
+      when(tasks.findByIdentity("task-1")).thenReturn(Optional.of(task));
+      when(agents.findByIdentity("agent-2")).thenReturn(Optional.of(crafter));
+
+      IllegalStateException ex =
+          assertThrows(
+              IllegalStateException.class,
+              () ->
+                  project.requestTaskFix(
+                      "task-1",
+                      reviewer,
+                      "verification failed",
+                      Instant.parse("2026-03-02T12:00:00Z")));
+
+      assertTrue(ex.getMessage().contains("reviewerAgent role"));
+      verify(tasks, never()).report(anyString(), any(), any());
     }
   }
 }
