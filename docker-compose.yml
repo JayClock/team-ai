@@ -2,9 +2,11 @@
 # Team AI - Docker Compose Configuration
 # =============================================================================
 # Usage:
-#   Development:  docker-compose up postgres
-#   Full Stack:   docker-compose --profile full up
-#   Production:   docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+#   Development:  docker compose up postgres
+#   Build Artifacts: npx nx run-many -t build --projects=:apps:server,@web/main
+#   Build Images: npx nx run-many -t docker:build --projects=:apps:server,@web/main
+#   Full Stack:   docker compose --profile full up
+#   Production:   docker compose -f docker-compose.yml -f docker-compose.prod.yml up
 # =============================================================================
 
 services:
@@ -41,8 +43,8 @@ services:
   # ---------------------------------------------------------------------------
   server:
     build:
-      context: .
-      dockerfile: apps/server/Dockerfile
+      context: apps/server
+      dockerfile: Dockerfile
     image: teamai/server:${VERSION:-latest}
     container_name: teamai-server
     profiles:
@@ -99,8 +101,8 @@ services:
   # ---------------------------------------------------------------------------
   web:
     build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+      context: apps/web
+      dockerfile: Dockerfile
     image: teamai/web:${VERSION:-latest}
     container_name: teamai-web
     profiles:

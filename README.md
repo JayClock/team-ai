@@ -100,8 +100,11 @@ The project supports containerized deployment using Docker, with Dockerfiles con
 # Start database only (local development)
 docker compose up postgres -d
 
-# Build all Docker images
-docker compose build
+# Build Nx artifacts first (required)
+npx nx run-many -t build --projects=:apps:server,@web/main
+
+# Build Docker images from Nx artifacts
+npx nx run-many -t docker:build --projects=:apps:server,@web/main
 
 # Start full service stack (postgres + server + web)
 docker compose --profile full up -d
@@ -122,20 +125,22 @@ docker compose down -v
 
 #### Build Docker Images with Nx
 
-The `@nx/docker` plugin is configured for building frontend and backend images separately:
+The `@nx/docker` plugin is configured with per-project `docker:build`/`docker:run` targets:
 
 ```bash
 # Build backend image
-npx nx docker:build :apps:server
+npx nx build :apps:server
+npx nx run :apps:server:docker:build
 
 # Build frontend image
-npx nx docker:build @web/main
+npx nx build @web/main
+npx nx run @web/main:docker:build
 
 # Run backend container
-npx nx docker:run :apps:server
+npx nx run :apps:server:docker:run
 
 # Run frontend container
-npx nx docker:run @web/main
+npx nx run @web/main:docker:run
 ```
 
 #### Environment Variables Configuration

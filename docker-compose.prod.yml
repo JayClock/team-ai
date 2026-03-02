@@ -1,10 +1,11 @@
 # =============================================================================
 # Team AI - Production Docker Compose Override
 # =============================================================================
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Usage:
+#   1) npx nx run-many -t build --projects=:apps:server,@web/main
+#   2) npx nx run-many -t docker:build --projects=:apps:server,@web/main
+#   3) docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # =============================================================================
-
-version: '3.8'
 
 services:
   postgres:
@@ -55,9 +56,9 @@ services:
 
   web:
     profiles: [] # Remove profile restriction for production
+    # TLS/HTTPS should be terminated by an external reverse proxy or load balancer.
     ports:
       - '80:80'
-      - '443:443'
     deploy:
       resources:
         limits:

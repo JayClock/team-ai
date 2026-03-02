@@ -20,6 +20,34 @@
         "dependsOn": [
           ":apps:server:bootRun"
         ]
+      },
+      "docker:build": {
+        "dependsOn": [
+          "build"
+        ],
+        "inputs": [
+          "production",
+          "^production"
+        ],
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "apps/web",
+          "command": "docker build . --tag teamai/web:${VERSION:-latest}"
+        }
+      },
+      "docker:run": {
+        "dependsOn": [
+          "docker:build"
+        ],
+        "inputs": [
+          "production",
+          "^production"
+        ],
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "apps/web",
+          "command": "docker run {args} teamai/web:${VERSION:-latest}"
+        }
       }
     }
   }

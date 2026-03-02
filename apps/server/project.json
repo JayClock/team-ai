@@ -1,0 +1,36 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": ":apps:server",
+  "projectType": "application",
+  "targets": {
+    "docker:build": {
+      "dependsOn": [
+        "build",
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/server",
+        "command": "docker build . --tag teamai/server:${VERSION:-latest}"
+      }
+    },
+    "docker:run": {
+      "dependsOn": [
+        "docker:build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/server",
+        "command": "docker run {args} teamai/server:${VERSION:-latest}"
+      }
+    }
+  }
+}
