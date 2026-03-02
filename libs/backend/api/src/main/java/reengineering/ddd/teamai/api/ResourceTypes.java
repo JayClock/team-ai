@@ -27,6 +27,15 @@ public class ResourceTypes {
   public static final String DIAGRAM_VERSION = VENDOR + ".diagram-version+json";
   public static final String DIAGRAM_VERSION_COLLECTION = VENDOR + ".diagram-versions+json";
 
+  public static final String AGENT = VENDOR + ".agent+json";
+  public static final String AGENT_COLLECTION = VENDOR + ".agents+json";
+
+  public static final String TASK = VENDOR + ".task+json";
+  public static final String TASK_COLLECTION = VENDOR + ".tasks+json";
+
+  public static final String AGENT_EVENT = VENDOR + ".agent-event+json";
+  public static final String AGENT_EVENT_COLLECTION = VENDOR + ".agent-events+json";
+
   public static final String NODE = VENDOR + ".node+json";
   public static final String NODE_COLLECTION = VENDOR + ".nodes+json";
 

@@ -67,6 +67,30 @@ public class ApiTemplates {
     return diagrams(uriInfo).path(DiagramsApi.class, "findById");
   }
 
+  public static UriBuilder agents(UriInfo uriInfo) {
+    return project(uriInfo).path(ProjectApi.class, "agents");
+  }
+
+  public static UriBuilder agent(UriInfo uriInfo) {
+    return agents(uriInfo).path(AgentsApi.class, "findById");
+  }
+
+  public static UriBuilder tasks(UriInfo uriInfo) {
+    return project(uriInfo).path(ProjectApi.class, "tasks");
+  }
+
+  public static UriBuilder task(UriInfo uriInfo) {
+    return tasks(uriInfo).path(TasksApi.class, "findById");
+  }
+
+  public static UriBuilder events(UriInfo uriInfo) {
+    return project(uriInfo).path(ProjectApi.class, "events");
+  }
+
+  public static UriBuilder event(UriInfo uriInfo) {
+    return events(uriInfo).path(AgentEventsApi.class, "findById");
+  }
+
   public static UriBuilder nodes(UriInfo uriInfo) {
     return diagram(uriInfo).path(DiagramApi.class, "nodes");
   }

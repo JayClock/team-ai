@@ -28,6 +28,9 @@ public class ProjectsApiTest extends ApiTest {
   @Mock private Project.Conversations projectConversations;
   @Mock private Project.LogicalEntities logicalEntities;
   @Mock private Project.Diagrams diagrams;
+  @Mock private Project.Agents agents;
+  @Mock private Project.Tasks tasks;
+  @Mock private Project.AgentEvents events;
 
   @BeforeEach
   public void beforeEach() {
@@ -39,9 +42,9 @@ public class ProjectsApiTest extends ApiTest {
             projectConversations,
             logicalEntities,
             diagrams,
-            null,
-            null,
-            null);
+            agents,
+            tasks,
+            events);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
   }
 
@@ -74,6 +77,9 @@ public class ProjectsApiTest extends ApiTest {
         .body("_templates.create-conversation.properties[0].required", is(true))
         .body("_templates.create-conversation.properties[0].type", is("text"))
         .body("_links.diagrams.href", is("/api/projects/" + project.getIdentity() + "/diagrams"))
+        .body("_links.agents.href", is("/api/projects/" + project.getIdentity() + "/agents"))
+        .body("_links.tasks.href", is("/api/projects/" + project.getIdentity() + "/tasks"))
+        .body("_links.events.href", is("/api/projects/" + project.getIdentity() + "/events"))
         .body(
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))

@@ -40,6 +40,21 @@ public class ProjectApi {
     return resourceContext.initResource(new DiagramsApi(project));
   }
 
+  @Path("agents")
+  public AgentsApi agents() {
+    return resourceContext.initResource(new AgentsApi(project));
+  }
+
+  @Path("tasks")
+  public TasksApi tasks() {
+    return resourceContext.initResource(new TasksApi(project));
+  }
+
+  @Path("events")
+  public AgentEventsApi events() {
+    return resourceContext.initResource(new AgentEventsApi(project));
+  }
+
   @Path("knowledge-graph")
   public KnowledgeGraphApi knowledgeGraph() {
     return resourceContext.initResource(new KnowledgeGraphApi(project));

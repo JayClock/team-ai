@@ -59,6 +59,18 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .withRel("diagrams"));
 
     model.add(
+        Link.of(ApiTemplates.agents(uriInfo).build(project.getIdentity()).getPath())
+            .withRel("agents"));
+
+    model.add(
+        Link.of(ApiTemplates.tasks(uriInfo).build(project.getIdentity()).getPath())
+            .withRel("tasks"));
+
+    model.add(
+        Link.of(ApiTemplates.events(uriInfo).build(project.getIdentity()).getPath())
+            .withRel("events"));
+
+    model.add(
         Affordances.of(
                 Link.of(
                         ApiTemplates.logicalEntities(uriInfo)
