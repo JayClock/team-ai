@@ -127,14 +127,12 @@ public class OrchestrationsApi {
                   null));
 
       try {
-        orchestrationRuntimeService.onSessionStarted(session);
+        orchestrationRuntimeService.onSessionStarted(project, session, occurredAt);
       } catch (AgentRuntimeTimeoutException error) {
-        markFailed(session, "Runtime timeout: " + error.getMessage(), occurredAt);
         throw new WebApplicationException(
             "Failed to start orchestration runtime: " + error.getMessage(),
             Response.Status.GATEWAY_TIMEOUT);
       } catch (AgentRuntimeException error) {
-        markFailed(session, "Runtime failure: " + error.getMessage(), occurredAt);
         throw new WebApplicationException(
             "Failed to start orchestration runtime: " + error.getMessage(),
             Response.Status.BAD_GATEWAY);
@@ -150,15 +148,6 @@ public class OrchestrationsApi {
     } catch (IllegalStateException error) {
       throw new WebApplicationException(error.getMessage(), Response.Status.CONFLICT);
     }
-  }
-
-  private void markFailed(OrchestrationSession session, String reason, Instant occurredAt) {
-    project.updateOrchestrationSessionStatus(
-        session.getIdentity(),
-        OrchestrationSessionDescription.Status.FAILED,
-        session.getDescription().currentStep(),
-        occurredAt,
-        reason);
   }
 
   private TaskDescription toTaskDescription(StartOrchestrationRequest request) {
