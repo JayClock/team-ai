@@ -87,6 +87,8 @@ public class SecurityConfig {
                         "/oauth2/**",
                         "/login/**",
                         "/api/auth/**",
+                        // TODO(team-ai): tighten MCP access to authenticated users and
+                        // enforce per-project membership authorization in MCP tools.
                         "/mcp/**")
                     .permitAll()
                     .anyRequest()
