@@ -4,8 +4,14 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -15,12 +21,18 @@ import java.util.List;
 import java.util.Optional;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.hateoas.CollectionModel;
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.mediatype.Affordances;
+import org.springframework.http.HttpMethod;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.representation.OrchestrationModel;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
+import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
+import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Task;
 
@@ -29,9 +41,48 @@ public class OrchestrationsApi {
   private static final String DEFAULT_CRAFTER_NAME = "Crafter Implementer";
 
   private final Project project;
+  @Context ResourceContext resourceContext;
 
   public OrchestrationsApi(Project project) {
     this.project = project;
+  }
+
+  @Path("{orchestration-id}")
+  public OrchestrationApi findById(@PathParam("orchestration-id") String id) {
+    return project
+        .orchestrationSessions()
+        .findByIdentity(id)
+        .map(
+            session -> {
+              OrchestrationApi api = new OrchestrationApi(project, session);
+              return resourceContext.initResource(api);
+            })
+        .orElseThrow(() -> new WebApplicationException(Response.Status.NOT_FOUND));
+  }
+
+  @GET
+  @VendorMediaType(ResourceTypes.ORCHESTRATION_COLLECTION)
+  public CollectionModel<OrchestrationModel> findAll(
+      @Context UriInfo uriInfo, @DefaultValue("0") @QueryParam("page") int page) {
+    CollectionModel<OrchestrationModel> model =
+        new Pagination<>(project.orchestrationSessions().findAll(), 40)
+            .page(
+                page,
+                session -> OrchestrationModel.simple(project, session, uriInfo),
+                p ->
+                    ApiTemplates.orchestrations(uriInfo)
+                        .queryParam("page", p)
+                        .build(project.getIdentity()));
+
+    model.add(
+        Affordances.of(
+                Link.of(ApiTemplates.orchestrations(uriInfo).build(project.getIdentity()).getPath())
+                    .withRel("start-orchestration"))
+            .afford(HttpMethod.POST)
+            .withInput(StartOrchestrationRequest.class)
+            .withName("start-orchestration")
+            .toLink());
+    return model;
   }
 
   @POST
@@ -57,12 +108,23 @@ public class OrchestrationsApi {
 
       project.delegateTaskForExecution(task.getIdentity(), implementer, coordinator, occurredAt);
 
-      OrchestrationModel model =
-          OrchestrationModel.started(
-              project, request.getGoal(), coordinator, implementer, taskRef, uriInfo);
+      OrchestrationSession session =
+          project.startOrchestrationSession(
+              new OrchestrationSessionDescription(
+                  request.getGoal(),
+                  OrchestrationSessionDescription.Status.RUNNING,
+                  coordinator,
+                  implementer,
+                  taskRef,
+                  null,
+                  occurredAt,
+                  null,
+                  null));
+
       return Response.created(
-              ApiTemplates.task(uriInfo).build(project.getIdentity(), task.getIdentity()))
-          .entity(model)
+              ApiTemplates.orchestration(uriInfo)
+                  .build(project.getIdentity(), session.getIdentity()))
+          .entity(OrchestrationModel.of(project, session, uriInfo))
           .build();
     } catch (IllegalArgumentException error) {
       throw new BadRequestException(error.getMessage());

@@ -91,6 +91,10 @@ public class ApiTemplates {
     return project(uriInfo).path(ProjectApi.class, "orchestrations");
   }
 
+  public static UriBuilder orchestration(UriInfo uriInfo) {
+    return orchestrations(uriInfo).path(OrchestrationsApi.class, "findById");
+  }
+
   public static UriBuilder event(UriInfo uriInfo) {
     return events(uriInfo).path(AgentEventsApi.class, "findById");
   }

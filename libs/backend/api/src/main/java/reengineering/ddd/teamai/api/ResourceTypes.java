@@ -37,6 +37,7 @@ public class ResourceTypes {
   public static final String AGENT_EVENT_COLLECTION = VENDOR + ".agent-events+json";
 
   public static final String ORCHESTRATION = VENDOR + ".orchestration+json";
+  public static final String ORCHESTRATION_COLLECTION = VENDOR + ".orchestrations+json";
 
   public static final String NODE = VENDOR + ".node+json";
   public static final String NODE_COLLECTION = VENDOR + ".nodes+json";
