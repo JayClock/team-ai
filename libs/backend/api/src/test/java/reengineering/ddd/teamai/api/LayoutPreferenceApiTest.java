@@ -38,7 +38,10 @@ public class LayoutPreferenceApiTest extends ApiTest {
             projectMembers,
             projectConversations,
             projectLogicalEntities,
-            diagrams);
+            diagrams,
+            null,
+            null,
+            null);
 
     diagram =
         new Diagram(

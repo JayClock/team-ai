@@ -5,12 +5,17 @@ import java.util.Collection;
 import java.util.Objects;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
+import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.description.AgentDescription;
+import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
+import reengineering.ddd.teamai.description.TaskDescription;
+import reengineering.ddd.teamai.description.TaskReportDescription;
 
 public class Project implements Entity<String, ProjectDescription> {
   private String identity;
@@ -19,6 +24,9 @@ public class Project implements Entity<String, ProjectDescription> {
   private Conversations conversations;
   private LogicalEntities logicalEntities;
   private Diagrams diagrams;
+  private Agents agents;
+  private Tasks tasks;
+  private AgentEvents events;
 
   public Project(
       String identity,
@@ -26,13 +34,19 @@ public class Project implements Entity<String, ProjectDescription> {
       Members members,
       Conversations conversations,
       LogicalEntities logicalEntities,
-      Diagrams diagrams) {
+      Diagrams diagrams,
+      Agents agents,
+      Tasks tasks,
+      AgentEvents events) {
     this.identity = identity;
     this.description = description;
     this.members = members;
     this.conversations = conversations;
     this.logicalEntities = logicalEntities;
     this.diagrams = diagrams;
+    this.agents = agents;
+    this.tasks = tasks;
+    this.events = events;
   }
 
   private Project() {}
@@ -96,6 +110,47 @@ public class Project implements Entity<String, ProjectDescription> {
         .publish(new KnowledgeGraphPublishRequest(identity, diagramId, Instant.now()));
   }
 
+  public HasMany<String, Agent> agents() {
+    return agents;
+  }
+
+  public Agent createAgent(AgentDescription description) {
+    return agents.create(description);
+  }
+
+  public void updateAgentStatus(Ref<String> agent, AgentDescription.Status status) {
+    agents.updateStatus(agent, status);
+  }
+
+  public HasMany<String, Task> tasks() {
+    return tasks;
+  }
+
+  public Task createTask(TaskDescription description) {
+    return tasks.create(description);
+  }
+
+  public void delegateTask(String taskId, Ref<String> agent, Ref<String> callerAgent) {
+    tasks.assign(taskId, agent, callerAgent);
+  }
+
+  public void updateTaskStatus(
+      String taskId, TaskDescription.Status status, String completionSummary) {
+    tasks.updateStatus(taskId, status, completionSummary);
+  }
+
+  public void reportTask(String taskId, Ref<String> agent, TaskReportDescription report) {
+    tasks.report(taskId, agent, report);
+  }
+
+  public HasMany<String, AgentEvent> events() {
+    return events;
+  }
+
+  public AgentEvent appendEvent(AgentEventDescription description) {
+    return events.append(description);
+  }
+
   public interface Members extends HasMany<String, Member> {
     Member addMember(MemberDescription description);
   }
@@ -140,5 +195,25 @@ public class Project implements Entity<String, ProjectDescription> {
     Conversation add(ConversationDescription description);
 
     void delete(String id);
+  }
+
+  public interface Agents extends HasMany<String, Agent> {
+    Agent create(AgentDescription description);
+
+    void updateStatus(Ref<String> agent, AgentDescription.Status status);
+  }
+
+  public interface Tasks extends HasMany<String, Task> {
+    Task create(TaskDescription description);
+
+    void assign(String taskId, Ref<String> agent, Ref<String> callerAgent);
+
+    void updateStatus(String taskId, TaskDescription.Status status, String completionSummary);
+
+    void report(String taskId, Ref<String> agent, TaskReportDescription report);
+  }
+
+  public interface AgentEvents extends HasMany<String, AgentEvent> {
+    AgentEvent append(AgentEventDescription description);
   }
 }

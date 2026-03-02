@@ -51,7 +51,10 @@ public class LogicalEntitiesApiTest extends ApiTest {
             projectMembers,
             projectConversations,
             projectLogicalEntities,
-            diagrams);
+            diagrams,
+            null,
+            null,
+            null);
 
     logicalEntity =
         new LogicalEntity(

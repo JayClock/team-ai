@@ -50,7 +50,10 @@ public class DiagramVersionsApiTest extends ApiTest {
             projectMembers,
             projectConversations,
             projectLogicalEntities,
-            diagrams);
+            diagrams,
+            null,
+            null,
+            null);
 
     Viewport viewport = new Viewport(100, 50, 1.5);
     diagram =

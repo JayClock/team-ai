@@ -32,7 +32,10 @@ public class KnowledgeGraphApiTest extends ApiTest {
             projectMembers,
             projectConversations,
             logicalEntities,
-            diagrams);
+            diagrams,
+            null,
+            null,
+            null);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
   }
 

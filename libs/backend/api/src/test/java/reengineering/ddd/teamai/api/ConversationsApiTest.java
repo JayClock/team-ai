@@ -60,7 +60,10 @@ public class ConversationsApiTest extends ApiTest {
             projectMembers,
             projectConversations,
             logicalEntities,
-            diagrams);
+            diagrams,
+            null,
+            null,
+            null);
     conversation =
         new Conversation(
             "1", new ConversationDescription("title"), mock(Conversation.Messages.class));

@@ -56,7 +56,10 @@ public class UserProjectsApiTest extends ApiTest {
             members,
             conversations,
             logicalEntities,
-            diagrams);
+            diagrams,
+            null,
+            null,
+            null);
     project2 =
         new Project(
             "project-2",
@@ -64,7 +67,10 @@ public class UserProjectsApiTest extends ApiTest {
             members,
             conversations,
             logicalEntities,
-            diagrams);
+            diagrams,
+            null,
+            null,
+            null);
 
     when(users.findByIdentity(user.getIdentity())).thenReturn(Optional.of(user));
     when(userProjects.findAll()).thenReturn(new EntityList<>(List.of(project1, project2)));
