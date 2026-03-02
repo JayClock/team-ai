@@ -160,6 +160,37 @@ Main configuration items:
 - `DB_*` - Database connection configuration
 - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` - GitHub OAuth2 authentication
 
+#### Automated Production Deployment (GitHub Actions + SSH)
+
+This repository includes an automated deploy workflow:
+
+- Workflow file: `.github/workflows/deploy.yml`
+- Trigger: push to `main` (or manual `workflow_dispatch`)
+- Flow: build Nx artifacts -> build and push Docker images to GHCR -> SSH deploy with Docker Compose
+
+Required GitHub repository secrets:
+
+- `GHCR_USERNAME` - GitHub username used for GHCR login
+- `GHCR_TOKEN` - PAT with `read:packages` and `write:packages`
+- `DEPLOY_HOST` - Production server host/IP
+- `DEPLOY_USER` - SSH user
+- `DEPLOY_SSH_KEY` - Private SSH key
+- `DEPLOY_PORT` - Optional SSH port (defaults to `22`)
+- `DEPLOY_PATH` - Optional deployment directory on server (defaults to `/opt/team-ai`)
+
+One-time server setup:
+
+1. Install Docker + Docker Compose plugin.
+2. Create deployment directory (e.g. `/opt/team-ai`).
+3. Create `/opt/team-ai/.env` from `.env.production.example` and fill all secrets.
+4. Ensure the server user can run Docker commands.
+
+At deployment time, workflow updates these `.env` keys automatically:
+
+- `VERSION`
+- `SERVER_IMAGE`
+- `WEB_IMAGE`
+
 ### Database Setup (Optional)
 
 If you need to run persistence layer examples, please refer to [Database Setup Documentation](docs/database-setup.md)

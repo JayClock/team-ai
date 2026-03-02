@@ -45,7 +45,7 @@ services:
     build:
       context: apps/server
       dockerfile: Dockerfile
-    image: teamai/server:${VERSION:-latest}
+    image: ${SERVER_IMAGE:-teamai/server}:${VERSION:-latest}
     container_name: teamai-server
     profiles:
       - full
@@ -103,7 +103,7 @@ services:
     build:
       context: apps/web
       dockerfile: Dockerfile
-    image: teamai/web:${VERSION:-latest}
+    image: ${WEB_IMAGE:-teamai/web}:${VERSION:-latest}
     container_name: teamai-web
     profiles:
       - full
