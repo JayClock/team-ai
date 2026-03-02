@@ -81,7 +81,13 @@ public class SecurityConfig {
     http.authorizeHttpRequests(
             auth ->
                 auth.requestMatchers(
-                        "/", "/public/**", "/api", "/oauth2/**", "/login/**", "/api/auth/**")
+                        "/",
+                        "/public/**",
+                        "/api",
+                        "/oauth2/**",
+                        "/login/**",
+                        "/api/auth/**",
+                        "/mcp/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

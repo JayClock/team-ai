@@ -1,6 +1,15 @@
 spring:
   main:
     banner-mode: 'off'
+  ai:
+    mcp:
+      server:
+        name: team-ai-mcp
+        version: 0.1.0
+        instructions: Team AI MCP server for project, agent, task and event orchestration.
+        protocol: STREAMABLE
+        streamable-http:
+          mcp-endpoint: /mcp
   autoconfigure:
     exclude:
       - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration
