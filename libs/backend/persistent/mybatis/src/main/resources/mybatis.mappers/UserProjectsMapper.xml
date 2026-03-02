@@ -21,6 +21,15 @@
       <association property="diagrams" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectDiagrams">
         <result column="id" property="projectId" javaType="int"/>
       </association>
+      <association property="agents" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectAgents">
+        <result column="id" property="projectId" javaType="int"/>
+      </association>
+      <association property="tasks" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectTasks">
+        <result column="id" property="projectId" javaType="int"/>
+      </association>
+      <association property="events" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectAgentEvents">
+        <result column="id" property="projectId" javaType="int"/>
+      </association>
     </resultMap>
 
   <select id="findProjectByUserAndId" resultMap="project">

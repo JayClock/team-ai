@@ -116,4 +116,52 @@ public interface TestDataMapper {
       @Param("diagram_id") int diagramId,
       @Param("version_name") String versionName,
       @Param("snapshot_data") String snapshotData);
+
+  @Insert(
+      "INSERT INTO project_agents(id, project_id, name, role, model_tier, status, parent_id) "
+          + "VALUES (#{id}, #{project_id}, #{name}, #{role}, #{model_tier}, #{status}, #{parent_id})")
+  void insertProjectAgent(
+      @Param("id") int id,
+      @Param("project_id") int projectId,
+      @Param("name") String name,
+      @Param("role") String role,
+      @Param("model_tier") String modelTier,
+      @Param("status") String status,
+      @Param("parent_id") Integer parentId);
+
+  @Insert(
+      "INSERT INTO project_tasks("
+          + "id, project_id, title, objective, scope, acceptance_criteria, verification_commands, "
+          + "status, assigned_to, delegated_by, completion_summary, verification_verdict, verification_report"
+          + ") VALUES ("
+          + "#{id}, #{project_id}, #{title}, #{objective}, #{scope}, "
+          + "CAST(#{acceptance_criteria} AS jsonb), CAST(#{verification_commands} AS jsonb), "
+          + "#{status}, #{assigned_to}, #{delegated_by}, #{completion_summary}, "
+          + "#{verification_verdict}, #{verification_report})")
+  void insertProjectTask(
+      @Param("id") int id,
+      @Param("project_id") int projectId,
+      @Param("title") String title,
+      @Param("objective") String objective,
+      @Param("scope") String scope,
+      @Param("acceptance_criteria") String acceptanceCriteria,
+      @Param("verification_commands") String verificationCommands,
+      @Param("status") String status,
+      @Param("assigned_to") Integer assignedTo,
+      @Param("delegated_by") Integer delegatedBy,
+      @Param("completion_summary") String completionSummary,
+      @Param("verification_verdict") String verificationVerdict,
+      @Param("verification_report") String verificationReport);
+
+  @Insert(
+      "INSERT INTO project_agent_events(id, project_id, type, agent_id, task_id, message, occurred_at) "
+          + "VALUES (#{id}, #{project_id}, #{type}, #{agent_id}, #{task_id}, #{message}, #{occurred_at})")
+  void insertProjectAgentEvent(
+      @Param("id") int id,
+      @Param("project_id") int projectId,
+      @Param("type") String type,
+      @Param("agent_id") Integer agentId,
+      @Param("task_id") Integer taskId,
+      @Param("message") String message,
+      @Param("occurred_at") java.time.Instant occurredAt);
 }

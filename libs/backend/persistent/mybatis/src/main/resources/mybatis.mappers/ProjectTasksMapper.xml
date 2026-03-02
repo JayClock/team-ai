@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectTasksMapper">
+
+  <resultMap id="task" type="reengineering.ddd.teamai.model.Task">
+    <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.TaskDescription">
+      <constructor>
+        <arg column="title" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="objective" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="scope" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="acceptance_criteria" jdbcType="OTHER" javaType="java.util.List" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.StringListJsonHandler"/>
+        <arg column="verification_commands" jdbcType="OTHER" javaType="java.util.List" typeHandler="reengineering.ddd.teamai.mybatis.typehandler.StringListJsonHandler"/>
+        <arg column="status" jdbcType="VARCHAR" javaType="reengineering.ddd.teamai.description.TaskDescription$Status"/>
+        <arg column="assigned_to" jdbcType="INTEGER" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
+        <arg column="delegated_by" jdbcType="INTEGER" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
+        <arg column="completion_summary" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="verification_verdict" jdbcType="VARCHAR" javaType="reengineering.ddd.teamai.description.TaskDescription$VerificationVerdict"/>
+        <arg column="verification_report" jdbcType="VARCHAR" javaType="String"/>
+      </constructor>
+    </association>
+  </resultMap>
+
+  <select id="findTaskByProjectAndId" resultMap="task">
+    SELECT
+      id,
+      project_id,
+      title,
+      objective,
+      scope,
+      acceptance_criteria,
+      verification_commands,
+      status,
+      assigned_to,
+      delegated_by,
+      completion_summary,
+      verification_verdict,
+      verification_report
+    FROM project_tasks
+    WHERE project_id = #{project_id} AND id = #{id}
+  </select>
+
+  <select id="findTasksByProjectId" resultMap="task">
+    SELECT
+      id,
+      project_id,
+      title,
+      objective,
+      scope,
+      acceptance_criteria,
+      verification_commands,
+      status,
+      assigned_to,
+      delegated_by,
+      completion_summary,
+      verification_verdict,
+      verification_report
+    FROM project_tasks
+    WHERE project_id = #{project_id}
+    ORDER BY id ASC
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <insert id="insertTask" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO project_tasks(
+      project_id,
+      title,
+      objective,
+      scope,
+      acceptance_criteria,
+      verification_commands,
+      status,
+      assigned_to,
+      delegated_by,
+      completion_summary,
+      verification_verdict,
+      verification_report
+    )
+    VALUES (
+      #{project_id},
+      #{description.title},
+      #{description.objective},
+      #{description.scope},
+      #{description.acceptanceCriteria, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.StringListJsonHandler},
+      #{description.verificationCommands, typeHandler=reengineering.ddd.teamai.mybatis.typehandler.StringListJsonHandler},
+      #{description.status, jdbcType=VARCHAR},
+      #{description.assignedTo, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+      #{description.delegatedBy, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+      #{description.completionSummary},
+      #{description.verificationVerdict, jdbcType=VARCHAR},
+      #{description.verificationReport}
+    )
+  </insert>
+
+  <update id="updateTaskAssignment">
+    UPDATE project_tasks
+    SET assigned_to = #{assigned_to, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+        delegated_by = #{delegated_by, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </update>
+
+  <update id="updateTaskStatus">
+    UPDATE project_tasks
+    SET status = #{status, jdbcType=VARCHAR},
+        completion_summary = #{completion_summary},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </update>
+
+  <update id="updateTaskReport">
+    UPDATE project_tasks
+    SET assigned_to = #{agent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+        completion_summary = #{report.summary},
+        verification_verdict = CASE WHEN #{report.success} THEN 'APPROVED' ELSE 'NOT_APPROVED' END,
+        verification_report = #{report.verificationReport},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </update>
+
+  <select id="countTasksByProject" resultType="int">
+    SELECT COUNT(id) FROM project_tasks WHERE project_id = #{project_id}
+  </select>
+
+</mapper>

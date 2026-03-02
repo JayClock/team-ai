@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectAgentsMapper">
+
+  <resultMap id="agent" type="reengineering.ddd.teamai.model.Agent">
+    <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.AgentDescription">
+      <constructor>
+        <arg column="name" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="role" jdbcType="VARCHAR" javaType="reengineering.ddd.teamai.description.AgentDescription$Role"/>
+        <arg column="model_tier" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="status" jdbcType="VARCHAR" javaType="reengineering.ddd.teamai.description.AgentDescription$Status"/>
+        <arg column="parent_id" jdbcType="INTEGER" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
+      </constructor>
+    </association>
+  </resultMap>
+
+  <select id="findAgentByProjectAndId" resultMap="agent">
+    SELECT id, project_id, name, role, model_tier, status, parent_id
+    FROM project_agents
+    WHERE project_id = #{project_id} AND id = #{id}
+  </select>
+
+  <select id="findAgentsByProjectId" resultMap="agent">
+    SELECT id, project_id, name, role, model_tier, status, parent_id
+    FROM project_agents
+    WHERE project_id = #{project_id}
+    ORDER BY id ASC
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <insert id="insertAgent" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO project_agents(project_id, name, role, model_tier, status, parent_id)
+    VALUES (
+      #{project_id},
+      #{description.name},
+      #{description.role, jdbcType=VARCHAR},
+      #{description.modelTier},
+      #{description.status, jdbcType=VARCHAR},
+      #{description.parent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler}
+    )
+  </insert>
+
+  <update id="updateAgentStatus">
+    UPDATE project_agents
+    SET status = #{status, jdbcType=VARCHAR},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{agent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler}
+  </update>
+
+  <select id="countAgentsByProject" resultType="int">
+    SELECT COUNT(id) FROM project_agents WHERE project_id = #{project_id}
+  </select>
+
+</mapper>

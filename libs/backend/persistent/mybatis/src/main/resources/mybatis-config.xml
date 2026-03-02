@@ -12,6 +12,7 @@
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.DiagramSnapshotHandler"/>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.ViewportHandler"/>
         <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.SubTypeHandler"/>
+        <typeHandler handler="reengineering.ddd.teamai.mybatis.typehandler.StringListJsonHandler"/>
     </typeHandlers>
     <objectFactory type="reengineering.ddd.mybatis.support.InjectableObjectFactory"/>
 </configuration>
