@@ -47,7 +47,8 @@ public class OrchestrationsApiTest extends ApiTest {
             diagrams,
             agents,
             tasks,
-            events);
+            events,
+            null);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
   }
 

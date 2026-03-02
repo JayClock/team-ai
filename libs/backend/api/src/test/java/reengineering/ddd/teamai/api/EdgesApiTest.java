@@ -50,6 +50,7 @@ public class EdgesApiTest extends ApiTest {
             diagrams,
             null,
             null,
+            null,
             null);
 
     Viewport viewport = new Viewport(100, 50, 1.5);

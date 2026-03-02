@@ -45,7 +45,8 @@ public class AgentEventsApiTest extends ApiTest {
             diagrams,
             agents,
             tasks,
-            events);
+            events,
+            null);
     event =
         new AgentEvent(
             "event-1",

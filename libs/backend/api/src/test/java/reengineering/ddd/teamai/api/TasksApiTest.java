@@ -49,7 +49,8 @@ public class TasksApiTest extends ApiTest {
             diagrams,
             agents,
             tasks,
-            events);
+            events,
+            null);
     task =
         new Task(
             "task-1",

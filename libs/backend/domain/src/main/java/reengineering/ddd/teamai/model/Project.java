@@ -15,6 +15,7 @@ import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
+import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.description.TaskReportDescription;
@@ -39,6 +40,7 @@ public class Project implements Entity<String, ProjectDescription> {
   private Agents agents;
   private Tasks tasks;
   private AgentEvents events;
+  private OrchestrationSessions orchestrationSessions;
 
   public Project(
       String identity,
@@ -49,7 +51,8 @@ public class Project implements Entity<String, ProjectDescription> {
       Diagrams diagrams,
       Agents agents,
       Tasks tasks,
-      AgentEvents events) {
+      AgentEvents events,
+      OrchestrationSessions orchestrationSessions) {
     this.identity = identity;
     this.description = description;
     this.members = members;
@@ -59,6 +62,7 @@ public class Project implements Entity<String, ProjectDescription> {
     this.agents = agents;
     this.tasks = tasks;
     this.events = events;
+    this.orchestrationSessions = orchestrationSessions;
   }
 
   private Project() {}
@@ -372,6 +376,25 @@ public class Project implements Entity<String, ProjectDescription> {
     return events.append(description);
   }
 
+  public HasMany<String, OrchestrationSession> orchestrationSessions() {
+    return requireOrchestrationSessions();
+  }
+
+  public OrchestrationSession startOrchestrationSession(
+      OrchestrationSessionDescription description) {
+    return requireOrchestrationSessions().create(description);
+  }
+
+  public void updateOrchestrationSessionStatus(
+      String sessionId,
+      OrchestrationSessionDescription.Status status,
+      Ref<String> currentStep,
+      Instant completedAt,
+      String failureReason) {
+    requireOrchestrationSessions()
+        .updateStatus(sessionId, status, currentStep, completedAt, failureReason);
+  }
+
   public interface Members extends HasMany<String, Member> {
     Member addMember(MemberDescription description);
   }
@@ -436,6 +459,17 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public interface AgentEvents extends HasMany<String, AgentEvent> {
     AgentEvent append(AgentEventDescription description);
+  }
+
+  public interface OrchestrationSessions extends HasMany<String, OrchestrationSession> {
+    OrchestrationSession create(OrchestrationSessionDescription description);
+
+    void updateStatus(
+        String sessionId,
+        OrchestrationSessionDescription.Status status,
+        Ref<String> currentStep,
+        Instant completedAt,
+        String failureReason);
   }
 
   private Task taskOrThrow(String taskId) {
@@ -522,5 +556,12 @@ public class Project implements Entity<String, ProjectDescription> {
 
   private Instant normalizeEventTime(Instant occurredAt) {
     return occurredAt == null ? Instant.now() : occurredAt;
+  }
+
+  private OrchestrationSessions requireOrchestrationSessions() {
+    if (orchestrationSessions == null) {
+      throw new IllegalStateException("orchestrationSessions association is not configured");
+    }
+    return orchestrationSessions;
   }
 }

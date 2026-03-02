@@ -59,6 +59,7 @@ public class UserProjectsApiTest extends ApiTest {
             diagrams,
             null,
             null,
+            null,
             null);
     project2 =
         new Project(
@@ -68,6 +69,7 @@ public class UserProjectsApiTest extends ApiTest {
             conversations,
             logicalEntities,
             diagrams,
+            null,
             null,
             null,
             null);

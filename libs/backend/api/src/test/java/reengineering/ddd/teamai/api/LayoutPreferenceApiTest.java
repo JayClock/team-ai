@@ -41,6 +41,7 @@ public class LayoutPreferenceApiTest extends ApiTest {
             diagrams,
             null,
             null,
+            null,
             null);
 
     diagram =

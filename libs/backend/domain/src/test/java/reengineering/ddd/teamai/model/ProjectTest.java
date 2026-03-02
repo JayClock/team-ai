@@ -24,6 +24,7 @@ import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
+import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.description.TaskDescription.Status;
@@ -39,6 +40,7 @@ public class ProjectTest {
   @Mock private Project.Agents agents;
   @Mock private Project.Tasks tasks;
   @Mock private Project.AgentEvents events;
+  @Mock private Project.OrchestrationSessions orchestrationSessions;
   @Mock private Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
 
   private Project project;
@@ -57,7 +59,8 @@ public class ProjectTest {
             diagrams,
             agents,
             tasks,
-            events);
+            events,
+            orchestrationSessions);
   }
 
   @Test
@@ -349,6 +352,63 @@ public class ProjectTest {
 
       assertSame(expectedEvent, result);
       verify(events).append(description);
+    }
+  }
+
+  @Nested
+  @DisplayName("Orchestration sessions association")
+  class OrchestrationSessionsAssociation {
+
+    @Test
+    @DisplayName("should return OrchestrationSessions association object")
+    void shouldReturnOrchestrationSessionsAssociation() {
+      var result = project.orchestrationSessions();
+
+      assertSame(orchestrationSessions, result);
+    }
+
+    @Test
+    @DisplayName("should delegate start orchestration session")
+    void shouldDelegateStartOrchestrationSession() {
+      OrchestrationSessionDescription description =
+          new OrchestrationSessionDescription(
+              "Ship onboarding",
+              OrchestrationSessionDescription.Status.PENDING,
+              new Ref<>("agent-routa"),
+              new Ref<>("agent-crafter"),
+              null,
+              null,
+              null,
+              null,
+              null);
+      OrchestrationSession expected = new OrchestrationSession("session-1", description);
+
+      when(orchestrationSessions.create(description)).thenReturn(expected);
+
+      OrchestrationSession result = project.startOrchestrationSession(description);
+
+      assertSame(expected, result);
+      verify(orchestrationSessions).create(description);
+    }
+
+    @Test
+    @DisplayName("should delegate update orchestration session status")
+    void shouldDelegateUpdateOrchestrationSessionStatus() {
+      Instant completedAt = Instant.parse("2026-03-02T12:00:00Z");
+      project.updateOrchestrationSessionStatus(
+          "session-1",
+          OrchestrationSessionDescription.Status.COMPLETED,
+          new Ref<>("step-2"),
+          completedAt,
+          null);
+
+      verify(orchestrationSessions)
+          .updateStatus(
+              "session-1",
+              OrchestrationSessionDescription.Status.COMPLETED,
+              new Ref<>("step-2"),
+              completedAt,
+              null);
     }
   }
 

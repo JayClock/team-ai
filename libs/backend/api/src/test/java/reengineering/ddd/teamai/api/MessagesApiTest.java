@@ -54,6 +54,7 @@ public class MessagesApiTest extends ApiTest {
             diagrams,
             null,
             null,
+            null,
             null);
     conversation = new Conversation("1", new ConversationDescription("title"), messages);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.ofNullable(project));
