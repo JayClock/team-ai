@@ -7,6 +7,7 @@ export * from './components/ai-elements/prompt-input';
 export * from './components/ai-elements/suggestion';
 
 export * from './components/avatar';
+export * from './components/alert-dialog';
 export * from './components/action-form';
 export * from './components/button';
 export * from './components/button-group';
