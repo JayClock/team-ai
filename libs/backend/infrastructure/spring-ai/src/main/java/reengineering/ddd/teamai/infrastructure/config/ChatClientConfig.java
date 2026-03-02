@@ -4,6 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import reengineering.ddd.teamai.infrastructure.providers.DeepSeekModelProvider;
 import reengineering.ddd.teamai.infrastructure.providers.SpringAIDomainArchitect;
+import reengineering.ddd.teamai.infrastructure.runtime.MockAgentRuntime;
+import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.Conversation;
 import reengineering.ddd.teamai.model.Diagram;
 
@@ -17,5 +19,10 @@ public class ChatClientConfig {
   @Bean
   public Diagram.DomainArchitect domainArchitect() {
     return new SpringAIDomainArchitect();
+  }
+
+  @Bean
+  public AgentRuntime agentRuntime() {
+    return new MockAgentRuntime();
   }
 }

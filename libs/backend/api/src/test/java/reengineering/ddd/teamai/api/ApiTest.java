@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import reengineering.ddd.infrastructure.security.jwt.JwtUtil;
 import reengineering.ddd.teamai.api.config.TestApplication;
+import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.Diagram;
 import reengineering.ddd.teamai.model.KnowledgeGraphReader;
 import reengineering.ddd.teamai.model.Project;
@@ -30,6 +31,7 @@ public class ApiTest {
   @MockitoBean protected Users users;
   @MockitoBean protected Projects projects;
   @MockitoBean protected Diagram.DomainArchitect domainArchitect;
+  @MockitoBean protected AgentRuntime agentRuntime;
   @MockitoBean protected Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
   @MockitoBean protected KnowledgeGraphReader knowledgeGraphReader;
   @MockitoBean protected AuthenticationManager authenticationManager;

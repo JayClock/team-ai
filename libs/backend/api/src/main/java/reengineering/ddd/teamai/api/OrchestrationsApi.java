@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.api;
 
+import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.ws.rs.BadRequestException;
@@ -26,12 +27,15 @@ import org.springframework.hateoas.Link;
 import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.api.application.OrchestrationRuntimeService;
 import reengineering.ddd.teamai.api.representation.OrchestrationModel;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
+import reengineering.ddd.teamai.model.AgentRuntimeException;
+import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Task;
@@ -41,6 +45,7 @@ public class OrchestrationsApi {
   private static final String DEFAULT_CRAFTER_NAME = "Crafter Implementer";
 
   private final Project project;
+  @Inject OrchestrationRuntimeService orchestrationRuntimeService;
   @Context ResourceContext resourceContext;
 
   public OrchestrationsApi(Project project) {
@@ -121,6 +126,20 @@ public class OrchestrationsApi {
                   null,
                   null));
 
+      try {
+        orchestrationRuntimeService.onSessionStarted(session);
+      } catch (AgentRuntimeTimeoutException error) {
+        markFailed(session, "Runtime timeout: " + error.getMessage(), occurredAt);
+        throw new WebApplicationException(
+            "Failed to start orchestration runtime: " + error.getMessage(),
+            Response.Status.GATEWAY_TIMEOUT);
+      } catch (AgentRuntimeException error) {
+        markFailed(session, "Runtime failure: " + error.getMessage(), occurredAt);
+        throw new WebApplicationException(
+            "Failed to start orchestration runtime: " + error.getMessage(),
+            Response.Status.BAD_GATEWAY);
+      }
+
       return Response.created(
               ApiTemplates.orchestration(uriInfo)
                   .build(project.getIdentity(), session.getIdentity()))
@@ -131,6 +150,15 @@ public class OrchestrationsApi {
     } catch (IllegalStateException error) {
       throw new WebApplicationException(error.getMessage(), Response.Status.CONFLICT);
     }
+  }
+
+  private void markFailed(OrchestrationSession session, String reason, Instant occurredAt) {
+    project.updateOrchestrationSessionStatus(
+        session.getIdentity(),
+        OrchestrationSessionDescription.Status.FAILED,
+        session.getDescription().currentStep(),
+        occurredAt,
+        reason);
   }
 
   private TaskDescription toTaskDescription(StartOrchestrationRequest request) {

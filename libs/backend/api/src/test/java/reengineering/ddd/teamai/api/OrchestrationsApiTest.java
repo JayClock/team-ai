@@ -25,6 +25,7 @@ import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
+import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Task;
@@ -56,6 +57,19 @@ public class OrchestrationsApiTest extends ApiTest {
             events,
             orchestrationSessions);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
+    when(agentRuntime.start(any(AgentRuntime.StartRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              AgentRuntime.StartRequest request = invocation.getArgument(0);
+              return new AgentRuntime.SessionHandle(
+                  "runtime-" + request.orchestrationId(),
+                  request.orchestrationId(),
+                  request.agentId(),
+                  Instant.parse("2026-03-02T12:00:00Z"));
+            });
+    when(agentRuntime.send(
+            any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
+        .thenReturn(new AgentRuntime.SendResult("ok", Instant.parse("2026-03-02T12:00:01Z")));
   }
 
   @Test
@@ -150,6 +164,9 @@ public class OrchestrationsApiTest extends ApiTest {
     verify(agents, never()).create(any(AgentDescription.class));
     verify(events, times(4)).append(any(AgentEventDescription.class));
     verify(orchestrationSessions, times(1)).create(any(OrchestrationSessionDescription.class));
+    verify(agentRuntime, times(1)).start(any(AgentRuntime.StartRequest.class));
+    verify(agentRuntime, times(1))
+        .send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class));
   }
 
   @Test
@@ -246,6 +263,9 @@ public class OrchestrationsApiTest extends ApiTest {
             createdTask.getIdentity(), new Ref<>("agent-crafter-1"), new Ref<>("agent-routa-1"));
     verify(events, times(6)).append(any(AgentEventDescription.class));
     verify(orchestrationSessions, times(1)).create(any(OrchestrationSessionDescription.class));
+    verify(agentRuntime, times(1)).start(any(AgentRuntime.StartRequest.class));
+    verify(agentRuntime, times(1))
+        .send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class));
   }
 
   @Test

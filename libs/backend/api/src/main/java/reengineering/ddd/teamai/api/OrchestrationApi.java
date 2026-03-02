@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.api;
 
+import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.ws.rs.Consumes;
@@ -16,8 +17,10 @@ import java.util.EnumSet;
 import java.util.Set;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import reengineering.ddd.teamai.api.application.OrchestrationRuntimeService;
 import reengineering.ddd.teamai.api.representation.OrchestrationModel;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 
@@ -30,6 +33,7 @@ public class OrchestrationApi {
 
   private final Project project;
   private final OrchestrationSession session;
+  @Inject OrchestrationRuntimeService orchestrationRuntimeService;
 
   public OrchestrationApi(Project project, OrchestrationSession session) {
     this.project = project;
@@ -55,6 +59,13 @@ public class OrchestrationApi {
     }
 
     Instant cancelledAt = request.getOccurredAt() == null ? Instant.now() : request.getOccurredAt();
+    try {
+      orchestrationRuntimeService.onSessionCancelled(session.getIdentity());
+    } catch (AgentRuntimeException error) {
+      throw new WebApplicationException(
+          "Failed to stop orchestration runtime: " + error.getMessage(),
+          Response.Status.BAD_GATEWAY);
+    }
     project.updateOrchestrationSessionStatus(
         session.getIdentity(),
         OrchestrationSessionDescription.Status.CANCELLED,
