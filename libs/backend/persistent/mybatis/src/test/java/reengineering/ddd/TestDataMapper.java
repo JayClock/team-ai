@@ -164,4 +164,44 @@ public interface TestDataMapper {
       @Param("task_id") Integer taskId,
       @Param("message") String message,
       @Param("occurred_at") java.time.Instant occurredAt);
+
+  @Insert(
+      "INSERT INTO project_orchestration_sessions("
+          + "id, project_id, goal, status, coordinator_id, implementer_id, task_id, "
+          + "current_step_id, started_at, completed_at, failure_reason"
+          + ") VALUES ("
+          + "#{id}, #{project_id}, #{goal}, #{status}, #{coordinator_id}, #{implementer_id}, "
+          + "#{task_id}, #{current_step_id}, #{started_at}, #{completed_at}, #{failure_reason})")
+  void insertProjectOrchestrationSession(
+      @Param("id") int id,
+      @Param("project_id") int projectId,
+      @Param("goal") String goal,
+      @Param("status") String status,
+      @Param("coordinator_id") Integer coordinatorId,
+      @Param("implementer_id") Integer implementerId,
+      @Param("task_id") Integer taskId,
+      @Param("current_step_id") Integer currentStepId,
+      @Param("started_at") java.time.Instant startedAt,
+      @Param("completed_at") java.time.Instant completedAt,
+      @Param("failure_reason") String failureReason);
+
+  @Insert(
+      "INSERT INTO project_orchestration_steps("
+          + "id, session_id, sequence_no, title, objective, status, task_id, assignee_id, "
+          + "started_at, completed_at, failure_reason"
+          + ") VALUES ("
+          + "#{id}, #{session_id}, #{sequence_no}, #{title}, #{objective}, #{status}, "
+          + "#{task_id}, #{assignee_id}, #{started_at}, #{completed_at}, #{failure_reason})")
+  void insertProjectOrchestrationStep(
+      @Param("id") int id,
+      @Param("session_id") int sessionId,
+      @Param("sequence_no") int sequenceNo,
+      @Param("title") String title,
+      @Param("objective") String objective,
+      @Param("status") String status,
+      @Param("task_id") Integer taskId,
+      @Param("assignee_id") Integer assigneeId,
+      @Param("started_at") java.time.Instant startedAt,
+      @Param("completed_at") java.time.Instant completedAt,
+      @Param("failure_reason") String failureReason);
 }

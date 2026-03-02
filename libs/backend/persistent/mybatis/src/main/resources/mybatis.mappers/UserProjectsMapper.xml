@@ -30,6 +30,11 @@
       <association property="events" javaType="reengineering.ddd.teamai.mybatis.associations.ProjectAgentEvents">
         <result column="id" property="projectId" javaType="int"/>
       </association>
+      <association
+          property="orchestrationSessions"
+          javaType="reengineering.ddd.teamai.mybatis.associations.ProjectOrchestrationSessions">
+        <result column="id" property="projectId" javaType="int"/>
+      </association>
     </resultMap>
 
   <select id="findProjectByUserAndId" resultMap="project">
