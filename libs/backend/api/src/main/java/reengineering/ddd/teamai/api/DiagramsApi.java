@@ -83,8 +83,10 @@ public class DiagramsApi {
         new DiagramDescription(request.getTitle(), Diagram.Type.CLASS, Viewport.defaultViewport());
     Diagram created = project.addDiagram(description);
     DiagramModel model = DiagramModel.of(project, created, uriInfo);
+    String collectionHref = ApiTemplates.diagrams(uriInfo).build(project.getIdentity()).getPath();
     return Response.created(
             ApiTemplates.diagram(uriInfo).build(project.getIdentity(), created.getIdentity()))
+        .header("Link", "<" + collectionHref + ">; rel=\"collection\"")
         .entity(model)
         .build();
   }
