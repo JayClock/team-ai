@@ -21,13 +21,10 @@ import {
 import { LayoutSidebarNavMain } from './layout-sidebar-nav-main';
 import { LayoutSidebarProjects } from './layout-sidebar-projects';
 import { LayoutSidebarTeamSwitcher } from './layout-sidebar-team-switcher';
-import {
-  LayoutSidebarUserMenu,
-  LayoutSidebarUserMenuWithResource,
-} from './layout-sidebar-user-menu';
+import { LayoutSidebarUserMenu } from './layout-sidebar-user-menu';
 import { Entity, Resource, State } from '@hateoas-ts/resource';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
-import { Sidebar as SidebarResource, SidebarSection, User } from '@shared/schema';
+import { Sidebar as SidebarResource, SidebarSection } from '@shared/schema';
 
 const SIDEBAR_ICON_MAP: Record<string, LucideIcon> = {
   'layout-dashboard': LayoutDashboardIcon,
@@ -39,10 +36,6 @@ const SIDEBAR_ICON_MAP: Record<string, LucideIcon> = {
 
 export function LayoutSidebar(props: { resourceState?: State<Entity> }) {
   const { resourceState } = props;
-  const userResource =
-    resourceState && resourceState.hasLink('user')
-      ? (resourceState.follow('user') as Resource<User>)
-      : undefined;
   if (!resourceState) {
     return <LayoutSidebarBase />;
   }
@@ -51,39 +44,30 @@ export function LayoutSidebar(props: { resourceState?: State<Entity> }) {
     return (
       <LayoutSidebarWithSidebarResource
         resourceUri={resourceState.uri}
-        userResource={userResource}
         sidebarResource={resourceState.follow('sidebar') as Resource<SidebarResource>}
       />
     );
   }
 
-  return <LayoutSidebarBase resourceUri={resourceState.uri} userResource={userResource} />;
+  return <LayoutSidebarBase resourceUri={resourceState.uri} />;
 }
 
 function LayoutSidebarWithSidebarResource(props: {
   resourceUri: string;
   sidebarResource: Resource<SidebarResource>;
-  userResource?: Resource<User>;
 }) {
-  const { resourceUri, sidebarResource, userResource } = props;
+  const { resourceUri, sidebarResource } = props;
   const { resourceState } = useSuspenseResource<SidebarResource>(sidebarResource);
   const navMain = mapSectionsToNavMain(resourceState.data.sections);
 
-  return (
-    <LayoutSidebarBase
-      resourceUri={resourceUri}
-      navMain={navMain}
-      userResource={userResource}
-    />
-  );
+  return <LayoutSidebarBase resourceUri={resourceUri} navMain={navMain} />;
 }
 
 function LayoutSidebarBase(props: {
   resourceUri?: string;
   navMain?: SidebarMainItem[];
-  userResource?: Resource<User>;
 }) {
-  const { resourceUri, navMain, userResource } = props;
+  const { resourceUri, navMain } = props;
   const navItems =
     navMain && navMain.length > 0 ? navMain : layoutSidebarData.navMain;
 
@@ -97,14 +81,7 @@ function LayoutSidebarBase(props: {
         <LayoutSidebarProjects projects={layoutSidebarData.projects} />
       </SidebarContent>
       <SidebarFooter>
-        {userResource ? (
-          <LayoutSidebarUserMenuWithResource
-            userResource={userResource}
-            fallbackUser={layoutSidebarData.user}
-          />
-        ) : (
-          <LayoutSidebarUserMenu user={layoutSidebarData.user} />
-        )}
+        <LayoutSidebarUserMenu user={layoutSidebarData.user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

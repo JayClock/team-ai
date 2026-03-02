@@ -39,7 +39,6 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
     if (projectId == null) {
       return;
     }
-    String userId = extractUserId(requestContext);
 
     Object entity = responseContext.getEntity();
     if (entity == null) {
@@ -50,8 +49,6 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
     if (root == null) {
       return;
     }
-
-    injectContextLinks(root, uriInfo, projectId, userId);
 
     if (includeSidebar) {
       injectSidebar(root, uriInfo, projectId);
@@ -70,37 +67,17 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
     return projectId;
   }
 
-  private static String extractUserId(ContainerRequestContext requestContext) {
-    if (requestContext.getSecurityContext() == null
-        || requestContext.getSecurityContext().getUserPrincipal() == null) {
-      return null;
-    }
-    String userId = requestContext.getSecurityContext().getUserPrincipal().getName();
-    if (userId == null || userId.isBlank()) {
-      return null;
-    }
-    return userId;
-  }
-
-  private void injectContextLinks(
-      ObjectNode root, UriInfo uriInfo, String projectId, String userId) {
-    String projectPath = ApiTemplates.project(uriInfo).build(projectId).getPath();
-
-    ObjectNode links = ensureObject(root, "_links");
-    putLinkIfAbsent(links, "project", projectPath);
-    if (userId != null) {
-      String userPath = ApiTemplates.user(uriInfo).build(userId).getPath();
-      putLinkIfAbsent(links, "user", userPath);
-    }
-  }
-
   private void injectSidebar(ObjectNode root, UriInfo uriInfo, String projectId) {
     String diagramsPath = ApiTemplates.diagrams(uriInfo).build(projectId).getPath();
     String conversationsPath = ApiTemplates.conversations(uriInfo).build(projectId).getPath();
     String sidebarPath = ApiTemplates.project(uriInfo).build(projectId).getPath() + "/sidebar";
 
     ObjectNode links = ensureObject(root, "_links");
-    putLinkIfAbsent(links, "sidebar", sidebarPath);
+    if (!links.has("sidebar")) {
+      ObjectNode sidebarLink = objectMapper.createObjectNode();
+      sidebarLink.put("href", sidebarPath);
+      links.set("sidebar", sidebarLink);
+    }
 
     ObjectNode embedded = ensureObject(root, "_embedded");
     if (!embedded.has("sidebar")) {
@@ -115,7 +92,11 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
     String breadcrumbPath = uriInfo.getAbsolutePathBuilder().path("breadmenu").build().getPath();
 
     ObjectNode links = ensureObject(root, "_links");
-    putLinkIfAbsent(links, "breadcrumb", breadcrumbPath);
+    if (!links.has("breadcrumb")) {
+      ObjectNode breadcrumbLink = objectMapper.createObjectNode();
+      breadcrumbLink.put("href", breadcrumbPath);
+      links.set("breadcrumb", breadcrumbLink);
+    }
 
     ObjectNode embedded = ensureObject(root, "_embedded");
     if (!embedded.has("breadcrumb")) {
@@ -132,14 +113,5 @@ public class SidebarLayoutResponseInterceptor implements ContainerResponseFilter
     ObjectNode object = root.objectNode();
     root.set(fieldName, object);
     return object;
-  }
-
-  private void putLinkIfAbsent(ObjectNode links, String rel, String href) {
-    if (links.has(rel)) {
-      return;
-    }
-    ObjectNode link = objectMapper.createObjectNode();
-    link.put("href", href);
-    links.set(rel, link);
   }
 }
