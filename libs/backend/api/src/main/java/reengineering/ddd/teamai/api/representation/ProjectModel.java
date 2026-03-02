@@ -11,6 +11,7 @@ import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.ConversationsApi;
 import reengineering.ddd.teamai.api.LogicalEntitiesApi;
+import reengineering.ddd.teamai.api.OrchestrationsApi;
 import reengineering.ddd.teamai.api.ProjectApi;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.Project;
@@ -69,6 +70,15 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
     model.add(
         Link.of(ApiTemplates.events(uriInfo).build(project.getIdentity()).getPath())
             .withRel("events"));
+
+    model.add(
+        Affordances.of(
+                Link.of(ApiTemplates.orchestrations(uriInfo).build(project.getIdentity()).getPath())
+                    .withRel("orchestrations"))
+            .afford(HttpMethod.POST)
+            .withInput(OrchestrationsApi.StartOrchestrationRequest.class)
+            .withName("start-orchestration")
+            .toLink());
 
     model.add(
         Affordances.of(

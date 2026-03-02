@@ -81,6 +81,22 @@ public class ProjectsApiTest extends ApiTest {
         .body("_links.tasks.href", is("/api/projects/" + project.getIdentity() + "/tasks"))
         .body("_links.events.href", is("/api/projects/" + project.getIdentity() + "/events"))
         .body(
+            "_links.orchestrations.href",
+            is("/api/projects/" + project.getIdentity() + "/orchestrations"))
+        .body("_templates.start-orchestration.method", is("POST"))
+        .body("_templates.start-orchestration.properties", hasSize(8))
+        .body(
+            "_templates.start-orchestration.properties.name",
+            containsInAnyOrder(
+                "goal",
+                "title",
+                "scope",
+                "acceptanceCriteria",
+                "verificationCommands",
+                "coordinatorAgentId",
+                "implementerAgentId",
+                "occurredAt"))
+        .body(
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
         .body(

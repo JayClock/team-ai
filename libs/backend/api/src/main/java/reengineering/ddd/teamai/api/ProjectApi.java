@@ -55,6 +55,11 @@ public class ProjectApi {
     return resourceContext.initResource(new AgentEventsApi(project));
   }
 
+  @Path("orchestrations")
+  public OrchestrationsApi orchestrations() {
+    return resourceContext.initResource(new OrchestrationsApi(project));
+  }
+
   @Path("knowledge-graph")
   public KnowledgeGraphApi knowledgeGraph() {
     return resourceContext.initResource(new KnowledgeGraphApi(project));
