@@ -15,6 +15,23 @@ export type { Account } from './lib/account.js';
 export type { Conversation } from './lib/conversation.js';
 export type { Message } from './lib/message.js';
 export type {
+  Agent,
+  AgentCollection,
+  AgentRole,
+  AgentStatus,
+} from './lib/agent.js';
+export type {
+  Task,
+  TaskCollection,
+  TaskStatus,
+  VerificationVerdict,
+} from './lib/task.js';
+export type {
+  AgentEvent,
+  AgentEventCollection,
+  AgentEventType,
+} from './lib/agent-event.js';
+export type {
   Diagram,
   DiagramType,
   Viewport,
