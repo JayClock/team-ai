@@ -31,6 +31,7 @@ export type {
   AgentEventCollection,
   AgentEventType,
 } from './lib/agent-event.js';
+export type { Orchestration } from './lib/orchestration.js';
 export type {
   Diagram,
   DiagramType,
