@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -343,16 +344,21 @@ public class OrchestrationsApiTest extends ApiTest {
         .then()
         .statusCode(502);
 
-    verify(orchestrationSessions, times(1))
+    verify(orchestrationSessions, times(2))
         .updateStatus(
             "session-1",
             OrchestrationSessionDescription.Status.FAILED,
             null,
             Instant.parse("2026-03-02T12:00:00Z"),
             "codex execution failed");
-    verify(tasks, times(1))
+    verify(orchestrationSessions, times(1))
+        .updateStatus(
+            "session-1", OrchestrationSessionDescription.Status.RUNNING, null, null, null);
+    verify(tasks, times(2))
         .updateStatus("task-1", TaskDescription.Status.BLOCKED, "codex execution failed");
-    verify(events, times(6)).append(any(AgentEventDescription.class));
+    verify(tasks, times(1))
+        .updateStatus(eq("task-1"), eq(TaskDescription.Status.IN_PROGRESS), any(String.class));
+    verify(events, times(9)).append(any(AgentEventDescription.class));
   }
 
   @Test
