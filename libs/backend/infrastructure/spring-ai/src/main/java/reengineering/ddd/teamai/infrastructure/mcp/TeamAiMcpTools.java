@@ -27,11 +27,12 @@ import reengineering.ddd.teamai.model.Task;
 public class TeamAiMcpTools {
   private static final String DEFAULT_COORDINATOR_NAME = "Routa Coordinator";
   private static final String DEFAULT_IMPLEMENTER_NAME = "Crafter Implementer";
-  private static final Set<OrchestrationSessionDescription.Status> CANCELLABLE_ORCHESTRATION_STATES =
-      EnumSet.of(
-          OrchestrationSessionDescription.Status.PENDING,
-          OrchestrationSessionDescription.Status.RUNNING,
-          OrchestrationSessionDescription.Status.REVIEW_REQUIRED);
+  private static final Set<OrchestrationSessionDescription.Status>
+      CANCELLABLE_ORCHESTRATION_STATES =
+          EnumSet.of(
+              OrchestrationSessionDescription.Status.PENDING,
+              OrchestrationSessionDescription.Status.RUNNING,
+              OrchestrationSessionDescription.Status.REVIEW_REQUIRED);
 
   private final Projects projects;
 
@@ -180,8 +181,7 @@ public class TeamAiMcpTools {
           List<String> acceptanceCriteria,
       @ToolParam(required = false, description = "Verification command list")
           List<String> verificationCommands,
-      @ToolParam(required = false, description = "Coordinator agent ID")
-          String coordinatorAgentId,
+      @ToolParam(required = false, description = "Coordinator agent ID") String coordinatorAgentId,
       @ToolParam(required = false, description = "Implementer agent ID")
           String implementerAgentId) {
     Project project = requireProject(projectId);
@@ -208,7 +208,11 @@ public class TeamAiMcpTools {
     Ref<String> taskRef = new Ref<>(task.getIdentity());
     project.appendEvent(
         new AgentEventDescription(
-            AgentEventDescription.Type.MESSAGE_SENT, coordinator, taskRef, normalizedGoal, occurredAt));
+            AgentEventDescription.Type.MESSAGE_SENT,
+            coordinator,
+            taskRef,
+            normalizedGoal,
+            occurredAt));
     project.delegateTaskForExecution(task.getIdentity(), implementer, coordinator, occurredAt);
 
     OrchestrationSession session =
@@ -295,7 +299,8 @@ public class TeamAiMcpTools {
     return project.tasks().findByIdentity(taskId).map(this::toTaskSummary).orElseThrow();
   }
 
-  private Optional<OrchestrationSession> requireOrchestration(Project project, String orchestrationId) {
+  private Optional<OrchestrationSession> requireOrchestration(
+      Project project, String orchestrationId) {
     if (isBlank(orchestrationId)) {
       throw new IllegalArgumentException("orchestrationId must not be blank");
     }
