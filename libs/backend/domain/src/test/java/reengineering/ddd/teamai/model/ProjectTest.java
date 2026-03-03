@@ -266,6 +266,55 @@ public class ProjectTest {
 
       verify(agents).updateStatus(new Ref<>("agent-1"), AgentDescription.Status.ACTIVE);
     }
+
+    @Test
+    @DisplayName("should delegate updateAgent to agents association")
+    void shouldDelegateUpdateAgent() {
+      AgentDescription updatedDescription =
+          new AgentDescription(
+              "Domain Specialist",
+              Role.SPECIALIST,
+              "FAST",
+              AgentDescription.Status.ACTIVE,
+              new Ref<>("agent-2"),
+              "Focus on domain rules");
+      when(agents.findByIdentity("agent-1"))
+          .thenReturn(
+              Optional.of(
+                  new Agent(
+                      "agent-1",
+                      new AgentDescription(
+                          "Old Specialist",
+                          Role.SPECIALIST,
+                          "SMART",
+                          AgentDescription.Status.PENDING,
+                          null,
+                          "Old prompt"))));
+
+      project.updateAgent("agent-1", updatedDescription);
+
+      verify(agents).update("agent-1", updatedDescription);
+    }
+
+    @Test
+    @DisplayName("should delegate deleteAgent to agents association")
+    void shouldDelegateDeleteAgent() {
+      when(agents.findByIdentity("agent-1"))
+          .thenReturn(
+              Optional.of(
+                  new Agent(
+                      "agent-1",
+                      new AgentDescription(
+                          "Crafter",
+                          Role.CRAFTER,
+                          "SMART",
+                          AgentDescription.Status.PENDING,
+                          null))));
+
+      project.deleteAgent("agent-1");
+
+      verify(agents).delete("agent-1");
+    }
   }
 
   @Nested
@@ -502,6 +551,56 @@ public class ProjectTest {
       verify(tasks)
           .updateStatus("task-1", Status.REVIEW_REQUIRED, "Implemented all acceptance criteria");
       verify(agents).updateStatus(implementer, AgentDescription.Status.COMPLETED);
+      verify(events, times(3)).append(any(AgentEventDescription.class));
+    }
+
+    @Test
+    @DisplayName("should allow specialist as implementer when delegating task")
+    void shouldAllowSpecialistAsImplementerWhenDelegatingTask() {
+      Task task =
+          new Task(
+              "task-1",
+              new TaskDescription(
+                  "Implement prompt strategy",
+                  "Build specialist workflow",
+                  "orchestration",
+                  List.of("specialist delegates"),
+                  List.of("./gradlew :backend:domain:test"),
+                  Status.PENDING,
+                  null,
+                  null,
+                  null,
+                  null,
+                  null));
+      Agent specialist =
+          new Agent(
+              "agent-specialist",
+              new AgentDescription(
+                  "Domain Specialist",
+                  Role.SPECIALIST,
+                  "FAST",
+                  AgentDescription.Status.PENDING,
+                  new Ref<>("agent-2"),
+                  "Focus on domain constraints"));
+      Agent caller =
+          new Agent(
+              "agent-2",
+              new AgentDescription(
+                  "Routa", Role.ROUTA, "SMART", AgentDescription.Status.ACTIVE, null));
+
+      when(tasks.findByIdentity("task-1")).thenReturn(Optional.of(task));
+      when(agents.findByIdentity("agent-specialist")).thenReturn(Optional.of(specialist));
+      when(agents.findByIdentity("agent-2")).thenReturn(Optional.of(caller));
+
+      project.delegateTaskForExecution(
+          "task-1",
+          new Ref<>("agent-specialist"),
+          new Ref<>("agent-2"),
+          Instant.parse("2026-03-02T12:00:00Z"));
+
+      verify(tasks).assign("task-1", new Ref<>("agent-specialist"), new Ref<>("agent-2"));
+      verify(tasks).updateStatus("task-1", Status.IN_PROGRESS, null);
+      verify(agents).updateStatus(new Ref<>("agent-specialist"), AgentDescription.Status.ACTIVE);
       verify(events, times(3)).append(any(AgentEventDescription.class));
     }
 

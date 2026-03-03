@@ -23,7 +23,10 @@ import reengineering.ddd.teamai.description.TaskReportDescription;
 
 public class Project implements Entity<String, ProjectDescription> {
   private static final Set<AgentDescription.Role> IMPLEMENTER_ROLES =
-      EnumSet.of(AgentDescription.Role.CRAFTER, AgentDescription.Role.DEVELOPER);
+      EnumSet.of(
+          AgentDescription.Role.CRAFTER,
+          AgentDescription.Role.DEVELOPER,
+          AgentDescription.Role.SPECIALIST);
   private static final Set<AgentDescription.Role> REVIEWER_ROLES =
       EnumSet.of(AgentDescription.Role.GATE, AgentDescription.Role.DEVELOPER);
   private static final Set<AgentDescription.Role> DELEGATOR_ROLES =
@@ -137,6 +140,29 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public void updateAgentStatus(Ref<String> agent, AgentDescription.Status status) {
     agents.updateStatus(agent, status);
+  }
+
+  public void updateAgent(String agentId, AgentDescription description) {
+    if (agentId == null || agentId.isBlank()) {
+      throw new IllegalArgumentException("agentId must not be blank");
+    }
+    if (description == null) {
+      throw new IllegalArgumentException("description must not be null");
+    }
+    if (agents.findByIdentity(agentId).isEmpty()) {
+      throw new IllegalArgumentException("Agent not found: " + agentId);
+    }
+    agents.update(agentId, description);
+  }
+
+  public void deleteAgent(String agentId) {
+    if (agentId == null || agentId.isBlank()) {
+      throw new IllegalArgumentException("agentId must not be blank");
+    }
+    if (agents.findByIdentity(agentId).isEmpty()) {
+      throw new IllegalArgumentException("Agent not found: " + agentId);
+    }
+    agents.delete(agentId);
   }
 
   public Tasks tasks() {
@@ -444,6 +470,10 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public interface Agents extends HasMany<String, Agent> {
     Agent create(AgentDescription description);
+
+    void update(String agentId, AgentDescription description);
+
+    void delete(String agentId);
 
     void updateStatus(Ref<String> agent, AgentDescription.Status status);
   }

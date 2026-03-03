@@ -20,6 +20,13 @@ public interface ProjectAgentsMapper {
       @Param("project_id") int projectId,
       @Param("description") AgentDescription description);
 
+  int updateAgent(
+      @Param("project_id") int projectId,
+      @Param("id") int id,
+      @Param("description") AgentDescription description);
+
+  int deleteAgent(@Param("project_id") int projectId, @Param("id") int id);
+
   int updateAgentStatus(
       @Param("project_id") int projectId,
       @Param("agent") Ref<String> agent,

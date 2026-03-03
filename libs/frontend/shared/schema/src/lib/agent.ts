@@ -1,6 +1,6 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
 
-export type AgentRole = 'ROUTA' | 'CRAFTER' | 'GATE' | 'DEVELOPER';
+export type AgentRole = 'ROUTA' | 'CRAFTER' | 'GATE' | 'DEVELOPER' | 'SPECIALIST';
 
 export type AgentStatus =
   | 'PENDING'
@@ -17,6 +17,7 @@ export type Agent = Entity<
     modelTier: string;
     status: AgentStatus;
     parent: { id: string } | null;
+    prompt: string | null;
     project: { id: string };
   },
   {

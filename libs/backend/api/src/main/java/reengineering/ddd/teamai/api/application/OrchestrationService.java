@@ -205,6 +205,7 @@ public class OrchestrationService {
                 AgentDescription.Role.ROUTA,
                 "SMART",
                 AgentDescription.Status.PENDING,
+                null,
                 null));
     project.appendEvent(
         new AgentEventDescription(
@@ -243,6 +244,7 @@ public class OrchestrationService {
                 AgentDescription.Role.CRAFTER,
                 "SMART",
                 AgentDescription.Status.PENDING,
+                null,
                 null));
     project.appendEvent(
         new AgentEventDescription(
@@ -255,13 +257,15 @@ public class OrchestrationService {
   }
 
   private boolean isImplementerRole(AgentDescription.Role role) {
-    return role == AgentDescription.Role.CRAFTER || role == AgentDescription.Role.DEVELOPER;
+    return role == AgentDescription.Role.CRAFTER
+        || role == AgentDescription.Role.DEVELOPER
+        || role == AgentDescription.Role.SPECIALIST;
   }
 
   private void ensureImplementerRole(Agent agent) {
     if (!isImplementerRole(agent.getDescription().role())) {
       throw new IllegalStateException(
-          "implementer role must be one of [CRAFTER, DEVELOPER], but was "
+          "implementer role must be one of [CRAFTER, DEVELOPER, SPECIALIST], but was "
               + agent.getDescription().role());
     }
   }

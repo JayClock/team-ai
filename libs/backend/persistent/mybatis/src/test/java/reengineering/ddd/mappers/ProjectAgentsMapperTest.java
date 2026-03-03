@@ -88,4 +88,46 @@ public class ProjectAgentsMapperTest {
     List<Agent> list = agentsMapper.findAgentsByProjectId(projectId, 0, 10);
     assertEquals(2, list.size());
   }
+
+  @Test
+  void should_insert_specialist_with_prompt_and_update_config() {
+    IdHolder holder = new IdHolder();
+    AgentDescription specialist =
+        new AgentDescription(
+            "Domain Specialist",
+            AgentDescription.Role.SPECIALIST,
+            "FAST",
+            AgentDescription.Status.PENDING,
+            null,
+            "Focus on bounded context");
+    agentsMapper.insertAgent(holder, projectId, specialist);
+
+    Agent saved = agentsMapper.findAgentByProjectAndId(projectId, holder.id());
+    assertEquals(AgentDescription.Role.SPECIALIST, saved.getDescription().role());
+    assertEquals("Focus on bounded context", saved.getDescription().prompt());
+
+    AgentDescription updated =
+        new AgentDescription(
+            "Domain Specialist V2",
+            AgentDescription.Role.SPECIALIST,
+            "SMART",
+            AgentDescription.Status.ACTIVE,
+            new Ref<>(String.valueOf(parentAgentId)),
+            "Focus on domain events");
+    agentsMapper.updateAgent(projectId, holder.id(), updated);
+
+    Agent reloaded = agentsMapper.findAgentByProjectAndId(projectId, holder.id());
+    assertEquals("Domain Specialist V2", reloaded.getDescription().name());
+    assertEquals(AgentDescription.Status.ACTIVE, reloaded.getDescription().status());
+    assertNotNull(reloaded.getDescription().parent());
+    assertEquals(String.valueOf(parentAgentId), reloaded.getDescription().parent().id());
+    assertEquals("Focus on domain events", reloaded.getDescription().prompt());
+  }
+
+  @Test
+  void should_delete_agent_from_database() {
+    agentsMapper.deleteAgent(projectId, agentId);
+    Agent deleted = agentsMapper.findAgentByProjectAndId(projectId, agentId);
+    org.junit.jupiter.api.Assertions.assertNull(deleted);
+  }
 }

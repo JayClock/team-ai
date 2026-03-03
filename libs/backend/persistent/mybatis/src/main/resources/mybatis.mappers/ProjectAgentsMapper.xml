@@ -11,18 +11,19 @@
         <arg column="model_tier" jdbcType="VARCHAR" javaType="String"/>
         <arg column="status" jdbcType="VARCHAR" javaType="reengineering.ddd.teamai.description.AgentDescription$Status"/>
         <arg column="parent_id" jdbcType="INTEGER" javaType="reengineering.ddd.archtype.Ref" typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
+        <arg column="prompt" jdbcType="VARCHAR" javaType="String"/>
       </constructor>
     </association>
   </resultMap>
 
   <select id="findAgentByProjectAndId" resultMap="agent">
-    SELECT id, project_id, name, role, model_tier, status, parent_id
+    SELECT id, project_id, name, role, model_tier, status, parent_id, prompt
     FROM project_agents
     WHERE project_id = #{project_id} AND id = #{id}
   </select>
 
   <select id="findAgentsByProjectId" resultMap="agent">
-    SELECT id, project_id, name, role, model_tier, status, parent_id
+    SELECT id, project_id, name, role, model_tier, status, parent_id, prompt
     FROM project_agents
     WHERE project_id = #{project_id}
     ORDER BY id ASC
@@ -31,16 +32,36 @@
 
   <insert id="insertAgent" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
-    INSERT INTO project_agents(project_id, name, role, model_tier, status, parent_id)
+    INSERT INTO project_agents(project_id, name, role, model_tier, status, parent_id, prompt)
     VALUES (
       #{project_id},
       #{description.name},
       #{description.role, jdbcType=VARCHAR},
       #{description.modelTier},
       #{description.status, jdbcType=VARCHAR},
-      #{description.parent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler}
+      #{description.parent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+      #{description.prompt}
     )
   </insert>
+
+  <update id="updateAgent">
+    UPDATE project_agents
+    SET name = #{description.name},
+        role = #{description.role, jdbcType=VARCHAR},
+        model_tier = #{description.modelTier},
+        status = #{description.status, jdbcType=VARCHAR},
+        parent_id = #{description.parent, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler},
+        prompt = #{description.prompt},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </update>
+
+  <delete id="deleteAgent">
+    DELETE FROM project_agents
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </delete>
 
   <update id="updateAgentStatus">
     UPDATE project_agents

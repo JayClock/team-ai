@@ -61,7 +61,8 @@ public class TeamAiMcpTools {
   public AgentSummary createAgent(
       @ToolParam(description = "Project ID") String projectId,
       @ToolParam(description = "Agent name") String name,
-      @ToolParam(description = "Agent role: ROUTA | CRAFTER | GATE | DEVELOPER") String role,
+      @ToolParam(description = "Agent role: ROUTA | CRAFTER | GATE | DEVELOPER | SPECIALIST")
+          String role,
       @ToolParam(required = false, description = "Model tier, default SMART") String modelTier,
       @ToolParam(required = false, description = "Parent agent ID") String parentAgentId) {
     Project project = requireProject(projectId);
@@ -73,7 +74,12 @@ public class TeamAiMcpTools {
     Agent created =
         project.createAgent(
             new AgentDescription(
-                name, parsedRole, resolvedModelTier, AgentDescription.Status.PENDING, parent));
+                name,
+                parsedRole,
+                resolvedModelTier,
+                AgentDescription.Status.PENDING,
+                parent,
+                null));
     return toAgentSummary(created);
   }
 
@@ -427,6 +433,7 @@ public class TeamAiMcpTools {
                                 AgentDescription.Role.ROUTA,
                                 "SMART",
                                 AgentDescription.Status.PENDING,
+                                null,
                                 null))
                         .getIdentity()));
   }
@@ -441,7 +448,7 @@ public class TeamAiMcpTools {
                   () -> new IllegalArgumentException("Implementer not found: " + explicitAgentId));
       if (!isImplementerRole(implementer.getDescription().role())) {
         throw new IllegalStateException(
-            "implementer role must be one of [CRAFTER, DEVELOPER], but was "
+            "implementer role must be one of [CRAFTER, DEVELOPER, SPECIALIST], but was "
                 + implementer.getDescription().role());
       }
       return new Ref<>(implementer.getIdentity());
@@ -462,12 +469,15 @@ public class TeamAiMcpTools {
                                 AgentDescription.Role.CRAFTER,
                                 "SMART",
                                 AgentDescription.Status.PENDING,
+                                null,
                                 null))
                         .getIdentity()));
   }
 
   private boolean isImplementerRole(AgentDescription.Role role) {
-    return role == AgentDescription.Role.CRAFTER || role == AgentDescription.Role.DEVELOPER;
+    return role == AgentDescription.Role.CRAFTER
+        || role == AgentDescription.Role.DEVELOPER
+        || role == AgentDescription.Role.SPECIALIST;
   }
 
   private String resolveTaskTitle(String title, String goal) {

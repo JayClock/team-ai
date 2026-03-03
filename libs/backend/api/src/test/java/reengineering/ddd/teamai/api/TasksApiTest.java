@@ -218,6 +218,54 @@ public class TasksApiTest extends ApiTest {
   }
 
   @Test
+  void should_delegate_task_to_specialist() {
+    Agent assignee =
+        new Agent(
+            "agent-specialist",
+            new AgentDescription(
+                "Domain Specialist",
+                AgentDescription.Role.SPECIALIST,
+                "FAST",
+                AgentDescription.Status.PENDING,
+                new Ref<>("agent-2"),
+                "Focus on domain logic"));
+    Agent caller =
+        new Agent(
+            "agent-2",
+            new AgentDescription(
+                "Routa",
+                AgentDescription.Role.ROUTA,
+                "SMART",
+                AgentDescription.Status.ACTIVE,
+                null));
+    when(agents.findByIdentity("agent-specialist")).thenReturn(Optional.of(assignee));
+    when(agents.findByIdentity("agent-2")).thenReturn(Optional.of(caller));
+
+    TaskApi.DelegateTaskRequest request = new TaskApi.DelegateTaskRequest();
+    request.setAssigneeId("agent-specialist");
+    request.setCallerAgentId("agent-2");
+    request.setOccurredAt(Instant.parse("2026-03-02T12:00:00Z"));
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/tasks/{taskId}/delegate",
+            project.getIdentity(),
+            task.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("id", is(task.getIdentity()));
+
+    verify(tasks).assign(task.getIdentity(), new Ref<>("agent-specialist"), new Ref<>("agent-2"));
+    verify(tasks).updateStatus(task.getIdentity(), TaskDescription.Status.IN_PROGRESS, null);
+    verify(agents).updateStatus(new Ref<>("agent-specialist"), AgentDescription.Status.ACTIVE);
+    verify(events, times(3)).append(any(AgentEventDescription.class));
+  }
+
+  @Test
   void should_replay_delegate_when_request_id_is_reused() {
     Task delegated =
         new Task(

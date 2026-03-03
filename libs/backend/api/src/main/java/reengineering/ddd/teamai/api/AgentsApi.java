@@ -16,6 +16,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
+import java.util.Locale;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
@@ -81,15 +82,21 @@ public class AgentsApi {
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
   public Response create(@Valid CreateAgentRequest request, @Context UriInfo uriInfo) {
+    String normalizedPrompt = toPrompt(request.getPrompt());
+    if (request.getRole() == AgentDescription.Role.SPECIALIST && normalizedPrompt == null) {
+      throw new WebApplicationException(
+          "specialist prompt must not be blank", Response.Status.BAD_REQUEST);
+    }
     AgentDescription description =
         new AgentDescription(
             request.getName(),
             request.getRole(),
             request.getModelTier() == null || request.getModelTier().isBlank()
                 ? "SMART"
-                : request.getModelTier(),
+                : request.getModelTier().trim().toUpperCase(Locale.ROOT),
             request.getStatus() == null ? AgentDescription.Status.PENDING : request.getStatus(),
-            toRef(request.getParentId()));
+            toRef(request.getParentId()),
+            normalizedPrompt);
 
     Agent created = project.createAgent(description);
     return Response.created(
@@ -105,6 +112,14 @@ public class AgentsApi {
     return new Ref<>(id);
   }
 
+  private String toPrompt(String prompt) {
+    if (prompt == null) {
+      return null;
+    }
+    String normalized = prompt.trim();
+    return normalized.isEmpty() ? null : normalized;
+  }
+
   @Data
   @NoArgsConstructor
   public static class CreateAgentRequest {
@@ -114,5 +129,6 @@ public class AgentsApi {
     private String modelTier;
     private AgentDescription.Status status;
     private String parentId;
+    private String prompt;
   }
 }

@@ -64,6 +64,27 @@ public class ProjectAgents extends EntityList<String, Agent> implements Project.
         @CacheEvict(value = CACHE_LIST, allEntries = true),
         @CacheEvict(value = CACHE_NAME, allEntries = true)
       })
+  public void update(String agentId, AgentDescription description) {
+    mapper.updateAgent(projectId, Integer.parseInt(agentId), description);
+  }
+
+  @Override
+  @Caching(
+      evict = {
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_NAME, allEntries = true),
+        @CacheEvict(value = CACHE_COUNT, key = "#root.target.projectId")
+      })
+  public void delete(String agentId) {
+    mapper.deleteAgent(projectId, Integer.parseInt(agentId));
+  }
+
+  @Override
+  @Caching(
+      evict = {
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_NAME, allEntries = true)
+      })
   public void updateStatus(Ref<String> agent, AgentDescription.Status status) {
     mapper.updateAgentStatus(projectId, agent, status);
   }

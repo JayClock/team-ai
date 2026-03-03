@@ -51,6 +51,28 @@ public class AgentModel extends RepresentationModel<AgentModel> {
             .withInput(AgentApi.UpdateAgentStatusRequest.class)
             .withName("update-agent-status")
             .toLink());
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.agent(uriInfo)
+                            .path(AgentApi.class, "updateConfig")
+                            .build(project.getIdentity(), agent.getIdentity())
+                            .getPath())
+                    .withRel("update-agent-config"))
+            .afford(HttpMethod.PUT)
+            .withInput(AgentApi.UpdateAgentConfigRequest.class)
+            .withName("update-agent-config")
+            .toLink());
+    model.add(
+        Affordances.of(
+                Link.of(
+                        ApiTemplates.agent(uriInfo)
+                            .build(project.getIdentity(), agent.getIdentity())
+                            .getPath())
+                    .withRel("delete-agent"))
+            .afford(HttpMethod.DELETE)
+            .withName("delete-agent")
+            .toLink());
     return model;
   }
 

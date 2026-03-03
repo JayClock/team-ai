@@ -86,4 +86,35 @@ public class ProjectAgentsTest {
     assertEquals(first, second);
     assertTrue(first >= 1);
   }
+
+  @Test
+  void should_update_specialist_config_and_delete_agent() {
+    Agent created =
+        project.createAgent(
+            new AgentDescription(
+                "Domain Specialist",
+                AgentDescription.Role.SPECIALIST,
+                "FAST",
+                AgentDescription.Status.PENDING,
+                null,
+                "Focus on bounded context"));
+
+    project.updateAgent(
+        created.getIdentity(),
+        new AgentDescription(
+            "Domain Specialist V2",
+            AgentDescription.Role.SPECIALIST,
+            "SMART",
+            AgentDescription.Status.ACTIVE,
+            null,
+            "Focus on domain invariants"));
+
+    Agent updated = project.agents().findByIdentity(created.getIdentity()).orElseThrow();
+    assertEquals("Domain Specialist V2", updated.getDescription().name());
+    assertEquals(AgentDescription.Status.ACTIVE, updated.getDescription().status());
+    assertEquals("Focus on domain invariants", updated.getDescription().prompt());
+
+    project.deleteAgent(created.getIdentity());
+    assertTrue(project.agents().findByIdentity(created.getIdentity()).isEmpty());
+  }
 }
