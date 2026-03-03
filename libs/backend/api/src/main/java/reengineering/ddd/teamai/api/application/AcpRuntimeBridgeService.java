@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.api.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
@@ -22,6 +24,7 @@ import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 
 @Component
 public class AcpRuntimeBridgeService {
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
   private static final Logger log = LoggerFactory.getLogger(AcpRuntimeBridgeService.class);
   private static final int DEFAULT_HISTORY_LIMIT = 200;
@@ -71,7 +74,8 @@ public class AcpRuntimeBridgeService {
                     new AgentProtocolGateway.StartRequest(
                         sessionId,
                         actorUserId,
-                        goal == null || goal.isBlank() ? "ACP session " + sessionId : goal.trim()));
+                        goal == null || goal.isBlank() ? "ACP session " + sessionId : goal.trim(),
+                        gatewayMetadata(normalizedProjectId, actorUserId)));
             appendEvent(
                 sessionId,
                 AcpEventEnvelope.TYPE_STATUS,
@@ -386,6 +390,19 @@ public class AcpRuntimeBridgeService {
       return Duration.ZERO;
     }
     return duration;
+  }
+
+  private String gatewayMetadata(String projectId, String actorUserId) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(
+          Map.of(
+              "projectId",
+              normalizeProjectId(projectId),
+              "actorUserId",
+              normalizeSessionId(actorUserId)));
+    } catch (JsonProcessingException ignored) {
+      return "{}";
+    }
   }
 
   private String traceId() {

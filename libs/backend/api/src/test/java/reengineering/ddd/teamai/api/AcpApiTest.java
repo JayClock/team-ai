@@ -469,6 +469,50 @@ class AcpApiTest extends ApiTest {
         .body("history[2].type", equalTo("complete"));
   }
 
+  @Test
+  void should_read_gateway_mode_status() {
+    given(documentationSpec)
+        .accept("application/json")
+        .when()
+        .get("/acp/gateway/mode")
+        .then()
+        .statusCode(200)
+        .body("requestedMode", equalTo("local"))
+        .body("effectiveMode", equalTo("local"))
+        .body("rollback.errorThreshold", notNullValue())
+        .body("rollback.windowMs", notNullValue())
+        .body("rollback.cooldownMs", notNullValue());
+  }
+
+  @Test
+  void should_switch_gateway_mode_without_restart() {
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(Map.of("mode", "remote"))
+        .when()
+        .post("/acp/gateway/mode")
+        .then()
+        .statusCode(200)
+        .body("requestedMode", equalTo("remote"));
+
+    given(documentationSpec)
+        .accept("application/json")
+        .when()
+        .get("/acp/gateway/mode")
+        .then()
+        .statusCode(200)
+        .body("requestedMode", equalTo("remote"));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(Map.of("mode", "local"))
+        .when()
+        .post("/acp/gateway/mode")
+        .then()
+        .statusCode(200)
+        .body("requestedMode", equalTo("local"));
+  }
+
   private AcpSession session(
       String sessionId, String actorUserId, AcpSessionDescription.Status status) {
     return new AcpSession(
