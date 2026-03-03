@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.api.config.TraceIdFilter;
 import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.AcpSession;
@@ -91,6 +92,34 @@ class AcpApiTest extends ApiTest {
             "result.methods",
             contains(
                 "initialize", "session/new", "session/prompt", "session/cancel", "session/load"))
+        .body("error", equalTo(null));
+  }
+
+  @Test
+  void should_propagate_trace_id_for_rpc_response() {
+    AcpSession pending = session("trace-1", "user-trace", AcpSessionDescription.Status.PENDING);
+    when(acpSessions.create(any(AcpSessionDescription.class))).thenReturn(pending);
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .header(TraceIdFilter.TRACE_ID_HEADER, "trace-acp-1")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/new",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "actorUserId", "user-trace",
+                        "provider", "team-ai",
+                        "mode", "CHAT"),
+                "id", "req-trace-1"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200)
+        .header(TraceIdFilter.TRACE_ID_HEADER, equalTo("trace-acp-1"))
+        .body("result.traceId", equalTo("trace-acp-1"))
         .body("error", equalTo(null));
   }
 

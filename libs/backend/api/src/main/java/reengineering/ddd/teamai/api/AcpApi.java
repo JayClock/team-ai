@@ -9,6 +9,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
 import java.time.Duration;
@@ -17,25 +18,33 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.acp.AcpEventEnvelope;
 import reengineering.ddd.teamai.api.acp.AcpSseEventWriter;
 import reengineering.ddd.teamai.api.application.AcpRuntimeBridgeService;
+import reengineering.ddd.teamai.api.config.TraceIdFilter;
 import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.model.AcpSession;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
+import reengineering.ddd.teamai.model.Member;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 
 @Component
 @Produces(MediaType.APPLICATION_JSON)
 public class AcpApi {
+  private static final Logger log = LoggerFactory.getLogger(AcpApi.class);
   private static final String JSON_RPC_VERSION = "2.0";
   private static final int ERR_INVALID_REQUEST = -32600;
   private static final int ERR_METHOD_NOT_FOUND = -32601;
   private static final int ERR_INVALID_PARAMS = -32602;
   private static final int ERR_INTERNAL = -32603;
+  private static final int ERR_FORBIDDEN = -32003;
   private static final String METHOD_INITIALIZE = "initialize";
   private static final String METHOD_SESSION_NEW = "session/new";
   private static final String METHOD_SESSION_PROMPT = "session/prompt";
@@ -48,19 +57,39 @@ public class AcpApi {
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
-  public JsonRpcResponse rpc(JsonRpcRequest request) {
+  public JsonRpcResponse rpc(JsonRpcRequest request, @Context SecurityContext securityContext) {
     if (request == null) {
       return JsonRpcResponse.error(null, ERR_INVALID_REQUEST, "Invalid Request");
     }
     Object id = request.id();
+    String traceId = traceId();
+    log.info("event=acp_rpc_received traceId={} method={} id={}", traceId, request.method(), id);
     try {
       validateRequestEnvelope(request);
       Object result =
-          dispatch(request.method().trim(), request.params() == null ? Map.of() : request.params());
-      return JsonRpcResponse.result(id, result);
+          dispatch(
+              request.method().trim(),
+              request.params() == null ? Map.of() : request.params(),
+              securityContext);
+      log.info("event=acp_rpc_succeeded traceId={} method={} id={}", traceId, request.method(), id);
+      return JsonRpcResponse.result(id, attachTraceId(result, traceId));
     } catch (RpcException error) {
+      log.warn(
+          "event=acp_rpc_failed traceId={} method={} id={} code={} message={}",
+          traceId,
+          request.method(),
+          id,
+          error.code,
+          error.getMessage());
       return JsonRpcResponse.error(id, error.code, error.getMessage());
     } catch (RuntimeException error) {
+      log.error(
+          "event=acp_rpc_error traceId={} method={} id={} message={}",
+          traceId,
+          request.method(),
+          id,
+          message(error),
+          error);
       return JsonRpcResponse.error(id, ERR_INTERNAL, "Internal error");
     }
   }
@@ -81,7 +110,7 @@ public class AcpApi {
         sseEventWriter.envelope(
             resolvedSessionId,
             AcpEventEnvelope.TYPE_STATUS,
-            Map.of("state", "CONNECTED", "transport", "sse"),
+            Map.of("state", "CONNECTED", "transport", "sse", "traceId", traceId()),
             null);
     sseEventWriter.send(sink, sse, envelope);
     runtimeBridgeService
@@ -99,13 +128,14 @@ public class AcpApi {
     }
   }
 
-  private Object dispatch(String method, Map<String, Object> params) {
+  private Object dispatch(
+      String method, Map<String, Object> params, SecurityContext securityContext) {
     return switch (method) {
       case METHOD_INITIALIZE -> initializeResult();
-      case METHOD_SESSION_NEW -> sessionNew(params);
-      case METHOD_SESSION_PROMPT -> sessionPrompt(params);
-      case METHOD_SESSION_CANCEL -> sessionCancel(params);
-      case METHOD_SESSION_LOAD -> sessionLoad(params);
+      case METHOD_SESSION_NEW -> sessionNew(params, securityContext);
+      case METHOD_SESSION_PROMPT -> sessionPrompt(params, securityContext);
+      case METHOD_SESSION_CANCEL -> sessionCancel(params, securityContext);
+      case METHOD_SESSION_LOAD -> sessionLoad(params, securityContext);
       default -> throw new RpcException(ERR_METHOD_NOT_FOUND, "Method not found: " + method);
     };
   }
@@ -125,7 +155,7 @@ public class AcpApi {
             METHOD_SESSION_LOAD));
   }
 
-  private Object sessionNew(Map<String, Object> params) {
+  private Object sessionNew(Map<String, Object> params, SecurityContext securityContext) {
     String projectId = requireText(params, "projectId");
     String actorUserId = requireText(params, "actorUserId");
     String provider = optionalText(params, "provider").orElse("team-ai");
@@ -133,6 +163,7 @@ public class AcpApi {
     Instant now = Instant.now();
 
     Project project = requireProject(projectId);
+    authorizeProjectMember(project, actorUserId, securityContext);
     AcpSession session =
         project.startAcpSession(
             new AcpSessionDescription(
@@ -151,7 +182,7 @@ public class AcpApi {
     return Map.of("session", sessionPayload(session), "accepted", true);
   }
 
-  private Object sessionPrompt(Map<String, Object> params) {
+  private Object sessionPrompt(Map<String, Object> params, SecurityContext securityContext) {
     String projectId = requireText(params, "projectId");
     String sessionId = requireText(params, "sessionId");
     String prompt = requireText(params, "prompt");
@@ -160,6 +191,7 @@ public class AcpApi {
 
     Project project = requireProject(projectId);
     AcpSession current = requireSession(project, sessionId);
+    authorizeProjectMember(project, id(current.getDescription().actor()), securityContext);
     if (current.getDescription().status().isTerminal()) {
       throw new RpcException(
           ERR_INVALID_PARAMS,
@@ -191,24 +223,27 @@ public class AcpApi {
     }
   }
 
-  private Object sessionCancel(Map<String, Object> params) {
+  private Object sessionCancel(Map<String, Object> params, SecurityContext securityContext) {
     String projectId = requireText(params, "projectId");
     String sessionId = requireText(params, "sessionId");
     String reason = optionalText(params, "reason").orElse("cancelled by client");
     Instant now = Instant.now();
 
     Project project = requireProject(projectId);
+    AcpSession current = requireSession(project, sessionId);
+    authorizeProjectMember(project, id(current.getDescription().actor()), securityContext);
     project.updateAcpSessionStatus(sessionId, AcpSessionDescription.Status.CANCELLED, now, reason);
     runtimeBridgeService.cancelSession(sessionId, reason);
     AcpSession updated = requireSession(project, sessionId);
     return Map.of("session", sessionPayload(updated), "cancelled", true);
   }
 
-  private Object sessionLoad(Map<String, Object> params) {
+  private Object sessionLoad(Map<String, Object> params, SecurityContext securityContext) {
     String projectId = requireText(params, "projectId");
     String sessionId = requireText(params, "sessionId");
     Project project = requireProject(projectId);
     AcpSession session = requireSession(project, sessionId);
+    authorizeProjectMember(project, id(session.getDescription().actor()), securityContext);
     return Map.of("session", sessionPayload(session));
   }
 
@@ -275,6 +310,44 @@ public class AcpApi {
   private String message(Throwable error) {
     String message = error == null ? null : error.getMessage();
     return message == null || message.isBlank() ? "runtime failed" : message;
+  }
+
+  private void authorizeProjectMember(
+      Project project, String actorUserId, SecurityContext securityContext) {
+    if (actorUserId == null || actorUserId.isBlank()) {
+      throw new RpcException(ERR_FORBIDDEN, "actorUserId is required for authorization");
+    }
+    if (securityContext == null || securityContext.getUserPrincipal() == null) {
+      return;
+    }
+    String principalId = securityContext.getUserPrincipal().getName();
+    if (principalId == null || principalId.isBlank() || !principalId.equals(actorUserId)) {
+      throw new RpcException(ERR_FORBIDDEN, "actorUserId does not match authenticated user");
+    }
+    Optional<Member> member = project.members().findByIdentity(principalId);
+    if (member.isEmpty()) {
+      throw new RpcException(
+          ERR_FORBIDDEN,
+          "user %s is not a member of project %s".formatted(principalId, project.getIdentity()));
+    }
+  }
+
+  private Object attachTraceId(Object result, String traceId) {
+    if (result instanceof Map<?, ?> map) {
+      Map<String, Object> payload = new LinkedHashMap<>();
+      map.forEach((key, value) -> payload.put(String.valueOf(key), value));
+      payload.put("traceId", traceId);
+      return payload;
+    }
+    return result;
+  }
+
+  private String traceId() {
+    String traceId = MDC.get(TraceIdFilter.TRACE_ID_KEY);
+    if (traceId == null || traceId.isBlank()) {
+      return UUID.randomUUID().toString();
+    }
+    return traceId;
   }
 
   private Map<String, Object> sessionPayload(AcpSession session) {
