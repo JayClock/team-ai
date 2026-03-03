@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.api.application;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -14,6 +15,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.MDC;
 import reengineering.ddd.teamai.model.AgentProtocolGateway;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
@@ -27,6 +29,8 @@ import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 public class HttpAgentProtocolGateway implements AgentProtocolGateway {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+  private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE =
+      new TypeReference<>() {};
 
   private final HttpClient client;
   private final String baseUrl;
@@ -220,7 +224,7 @@ public class HttpAgentProtocolGateway implements AgentProtocolGateway {
     try {
       JsonNode root = OBJECT_MAPPER.readTree(mcpConfig);
       if (root.isObject()) {
-        return OBJECT_MAPPER.convertValue(root, LinkedHashMap.class);
+        return OBJECT_MAPPER.convertValue(root, MAP_TYPE);
       }
     } catch (IOException ignored) {
       // Best effort parsing only; fallback to default provider.
@@ -229,7 +233,8 @@ public class HttpAgentProtocolGateway implements AgentProtocolGateway {
   }
 
   private String traceId() {
-    return "java-bridge";
+    String traceId = MDC.get("traceId");
+    return traceId == null || traceId.isBlank() ? "java-bridge" : traceId;
   }
 
   private String normalizeBaseUrl(String value) {
