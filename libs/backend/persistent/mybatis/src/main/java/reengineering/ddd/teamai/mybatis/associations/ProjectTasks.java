@@ -2,6 +2,7 @@ package reengineering.ddd.teamai.mybatis.associations;
 
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -67,6 +68,42 @@ public class ProjectTasks extends EntityList<String, Task> implements Project.Ta
       })
   public void assign(String taskId, Ref<String> agent, Ref<String> callerAgent) {
     mapper.updateTaskAssignment(projectId, Integer.parseInt(taskId), agent, callerAgent);
+  }
+
+  @Override
+  public Optional<Task> findByDelegateRequestId(String requestId) {
+    if (requestId == null || requestId.isBlank()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(mapper.findTaskByDelegateRequestId(projectId, requestId.trim()));
+  }
+
+  @Override
+  public Optional<Task> findByApproveRequestId(String requestId) {
+    if (requestId == null || requestId.isBlank()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(mapper.findTaskByApproveRequestId(projectId, requestId.trim()));
+  }
+
+  @Override
+  @Caching(
+      evict = {
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_NAME, allEntries = true)
+      })
+  public void bindDelegateRequestId(String taskId, String requestId) {
+    mapper.bindDelegateRequestId(projectId, Integer.parseInt(taskId), requestId);
+  }
+
+  @Override
+  @Caching(
+      evict = {
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_NAME, allEntries = true)
+      })
+  public void bindApproveRequestId(String taskId, String requestId) {
+    mapper.bindApproveRequestId(projectId, Integer.parseInt(taskId), requestId);
   }
 
   @Override

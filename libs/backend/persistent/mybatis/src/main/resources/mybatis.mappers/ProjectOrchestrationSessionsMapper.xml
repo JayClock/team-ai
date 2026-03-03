@@ -76,6 +76,24 @@
     LIMIT #{size} OFFSET #{from}
   </select>
 
+  <select id="findSessionByProjectAndStartRequestId" resultMap="session">
+    SELECT
+      id,
+      project_id,
+      goal,
+      status,
+      coordinator_id,
+      implementer_id,
+      task_id,
+      current_step_id,
+      started_at,
+      completed_at,
+      failure_reason
+    FROM project_orchestration_sessions
+    WHERE project_id = #{project_id}
+      AND start_request_id = #{start_request_id}
+  </select>
+
   <insert id="insertSession" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
           parameterType="reengineering.ddd.mybatis.support.IdHolder">
     INSERT INTO project_orchestration_sessions(
@@ -103,6 +121,14 @@
       #{description.failureReason}
     )
   </insert>
+
+  <update id="bindStartRequestId">
+    UPDATE project_orchestration_sessions
+    SET start_request_id = #{start_request_id},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </update>
 
   <update id="updateSessionStatus">
     UPDATE project_orchestration_sessions

@@ -17,10 +17,18 @@ public interface ProjectOrchestrationSessionsMapper {
   List<OrchestrationSession> findSessionsByProjectId(
       @Param("project_id") int projectId, @Param("from") int from, @Param("size") int size);
 
+  OrchestrationSession findSessionByProjectAndStartRequestId(
+      @Param("project_id") int projectId, @Param("start_request_id") String startRequestId);
+
   int insertSession(
       @Param("holder") IdHolder holder,
       @Param("project_id") int projectId,
       @Param("description") OrchestrationSessionDescription description);
+
+  int bindStartRequestId(
+      @Param("project_id") int projectId,
+      @Param("id") int id,
+      @Param("start_request_id") String startRequestId);
 
   int updateSessionStatus(
       @Param("project_id") int projectId,

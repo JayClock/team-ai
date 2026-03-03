@@ -48,6 +48,15 @@ public class OrchestrationService {
       throw new IllegalArgumentException("command must not be null");
     }
 
+    String requestId = normalizeText(command.requestId());
+    if (requestId != null) {
+      Optional<OrchestrationSession> replayed =
+          project.orchestrationSessions().findByStartRequestId(requestId);
+      if (replayed.isPresent()) {
+        return replayed.get();
+      }
+    }
+
     Ref<String> coordinator = ensureCoordinator(project, command.coordinatorAgentId());
     Ref<String> implementer = ensureImplementer(project, command.implementerAgentId());
     Instant occurredAt = command.occurredAt() == null ? Instant.now() : command.occurredAt();
@@ -75,6 +84,9 @@ public class OrchestrationService {
                 occurredAt,
                 null,
                 null));
+    if (requestId != null) {
+      project.orchestrationSessions().bindStartRequestId(session.getIdentity(), requestId);
+    }
 
     executeWithRetry(project, session, occurredAt);
     return project.orchestrationSessions().findByIdentity(session.getIdentity()).orElse(session);
@@ -283,6 +295,7 @@ public class OrchestrationService {
   }
 
   public record StartCommand(
+      String requestId,
       String goal,
       String title,
       String scope,

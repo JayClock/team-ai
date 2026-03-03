@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
@@ -138,7 +139,7 @@ public class Project implements Entity<String, ProjectDescription> {
     agents.updateStatus(agent, status);
   }
 
-  public HasMany<String, Task> tasks() {
+  public Tasks tasks() {
     return tasks;
   }
 
@@ -376,7 +377,7 @@ public class Project implements Entity<String, ProjectDescription> {
     return events.append(description);
   }
 
-  public HasMany<String, OrchestrationSession> orchestrationSessions() {
+  public OrchestrationSessions orchestrationSessions() {
     return requireOrchestrationSessions();
   }
 
@@ -452,6 +453,14 @@ public class Project implements Entity<String, ProjectDescription> {
 
     void assign(String taskId, Ref<String> agent, Ref<String> callerAgent);
 
+    Optional<Task> findByDelegateRequestId(String requestId);
+
+    Optional<Task> findByApproveRequestId(String requestId);
+
+    void bindDelegateRequestId(String taskId, String requestId);
+
+    void bindApproveRequestId(String taskId, String requestId);
+
     void updateStatus(String taskId, TaskDescription.Status status, String completionSummary);
 
     void report(String taskId, Ref<String> agent, TaskReportDescription report);
@@ -463,6 +472,10 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public interface OrchestrationSessions extends HasMany<String, OrchestrationSession> {
     OrchestrationSession create(OrchestrationSessionDescription description);
+
+    Optional<OrchestrationSession> findByStartRequestId(String requestId);
+
+    void bindStartRequestId(String sessionId, String requestId);
 
     void updateStatus(
         String sessionId,

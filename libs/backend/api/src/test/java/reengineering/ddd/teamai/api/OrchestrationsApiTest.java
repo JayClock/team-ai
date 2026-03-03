@@ -172,6 +172,46 @@ public class OrchestrationsApiTest extends ApiTest {
   }
 
   @Test
+  void should_replay_start_orchestration_when_request_id_is_reused() {
+    OrchestrationSession existing =
+        new OrchestrationSession(
+            "session-replay-1",
+            new OrchestrationSessionDescription(
+                "Implement feature",
+                OrchestrationSessionDescription.Status.REVIEW_REQUIRED,
+                new Ref<>("agent-routa"),
+                new Ref<>("agent-crafter"),
+                new Ref<>("task-1"),
+                null,
+                Instant.parse("2026-03-02T12:00:00Z"),
+                null,
+                null));
+    when(orchestrationSessions.findByStartRequestId("req-start-1"))
+        .thenReturn(Optional.of(existing));
+
+    OrchestrationsApi.StartOrchestrationRequest request =
+        new OrchestrationsApi.StartOrchestrationRequest();
+    request.setRequestId("req-start-1");
+    request.setGoal("Implement feature");
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType("application/json")
+        .body(request)
+        .when()
+        .post("/projects/{projectId}/orchestrations", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .contentType(startsWith(ResourceTypes.ORCHESTRATION))
+        .body("id", is("session-replay-1"))
+        .body("state", is("REVIEW_REQUIRED"));
+
+    verify(tasks, never()).create(any(TaskDescription.class));
+    verify(orchestrationSessions, never()).create(any(OrchestrationSessionDescription.class));
+    verify(agentRuntime, never()).start(any(AgentRuntime.StartRequest.class));
+  }
+
+  @Test
   void should_create_default_agents_when_starting_orchestration_without_agents() {
     Agent coordinator =
         new Agent(

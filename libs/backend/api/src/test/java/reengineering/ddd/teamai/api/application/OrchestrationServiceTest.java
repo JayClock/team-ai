@@ -135,6 +135,7 @@ class OrchestrationServiceTest {
 
     OrchestrationService.StartCommand command =
         new OrchestrationService.StartCommand(
+            null,
             "goal",
             "title",
             null,
@@ -188,6 +189,34 @@ class OrchestrationServiceTest {
             Instant.parse("2026-03-02T12:10:00Z"),
             "manual cancel");
     assertThat(result.getIdentity()).isEqualTo("session-1");
+  }
+
+  @Test
+  void should_replay_start_command_when_request_id_matches_existing_session() {
+    OrchestrationSession existing =
+        new OrchestrationSession(
+            "session-existing",
+            new OrchestrationSessionDescription(
+                "goal",
+                OrchestrationSessionDescription.Status.REVIEW_REQUIRED,
+                new Ref<>("agent-routa"),
+                new Ref<>("agent-crafter"),
+                new Ref<>("task-1"),
+                null,
+                Instant.parse("2026-03-02T12:00:00Z"),
+                null,
+                null));
+    when(orchestrationSessions.findByStartRequestId("req-1")).thenReturn(Optional.of(existing));
+
+    OrchestrationService.StartCommand command =
+        new OrchestrationService.StartCommand(
+            "req-1", "goal", "title", null, List.of(), List.of(), null, null, Instant.now());
+
+    OrchestrationSession replayed = service.start(project, command);
+
+    verify(orchestrationSessions, times(0)).create(any(OrchestrationSessionDescription.class));
+    verify(runtimeService, times(0)).onSessionStarted(any(), any(), any());
+    assertThat(replayed.getIdentity()).isEqualTo("session-existing");
   }
 
   private Many<Agent> manyOf(Agent... values) {

@@ -1,6 +1,7 @@
 package reengineering.ddd.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import jakarta.inject.Inject;
@@ -145,5 +146,16 @@ class ProjectOrchestrationSessionsMapperTest {
 
     List<OrchestrationSession> list = sessionsMapper.findSessionsByProjectId(projectId, 0, 10);
     assertEquals(3, list.size());
+  }
+
+  @Test
+  void should_bind_and_find_session_by_start_request_id() {
+    sessionsMapper.bindStartRequestId(projectId, sessionId, "req-start-1");
+
+    OrchestrationSession found =
+        sessionsMapper.findSessionByProjectAndStartRequestId(projectId, "req-start-1");
+
+    assertNotNull(found);
+    assertEquals(String.valueOf(sessionId), found.getIdentity());
   }
 }

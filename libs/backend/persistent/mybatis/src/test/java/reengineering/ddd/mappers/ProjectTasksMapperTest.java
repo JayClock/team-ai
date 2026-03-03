@@ -147,4 +147,18 @@ public class ProjectTasksMapperTest {
     List<Task> list = tasksMapper.findTasksByProjectId(projectId, 0, 10);
     assertEquals(1, list.size());
   }
+
+  @Test
+  void should_bind_and_find_task_by_request_ids() {
+    tasksMapper.bindDelegateRequestId(projectId, taskId, "req-delegate-1");
+    tasksMapper.bindApproveRequestId(projectId, taskId, "req-approve-1");
+
+    Task delegated = tasksMapper.findTaskByDelegateRequestId(projectId, "req-delegate-1");
+    Task approved = tasksMapper.findTaskByApproveRequestId(projectId, "req-approve-1");
+
+    assertNotNull(delegated);
+    assertNotNull(approved);
+    assertEquals(String.valueOf(taskId), delegated.getIdentity());
+    assertEquals(String.valueOf(taskId), approved.getIdentity());
+  }
 }

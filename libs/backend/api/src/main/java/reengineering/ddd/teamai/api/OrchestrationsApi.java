@@ -19,6 +19,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.hateoas.CollectionModel;
@@ -85,10 +86,21 @@ public class OrchestrationsApi {
   @VendorMediaType(ResourceTypes.ORCHESTRATION)
   public Response start(@Valid StartOrchestrationRequest request, @Context UriInfo uriInfo) {
     try {
+      String requestId = normalizeRequestId(request.getRequestId());
+      if (requestId != null) {
+        Optional<OrchestrationSession> replayed =
+            Optional.ofNullable(project.orchestrationSessions().findByStartRequestId(requestId))
+                .orElse(Optional.empty());
+        if (replayed.isPresent()) {
+          return Response.ok(OrchestrationModel.of(project, replayed.get(), uriInfo)).build();
+        }
+      }
+
       OrchestrationSession session =
           orchestrationService.start(
               project,
               new OrchestrationService.StartCommand(
+                  requestId,
                   request.getGoal(),
                   request.getTitle(),
                   request.getScope(),
@@ -118,9 +130,19 @@ public class OrchestrationsApi {
     }
   }
 
+  private String normalizeRequestId(String requestId) {
+    if (requestId == null) {
+      return null;
+    }
+    String normalized = requestId.trim();
+    return normalized.isEmpty() ? null : normalized;
+  }
+
   @Data
   @NoArgsConstructor
   public static class StartOrchestrationRequest {
+    private String requestId;
+
     @NotBlank private String goal;
 
     private String title;

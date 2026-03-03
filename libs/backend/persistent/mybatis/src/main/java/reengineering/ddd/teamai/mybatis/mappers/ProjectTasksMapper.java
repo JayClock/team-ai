@@ -27,6 +27,22 @@ public interface ProjectTasksMapper {
       @Param("assigned_to") Ref<String> assignedTo,
       @Param("delegated_by") Ref<String> delegatedBy);
 
+  Task findTaskByDelegateRequestId(
+      @Param("project_id") int projectId, @Param("delegate_request_id") String delegateRequestId);
+
+  Task findTaskByApproveRequestId(
+      @Param("project_id") int projectId, @Param("approve_request_id") String approveRequestId);
+
+  int bindDelegateRequestId(
+      @Param("project_id") int projectId,
+      @Param("id") int id,
+      @Param("delegate_request_id") String delegateRequestId);
+
+  int bindApproveRequestId(
+      @Param("project_id") int projectId,
+      @Param("id") int id,
+      @Param("approve_request_id") String approveRequestId);
+
   int updateTaskStatus(
       @Param("project_id") int projectId,
       @Param("id") int id,

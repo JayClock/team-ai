@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -217,6 +218,50 @@ public class TasksApiTest extends ApiTest {
   }
 
   @Test
+  void should_replay_delegate_when_request_id_is_reused() {
+    Task delegated =
+        new Task(
+            "task-1",
+            new TaskDescription(
+                "Implement API",
+                "Add endpoints",
+                "api module",
+                List.of("add tests"),
+                List.of("./gradlew :backend:api:test"),
+                TaskDescription.Status.IN_PROGRESS,
+                new Ref<>("agent-1"),
+                new Ref<>("agent-2"),
+                null,
+                null,
+                null));
+    when(tasks.findByDelegateRequestId("req-delegate-1")).thenReturn(Optional.of(delegated));
+
+    TaskApi.DelegateTaskRequest request = new TaskApi.DelegateTaskRequest();
+    request.setRequestId("req-delegate-1");
+    request.setAssigneeId("agent-1");
+    request.setCallerAgentId("agent-2");
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/tasks/{taskId}/delegate",
+            project.getIdentity(),
+            task.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("id", is(task.getIdentity()))
+        .body("status", is("IN_PROGRESS"));
+
+    verify(tasks, never()).assign(any(), any(), any());
+    verify(tasks, never()).updateStatus(any(), any(), any());
+    verify(agents, never()).updateStatus(any(), any());
+    verify(events, never()).append(any(AgentEventDescription.class));
+  }
+
+  @Test
   void should_submit_task_for_review() {
     Task inProgressTask =
         new Task(
@@ -320,6 +365,50 @@ public class TasksApiTest extends ApiTest {
     verify(agents).updateStatus(new Ref<>("agent-2"), AgentDescription.Status.COMPLETED);
     verify(agents).updateStatus(new Ref<>("agent-1"), AgentDescription.Status.COMPLETED);
     verify(events, times(5)).append(any(AgentEventDescription.class));
+  }
+
+  @Test
+  void should_replay_approve_when_request_id_is_reused() {
+    Task approved =
+        new Task(
+            "task-1",
+            new TaskDescription(
+                "Implement API",
+                "Add endpoints",
+                "api module",
+                List.of("add tests"),
+                List.of("./gradlew :backend:api:test"),
+                TaskDescription.Status.COMPLETED,
+                new Ref<>("agent-1"),
+                null,
+                "ready",
+                TaskDescription.VerificationVerdict.APPROVED,
+                "passed"));
+    when(tasks.findByApproveRequestId("req-approve-1")).thenReturn(Optional.of(approved));
+
+    TaskApi.VerifyTaskRequest request = new TaskApi.VerifyTaskRequest();
+    request.setRequestId("req-approve-1");
+    request.setReviewerAgentId("agent-2");
+    request.setVerificationReport("passed");
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType(MediaType.APPLICATION_JSON)
+        .body(request)
+        .when()
+        .post(
+            "/projects/{projectId}/tasks/{taskId}/approve",
+            project.getIdentity(),
+            task.getIdentity())
+        .then()
+        .statusCode(200)
+        .body("id", is(task.getIdentity()))
+        .body("status", is("COMPLETED"));
+
+    verify(tasks, never()).report(any(), any(), any());
+    verify(tasks, never()).updateStatus(any(), any(), any());
+    verify(agents, never()).updateStatus(any(), any());
+    verify(events, never()).append(any(AgentEventDescription.class));
   }
 
   @Test

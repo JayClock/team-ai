@@ -102,6 +102,62 @@
       AND id = #{id}
   </update>
 
+  <select id="findTaskByDelegateRequestId" resultMap="task">
+    SELECT
+      id,
+      project_id,
+      title,
+      objective,
+      scope,
+      acceptance_criteria,
+      verification_commands,
+      status,
+      assigned_to,
+      delegated_by,
+      completion_summary,
+      verification_verdict,
+      verification_report
+    FROM project_tasks
+    WHERE project_id = #{project_id}
+      AND delegate_request_id = #{delegate_request_id}
+  </select>
+
+  <select id="findTaskByApproveRequestId" resultMap="task">
+    SELECT
+      id,
+      project_id,
+      title,
+      objective,
+      scope,
+      acceptance_criteria,
+      verification_commands,
+      status,
+      assigned_to,
+      delegated_by,
+      completion_summary,
+      verification_verdict,
+      verification_report
+    FROM project_tasks
+    WHERE project_id = #{project_id}
+      AND approve_request_id = #{approve_request_id}
+  </select>
+
+  <update id="bindDelegateRequestId">
+    UPDATE project_tasks
+    SET delegate_request_id = #{delegate_request_id},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </update>
+
+  <update id="bindApproveRequestId">
+    UPDATE project_tasks
+    SET approve_request_id = #{approve_request_id},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </update>
+
   <update id="updateTaskStatus">
     UPDATE project_tasks
     SET status = #{status, jdbcType=VARCHAR},

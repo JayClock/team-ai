@@ -88,10 +88,11 @@ public class ProjectsApiTest extends ApiTest {
             "_links.orchestrations.href",
             is("/api/projects/" + project.getIdentity() + "/orchestrations"))
         .body("_templates.start-orchestration.method", is("POST"))
-        .body("_templates.start-orchestration.properties", hasSize(8))
+        .body("_templates.start-orchestration.properties", hasSize(9))
         .body(
             "_templates.start-orchestration.properties.name",
             containsInAnyOrder(
+                "requestId",
                 "goal",
                 "title",
                 "scope",

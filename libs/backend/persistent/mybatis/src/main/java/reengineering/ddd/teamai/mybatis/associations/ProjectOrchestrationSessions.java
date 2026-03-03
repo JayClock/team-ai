@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.mybatis.associations;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -61,6 +62,25 @@ public class ProjectOrchestrationSessions extends EntityList<String, Orchestrati
     IdHolder idHolder = new IdHolder();
     mapper.insertSession(idHolder, projectId, description);
     return findEntity(String.valueOf(idHolder.id()));
+  }
+
+  @Override
+  public Optional<OrchestrationSession> findByStartRequestId(String requestId) {
+    if (requestId == null || requestId.isBlank()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(
+        mapper.findSessionByProjectAndStartRequestId(projectId, requestId.trim()));
+  }
+
+  @Override
+  @Caching(
+      evict = {
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_NAME, allEntries = true)
+      })
+  public void bindStartRequestId(String sessionId, String requestId) {
+    mapper.bindStartRequestId(projectId, Integer.parseInt(sessionId), requestId);
   }
 
   @Override

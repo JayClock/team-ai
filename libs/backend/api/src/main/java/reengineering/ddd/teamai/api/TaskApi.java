@@ -41,11 +41,25 @@ public class TaskApi {
   @VendorMediaType(ResourceTypes.TASK)
   public TaskModel delegate(@Valid DelegateTaskRequest request, @Context UriInfo uriInfo) {
     try {
+      String requestId = normalizeRequestId(request.getRequestId());
+      if (requestId != null) {
+        Optional<Task> replayed =
+            Optional.ofNullable(project.tasks().findByDelegateRequestId(requestId))
+                .orElse(Optional.empty());
+        if (replayed.isPresent()) {
+          ensureTaskReplayTarget("delegate", replayed.get(), requestId);
+          return TaskModel.of(project, replayed.get(), uriInfo);
+        }
+      }
+
       project.delegateTaskForExecution(
           task.getIdentity(),
           new Ref<>(request.getAssigneeId()),
           new Ref<>(request.getCallerAgentId()),
           request.getOccurredAt());
+      if (requestId != null) {
+        project.tasks().bindDelegateRequestId(task.getIdentity(), requestId);
+      }
       return TaskModel.of(project, reloadTask(), uriInfo);
     } catch (IllegalArgumentException e) {
       throw new WebApplicationException(e.getMessage(), Response.Status.BAD_REQUEST);
@@ -80,11 +94,25 @@ public class TaskApi {
   @VendorMediaType(ResourceTypes.TASK)
   public TaskModel approve(@Valid VerifyTaskRequest request, @Context UriInfo uriInfo) {
     try {
+      String requestId = normalizeRequestId(request.getRequestId());
+      if (requestId != null) {
+        Optional<Task> replayed =
+            Optional.ofNullable(project.tasks().findByApproveRequestId(requestId))
+                .orElse(Optional.empty());
+        if (replayed.isPresent()) {
+          ensureTaskReplayTarget("approve", replayed.get(), requestId);
+          return TaskModel.of(project, replayed.get(), uriInfo);
+        }
+      }
+
       project.approveTask(
           task.getIdentity(),
           new Ref<>(request.getReviewerAgentId()),
           request.getVerificationReport(),
           request.getOccurredAt());
+      if (requestId != null) {
+        project.tasks().bindApproveRequestId(task.getIdentity(), requestId);
+      }
       return TaskModel.of(project, reloadTask(), uriInfo);
     } catch (IllegalArgumentException e) {
       throw new WebApplicationException(e.getMessage(), Response.Status.BAD_REQUEST);
@@ -117,9 +145,28 @@ public class TaskApi {
     return reloaded.orElse(task);
   }
 
+  private void ensureTaskReplayTarget(String operation, Task replayedTask, String requestId) {
+    if (!task.getIdentity().equals(replayedTask.getIdentity())) {
+      throw new WebApplicationException(
+          "requestId '%s' was already used for %s on task %s"
+              .formatted(requestId, operation, replayedTask.getIdentity()),
+          Response.Status.CONFLICT);
+    }
+  }
+
+  private String normalizeRequestId(String requestId) {
+    if (requestId == null) {
+      return null;
+    }
+    String normalized = requestId.trim();
+    return normalized.isEmpty() ? null : normalized;
+  }
+
   @Data
   @NoArgsConstructor
   public static class DelegateTaskRequest {
+    private String requestId;
+
     @NotBlank private String assigneeId;
     @NotBlank private String callerAgentId;
 
@@ -138,6 +185,8 @@ public class TaskApi {
   @Data
   @NoArgsConstructor
   public static class VerifyTaskRequest {
+    private String requestId;
+
     @NotBlank private String reviewerAgentId;
     @NotBlank private String verificationReport;
 
