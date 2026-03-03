@@ -28,11 +28,17 @@ public class OrchestrationRuntimeService {
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final AgentRuntime runtime;
+  private final OrchestrationTelemetry telemetry;
   private final Map<String, AgentRuntime.SessionHandle> activeHandles = new ConcurrentHashMap<>();
 
-  @Inject
   public OrchestrationRuntimeService(AgentRuntime runtime) {
+    this(runtime, OrchestrationTelemetry.noop());
+  }
+
+  @Inject
+  public OrchestrationRuntimeService(AgentRuntime runtime, OrchestrationTelemetry telemetry) {
     this.runtime = runtime;
+    this.telemetry = telemetry == null ? OrchestrationTelemetry.noop() : telemetry;
   }
 
   public void onSessionStarted(Project project, OrchestrationSession session, Instant occurredAt) {
@@ -51,6 +57,16 @@ public class OrchestrationRuntimeService {
             .filter(id -> !id.isBlank())
             .orElseThrow(() -> new IllegalArgumentException("implementer must not be blank"));
     String mcpConfig = serializeMcpConfig(project);
+    String taskId = Optional.ofNullable(description.task()).map(Ref::id).orElse(null);
+    String stepId = Optional.ofNullable(description.currentStep()).map(Ref::id).orElse(null);
+
+    telemetry.ensureTraceId();
+    telemetry.stepTransition(
+        session.getIdentity(),
+        stepId,
+        taskId,
+        implementerId,
+        TaskDescription.Status.IN_PROGRESS.name());
 
     AgentRuntime.SessionHandle handle =
         runtime.start(
@@ -60,9 +76,11 @@ public class OrchestrationRuntimeService {
 
     Ref<String> implementer = description.implementer();
     Ref<String> taskRef = description.task();
+    Instant runtimeStartedAt = Instant.now();
     try {
       AgentRuntime.SendResult result =
           runtime.send(handle, new AgentRuntime.SendRequest(description.goal(), DEFAULT_TIMEOUT));
+      Duration latency = durationBetween(runtimeStartedAt, result.completedAt());
       String output = result.output();
       project.reportTask(
           taskRef.id(),
@@ -82,7 +100,23 @@ public class OrchestrationRuntimeService {
           description.currentStep(),
           eventTime,
           null);
+      telemetry.runtimeResult(
+          session.getIdentity(), taskRef.id(), implementer.id(), "success", latency);
+      telemetry.sessionTransition(
+          session.getIdentity(),
+          taskRef.id(),
+          implementer.id(),
+          OrchestrationSessionDescription.Status.RUNNING.name(),
+          OrchestrationSessionDescription.Status.REVIEW_REQUIRED.name(),
+          "runtime output submitted");
+      telemetry.stepTransition(
+          session.getIdentity(),
+          stepId,
+          taskRef.id(),
+          implementer.id(),
+          TaskDescription.Status.REVIEW_REQUIRED.name());
     } catch (AgentRuntimeException error) {
+      Duration latency = durationBetween(runtimeStartedAt, Instant.now());
       String message = error.getMessage() == null ? "Runtime failed" : error.getMessage();
       project.reportTask(
           taskRef.id(),
@@ -101,6 +135,22 @@ public class OrchestrationRuntimeService {
           description.currentStep(),
           eventTime,
           message);
+      telemetry.runtimeResult(
+          session.getIdentity(), taskRef.id(), implementer.id(), "failure", latency);
+      telemetry.runtimeError(session.getIdentity(), taskRef.id(), implementer.id(), message, error);
+      telemetry.sessionTransition(
+          session.getIdentity(),
+          taskRef.id(),
+          implementer.id(),
+          OrchestrationSessionDescription.Status.RUNNING.name(),
+          OrchestrationSessionDescription.Status.FAILED.name(),
+          message);
+      telemetry.stepTransition(
+          session.getIdentity(),
+          stepId,
+          taskRef.id(),
+          implementer.id(),
+          TaskDescription.Status.BLOCKED.name());
       throw error;
     }
   }
@@ -112,6 +162,13 @@ public class OrchestrationRuntimeService {
     AgentRuntime.SessionHandle handle = activeHandles.remove(sessionId);
     if (handle != null) {
       runtime.stop(handle);
+      telemetry.sessionTransition(
+          sessionId,
+          "n/a",
+          handle.agentId(),
+          "n/a",
+          OrchestrationSessionDescription.Status.CANCELLED.name(),
+          "session cancelled");
     }
   }
 
@@ -144,5 +201,10 @@ public class OrchestrationRuntimeService {
     } catch (JsonProcessingException error) {
       throw new IllegalStateException("Failed to serialize MCP registry config", error);
     }
+  }
+
+  private Duration durationBetween(Instant start, Instant end) {
+    Duration duration = Duration.between(start, end);
+    return duration.isNegative() ? Duration.ZERO : duration;
   }
 }

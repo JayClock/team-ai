@@ -17,6 +17,7 @@ public class Jersey extends ResourceConfig {
   public Jersey() {
     setProperties(Map.of(ServerProperties.RESPONSE_SET_STATUS_OVER_SEND_ERROR, true));
     register(RootApi.class);
+    register(TraceIdFilter.class);
     register(PreferHeaderInterceptor.class);
     register(SidebarLayoutResponseInterceptor.class);
     register(VendorMediaTypeInterceptor.class);

@@ -31,13 +31,20 @@ public class OrchestrationService {
 
   private final OrchestrationRuntimeService runtimeService;
   private final int maxRuntimeAttempts;
+  private final OrchestrationTelemetry telemetry;
+
+  public OrchestrationService(OrchestrationRuntimeService runtimeService, int maxRuntimeAttempts) {
+    this(runtimeService, maxRuntimeAttempts, OrchestrationTelemetry.noop());
+  }
 
   @Inject
   public OrchestrationService(
       OrchestrationRuntimeService runtimeService,
-      @Value("${team-ai.orchestration.max-runtime-attempts:2}") int maxRuntimeAttempts) {
+      @Value("${team-ai.orchestration.max-runtime-attempts:2}") int maxRuntimeAttempts,
+      OrchestrationTelemetry telemetry) {
     this.runtimeService = runtimeService;
     this.maxRuntimeAttempts = Math.max(1, maxRuntimeAttempts);
+    this.telemetry = telemetry == null ? OrchestrationTelemetry.noop() : telemetry;
   }
 
   public OrchestrationSession start(Project project, StartCommand command) {
@@ -89,6 +96,13 @@ public class OrchestrationService {
     }
 
     executeWithRetry(project, session, occurredAt);
+    telemetry.sessionTransition(
+        session.getIdentity(),
+        task.getIdentity(),
+        implementer.id(),
+        OrchestrationSessionDescription.Status.PENDING.name(),
+        OrchestrationSessionDescription.Status.RUNNING.name(),
+        "orchestration started");
     return project.orchestrationSessions().findByIdentity(session.getIdentity()).orElse(session);
   }
 
@@ -117,6 +131,13 @@ public class OrchestrationService {
         current.currentStep(),
         cancelledAt,
         reason);
+    telemetry.sessionTransition(
+        session.getIdentity(),
+        current.task() == null ? null : current.task().id(),
+        current.implementer() == null ? null : current.implementer().id(),
+        current.status().name(),
+        OrchestrationSessionDescription.Status.CANCELLED.name(),
+        reason);
     return project.orchestrationSessions().findByIdentity(session.getIdentity()).orElse(session);
   }
 
@@ -131,7 +152,14 @@ public class OrchestrationService {
         if (attempts >= maxRuntimeAttempts) {
           throw error;
         }
-        rollbackForRetry(project, session, occurredAt, attempts + 1, error.getMessage());
+        int nextAttempt = attempts + 1;
+        rollbackForRetry(project, session, occurredAt, nextAttempt, error.getMessage());
+        telemetry.runtimeRetry(
+            session.getIdentity(),
+            session.getDescription().task().id(),
+            session.getDescription().implementer().id(),
+            nextAttempt,
+            error.getMessage());
       }
     }
   }

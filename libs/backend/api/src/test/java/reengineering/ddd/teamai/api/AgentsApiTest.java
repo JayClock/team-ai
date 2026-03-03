@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.api;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -219,6 +220,19 @@ public class AgentsApiTest extends ApiTest {
 
     verify(agents, times(1))
         .updateStatus(new Ref<>(agent.getIdentity()), AgentDescription.Status.ACTIVE);
+  }
+
+  @Test
+  void should_echo_trace_id_header_for_requests() {
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .header("X-Trace-Id", "trace-req-001")
+        .when()
+        .get("/projects/{projectId}/agents", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .header("X-Trace-Id", is("trace-req-001"))
+        .header("X-Trace-Id", notNullValue());
   }
 
   @Test

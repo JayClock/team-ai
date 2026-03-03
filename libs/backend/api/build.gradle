@@ -17,6 +17,7 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-annotations'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.springframework:spring-tx'
+    implementation 'io.micrometer:micrometer-core'
     implementation 'com.github.victools:jsonschema-generator:4.31.0'
     implementation 'com.github.victools:jsonschema-module-jackson:4.31.0'
     implementation 'io.projectreactor:reactor-core'
