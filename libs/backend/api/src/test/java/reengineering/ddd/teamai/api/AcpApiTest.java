@@ -271,6 +271,9 @@ class AcpApiTest extends ApiTest {
         .contentType(containsString("text/event-stream"))
         .body(containsString("sessionId"))
         .body(containsString("s-1"))
+        .body(containsString("\"type\":\"status\""))
+        .body(containsString("\"transport\":\"sse\""))
+        .body(containsString("\"eventId\":\"acp-s-1-status-"))
         .body(containsString("CONNECTED"))
         .body(notNullValue());
   }

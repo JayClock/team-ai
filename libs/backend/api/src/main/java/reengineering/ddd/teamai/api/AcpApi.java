@@ -8,7 +8,6 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
 import java.time.Instant;
@@ -16,9 +15,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.api.acp.AcpEventEnvelope;
+import reengineering.ddd.teamai.api.acp.AcpSseEventWriter;
 import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.model.AcpSession;
 import reengineering.ddd.teamai.model.Project;
@@ -39,6 +39,7 @@ public class AcpApi {
   private static final String METHOD_SESSION_LOAD = "session/load";
 
   @Inject Projects projects;
+  @Inject AcpSseEventWriter sseEventWriter;
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
@@ -68,20 +69,13 @@ public class AcpApi {
     }
     String resolvedSessionId =
         sessionId == null || sessionId.isBlank() ? "unknown" : sessionId.trim();
-    OutboundSseEvent event =
-        sse.newEventBuilder()
-            .name("status")
-            .id("acp-" + UUID.randomUUID())
-            .mediaType(MediaType.APPLICATION_JSON_TYPE)
-            .data(
-                String.class,
-                "{\"sessionId\":\""
-                    + escaped(resolvedSessionId)
-                    + "\",\"state\":\"CONNECTED\",\"emittedAt\":\""
-                    + Instant.now()
-                    + "\"}")
-            .build();
-    sink.send(event);
+    AcpEventEnvelope envelope =
+        sseEventWriter.envelope(
+            resolvedSessionId,
+            AcpEventEnvelope.TYPE_STATUS,
+            Map.of("state", "CONNECTED", "transport", "sse"),
+            null);
+    sseEventWriter.send(sink, sse, envelope);
     sink.close();
   }
 
@@ -251,10 +245,6 @@ public class AcpApi {
 
   private String id(Ref<String> ref) {
     return ref == null ? null : ref.id();
-  }
-
-  private static String escaped(String value) {
-    return value.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 
   public record JsonRpcRequest(
