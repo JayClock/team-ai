@@ -107,7 +107,7 @@ describe('FeaturesProjects', () => {
         return toMockResponse(
           {
             id: 'session-1',
-            state: 'STARTED',
+            state: 'RUNNING',
             startedAt: '2026-03-03T00:00:00Z',
             currentStep: null,
             failureReason: null,

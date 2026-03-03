@@ -98,7 +98,7 @@ public class OrchestrationRuntimeService {
           session.getIdentity(),
           OrchestrationSessionDescription.Status.REVIEW_REQUIRED,
           description.currentStep(),
-          eventTime,
+          null,
           null);
       telemetry.runtimeResult(
           session.getIdentity(), taskRef.id(), implementer.id(), "success", latency);

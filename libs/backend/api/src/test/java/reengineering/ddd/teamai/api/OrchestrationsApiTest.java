@@ -132,6 +132,7 @@ public class OrchestrationsApiTest extends ApiTest {
     when(tasks.findByIdentity(createdTask.getIdentity())).thenReturn(Optional.of(createdTask));
     when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
         .thenReturn(started);
+    when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(started));
 
     OrchestrationsApi.StartOrchestrationRequest request =
         new OrchestrationsApi.StartOrchestrationRequest();
@@ -151,7 +152,7 @@ public class OrchestrationsApiTest extends ApiTest {
         .contentType(startsWith(ResourceTypes.ORCHESTRATION))
         .body("id", is("session-1"))
         .body("goal", is("Implement feature"))
-        .body("state", is("STARTED"))
+        .body("state", is("RUNNING"))
         .body("coordinator.id", is("agent-routa"))
         .body("implementer.id", is("agent-crafter"))
         .body("task.id", is("task-1"));
@@ -272,6 +273,7 @@ public class OrchestrationsApiTest extends ApiTest {
     when(tasks.findByIdentity(createdTask.getIdentity())).thenReturn(Optional.of(createdTask));
     when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
         .thenReturn(started);
+    when(orchestrationSessions.findByIdentity("session-2")).thenReturn(Optional.of(started));
 
     OrchestrationsApi.StartOrchestrationRequest request =
         new OrchestrationsApi.StartOrchestrationRequest();
@@ -366,6 +368,7 @@ public class OrchestrationsApiTest extends ApiTest {
     when(tasks.findByIdentity(createdTask.getIdentity())).thenReturn(Optional.of(createdTask));
     when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
         .thenReturn(started);
+    when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(started));
     when(agentRuntime.send(
             any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
         .thenThrow(new AgentRuntimeException("codex execution failed"));
@@ -441,7 +444,7 @@ public class OrchestrationsApiTest extends ApiTest {
         .contentType(startsWith(ResourceTypes.ORCHESTRATION_COLLECTION))
         .body("_embedded.orchestrations", hasSize(2))
         .body("_embedded.orchestrations[0].id", is("session-1"))
-        .body("_embedded.orchestrations[0].state", is("STARTED"))
+        .body("_embedded.orchestrations[0].state", is("RUNNING"))
         .body("_embedded.orchestrations[1].id", is("session-2"))
         .body("_embedded.orchestrations[1].state", is("REVIEW_REQUIRED"));
   }
@@ -476,7 +479,7 @@ public class OrchestrationsApiTest extends ApiTest {
         .contentType(startsWith(ResourceTypes.ORCHESTRATION))
         .body("id", is("session-1"))
         .body("goal", is("Ship onboarding"))
-        .body("state", is("STARTED"));
+        .body("state", is("RUNNING"));
   }
 
   @Test

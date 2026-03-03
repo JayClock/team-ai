@@ -5,7 +5,7 @@ import { TaskCollection } from './task.js';
 
 export type OrchestrationState =
   | 'PENDING'
-  | 'STARTED'
+  | 'RUNNING'
   | 'REVIEW_REQUIRED'
   | 'COMPLETED'
   | 'FAILED'

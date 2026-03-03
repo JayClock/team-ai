@@ -513,9 +513,6 @@ public class TeamAiMcpTools {
   }
 
   private String toOrchestrationState(OrchestrationSessionDescription.Status status) {
-    if (status == OrchestrationSessionDescription.Status.RUNNING) {
-      return "STARTED";
-    }
     return status.name();
   }
 

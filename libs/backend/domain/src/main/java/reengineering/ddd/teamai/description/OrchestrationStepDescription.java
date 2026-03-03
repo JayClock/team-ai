@@ -16,6 +16,7 @@ public record OrchestrationStepDescription(
   public enum Status {
     PENDING,
     RUNNING,
+    REVIEW_REQUIRED,
     COMPLETED,
     FAILED,
     CANCELLED

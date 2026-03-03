@@ -38,6 +38,33 @@ class OrchestrationStepTest {
   }
 
   @Test
+  void should_mark_review_required_then_complete_step() {
+    OrchestrationStep step =
+        new OrchestrationStep(
+            "step-1",
+            new OrchestrationStepDescription(
+                "Implement API",
+                "Build endpoint",
+                OrchestrationStepDescription.Status.PENDING,
+                new Ref<>("task-1"),
+                new Ref<>("agent-crafter"),
+                null,
+                null,
+                null));
+
+    Instant startedAt = Instant.parse("2026-03-02T12:00:00Z");
+    Instant completedAt = Instant.parse("2026-03-02T12:15:00Z");
+
+    step.start(startedAt);
+    step.markReviewRequired();
+    step.complete(completedAt);
+
+    assertEquals(OrchestrationStepDescription.Status.COMPLETED, step.getDescription().status());
+    assertEquals(startedAt, step.getDescription().startedAt());
+    assertEquals(completedAt, step.getDescription().completedAt());
+  }
+
+  @Test
   void should_cancel_pending_step() {
     OrchestrationStep step =
         new OrchestrationStep(
@@ -102,5 +129,26 @@ class OrchestrationStepTest {
             () -> step.fail("   ", Instant.parse("2026-03-02T12:15:00Z")));
 
     assertTrue(error.getMessage().contains("reason must not be blank"));
+  }
+
+  @Test
+  void should_fail_when_review_required() {
+    OrchestrationStep step =
+        new OrchestrationStep(
+            "step-1",
+            new OrchestrationStepDescription(
+                "Implement API",
+                "Build endpoint",
+                OrchestrationStepDescription.Status.REVIEW_REQUIRED,
+                new Ref<>("task-1"),
+                new Ref<>("agent-crafter"),
+                Instant.parse("2026-03-02T12:00:00Z"),
+                null,
+                null));
+
+    step.fail("verification failed", Instant.parse("2026-03-02T12:15:00Z"));
+
+    assertEquals(OrchestrationStepDescription.Status.FAILED, step.getDescription().status());
+    assertEquals("verification failed", step.getDescription().failureReason());
   }
 }

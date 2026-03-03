@@ -387,7 +387,7 @@ class TeamAiMcpToolsTest {
         .delegateTaskForExecution(
             eqTask("t-1"), eqRef("a-crafter"), eqRef("a-routa"), any(Instant.class));
     assertThat(summary.id()).isEqualTo("o-1");
-    assertThat(summary.state()).isEqualTo("STARTED");
+    assertThat(summary.state()).isEqualTo("RUNNING");
     assertThat(summary.taskId()).isEqualTo("t-1");
   }
 

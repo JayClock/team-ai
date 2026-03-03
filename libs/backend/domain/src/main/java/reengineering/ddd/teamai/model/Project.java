@@ -484,8 +484,22 @@ public class Project implements Entity<String, ProjectDescription> {
       Ref<String> currentStep,
       Instant completedAt,
       String failureReason) {
-    requireOrchestrationSessions()
-        .updateStatus(sessionId, status, currentStep, completedAt, failureReason);
+    requireText(sessionId, "sessionId");
+    if (status == null) {
+      throw new IllegalArgumentException("status must not be null");
+    }
+
+    OrchestrationSessions sessions = requireOrchestrationSessions();
+    OrchestrationSession session =
+        sessions
+            .findByIdentity(sessionId)
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("Orchestration session not found: " + sessionId));
+    requireOrchestrationStatusTransition(session.getDescription().status(), status);
+    requireFailureReasonForOrchestrationStatus(status, failureReason);
+    Instant resolvedCompletedAt = resolveOrchestrationCompletedAt(status, completedAt);
+    sessions.updateStatus(sessionId, status, currentStep, resolvedCompletedAt, failureReason);
   }
 
   public interface Members extends HasMany<String, Member> {
@@ -719,6 +733,70 @@ public class Project implements Entity<String, ProjectDescription> {
 
   private Instant normalizeEventTime(Instant occurredAt) {
     return occurredAt == null ? Instant.now() : occurredAt;
+  }
+
+  private void requireOrchestrationStatusTransition(
+      OrchestrationSessionDescription.Status current, OrchestrationSessionDescription.Status next) {
+    if (current == next) {
+      return;
+    }
+
+    boolean allowed =
+        switch (current) {
+          case PENDING ->
+              next == OrchestrationSessionDescription.Status.RUNNING
+                  || next == OrchestrationSessionDescription.Status.CANCELLED;
+          case RUNNING ->
+              next == OrchestrationSessionDescription.Status.REVIEW_REQUIRED
+                  || next == OrchestrationSessionDescription.Status.COMPLETED
+                  || next == OrchestrationSessionDescription.Status.FAILED
+                  || next == OrchestrationSessionDescription.Status.CANCELLED;
+          case REVIEW_REQUIRED ->
+              next == OrchestrationSessionDescription.Status.RUNNING
+                  || next == OrchestrationSessionDescription.Status.COMPLETED
+                  || next == OrchestrationSessionDescription.Status.FAILED
+                  || next == OrchestrationSessionDescription.Status.CANCELLED;
+          case FAILED ->
+              next == OrchestrationSessionDescription.Status.RUNNING
+                  || next == OrchestrationSessionDescription.Status.CANCELLED;
+          case COMPLETED, CANCELLED -> false;
+        };
+
+    if (!allowed) {
+      throw new IllegalStateException(
+          "Cannot transition orchestration session from " + current + " to " + next);
+    }
+  }
+
+  private void requireFailureReasonForOrchestrationStatus(
+      OrchestrationSessionDescription.Status status, String failureReason) {
+    boolean requiresReason =
+        status == OrchestrationSessionDescription.Status.FAILED
+            || status == OrchestrationSessionDescription.Status.CANCELLED;
+    if (requiresReason) {
+      requireText(failureReason, "failureReason");
+      return;
+    }
+    if (failureReason != null && !failureReason.isBlank()) {
+      throw new IllegalArgumentException(
+          "failureReason is only allowed for FAILED or CANCELLED status");
+    }
+  }
+
+  private Instant resolveOrchestrationCompletedAt(
+      OrchestrationSessionDescription.Status status, Instant completedAt) {
+    boolean terminal =
+        status == OrchestrationSessionDescription.Status.COMPLETED
+            || status == OrchestrationSessionDescription.Status.FAILED
+            || status == OrchestrationSessionDescription.Status.CANCELLED;
+    if (!terminal) {
+      if (completedAt != null) {
+        throw new IllegalArgumentException(
+            "completedAt is only allowed for COMPLETED, FAILED or CANCELLED status");
+      }
+      return null;
+    }
+    return completedAt == null ? Instant.now() : completedAt;
   }
 
   private OrchestrationSessions requireOrchestrationSessions() {

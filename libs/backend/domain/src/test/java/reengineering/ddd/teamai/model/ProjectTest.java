@@ -446,6 +446,21 @@ public class ProjectTest {
     @Test
     @DisplayName("should delegate update orchestration session status")
     void shouldDelegateUpdateOrchestrationSessionStatus() {
+      OrchestrationSession existing =
+          new OrchestrationSession(
+              "session-1",
+              new OrchestrationSessionDescription(
+                  "Ship onboarding",
+                  OrchestrationSessionDescription.Status.RUNNING,
+                  new Ref<>("agent-routa"),
+                  new Ref<>("agent-crafter"),
+                  new Ref<>("task-1"),
+                  new Ref<>("step-1"),
+                  Instant.parse("2026-03-02T11:55:00Z"),
+                  null,
+                  null));
+      when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(existing));
+
       Instant completedAt = Instant.parse("2026-03-02T12:00:00Z");
       project.updateOrchestrationSessionStatus(
           "session-1",
@@ -461,6 +476,40 @@ public class ProjectTest {
               new Ref<>("step-2"),
               completedAt,
               null);
+    }
+
+    @Test
+    @DisplayName("should reject invalid orchestration session transition")
+    void shouldRejectInvalidOrchestrationSessionTransition() {
+      OrchestrationSession existing =
+          new OrchestrationSession(
+              "session-1",
+              new OrchestrationSessionDescription(
+                  "Ship onboarding",
+                  OrchestrationSessionDescription.Status.COMPLETED,
+                  new Ref<>("agent-routa"),
+                  new Ref<>("agent-crafter"),
+                  new Ref<>("task-1"),
+                  new Ref<>("step-2"),
+                  Instant.parse("2026-03-02T11:55:00Z"),
+                  Instant.parse("2026-03-02T12:00:00Z"),
+                  null));
+      when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(existing));
+
+      IllegalStateException error =
+          assertThrows(
+              IllegalStateException.class,
+              () ->
+                  project.updateOrchestrationSessionStatus(
+                      "session-1",
+                      OrchestrationSessionDescription.Status.RUNNING,
+                      new Ref<>("step-2"),
+                      null,
+                      null));
+
+      assertEquals(
+          "Cannot transition orchestration session from COMPLETED to RUNNING", error.getMessage());
+      verify(orchestrationSessions, never()).updateStatus(anyString(), any(), any(), any(), any());
     }
   }
 

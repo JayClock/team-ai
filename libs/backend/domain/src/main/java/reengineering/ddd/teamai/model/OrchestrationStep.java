@@ -40,7 +40,10 @@ public class OrchestrationStep implements Entity<String, OrchestrationStepDescri
   }
 
   public void complete(Instant completedAt) {
-    requireStatus("complete", OrchestrationStepDescription.Status.RUNNING);
+    requireStatus(
+        "complete",
+        OrchestrationStepDescription.Status.RUNNING,
+        OrchestrationStepDescription.Status.REVIEW_REQUIRED);
     description =
         new OrchestrationStepDescription(
             description.title(),
@@ -53,8 +56,25 @@ public class OrchestrationStep implements Entity<String, OrchestrationStepDescri
             null);
   }
 
+  public void markReviewRequired() {
+    requireStatus("mark review required", OrchestrationStepDescription.Status.RUNNING);
+    description =
+        new OrchestrationStepDescription(
+            description.title(),
+            description.objective(),
+            OrchestrationStepDescription.Status.REVIEW_REQUIRED,
+            description.task(),
+            description.assignee(),
+            description.startedAt(),
+            null,
+            null);
+  }
+
   public void fail(String reason, Instant completedAt) {
-    requireStatus("fail", OrchestrationStepDescription.Status.RUNNING);
+    requireStatus(
+        "fail",
+        OrchestrationStepDescription.Status.RUNNING,
+        OrchestrationStepDescription.Status.REVIEW_REQUIRED);
     requireText(reason, "reason");
     description =
         new OrchestrationStepDescription(
@@ -72,7 +92,8 @@ public class OrchestrationStep implements Entity<String, OrchestrationStepDescri
     requireStatus(
         "cancel",
         OrchestrationStepDescription.Status.PENDING,
-        OrchestrationStepDescription.Status.RUNNING);
+        OrchestrationStepDescription.Status.RUNNING,
+        OrchestrationStepDescription.Status.REVIEW_REQUIRED);
     requireText(reason, "reason");
     description =
         new OrchestrationStepDescription(

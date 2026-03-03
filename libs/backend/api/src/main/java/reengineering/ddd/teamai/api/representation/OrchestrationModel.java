@@ -98,9 +98,6 @@ public class OrchestrationModel extends RepresentationModel<OrchestrationModel> 
   }
 
   private static String toState(OrchestrationSessionDescription.Status status) {
-    if (status == OrchestrationSessionDescription.Status.RUNNING) {
-      return "STARTED";
-    }
     return status.name();
   }
 }
