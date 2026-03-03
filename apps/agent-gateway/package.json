@@ -1,0 +1,47 @@
+{
+  "name": "@agent-gateway/main",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.app.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit"
+  },
+  "nx": {
+    "projectType": "application",
+    "tags": [
+      "type:app"
+    ],
+    "targets": {
+      "dev": {
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "apps/agent-gateway",
+          "command": "tsx watch src/main.ts"
+        }
+      },
+      "build": {
+        "executor": "nx:run-commands",
+        "outputs": [
+          "{projectRoot}/dist"
+        ],
+        "options": {
+          "cwd": "apps/agent-gateway",
+          "command": "tsc -p tsconfig.app.json"
+        }
+      },
+      "start": {
+        "executor": "nx:run-commands",
+        "dependsOn": [
+          "build"
+        ],
+        "options": {
+          "cwd": "apps/agent-gateway",
+          "command": "node dist/main.js"
+        }
+      }
+    }
+  }
+}

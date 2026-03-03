@@ -1,0 +1,42 @@
+# agent-gateway
+
+Minimal protocol gateway skeleton for ACP/MCP/A2A integration.
+
+## Endpoints
+
+- `GET /health`
+- `GET /version`
+- `GET /capabilities`
+- `POST /sessions` create in-memory session
+- `POST /sessions/:sessionId/events` ingest protocol event (`mcp|acp|a2a`)
+- `GET /sessions/:sessionId/events?cursor=<eventId>` query events incrementally
+- `GET /sessions/:sessionId/stream?cursor=<eventId>` SSE stream
+
+## Configuration
+
+Configuration priority (high to low):
+
+1. Environment variables
+2. JSON config file (`AGENT_GATEWAY_CONFIG_FILE`)
+3. Built-in defaults
+
+### Environment variables
+
+- `AGENT_GATEWAY_HOST` (default: `127.0.0.1`)
+- `AGENT_GATEWAY_PORT` (default: `3321`)
+- `AGENT_GATEWAY_VERSION` (default: `0.1.0`)
+- `AGENT_GATEWAY_PROTOCOLS` (comma-separated, default: `mcp,acp,a2a`)
+- `AGENT_GATEWAY_PROVIDERS` (comma-separated, default: `codex`)
+- `AGENT_GATEWAY_TIMEOUT_MS` (default: `30000`)
+- `AGENT_GATEWAY_RETRY_ATTEMPTS` (default: `2`)
+- `AGENT_GATEWAY_MAX_CONCURRENT_SESSIONS` (default: `32`)
+- `AGENT_GATEWAY_LOG_LEVEL` (`debug|info|warn|error`, default: `info`)
+- `AGENT_GATEWAY_CONFIG_FILE` (optional JSON file path)
+
+## Local run
+
+```bash
+npx nx dev @agent-gateway/main
+# or
+cd apps/agent-gateway && pnpm dev
+```

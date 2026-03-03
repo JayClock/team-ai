@@ -1,0 +1,11 @@
+{
+  "host": "127.0.0.1",
+  "port": 3321,
+  "version": "0.1.0",
+  "protocols": ["mcp", "acp", "a2a"],
+  "providers": ["codex"],
+  "timeoutMs": 30000,
+  "retryAttempts": 2,
+  "maxConcurrentSessions": 32,
+  "logLevel": "info"
+}
