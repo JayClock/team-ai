@@ -11,13 +11,17 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentEventDescription;
+import reengineering.ddd.teamai.description.McpServerDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.description.TaskReportDescription;
 import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
+import reengineering.ddd.teamai.model.McpServer;
 import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 
@@ -112,6 +116,75 @@ class OrchestrationRuntimeServiceTest {
     service.onSessionCancelled("missing-session");
 
     verify(runtime, never()).stop(any(AgentRuntime.SessionHandle.class));
+  }
+
+  @Test
+  void should_serialize_enabled_mcp_servers_into_runtime_start_request() {
+    Project.McpServers mcpServers = mock(Project.McpServers.class);
+    McpServer enabled =
+        new McpServer(
+            "mcp-1",
+            new McpServerDescription(
+                "Local FS",
+                McpServerDescription.Transport.STDIO,
+                "npx -y @modelcontextprotocol/server-filesystem .",
+                true));
+    McpServer disabled =
+        new McpServer(
+            "mcp-2",
+            new McpServerDescription(
+                "Remote SSE",
+                McpServerDescription.Transport.SSE,
+                "http://localhost:8931/sse",
+                false));
+    when(project.mcpServers()).thenReturn(mcpServers);
+    when(mcpServers.findAll()).thenReturn(manyOf(enabled, disabled));
+
+    OrchestrationSession session = session("session-1");
+    AgentRuntime.SessionHandle handle =
+        new AgentRuntime.SessionHandle(
+            "runtime-session-1",
+            "session-1",
+            "agent-crafter",
+            Instant.parse("2026-03-02T12:00:00Z"));
+    when(runtime.start(any(AgentRuntime.StartRequest.class))).thenReturn(handle);
+    when(runtime.send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
+        .thenReturn(new AgentRuntime.SendResult("ok", Instant.parse("2026-03-02T12:00:02Z")));
+
+    service.onSessionStarted(project, session, Instant.parse("2026-03-02T12:00:03Z"));
+
+    ArgumentCaptor<AgentRuntime.StartRequest> captor =
+        ArgumentCaptor.forClass(AgentRuntime.StartRequest.class);
+    verify(runtime).start(captor.capture());
+    String mcpConfig = captor.getValue().mcpConfig();
+    assertThat(mcpConfig).contains("\"id\":\"mcp-1\"");
+    assertThat(mcpConfig).contains("\"transport\":\"STDIO\"");
+    assertThat(mcpConfig).doesNotContain("\"id\":\"mcp-2\"");
+  }
+
+  private Many<McpServer> manyOf(McpServer... values) {
+    java.util.List<McpServer> list = java.util.List.of(values);
+    return new Many<>() {
+      @Override
+      public int size() {
+        return list.size();
+      }
+
+      @Override
+      public Many<McpServer> subCollection(int from, int to) {
+        return manyOf(list.subList(from, to).toArray(new McpServer[0]));
+      }
+
+      @Override
+      public java.util.stream.Stream<McpServer> stream() {
+        return list.stream();
+      }
+
+      @Override
+      public java.util.Iterator<McpServer> iterator() {
+        return list.iterator();
+      }
+    };
   }
 
   private OrchestrationSession session(String sessionId) {

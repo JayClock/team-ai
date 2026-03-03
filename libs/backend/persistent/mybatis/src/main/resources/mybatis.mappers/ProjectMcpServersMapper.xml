@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectMcpServersMapper">
+  <resultMap id="mcpServer" type="reengineering.ddd.teamai.model.McpServer">
+    <id property="identity" column="id" jdbcType="VARCHAR" javaType="String"/>
+    <association property="description" javaType="reengineering.ddd.teamai.description.McpServerDescription">
+      <constructor>
+        <arg column="name" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="transport" jdbcType="VARCHAR" javaType="reengineering.ddd.teamai.description.McpServerDescription$Transport"/>
+        <arg column="target" jdbcType="VARCHAR" javaType="String"/>
+        <arg column="enabled" jdbcType="BOOLEAN" javaType="boolean"/>
+      </constructor>
+    </association>
+  </resultMap>
+
+  <select id="findMcpServerByProjectAndId" resultMap="mcpServer">
+    SELECT id, project_id, name, transport, target, enabled
+    FROM project_mcp_servers
+    WHERE project_id = #{project_id} AND id = #{id}
+  </select>
+
+  <select id="findMcpServersByProjectId" resultMap="mcpServer">
+    SELECT id, project_id, name, transport, target, enabled
+    FROM project_mcp_servers
+    WHERE project_id = #{project_id}
+    ORDER BY id ASC
+    LIMIT #{size} OFFSET #{from}
+  </select>
+
+  <select id="countMcpServersByProject" resultType="int">
+    SELECT COUNT(*) FROM project_mcp_servers WHERE project_id = #{project_id}
+  </select>
+
+  <insert id="insertMcpServer" useGeneratedKeys="true" keyProperty="holder.id" keyColumn="id"
+          parameterType="reengineering.ddd.mybatis.support.IdHolder">
+    INSERT INTO project_mcp_servers(project_id, name, transport, target, enabled)
+    VALUES (
+      #{project_id},
+      #{description.name},
+      #{description.transport, jdbcType=VARCHAR},
+      #{description.target},
+      #{description.enabled}
+    )
+  </insert>
+
+  <update id="updateMcpServer">
+    UPDATE project_mcp_servers
+    SET name = #{description.name},
+        transport = #{description.transport, jdbcType=VARCHAR},
+        target = #{description.target},
+        enabled = #{description.enabled},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </update>
+
+  <delete id="deleteMcpServer">
+    DELETE FROM project_mcp_servers
+    WHERE project_id = #{project_id}
+      AND id = #{id}
+  </delete>
+</mapper>

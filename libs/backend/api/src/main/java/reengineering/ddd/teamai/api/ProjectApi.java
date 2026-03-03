@@ -60,6 +60,11 @@ public class ProjectApi {
     return resourceContext.initResource(new OrchestrationsApi(project));
   }
 
+  @Path("mcp-servers")
+  public McpServersApi mcpServers() {
+    return resourceContext.initResource(new McpServersApi(project));
+  }
+
   @Path("knowledge-graph")
   public KnowledgeGraphApi knowledgeGraph() {
     return resourceContext.initResource(new KnowledgeGraphApi(project));

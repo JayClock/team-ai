@@ -22,6 +22,7 @@ import reengineering.ddd.teamai.description.AgentEventDescription.Type;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.McpServerDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
@@ -41,6 +42,7 @@ public class ProjectTest {
   @Mock private Project.Tasks tasks;
   @Mock private Project.AgentEvents events;
   @Mock private Project.OrchestrationSessions orchestrationSessions;
+  @Mock private Project.McpServers mcpServers;
   @Mock private Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
 
   private Project project;
@@ -60,7 +62,8 @@ public class ProjectTest {
             agents,
             tasks,
             events,
-            orchestrationSessions);
+            orchestrationSessions,
+            mcpServers);
   }
 
   @Test
@@ -458,6 +461,48 @@ public class ProjectTest {
               new Ref<>("step-2"),
               completedAt,
               null);
+    }
+  }
+
+  @Nested
+  @DisplayName("MCP servers association")
+  class McpServersAssociation {
+
+    @Test
+    @DisplayName("should return MCP servers association object")
+    void shouldReturnMcpServersAssociation() {
+      var result = project.mcpServers();
+
+      assertSame(mcpServers, result);
+    }
+
+    @Test
+    @DisplayName("should delegate MCP server CRUD operations")
+    void shouldDelegateMcpServerCrudOperations() {
+      McpServerDescription description =
+          new McpServerDescription(
+              "Local FS",
+              McpServerDescription.Transport.STDIO,
+              "npx -y @modelcontextprotocol/server-filesystem .",
+              true);
+      McpServer created = new McpServer("mcp-1", description);
+      when(mcpServers.create(description)).thenReturn(created);
+      when(mcpServers.findByIdentity("mcp-1")).thenReturn(Optional.of(created));
+
+      McpServer result = project.createMcpServer(description);
+      project.updateMcpServer(
+          "mcp-1",
+          new McpServerDescription(
+              "Local FS Updated",
+              McpServerDescription.Transport.STDIO,
+              "npx -y @modelcontextprotocol/server-filesystem ./workspace",
+              true));
+      project.deleteMcpServer("mcp-1");
+
+      assertSame(created, result);
+      verify(mcpServers).create(description);
+      verify(mcpServers).update(eq("mcp-1"), any(McpServerDescription.class));
+      verify(mcpServers).delete("mcp-1");
     }
   }
 

@@ -87,6 +87,14 @@ public class ApiTemplates {
     return project(uriInfo).path(ProjectApi.class, "events");
   }
 
+  public static UriBuilder mcpServers(UriInfo uriInfo) {
+    return project(uriInfo).path(ProjectApi.class, "mcpServers");
+  }
+
+  public static UriBuilder mcpServer(UriInfo uriInfo) {
+    return mcpServers(uriInfo).path(McpServersApi.class, "findById");
+  }
+
   public static UriBuilder eventsStream(UriInfo uriInfo) {
     return events(uriInfo).path(AgentEventsApi.class, "stream");
   }

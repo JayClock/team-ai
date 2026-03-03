@@ -11,6 +11,7 @@ import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.ConversationsApi;
 import reengineering.ddd.teamai.api.LogicalEntitiesApi;
+import reengineering.ddd.teamai.api.McpServersApi;
 import reengineering.ddd.teamai.api.OrchestrationsApi;
 import reengineering.ddd.teamai.api.ProjectApi;
 import reengineering.ddd.teamai.description.ProjectDescription;
@@ -81,6 +82,15 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
             .afford(HttpMethod.POST)
             .withInput(OrchestrationsApi.StartOrchestrationRequest.class)
             .withName("start-orchestration")
+            .toLink());
+
+    model.add(
+        Affordances.of(
+                Link.of(ApiTemplates.mcpServers(uriInfo).build(project.getIdentity()).getPath())
+                    .withRel("mcp-servers"))
+            .afford(HttpMethod.POST)
+            .withInput(McpServersApi.CreateMcpServerRequest.class)
+            .withName("create-mcp-server")
             .toLink());
 
     model.add(

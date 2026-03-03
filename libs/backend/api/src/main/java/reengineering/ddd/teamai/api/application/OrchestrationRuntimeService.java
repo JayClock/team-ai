@@ -1,8 +1,13 @@
 package reengineering.ddd.teamai.api.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +25,7 @@ import reengineering.ddd.teamai.model.Project;
 @Component
 public class OrchestrationRuntimeService {
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private final AgentRuntime runtime;
   private final Map<String, AgentRuntime.SessionHandle> activeHandles = new ConcurrentHashMap<>();
@@ -44,11 +50,12 @@ public class OrchestrationRuntimeService {
             .map(reengineering.ddd.archtype.Ref::id)
             .filter(id -> !id.isBlank())
             .orElseThrow(() -> new IllegalArgumentException("implementer must not be blank"));
+    String mcpConfig = serializeMcpConfig(project);
 
     AgentRuntime.SessionHandle handle =
         runtime.start(
             new AgentRuntime.StartRequest(
-                session.getIdentity(), implementerId, description.goal()));
+                session.getIdentity(), implementerId, description.goal(), mcpConfig));
     activeHandles.put(session.getIdentity(), handle);
 
     Ref<String> implementer = description.implementer();
@@ -110,5 +117,32 @@ public class OrchestrationRuntimeService {
 
   public Optional<AgentRuntime.SessionHandle> findHandle(String sessionId) {
     return Optional.ofNullable(activeHandles.get(sessionId));
+  }
+
+  private String serializeMcpConfig(Project project) {
+    List<Map<String, Object>> servers = new ArrayList<>();
+    Project.McpServers mcpServers = project.mcpServers();
+    if (mcpServers == null || mcpServers.findAll() == null) {
+      return null;
+    }
+    mcpServers.findAll().stream()
+        .filter(server -> server.getDescription().enabled())
+        .forEach(
+            server -> {
+              Map<String, Object> spec = new LinkedHashMap<>();
+              spec.put("id", server.getIdentity());
+              spec.put("name", server.getDescription().name());
+              spec.put("transport", server.getDescription().transport().name());
+              spec.put("target", server.getDescription().target());
+              servers.add(spec);
+            });
+    if (servers.isEmpty()) {
+      return null;
+    }
+    try {
+      return OBJECT_MAPPER.writeValueAsString(servers);
+    } catch (JsonProcessingException error) {
+      throw new IllegalStateException("Failed to serialize MCP registry config", error);
+    }
   }
 }

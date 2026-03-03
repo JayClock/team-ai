@@ -12,7 +12,11 @@ public interface AgentRuntime {
 
   Health health();
 
-  record StartRequest(String orchestrationId, String agentId, String goal) {
+  record StartRequest(String orchestrationId, String agentId, String goal, String mcpConfig) {
+    public StartRequest(String orchestrationId, String agentId, String goal) {
+      this(orchestrationId, agentId, goal, null);
+    }
+
     public StartRequest {
       requireText(orchestrationId, "orchestrationId");
       requireText(agentId, "agentId");

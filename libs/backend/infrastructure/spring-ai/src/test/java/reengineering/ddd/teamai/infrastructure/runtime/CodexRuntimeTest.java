@@ -67,6 +67,23 @@ class CodexRuntimeTest {
         .hasMessageContaining("not active");
   }
 
+  @Test
+  void should_inject_mcp_registry_into_process_environment() {
+    CodexRuntime runtime =
+        new CodexRuntime(
+            java.util.List.of(
+                "/bin/sh", "-c", "cat >/dev/null; printf '%s' \"$TEAMAI_MCP_SERVERS\""));
+    AgentRuntime.SessionHandle session =
+        runtime.start(
+            new AgentRuntime.StartRequest(
+                "orch-1", "agent-1", "goal", "[{\"name\":\"Local FS\"}]"));
+
+    AgentRuntime.SendResult result =
+        runtime.send(session, new AgentRuntime.SendRequest("hello codex", Duration.ofSeconds(2)));
+
+    assertThat(result.output()).isEqualTo("[{\"name\":\"Local FS\"}]");
+  }
+
   private AgentRuntime.SessionHandle start(CodexRuntime runtime) {
     return runtime.start(new AgentRuntime.StartRequest("orch-1", "agent-1", "goal"));
   }

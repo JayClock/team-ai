@@ -2,18 +2,22 @@ package reengineering.ddd.teamai.model;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
+import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
 import reengineering.ddd.teamai.description.DiagramDescription;
 import reengineering.ddd.teamai.description.LogicalEntityDescription;
+import reengineering.ddd.teamai.description.McpServerDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
@@ -45,6 +49,7 @@ public class Project implements Entity<String, ProjectDescription> {
   private Tasks tasks;
   private AgentEvents events;
   private OrchestrationSessions orchestrationSessions;
+  private McpServers mcpServers;
 
   public Project(
       String identity,
@@ -57,6 +62,32 @@ public class Project implements Entity<String, ProjectDescription> {
       Tasks tasks,
       AgentEvents events,
       OrchestrationSessions orchestrationSessions) {
+    this(
+        identity,
+        description,
+        members,
+        conversations,
+        logicalEntities,
+        diagrams,
+        agents,
+        tasks,
+        events,
+        orchestrationSessions,
+        null);
+  }
+
+  public Project(
+      String identity,
+      ProjectDescription description,
+      Members members,
+      Conversations conversations,
+      LogicalEntities logicalEntities,
+      Diagrams diagrams,
+      Agents agents,
+      Tasks tasks,
+      AgentEvents events,
+      OrchestrationSessions orchestrationSessions,
+      McpServers mcpServers) {
     this.identity = identity;
     this.description = description;
     this.members = members;
@@ -67,6 +98,7 @@ public class Project implements Entity<String, ProjectDescription> {
     this.tasks = tasks;
     this.events = events;
     this.orchestrationSessions = orchestrationSessions;
+    this.mcpServers = mcpServers;
   }
 
   private Project() {}
@@ -163,6 +195,40 @@ public class Project implements Entity<String, ProjectDescription> {
       throw new IllegalArgumentException("Agent not found: " + agentId);
     }
     agents.delete(agentId);
+  }
+
+  public McpServers mcpServers() {
+    return mcpServers == null ? EMPTY_MCP_SERVERS : mcpServers;
+  }
+
+  public McpServer createMcpServer(McpServerDescription description) {
+    if (description == null) {
+      throw new IllegalArgumentException("description must not be null");
+    }
+    return mcpServers().create(description);
+  }
+
+  public void updateMcpServer(String serverId, McpServerDescription description) {
+    if (serverId == null || serverId.isBlank()) {
+      throw new IllegalArgumentException("serverId must not be blank");
+    }
+    if (description == null) {
+      throw new IllegalArgumentException("description must not be null");
+    }
+    if (mcpServers().findByIdentity(serverId).isEmpty()) {
+      throw new IllegalArgumentException("MCP server not found: " + serverId);
+    }
+    mcpServers().update(serverId, description);
+  }
+
+  public void deleteMcpServer(String serverId) {
+    if (serverId == null || serverId.isBlank()) {
+      throw new IllegalArgumentException("serverId must not be blank");
+    }
+    if (mcpServers().findByIdentity(serverId).isEmpty()) {
+      throw new IllegalArgumentException("MCP server not found: " + serverId);
+    }
+    mcpServers().delete(serverId);
   }
 
   public Tasks tasks() {
@@ -514,6 +580,60 @@ public class Project implements Entity<String, ProjectDescription> {
         Instant completedAt,
         String failureReason);
   }
+
+  public interface McpServers extends HasMany<String, McpServer> {
+    McpServer create(McpServerDescription description);
+
+    void update(String serverId, McpServerDescription description);
+
+    void delete(String serverId);
+  }
+
+  private static final McpServers EMPTY_MCP_SERVERS =
+      new McpServers() {
+        private final Many<McpServer> empty =
+            new Many<>() {
+              @Override
+              public int size() {
+                return 0;
+              }
+
+              @Override
+              public Many<McpServer> subCollection(int from, int to) {
+                return this;
+              }
+
+              @Override
+              public Iterator<McpServer> iterator() {
+                return Collections.emptyIterator();
+              }
+            };
+
+        @Override
+        public Many<McpServer> findAll() {
+          return empty;
+        }
+
+        @Override
+        public Optional<McpServer> findByIdentity(String identifier) {
+          return Optional.empty();
+        }
+
+        @Override
+        public McpServer create(McpServerDescription description) {
+          throw new IllegalStateException("mcpServers association is not configured");
+        }
+
+        @Override
+        public void update(String serverId, McpServerDescription description) {
+          throw new IllegalStateException("mcpServers association is not configured");
+        }
+
+        @Override
+        public void delete(String serverId) {
+          throw new IllegalStateException("mcpServers association is not configured");
+        }
+      };
 
   private Task taskOrThrow(String taskId) {
     if (taskId == null || taskId.isBlank()) {

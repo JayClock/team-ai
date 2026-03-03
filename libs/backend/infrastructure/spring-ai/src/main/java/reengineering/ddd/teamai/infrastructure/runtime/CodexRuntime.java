@@ -20,6 +20,7 @@ import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 
 public class CodexRuntime implements AgentRuntime {
   private static final List<String> DEFAULT_COMMAND = List.of("codex", "exec", "-");
+  private static final String MCP_CONFIG_ENV = "TEAMAI_MCP_SERVERS";
 
   private final List<String> command;
   private final Map<String, SessionState> sessions = new ConcurrentHashMap<>();
@@ -46,7 +47,7 @@ public class CodexRuntime implements AgentRuntime {
             request.orchestrationId(),
             request.agentId(),
             Instant.now());
-    sessions.put(handle.sessionId(), new SessionState());
+    sessions.put(handle.sessionId(), new SessionState(request.mcpConfig()));
     return handle;
   }
 
@@ -56,7 +57,7 @@ public class CodexRuntime implements AgentRuntime {
       throw new IllegalArgumentException("request must not be null");
     }
     SessionState state = requireSession(session);
-    Process process = startProcess();
+    Process process = startProcess(state.mcpConfig);
     state.process = process;
 
     ExecutorService ioPool = Executors.newFixedThreadPool(2);
@@ -126,9 +127,12 @@ public class CodexRuntime implements AgentRuntime {
     return state;
   }
 
-  private Process startProcess() {
+  private Process startProcess(String mcpConfig) {
     ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.redirectErrorStream(false);
+    if (mcpConfig != null && !mcpConfig.isBlank()) {
+      processBuilder.environment().put(MCP_CONFIG_ENV, mcpConfig);
+    }
     try {
       return processBuilder.start();
     } catch (IOException error) {
@@ -145,6 +149,11 @@ public class CodexRuntime implements AgentRuntime {
   }
 
   private static class SessionState {
+    private final String mcpConfig;
     private volatile Process process;
+
+    private SessionState(String mcpConfig) {
+      this.mcpConfig = mcpConfig;
+    }
   }
 }
