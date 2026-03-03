@@ -48,6 +48,7 @@ public class RootApi {
   @Inject PasswordEncoder passwordEncoder;
   @Inject JwtUtil jwtUtil;
   @Inject A2aGatewayApi a2aGatewayApi;
+  @Inject AcpApi acpApi;
 
   @Context private ResourceContext resourceContext;
 
@@ -79,6 +80,11 @@ public class RootApi {
   @Path("a2a")
   public A2aGatewayApi a2aGateway() {
     return resourceContext.initResource(a2aGatewayApi);
+  }
+
+  @Path("acp")
+  public AcpApi acpGateway() {
+    return resourceContext.initResource(acpApi);
   }
 
   @POST

@@ -59,7 +59,7 @@ public class Jersey extends ResourceConfig {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
       String uri = request.getRequestURI();
-      return uri.endsWith("/stream");
+      return uri.endsWith("/stream") || uri.endsWith("/acp");
     }
   }
 }
