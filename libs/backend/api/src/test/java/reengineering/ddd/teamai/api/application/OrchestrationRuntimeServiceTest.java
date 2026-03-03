@@ -19,6 +19,7 @@ import reengineering.ddd.teamai.description.McpServerDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.description.TaskReportDescription;
+import reengineering.ddd.teamai.model.AgentProtocolGateway;
 import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.McpServer;
@@ -26,6 +27,7 @@ import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 
 class OrchestrationRuntimeServiceTest {
+  private static final Instant STARTED_AT = Instant.parse("2026-03-02T12:00:00Z");
   private AgentRuntime runtime;
   private OrchestrationRuntimeService service;
   private Project project;
@@ -42,10 +44,7 @@ class OrchestrationRuntimeServiceTest {
     OrchestrationSession session = session("session-1");
     AgentRuntime.SessionHandle handle =
         new AgentRuntime.SessionHandle(
-            "runtime-session-1",
-            "session-1",
-            "agent-crafter",
-            Instant.parse("2026-03-02T12:00:00Z"));
+            "runtime-session-1", "session-1", "agent-crafter", STARTED_AT);
     when(runtime.start(any(AgentRuntime.StartRequest.class))).thenReturn(handle);
     when(runtime.send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
         .thenReturn(new AgentRuntime.SendResult("ok", Instant.parse("2026-03-02T12:00:02Z")));
@@ -62,7 +61,10 @@ class OrchestrationRuntimeServiceTest {
     verify(project, times(1))
         .updateOrchestrationSessionStatus(
             any(), any(OrchestrationSessionDescription.Status.class), any(), any(), any());
-    assertThat(service.findHandle("session-1")).contains(handle);
+    assertThat(service.findHandle("session-1"))
+        .contains(
+            new AgentProtocolGateway.SessionHandle(
+                "runtime-session-1", "session-1", "agent-crafter", STARTED_AT));
   }
 
   @Test
@@ -70,10 +72,7 @@ class OrchestrationRuntimeServiceTest {
     OrchestrationSession session = session("session-1");
     AgentRuntime.SessionHandle handle =
         new AgentRuntime.SessionHandle(
-            "runtime-session-1",
-            "session-1",
-            "agent-crafter",
-            Instant.parse("2026-03-02T12:00:00Z"));
+            "runtime-session-1", "session-1", "agent-crafter", STARTED_AT);
     when(runtime.start(any(AgentRuntime.StartRequest.class))).thenReturn(handle);
     when(runtime.send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
         .thenThrow(new AgentRuntimeException("codex failed"));
@@ -96,10 +95,7 @@ class OrchestrationRuntimeServiceTest {
     OrchestrationSession session = session("session-1");
     AgentRuntime.SessionHandle handle =
         new AgentRuntime.SessionHandle(
-            "runtime-session-1",
-            "session-1",
-            "agent-crafter",
-            Instant.parse("2026-03-02T12:00:00Z"));
+            "runtime-session-1", "session-1", "agent-crafter", STARTED_AT);
     when(runtime.start(any(AgentRuntime.StartRequest.class))).thenReturn(handle);
     when(runtime.send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
         .thenReturn(new AgentRuntime.SendResult("ok", Instant.parse("2026-03-02T12:00:02Z")));
@@ -143,10 +139,7 @@ class OrchestrationRuntimeServiceTest {
     OrchestrationSession session = session("session-1");
     AgentRuntime.SessionHandle handle =
         new AgentRuntime.SessionHandle(
-            "runtime-session-1",
-            "session-1",
-            "agent-crafter",
-            Instant.parse("2026-03-02T12:00:00Z"));
+            "runtime-session-1", "session-1", "agent-crafter", STARTED_AT);
     when(runtime.start(any(AgentRuntime.StartRequest.class))).thenReturn(handle);
     when(runtime.send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
         .thenReturn(new AgentRuntime.SendResult("ok", Instant.parse("2026-03-02T12:00:02Z")));

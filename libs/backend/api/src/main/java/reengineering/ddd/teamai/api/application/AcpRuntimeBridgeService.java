@@ -16,6 +16,7 @@ import reengineering.ddd.teamai.api.acp.AcpEventEnvelope;
 import reengineering.ddd.teamai.api.acp.AcpEventIdGenerator;
 import reengineering.ddd.teamai.model.AcpSessionEvent;
 import reengineering.ddd.teamai.model.AcpSessionEventStore;
+import reengineering.ddd.teamai.model.AgentProtocolGateway;
 import reengineering.ddd.teamai.model.AgentRuntime;
 
 @Component
@@ -25,38 +26,39 @@ public class AcpRuntimeBridgeService {
   private static final int DEFAULT_HISTORY_LIMIT = 200;
   private static final int MAX_HISTORY_LIMIT = 1000;
 
-  private final AgentRuntime runtime;
+  private final AgentProtocolGateway gateway;
   private final AcpEventIdGenerator eventIdGenerator;
   private final AcpSessionEventStore sessionEventStore;
-  private final Map<String, AgentRuntime.SessionHandle> activeHandles = new ConcurrentHashMap<>();
+  private final Map<String, AgentProtocolGateway.SessionHandle> activeHandles =
+      new ConcurrentHashMap<>();
   private final Map<String, CopyOnWriteArrayList<AcpEventEnvelope>> sessionEvents =
       new ConcurrentHashMap<>();
   private final Map<String, String> sessionProjectIds = new ConcurrentHashMap<>();
 
   @Inject
   public AcpRuntimeBridgeService(
-      AgentRuntime runtime,
+      AgentProtocolGateway gateway,
       AcpEventIdGenerator eventIdGenerator,
       AcpSessionEventStore sessionEventStore) {
-    this.runtime = runtime;
+    this.gateway = gateway;
     this.eventIdGenerator = eventIdGenerator;
     this.sessionEventStore = sessionEventStore;
   }
 
   public AcpRuntimeBridgeService(AgentRuntime runtime, AcpEventIdGenerator eventIdGenerator) {
-    this(runtime, eventIdGenerator, noopEventStore());
+    this(new AgentRuntimeGateway(runtime), eventIdGenerator, noopEventStore());
   }
 
-  public AgentRuntime.SessionHandle startSession(
+  public AgentProtocolGateway.SessionHandle startSession(
       String projectId, String sessionId, String actorUserId, String goal) {
     String normalizedProjectId = normalizeProjectId(projectId);
     sessionProjectIds.putIfAbsent(sessionId, normalizedProjectId);
     return activeHandles.computeIfAbsent(
         sessionId,
         ignored -> {
-          AgentRuntime.SessionHandle handle =
-              runtime.start(
-                  new AgentRuntime.StartRequest(
+          AgentProtocolGateway.SessionHandle handle =
+              gateway.start(
+                  new AgentProtocolGateway.StartRequest(
                       sessionId,
                       actorUserId,
                       goal == null || goal.isBlank() ? "ACP session " + sessionId : goal.trim()));
@@ -78,18 +80,19 @@ public class AcpRuntimeBridgeService {
         });
   }
 
-  public AgentRuntime.SessionHandle startSession(
+  public AgentProtocolGateway.SessionHandle startSession(
       String sessionId, String actorUserId, String goal) {
     return startSession("unknown", sessionId, actorUserId, goal);
   }
 
-  public AgentRuntime.SendResult sendPrompt(String sessionId, String prompt, Duration timeout) {
-    AgentRuntime.SessionHandle handle = requireHandle(sessionId);
+  public AgentProtocolGateway.SendResult sendPrompt(
+      String sessionId, String prompt, Duration timeout) {
+    AgentProtocolGateway.SessionHandle handle = requireHandle(sessionId);
     Duration effectiveTimeout =
         timeout == null || timeout.isNegative() || timeout.isZero() ? DEFAULT_TIMEOUT : timeout;
     try {
-      AgentRuntime.SendResult result =
-          runtime.send(handle, new AgentRuntime.SendRequest(prompt, effectiveTimeout));
+      AgentProtocolGateway.SendResult result =
+          gateway.send(handle, new AgentProtocolGateway.SendRequest(prompt, effectiveTimeout));
       appendEvent(
           sessionId,
           AcpEventEnvelope.TYPE_DELTA,
@@ -122,9 +125,9 @@ public class AcpRuntimeBridgeService {
   }
 
   public void cancelSession(String sessionId, String reason) {
-    AgentRuntime.SessionHandle handle = activeHandles.remove(sessionId);
+    AgentProtocolGateway.SessionHandle handle = activeHandles.remove(sessionId);
     if (handle != null) {
-      runtime.stop(handle);
+      gateway.stop(handle);
     }
     sessionProjectIds.remove(sessionId);
     appendEvent(
@@ -182,8 +185,8 @@ public class AcpRuntimeBridgeService {
     appendEvent(sessionId, AcpEventEnvelope.TYPE_STATUS, data == null ? Map.of() : data, null);
   }
 
-  private AgentRuntime.SessionHandle requireHandle(String sessionId) {
-    AgentRuntime.SessionHandle handle = activeHandles.get(sessionId);
+  private AgentProtocolGateway.SessionHandle requireHandle(String sessionId) {
+    AgentProtocolGateway.SessionHandle handle = activeHandles.get(sessionId);
     if (handle == null) {
       throw new IllegalStateException("ACP runtime session is not active: " + sessionId);
     }

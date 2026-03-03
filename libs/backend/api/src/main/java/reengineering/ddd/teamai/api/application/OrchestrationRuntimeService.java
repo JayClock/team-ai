@@ -17,6 +17,7 @@ import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.description.TaskReportDescription;
+import reengineering.ddd.teamai.model.AgentProtocolGateway;
 import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.OrchestrationSession;
@@ -27,17 +28,23 @@ public class OrchestrationRuntimeService {
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-  private final AgentRuntime runtime;
+  private final AgentProtocolGateway gateway;
   private final OrchestrationTelemetry telemetry;
-  private final Map<String, AgentRuntime.SessionHandle> activeHandles = new ConcurrentHashMap<>();
+  private final Map<String, AgentProtocolGateway.SessionHandle> activeHandles =
+      new ConcurrentHashMap<>();
 
   public OrchestrationRuntimeService(AgentRuntime runtime) {
-    this(runtime, OrchestrationTelemetry.noop());
+    this(new AgentRuntimeGateway(runtime), OrchestrationTelemetry.noop());
+  }
+
+  public OrchestrationRuntimeService(AgentProtocolGateway gateway) {
+    this(gateway, OrchestrationTelemetry.noop());
   }
 
   @Inject
-  public OrchestrationRuntimeService(AgentRuntime runtime, OrchestrationTelemetry telemetry) {
-    this.runtime = runtime;
+  public OrchestrationRuntimeService(
+      AgentProtocolGateway gateway, OrchestrationTelemetry telemetry) {
+    this.gateway = gateway;
     this.telemetry = telemetry == null ? OrchestrationTelemetry.noop() : telemetry;
   }
 
@@ -68,9 +75,9 @@ public class OrchestrationRuntimeService {
         implementerId,
         TaskDescription.Status.IN_PROGRESS.name());
 
-    AgentRuntime.SessionHandle handle =
-        runtime.start(
-            new AgentRuntime.StartRequest(
+    AgentProtocolGateway.SessionHandle handle =
+        gateway.start(
+            new AgentProtocolGateway.StartRequest(
                 session.getIdentity(), implementerId, description.goal(), mcpConfig));
     activeHandles.put(session.getIdentity(), handle);
 
@@ -78,8 +85,9 @@ public class OrchestrationRuntimeService {
     Ref<String> taskRef = description.task();
     Instant runtimeStartedAt = Instant.now();
     try {
-      AgentRuntime.SendResult result =
-          runtime.send(handle, new AgentRuntime.SendRequest(description.goal(), DEFAULT_TIMEOUT));
+      AgentProtocolGateway.SendResult result =
+          gateway.send(
+              handle, new AgentProtocolGateway.SendRequest(description.goal(), DEFAULT_TIMEOUT));
       Duration latency = durationBetween(runtimeStartedAt, result.completedAt());
       String output = result.output();
       project.reportTask(
@@ -159,9 +167,9 @@ public class OrchestrationRuntimeService {
     if (sessionId == null || sessionId.isBlank()) {
       throw new IllegalArgumentException("sessionId must not be blank");
     }
-    AgentRuntime.SessionHandle handle = activeHandles.remove(sessionId);
+    AgentProtocolGateway.SessionHandle handle = activeHandles.remove(sessionId);
     if (handle != null) {
-      runtime.stop(handle);
+      gateway.stop(handle);
       telemetry.sessionTransition(
           sessionId,
           "n/a",
@@ -172,7 +180,7 @@ public class OrchestrationRuntimeService {
     }
   }
 
-  public Optional<AgentRuntime.SessionHandle> findHandle(String sessionId) {
+  public Optional<AgentProtocolGateway.SessionHandle> findHandle(String sessionId) {
     return Optional.ofNullable(activeHandles.get(sessionId));
   }
 
