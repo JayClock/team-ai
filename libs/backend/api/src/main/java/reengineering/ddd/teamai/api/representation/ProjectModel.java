@@ -74,6 +74,9 @@ public class ProjectModel extends RepresentationModel<ProjectModel> {
     model.add(
         Link.of(ApiTemplates.eventsStream(uriInfo).build(project.getIdentity()).getPath())
             .withRel("events-stream"));
+    model.add(
+        Link.of(ApiTemplates.sessions(uriInfo).build(project.getIdentity()).getPath())
+            .withRel("sessions"));
 
     model.add(
         Affordances.of(

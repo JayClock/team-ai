@@ -84,6 +84,7 @@ public class ProjectsApiTest extends ApiTest {
         .body(
             "_links.events-stream.href",
             is("/api/projects/" + project.getIdentity() + "/events/stream"))
+        .body("_links.sessions.href", is("/api/projects/" + project.getIdentity() + "/sessions"))
         .body(
             "_links.orchestrations.href",
             is("/api/projects/" + project.getIdentity() + "/orchestrations"))

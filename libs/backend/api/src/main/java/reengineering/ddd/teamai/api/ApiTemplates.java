@@ -111,6 +111,14 @@ public class ApiTemplates {
     return events(uriInfo).path(AgentEventsApi.class, "findById");
   }
 
+  public static UriBuilder sessions(UriInfo uriInfo) {
+    return project(uriInfo).path(ProjectApi.class, "sessions");
+  }
+
+  public static UriBuilder session(UriInfo uriInfo) {
+    return sessions(uriInfo).path(SessionsApi.class, "findById");
+  }
+
   public static UriBuilder nodes(UriInfo uriInfo) {
     return diagram(uriInfo).path(DiagramApi.class, "nodes");
   }

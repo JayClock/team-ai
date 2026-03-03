@@ -55,6 +55,11 @@ public class ProjectApi {
     return resourceContext.initResource(new AgentEventsApi(project));
   }
 
+  @Path("sessions")
+  public SessionsApi sessions() {
+    return resourceContext.initResource(new SessionsApi(project));
+  }
+
   @Path("orchestrations")
   public OrchestrationsApi orchestrations() {
     return resourceContext.initResource(new OrchestrationsApi(project));
