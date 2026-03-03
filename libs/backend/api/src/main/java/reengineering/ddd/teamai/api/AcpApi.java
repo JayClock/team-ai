@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.api;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
@@ -10,6 +11,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,8 +21,10 @@ import org.springframework.stereotype.Component;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.acp.AcpEventEnvelope;
 import reengineering.ddd.teamai.api.acp.AcpSseEventWriter;
+import reengineering.ddd.teamai.api.application.AcpRuntimeBridgeService;
 import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.model.AcpSession;
+import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 
@@ -40,6 +44,7 @@ public class AcpApi {
 
   @Inject Projects projects;
   @Inject AcpSseEventWriter sseEventWriter;
+  @Inject AcpRuntimeBridgeService runtimeBridgeService;
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
@@ -63,7 +68,10 @@ public class AcpApi {
   @GET
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void stream(
-      @QueryParam("sessionId") String sessionId, @Context SseEventSink sink, @Context Sse sse) {
+      @QueryParam("sessionId") String sessionId,
+      @HeaderParam("Last-Event-ID") String lastEventId,
+      @Context SseEventSink sink,
+      @Context Sse sse) {
     if (sink == null) {
       return;
     }
@@ -76,6 +84,9 @@ public class AcpApi {
             Map.of("state", "CONNECTED", "transport", "sse"),
             null);
     sseEventWriter.send(sink, sse, envelope);
+    runtimeBridgeService
+        .findEventsSince(resolvedSessionId, lastEventId)
+        .forEach(event -> sseEventWriter.send(sink, sse, event));
     sink.close();
   }
 
@@ -135,6 +146,8 @@ public class AcpApi {
                 null,
                 null,
                 null));
+    String goal = optionalText(params, "goal").orElse("ACP session " + session.getIdentity());
+    runtimeBridgeService.startSession(session.getIdentity(), actorUserId, goal);
     return Map.of("session", sessionPayload(session), "accepted", true);
   }
 
@@ -157,15 +170,25 @@ public class AcpApi {
       project.updateAcpSessionStatus(sessionId, AcpSessionDescription.Status.RUNNING, null, null);
     }
     project.touchAcpSession(sessionId, now, eventId);
-    AcpSession updated = requireSession(project, sessionId);
-
-    return Map.of(
-        "session",
-        sessionPayload(updated),
-        "accepted",
-        true,
-        "prompt",
-        Map.of("content", prompt, "receivedAt", now.toString()));
+    String actorUserId = id(current.getDescription().actor());
+    runtimeBridgeService.startSession(
+        sessionId, actorUserId == null ? "acp-agent" : actorUserId, "ACP session " + sessionId);
+    Duration timeout = timeout(params.get("timeoutMs"));
+    try {
+      var runtimeResult = runtimeBridgeService.sendPrompt(sessionId, prompt, timeout);
+      AcpSession updated = requireSession(project, sessionId);
+      return Map.of(
+          "session",
+          sessionPayload(updated),
+          "accepted",
+          true,
+          "prompt",
+          Map.of("content", prompt, "receivedAt", now.toString()),
+          "runtime",
+          Map.of("output", runtimeResult.output(), "completedAt", runtimeResult.completedAt()));
+    } catch (AgentRuntimeException | IllegalStateException error) {
+      throw new RpcException(ERR_INTERNAL, "runtime failed: " + message(error));
+    }
   }
 
   private Object sessionCancel(Map<String, Object> params) {
@@ -176,6 +199,7 @@ public class AcpApi {
 
     Project project = requireProject(projectId);
     project.updateAcpSessionStatus(sessionId, AcpSessionDescription.Status.CANCELLED, now, reason);
+    runtimeBridgeService.cancelSession(sessionId, reason);
     AcpSession updated = requireSession(project, sessionId);
     return Map.of("session", sessionPayload(updated), "cancelled", true);
   }
@@ -224,6 +248,33 @@ public class AcpApi {
       return Optional.empty();
     }
     return Optional.of(normalized);
+  }
+
+  private Duration timeout(Object rawTimeoutMs) {
+    if (rawTimeoutMs == null) {
+      return null;
+    }
+    long timeoutMs;
+    if (rawTimeoutMs instanceof Number number) {
+      timeoutMs = number.longValue();
+    } else if (rawTimeoutMs instanceof String text) {
+      try {
+        timeoutMs = Long.parseLong(text.trim());
+      } catch (NumberFormatException error) {
+        throw new RpcException(ERR_INVALID_PARAMS, "timeoutMs must be a number");
+      }
+    } else {
+      throw new RpcException(ERR_INVALID_PARAMS, "timeoutMs must be a number");
+    }
+    if (timeoutMs <= 0) {
+      throw new RpcException(ERR_INVALID_PARAMS, "timeoutMs must be greater than 0");
+    }
+    return Duration.ofMillis(timeoutMs);
+  }
+
+  private String message(Throwable error) {
+    String message = error == null ? null : error.getMessage();
+    return message == null || message.isBlank() ? "runtime failed" : message;
   }
 
   private Map<String, Object> sessionPayload(AcpSession session) {

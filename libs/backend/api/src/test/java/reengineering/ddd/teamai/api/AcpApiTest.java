@@ -20,6 +20,7 @@ import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.AcpSession;
+import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.Project;
 
 class AcpApiTest extends ApiTest {
@@ -52,6 +53,20 @@ class AcpApiTest extends ApiTest {
             acpSessions,
             null);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
+    when(agentRuntime.start(any(AgentRuntime.StartRequest.class)))
+        .thenAnswer(
+            invocation -> {
+              AgentRuntime.StartRequest request = invocation.getArgument(0);
+              return new AgentRuntime.SessionHandle(
+                  "runtime-" + request.orchestrationId(),
+                  request.orchestrationId(),
+                  request.agentId(),
+                  Instant.parse("2026-03-03T10:00:00Z"));
+            });
+    when(agentRuntime.send(
+            any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
+        .thenReturn(
+            new AgentRuntime.SendResult("runtime output", Instant.parse("2026-03-03T10:00:02Z")));
   }
 
   @Test
@@ -111,6 +126,7 @@ class AcpApiTest extends ApiTest {
         .body("error", equalTo(null));
 
     verify(acpSessions).create(any(AcpSessionDescription.class));
+    verify(agentRuntime).start(any(AgentRuntime.StartRequest.class));
   }
 
   @Test
@@ -168,6 +184,7 @@ class AcpApiTest extends ApiTest {
         .body("result.session.id", equalTo("301"))
         .body("result.session.state", equalTo("RUNNING"))
         .body("result.prompt.content", equalTo("Summarize the latest updates"))
+        .body("result.runtime.output", equalTo("runtime output"))
         .body("error", equalTo(null));
 
     verify(acpSessions)
@@ -178,14 +195,36 @@ class AcpApiTest extends ApiTest {
             eq((String) null));
     verify(acpSessions).touch(eq("301"), any());
     verify(acpSessions).bindLastEventId("301", "evt-301");
+    verify(agentRuntime)
+        .send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class));
   }
 
   @Test
   void should_cancel_session_via_json_rpc() {
+    AcpSession pending = session("401", "user-4", AcpSessionDescription.Status.PENDING);
     AcpSession running = session("401", "user-4", AcpSessionDescription.Status.RUNNING);
     AcpSession cancelled = session("401", "user-4", AcpSessionDescription.Status.CANCELLED);
+    when(acpSessions.create(any(AcpSessionDescription.class))).thenReturn(pending);
     when(acpSessions.findByIdentity("401"))
         .thenReturn(Optional.of(running), Optional.of(cancelled));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/new",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "actorUserId", "user-4",
+                        "provider", "team-ai",
+                        "mode", "CHAT"),
+                "id", "req-new-401"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200);
 
     given(documentationSpec)
         .contentType("application/json")
@@ -216,6 +255,7 @@ class AcpApiTest extends ApiTest {
             eq(AcpSessionDescription.Status.CANCELLED),
             any(Instant.class),
             eq("user requested"));
+    verify(agentRuntime).stop(any(AgentRuntime.SessionHandle.class));
   }
 
   @Test
