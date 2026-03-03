@@ -90,7 +90,11 @@ class McpProtocolE2ETest {
             "submit_task_for_review",
             "approve_task",
             "request_task_fix",
-            "list_agent_events");
+            "list_agent_events",
+            "start_orchestration",
+            "get_orchestration",
+            "list_orchestrations",
+            "cancel_orchestration");
   }
 
   @Test

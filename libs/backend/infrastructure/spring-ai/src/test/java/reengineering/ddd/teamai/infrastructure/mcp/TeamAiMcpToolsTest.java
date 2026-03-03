@@ -21,10 +21,12 @@ import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
+import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentEvent;
+import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 import reengineering.ddd.teamai.model.Task;
@@ -37,6 +39,7 @@ class TeamAiMcpToolsTest {
   @Mock private Project.Agents agents;
   @Mock private Project.Tasks tasks;
   @Mock private Project.AgentEvents events;
+  @Mock private Project.OrchestrationSessions orchestrationSessions;
 
   private TeamAiMcpTools tools;
 
@@ -292,6 +295,173 @@ class TeamAiMcpToolsTest {
 
     assertThat(summaries).hasSize(1);
     assertThat(summaries.get(0).id()).isEqualTo("e2");
+  }
+
+  @Test
+  void should_start_orchestration_with_existing_agents_and_task() {
+    Agent coordinator =
+        new Agent(
+            "a-routa",
+            new AgentDescription(
+                "Routa Coordinator",
+                AgentDescription.Role.ROUTA,
+                "SMART",
+                AgentDescription.Status.PENDING,
+                null));
+    Agent implementer =
+        new Agent(
+            "a-crafter",
+            new AgentDescription(
+                "Crafter Implementer",
+                AgentDescription.Role.CRAFTER,
+                "SMART",
+                AgentDescription.Status.PENDING,
+                null));
+    Task task =
+        new Task(
+            "t-1",
+            new TaskDescription(
+                "Bootstrap orchestration",
+                "Bootstrap orchestration",
+                null,
+                List.of("done"),
+                List.of("./gradlew test"),
+                TaskDescription.Status.PENDING,
+                null,
+                null,
+                null,
+                null,
+                null));
+    OrchestrationSession session =
+        new OrchestrationSession(
+            "o-1",
+            new OrchestrationSessionDescription(
+                "Bootstrap orchestration",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>("a-routa"),
+                new Ref<>("a-crafter"),
+                new Ref<>("t-1"),
+                null,
+                Instant.parse("2026-01-01T10:00:00Z"),
+                null,
+                null));
+
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+    when(project.agents()).thenReturn(agents);
+    when(agents.findByIdentity("a-routa")).thenReturn(Optional.of(coordinator));
+    when(agents.findByIdentity("a-crafter")).thenReturn(Optional.of(implementer));
+    when(project.createTask(any(TaskDescription.class))).thenReturn(task);
+    when(project.startOrchestrationSession(any(OrchestrationSessionDescription.class)))
+        .thenReturn(session);
+
+    TeamAiMcpTools.OrchestrationSummary summary =
+        tools.startOrchestration(
+            "p1",
+            "Bootstrap orchestration",
+            "Bootstrap orchestration",
+            null,
+            List.of("done"),
+            List.of("./gradlew test"),
+            "a-routa",
+            "a-crafter");
+
+    verify(project)
+        .delegateTaskForExecution(eqTask("t-1"), eqRef("a-crafter"), eqRef("a-routa"), any(Instant.class));
+    assertThat(summary.id()).isEqualTo("o-1");
+    assertThat(summary.state()).isEqualTo("STARTED");
+    assertThat(summary.taskId()).isEqualTo("t-1");
+  }
+
+  @Test
+  void should_list_and_get_orchestrations() {
+    OrchestrationSession older =
+        new OrchestrationSession(
+            "o-1",
+            new OrchestrationSessionDescription(
+                "older",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>("a-r"),
+                new Ref<>("a-c"),
+                new Ref<>("t-1"),
+                null,
+                Instant.parse("2026-01-01T10:00:00Z"),
+                null,
+                null));
+    OrchestrationSession newer =
+        new OrchestrationSession(
+            "o-2",
+            new OrchestrationSessionDescription(
+                "newer",
+                OrchestrationSessionDescription.Status.REVIEW_REQUIRED,
+                new Ref<>("a-r"),
+                new Ref<>("a-c"),
+                new Ref<>("t-2"),
+                new Ref<>("step-2"),
+                Instant.parse("2026-01-01T11:00:00Z"),
+                null,
+                null));
+
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+    when(project.orchestrationSessions()).thenReturn(orchestrationSessions);
+    when(orchestrationSessions.findAll()).thenReturn(manyOf(older, newer));
+    when(orchestrationSessions.findByIdentity("o-2")).thenReturn(Optional.of(newer));
+
+    List<TeamAiMcpTools.OrchestrationSummary> summaries = tools.listOrchestrations("p1", 10);
+    TeamAiMcpTools.OrchestrationSummary summary = tools.getOrchestration("p1", "o-2");
+
+    assertThat(summaries).hasSize(2);
+    assertThat(summaries.get(0).id()).isEqualTo("o-2");
+    assertThat(summary.state()).isEqualTo("REVIEW_REQUIRED");
+    assertThat(summary.currentStepId()).isEqualTo("step-2");
+  }
+
+  @Test
+  void should_cancel_running_orchestration() {
+    OrchestrationSession running =
+        new OrchestrationSession(
+            "o-1",
+            new OrchestrationSessionDescription(
+                "goal",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>("a-r"),
+                new Ref<>("a-c"),
+                new Ref<>("t-1"),
+                null,
+                Instant.parse("2026-01-01T10:00:00Z"),
+                null,
+                null));
+    OrchestrationSession cancelled =
+        new OrchestrationSession(
+            "o-1",
+            new OrchestrationSessionDescription(
+                "goal",
+                OrchestrationSessionDescription.Status.CANCELLED,
+                new Ref<>("a-r"),
+                new Ref<>("a-c"),
+                new Ref<>("t-1"),
+                null,
+                Instant.parse("2026-01-01T10:00:00Z"),
+                Instant.parse("2026-01-01T10:30:00Z"),
+                "manual stop"));
+
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+    when(project.orchestrationSessions()).thenReturn(orchestrationSessions);
+    when(orchestrationSessions.findByIdentity("o-1"))
+        .thenReturn(Optional.of(running))
+        .thenReturn(Optional.of(cancelled));
+
+    TeamAiMcpTools.OrchestrationSummary summary =
+        tools.cancelOrchestration("p1", "o-1", "manual stop");
+
+    verify(project)
+        .updateOrchestrationSessionStatus(
+            eqTask("o-1"),
+            org.mockito.ArgumentMatchers.eq(OrchestrationSessionDescription.Status.CANCELLED),
+            org.mockito.ArgumentMatchers.isNull(),
+            any(Instant.class),
+            eqString("manual stop"));
+    assertThat(summary.state()).isEqualTo("CANCELLED");
+    assertThat(summary.failureReason()).isEqualTo("manual stop");
   }
 
   @Test
