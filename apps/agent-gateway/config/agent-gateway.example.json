@@ -4,6 +4,8 @@
   "version": "0.1.0",
   "protocols": ["mcp", "acp", "a2a"],
   "providers": ["codex"],
+  "defaultProvider": "codex",
+  "codexCommand": "codex exec -",
   "timeoutMs": 30000,
   "retryAttempts": 2,
   "maxConcurrentSessions": 32,

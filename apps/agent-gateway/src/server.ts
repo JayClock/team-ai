@@ -2,6 +2,7 @@ import http from 'node:http';
 import { URL } from 'node:url';
 import type { GatewayConfig } from './config.js';
 import { Logger } from './logger.js';
+import { ProviderRuntime } from './provider-runtime.js';
 import {
   SessionNotFoundError,
   SessionStateTransitionError,
@@ -14,7 +15,8 @@ import { mapProtocolEvent } from './protocol-event-mapper.js';
 export function createGatewayServer(
   config: GatewayConfig,
   logger: Logger,
-  sessionStore: SessionStore
+  sessionStore: SessionStore,
+  providerRuntime: ProviderRuntime
 ): http.Server {
   const startedAt = Date.now();
 
@@ -49,6 +51,7 @@ export function createGatewayServer(
         writeJson(res, 200, {
           protocols: config.protocols,
           providers: config.providers,
+          defaultProvider: config.defaultProvider,
           limits: {
             timeoutMs: config.timeoutMs,
             retryAttempts: config.retryAttempts,
@@ -61,9 +64,132 @@ export function createGatewayServer(
       if (method === 'POST' && url.pathname === '/sessions') {
         const body = await readJsonBody(req);
         const traceId = asOptionalString(body.traceId);
-        const session = sessionStore.createSession(traceId);
+        const provider = asOptionalString(body.provider) ?? config.defaultProvider;
+        const session = sessionStore.createSession(provider, traceId);
         writeJson(res, 201, {
           session,
+        });
+        return;
+      }
+
+      const promptRoute = matchRoute(url.pathname, /^\/sessions\/([^/]+)\/prompt$/);
+      if (promptRoute && method === 'POST') {
+        const body = await readJsonBody(req);
+        const input = asOptionalString(body.input);
+        if (!input) {
+          writeJson(res, 400, {
+            error: {
+              code: 'INVALID_PROMPT',
+              message: 'input must be a non-empty string',
+            },
+          });
+          return;
+        }
+
+        const timeoutMs = asPositiveNumber(body.timeoutMs) ?? config.timeoutMs;
+        const traceId = asOptionalString(body.traceId);
+        const session = sessionStore.getSession(promptRoute.param);
+
+        sessionStore.appendEvent(promptRoute.param, {
+          type: 'status',
+          traceId,
+          data: {
+            state: 'RUNNING',
+            reason: 'prompt-started',
+            provider: session.provider,
+          },
+          nextState: 'RUNNING',
+        });
+
+        providerRuntime.prompt(session.provider, promptRoute.param, input, timeoutMs, {
+          onChunk: (chunk) => {
+            sessionStore.appendEvent(promptRoute.param, {
+              type: 'delta',
+              traceId,
+              data: {
+                protocol: 'acp',
+                provider: session.provider,
+                text: chunk,
+              },
+              nextState: 'RUNNING',
+            });
+          },
+          onComplete: () => {
+            sessionStore.appendEvent(promptRoute.param, {
+              type: 'complete',
+              traceId,
+              data: {
+                provider: session.provider,
+                reason: 'prompt-finished',
+              },
+              nextState: 'COMPLETED',
+            });
+          },
+          onError: (error) => {
+            if (error.code === 'PROVIDER_CANCELLED') {
+              const currentSession = sessionStore.getSession(promptRoute.param);
+              if (currentSession.state === 'CANCELLED') {
+                return;
+              }
+              sessionStore.appendEvent(promptRoute.param, {
+                type: 'complete',
+                traceId,
+                data: {
+                  provider: session.provider,
+                  reason: 'cancelled',
+                },
+                nextState: 'CANCELLED',
+              });
+              return;
+            }
+
+            sessionStore.appendEvent(promptRoute.param, {
+              type: 'error',
+              traceId,
+              data: {
+                provider: session.provider,
+              },
+              error,
+              nextState: 'FAILED',
+            });
+          },
+        });
+
+        writeJson(res, 202, {
+          accepted: true,
+          session: sessionStore.getSession(promptRoute.param),
+          runtime: {
+            provider: session.provider,
+            timeoutMs,
+          },
+        });
+        return;
+      }
+
+      const cancelRoute = matchRoute(url.pathname, /^\/sessions\/([^/]+)\/cancel$/);
+      if (cancelRoute && method === 'POST') {
+        const body = await readJsonBody(req);
+        const traceId = asOptionalString(body.traceId);
+        const reason = asOptionalString(body.reason) ?? 'cancel-requested';
+        const session = sessionStore.getSession(cancelRoute.param);
+        const cancelled = providerRuntime.cancel(session.provider, cancelRoute.param);
+
+        if (cancelled) {
+          sessionStore.appendEvent(cancelRoute.param, {
+            type: 'complete',
+            traceId,
+            data: {
+              provider: session.provider,
+              reason,
+            },
+            nextState: 'CANCELLED',
+          });
+        }
+
+        writeJson(res, 202, {
+          accepted: true,
+          cancelled,
+          session: sessionStore.getSession(cancelRoute.param),
         });
         return;
       }
@@ -271,4 +397,14 @@ function asProtocolName(value: unknown): ProtocolName | null {
     return normalized;
   }
   return null;
+}
+
+function asPositiveNumber(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+  if (value <= 0) {
+    return null;
+  }
+  return value;
 }

@@ -40,6 +40,7 @@ export type SessionEventInput = {
 
 export type GatewaySession = {
   sessionId: string;
+  provider: string;
   state: GatewaySessionState;
   createdAt: string;
   updatedAt: string;
@@ -85,11 +86,12 @@ export class SessionStore {
   private readonly sessions = new Map<string, SessionRecord>();
   private readonly emitter = new EventEmitter();
 
-  createSession(traceId?: string): GatewaySession {
+  createSession(provider: string, traceId?: string): GatewaySession {
     const now = new Date().toISOString();
     const sessionId = randomUUID();
     const record: SessionRecord = {
       sessionId,
+      provider,
       state: 'PENDING',
       createdAt: now,
       updatedAt: now,
@@ -104,6 +106,7 @@ export class SessionStore {
       type: 'status',
       traceId,
       data: {
+        provider,
         state: 'PENDING',
         reason: 'session-created',
       },
@@ -202,6 +205,7 @@ export class SessionStore {
   private snapshot(record: SessionRecord): GatewaySession {
     return {
       sessionId: record.sessionId,
+      provider: record.provider,
       state: record.state,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,

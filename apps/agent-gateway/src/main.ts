@@ -1,6 +1,7 @@
 import type { AddressInfo } from 'node:net';
 import { loadConfig } from './config.js';
 import { Logger } from './logger.js';
+import { ProviderRuntime } from './provider-runtime.js';
 import { createGatewayServer } from './server.js';
 import { SessionStore } from './session-store.js';
 
@@ -8,7 +9,8 @@ function main(): void {
   const config = loadConfig(process.env);
   const logger = new Logger(config.logLevel);
   const sessionStore = new SessionStore();
-  const server = createGatewayServer(config, logger, sessionStore);
+  const providerRuntime = new ProviderRuntime(config.codexCommand);
+  const server = createGatewayServer(config, logger, sessionStore, providerRuntime);
 
   server.on('error', (error: Error) => {
     logger.error('agent-gateway failed', { error: error.message });

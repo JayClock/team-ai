@@ -9,6 +9,8 @@ export type GatewayConfig = {
   version: string;
   protocols: string[];
   providers: string[];
+  defaultProvider: string;
+  codexCommand: string;
   timeoutMs: number;
   retryAttempts: number;
   maxConcurrentSessions: number;
@@ -23,6 +25,8 @@ const DEFAULT_CONFIG: GatewayConfig = {
   version: '0.1.0',
   protocols: ['mcp', 'acp', 'a2a'],
   providers: ['codex'],
+  defaultProvider: 'codex',
+  codexCommand: 'codex exec -',
   timeoutMs: 30_000,
   retryAttempts: 2,
   maxConcurrentSessions: 32,
@@ -60,6 +64,8 @@ function loadEnvConfig(env: NodeJS.ProcessEnv): PartialGatewayConfig {
     version: env.AGENT_GATEWAY_VERSION,
     protocols: parseCsv(env.AGENT_GATEWAY_PROTOCOLS),
     providers: parseCsv(env.AGENT_GATEWAY_PROVIDERS),
+    defaultProvider: env.AGENT_GATEWAY_DEFAULT_PROVIDER,
+    codexCommand: env.AGENT_GATEWAY_CODEX_COMMAND,
     timeoutMs: parseInteger(env.AGENT_GATEWAY_TIMEOUT_MS, 'AGENT_GATEWAY_TIMEOUT_MS'),
     retryAttempts: parseInteger(
       env.AGENT_GATEWAY_RETRY_ATTEMPTS,
@@ -78,6 +84,11 @@ function normalizeConfig(config: PartialGatewayConfig): GatewayConfig {
   const version = nonEmptyOrDefault(config.version, DEFAULT_CONFIG.version);
   const protocols = normalizeList(config.protocols, DEFAULT_CONFIG.protocols);
   const providers = normalizeList(config.providers, DEFAULT_CONFIG.providers);
+  const defaultProvider = nonEmptyOrDefault(
+    config.defaultProvider,
+    config.providers?.[0] ?? DEFAULT_CONFIG.defaultProvider
+  );
+  const codexCommand = nonEmptyOrDefault(config.codexCommand, DEFAULT_CONFIG.codexCommand);
   const port = positiveOrDefault(config.port, DEFAULT_CONFIG.port, 'port');
   const timeoutMs = positiveOrDefault(
     config.timeoutMs,
@@ -102,6 +113,8 @@ function normalizeConfig(config: PartialGatewayConfig): GatewayConfig {
     version,
     protocols,
     providers,
+    defaultProvider,
+    codexCommand,
     timeoutMs,
     retryAttempts,
     maxConcurrentSessions,

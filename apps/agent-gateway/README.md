@@ -11,6 +11,8 @@ Minimal protocol gateway skeleton for ACP/MCP/A2A integration.
 - `POST /sessions/:sessionId/events` ingest protocol event (`mcp|acp|a2a`)
 - `GET /sessions/:sessionId/events?cursor=<eventId>` query events incrementally
 - `GET /sessions/:sessionId/stream?cursor=<eventId>` SSE stream
+- `POST /sessions/:sessionId/prompt` run provider prompt and stream output events
+- `POST /sessions/:sessionId/cancel` cancel active provider run
 
 ## Configuration
 
@@ -27,6 +29,8 @@ Configuration priority (high to low):
 - `AGENT_GATEWAY_VERSION` (default: `0.1.0`)
 - `AGENT_GATEWAY_PROTOCOLS` (comma-separated, default: `mcp,acp,a2a`)
 - `AGENT_GATEWAY_PROVIDERS` (comma-separated, default: `codex`)
+- `AGENT_GATEWAY_DEFAULT_PROVIDER` (default: `codex`)
+- `AGENT_GATEWAY_CODEX_COMMAND` (default: `codex exec -`)
 - `AGENT_GATEWAY_TIMEOUT_MS` (default: `30000`)
 - `AGENT_GATEWAY_RETRY_ATTEMPTS` (default: `2`)
 - `AGENT_GATEWAY_MAX_CONCURRENT_SESSIONS` (default: `32`)
