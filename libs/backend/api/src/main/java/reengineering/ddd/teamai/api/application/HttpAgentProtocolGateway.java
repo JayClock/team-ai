@@ -27,6 +27,7 @@ import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
  * handling to the TypeScript gateway.
  */
 public class HttpAgentProtocolGateway implements AgentProtocolGateway {
+  private static final String TRACE_ID_HEADER = "X-Trace-Id";
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
   private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE =
@@ -89,7 +90,9 @@ public class HttpAgentProtocolGateway implements AgentProtocolGateway {
             appendDelta(output, event.path("data"));
           } else if ("error".equals(type)) {
             JsonNode error = event.path("error");
-            throw new AgentRuntimeException(
+            throw gatewayException(
+                error,
+                "RUNTIME_FAILURE",
                 text(error, "message") == null ? "gateway error" : text(error, "message"));
           } else if ("complete".equals(type)) {
             String mergedOutput = normalizeOutput(output.toString(), event.path("data"));
@@ -137,6 +140,7 @@ public class HttpAgentProtocolGateway implements AgentProtocolGateway {
             .timeout(REQUEST_TIMEOUT)
             .GET()
             .header("Accept", "application/json")
+            .header(TRACE_ID_HEADER, traceId())
             .build();
     return send(request);
   }
@@ -149,6 +153,7 @@ public class HttpAgentProtocolGateway implements AgentProtocolGateway {
             .POST(HttpRequest.BodyPublishers.ofString(toJson(body)))
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
+            .header(TRACE_ID_HEADER, traceId())
             .build();
     return send(request);
   }
@@ -157,16 +162,27 @@ public class HttpAgentProtocolGateway implements AgentProtocolGateway {
     try {
       HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
       if (response.statusCode() >= 400) {
-        throw new AgentRuntimeException(
-            "Gateway request failed: " + response.statusCode() + " " + response.body());
+        JsonNode payload = parseJson(response.body());
+        JsonNode error = payload.path("error");
+        throw gatewayException(
+            error,
+            "RUNTIME_HTTP_" + response.statusCode(),
+            "Gateway request failed: " + response.statusCode());
       }
-      return OBJECT_MAPPER.readTree(response.body());
+      return parseJson(response.body());
     } catch (IOException error) {
       throw new AgentRuntimeException("Gateway IO error: " + error.getMessage());
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
       throw new AgentRuntimeException("Gateway request interrupted");
     }
+  }
+
+  private JsonNode parseJson(String body) throws IOException {
+    if (body == null || body.isBlank()) {
+      return OBJECT_MAPPER.createObjectNode();
+    }
+    return OBJECT_MAPPER.readTree(body);
   }
 
   private String toJson(Map<String, Object> value) {
@@ -217,6 +233,45 @@ public class HttpAgentProtocolGateway implements AgentProtocolGateway {
     return "codex";
   }
 
+  private AgentRuntimeException gatewayException(
+      JsonNode errorNode, String fallbackCode, String fallbackMessage) {
+    String code = text(errorNode, "code");
+    String message = text(errorNode, "message");
+    boolean retryable = bool(errorNode, "retryable", true);
+    long retryAfterMs = number(errorNode, "retryAfterMs", 1000L);
+    String category = text(errorNode, "category");
+    String resolvedCode = code == null || code.isBlank() ? fallbackCode : code;
+    String resolvedMessage = message == null || message.isBlank() ? fallbackMessage : message;
+    String resolvedCategory =
+        category == null || category.isBlank() ? classifyCategory(resolvedCode) : category;
+    if (isTimeoutCode(resolvedCode)) {
+      return new AgentRuntimeTimeoutException(resolvedMessage);
+    }
+    return new GatewayAgentRuntimeException(
+        resolvedCode, resolvedMessage, retryable, retryAfterMs, resolvedCategory);
+  }
+
+  private boolean isTimeoutCode(String code) {
+    return code != null && code.toUpperCase().contains("TIMEOUT");
+  }
+
+  private String classifyCategory(String code) {
+    if (code == null || code.isBlank()) {
+      return "runtime";
+    }
+    String normalized = code.toUpperCase();
+    if (normalized.startsWith("PROVIDER_")) {
+      return "provider";
+    }
+    if (normalized.startsWith("PROTOCOL_")
+        || normalized.startsWith("INVALID_")
+        || normalized.equals("NOT_FOUND")
+        || normalized.equals("SESSION_NOT_FOUND")) {
+      return "protocol";
+    }
+    return "runtime";
+  }
+
   private Map<String, Object> parseMcpConfig(String mcpConfig) {
     if (mcpConfig == null || mcpConfig.isBlank()) {
       return Map.of();
@@ -244,6 +299,23 @@ public class HttpAgentProtocolGateway implements AgentProtocolGateway {
 
   private String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
+  }
+
+  private boolean bool(JsonNode node, String field, boolean fallback) {
+    JsonNode value = node.path(field);
+    if (value.isMissingNode() || value.isNull()) {
+      return fallback;
+    }
+    return value.asBoolean(fallback);
+  }
+
+  private long number(JsonNode node, String field, long fallback) {
+    JsonNode value = node.path(field);
+    if (value.isMissingNode() || value.isNull()) {
+      return fallback;
+    }
+    long candidate = value.asLong(fallback);
+    return Math.max(0L, candidate);
   }
 
   private String text(JsonNode node, String field) {

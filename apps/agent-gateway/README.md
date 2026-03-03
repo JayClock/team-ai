@@ -7,12 +7,19 @@ Minimal protocol gateway skeleton for ACP/MCP/A2A integration.
 - `GET /health`
 - `GET /version`
 - `GET /capabilities`
+- `GET /metrics` export gateway runtime metrics (session success rate, first token latency, completion rate, error distribution)
 - `POST /sessions` create in-memory session
 - `POST /sessions/:sessionId/events` ingest protocol event (`mcp|acp|a2a`)
 - `GET /sessions/:sessionId/events?cursor=<eventId>` query events incrementally
 - `GET /sessions/:sessionId/stream?cursor=<eventId>` SSE stream
 - `POST /sessions/:sessionId/prompt` run provider prompt and stream output events
 - `POST /sessions/:sessionId/cancel` cancel active provider run
+
+## Observability
+
+- Supports `X-Trace-Id` request header for cross-process log correlation
+- Echoes `X-Trace-Id` in responses and event envelopes
+- Exposes unified error structure: `code`, `category`, `retryable`, `retryAfterMs`
 
 ## Configuration
 

@@ -38,11 +38,13 @@ class HttpAgentProtocolGatewayTest {
   @Test
   void should_start_session_with_provider_and_trace_id() throws IOException {
     AtomicReference<JsonNode> payload = new AtomicReference<>();
+    AtomicReference<String> traceHeader = new AtomicReference<>();
     startServer(
         exchange -> {
           if ("POST".equals(exchange.getRequestMethod())
               && "/sessions".equals(exchange.getRequestURI().getPath())) {
             payload.set(readJsonBody(exchange));
+            traceHeader.set(exchange.getRequestHeaders().getFirst("X-Trace-Id"));
             writeJson(exchange, 200, "{\"session\":{\"sessionId\":\"remote-s-1\"}}");
             return;
           }
@@ -60,6 +62,7 @@ class HttpAgentProtocolGatewayTest {
     assertThat(handle.orchestrationId()).isEqualTo("orchestration-1");
     assertThat(payload.get().path("provider").asText()).isEqualTo("a2a");
     assertThat(payload.get().path("traceId").asText()).isEqualTo("trace-remote-1");
+    assertThat(traceHeader.get()).isEqualTo("trace-remote-1");
   }
 
   @Test
@@ -141,6 +144,42 @@ class HttpAgentProtocolGatewayTest {
                     session("remote-s-3"),
                     new AgentProtocolGateway.SendRequest("prompt", Duration.ofSeconds(2))));
     assertThat(error.getMessage()).contains("provider failed");
+    assertThat(error).isInstanceOf(GatewayAgentRuntimeException.class);
+    GatewayAgentRuntimeException gatewayError = (GatewayAgentRuntimeException) error;
+    assertThat(gatewayError.code()).isEqualTo("RUNTIME_FAILURE");
+    assertThat(gatewayError.category()).isEqualTo("runtime");
+  }
+
+  @Test
+  void should_map_gateway_error_from_http_response_body() throws IOException {
+    startServer(
+        exchange -> {
+          if ("POST".equals(exchange.getRequestMethod())
+              && "/sessions".equals(exchange.getRequestURI().getPath())) {
+            writeJson(
+                exchange,
+                400,
+                "{\"error\":{\"code\":\"PROTOCOL_INVALID_PAYLOAD\",\"message\":\"bad payload\",\"retryable\":false,\"retryAfterMs\":0,\"category\":\"protocol\"}}");
+            return;
+          }
+          writeJson(exchange, 404, "{\"error\":\"not found\"}");
+        });
+
+    HttpAgentProtocolGateway gateway = new HttpAgentProtocolGateway(baseUrl(), 20);
+
+    AgentRuntimeException error =
+        assertThrows(
+            AgentRuntimeException.class,
+            () ->
+                gateway.start(
+                    new AgentProtocolGateway.StartRequest(
+                        "orchestration-http-1", "agent-http-1", "goal", "{\"provider\":\"acp\"}")));
+    assertThat(error).isInstanceOf(GatewayAgentRuntimeException.class);
+    GatewayAgentRuntimeException gatewayError = (GatewayAgentRuntimeException) error;
+    assertThat(gatewayError.code()).isEqualTo("PROTOCOL_INVALID_PAYLOAD");
+    assertThat(gatewayError.category()).isEqualTo("protocol");
+    assertThat(gatewayError.retryable()).isFalse();
+    assertThat(gatewayError.retryAfterMs()).isEqualTo(0L);
   }
 
   @Test

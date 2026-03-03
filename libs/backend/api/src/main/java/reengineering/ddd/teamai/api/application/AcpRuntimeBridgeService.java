@@ -18,6 +18,7 @@ import reengineering.ddd.teamai.model.AcpSessionEvent;
 import reengineering.ddd.teamai.model.AcpSessionEventStore;
 import reengineering.ddd.teamai.model.AgentProtocolGateway;
 import reengineering.ddd.teamai.model.AgentRuntime;
+import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 
 @Component
 public class AcpRuntimeBridgeService {
@@ -29,6 +30,7 @@ public class AcpRuntimeBridgeService {
   private final AgentProtocolGateway gateway;
   private final AcpEventIdGenerator eventIdGenerator;
   private final AcpSessionEventStore sessionEventStore;
+  private final AcpRuntimeTelemetry telemetry;
   private final Map<String, AgentProtocolGateway.SessionHandle> activeHandles =
       new ConcurrentHashMap<>();
   private final Map<String, CopyOnWriteArrayList<AcpEventEnvelope>> sessionEvents =
@@ -39,14 +41,20 @@ public class AcpRuntimeBridgeService {
   public AcpRuntimeBridgeService(
       AgentProtocolGateway gateway,
       AcpEventIdGenerator eventIdGenerator,
-      AcpSessionEventStore sessionEventStore) {
+      AcpSessionEventStore sessionEventStore,
+      AcpRuntimeTelemetry telemetry) {
     this.gateway = gateway;
     this.eventIdGenerator = eventIdGenerator;
     this.sessionEventStore = sessionEventStore;
+    this.telemetry = telemetry;
   }
 
   public AcpRuntimeBridgeService(AgentRuntime runtime, AcpEventIdGenerator eventIdGenerator) {
-    this(new AgentRuntimeGateway(runtime), eventIdGenerator, noopEventStore());
+    this(
+        new AgentRuntimeGateway(runtime),
+        eventIdGenerator,
+        noopEventStore(),
+        AcpRuntimeTelemetry.noop());
   }
 
   public AgentProtocolGateway.SessionHandle startSession(
@@ -56,27 +64,49 @@ public class AcpRuntimeBridgeService {
     return activeHandles.computeIfAbsent(
         sessionId,
         ignored -> {
-          AgentProtocolGateway.SessionHandle handle =
-              gateway.start(
-                  new AgentProtocolGateway.StartRequest(
-                      sessionId,
-                      actorUserId,
-                      goal == null || goal.isBlank() ? "ACP session " + sessionId : goal.trim()));
-          appendEvent(
-              sessionId,
-              AcpEventEnvelope.TYPE_STATUS,
-              Map.of(
-                  "state", "RUNNING",
-                  "runtimeSessionId", handle.sessionId(),
-                  "startedAt", handle.startedAt()),
-              null);
-          log.info(
-              "event=acp_runtime_started traceId={} sessionId={} runtimeSessionId={} actorUserId={}",
-              traceId(),
-              sessionId,
-              handle.sessionId(),
-              actorUserId);
-          return handle;
+          Instant startedAt = Instant.now();
+          try {
+            AgentProtocolGateway.SessionHandle handle =
+                gateway.start(
+                    new AgentProtocolGateway.StartRequest(
+                        sessionId,
+                        actorUserId,
+                        goal == null || goal.isBlank() ? "ACP session " + sessionId : goal.trim()));
+            appendEvent(
+                sessionId,
+                AcpEventEnvelope.TYPE_STATUS,
+                Map.of(
+                    "state", "RUNNING",
+                    "runtimeSessionId", handle.sessionId(),
+                    "startedAt", handle.startedAt()),
+                null);
+            telemetry.sessionCreateResult(
+                normalizedProjectId,
+                sessionId,
+                actorUserId,
+                "success",
+                durationBetween(startedAt, Instant.now()),
+                null,
+                null);
+            log.info(
+                "event=acp_runtime_started traceId={} sessionId={} runtimeSessionId={} actorUserId={}",
+                traceId(),
+                sessionId,
+                handle.sessionId(),
+                actorUserId);
+            return handle;
+          } catch (RuntimeException error) {
+            RuntimeFailure failure = toRuntimeFailure(error);
+            telemetry.sessionCreateResult(
+                normalizedProjectId,
+                sessionId,
+                actorUserId,
+                "failure",
+                durationBetween(startedAt, Instant.now()),
+                failure.category(),
+                failure.code());
+            throw error;
+          }
         });
   }
 
@@ -90,6 +120,7 @@ public class AcpRuntimeBridgeService {
     AgentProtocolGateway.SessionHandle handle = requireHandle(sessionId);
     Duration effectiveTimeout =
         timeout == null || timeout.isNegative() || timeout.isZero() ? DEFAULT_TIMEOUT : timeout;
+    Instant startedAt = Instant.now();
     try {
       AgentProtocolGateway.SendResult result =
           gateway.send(handle, new AgentProtocolGateway.SendRequest(prompt, effectiveTimeout));
@@ -108,18 +139,37 @@ public class AcpRuntimeBridgeService {
           traceId(),
           sessionId,
           result.completedAt());
+      telemetry.promptResult(
+          sessionId,
+          "success",
+          durationBetween(startedAt, result.completedAt()),
+          null,
+          null,
+          false);
       return result;
     } catch (RuntimeException error) {
+      RuntimeFailure failure = toRuntimeFailure(error);
       appendEvent(
           sessionId,
           AcpEventEnvelope.TYPE_ERROR,
-          Map.of(),
-          new AcpEventEnvelope.EventError("RUNTIME_FAILURE", message(error), true, 1000));
+          Map.of("code", failure.code(), "category", failure.category()),
+          new AcpEventEnvelope.EventError(
+              failure.code(), failure.message(), failure.retryable(), failure.retryAfterMs()));
+      telemetry.promptResult(
+          sessionId,
+          "failure",
+          durationBetween(startedAt, Instant.now()),
+          failure.category(),
+          failure.code(),
+          failure.retryable());
+      telemetry.promptErrorDistribution(failure.category(), failure.code(), failure.retryable());
       log.warn(
-          "event=acp_runtime_prompt_failed traceId={} sessionId={} message={}",
+          "event=acp_runtime_prompt_failed traceId={} sessionId={} code={} category={} message={}",
           traceId(),
           sessionId,
-          message(error));
+          failure.code(),
+          failure.category(),
+          failure.message());
       throw error;
     }
   }
@@ -311,8 +361,38 @@ public class AcpRuntimeBridgeService {
     return message == null || message.isBlank() ? "runtime failed" : message;
   }
 
+  private RuntimeFailure toRuntimeFailure(RuntimeException error) {
+    String resolvedMessage = message(error);
+    if (error instanceof GatewayAgentRuntimeException gatewayError) {
+      return new RuntimeFailure(
+          gatewayError.code(),
+          gatewayError.category(),
+          gatewayError.retryable(),
+          gatewayError.retryAfterMs(),
+          resolvedMessage);
+    }
+    if (error instanceof AgentRuntimeTimeoutException) {
+      return new RuntimeFailure("RUNTIME_TIMEOUT", "runtime", true, 1000, resolvedMessage);
+    }
+    return new RuntimeFailure("RUNTIME_FAILURE", "runtime", true, 1000, resolvedMessage);
+  }
+
+  private Duration durationBetween(Instant startedAt, Instant endedAt) {
+    if (startedAt == null || endedAt == null) {
+      return Duration.ZERO;
+    }
+    Duration duration = Duration.between(startedAt, endedAt);
+    if (duration.isNegative()) {
+      return Duration.ZERO;
+    }
+    return duration;
+  }
+
   private String traceId() {
     String traceId = MDC.get("traceId");
     return traceId == null || traceId.isBlank() ? "unknown" : traceId;
   }
+
+  private record RuntimeFailure(
+      String code, String category, boolean retryable, long retryAfterMs, String message) {}
 }

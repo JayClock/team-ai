@@ -2,6 +2,7 @@ import http from 'node:http';
 import { URL } from 'node:url';
 import type { GatewayConfig } from './config.js';
 import { Logger } from './logger.js';
+import { classifyErrorCode, GatewayMetrics, resolveTraceId } from './observability.js';
 import { ProviderRuntime } from './provider-runtime.js';
 import {
   SessionNotFoundError,
@@ -12,11 +13,18 @@ import {
 } from './session-store.js';
 import { mapProtocolEvent } from './protocol-event-mapper.js';
 
+const TRACE_ID_HEADER = 'X-Trace-Id';
+
+class BadRequestError extends Error {
+  readonly code = 'INVALID_REQUEST_BODY';
+}
+
 export function createGatewayServer(
   config: GatewayConfig,
   logger: Logger,
   sessionStore: SessionStore,
-  providerRuntime: ProviderRuntime
+  providerRuntime: ProviderRuntime,
+  metrics: GatewayMetrics
 ): http.Server {
   const startedAt = Date.now();
 
@@ -24,12 +32,13 @@ export function createGatewayServer(
     const method = req.method ?? 'GET';
     const requestUrl = req.url ?? '/';
     const url = new URL(requestUrl, `http://${config.host}:${config.port}`);
+    const traceIdFromHeader = resolveTraceId(readTraceIdHeader(req), undefined);
 
-    logger.debug('incoming request', { method, path: url.pathname });
+    logger.debug('incoming request', { traceId: traceIdFromHeader, method, path: url.pathname });
 
     try {
       if (method === 'GET' && url.pathname === '/health') {
-        writeJson(res, 200, {
+        writeJsonWithTrace(res, 200, traceIdFromHeader, {
           status: 'ok',
           service: 'agent-gateway',
           uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
@@ -38,7 +47,7 @@ export function createGatewayServer(
       }
 
       if (method === 'GET' && url.pathname === '/version') {
-        writeJson(res, 200, {
+        writeJsonWithTrace(res, 200, traceIdFromHeader, {
           name: 'agent-gateway',
           version: config.version,
           runtime: 'node',
@@ -48,7 +57,7 @@ export function createGatewayServer(
       }
 
       if (method === 'GET' && url.pathname === '/capabilities') {
-        writeJson(res, 200, {
+        writeJsonWithTrace(res, 200, traceIdFromHeader, {
           protocols: config.protocols,
           providers: config.providers,
           defaultProvider: config.defaultProvider,
@@ -61,12 +70,19 @@ export function createGatewayServer(
         return;
       }
 
+      if (method === 'GET' && url.pathname === '/metrics') {
+        writeJsonWithTrace(res, 200, traceIdFromHeader, metrics.snapshot());
+        return;
+      }
+
       if (method === 'POST' && url.pathname === '/sessions') {
         const body = await readJsonBody(req);
-        const traceId = asOptionalString(body.traceId);
+        const traceId = resolveTraceId(traceIdFromHeader, asOptionalString(body.traceId));
         const provider = asOptionalString(body.provider) ?? config.defaultProvider;
+        metrics.sessionCreateStarted();
         const session = sessionStore.createSession(provider, traceId);
-        writeJson(res, 201, {
+        metrics.sessionCreateSucceeded();
+        writeJsonWithTrace(res, 201, traceId, {
           session,
         });
         return;
@@ -75,20 +91,24 @@ export function createGatewayServer(
       const promptRoute = matchRoute(url.pathname, /^\/sessions\/([^/]+)\/prompt$/);
       if (promptRoute && method === 'POST') {
         const body = await readJsonBody(req);
+        const traceId = resolveTraceId(traceIdFromHeader, asOptionalString(body.traceId));
         const input = asOptionalString(body.input);
         if (!input) {
-          writeJson(res, 400, {
-            error: {
-              code: 'INVALID_PROMPT',
-              message: 'input must be a non-empty string',
-            },
-          });
+          writeError(
+            res,
+            400,
+            traceId,
+            'INVALID_PROMPT',
+            'input must be a non-empty string',
+            false,
+            0
+          );
           return;
         }
 
         const timeoutMs = asPositiveNumber(body.timeoutMs) ?? config.timeoutMs;
-        const traceId = asOptionalString(body.traceId);
         const session = sessionStore.getSession(promptRoute.param);
+        metrics.promptStarted(promptRoute.param);
 
         sessionStore.appendEvent(promptRoute.param, {
           type: 'status',
@@ -101,8 +121,9 @@ export function createGatewayServer(
           nextState: 'RUNNING',
         });
 
-        providerRuntime.prompt(session.provider, promptRoute.param, input, timeoutMs, {
+        providerRuntime.prompt(session.provider, promptRoute.param, input, timeoutMs, traceId, {
           onChunk: (chunk) => {
+            metrics.firstToken(promptRoute.param);
             sessionStore.appendEvent(promptRoute.param, {
               type: 'delta',
               traceId,
@@ -115,6 +136,7 @@ export function createGatewayServer(
             });
           },
           onComplete: () => {
+            metrics.promptCompletedNow(promptRoute.param);
             sessionStore.appendEvent(promptRoute.param, {
               type: 'complete',
               traceId,
@@ -126,6 +148,7 @@ export function createGatewayServer(
             });
           },
           onError: (error) => {
+            metrics.promptFailedNow(promptRoute.param, error.code);
             if (error.code === 'PROVIDER_CANCELLED') {
               const currentSession = sessionStore.getSession(promptRoute.param);
               if (currentSession.state === 'CANCELLED') {
@@ -148,6 +171,7 @@ export function createGatewayServer(
               traceId,
               data: {
                 provider: session.provider,
+                category: classifyErrorCode(error.code),
               },
               error,
               nextState: 'FAILED',
@@ -155,7 +179,7 @@ export function createGatewayServer(
           },
         });
 
-        writeJson(res, 202, {
+        writeJsonWithTrace(res, 202, traceId, {
           accepted: true,
           session: sessionStore.getSession(promptRoute.param),
           runtime: {
@@ -169,12 +193,13 @@ export function createGatewayServer(
       const cancelRoute = matchRoute(url.pathname, /^\/sessions\/([^/]+)\/cancel$/);
       if (cancelRoute && method === 'POST') {
         const body = await readJsonBody(req);
-        const traceId = asOptionalString(body.traceId);
+        const traceId = resolveTraceId(traceIdFromHeader, asOptionalString(body.traceId));
         const reason = asOptionalString(body.reason) ?? 'cancel-requested';
         const session = sessionStore.getSession(cancelRoute.param);
         const cancelled = providerRuntime.cancel(session.provider, cancelRoute.param);
 
         if (cancelled) {
+          metrics.promptFailedNow(cancelRoute.param, 'PROVIDER_CANCELLED');
           sessionStore.appendEvent(cancelRoute.param, {
             type: 'complete',
             traceId,
@@ -186,7 +211,7 @@ export function createGatewayServer(
           });
         }
 
-        writeJson(res, 202, {
+        writeJsonWithTrace(res, 202, traceId, {
           accepted: true,
           cancelled,
           session: sessionStore.getSession(cancelRoute.param),
@@ -197,25 +222,36 @@ export function createGatewayServer(
       const eventsRoute = matchRoute(url.pathname, /^\/sessions\/([^/]+)\/events$/);
       if (eventsRoute && method === 'POST') {
         const body = await readJsonBody(req);
+        const traceId = resolveTraceId(traceIdFromHeader, asOptionalString(body.traceId));
         const protocol = asProtocolName(body.protocol);
         if (!protocol) {
-          writeJson(res, 400, {
-            error: {
-              code: 'INVALID_PROTOCOL',
-              message: 'protocol must be one of mcp|acp|a2a',
-            },
-          });
+          writeError(
+            res,
+            400,
+            traceId,
+            'INVALID_PROTOCOL',
+            'protocol must be one of mcp|acp|a2a',
+            false,
+            0
+          );
           return;
         }
 
         const normalizedEvent = mapProtocolEvent({
           protocol,
           payload: body.payload,
-          traceId: asOptionalString(body.traceId),
+          traceId,
         });
+        if (normalizedEvent.error) {
+          metrics.recordError(normalizedEvent.error.code);
+          normalizedEvent.data = {
+            ...(normalizedEvent.data ?? {}),
+            category: classifyErrorCode(normalizedEvent.error.code),
+          };
+        }
 
         const event = sessionStore.appendEvent(eventsRoute.param, normalizedEvent);
-        writeJson(res, 202, {
+        writeJsonWithTrace(res, 202, traceId, {
           session: sessionStore.getSession(eventsRoute.param),
           event,
         });
@@ -226,7 +262,7 @@ export function createGatewayServer(
         const cursor = url.searchParams.get('cursor');
         const events = sessionStore.listEventsSince(eventsRoute.param, cursor);
         const session = sessionStore.getSession(eventsRoute.param);
-        writeJson(res, 200, {
+        writeJsonWithTrace(res, 200, traceIdFromHeader, {
           session,
           cursor,
           nextCursor: events.length > 0 ? events[events.length - 1].cursor : session.lastCursor,
@@ -237,31 +273,46 @@ export function createGatewayServer(
 
       const streamRoute = matchRoute(url.pathname, /^\/sessions\/([^/]+)\/stream$/);
       if (streamRoute && method === 'GET') {
+        const traceId = traceIdFromHeader;
         const cursor = url.searchParams.get('cursor');
         const initialEvents = sessionStore.listEventsSince(streamRoute.param, cursor);
         const session = sessionStore.getSession(streamRoute.param);
-        openSseStream(res, streamRoute.param, sessionStore, initialEvents, session.lastCursor);
+        openSseStream(
+          res,
+          traceId,
+          streamRoute.param,
+          sessionStore,
+          initialEvents,
+          session.lastCursor
+        );
         return;
       }
 
-      writeJson(res, 404, {
-        error: 'not_found',
-        message: `Unknown endpoint: ${url.pathname}`,
-      });
+      writeError(
+        res,
+        404,
+        traceIdFromHeader,
+        'NOT_FOUND',
+        `Unknown endpoint: ${url.pathname}`,
+        false,
+        0
+      );
     } catch (error) {
-      handleError(res, error);
+      handleError(res, error, traceIdFromHeader, logger, metrics);
     }
   });
 }
 
 function openSseStream(
   response: http.ServerResponse,
+  traceId: string,
   sessionId: string,
   sessionStore: SessionStore,
   initialEvents: GatewayEventEnvelope[],
   currentCursor: string | null
 ): void {
   response.statusCode = 200;
+  response.setHeader(TRACE_ID_HEADER, traceId);
   response.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   response.setHeader('Cache-Control', 'no-cache');
   response.setHeader('Connection', 'keep-alive');
@@ -305,49 +356,78 @@ function writeJson(
   response.end(JSON.stringify(payload));
 }
 
-function handleError(response: http.ServerResponse, error: unknown): void {
+function writeJsonWithTrace(
+  response: http.ServerResponse,
+  statusCode: number,
+  traceId: string,
+  payload: Record<string, unknown>
+): void {
+  response.setHeader(TRACE_ID_HEADER, traceId);
+  writeJson(response, statusCode, {
+    ...payload,
+    traceId,
+  });
+}
+
+function writeError(
+  response: http.ServerResponse,
+  statusCode: number,
+  traceId: string,
+  code: string,
+  message: string,
+  retryable: boolean,
+  retryAfterMs: number
+): void {
+  writeJsonWithTrace(response, statusCode, traceId, {
+    error: {
+      code,
+      category: classifyErrorCode(code),
+      message,
+      retryable,
+      retryAfterMs,
+    },
+  });
+}
+
+function handleError(
+  response: http.ServerResponse,
+  error: unknown,
+  traceId: string,
+  logger: Logger,
+  metrics: GatewayMetrics
+): void {
   if (error instanceof SessionNotFoundError) {
-    writeJson(response, 404, {
-      error: {
-        code: error.code,
-        message: error.message,
-        retryable: false,
-      },
-    });
+    metrics.recordError(error.code, 'protocol');
+    writeError(response, 404, traceId, error.code, error.message, false, 0);
     return;
   }
 
   if (error instanceof SessionStateTransitionError) {
-    writeJson(response, 409, {
-      error: {
-        code: error.code,
-        message: error.message,
-        retryable: false,
-      },
-    });
+    metrics.recordError(error.code, 'runtime');
+    writeError(response, 409, traceId, error.code, error.message, false, 0);
+    return;
+  }
+
+  if (error instanceof BadRequestError) {
+    metrics.recordError(error.code, 'protocol');
+    writeError(response, 400, traceId, error.code, error.message, false, 0);
     return;
   }
 
   if (error instanceof Error) {
-    writeJson(response, 500, {
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: error.message,
-        retryable: true,
-        retryAfterMs: 1000,
-      },
+    const message = error.message.trim().length > 0 ? error.message : 'Internal server error';
+    metrics.recordError('INTERNAL_ERROR', 'runtime');
+    logger.error('gateway request failed', {
+      traceId,
+      code: 'INTERNAL_ERROR',
+      message,
     });
+    writeError(response, 500, traceId, 'INTERNAL_ERROR', message, true, 1000);
     return;
   }
 
-  writeJson(response, 500, {
-    error: {
-      code: 'INTERNAL_ERROR',
-      message: 'Unknown server error',
-      retryable: true,
-      retryAfterMs: 1000,
-    },
-  });
+  metrics.recordError('INTERNAL_ERROR', 'runtime');
+  writeError(response, 500, traceId, 'INTERNAL_ERROR', 'Unknown server error', true, 1000);
 }
 
 function matchRoute(pathname: string, pattern: RegExp): { param: string } | null {
@@ -369,9 +449,14 @@ async function readJsonBody(request: http.IncomingMessage): Promise<Record<strin
     return {};
   }
 
-  const parsed = JSON.parse(raw) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch {
+    throw new BadRequestError('Request body must be valid JSON object');
+  }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('Request body must be a JSON object');
+    throw new BadRequestError('Request body must be a JSON object');
   }
 
   return parsed as Record<string, unknown>;
@@ -385,6 +470,14 @@ function asOptionalString(value: unknown): string | undefined {
     return undefined;
   }
   return value;
+}
+
+function readTraceIdHeader(request: http.IncomingMessage): string | undefined {
+  const value = request.headers[TRACE_ID_HEADER.toLowerCase()];
+  if (Array.isArray(value)) {
+    return asOptionalString(value[0]);
+  }
+  return asOptionalString(value);
 }
 
 function asProtocolName(value: unknown): ProtocolName | null {

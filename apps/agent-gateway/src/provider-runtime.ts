@@ -14,6 +14,7 @@ export class ProviderRuntime {
     sessionId: string,
     input: string,
     timeoutMs: number,
+    traceId: string | undefined,
     callbacks: {
       onChunk: (chunk: string) => void;
       onComplete: () => void;
@@ -36,6 +37,7 @@ export class ProviderRuntime {
         sessionId,
         input,
         timeoutMs,
+        traceId,
       },
       {
         onChunk: callbacks.onChunk,

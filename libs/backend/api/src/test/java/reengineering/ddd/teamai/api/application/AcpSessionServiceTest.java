@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import reengineering.ddd.teamai.api.acp.AcpEventEnvelope;
 import reengineering.ddd.teamai.api.acp.AcpEventIdGenerator;
 import reengineering.ddd.teamai.model.AgentRuntime;
+import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 
 class AcpSessionServiceTest {
@@ -85,7 +86,33 @@ class AcpSessionServiceTest {
     AcpEventEnvelope errorEvent = events.get(1);
     assertThat(errorEvent.type()).isEqualTo(AcpEventEnvelope.TYPE_ERROR);
     assertThat(errorEvent.error()).isNotNull();
-    assertThat(errorEvent.error().code()).isEqualTo("RUNTIME_FAILURE");
+    assertThat(errorEvent.error().code()).isEqualTo("RUNTIME_TIMEOUT");
+    assertThat(errorEvent.error().retryable()).isTrue();
+  }
+
+  @Test
+  void should_preserve_gateway_error_code_and_retry_semantics() {
+    AgentRuntime.SessionHandle handle =
+        new AgentRuntime.SessionHandle(
+            "runtime-s-3b", "s-3b", "user-3b", Instant.parse("2026-03-03T10:00:00Z"));
+    when(runtime.start(any(AgentRuntime.StartRequest.class))).thenReturn(handle);
+    when(runtime.send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
+        .thenThrow(
+            new GatewayAgentRuntimeException(
+                "PROVIDER_PROCESS_EXITED", "provider failed", true, 1500, "provider"));
+
+    service.startSession("s-3b", "user-3b", "goal");
+    assertThrows(
+        AgentRuntimeException.class,
+        () -> service.sendPrompt("s-3b", "hello", Duration.ofSeconds(3)));
+
+    List<AcpEventEnvelope> events = service.findEventsSince("s-3b", null);
+    AcpEventEnvelope errorEvent = events.get(1);
+    assertThat(errorEvent.error()).isNotNull();
+    assertThat(errorEvent.error().code()).isEqualTo("PROVIDER_PROCESS_EXITED");
+    assertThat(errorEvent.error().retryable()).isTrue();
+    assertThat(errorEvent.error().retryAfterMs()).isEqualTo(1500L);
+    assertThat(errorEvent.data()).containsEntry("category", "provider");
   }
 
   @Test
