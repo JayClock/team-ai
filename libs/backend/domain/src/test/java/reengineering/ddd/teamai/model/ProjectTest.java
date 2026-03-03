@@ -15,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentDescription.Role;
 import reengineering.ddd.teamai.description.AgentEventDescription;
@@ -42,6 +43,7 @@ public class ProjectTest {
   @Mock private Project.Tasks tasks;
   @Mock private Project.AgentEvents events;
   @Mock private Project.OrchestrationSessions orchestrationSessions;
+  @Mock private Project.AcpSessions acpSessions;
   @Mock private Project.McpServers mcpServers;
   @Mock private Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
 
@@ -63,6 +65,7 @@ public class ProjectTest {
             tasks,
             events,
             orchestrationSessions,
+            acpSessions,
             mcpServers);
   }
 
@@ -552,6 +555,86 @@ public class ProjectTest {
       verify(mcpServers).create(description);
       verify(mcpServers).update(eq("mcp-1"), any(McpServerDescription.class));
       verify(mcpServers).delete("mcp-1");
+    }
+  }
+
+  @Nested
+  @DisplayName("ACP sessions association")
+  class AcpSessionsAssociation {
+
+    @Test
+    @DisplayName("should return ACP sessions association object")
+    void shouldReturnAcpSessionsAssociation() {
+      var result = project.acpSessions();
+      assertSame(acpSessions, result);
+    }
+
+    @Test
+    @DisplayName("should delegate create, touch and status update")
+    void shouldDelegateCreateTouchAndStatusUpdate() {
+      AcpSessionDescription description =
+          new AcpSessionDescription(
+              new Ref<>("project-1"),
+              new Ref<>("user-1"),
+              "codex",
+              "default",
+              AcpSessionDescription.Status.PENDING,
+              null,
+              null,
+              null,
+              null,
+              null);
+      AcpSession session = new AcpSession("acp-1", description);
+      when(acpSessions.create(description)).thenReturn(session);
+      when(acpSessions.findByIdentity("acp-1")).thenReturn(Optional.of(session));
+
+      AcpSession created = project.startAcpSession(description);
+      project.touchAcpSession("acp-1", Instant.parse("2026-03-03T10:00:00Z"), "evt-1");
+      project.updateAcpSessionStatus(
+          "acp-1",
+          AcpSessionDescription.Status.CANCELLED,
+          Instant.parse("2026-03-03T10:01:00Z"),
+          "cancelled by caller");
+
+      assertSame(session, created);
+      verify(acpSessions).create(description);
+      verify(acpSessions).touch(eq("acp-1"), any(Instant.class));
+      verify(acpSessions).bindLastEventId("acp-1", "evt-1");
+      verify(acpSessions)
+          .updateStatus(
+              eq("acp-1"),
+              eq(AcpSessionDescription.Status.CANCELLED),
+              any(Instant.class),
+              eq("cancelled by caller"));
+    }
+
+    @Test
+    @DisplayName("should reject invalid ACP status transition")
+    void shouldRejectInvalidAcpStatusTransition() {
+      AcpSession session =
+          new AcpSession(
+              "acp-1",
+              new AcpSessionDescription(
+                  new Ref<>("project-1"),
+                  new Ref<>("user-1"),
+                  "codex",
+                  "default",
+                  AcpSessionDescription.Status.COMPLETED,
+                  Instant.parse("2026-03-03T10:00:00Z"),
+                  Instant.parse("2026-03-03T10:01:00Z"),
+                  Instant.parse("2026-03-03T10:02:00Z"),
+                  null,
+                  "evt-1"));
+      when(acpSessions.findByIdentity("acp-1")).thenReturn(Optional.of(session));
+
+      IllegalStateException error =
+          assertThrows(
+              IllegalStateException.class,
+              () ->
+                  project.updateAcpSessionStatus(
+                      "acp-1", AcpSessionDescription.Status.RUNNING, null, null));
+      assertEquals("Cannot transition ACP session from COMPLETED to RUNNING", error.getMessage());
+      verify(acpSessions, never()).updateStatus(anyString(), any(), any(), any());
     }
   }
 

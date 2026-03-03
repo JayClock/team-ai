@@ -13,6 +13,7 @@ import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.HasMany;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.ConversationDescription;
@@ -51,6 +52,7 @@ public class Project implements Entity<String, ProjectDescription> {
   private Tasks tasks;
   private AgentEvents events;
   private OrchestrationSessions orchestrationSessions;
+  private AcpSessions acpSessions;
   private McpServers mcpServers;
 
   public Project(
@@ -75,6 +77,7 @@ public class Project implements Entity<String, ProjectDescription> {
         tasks,
         events,
         orchestrationSessions,
+        null,
         null);
   }
 
@@ -90,6 +93,34 @@ public class Project implements Entity<String, ProjectDescription> {
       AgentEvents events,
       OrchestrationSessions orchestrationSessions,
       McpServers mcpServers) {
+    this(
+        identity,
+        description,
+        members,
+        conversations,
+        logicalEntities,
+        diagrams,
+        agents,
+        tasks,
+        events,
+        orchestrationSessions,
+        null,
+        mcpServers);
+  }
+
+  public Project(
+      String identity,
+      ProjectDescription description,
+      Members members,
+      Conversations conversations,
+      LogicalEntities logicalEntities,
+      Diagrams diagrams,
+      Agents agents,
+      Tasks tasks,
+      AgentEvents events,
+      OrchestrationSessions orchestrationSessions,
+      AcpSessions acpSessions,
+      McpServers mcpServers) {
     this.identity = identity;
     this.description = description;
     this.members = members;
@@ -100,6 +131,7 @@ public class Project implements Entity<String, ProjectDescription> {
     this.tasks = tasks;
     this.events = events;
     this.orchestrationSessions = orchestrationSessions;
+    this.acpSessions = acpSessions;
     this.mcpServers = mcpServers;
   }
 
@@ -201,6 +233,59 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public McpServers mcpServers() {
     return mcpServers == null ? EMPTY_MCP_SERVERS : mcpServers;
+  }
+
+  public AcpSessions acpSessions() {
+    return acpSessions == null ? EMPTY_ACP_SESSIONS : acpSessions;
+  }
+
+  public AcpSession startAcpSession(AcpSessionDescription description) {
+    if (description == null) {
+      throw new IllegalArgumentException("description must not be null");
+    }
+    return acpSessions().create(description);
+  }
+
+  public Many<AcpSession> findAcpSessions(String projectId, int offset, int limit) {
+    if (projectId == null || projectId.isBlank()) {
+      throw new IllegalArgumentException("projectId must not be blank");
+    }
+    if (offset < 0) {
+      throw new IllegalArgumentException("offset must not be negative");
+    }
+    if (limit < 1) {
+      throw new IllegalArgumentException("limit must be greater than 0");
+    }
+    return acpSessions().findByProject(projectId, offset, limit);
+  }
+
+  public void touchAcpSession(String sessionId, Instant lastActivityAt, String lastEventId) {
+    AcpSession session = acpSessionOrThrow(sessionId);
+    if (session.getDescription().status().isTerminal()) {
+      throw new IllegalStateException(
+          "Cannot touch ACP session in terminal state " + session.getDescription().status());
+    }
+    acpSessions().touch(sessionId, normalizeEventTime(lastActivityAt));
+    String normalizedLastEventId = normalizeText(lastEventId);
+    if (normalizedLastEventId != null) {
+      acpSessions().bindLastEventId(sessionId, normalizedLastEventId);
+    }
+  }
+
+  public void updateAcpSessionStatus(
+      String sessionId,
+      AcpSessionDescription.Status status,
+      Instant completedAt,
+      String failureReason) {
+    if (status == null) {
+      throw new IllegalArgumentException("status must not be null");
+    }
+    AcpSession session = acpSessionOrThrow(sessionId);
+    requireAcpStatusTransition(session.getDescription().status(), status);
+    requireFailureReasonForAcpStatus(status, failureReason);
+    Instant resolvedCompletedAt = status.isTerminal() ? normalizeEventTime(completedAt) : null;
+    acpSessions()
+        .updateStatus(sessionId, status, resolvedCompletedAt, normalizeText(failureReason));
   }
 
   public McpServer createMcpServer(McpServerDescription description) {
@@ -612,6 +697,22 @@ public class Project implements Entity<String, ProjectDescription> {
         String failureReason);
   }
 
+  public interface AcpSessions extends HasMany<String, AcpSession> {
+    AcpSession create(AcpSessionDescription description);
+
+    Many<AcpSession> findByProject(String projectId, int offset, int limit);
+
+    void updateStatus(
+        String sessionId,
+        AcpSessionDescription.Status status,
+        Instant completedAt,
+        String failureReason);
+
+    void touch(String sessionId, Instant lastActivityAt);
+
+    void bindLastEventId(String sessionId, String lastEventId);
+  }
+
   public interface McpServers extends HasMany<String, McpServer> {
     McpServer create(McpServerDescription description);
 
@@ -663,6 +764,66 @@ public class Project implements Entity<String, ProjectDescription> {
         @Override
         public void delete(String serverId) {
           throw new IllegalStateException("mcpServers association is not configured");
+        }
+      };
+
+  private static final AcpSessions EMPTY_ACP_SESSIONS =
+      new AcpSessions() {
+        private final Many<AcpSession> empty =
+            new Many<>() {
+              @Override
+              public int size() {
+                return 0;
+              }
+
+              @Override
+              public Many<AcpSession> subCollection(int from, int to) {
+                return this;
+              }
+
+              @Override
+              public Iterator<AcpSession> iterator() {
+                return Collections.emptyIterator();
+              }
+            };
+
+        @Override
+        public Many<AcpSession> findAll() {
+          return empty;
+        }
+
+        @Override
+        public Optional<AcpSession> findByIdentity(String identifier) {
+          return Optional.empty();
+        }
+
+        @Override
+        public AcpSession create(AcpSessionDescription description) {
+          throw new IllegalStateException("acpSessions association is not configured");
+        }
+
+        @Override
+        public Many<AcpSession> findByProject(String projectId, int offset, int limit) {
+          return empty;
+        }
+
+        @Override
+        public void updateStatus(
+            String sessionId,
+            AcpSessionDescription.Status status,
+            Instant completedAt,
+            String failureReason) {
+          throw new IllegalStateException("acpSessions association is not configured");
+        }
+
+        @Override
+        public void touch(String sessionId, Instant lastActivityAt) {
+          throw new IllegalStateException("acpSessions association is not configured");
+        }
+
+        @Override
+        public void bindLastEventId(String sessionId, String lastEventId) {
+          throw new IllegalStateException("acpSessions association is not configured");
         }
       };
 
@@ -752,6 +913,14 @@ public class Project implements Entity<String, ProjectDescription> {
     return occurredAt == null ? Instant.now() : occurredAt;
   }
 
+  private String normalizeText(String value) {
+    if (value == null) {
+      return null;
+    }
+    String normalized = value.trim();
+    return normalized.isEmpty() ? null : normalized;
+  }
+
   private void requireOrchestrationStatusTransition(
       OrchestrationSessionDescription.Status current, OrchestrationSessionDescription.Status next) {
     if (current == next) {
@@ -814,6 +983,53 @@ public class Project implements Entity<String, ProjectDescription> {
       return null;
     }
     return completedAt == null ? Instant.now() : completedAt;
+  }
+
+  private AcpSession acpSessionOrThrow(String sessionId) {
+    if (sessionId == null || sessionId.isBlank()) {
+      throw new IllegalArgumentException("sessionId must not be blank");
+    }
+    return acpSessions()
+        .findByIdentity(sessionId)
+        .orElseThrow(() -> new IllegalArgumentException("ACP session not found: " + sessionId));
+  }
+
+  private void requireAcpStatusTransition(
+      AcpSessionDescription.Status current, AcpSessionDescription.Status next) {
+    if (current == next) {
+      return;
+    }
+    boolean allowed =
+        switch (current) {
+          case PENDING ->
+              next == AcpSessionDescription.Status.RUNNING
+                  || next == AcpSessionDescription.Status.CANCELLED
+                  || next == AcpSessionDescription.Status.FAILED;
+          case RUNNING ->
+              next == AcpSessionDescription.Status.COMPLETED
+                  || next == AcpSessionDescription.Status.CANCELLED
+                  || next == AcpSessionDescription.Status.FAILED;
+          case COMPLETED, CANCELLED, FAILED -> false;
+        };
+    if (!allowed) {
+      throw new IllegalStateException(
+          "Cannot transition ACP session from " + current + " to " + next);
+    }
+  }
+
+  private void requireFailureReasonForAcpStatus(
+      AcpSessionDescription.Status status, String failureReason) {
+    boolean requiresReason =
+        status == AcpSessionDescription.Status.FAILED
+            || status == AcpSessionDescription.Status.CANCELLED;
+    if (requiresReason) {
+      requireText(failureReason, "failureReason");
+      return;
+    }
+    if (failureReason != null && !failureReason.isBlank()) {
+      throw new IllegalArgumentException(
+          "failureReason is only allowed for FAILED or CANCELLED status");
+    }
   }
 
   private OrchestrationSessions requireOrchestrationSessions() {
