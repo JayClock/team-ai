@@ -55,6 +55,12 @@ public class AcpSessionModel extends RepresentationModel<AcpSessionModel> {
   public static AcpSessionModel of(Project project, AcpSession session, UriInfo uriInfo) {
     AcpSessionModel model = simple(project, session, uriInfo);
     model.add(
+        Link.of(
+                ApiTemplates.sessionHistory(uriInfo)
+                    .build(project.getIdentity(), session.getIdentity())
+                    .getPath())
+            .withRel("history"));
+    model.add(
         Link.of(ApiTemplates.sessions(uriInfo).build(project.getIdentity()).getPath())
             .withRel("collection"));
     return model;

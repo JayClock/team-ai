@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reengineering.ddd.teamai.mybatis.mappers.ProjectAcpSessionEventsMapper">
+
+  <resultMap id="acpSessionEventRow" type="reengineering.ddd.teamai.mybatis.mappers.ProjectAcpSessionEventRow">
+    <result property="sessionId" column="session_id" jdbcType="INTEGER"/>
+    <result property="eventId" column="event_id" jdbcType="VARCHAR"/>
+    <result property="eventType" column="event_type" jdbcType="VARCHAR"/>
+    <result property="emittedAt" column="emitted_at" jdbcType="TIMESTAMP"/>
+    <result property="dataJson" column="data_json" jdbcType="VARCHAR"/>
+    <result property="errorJson" column="error_json" jdbcType="VARCHAR"/>
+  </resultMap>
+
+  <insert id="insertEvent">
+    INSERT INTO project_acp_session_events(
+      project_id,
+      session_id,
+      event_id,
+      event_type,
+      emitted_at,
+      data_json,
+      error_json
+    )
+    VALUES (
+      #{project_id},
+      #{session_id},
+      #{event.eventId},
+      #{event.eventType},
+      #{event.emittedAt, jdbcType=TIMESTAMP},
+      #{event.dataJson},
+      #{event.errorJson}
+    )
+  </insert>
+
+  <select id="findEventsBySession" resultMap="acpSessionEventRow">
+    SELECT
+      session_id,
+      event_id,
+      event_type,
+      emitted_at,
+      data_json,
+      error_json
+    FROM project_acp_session_events
+    WHERE project_id = #{project_id}
+      AND session_id = #{session_id}
+      AND (
+        #{after_event_id} IS NULL
+        OR id > COALESCE(
+          (
+            SELECT id
+            FROM project_acp_session_events
+            WHERE project_id = #{project_id}
+              AND session_id = #{session_id}
+              AND event_id = #{after_event_id}
+            ORDER BY id DESC
+            LIMIT 1
+          ),
+          0
+        )
+      )
+    ORDER BY id ASC
+    LIMIT #{size}
+  </select>
+
+</mapper>

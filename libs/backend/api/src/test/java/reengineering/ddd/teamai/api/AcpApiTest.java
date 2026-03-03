@@ -406,6 +406,69 @@ class AcpApiTest extends ApiTest {
         .body(notNullValue());
   }
 
+  @Test
+  void should_return_session_history_for_project_session_resource() {
+    AcpSession pending = session("601", "user-6", AcpSessionDescription.Status.PENDING);
+    AcpSession running = session("601", "user-6", AcpSessionDescription.Status.RUNNING);
+    when(acpSessions.create(any(AcpSessionDescription.class))).thenReturn(pending);
+    when(acpSessions.findByIdentity("601"))
+        .thenReturn(
+            Optional.of(pending),
+            Optional.of(pending),
+            Optional.of(pending),
+            Optional.of(running),
+            Optional.of(running));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/new",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "actorUserId", "user-6",
+                        "provider", "team-ai",
+                        "mode", "CHAT"),
+                "id", "req-new-601"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200);
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/prompt",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "sessionId", "601",
+                        "prompt", "generate summary"),
+                "id", "req-prompt-601"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200);
+
+    given(documentationSpec)
+        .accept("application/json")
+        .queryParam("limit", 10)
+        .when()
+        .get("/projects/{projectId}/sessions/{sessionId}/history", "project-1", "601")
+        .then()
+        .statusCode(200)
+        .body("projectId", equalTo("project-1"))
+        .body("sessionId", equalTo("601"))
+        .body("history.size()", equalTo(3))
+        .body("history[0].type", equalTo("status"))
+        .body("history[1].type", equalTo("delta"))
+        .body("history[2].type", equalTo("complete"));
+  }
+
   private AcpSession session(
       String sessionId, String actorUserId, AcpSessionDescription.Status status) {
     return new AcpSession(

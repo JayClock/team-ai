@@ -119,6 +119,10 @@ public class ApiTemplates {
     return sessions(uriInfo).path(SessionsApi.class, "findById");
   }
 
+  public static UriBuilder sessionHistory(UriInfo uriInfo) {
+    return session(uriInfo).path(SessionApi.class, "history");
+  }
+
   public static UriBuilder nodes(UriInfo uriInfo) {
     return diagram(uriInfo).path(DiagramApi.class, "nodes");
   }

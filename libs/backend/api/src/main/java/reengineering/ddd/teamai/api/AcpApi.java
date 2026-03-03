@@ -252,7 +252,7 @@ public class AcpApi {
                 null,
                 null));
     String goal = optionalText(params, "goal").orElse("ACP session " + session.getIdentity());
-    runtimeBridgeService.startSession(session.getIdentity(), actorUserId, goal);
+    runtimeBridgeService.startSession(projectId, session.getIdentity(), actorUserId, goal);
     return Map.of("session", sessionPayload(session), "accepted", true);
   }
 
@@ -278,7 +278,10 @@ public class AcpApi {
     project.touchAcpSession(sessionId, now, eventId);
     String actorUserId = id(current.getDescription().actor());
     runtimeBridgeService.startSession(
-        sessionId, actorUserId == null ? "acp-agent" : actorUserId, "ACP session " + sessionId);
+        projectId,
+        sessionId,
+        actorUserId == null ? "acp-agent" : actorUserId,
+        "ACP session " + sessionId);
     Duration timeout = timeout(params.get("timeoutMs"));
     try {
       var runtimeResult = runtimeBridgeService.sendPrompt(sessionId, prompt, timeout);

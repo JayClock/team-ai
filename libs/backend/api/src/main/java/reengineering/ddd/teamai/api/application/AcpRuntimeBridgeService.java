@@ -1,5 +1,6 @@
 package reengineering.ddd.teamai.api.application;
 
+import jakarta.inject.Inject;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -13,26 +14,43 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.teamai.api.acp.AcpEventEnvelope;
 import reengineering.ddd.teamai.api.acp.AcpEventIdGenerator;
+import reengineering.ddd.teamai.model.AcpSessionEvent;
+import reengineering.ddd.teamai.model.AcpSessionEventStore;
 import reengineering.ddd.teamai.model.AgentRuntime;
 
 @Component
 public class AcpRuntimeBridgeService {
   private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
   private static final Logger log = LoggerFactory.getLogger(AcpRuntimeBridgeService.class);
+  private static final int DEFAULT_HISTORY_LIMIT = 200;
+  private static final int MAX_HISTORY_LIMIT = 1000;
 
   private final AgentRuntime runtime;
   private final AcpEventIdGenerator eventIdGenerator;
+  private final AcpSessionEventStore sessionEventStore;
   private final Map<String, AgentRuntime.SessionHandle> activeHandles = new ConcurrentHashMap<>();
   private final Map<String, CopyOnWriteArrayList<AcpEventEnvelope>> sessionEvents =
       new ConcurrentHashMap<>();
+  private final Map<String, String> sessionProjectIds = new ConcurrentHashMap<>();
 
-  public AcpRuntimeBridgeService(AgentRuntime runtime, AcpEventIdGenerator eventIdGenerator) {
+  @Inject
+  public AcpRuntimeBridgeService(
+      AgentRuntime runtime,
+      AcpEventIdGenerator eventIdGenerator,
+      AcpSessionEventStore sessionEventStore) {
     this.runtime = runtime;
     this.eventIdGenerator = eventIdGenerator;
+    this.sessionEventStore = sessionEventStore;
+  }
+
+  public AcpRuntimeBridgeService(AgentRuntime runtime, AcpEventIdGenerator eventIdGenerator) {
+    this(runtime, eventIdGenerator, noopEventStore());
   }
 
   public AgentRuntime.SessionHandle startSession(
-      String sessionId, String actorUserId, String goal) {
+      String projectId, String sessionId, String actorUserId, String goal) {
+    String normalizedProjectId = normalizeProjectId(projectId);
+    sessionProjectIds.putIfAbsent(sessionId, normalizedProjectId);
     return activeHandles.computeIfAbsent(
         sessionId,
         ignored -> {
@@ -58,6 +76,11 @@ public class AcpRuntimeBridgeService {
               actorUserId);
           return handle;
         });
+  }
+
+  public AgentRuntime.SessionHandle startSession(
+      String sessionId, String actorUserId, String goal) {
+    return startSession("unknown", sessionId, actorUserId, goal);
   }
 
   public AgentRuntime.SendResult sendPrompt(String sessionId, String prompt, Duration timeout) {
@@ -103,6 +126,7 @@ public class AcpRuntimeBridgeService {
     if (handle != null) {
       runtime.stop(handle);
     }
+    sessionProjectIds.remove(sessionId);
     appendEvent(
         sessionId,
         AcpEventEnvelope.TYPE_COMPLETE,
@@ -131,6 +155,27 @@ public class AcpRuntimeBridgeService {
       return List.of();
     }
     return List.copyOf(events.subList(index + 1, events.size()));
+  }
+
+  public List<AcpEventEnvelope> findHistory(
+      String projectId, String sessionId, String afterEventId, int limit) {
+    String normalizedProjectId = normalizeProjectId(projectId);
+    String normalizedSessionId = normalizeSessionId(sessionId);
+    String normalizedCursor = blankToNull(afterEventId);
+    int max = sanitizeLimit(limit);
+
+    List<AcpSessionEvent> persisted =
+        sessionEventStore.findBySession(
+            normalizedProjectId, normalizedSessionId, normalizedCursor, max);
+    if (!persisted.isEmpty()) {
+      return persisted.stream().map(this::toEnvelope).toList();
+    }
+
+    List<AcpEventEnvelope> inMemory = findEventsSince(normalizedSessionId, normalizedCursor);
+    if (inMemory.size() <= max) {
+      return inMemory;
+    }
+    return List.copyOf(inMemory.subList(0, max));
   }
 
   public void appendStatus(String sessionId, Map<String, Object> data) {
@@ -165,6 +210,97 @@ public class AcpRuntimeBridgeService {
     sessionEvents
         .computeIfAbsent(normalizedSessionId, ignored -> new CopyOnWriteArrayList<>())
         .add(envelope);
+    persistEvent(normalizedSessionId, envelope);
+  }
+
+  private void persistEvent(String sessionId, AcpEventEnvelope envelope) {
+    String projectId = sessionProjectIds.getOrDefault(sessionId, "unknown");
+    AcpSessionEvent event =
+        new AcpSessionEvent(
+            envelope.eventId(),
+            envelope.sessionId(),
+            envelope.type(),
+            envelope.emittedAt(),
+            envelope.data(),
+            toDomainError(envelope.error()));
+    try {
+      sessionEventStore.append(projectId, event);
+    } catch (RuntimeException error) {
+      log.warn(
+          "event=acp_runtime_event_persist_failed traceId={} sessionId={} projectId={} message={}",
+          traceId(),
+          sessionId,
+          projectId,
+          message(error));
+    }
+  }
+
+  private AcpSessionEvent.Error toDomainError(AcpEventEnvelope.EventError error) {
+    if (error == null) {
+      return null;
+    }
+    return new AcpSessionEvent.Error(
+        error.code(), error.message(), error.retryable(), error.retryAfterMs());
+  }
+
+  private AcpEventEnvelope toEnvelope(AcpSessionEvent event) {
+    return new AcpEventEnvelope(
+        event.eventId(),
+        event.sessionId(),
+        event.type(),
+        event.emittedAt(),
+        event.data(),
+        toEnvelopeError(event.error()));
+  }
+
+  private AcpEventEnvelope.EventError toEnvelopeError(AcpSessionEvent.Error error) {
+    if (error == null) {
+      return null;
+    }
+    return new AcpEventEnvelope.EventError(
+        error.code(), error.message(), error.retryable(), error.retryAfterMs());
+  }
+
+  private String normalizeProjectId(String projectId) {
+    if (projectId == null || projectId.isBlank()) {
+      return "unknown";
+    }
+    return projectId.trim();
+  }
+
+  private String normalizeSessionId(String sessionId) {
+    if (sessionId == null || sessionId.isBlank()) {
+      return "unknown";
+    }
+    return sessionId.trim();
+  }
+
+  private String blankToNull(String value) {
+    if (value == null) {
+      return null;
+    }
+    String trimmed = value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
+  }
+
+  private int sanitizeLimit(int limit) {
+    if (limit <= 0) {
+      return DEFAULT_HISTORY_LIMIT;
+    }
+    return Math.min(limit, MAX_HISTORY_LIMIT);
+  }
+
+  private static AcpSessionEventStore noopEventStore() {
+    return new AcpSessionEventStore() {
+      @Override
+      public void append(String projectId, AcpSessionEvent event) {}
+
+      @Override
+      public List<AcpSessionEvent> findBySession(
+          String projectId, String sessionId, String afterEventId, int limit) {
+        return List.of();
+      }
+    };
   }
 
   private String message(Throwable error) {
