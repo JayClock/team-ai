@@ -1,8 +1,10 @@
 package reengineering.ddd.teamai.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -109,5 +111,45 @@ public class AgentEventsApiTest extends ApiTest {
         .body("_links.collection.href", is("/api/projects/" + project.getIdentity() + "/events"));
 
     verify(events, times(1)).append(any(AgentEventDescription.class));
+  }
+
+  @Test
+  void should_stream_snapshot_and_event_in_once_mode() {
+    given(documentationSpec)
+        .accept(MediaType.SERVER_SENT_EVENTS)
+        .when()
+        .get("/projects/{projectId}/events/stream?once=true", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .contentType(startsWith(MediaType.SERVER_SENT_EVENTS))
+        .body(containsString("event: snapshot"))
+        .body(containsString("event: agent-event"))
+        .body(containsString("id: event-1"))
+        .body(containsString("\"type\":\"TASK_ASSIGNED\""));
+  }
+
+  @Test
+  void should_resume_stream_from_since_event_id() {
+    AgentEvent second =
+        new AgentEvent(
+            "event-2",
+            new AgentEventDescription(
+                AgentEventDescription.Type.TASK_STATUS_CHANGED,
+                new Ref<>("agent-2"),
+                new Ref<>("task-2"),
+                "Task moved to review",
+                Instant.parse("2026-01-01T00:01:00Z")));
+    when(events.findAll()).thenReturn(new EntityList<>(event, second));
+
+    given(documentationSpec)
+        .accept(MediaType.SERVER_SENT_EVENTS)
+        .when()
+        .get("/projects/{projectId}/events/stream?once=true&since=event-1", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .body(containsString("event: snapshot"))
+        .body(containsString("\"resumeFromEventId\":\"event-1\""))
+        .body(containsString("id: event-2"))
+        .body(containsString("\"type\":\"TASK_STATUS_CHANGED\""));
   }
 }

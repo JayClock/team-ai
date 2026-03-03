@@ -82,6 +82,9 @@ public class ProjectsApiTest extends ApiTest {
         .body("_links.tasks.href", is("/api/projects/" + project.getIdentity() + "/tasks"))
         .body("_links.events.href", is("/api/projects/" + project.getIdentity() + "/events"))
         .body(
+            "_links.events-stream.href",
+            is("/api/projects/" + project.getIdentity() + "/events/stream"))
+        .body(
             "_links.orchestrations.href",
             is("/api/projects/" + project.getIdentity() + "/orchestrations"))
         .body("_templates.start-orchestration.method", is("POST"))
