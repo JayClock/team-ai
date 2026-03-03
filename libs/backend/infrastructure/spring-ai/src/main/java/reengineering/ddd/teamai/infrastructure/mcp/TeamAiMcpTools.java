@@ -11,6 +11,8 @@ import java.util.Set;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
@@ -42,7 +44,11 @@ public class TeamAiMcpTools {
 
   @Tool(name = "list_projects", description = "List all projects.")
   public List<ProjectSummary> listProjects() {
-    return projects.findAll().stream().map(this::toProjectSummary).toList();
+    String userId = requireCurrentUserId();
+    return projects.findAll().stream()
+        .filter(project -> isProjectMember(project, userId))
+        .map(this::toProjectSummary)
+        .toList();
   }
 
   @Tool(name = "list_agents", description = "List all agents in a project.")
@@ -290,9 +296,39 @@ public class TeamAiMcpTools {
     if (isBlank(projectId)) {
       throw new IllegalArgumentException("projectId must not be blank");
     }
-    return projects
-        .findByIdentity(projectId)
-        .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
+    Project project =
+        projects
+            .findByIdentity(projectId)
+            .orElseThrow(() -> new IllegalArgumentException("Project not found: " + projectId));
+    requireProjectMembership(project);
+    return project;
+  }
+
+  private void requireProjectMembership(Project project) {
+    String userId = requireCurrentUserId();
+    if (!isProjectMember(project, userId)) {
+      throw new SecurityException(
+          "User %s is not a member of project %s".formatted(userId, project.getIdentity()));
+    }
+  }
+
+  private String requireCurrentUserId() {
+    if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs)) {
+      throw new IllegalStateException("Authentication required");
+    }
+    var principal = attrs.getRequest().getUserPrincipal();
+    if (principal == null) {
+      throw new IllegalStateException("Authentication required");
+    }
+    String userId = principal.getName();
+    if (isBlank(userId)) {
+      throw new IllegalStateException("Authentication required");
+    }
+    return userId;
+  }
+
+  private boolean isProjectMember(Project project, String userId) {
+    return project.members().findByIdentity(userId).isPresent();
   }
 
   private TaskSummary reloadTask(Project project, String taskId) {

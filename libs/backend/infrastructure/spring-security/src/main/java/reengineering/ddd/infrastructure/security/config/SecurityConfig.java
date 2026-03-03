@@ -34,10 +34,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
 import reengineering.ddd.infrastructure.security.filter.ApiKeyHeaderNormalizationFilter;
+import reengineering.ddd.infrastructure.security.filter.McpProjectAuthorizationFilter;
 import reengineering.ddd.infrastructure.security.filter.RedirectUrlCookieFilter;
 import reengineering.ddd.infrastructure.security.jwt.JwtAuthenticationFilter;
 import reengineering.ddd.infrastructure.security.jwt.JwtUtil;
@@ -54,6 +56,7 @@ public class SecurityConfig {
   private final OAuth2UserService oAuth2UserService;
   private final JwtUtil jwtUtil;
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final McpProjectAuthorizationFilter mcpProjectAuthorizationFilter;
   private final Environment environment;
   private final boolean devAutoAuthenticate;
 
@@ -62,11 +65,13 @@ public class SecurityConfig {
       OAuth2UserService oAuth2UserService,
       JwtUtil jwtUtil,
       JwtAuthenticationFilter jwtAuthenticationFilter,
+      McpProjectAuthorizationFilter mcpProjectAuthorizationFilter,
       Environment environment,
       @Value("${teamai.security.dev-auto-authenticate:false}") boolean devAutoAuthenticate) {
     this.oAuth2UserService = oAuth2UserService;
     this.jwtUtil = jwtUtil;
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    this.mcpProjectAuthorizationFilter = mcpProjectAuthorizationFilter;
     this.environment = environment;
     this.devAutoAuthenticate = devAutoAuthenticate;
   }
@@ -81,15 +86,7 @@ public class SecurityConfig {
     http.authorizeHttpRequests(
             auth ->
                 auth.requestMatchers(
-                        "/",
-                        "/public/**",
-                        "/api",
-                        "/oauth2/**",
-                        "/login/**",
-                        "/api/auth/**",
-                        // TODO(team-ai): tighten MCP access to authenticated users and
-                        // enforce per-project membership authorization in MCP tools.
-                        "/mcp/**")
+                        "/", "/public/**", "/api", "/oauth2/**", "/login/**", "/api/auth/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
@@ -140,6 +137,7 @@ public class SecurityConfig {
         .addFilterBefore(
             new ApiKeyHeaderNormalizationFilter(), UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(mcpProjectAuthorizationFilter, JwtAuthenticationFilter.class)
         .logout(
             logout ->
                 logout
@@ -159,7 +157,10 @@ public class SecurityConfig {
                         }))
         .headers(headers -> headers.cacheControl(HeadersConfigurer.CacheControlConfig::disable))
         .exceptionHandling(
-            handling -> handling.authenticationEntryPoint(apiAuthenticationEntryPoint()));
+            handling ->
+                handling
+                    .authenticationEntryPoint(apiAuthenticationEntryPoint())
+                    .accessDeniedHandler(apiAccessDeniedHandler()));
     return http.build();
   }
 
@@ -219,6 +220,17 @@ public class SecurityConfig {
       response
           .getWriter()
           .write("{\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
+    };
+  }
+
+  @Bean
+  public AccessDeniedHandler apiAccessDeniedHandler() {
+    return (request, response, accessDeniedException) -> {
+      response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+      response.setContentType("application/json");
+      response
+          .getWriter()
+          .write("{\"error\":\"Forbidden\",\"message\":\"Project membership required\"}");
     };
   }
 }

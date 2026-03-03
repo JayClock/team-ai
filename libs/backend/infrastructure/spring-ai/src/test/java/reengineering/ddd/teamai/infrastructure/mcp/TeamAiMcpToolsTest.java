@@ -3,6 +3,7 @@ package reengineering.ddd.teamai.infrastructure.mcp;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -10,12 +11,16 @@ import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
@@ -26,6 +31,7 @@ import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentEvent;
+import reengineering.ddd.teamai.model.Member;
 import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
@@ -33,9 +39,12 @@ import reengineering.ddd.teamai.model.Task;
 
 @ExtendWith(MockitoExtension.class)
 class TeamAiMcpToolsTest {
+  private static final String CURRENT_USER_ID = "u1";
 
   @Mock private Projects projects;
   @Mock private Project project;
+  @Mock private Project.Members members;
+  @Mock private Member member;
   @Mock private Project.Agents agents;
   @Mock private Project.Tasks tasks;
   @Mock private Project.AgentEvents events;
@@ -46,12 +55,21 @@ class TeamAiMcpToolsTest {
   @BeforeEach
   void setUp() {
     tools = new TeamAiMcpTools(projects);
+    setCurrentUser(CURRENT_USER_ID);
+    lenient().when(project.getIdentity()).thenReturn("p1");
+    lenient().when(project.members()).thenReturn(members);
+    lenient().when(members.findByIdentity(CURRENT_USER_ID)).thenReturn(Optional.of(member));
+  }
+
+  @AfterEach
+  void tearDown() {
+    RequestContextHolder.resetRequestAttributes();
   }
 
   @Test
   void should_list_projects() {
-    Project p1 = mockProject("p1", "Alpha");
-    Project p2 = mockProject("p2", "Beta");
+    Project p1 = mockProject("p1", "Alpha", CURRENT_USER_ID);
+    Project p2 = mockProject("p2", "Beta", CURRENT_USER_ID);
     when(projects.findAll()).thenReturn(manyOf(p1, p2));
 
     List<TeamAiMcpTools.ProjectSummary> summaries = tools.listProjects();
@@ -478,10 +496,41 @@ class TeamAiMcpToolsTest {
         .hasMessage("Project not found: missing");
   }
 
-  private static Project mockProject(String id, String name) {
+  @Test
+  void should_fail_when_authentication_is_missing() {
+    RequestContextHolder.resetRequestAttributes();
+
+    assertThatThrownBy(() -> tools.listProjects())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Authentication required");
+  }
+
+  @Test
+  void should_fail_when_user_is_not_project_member() {
+    String outsider = "u-outsider";
+    setCurrentUser(outsider);
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+    when(members.findByIdentity(outsider)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> tools.listTasks("p1"))
+        .isInstanceOf(SecurityException.class)
+        .hasMessage("User u-outsider is not a member of project p1");
+  }
+
+  private static void setCurrentUser(String userId) {
+    MockHttpServletRequest request = new MockHttpServletRequest();
+    request.setUserPrincipal(() -> userId);
+    RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+  }
+
+  private static Project mockProject(String id, String name, String memberUserId) {
     Project project = org.mockito.Mockito.mock(Project.class);
+    Project.Members members = org.mockito.Mockito.mock(Project.Members.class);
+    Member member = org.mockito.Mockito.mock(Member.class);
     when(project.getIdentity()).thenReturn(id);
     when(project.getDescription()).thenReturn(new ProjectDescription(name));
+    when(project.members()).thenReturn(members);
+    when(members.findByIdentity(memberUserId)).thenReturn(Optional.of(member));
     return project;
   }
 

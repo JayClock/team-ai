@@ -7,6 +7,8 @@ import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import java.security.Principal;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -18,16 +20,22 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
+import org.springframework.web.filter.OncePerRequestFilter;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.Many;
+import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.infrastructure.config.McpToolConfig;
+import reengineering.ddd.teamai.model.Member;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 
@@ -42,6 +50,7 @@ import reengineering.ddd.teamai.model.Projects;
       "spring.autoconfigure.exclude=org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration"
     })
 class McpProtocolE2ETest {
+  private static final String TEST_USER_ID = "u1";
 
   @Autowired private TestRestTemplate restTemplate;
   @Autowired private Projects projects;
@@ -52,8 +61,13 @@ class McpProtocolE2ETest {
   void setUp() {
     reset(projects);
     Project alpha = mock(Project.class);
+    Project.Members members = mock(Project.Members.class);
+    Member member =
+        new Member(TEST_USER_ID, new MemberDescription(new Ref<>(TEST_USER_ID), "OWNER"));
     when(alpha.getIdentity()).thenReturn("p1");
     when(alpha.getDescription()).thenReturn(new ProjectDescription("Alpha Project"));
+    when(alpha.members()).thenReturn(members);
+    when(members.findByIdentity(TEST_USER_ID)).thenReturn(Optional.of(member));
     when(projects.findAll()).thenReturn(manyOf(alpha));
   }
 
@@ -223,6 +237,32 @@ class McpProtocolE2ETest {
     @Bean
     Projects projects() {
       return mock(Projects.class);
+    }
+
+    @Bean
+    FilterRegistrationBean<OncePerRequestFilter> mcpTestAuthenticationFilter() {
+      FilterRegistrationBean<OncePerRequestFilter> registration = new FilterRegistrationBean<>();
+      registration.setFilter(
+          new OncePerRequestFilter() {
+            @Override
+            protected void doFilterInternal(
+                @NonNull jakarta.servlet.http.HttpServletRequest request,
+                @NonNull jakarta.servlet.http.HttpServletResponse response,
+                @NonNull jakarta.servlet.FilterChain filterChain)
+                throws java.io.IOException, jakarta.servlet.ServletException {
+              Principal principal = () -> TEST_USER_ID;
+              HttpServletRequestWrapper wrapped =
+                  new HttpServletRequestWrapper(request) {
+                    @Override
+                    public Principal getUserPrincipal() {
+                      return principal;
+                    }
+                  };
+              filterChain.doFilter(wrapped, response);
+            }
+          });
+      registration.setOrder(0);
+      return registration;
     }
   }
 }
