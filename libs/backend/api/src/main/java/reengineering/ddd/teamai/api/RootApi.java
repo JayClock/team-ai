@@ -47,6 +47,7 @@ public class RootApi {
   @Inject AuthenticationManager authenticationManager;
   @Inject PasswordEncoder passwordEncoder;
   @Inject JwtUtil jwtUtil;
+  @Inject A2aGatewayApi a2aGatewayApi;
 
   @Context private ResourceContext resourceContext;
 
@@ -73,6 +74,11 @@ public class RootApi {
   public ProjectsApi globalProjects() {
     ProjectsApi globalProjectsApi = new ProjectsApi(projects);
     return resourceContext.initResource(globalProjectsApi);
+  }
+
+  @Path("a2a")
+  public A2aGatewayApi a2aGateway() {
+    return resourceContext.initResource(a2aGatewayApi);
   }
 
   @POST
