@@ -23,8 +23,11 @@ import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.sse.OutboundSseEvent;
 import jakarta.ws.rs.sse.Sse;
 import jakarta.ws.rs.sse.SseEventSink;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,6 +38,7 @@ import org.springframework.hateoas.Link;
 import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.api.application.AgentEventsTelemetry;
 import reengineering.ddd.teamai.api.representation.AgentEventModel;
 import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.model.AgentEvent;
@@ -42,11 +46,12 @@ import reengineering.ddd.teamai.model.Project;
 
 public class AgentEventsApi {
   private static final long STREAM_POLL_INTERVAL_MILLIS = 1000;
-  private static final int STREAM_HEARTBEAT_TICKS = 15;
+  private static final int STREAM_HEARTBEAT_TICKS = 10;
   private static final ExecutorService STREAM_EXECUTOR = Executors.newCachedThreadPool();
 
   @Context ResourceContext resourceContext;
   @Inject ObjectMapper objectMapper;
+  @Inject AgentEventsTelemetry telemetry;
 
   private final Project project;
 
@@ -123,29 +128,56 @@ public class AgentEventsApi {
       @HeaderParam("Last-Event-ID") String lastEventId,
       @QueryParam("since") String sinceEventId,
       @DefaultValue("false") @QueryParam("once") boolean once) {
-    String resumeFrom = blankToNull(sinceEventId);
-    if (resumeFrom == null) {
-      resumeFrom = blankToNull(lastEventId);
-    }
-    String finalResumeFrom = resumeFrom;
-    STREAM_EXECUTOR.submit(() -> streamLoop(uriInfo, sseEventSink, sse, finalResumeFrom, once));
+    STREAM_EXECUTOR.submit(
+        () -> streamLoop(uriInfo, sseEventSink, sse, sinceEventId, lastEventId, once));
   }
 
   private void streamLoop(
-      UriInfo uriInfo, SseEventSink sseEventSink, Sse sse, String resumeFrom, boolean once) {
+      UriInfo uriInfo,
+      SseEventSink sseEventSink,
+      Sse sse,
+      String sinceEventId,
+      String lastEventId,
+      boolean once) {
+    AgentEventsTelemetry streamTelemetry = telemetry();
+    String traceId = streamTelemetry.ensureTraceId();
+    String cursor = null;
+    String cursorSource = "none";
+
     try {
-      var baselineEvents = project.events().findAll().stream().toList();
+      List<AgentEvent> baselineEvents = project.events().findAll().stream().toList();
+      ResumeCursor resumeCursor =
+          resolveResumeCursor(baselineEvents, blankToNull(sinceEventId), blankToNull(lastEventId));
+      cursor = resumeCursor.cursor();
+      cursorSource = resumeCursor.source();
+      int replayStart = replayStartIndex(baselineEvents, cursor);
+      int replayCount = Math.max(0, baselineEvents.size() - replayStart);
+
+      streamTelemetry.connectionOpened(project.getIdentity(), cursor, cursorSource);
+      if (replayCount > 0 && !"none".equals(cursorSource)) {
+        streamTelemetry.replay(project.getIdentity(), cursorSource, replayCount);
+      }
+
       Set<String> delivered = new HashSet<>();
       for (AgentEvent baselineEvent : baselineEvents) {
         delivered.add(baselineEvent.getIdentity());
       }
 
-      int replayStart = replayStartIndex(baselineEvents, resumeFrom);
+      String mode = cursor == null ? "initial" : replayStart > 0 ? "resume" : "resume-miss";
       sendSnapshot(
-          sseEventSink, sse, baselineEvents, resumeFrom, replayStart > 0 ? "resume" : "initial");
+          sseEventSink,
+          sse,
+          baselineEvents,
+          cursor,
+          mode,
+          cursorSource,
+          traceId,
+          uriInfo.getPath());
+
       for (int index = replayStart; index < baselineEvents.size(); index++) {
-        sendAgentEvent(sseEventSink, sse, baselineEvents.get(index));
+        sendAgentEvent(sseEventSink, sse, baselineEvents.get(index), traceId);
       }
+
       if (once) {
         sseEventSink.close();
         return;
@@ -155,27 +187,88 @@ public class AgentEventsApi {
       while (!sseEventSink.isClosed()) {
         Thread.sleep(STREAM_POLL_INTERVAL_MILLIS);
         ticks++;
-        var events = project.events().findAll().stream().toList();
+
+        List<AgentEvent> events = project.events().findAll().stream().toList();
+        String latestEventId =
+            events.isEmpty() ? null : events.get(events.size() - 1).getIdentity();
+
         for (AgentEvent event : events) {
           if (delivered.add(event.getIdentity())) {
-            sendAgentEvent(sseEventSink, sse, event);
+            sendAgentEvent(sseEventSink, sse, event, traceId);
           }
         }
+
         if (ticks % STREAM_HEARTBEAT_TICKS == 0) {
-          sendTextEvent(sseEventSink, sse, "heartbeat", "");
+          sendHeartbeat(sseEventSink, sse, latestEventId, traceId);
+          streamTelemetry.heartbeat(project.getIdentity(), latestEventId);
         }
       }
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
-      sendTextEvent(sseEventSink, sse, "error", "stream interrupted");
+      sendErrorEvent(
+          sseEventSink,
+          sse,
+          new ErrorPayload(
+              "INTERRUPTED",
+              "stream interrupted",
+              true,
+              Duration.ofSeconds(1).toMillis(),
+              traceId,
+              Instant.now()));
+      streamTelemetry.streamError(
+          project.getIdentity(), "INTERRUPTED", "stream interrupted", error);
       sseEventSink.close();
     } catch (RuntimeException error) {
-      sendTextEvent(sseEventSink, sse, "error", error.getMessage());
+      sendErrorEvent(
+          sseEventSink,
+          sse,
+          new ErrorPayload(
+              "RUNTIME_FAILURE",
+              error.getMessage() == null ? "stream failure" : error.getMessage(),
+              true,
+              Duration.ofSeconds(1).toMillis(),
+              traceId,
+              Instant.now()));
+      streamTelemetry.streamError(
+          project.getIdentity(), "RUNTIME_FAILURE", error.getMessage(), error);
       sseEventSink.close();
+    } finally {
+      streamTelemetry.connectionClosed(project.getIdentity(), cursor, cursorSource);
     }
   }
 
-  private int replayStartIndex(java.util.List<AgentEvent> events, String resumeFrom) {
+  private ResumeCursor resolveResumeCursor(
+      List<AgentEvent> events, String sinceEventId, String lastEventId) {
+    if (sinceEventId == null && lastEventId == null) {
+      return new ResumeCursor(null, "none");
+    }
+    if (sinceEventId != null && lastEventId == null) {
+      return new ResumeCursor(sinceEventId, "since");
+    }
+    if (sinceEventId == null) {
+      return new ResumeCursor(lastEventId, "last-event-id");
+    }
+    if (Objects.equals(sinceEventId, lastEventId)) {
+      return new ResumeCursor(sinceEventId, "both");
+    }
+
+    int sinceIndex = indexOfEvent(events, sinceEventId);
+    int lastIndex = indexOfEvent(events, lastEventId);
+    if (sinceIndex >= 0 && lastIndex >= 0) {
+      return sinceIndex >= lastIndex
+          ? new ResumeCursor(sinceEventId, "merged")
+          : new ResumeCursor(lastEventId, "merged");
+    }
+    if (sinceIndex >= 0) {
+      return new ResumeCursor(sinceEventId, "since");
+    }
+    if (lastIndex >= 0) {
+      return new ResumeCursor(lastEventId, "last-event-id");
+    }
+    return new ResumeCursor(sinceEventId, "since");
+  }
+
+  private int replayStartIndex(List<AgentEvent> events, String resumeFrom) {
     if (resumeFrom == null) {
       return 0;
     }
@@ -187,20 +280,44 @@ public class AgentEventsApi {
     return 0;
   }
 
+  private int indexOfEvent(List<AgentEvent> events, String eventId) {
+    if (eventId == null) {
+      return -1;
+    }
+    for (int index = 0; index < events.size(); index++) {
+      if (eventId.equals(events.get(index).getIdentity())) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
   private void sendSnapshot(
       SseEventSink sseEventSink,
       Sse sse,
-      java.util.List<AgentEvent> events,
+      List<AgentEvent> events,
       String resumeFrom,
-      String mode) {
+      String mode,
+      String cursorSource,
+      String traceId,
+      String streamPath) {
     String latestEventId = events.isEmpty() ? null : events.get(events.size() - 1).getIdentity();
     SnapshotPayload payload =
         new SnapshotPayload(
-            project.getIdentity(), mode, resumeFrom, latestEventId, events.size(), Instant.now());
-    sendJsonEvent(sseEventSink, sse, "snapshot", payload, null);
+            project.getIdentity(),
+            mode,
+            resumeFrom,
+            latestEventId,
+            events.size(),
+            cursorSource,
+            traceId,
+            streamPath,
+            Instant.now());
+    sendJsonEvent(sseEventSink, sse, "snapshot", payload, latestEventId);
   }
 
-  private void sendAgentEvent(SseEventSink sseEventSink, Sse sse, AgentEvent event) {
+  private void sendAgentEvent(
+      SseEventSink sseEventSink, Sse sse, AgentEvent event, String traceId) {
     AgentEventDescription description = event.getDescription();
     AgentEventPayload payload =
         new AgentEventPayload(
@@ -210,8 +327,22 @@ public class AgentEventsApi {
             description.agent() == null ? null : description.agent().id(),
             description.task() == null ? null : description.task().id(),
             description.message(),
-            description.occurredAt());
+            description.occurredAt(),
+            traceId);
     sendJsonEvent(sseEventSink, sse, "agent-event", payload, event.getIdentity());
+    telemetry()
+        .delivered(project.getIdentity(), description.type().name(), description.occurredAt());
+  }
+
+  private void sendHeartbeat(
+      SseEventSink sseEventSink, Sse sse, String latestEventId, String traceId) {
+    HeartbeatPayload payload =
+        new HeartbeatPayload(project.getIdentity(), latestEventId, traceId, Instant.now());
+    sendJsonEvent(sseEventSink, sse, "heartbeat", payload, latestEventId);
+  }
+
+  private void sendErrorEvent(SseEventSink sseEventSink, Sse sse, ErrorPayload payload) {
+    sendJsonEvent(sseEventSink, sse, "error", payload, null);
   }
 
   private void sendJsonEvent(
@@ -229,15 +360,6 @@ public class AgentEventsApi {
     }
   }
 
-  private void sendTextEvent(SseEventSink sseEventSink, Sse sse, String eventName, String data) {
-    if (sseEventSink.isClosed()) {
-      return;
-    }
-    OutboundSseEvent event =
-        sse.newEventBuilder().name(eventName).data(String.class, data == null ? "" : data).build();
-    sseEventSink.send(event);
-  }
-
   private Ref<String> toRef(String id) {
     if (id == null || id.isBlank()) {
       return null;
@@ -251,6 +373,10 @@ public class AgentEventsApi {
     }
     String trimmed = value.trim();
     return trimmed.isEmpty() ? null : trimmed;
+  }
+
+  private AgentEventsTelemetry telemetry() {
+    return telemetry == null ? AgentEventsTelemetry.noop() : telemetry;
   }
 
   @Data
@@ -270,6 +396,9 @@ public class AgentEventsApi {
       String resumeFromEventId,
       String latestEventId,
       int totalEvents,
+      String cursorSource,
+      String traceId,
+      String streamPath,
       Instant emittedAt) {}
 
   private record AgentEventPayload(
@@ -279,5 +408,19 @@ public class AgentEventsApi {
       String agentId,
       String taskId,
       String message,
-      Instant occurredAt) {}
+      Instant occurredAt,
+      String traceId) {}
+
+  private record HeartbeatPayload(
+      String projectId, String latestEventId, String traceId, Instant emittedAt) {}
+
+  private record ErrorPayload(
+      String code,
+      String message,
+      boolean retryable,
+      long retryAfterMs,
+      String traceId,
+      Instant emittedAt) {}
+
+  private record ResumeCursor(String cursor, String source) {}
 }

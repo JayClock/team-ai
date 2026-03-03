@@ -21,6 +21,10 @@ import {
 } from 'react';
 
 const GRAPH_HEIGHT = 560;
+const STREAM_REFRESH_THROTTLE_MILLIS = 200;
+const STREAM_RECONNECT_BASE_DELAY_MILLIS = 1000;
+const STREAM_RECONNECT_MAX_DELAY_MILLIS = 10000;
+const STREAM_EVENT_DEDUP_LIMIT = 512;
 
 type ProjectTab = 'orchestration' | 'graph';
 
@@ -44,6 +48,11 @@ type OrchestrationRequestPayload = {
 };
 
 type StreamStatus = 'idle' | 'connecting' | 'connected' | 'retrying';
+type StreamPayload = {
+  id?: unknown;
+  latestEventId?: unknown;
+  message?: unknown;
+};
 
 interface G6GraphInstance {
   render: () => void | Promise<void>;
@@ -183,6 +192,9 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
   );
 
   const streamRefreshTimerRef = useRef<number | null>(null);
+  const streamReconnectTimerRef = useRef<number | null>(null);
+  const streamSeenEventIdsRef = useRef<Set<string>>(new Set());
+  const streamCursorRef = useRef<string | null>(null);
 
   const events = useMemo(
     () =>
@@ -218,7 +230,7 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
     streamRefreshTimerRef.current = window.setTimeout(() => {
       streamRefreshTimerRef.current = null;
       void refreshOrchestrationPanel();
-    }, 200);
+    }, STREAM_REFRESH_THROTTLE_MILLIS);
   }, [refreshOrchestrationPanel]);
 
   useEffect(() => {
@@ -236,34 +248,139 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
       return;
     }
 
+    streamSeenEventIdsRef.current.clear();
+    streamCursorRef.current = null;
+
+    let disposed = false;
+    let eventSource: EventSource | null = null;
+    let reconnectAttempts = 0;
+
+    const rememberEventId = (eventId: string): boolean => {
+      const seen = streamSeenEventIdsRef.current;
+      if (seen.has(eventId)) {
+        return false;
+      }
+      seen.add(eventId);
+      if (seen.size > STREAM_EVENT_DEDUP_LIMIT) {
+        const oldest = seen.values().next().value;
+        if (typeof oldest === 'string') {
+          seen.delete(oldest);
+        }
+      }
+      return true;
+    };
+
+    const markRealtimeUpdate = () => {
+      setLastRealtimeUpdateAt(new Date().toISOString());
+    };
+
+    const clearReconnectTimer = () => {
+      if (streamReconnectTimerRef.current !== null) {
+        window.clearTimeout(streamReconnectTimerRef.current);
+        streamReconnectTimerRef.current = null;
+      }
+    };
+
+    const scheduleReconnect = () => {
+      if (disposed || streamReconnectTimerRef.current !== null) {
+        return;
+      }
+      reconnectAttempts += 1;
+      const delayMillis = reconnectDelay(reconnectAttempts);
+      setStreamStatus('retrying');
+      setStreamMessage(
+        `realtime stream disconnected, retrying in ${Math.ceil(delayMillis / 1000)}s...`,
+      );
+      streamReconnectTimerRef.current = window.setTimeout(() => {
+        streamReconnectTimerRef.current = null;
+        connectStream();
+      }, delayMillis);
+    };
+
+    const connectStream = () => {
+      if (disposed) {
+        return;
+      }
+      const streamHref = withSinceCursor(eventsStreamHref, streamCursorRef.current);
+      setStreamStatus(reconnectAttempts === 0 ? 'connecting' : 'retrying');
+      eventSource = new EventSource(streamHref);
+      const activeSource = eventSource;
+
+      activeSource.onopen = () => {
+        reconnectAttempts = 0;
+        setStreamStatus('connected');
+        setStreamMessage(null);
+      };
+
+      activeSource.addEventListener('snapshot', (event: MessageEvent) => {
+        const payload = parseStreamPayload(event.data);
+        const eventId = resolveStreamEventId(event, payload);
+        if (eventId) {
+          streamCursorRef.current = eventId;
+          rememberEventId(eventId);
+        }
+        markRealtimeUpdate();
+        schedulePanelRefresh();
+      });
+
+      activeSource.addEventListener('agent-event', (event: MessageEvent) => {
+        const payload = parseStreamPayload(event.data);
+        const eventId = resolveStreamEventId(event, payload);
+        if (eventId) {
+          if (!rememberEventId(eventId)) {
+            return;
+          }
+          streamCursorRef.current = eventId;
+        }
+        markRealtimeUpdate();
+        schedulePanelRefresh();
+      });
+
+      activeSource.addEventListener('heartbeat', (event: MessageEvent) => {
+        const payload = parseStreamPayload(event.data);
+        const eventId = nonBlankString(payload?.latestEventId);
+        if (eventId) {
+          streamCursorRef.current = eventId;
+          rememberEventId(eventId);
+        }
+        markRealtimeUpdate();
+      });
+
+      activeSource.addEventListener('error', (event: MessageEvent) => {
+        const payload = parseStreamPayload(event.data);
+        const message = nonBlankString(payload?.message);
+        if (message) {
+          setStreamMessage(message);
+        }
+      });
+
+      activeSource.onerror = () => {
+        if (disposed) {
+          return;
+        }
+        activeSource.close();
+        scheduleReconnect();
+      };
+    };
+
     setStreamStatus('connecting');
     setStreamMessage(null);
-    const eventSource = new EventSource(eventsStreamHref);
-
-    eventSource.onopen = () => {
-      setStreamStatus('connected');
-      setStreamMessage(null);
-    };
-
-    const handleRealtimeUpdate = () => {
-      setLastRealtimeUpdateAt(new Date().toISOString());
-      schedulePanelRefresh();
-    };
-
-    eventSource.addEventListener('snapshot', handleRealtimeUpdate);
-    eventSource.addEventListener('agent-event', handleRealtimeUpdate);
-    eventSource.addEventListener('heartbeat', () => {
-      setLastRealtimeUpdateAt(new Date().toISOString());
-    });
-    eventSource.onerror = () => {
-      setStreamStatus('retrying');
-      setStreamMessage('realtime stream disconnected, retrying...');
-    };
+    connectStream();
 
     return () => {
-      eventSource.close();
+      disposed = true;
+      clearReconnectTimer();
+      eventSource?.close();
     };
   }, [eventsStreamHref, schedulePanelRefresh]);
+
+  useEffect(() => {
+    return () => {
+      if (streamReconnectTimerRef.current !== null) {
+        window.clearTimeout(streamReconnectTimerRef.current);
+      }
+    };
+  }, []);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -718,6 +835,61 @@ function toG6GraphData(
       },
     })),
   };
+}
+
+function nonBlankString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}
+
+function parseStreamPayload(raw: unknown): StreamPayload | null {
+  if (typeof raw !== 'string' || raw.trim().length === 0) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+    return parsed as StreamPayload;
+  } catch {
+    return null;
+  }
+}
+
+function resolveStreamEventId(
+  event: MessageEvent,
+  payload: StreamPayload | null,
+): string | null {
+  return (
+    nonBlankString(payload?.id) ??
+    nonBlankString(payload?.latestEventId) ??
+    nonBlankString(event.lastEventId)
+  );
+}
+
+function withSinceCursor(streamHref: string, cursor: string | null): string {
+  if (!cursor) {
+    return streamHref;
+  }
+  const [pathWithQuery, fragment = ''] = streamHref.split('#', 2);
+  const [path, query = ''] = pathWithQuery.split('?', 2);
+  const searchParams = new URLSearchParams(query);
+  searchParams.set('since', cursor);
+  const serialized = searchParams.toString();
+  return `${path}${serialized ? `?${serialized}` : ''}${fragment ? `#${fragment}` : ''}`;
+}
+
+function reconnectDelay(attempt: number): number {
+  const safeAttempt = Math.max(1, attempt);
+  const multiplier = Math.pow(2, Math.min(safeAttempt - 1, 4));
+  return Math.min(
+    STREAM_RECONNECT_MAX_DELAY_MILLIS,
+    STREAM_RECONNECT_BASE_DELAY_MILLIS * multiplier,
+  );
 }
 
 function normalizeOptionalText(value: string): string | undefined {

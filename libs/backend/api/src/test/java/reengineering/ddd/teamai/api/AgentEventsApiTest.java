@@ -123,6 +123,7 @@ public class AgentEventsApiTest extends ApiTest {
         .statusCode(200)
         .contentType(startsWith(MediaType.SERVER_SENT_EVENTS))
         .body(containsString("event: snapshot"))
+        .body(containsString("\"cursorSource\":\"none\""))
         .body(containsString("event: agent-event"))
         .body(containsString("id: event-1"))
         .body(containsString("\"type\":\"TASK_ASSIGNED\""));
@@ -149,7 +150,70 @@ public class AgentEventsApiTest extends ApiTest {
         .statusCode(200)
         .body(containsString("event: snapshot"))
         .body(containsString("\"resumeFromEventId\":\"event-1\""))
+        .body(containsString("\"cursorSource\":\"since\""))
         .body(containsString("id: event-2"))
         .body(containsString("\"type\":\"TASK_STATUS_CHANGED\""));
+  }
+
+  @Test
+  void should_resume_stream_from_last_event_id_header() {
+    AgentEvent second =
+        new AgentEvent(
+            "event-2",
+            new AgentEventDescription(
+                AgentEventDescription.Type.TASK_STATUS_CHANGED,
+                new Ref<>("agent-2"),
+                new Ref<>("task-2"),
+                "Task moved to review",
+                Instant.parse("2026-01-01T00:01:00Z")));
+    when(events.findAll()).thenReturn(new EntityList<>(event, second));
+
+    given(documentationSpec)
+        .accept(MediaType.SERVER_SENT_EVENTS)
+        .header("Last-Event-ID", "event-1")
+        .when()
+        .get("/projects/{projectId}/events/stream?once=true", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .body(containsString("event: snapshot"))
+        .body(containsString("\"resumeFromEventId\":\"event-1\""))
+        .body(containsString("\"cursorSource\":\"last-event-id\""))
+        .body(containsString("id: event-2"));
+  }
+
+  @Test
+  void should_merge_since_and_last_event_id_with_latest_cursor() {
+    AgentEvent second =
+        new AgentEvent(
+            "event-2",
+            new AgentEventDescription(
+                AgentEventDescription.Type.TASK_STATUS_CHANGED,
+                new Ref<>("agent-2"),
+                new Ref<>("task-2"),
+                "Task moved to review",
+                Instant.parse("2026-01-01T00:01:00Z")));
+    AgentEvent third =
+        new AgentEvent(
+            "event-3",
+            new AgentEventDescription(
+                AgentEventDescription.Type.REPORT_SUBMITTED,
+                new Ref<>("agent-3"),
+                new Ref<>("task-3"),
+                "Report submitted",
+                Instant.parse("2026-01-01T00:02:00Z")));
+    when(events.findAll()).thenReturn(new EntityList<>(event, second, third));
+
+    given(documentationSpec)
+        .accept(MediaType.SERVER_SENT_EVENTS)
+        .header("Last-Event-ID", "event-2")
+        .when()
+        .get("/projects/{projectId}/events/stream?once=true&since=event-1", project.getIdentity())
+        .then()
+        .statusCode(200)
+        .body(containsString("event: snapshot"))
+        .body(containsString("\"resumeFromEventId\":\"event-2\""))
+        .body(containsString("\"cursorSource\":\"merged\""))
+        .body(containsString("id: event-3"))
+        .body(containsString("\"type\":\"REPORT_SUBMITTED\""));
   }
 }
