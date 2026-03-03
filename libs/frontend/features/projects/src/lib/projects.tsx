@@ -3,6 +3,7 @@ import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { type Signal } from '@preact/signals-react';
 import {
   AgentCollection,
+  AgentEventType,
   AgentEventCollection,
   KnowledgeGraph,
   KnowledgeGraphEdge,
@@ -13,6 +14,7 @@ import {
 } from '@shared/schema';
 import {
   FormEvent,
+  ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -25,6 +27,7 @@ const STREAM_REFRESH_THROTTLE_MILLIS = 200;
 const STREAM_RECONNECT_BASE_DELAY_MILLIS = 1000;
 const STREAM_RECONNECT_MAX_DELAY_MILLIS = 10000;
 const STREAM_EVENT_DEDUP_LIMIT = 512;
+const MANUAL_CANCEL_REASON = 'Manual cancellation from orchestration workspace';
 
 type ProjectTab = 'orchestration' | 'graph';
 
@@ -53,6 +56,33 @@ type StreamPayload = {
   latestEventId?: unknown;
   message?: unknown;
 };
+type EventTimeFilter = 'ALL' | '1H' | '24H' | '7D';
+
+type DerivedStepState =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'REVIEW_REQUIRED'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
+
+type DerivedOrchestrationStep = {
+  id: string;
+  title: string;
+  objective: string;
+  status: DerivedStepState;
+  isCurrent: boolean;
+  failureReason: string | null;
+};
+
+type TimelineEntry = {
+  key: string;
+  title: string;
+  meta: string;
+  tone: 'neutral' | 'info' | 'success' | 'warn' | 'danger';
+};
+
+type AgentEventState = State<AgentEventCollection>['collection'][number];
 
 interface G6GraphInstance {
   render: () => void | Promise<void>;
@@ -190,6 +220,17 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
   const [lastRealtimeUpdateAt, setLastRealtimeUpdateAt] = useState<string | null>(
     null,
   );
+  const [selectedOrchestrationId, setSelectedOrchestrationId] = useState<string | null>(
+    null,
+  );
+  const [eventTypeFilter, setEventTypeFilter] = useState<'ALL' | AgentEventType>('ALL');
+  const [eventAgentFilter, setEventAgentFilter] = useState<string>('ALL');
+  const [eventTimeFilter, setEventTimeFilter] = useState<EventTimeFilter>('ALL');
+  const [manualActionPending, setManualActionPending] = useState<
+    'refresh' | 'cancel' | 'retry' | null
+  >(null);
+  const [manualActionMessage, setManualActionMessage] = useState<string | null>(null);
+  const [manualActionError, setManualActionError] = useState<string | null>(null);
 
   const streamRefreshTimerRef = useRef<number | null>(null);
   const streamReconnectTimerRef = useRef<number | null>(null);
@@ -213,6 +254,58 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
       ),
     [orchestrationsState.collection],
   );
+  const selectedOrchestrationState = useMemo(() => {
+    if (orchestrations.length === 0) {
+      return null;
+    }
+    if (!selectedOrchestrationId) {
+      return orchestrations[0];
+    }
+    return (
+      orchestrations.find(
+        (orchestrationState) => orchestrationState.data.id === selectedOrchestrationId,
+      ) ?? orchestrations[0]
+    );
+  }, [orchestrations, selectedOrchestrationId]);
+  const selectedOrchestration = selectedOrchestrationState?.data ?? null;
+  const derivedSteps = useMemo(
+    () => deriveOrchestrationSteps(selectedOrchestration),
+    [selectedOrchestration],
+  );
+  const sessionEvents = useMemo(
+    () => selectOrchestrationEvents(events, selectedOrchestration),
+    [events, selectedOrchestration],
+  );
+  const filteredEvents = useMemo(
+    () => filterOrchestrationEvents(sessionEvents, eventTypeFilter, eventAgentFilter, eventTimeFilter),
+    [eventAgentFilter, eventTimeFilter, eventTypeFilter, sessionEvents],
+  );
+  const timelineEntries = useMemo(
+    () => buildOrchestrationTimeline(selectedOrchestration, filteredEvents),
+    [filteredEvents, selectedOrchestration],
+  );
+  const availableEventTypes = useMemo(
+    () => uniqueEventTypes(sessionEvents),
+    [sessionEvents],
+  );
+  const availableEventAgents = useMemo(
+    () => uniqueEventAgents(sessionEvents),
+    [sessionEvents],
+  );
+
+  useEffect(() => {
+    if (orchestrations.length === 0) {
+      setSelectedOrchestrationId(null);
+      return;
+    }
+    if (
+      selectedOrchestrationId &&
+      orchestrations.some((state) => state.data.id === selectedOrchestrationId)
+    ) {
+      return;
+    }
+    setSelectedOrchestrationId(orchestrations[0].data.id);
+  }, [orchestrations, selectedOrchestrationId]);
 
   const refreshOrchestrationPanel = useCallback(async () => {
     await Promise.all([
@@ -381,6 +474,79 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
       }
     };
   }, []);
+
+  const runManualRefresh = useCallback(async () => {
+    setManualActionPending('refresh');
+    setManualActionError(null);
+    setManualActionMessage(null);
+    try {
+      await refreshOrchestrationPanel();
+      setManualActionMessage('Workspace refreshed.');
+    } catch (error) {
+      setManualActionError(error instanceof Error ? error.message : 'Failed to refresh workspace.');
+    } finally {
+      setManualActionPending(null);
+    }
+  }, [refreshOrchestrationPanel]);
+
+  const cancelSelectedOrchestration = useCallback(async () => {
+    if (!selectedOrchestrationState || !selectedOrchestrationState.hasLink('cancel')) {
+      setManualActionError('Selected orchestration cannot be cancelled.');
+      return;
+    }
+    setManualActionPending('cancel');
+    setManualActionError(null);
+    setManualActionMessage(null);
+    try {
+      await selectedOrchestrationState.follow('cancel').post(
+        {
+          data: {
+            reason: MANUAL_CANCEL_REASON,
+            occurredAt: new Date().toISOString(),
+          },
+        },
+        { dedup: true },
+      );
+      await refreshOrchestrationPanel();
+      setManualActionMessage(`Orchestration ${selectedOrchestrationState.data.id} cancelled.`);
+    } catch (error) {
+      setManualActionError(
+        error instanceof Error ? error.message : 'Failed to cancel orchestration.',
+      );
+    } finally {
+      setManualActionPending(null);
+    }
+  }, [refreshOrchestrationPanel, selectedOrchestrationState]);
+
+  const retrySelectedOrchestration = useCallback(async () => {
+    if (!selectedOrchestration) {
+      setManualActionError('Select an orchestration first.');
+      return;
+    }
+    setManualActionPending('retry');
+    setManualActionError(null);
+    setManualActionMessage(null);
+    try {
+      await orchestrationApi.post(
+        {
+          data: {
+            goal: selectedOrchestration.goal,
+            title: `Retry ${selectedOrchestration.goal}`,
+            spec: selectedOrchestration.spec ?? fallbackSpecForGoal(selectedOrchestration.goal),
+          },
+        },
+        { dedup: true },
+      );
+      await refreshOrchestrationPanel();
+      setManualActionMessage(`Retry started from orchestration ${selectedOrchestration.id}.`);
+    } catch (error) {
+      setManualActionError(
+        error instanceof Error ? error.message : 'Failed to retry orchestration.',
+      );
+    } finally {
+      setManualActionPending(null);
+    }
+  }, [orchestrationApi, refreshOrchestrationPanel, selectedOrchestration]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -554,6 +720,136 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
           ) : null}
         </article>
 
+        <article className="rounded-lg border p-4">
+          <header className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold">Session Controls</h3>
+            <span className="text-xs text-muted-foreground">
+              {selectedOrchestration ? selectedOrchestration.state : 'no session'}
+            </span>
+          </header>
+          <label className="block text-xs font-medium text-muted-foreground">
+            Session
+            <select
+              data-testid="orchestration-selector"
+              className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+              value={selectedOrchestration?.id ?? ''}
+              onChange={(event) => setSelectedOrchestrationId(event.target.value)}
+            >
+              {orchestrations.map((orchestrationState) => (
+                <option key={orchestrationState.data.id} value={orchestrationState.data.id}>
+                  {orchestrationState.data.id} · {orchestrationState.data.state}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="refresh-workspace"
+              className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={manualActionPending !== null}
+              onClick={() => void runManualRefresh()}
+            >
+              {manualActionPending === 'refresh' ? 'Refreshing...' : 'Refresh'}
+            </button>
+            <button
+              type="button"
+              data-testid="cancel-session"
+              className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={
+                manualActionPending !== null ||
+                !selectedOrchestrationState?.hasLink('cancel')
+              }
+              onClick={() => void cancelSelectedOrchestration()}
+            >
+              {manualActionPending === 'cancel' ? 'Cancelling...' : 'Cancel'}
+            </button>
+            <button
+              type="button"
+              data-testid="retry-session"
+              className="rounded-md border border-sky-300 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={manualActionPending !== null || !selectedOrchestration}
+              onClick={() => void retrySelectedOrchestration()}
+            >
+              {manualActionPending === 'retry' ? 'Retrying...' : 'Retry'}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {selectedOrchestration
+              ? `Started ${formatNullableTimestamp(selectedOrchestration.startedAt)} · elapsed ${durationLabel(selectedOrchestration.startedAt, selectedOrchestration.completedAt)}`
+              : 'No orchestration selected.'}
+          </p>
+          {manualActionMessage ? (
+            <p className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs text-emerald-700">
+              {manualActionMessage}
+            </p>
+          ) : null}
+          {manualActionError ? (
+            <p className="mt-2 rounded-md border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-700">
+              {manualActionError}
+            </p>
+          ) : null}
+        </article>
+
+        <article className="rounded-lg border p-4">
+          <header className="mb-2 flex items-baseline justify-between gap-2">
+            <h3 className="text-sm font-semibold">Session Timeline</h3>
+            <span className="text-xs text-muted-foreground">
+              {timelineEntries.length} items
+            </span>
+          </header>
+          {timelineEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No timeline events.</p>
+          ) : (
+            <ul className="space-y-2">
+              {timelineEntries.map((entry) => (
+                <li key={entry.key} className="rounded-md border bg-muted/20 px-3 py-2">
+                  <p className={`text-sm font-medium ${timelineToneClass(entry.tone)}`}>
+                    {entry.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{entry.meta}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+
+        <article className="rounded-lg border p-4">
+          <header className="mb-2 flex items-baseline justify-between gap-2">
+            <h3 className="text-sm font-semibold">Steps</h3>
+            <span className="text-xs text-muted-foreground">
+              {derivedSteps.length} planned
+            </span>
+          </header>
+          {derivedSteps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No step specification available for selected session.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {derivedSteps.map((step) => (
+                <li key={step.id} className="rounded-md border bg-muted/20 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {step.title}
+                      {step.isCurrent ? ' · current' : ''}
+                    </p>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${stepStatusClass(step.status)}`}
+                    >
+                      {step.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{step.objective}</p>
+                  {step.failureReason ? (
+                    <p className="mt-1 text-xs text-red-700">failure: {step.failureReason}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+
         <ResourceListCard
           title="Orchestrations"
           subtitle={`${orchestrations.length} total`}
@@ -599,9 +895,52 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
 
         <ResourceListCard
           title="Events"
-          subtitle={`${events.length} recent`}
+          subtitle={`${filteredEvents.length} filtered`}
           emptyText="No events found."
-          rows={events.map((eventState) => ({
+          filters={
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+              <select
+                data-testid="event-type-filter"
+                className="rounded-md border bg-background px-2 py-1.5 text-xs"
+                value={eventTypeFilter}
+                onChange={(event) =>
+                  setEventTypeFilter(event.target.value as 'ALL' | AgentEventType)
+                }
+              >
+                <option value="ALL">All Types</option>
+                {availableEventTypes.map((eventType) => (
+                  <option key={eventType} value={eventType}>
+                    {eventType}
+                  </option>
+                ))}
+              </select>
+              <select
+                data-testid="event-agent-filter"
+                className="rounded-md border bg-background px-2 py-1.5 text-xs"
+                value={eventAgentFilter}
+                onChange={(event) => setEventAgentFilter(event.target.value)}
+              >
+                <option value="ALL">All Agents</option>
+                {availableEventAgents.map((agentId) => (
+                  <option key={agentId} value={agentId}>
+                    {agentId}
+                  </option>
+                ))}
+              </select>
+              <select
+                data-testid="event-time-filter"
+                className="rounded-md border bg-background px-2 py-1.5 text-xs"
+                value={eventTimeFilter}
+                onChange={(event) => setEventTimeFilter(event.target.value as EventTimeFilter)}
+              >
+                <option value="ALL">All Time</option>
+                <option value="1H">Last 1h</option>
+                <option value="24H">Last 24h</option>
+                <option value="7D">Last 7d</option>
+              </select>
+            </div>
+          }
+          rows={filteredEvents.map((eventState) => ({
             key: eventState.data.id,
             title: `${eventState.data.type} · ${eventState.data.agent?.id ?? 'system'}`,
             meta: `${formatTimestamp(eventState.data.occurredAt)} · ${eventState.data.message ?? 'no message'}`,
@@ -616,13 +955,14 @@ function ResourceListCard(props: {
   title: string;
   subtitle: string;
   emptyText: string;
+  filters?: ReactNode;
   rows: Array<{
     key: string;
     title: string;
     meta: string;
   }>;
 }) {
-  const { title, subtitle, emptyText, rows } = props;
+  const { title, subtitle, emptyText, rows, filters } = props;
 
   return (
     <article className="rounded-lg border p-4">
@@ -630,6 +970,7 @@ function ResourceListCard(props: {
         <h3 className="text-sm font-semibold">{title}</h3>
         <span className="text-xs text-muted-foreground">{subtitle}</span>
       </header>
+      {filters ? <div className="mb-2">{filters}</div> : null}
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyText}</p>
@@ -890,6 +1231,248 @@ function reconnectDelay(attempt: number): number {
     STREAM_RECONNECT_MAX_DELAY_MILLIS,
     STREAM_RECONNECT_BASE_DELAY_MILLIS * multiplier,
   );
+}
+
+function fallbackSpecForGoal(goal: string): OrchestrationRequestPayload['spec'] {
+  return {
+    version: '1.0',
+    steps: [
+      { id: 'clarify', title: 'Clarify scope', objective: `Clarify scope for ${goal}` },
+      { id: 'implement', title: 'Implement', objective: `Implement ${goal}` },
+      { id: 'validate', title: 'Validate', objective: `Validate ${goal}` },
+    ],
+    dependencies: [
+      { fromStepId: 'clarify', toStepId: 'implement' },
+      { fromStepId: 'implement', toStepId: 'validate' },
+    ],
+    acceptanceCriteria: [],
+    verificationCommands: [],
+  };
+}
+
+function uniqueEventTypes(events: AgentEventState[]): AgentEventType[] {
+  const values = new Set<AgentEventType>();
+  for (const event of events) {
+    values.add(event.data.type);
+  }
+  return [...values];
+}
+
+function uniqueEventAgents(events: AgentEventState[]): string[] {
+  const values = new Set<string>();
+  for (const event of events) {
+    const agentId = event.data.agent?.id;
+    if (agentId) {
+      values.add(agentId);
+    }
+  }
+  return [...values];
+}
+
+function selectOrchestrationEvents(
+  events: AgentEventState[],
+  orchestration: Orchestration['data'] | null,
+) {
+  if (!orchestration) {
+    return [];
+  }
+  const actorIds = new Set([orchestration.coordinator.id, orchestration.implementer.id]);
+  return events.filter((eventState) => {
+    const taskMatch = eventState.data.task?.id === orchestration.task.id;
+    const actorMatch = eventState.data.agent?.id
+      ? actorIds.has(eventState.data.agent.id)
+      : false;
+    return taskMatch || actorMatch;
+  });
+}
+
+function filterOrchestrationEvents(
+  events: AgentEventState[],
+  typeFilter: 'ALL' | AgentEventType,
+  agentFilter: string,
+  timeFilter: EventTimeFilter,
+) {
+  const now = Date.now();
+  const timeWindowMillis =
+    timeFilter === '1H'
+      ? 60 * 60 * 1000
+      : timeFilter === '24H'
+        ? 24 * 60 * 60 * 1000
+        : timeFilter === '7D'
+          ? 7 * 24 * 60 * 60 * 1000
+          : null;
+
+  return [...events]
+    .filter((eventState) => (typeFilter === 'ALL' ? true : eventState.data.type === typeFilter))
+    .filter((eventState) =>
+      agentFilter === 'ALL' ? true : eventState.data.agent?.id === agentFilter,
+    )
+    .filter((eventState) => {
+      if (timeWindowMillis === null) {
+        return true;
+      }
+      const occurredAt = Date.parse(eventState.data.occurredAt);
+      if (Number.isNaN(occurredAt)) {
+        return false;
+      }
+      return now - occurredAt <= timeWindowMillis;
+    })
+    .sort(
+      (left, right) =>
+        Date.parse(right.data.occurredAt) - Date.parse(left.data.occurredAt),
+    );
+}
+
+function buildOrchestrationTimeline(
+  orchestration: Orchestration['data'] | null,
+  filteredEvents: AgentEventState[],
+): TimelineEntry[] {
+  if (!orchestration) {
+    return [];
+  }
+  const entries: TimelineEntry[] = [];
+  entries.push({
+    key: `${orchestration.id}-start`,
+    title: `Session ${orchestration.id} started`,
+    meta: formatNullableTimestamp(orchestration.startedAt),
+    tone: 'info',
+  });
+  for (const eventState of filteredEvents) {
+    entries.push({
+      key: eventState.data.id,
+      title: `${eventState.data.type} · ${eventState.data.agent?.id ?? 'system'}`,
+      meta: `${formatTimestamp(eventState.data.occurredAt)} · ${eventState.data.message ?? 'no message'}`,
+      tone: eventTone(eventState.data.type),
+    });
+  }
+  if (orchestration.state === 'FAILED') {
+    entries.push({
+      key: `${orchestration.id}-failed`,
+      title: 'Session failed',
+      meta: orchestration.failureReason ?? 'unknown reason',
+      tone: 'danger',
+    });
+  } else if (orchestration.state === 'CANCELLED') {
+    entries.push({
+      key: `${orchestration.id}-cancelled`,
+      title: 'Session cancelled',
+      meta: orchestration.failureReason ?? 'manual cancellation',
+      tone: 'warn',
+    });
+  } else if (orchestration.state === 'COMPLETED') {
+    entries.push({
+      key: `${orchestration.id}-completed`,
+      title: 'Session completed',
+      meta: formatNullableTimestamp(orchestration.completedAt),
+      tone: 'success',
+    });
+  }
+  return entries;
+}
+
+function eventTone(type: AgentEventType): TimelineEntry['tone'] {
+  if (type === 'TASK_FAILED') {
+    return 'danger';
+  }
+  if (type === 'TASK_COMPLETED' || type === 'REPORT_SUBMITTED') {
+    return 'success';
+  }
+  if (type === 'TASK_STATUS_CHANGED') {
+    return 'info';
+  }
+  return 'neutral';
+}
+
+function deriveOrchestrationSteps(
+  orchestration: Orchestration['data'] | null,
+): DerivedOrchestrationStep[] {
+  if (!orchestration?.spec?.steps?.length) {
+    return [];
+  }
+  const currentStepId = orchestration.currentStep?.id ?? null;
+  const currentStepIndex = orchestration.spec.steps.findIndex((step) => step.id === currentStepId);
+
+  return orchestration.spec.steps.map((step, index) => {
+    let status: DerivedStepState = 'PENDING';
+    if (orchestration.state === 'CANCELLED' && step.id === currentStepId) {
+      status = 'CANCELLED';
+    } else if (orchestration.state === 'FAILED' && step.id === currentStepId) {
+      status = 'FAILED';
+    } else if (orchestration.state === 'REVIEW_REQUIRED' && step.id === currentStepId) {
+      status = 'REVIEW_REQUIRED';
+    } else if (orchestration.state === 'COMPLETED') {
+      status = 'COMPLETED';
+    } else if (step.id === currentStepId) {
+      status = 'RUNNING';
+    } else if (currentStepIndex >= 0 && index < currentStepIndex) {
+      status = 'COMPLETED';
+    }
+    return {
+      id: step.id,
+      title: step.title,
+      objective: step.objective,
+      status,
+      isCurrent: step.id === currentStepId,
+      failureReason:
+        step.id === currentStepId && (status === 'FAILED' || status === 'CANCELLED')
+          ? orchestration.failureReason
+          : null,
+    };
+  });
+}
+
+function stepStatusClass(status: DerivedStepState): string {
+  if (status === 'COMPLETED') {
+    return 'bg-emerald-100 text-emerald-800';
+  }
+  if (status === 'RUNNING' || status === 'REVIEW_REQUIRED') {
+    return 'bg-sky-100 text-sky-800';
+  }
+  if (status === 'FAILED') {
+    return 'bg-red-100 text-red-800';
+  }
+  if (status === 'CANCELLED') {
+    return 'bg-amber-100 text-amber-800';
+  }
+  return 'bg-slate-100 text-slate-700';
+}
+
+function timelineToneClass(tone: TimelineEntry['tone']): string {
+  if (tone === 'success') {
+    return 'text-emerald-700';
+  }
+  if (tone === 'info') {
+    return 'text-sky-700';
+  }
+  if (tone === 'warn') {
+    return 'text-amber-700';
+  }
+  if (tone === 'danger') {
+    return 'text-red-700';
+  }
+  return 'text-foreground';
+}
+
+function durationLabel(startedAt: string | null, completedAt: string | null): string {
+  if (!startedAt) {
+    return 'n/a';
+  }
+  const started = Date.parse(startedAt);
+  if (Number.isNaN(started)) {
+    return 'n/a';
+  }
+  const ended = completedAt ? Date.parse(completedAt) : Date.now();
+  if (Number.isNaN(ended)) {
+    return 'n/a';
+  }
+  const seconds = Math.max(0, Math.floor((ended - started) / 1000));
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  if (seconds < 3600) {
+    return `${Math.floor(seconds / 60)}m`;
+  }
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
 
 function normalizeOptionalText(value: string): string | undefined {

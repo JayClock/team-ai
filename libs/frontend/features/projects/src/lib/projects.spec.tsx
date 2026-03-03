@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import {
   useSuspenseResource,
   type UseSuspenseResourceResponse,
@@ -31,15 +31,30 @@ function getMockRel(resource: unknown): string | null {
 function toMockResponse(
   data: Record<string, unknown>,
   refresh: ReturnType<typeof vi.fn>,
-  options?: { withPost?: boolean },
+  options?: {
+    withPost?: boolean;
+    withCancelLink?: boolean;
+    post?: ReturnType<typeof vi.fn>;
+    cancelPost?: ReturnType<typeof vi.fn>;
+  },
 ): MockSuspenseResponse {
-  const { withPost = false } = options ?? {};
+  const {
+    withPost = false,
+    withCancelLink = false,
+    post = vi.fn(),
+    cancelPost = vi.fn().mockResolvedValue({}),
+  } = options ?? {};
+  const collectionState = {
+    data,
+    hasLink: (rel: string) => withCancelLink && rel === 'cancel',
+    follow: () => ({ post: cancelPost }),
+  };
   return {
     data,
     resourceState: {
-      collection: [{ data }],
+      collection: [collectionState],
     },
-    resource: withPost ? { refresh, post: vi.fn() } : { refresh },
+    resource: withPost ? { refresh, post } : { refresh },
   } as unknown as MockSuspenseResponse;
 }
 
@@ -112,9 +127,15 @@ describe('FeaturesProjects', () => {
           {
             id: 'session-1',
             state: 'RUNNING',
+            goal: 'Ship feature',
             startedAt: '2026-03-03T00:00:00Z',
+            completedAt: null,
             currentStep: null,
             failureReason: null,
+            coordinator: { id: 'agent-1' },
+            implementer: { id: 'agent-2' },
+            task: { id: 'task-1' },
+            spec: null,
           },
           orchestrationRefresh,
           { withPost: true },
@@ -195,9 +216,15 @@ describe('FeaturesProjects', () => {
           {
             id: 'session-1',
             state: 'RUNNING',
+            goal: 'Ship feature',
             startedAt: '2026-03-03T00:00:00Z',
+            completedAt: null,
             currentStep: null,
             failureReason: null,
+            coordinator: { id: 'agent-1' },
+            implementer: { id: 'agent-2' },
+            task: { id: 'task-1' },
+            spec: null,
           },
           vi.fn().mockResolvedValue(undefined),
           { withPost: true },
@@ -263,5 +290,128 @@ describe('FeaturesProjects', () => {
       item.url.includes('/api/projects/p1/events/stream?since=event-1'),
     );
     expect(resumedStreams.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('should support event filtering and manual orchestration actions', async () => {
+    const orchestrationRefresh = vi.fn().mockResolvedValue(undefined);
+    const agentRefresh = vi.fn().mockResolvedValue(undefined);
+    const taskRefresh = vi.fn().mockResolvedValue(undefined);
+    const eventRefresh = vi.fn().mockResolvedValue(undefined);
+    const orchestrationPost = vi.fn().mockResolvedValue({
+      data: {
+        id: 'session-2',
+        state: 'RUNNING',
+        startedAt: '2026-03-03T00:10:00Z',
+        currentStep: { id: 'implement' },
+        failureReason: null,
+      },
+    });
+    const cancelPost = vi.fn().mockResolvedValue({});
+
+    mockedUseSuspenseResource.mockImplementation((resource) => {
+      const rel = getMockRel(resource);
+      if (rel === 'orchestrations') {
+        return toMockResponse(
+          {
+            id: 'session-1',
+            state: 'FAILED',
+            goal: 'Ship feature',
+            startedAt: '2026-03-03T00:00:00Z',
+            completedAt: '2026-03-03T00:05:00Z',
+            currentStep: { id: 'implement' },
+            failureReason: 'tests failed',
+            coordinator: { id: 'agent-1' },
+            implementer: { id: 'agent-2' },
+            task: { id: 'task-1' },
+            spec: {
+              version: '1.0',
+              steps: [
+                { id: 'clarify', title: 'Clarify', objective: 'Clarify scope' },
+                { id: 'implement', title: 'Implement', objective: 'Implement scope' },
+                { id: 'validate', title: 'Validate', objective: 'Validate scope' },
+              ],
+              dependencies: [],
+              acceptanceCriteria: [],
+              verificationCommands: [],
+            },
+          },
+          orchestrationRefresh,
+          { withPost: true, withCancelLink: true, post: orchestrationPost, cancelPost },
+        );
+      }
+      if (rel === 'agents') {
+        return toMockResponse(
+          { id: 'agent-1', name: 'Agent', role: 'COORDINATOR', status: 'ACTIVE' },
+          agentRefresh,
+        );
+      }
+      if (rel === 'tasks') {
+        return toMockResponse(
+          { id: 'task-1', title: 'Task', status: 'IN_PROGRESS' },
+          taskRefresh,
+        );
+      }
+      if (rel === 'events') {
+        return toMockResponse(
+          {
+            id: 'event-1',
+            type: 'TASK_ASSIGNED',
+            occurredAt: '2026-03-03T00:00:00Z',
+            agent: { id: 'agent-1' },
+            task: { id: 'task-1' },
+            message: 'assigned',
+          },
+          eventRefresh,
+        );
+      }
+      return toEmptyMockResponse();
+    });
+
+    const projectState = {
+      hasLink: (rel: string) =>
+        ['orchestrations', 'agents', 'tasks', 'events', 'events-stream'].includes(rel),
+      follow: (rel: string) =>
+        rel === 'orchestrations' ? { rel, post: orchestrationPost } : { rel },
+      getLink: (rel: string) =>
+        rel === 'events-stream' ? { href: '/api/projects/p1/events/stream' } : undefined,
+    } as unknown as State<Project>;
+
+    render(
+      <FeaturesProjects
+        state={{ value: projectState } as Signal<State<Project>>}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fireEvent.change(screen.getByTestId('orchestration-selector'), {
+        target: { value: 'session-1' },
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('retry-session'));
+      await Promise.resolve();
+    });
+    expect(orchestrationPost).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('cancel-session'));
+      await Promise.resolve();
+    });
+    expect(cancelPost).toHaveBeenCalledTimes(1);
+
+    expect(screen.queryAllByText('TASK_ASSIGNED · agent-1').length).toBeGreaterThan(0);
+    await act(async () => {
+      fireEvent.change(screen.getByTestId('event-type-filter'), {
+        target: { value: 'TASK_FAILED' },
+      });
+      await Promise.resolve();
+    });
+    expect(screen.queryAllByText('TASK_ASSIGNED · agent-1').length).toBe(0);
   });
 });
