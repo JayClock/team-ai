@@ -1,0 +1,251 @@
+package reengineering.ddd.teamai.api.application;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import reengineering.ddd.teamai.model.AgentProtocolGateway;
+import reengineering.ddd.teamai.model.AgentRuntimeException;
+import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
+
+/**
+ * Remote {@link AgentProtocolGateway} implementation backed by the agent-gateway HTTP service.
+ *
+ * <p>This adapter keeps Java-side orchestration logic stable while delegating provider protocol
+ * handling to the TypeScript gateway.
+ */
+public class HttpAgentProtocolGateway implements AgentProtocolGateway {
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+  private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+
+  private final HttpClient client;
+  private final String baseUrl;
+  private final long pollIntervalMillis;
+  private final Map<String, String> sessionCursors = new ConcurrentHashMap<>();
+
+  public HttpAgentProtocolGateway(String baseUrl, long pollIntervalMillis) {
+    this(HttpClient.newHttpClient(), baseUrl, pollIntervalMillis);
+  }
+
+  HttpAgentProtocolGateway(HttpClient client, String baseUrl, long pollIntervalMillis) {
+    this.client = client;
+    this.baseUrl = normalizeBaseUrl(baseUrl);
+    this.pollIntervalMillis = Math.max(50L, pollIntervalMillis);
+  }
+
+  @Override
+  public SessionHandle start(StartRequest request) {
+    JsonNode response =
+        postJson(
+            "/sessions", Map.of("traceId", traceId(), "provider", providerFromRequest(request)));
+    String remoteSessionId = text(response.path("session"), "sessionId");
+    if (remoteSessionId == null || remoteSessionId.isBlank()) {
+      throw new AgentRuntimeException("Agent gateway returned empty sessionId");
+    }
+    return new SessionHandle(
+        remoteSessionId, request.orchestrationId(), request.agentId(), Instant.now());
+  }
+
+  @Override
+  public SendResult send(SessionHandle session, SendRequest request) {
+    String sessionId = session.sessionId();
+    postJson(
+        "/sessions/" + encode(sessionId) + "/prompt",
+        Map.of(
+            "input", request.input(),
+            "timeoutMs", request.timeout().toMillis(),
+            "traceId", traceId()));
+
+    Instant deadline = Instant.now().plus(request.timeout());
+    StringBuilder output = new StringBuilder();
+    String cursor = sessionCursors.get(sessionId);
+    while (Instant.now().isBefore(deadline)) {
+      JsonNode page = getEvents(sessionId, cursor);
+      JsonNode events = page.path("events");
+      if (events.isArray()) {
+        for (JsonNode event : events) {
+          String eventCursor = text(event, "cursor");
+          if (eventCursor != null && !eventCursor.isBlank()) {
+            cursor = eventCursor;
+            sessionCursors.put(sessionId, cursor);
+          }
+
+          String type = text(event, "type");
+          if ("delta".equals(type)) {
+            appendDelta(output, event.path("data"));
+          } else if ("error".equals(type)) {
+            JsonNode error = event.path("error");
+            throw new AgentRuntimeException(
+                text(error, "message") == null ? "gateway error" : text(error, "message"));
+          } else if ("complete".equals(type)) {
+            String mergedOutput = normalizeOutput(output.toString(), event.path("data"));
+            return new SendResult(mergedOutput, Instant.now());
+          }
+        }
+      }
+
+      sleepPolling();
+    }
+
+    throw new AgentRuntimeTimeoutException(
+        "Gateway prompt timed out after " + request.timeout().toMillis() + "ms");
+  }
+
+  @Override
+  public void stop(SessionHandle session) {
+    postJson(
+        "/sessions/" + encode(session.sessionId()) + "/cancel",
+        Map.of("reason", "cancelled by java runtime bridge", "traceId", traceId()));
+  }
+
+  @Override
+  public Health health() {
+    JsonNode response = getJson("/health");
+    String status = text(response, "status");
+    if ("ok".equalsIgnoreCase(status)) {
+      return new Health(Status.UP, 0, "agent-gateway reachable");
+    }
+    return new Health(Status.DEGRADED, 0, "agent-gateway status: " + status);
+  }
+
+  private JsonNode getEvents(String sessionId, String cursor) {
+    String path = "/sessions/" + encode(sessionId) + "/events";
+    if (cursor != null && !cursor.isBlank()) {
+      path = path + "?cursor=" + encode(cursor);
+    }
+    return getJson(path);
+  }
+
+  private JsonNode getJson(String path) {
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(baseUrl + path))
+            .timeout(REQUEST_TIMEOUT)
+            .GET()
+            .header("Accept", "application/json")
+            .build();
+    return send(request);
+  }
+
+  private JsonNode postJson(String path, Map<String, Object> body) {
+    HttpRequest request =
+        HttpRequest.newBuilder()
+            .uri(URI.create(baseUrl + path))
+            .timeout(REQUEST_TIMEOUT)
+            .POST(HttpRequest.BodyPublishers.ofString(toJson(body)))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .build();
+    return send(request);
+  }
+
+  private JsonNode send(HttpRequest request) {
+    try {
+      HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+      if (response.statusCode() >= 400) {
+        throw new AgentRuntimeException(
+            "Gateway request failed: " + response.statusCode() + " " + response.body());
+      }
+      return OBJECT_MAPPER.readTree(response.body());
+    } catch (IOException error) {
+      throw new AgentRuntimeException("Gateway IO error: " + error.getMessage());
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      throw new AgentRuntimeException("Gateway request interrupted");
+    }
+  }
+
+  private String toJson(Map<String, Object> value) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(value);
+    } catch (IOException error) {
+      throw new AgentRuntimeException("Failed to serialize gateway request body");
+    }
+  }
+
+  private String normalizeOutput(String output, JsonNode completeData) {
+    String trimmed = output == null ? "" : output.trim();
+    if (!trimmed.isBlank()) {
+      return trimmed;
+    }
+    String reason = text(completeData, "reason");
+    return reason == null || reason.isBlank() ? "completed" : reason;
+  }
+
+  private void appendDelta(StringBuilder output, JsonNode data) {
+    String text = text(data, "text");
+    if (text == null || text.isBlank()) {
+      text = text(data, "content");
+    }
+    if (text != null && !text.isBlank()) {
+      if (!output.isEmpty()) {
+        output.append('\n');
+      }
+      output.append(text);
+    }
+  }
+
+  private void sleepPolling() {
+    try {
+      Thread.sleep(pollIntervalMillis);
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      throw new AgentRuntimeException("Gateway polling interrupted");
+    }
+  }
+
+  private String providerFromRequest(StartRequest request) {
+    Map<String, Object> mcpConfig = parseMcpConfig(request.mcpConfig());
+    Object provider = mcpConfig.get("provider");
+    if (provider instanceof String providerText && !providerText.isBlank()) {
+      return providerText;
+    }
+    return "codex";
+  }
+
+  private Map<String, Object> parseMcpConfig(String mcpConfig) {
+    if (mcpConfig == null || mcpConfig.isBlank()) {
+      return Map.of();
+    }
+    try {
+      JsonNode root = OBJECT_MAPPER.readTree(mcpConfig);
+      if (root.isObject()) {
+        return OBJECT_MAPPER.convertValue(root, LinkedHashMap.class);
+      }
+    } catch (IOException ignored) {
+      // Best effort parsing only; fallback to default provider.
+    }
+    return Map.of();
+  }
+
+  private String traceId() {
+    return "java-bridge";
+  }
+
+  private String normalizeBaseUrl(String value) {
+    String normalized = value == null || value.isBlank() ? "http://127.0.0.1:3321" : value.trim();
+    return normalized.endsWith("/") ? normalized.substring(0, normalized.length() - 1) : normalized;
+  }
+
+  private String encode(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8);
+  }
+
+  private String text(JsonNode node, String field) {
+    JsonNode value = node.path(field);
+    if (value.isMissingNode() || value.isNull()) {
+      return null;
+    }
+    return value.asText();
+  }
+}

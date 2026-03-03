@@ -44,3 +44,10 @@ logging:
   pattern:
     console: '%d{yyyy-MM-dd HH:mm:ss} [traceId=%X{traceId}] - %msg%n'
     file: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [traceId=%X{traceId}] - %msg%n'
+
+team-ai:
+  acp:
+    gateway:
+      mode: ${TEAM_AI_ACP_GATEWAY_MODE:local}
+      base-url: ${TEAM_AI_ACP_GATEWAY_BASE_URL:http://127.0.0.1:3321}
+      poll-interval-ms: ${TEAM_AI_ACP_GATEWAY_POLL_INTERVAL_MS:200}
