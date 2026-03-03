@@ -14,6 +14,7 @@ import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.ApiTemplates;
 import reengineering.ddd.teamai.api.OrchestrationApi;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.description.TaskSpecDescription;
 import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.model.Project;
 
@@ -31,6 +32,7 @@ public class OrchestrationModel extends RepresentationModel<OrchestrationModel> 
   @JsonProperty private Ref<String> coordinator;
   @JsonProperty private Ref<String> implementer;
   @JsonProperty private Ref<String> task;
+  @JsonProperty private TaskSpecDescription spec;
   @JsonProperty private Ref<String> currentStep;
   @JsonProperty private Instant startedAt;
   @JsonProperty private Instant completedAt;
@@ -44,6 +46,7 @@ public class OrchestrationModel extends RepresentationModel<OrchestrationModel> 
     this.coordinator = description.coordinator();
     this.implementer = description.implementer();
     this.task = description.task();
+    this.spec = description.spec();
     this.currentStep = description.currentStep();
     this.startedAt = description.startedAt();
     this.completedAt = description.completedAt();

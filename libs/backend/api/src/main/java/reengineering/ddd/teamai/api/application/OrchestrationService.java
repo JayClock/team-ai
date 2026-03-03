@@ -14,6 +14,7 @@ import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
+import reengineering.ddd.teamai.description.TaskSpecDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.OrchestrationSession;
@@ -74,9 +75,10 @@ public class OrchestrationService {
 
     Ref<String> coordinator = ensureCoordinator(project, command.coordinatorAgentId());
     Ref<String> implementer = ensureImplementer(project, command.implementerAgentId());
+    TaskSpecDescription spec = requireSpec(command.spec());
     Instant occurredAt = command.occurredAt() == null ? Instant.now() : command.occurredAt();
 
-    Task task = project.createTask(toTaskDescription(command));
+    Task task = project.createTask(toTaskDescription(command, spec));
     Ref<String> taskRef = new Ref<>(task.getIdentity());
     project.appendEvent(
         new AgentEventDescription(
@@ -95,6 +97,7 @@ public class OrchestrationService {
                 coordinator,
                 implementer,
                 taskRef,
+                spec,
                 null,
                 occurredAt,
                 null,
@@ -111,7 +114,7 @@ public class OrchestrationService {
         OrchestrationSessionDescription.Status.RUNNING.name(),
         "orchestration started");
 
-    List<OrchestrationStep> steps = createStepPlan(project, session, command, taskRef, implementer);
+    List<OrchestrationStep> steps = createStepPlan(project, session, spec, taskRef, implementer);
     executePlannedSteps(project, session, steps, occurredAt);
 
     return project.orchestrationSessions().findByIdentity(session.getIdentity()).orElse(session);
@@ -155,10 +158,10 @@ public class OrchestrationService {
   private List<OrchestrationStep> createStepPlan(
       Project project,
       OrchestrationSession session,
-      StartCommand command,
+      TaskSpecDescription spec,
       Ref<String> taskRef,
       Ref<String> implementer) {
-    List<StepPlan> plans = buildDefaultStepPlan(command);
+    List<StepPlan> plans = buildStepPlan(spec);
     for (int i = 0; i < plans.size(); i++) {
       StepPlan step = plans.get(i);
       project
@@ -179,26 +182,8 @@ public class OrchestrationService {
     return project.orchestrationSessions().findSteps(session.getIdentity());
   }
 
-  private List<StepPlan> buildDefaultStepPlan(StartCommand command) {
-    String goal = normalize(command.goal());
-    String scope = normalize(command.scope());
-    String acceptance =
-        command.acceptanceCriteria() == null || command.acceptanceCriteria().isEmpty()
-            ? "No explicit acceptance criteria"
-            : String.join("; ", command.acceptanceCriteria());
-    String verification =
-        command.verificationCommands() == null || command.verificationCommands().isEmpty()
-            ? "No explicit verification commands"
-            : String.join("; ", command.verificationCommands());
-
-    return List.of(
-        new StepPlan(
-            "Clarify scope",
-            "Align implementation boundaries for goal: " + goal + " (scope: " + scope + ")"),
-        new StepPlan("Implement changes", "Deliver implementation for goal: " + goal),
-        new StepPlan(
-            "Validate and finalize",
-            "Validate against acceptance: " + acceptance + " | verification: " + verification));
+  private List<StepPlan> buildStepPlan(TaskSpecDescription spec) {
+    return spec.steps().stream().map(step -> new StepPlan(step.title(), step.objective())).toList();
   }
 
   private void executePlannedSteps(
@@ -467,19 +452,20 @@ public class OrchestrationService {
             description.coordinator(),
             description.implementer(),
             description.task(),
+            description.spec(),
             currentStep,
             description.startedAt(),
             description.completedAt(),
             description.failureReason()));
   }
 
-  private TaskDescription toTaskDescription(StartCommand command) {
+  private TaskDescription toTaskDescription(StartCommand command, TaskSpecDescription spec) {
     return new TaskDescription(
         resolveTitle(command),
         command.goal(),
-        normalizeText(command.scope()),
-        command.acceptanceCriteria(),
-        command.verificationCommands(),
+        "spec:" + spec.version(),
+        spec.acceptanceCriteria(),
+        spec.verificationCommands(),
         TaskDescription.Status.PENDING,
         null,
         null,
@@ -608,16 +594,63 @@ public class OrchestrationService {
     return value == null || value.isBlank() ? "unknown" : value;
   }
 
+  private TaskSpecDescription requireSpec(TaskSpecDescription spec) {
+    if (spec == null) {
+      throw new IllegalArgumentException("spec must not be null");
+    }
+    if (spec.steps().size() < 3) {
+      throw new IllegalArgumentException("spec.steps must contain at least 3 steps");
+    }
+    return spec;
+  }
+
   public record StartCommand(
       String requestId,
       String goal,
       String title,
-      String scope,
-      List<String> acceptanceCriteria,
-      List<String> verificationCommands,
+      TaskSpecDescription spec,
       String coordinatorAgentId,
       String implementerAgentId,
-      Instant occurredAt) {}
+      Instant occurredAt) {
+    public StartCommand(
+        String requestId,
+        String goal,
+        String title,
+        String scope,
+        List<String> acceptanceCriteria,
+        List<String> verificationCommands,
+        String coordinatorAgentId,
+        String implementerAgentId,
+        Instant occurredAt) {
+      this(
+          requestId,
+          goal,
+          title,
+          new TaskSpecDescription(
+              "1.0",
+              List.of(
+                  new TaskSpecDescription.Step(
+                      "clarify", "Clarify scope", "Clarify scope: " + normalizeStatic(scope)),
+                  new TaskSpecDescription.Step(
+                      "implement",
+                      "Implement changes",
+                      "Implement changes for goal: " + normalizeStatic(goal)),
+                  new TaskSpecDescription.Step(
+                      "validate", "Validate and finalize", "Validate and finalize implementation")),
+              List.of(
+                  new TaskSpecDescription.Dependency("clarify", "implement"),
+                  new TaskSpecDescription.Dependency("implement", "validate")),
+              acceptanceCriteria == null ? List.of() : acceptanceCriteria,
+              verificationCommands == null ? List.of() : verificationCommands),
+          coordinatorAgentId,
+          implementerAgentId,
+          occurredAt);
+    }
+  }
+
+  private static String normalizeStatic(String value) {
+    return value == null || value.isBlank() ? "n/a" : value.trim();
+  }
 
   private record StepPlan(String title, String objective) {}
 }

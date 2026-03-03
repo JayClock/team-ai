@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
+import reengineering.ddd.teamai.description.TaskSpecDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
@@ -120,6 +122,7 @@ public class OrchestrationsApiTest extends ApiTest {
                 new Ref<>("agent-routa"),
                 new Ref<>("agent-crafter"),
                 new Ref<>("task-1"),
+                defaultSpec(),
                 null,
                 Instant.parse("2026-03-02T12:00:00Z"),
                 null,
@@ -134,12 +137,14 @@ public class OrchestrationsApiTest extends ApiTest {
         .thenReturn(started);
     when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(started));
 
-    OrchestrationsApi.StartOrchestrationRequest request =
-        new OrchestrationsApi.StartOrchestrationRequest();
-    request.setGoal("Implement feature");
-    request.setAcceptanceCriteria(List.of("tests pass"));
-    request.setVerificationCommands(List.of("./gradlew :backend:api:test"));
-    request.setOccurredAt(Instant.parse("2026-03-02T12:00:00Z"));
+    Map<String, Object> request =
+        Map.of(
+            "goal",
+            "Implement feature",
+            "spec",
+            defaultSpecPayload(),
+            "occurredAt",
+            Instant.parse("2026-03-02T12:00:00Z").toString());
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
@@ -155,7 +160,8 @@ public class OrchestrationsApiTest extends ApiTest {
         .body("state", is("RUNNING"))
         .body("coordinator.id", is("agent-routa"))
         .body("implementer.id", is("agent-crafter"))
-        .body("task.id", is("task-1"));
+        .body("task.id", is("task-1"))
+        .body("spec.version", is("1.0"));
 
     verify(tasks, times(1)).create(any(TaskDescription.class));
     verify(tasks, times(1))
@@ -190,10 +196,9 @@ public class OrchestrationsApiTest extends ApiTest {
     when(orchestrationSessions.findByStartRequestId("req-start-1"))
         .thenReturn(Optional.of(existing));
 
-    OrchestrationsApi.StartOrchestrationRequest request =
-        new OrchestrationsApi.StartOrchestrationRequest();
-    request.setRequestId("req-start-1");
-    request.setGoal("Implement feature");
+    Map<String, Object> request =
+        Map.of(
+            "requestId", "req-start-1", "goal", "Implement feature", "spec", defaultSpecPayload());
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
@@ -258,6 +263,7 @@ public class OrchestrationsApiTest extends ApiTest {
                 new Ref<>("agent-routa-1"),
                 new Ref<>("agent-crafter-1"),
                 new Ref<>("task-2"),
+                defaultSpec(),
                 null,
                 Instant.parse("2026-03-02T12:00:00Z"),
                 null,
@@ -275,10 +281,14 @@ public class OrchestrationsApiTest extends ApiTest {
         .thenReturn(started);
     when(orchestrationSessions.findByIdentity("session-2")).thenReturn(Optional.of(started));
 
-    OrchestrationsApi.StartOrchestrationRequest request =
-        new OrchestrationsApi.StartOrchestrationRequest();
-    request.setGoal("Ship onboarding");
-    request.setOccurredAt(Instant.parse("2026-03-02T12:00:00Z"));
+    Map<String, Object> request =
+        Map.of(
+            "goal",
+            "Ship onboarding",
+            "spec",
+            defaultSpecPayload(),
+            "occurredAt",
+            Instant.parse("2026-03-02T12:00:00Z").toString());
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
@@ -356,6 +366,7 @@ public class OrchestrationsApiTest extends ApiTest {
                 new Ref<>("agent-routa"),
                 new Ref<>("agent-crafter"),
                 new Ref<>("task-1"),
+                defaultSpec(),
                 null,
                 Instant.parse("2026-03-02T12:00:00Z"),
                 null,
@@ -373,10 +384,14 @@ public class OrchestrationsApiTest extends ApiTest {
             any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
         .thenThrow(new AgentRuntimeException("codex execution failed"));
 
-    OrchestrationsApi.StartOrchestrationRequest request =
-        new OrchestrationsApi.StartOrchestrationRequest();
-    request.setGoal("Implement feature");
-    request.setOccurredAt(Instant.parse("2026-03-02T12:00:00Z"));
+    Map<String, Object> request =
+        Map.of(
+            "goal",
+            "Implement feature",
+            "spec",
+            defaultSpecPayload(),
+            "occurredAt",
+            Instant.parse("2026-03-02T12:00:00Z").toString());
 
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
@@ -415,6 +430,7 @@ public class OrchestrationsApiTest extends ApiTest {
                 new Ref<>("agent-routa"),
                 new Ref<>("agent-crafter"),
                 new Ref<>("task-1"),
+                defaultSpec(),
                 null,
                 Instant.parse("2026-03-02T12:00:00Z"),
                 null,
@@ -479,7 +495,8 @@ public class OrchestrationsApiTest extends ApiTest {
         .contentType(startsWith(ResourceTypes.ORCHESTRATION))
         .body("id", is("session-1"))
         .body("goal", is("Ship onboarding"))
-        .body("state", is("RUNNING"));
+        .body("state", is("RUNNING"))
+        .body("spec.steps", hasSize(3));
   }
 
   @Test
@@ -579,5 +596,38 @@ public class OrchestrationsApiTest extends ApiTest {
         .statusCode(409);
 
     verify(orchestrationSessions, never()).updateStatus(any(), any(), any(), any(), any());
+  }
+
+  private TaskSpecDescription defaultSpec() {
+    return new TaskSpecDescription(
+        "1.0",
+        List.of(
+            new TaskSpecDescription.Step("clarify", "Clarify scope", "Clarify scope"),
+            new TaskSpecDescription.Step("implement", "Implement", "Implement changes"),
+            new TaskSpecDescription.Step("validate", "Validate", "Validate changes")),
+        List.of(
+            new TaskSpecDescription.Dependency("clarify", "implement"),
+            new TaskSpecDescription.Dependency("implement", "validate")),
+        List.of("tests pass"),
+        List.of("./gradlew :backend:api:test"));
+  }
+
+  private Map<String, Object> defaultSpecPayload() {
+    return Map.of(
+        "version",
+        "1.0",
+        "steps",
+        List.of(
+            Map.of("id", "clarify", "title", "Clarify scope", "objective", "Clarify scope"),
+            Map.of("id", "implement", "title", "Implement", "objective", "Implement changes"),
+            Map.of("id", "validate", "title", "Validate", "objective", "Validate changes")),
+        "dependencies",
+        List.of(
+            Map.of("fromStepId", "clarify", "toStepId", "implement"),
+            Map.of("fromStepId", "implement", "toStepId", "validate")),
+        "acceptanceCriteria",
+        List.of("tests pass"),
+        "verificationCommands",
+        List.of("./gradlew :backend:api:test"));
   }
 }

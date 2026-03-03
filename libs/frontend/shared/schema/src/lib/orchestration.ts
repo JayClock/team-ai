@@ -11,6 +11,21 @@ export type OrchestrationState =
   | 'FAILED'
   | 'CANCELLED';
 
+export type OrchestrationSpec = {
+  version: string;
+  steps: Array<{
+    id: string;
+    title: string;
+    objective: string;
+  }>;
+  dependencies: Array<{
+    fromStepId: string;
+    toStepId: string;
+  }>;
+  acceptanceCriteria: string[];
+  verificationCommands: string[];
+};
+
 export type Orchestration = Entity<
   {
     id: string;
@@ -19,6 +34,7 @@ export type Orchestration = Entity<
     coordinator: { id: string };
     implementer: { id: string };
     task: { id: string };
+    spec: OrchestrationSpec | null;
     currentStep: { id: string } | null;
     startedAt: string | null;
     completedAt: string | null;

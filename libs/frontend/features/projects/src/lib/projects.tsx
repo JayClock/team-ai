@@ -27,9 +27,20 @@ type ProjectTab = 'orchestration' | 'graph';
 type OrchestrationRequestPayload = {
   goal: string;
   title?: string;
-  scope?: string;
-  acceptanceCriteria?: string[];
-  verificationCommands?: string[];
+  spec: {
+    version: string;
+    steps: Array<{
+      id: string;
+      title: string;
+      objective: string;
+    }>;
+    dependencies: Array<{
+      fromStepId: string;
+      toStepId: string;
+    }>;
+    acceptanceCriteria: string[];
+    verificationCommands: string[];
+  };
 };
 
 type StreamStatus = 'idle' | 'connecting' | 'connected' | 'retrying';
@@ -158,9 +169,10 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
 
   const [goal, setGoal] = useState('');
   const [title, setTitle] = useState('');
-  const [scope, setScope] = useState('');
   const [acceptanceText, setAcceptanceText] = useState('');
   const [verificationText, setVerificationText] = useState('');
+  const [stepText, setStepText] = useState('');
+  const [dependencyText, setDependencyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -261,27 +273,24 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
       return;
     }
 
-    const payload: OrchestrationRequestPayload = {
-      goal: normalizedGoal,
-    };
+    const payload: OrchestrationRequestPayload = { goal: normalizedGoal, spec: emptySpec() };
 
     const normalizedTitle = normalizeOptionalText(title);
-    const normalizedScope = normalizeOptionalText(scope);
     const acceptanceCriteria = toStringList(acceptanceText);
     const verificationCommands = toStringList(verificationText);
+    const parsedSteps = parseSpecSteps(stepText, normalizedGoal);
+    const parsedDependencies = parseSpecDependencies(dependencyText);
 
     if (normalizedTitle) {
       payload.title = normalizedTitle;
     }
-    if (normalizedScope) {
-      payload.scope = normalizedScope;
-    }
-    if (acceptanceCriteria.length > 0) {
-      payload.acceptanceCriteria = acceptanceCriteria;
-    }
-    if (verificationCommands.length > 0) {
-      payload.verificationCommands = verificationCommands;
-    }
+    payload.spec = {
+      version: '1.0',
+      steps: parsedSteps,
+      dependencies: parsedDependencies,
+      acceptanceCriteria,
+      verificationCommands,
+    };
 
     setSubmitting(true);
     setErrorMessage(null);
@@ -301,9 +310,10 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
       );
       setGoal('');
       setTitle('');
-      setScope('');
       setAcceptanceText('');
       setVerificationText('');
+      setStepText('');
+      setDependencyText('');
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'Failed to start orchestration.',
@@ -332,7 +342,7 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
             />
           </label>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3">
             <label className="block text-sm">
               <span className="mb-1 block font-medium">Title (optional)</span>
               <input
@@ -340,15 +350,6 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Orchestration bootstrap"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium">Scope (optional)</span>
-              <input
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-0 focus:border-foreground"
-                value={scope}
-                onChange={(e) => setScope(e.target.value)}
-                placeholder="backend/api + frontend/projects"
               />
             </label>
           </div>
@@ -370,6 +371,27 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
                 value={verificationText}
                 onChange={(e) => setVerificationText(e.target.value)}
                 placeholder="One line per command"
+              />
+            </label>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Spec Steps</span>
+              <textarea
+                className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-0 focus:border-foreground"
+                value={stepText}
+                onChange={(e) => setStepText(e.target.value)}
+                placeholder={'id | title | objective\nclarify | Clarify scope | Define boundaries'}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Spec Dependencies</span>
+              <textarea
+                className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-0 focus:border-foreground"
+                value={dependencyText}
+                onChange={(e) => setDependencyText(e.target.value)}
+                placeholder={'from -> to\nclarify -> implement'}
               />
             </label>
           </div>
@@ -708,6 +730,55 @@ function toStringList(value: string): string[] {
     .split('\n')
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+function emptySpec(): OrchestrationRequestPayload['spec'] {
+  return {
+    version: '1.0',
+    steps: [],
+    dependencies: [],
+    acceptanceCriteria: [],
+    verificationCommands: [],
+  };
+}
+
+function parseSpecSteps(
+  text: string,
+  goal: string,
+): OrchestrationRequestPayload['spec']['steps'] {
+  const parsed = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line, index) => {
+      const [idRaw, titleRaw, objectiveRaw] = line.split('|').map((part) => part.trim());
+      const id = idRaw || `step-${index + 1}`;
+      const title = titleRaw || `Step ${index + 1}`;
+      const objective = objectiveRaw || title;
+      return { id, title, objective };
+    });
+  if (parsed.length >= 3) {
+    return parsed;
+  }
+  return [
+    { id: 'clarify', title: 'Clarify scope', objective: `Clarify scope for ${goal}` },
+    { id: 'implement', title: 'Implement changes', objective: `Implement ${goal}` },
+    { id: 'validate', title: 'Validate and finalize', objective: `Validate ${goal}` },
+  ];
+}
+
+function parseSpecDependencies(
+  text: string,
+): OrchestrationRequestPayload['spec']['dependencies'] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const [from, to] = line.split('->').map((part) => part.trim());
+      return { fromStepId: from, toStepId: to };
+    })
+    .filter((dependency) => dependency.fromStepId && dependency.toStepId);
 }
 
 function formatTimestamp(value: string): string {

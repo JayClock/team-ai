@@ -28,6 +28,7 @@ import org.springframework.hateoas.mediatype.Affordances;
 import org.springframework.http.HttpMethod;
 import reengineering.ddd.teamai.api.application.OrchestrationService;
 import reengineering.ddd.teamai.api.representation.OrchestrationModel;
+import reengineering.ddd.teamai.description.TaskSpecDescription;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 import reengineering.ddd.teamai.model.OrchestrationSession;
@@ -103,9 +104,7 @@ public class OrchestrationsApi {
                   requestId,
                   request.getGoal(),
                   request.getTitle(),
-                  request.getScope(),
-                  request.getAcceptanceCriteria(),
-                  request.getVerificationCommands(),
+                  toTaskSpec(request.getSpec()),
                   request.getCoordinatorAgentId(),
                   request.getImplementerAgentId(),
                   request.getOccurredAt()));
@@ -138,6 +137,35 @@ public class OrchestrationsApi {
     return normalized.isEmpty() ? null : normalized;
   }
 
+  private TaskSpecDescription toTaskSpec(StartOrchestrationRequest.TaskSpecRequest specRequest) {
+    if (specRequest == null) {
+      throw new IllegalArgumentException("spec must not be null");
+    }
+    List<TaskSpecDescription.Step> steps =
+        Optional.ofNullable(specRequest.getSteps()).orElse(List.of()).stream()
+            .map(
+                step ->
+                    new TaskSpecDescription.Step(
+                        step.getId(), step.getTitle(), step.getObjective()))
+            .toList();
+    if (steps.isEmpty()) {
+      throw new IllegalArgumentException("spec.steps must not be empty");
+    }
+    List<TaskSpecDescription.Dependency> dependencies =
+        Optional.ofNullable(specRequest.getDependencies()).orElse(List.of()).stream()
+            .map(
+                dependency ->
+                    new TaskSpecDescription.Dependency(
+                        dependency.getFromStepId(), dependency.getToStepId()))
+            .toList();
+    return new TaskSpecDescription(
+        specRequest.getVersion(),
+        steps,
+        dependencies,
+        Optional.ofNullable(specRequest.getAcceptanceCriteria()).orElse(List.of()),
+        Optional.ofNullable(specRequest.getVerificationCommands()).orElse(List.of()));
+  }
+
   @Data
   @NoArgsConstructor
   public static class StartOrchestrationRequest {
@@ -146,11 +174,34 @@ public class OrchestrationsApi {
     @NotBlank private String goal;
 
     private String title;
-    private String scope;
-    private List<String> acceptanceCriteria;
-    private List<String> verificationCommands;
+    private TaskSpecRequest spec;
     private String coordinatorAgentId;
     private String implementerAgentId;
     private Instant occurredAt;
+
+    @Data
+    @NoArgsConstructor
+    public static class TaskSpecRequest {
+      private String version;
+      private List<TaskSpecStepRequest> steps;
+      private List<TaskSpecDependencyRequest> dependencies;
+      private List<String> acceptanceCriteria;
+      private List<String> verificationCommands;
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class TaskSpecStepRequest {
+      private String id;
+      private String title;
+      private String objective;
+    }
+
+    @Data
+    @NoArgsConstructor
+    public static class TaskSpecDependencyRequest {
+      private String fromStepId;
+      private String toStepId;
+    }
   }
 }

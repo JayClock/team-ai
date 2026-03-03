@@ -17,6 +17,7 @@ import reengineering.ddd.TestDataMapper;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.mybatis.support.IdHolder;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.description.TaskSpecDescription;
 import reengineering.ddd.teamai.model.OrchestrationSession;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectOrchestrationSessionsMapper;
 
@@ -122,6 +123,17 @@ class ProjectOrchestrationSessionsMapperTest {
             new Ref<>(String.valueOf(coordinatorId)),
             new Ref<>(String.valueOf(implementerId)),
             new Ref<>(String.valueOf(taskId)),
+            new TaskSpecDescription(
+                "1.0",
+                List.of(
+                    new TaskSpecDescription.Step("s1", "Clarify", "Clarify scope"),
+                    new TaskSpecDescription.Step("s2", "Implement", "Implement feature"),
+                    new TaskSpecDescription.Step("s3", "Validate", "Validate result")),
+                List.of(
+                    new TaskSpecDescription.Dependency("s1", "s2"),
+                    new TaskSpecDescription.Dependency("s2", "s3")),
+                List.of("criterion"),
+                List.of("./gradlew test")),
             null,
             null,
             null,
@@ -140,6 +152,9 @@ class ProjectOrchestrationSessionsMapperTest {
     assertEquals(OrchestrationSessionDescription.Status.COMPLETED, saved.getDescription().status());
     assertEquals(Instant.parse("2026-03-02T12:30:00Z"), saved.getDescription().completedAt());
     assertNull(saved.getDescription().failureReason());
+    assertNotNull(saved.getDescription().spec());
+    assertEquals("1.0", saved.getDescription().spec().version());
+    assertEquals(3, saved.getDescription().spec().steps().size());
 
     int count = sessionsMapper.countSessionsByProject(projectId);
     assertEquals(3, count);
