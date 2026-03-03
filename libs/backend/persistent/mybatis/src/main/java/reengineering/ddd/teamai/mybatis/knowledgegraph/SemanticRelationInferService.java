@@ -5,11 +5,9 @@ import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.RoleSubType;
 import reengineering.ddd.teamai.model.DiagramNode;
 import reengineering.ddd.teamai.model.LogicalEntity;
-import reengineering.ddd.teamai.service.SemanticRelationInferService;
 
 @Component
-public class DefaultSemanticRelationInferService implements SemanticRelationInferService {
-  @Override
+public class SemanticRelationInferService {
   public String inferRelationType(DiagramNode source, DiagramNode target) {
     LogicalEntity sourceEntity = source == null ? null : source.logicalEntity();
     LogicalEntity targetEntity = target == null ? null : target.logicalEntity();

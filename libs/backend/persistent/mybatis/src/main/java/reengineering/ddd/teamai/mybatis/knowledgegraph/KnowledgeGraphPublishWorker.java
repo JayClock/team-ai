@@ -13,7 +13,6 @@ import reengineering.ddd.teamai.model.LogicalEntity;
 import reengineering.ddd.teamai.mybatis.mappers.KnowledgeGraphJobsMapper;
 import reengineering.ddd.teamai.mybatis.mappers.KnowledgeGraphMapper;
 import reengineering.ddd.teamai.mybatis.mappers.ProjectDiagramsMapper;
-import reengineering.ddd.teamai.service.SemanticRelationInferService;
 
 @Component
 public class KnowledgeGraphPublishWorker {
