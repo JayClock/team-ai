@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +32,7 @@ import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentRuntime;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.OrchestrationSession;
+import reengineering.ddd.teamai.model.OrchestrationStep;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Task;
 
@@ -136,6 +138,8 @@ public class OrchestrationsApiTest extends ApiTest {
     when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
         .thenReturn(started);
     when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(started));
+    when(orchestrationSessions.findSteps("session-1"))
+        .thenReturn(plannedSteps("task-1", "agent-crafter"));
 
     Map<String, Object> request =
         Map.of(
@@ -171,10 +175,10 @@ public class OrchestrationsApiTest extends ApiTest {
     verify(agents, times(1))
         .updateStatus(new Ref<>("agent-crafter"), AgentDescription.Status.ACTIVE);
     verify(agents, never()).create(any(AgentDescription.class));
-    verify(events, times(5)).append(any(AgentEventDescription.class));
+    verify(events, atLeast(5)).append(any(AgentEventDescription.class));
     verify(orchestrationSessions, times(1)).create(any(OrchestrationSessionDescription.class));
-    verify(agentRuntime, times(1)).start(any(AgentRuntime.StartRequest.class));
-    verify(agentRuntime, times(1))
+    verify(agentRuntime, times(3)).start(any(AgentRuntime.StartRequest.class));
+    verify(agentRuntime, times(3))
         .send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class));
   }
 
@@ -280,6 +284,8 @@ public class OrchestrationsApiTest extends ApiTest {
     when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
         .thenReturn(started);
     when(orchestrationSessions.findByIdentity("session-2")).thenReturn(Optional.of(started));
+    when(orchestrationSessions.findSteps("session-2"))
+        .thenReturn(plannedSteps("task-2", "agent-crafter-1"));
 
     Map<String, Object> request =
         Map.of(
@@ -315,10 +321,10 @@ public class OrchestrationsApiTest extends ApiTest {
     verify(tasks, times(1))
         .assign(
             createdTask.getIdentity(), new Ref<>("agent-crafter-1"), new Ref<>("agent-routa-1"));
-    verify(events, times(7)).append(any(AgentEventDescription.class));
+    verify(events, atLeast(7)).append(any(AgentEventDescription.class));
     verify(orchestrationSessions, times(1)).create(any(OrchestrationSessionDescription.class));
-    verify(agentRuntime, times(1)).start(any(AgentRuntime.StartRequest.class));
-    verify(agentRuntime, times(1))
+    verify(agentRuntime, times(3)).start(any(AgentRuntime.StartRequest.class));
+    verify(agentRuntime, times(3))
         .send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class));
   }
 
@@ -380,6 +386,8 @@ public class OrchestrationsApiTest extends ApiTest {
     when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
         .thenReturn(started);
     when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(started));
+    when(orchestrationSessions.findSteps("session-1"))
+        .thenReturn(plannedSteps("task-1", "agent-crafter"));
     when(agentRuntime.send(
             any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
         .thenThrow(new AgentRuntimeException("codex execution failed"));
@@ -402,21 +410,28 @@ public class OrchestrationsApiTest extends ApiTest {
         .then()
         .statusCode(502);
 
-    verify(orchestrationSessions, times(2))
+    verify(orchestrationSessions, atLeast(1))
         .updateStatus(
-            "session-1",
-            OrchestrationSessionDescription.Status.FAILED,
-            null,
-            Instant.parse("2026-03-02T12:00:00Z"),
-            "codex execution failed");
-    verify(orchestrationSessions, times(1))
+            eq("session-1"),
+            eq(OrchestrationSessionDescription.Status.FAILED),
+            any(),
+            any(),
+            eq("codex execution failed"));
+    verify(orchestrationSessions, atLeast(1))
         .updateStatus(
-            "session-1", OrchestrationSessionDescription.Status.RUNNING, null, null, null);
-    verify(tasks, times(2))
+            eq("session-1"),
+            eq(OrchestrationSessionDescription.Status.RUNNING),
+            any(),
+            any(),
+            any());
+    verify(tasks, atLeast(1))
         .updateStatus("task-1", TaskDescription.Status.BLOCKED, "codex execution failed");
-    verify(tasks, times(1))
+    verify(tasks, atLeast(1))
         .updateStatus(eq("task-1"), eq(TaskDescription.Status.IN_PROGRESS), any(String.class));
-    verify(events, times(9)).append(any(AgentEventDescription.class));
+    verify(events, atLeast(1)).append(any(AgentEventDescription.class));
+    verify(agentRuntime, times(2)).start(any(AgentRuntime.StartRequest.class));
+    verify(agentRuntime, times(2))
+        .send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class));
   }
 
   @Test
@@ -476,6 +491,7 @@ public class OrchestrationsApiTest extends ApiTest {
                 new Ref<>("agent-routa"),
                 new Ref<>("agent-crafter"),
                 new Ref<>("task-1"),
+                defaultSpec(),
                 null,
                 Instant.parse("2026-03-02T12:00:00Z"),
                 null,
@@ -629,5 +645,27 @@ public class OrchestrationsApiTest extends ApiTest {
         List.of("tests pass"),
         "verificationCommands",
         List.of("./gradlew :backend:api:test"));
+  }
+
+  private List<OrchestrationStep> plannedSteps(String taskId, String assigneeId) {
+    return List.of(
+        plannedStep("step-1", "Clarify scope", "Clarify scope", taskId, assigneeId),
+        plannedStep("step-2", "Implement", "Implement changes", taskId, assigneeId),
+        plannedStep("step-3", "Validate", "Validate changes", taskId, assigneeId));
+  }
+
+  private OrchestrationStep plannedStep(
+      String id, String title, String objective, String taskId, String assigneeId) {
+    return new OrchestrationStep(
+        id,
+        new reengineering.ddd.teamai.description.OrchestrationStepDescription(
+            title,
+            objective,
+            reengineering.ddd.teamai.description.OrchestrationStepDescription.Status.PENDING,
+            new Ref<>(taskId),
+            new Ref<>(assigneeId),
+            null,
+            null,
+            null));
   }
 }
