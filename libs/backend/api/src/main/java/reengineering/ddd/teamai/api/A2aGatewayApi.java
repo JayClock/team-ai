@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.api;
 
+import static reengineering.ddd.teamai.validation.DomainValidation.requireText;
+
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -245,14 +247,16 @@ public class A2aGatewayApi {
     if (payload == null) {
       throw new BadRequestException("payload must not be null");
     }
-    requireText(payload.getTaskId(), "payload.taskId");
-    requireText(payload.getAssigneeAgentId(), "payload.assigneeAgentId");
-    requireText(payload.getCallerAgentId(), "payload.callerAgentId");
+    validateRequiredText(payload.getTaskId(), "payload.taskId");
+    validateRequiredText(payload.getAssigneeAgentId(), "payload.assigneeAgentId");
+    validateRequiredText(payload.getCallerAgentId(), "payload.callerAgentId");
   }
 
-  private void requireText(String value, String fieldName) {
-    if (value == null || value.isBlank()) {
-      throw new BadRequestException(fieldName + " must not be blank");
+  private void validateRequiredText(String value, String fieldName) {
+    try {
+      requireText(value, fieldName);
+    } catch (IllegalArgumentException error) {
+      throw new BadRequestException(error.getMessage());
     }
   }
 

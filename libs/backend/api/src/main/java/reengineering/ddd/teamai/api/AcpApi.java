@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.api;
 
+import static reengineering.ddd.teamai.validation.DomainValidation.requireText;
+
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
@@ -230,8 +232,8 @@ public class AcpApi {
   }
 
   private Object sessionNew(Map<String, Object> params, SecurityContext securityContext) {
-    String projectId = requireText(params, "projectId");
-    String actorUserId = requireText(params, "actorUserId");
+    String projectId = requiredTextParam(params, "projectId");
+    String actorUserId = requiredTextParam(params, "actorUserId");
     String provider = optionalText(params, "provider").orElse("team-ai");
     String mode = optionalText(params, "mode").orElse("CHAT");
     Instant now = Instant.now();
@@ -257,9 +259,9 @@ public class AcpApi {
   }
 
   private Object sessionPrompt(Map<String, Object> params, SecurityContext securityContext) {
-    String projectId = requireText(params, "projectId");
-    String sessionId = requireText(params, "sessionId");
-    String prompt = requireText(params, "prompt");
+    String projectId = requiredTextParam(params, "projectId");
+    String sessionId = requiredTextParam(params, "sessionId");
+    String prompt = requiredTextParam(params, "prompt");
     String eventId = optionalText(params, "eventId").orElse(null);
     Instant now = Instant.now();
 
@@ -304,8 +306,8 @@ public class AcpApi {
   }
 
   private Object sessionCancel(Map<String, Object> params, SecurityContext securityContext) {
-    String projectId = requireText(params, "projectId");
-    String sessionId = requireText(params, "sessionId");
+    String projectId = requiredTextParam(params, "projectId");
+    String sessionId = requiredTextParam(params, "sessionId");
     String reason = optionalText(params, "reason").orElse("cancelled by client");
     Instant now = Instant.now();
 
@@ -319,8 +321,8 @@ public class AcpApi {
   }
 
   private Object sessionLoad(Map<String, Object> params, SecurityContext securityContext) {
-    String projectId = requireText(params, "projectId");
-    String sessionId = requireText(params, "sessionId");
+    String projectId = requiredTextParam(params, "projectId");
+    String sessionId = requiredTextParam(params, "sessionId");
     Project project = requireProject(projectId);
     AcpSession session = requireSession(project, sessionId);
     authorizeProjectMember(project, id(session.getDescription().actor()), securityContext);
@@ -346,10 +348,12 @@ public class AcpApi {
                     AcpProtocolError.SESSION_NOT_FOUND, "sessionId not found: " + sessionId));
   }
 
-  private String requireText(Map<String, Object> params, String field) {
+  private String requiredTextParam(Map<String, Object> params, String field) {
     String value = optionalText(params, field).orElse(null);
-    if (value == null) {
-      throw new RpcException(AcpProtocolError.INVALID_PARAMS, field + " must not be blank");
+    try {
+      requireText(value, field);
+    } catch (IllegalArgumentException error) {
+      throw new RpcException(AcpProtocolError.INVALID_PARAMS, error.getMessage());
     }
     return value;
   }

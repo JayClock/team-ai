@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.infrastructure.mcp;
 
+import static reengineering.ddd.teamai.validation.DomainValidation.requireTrimmedText;
+
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -213,7 +215,7 @@ public class TeamAiMcpTools {
       @ToolParam(required = false, description = "Implementer agent ID")
           String implementerAgentId) {
     Project project = requireProject(projectId);
-    String normalizedGoal = requireText(goal, "goal");
+    String normalizedGoal = requireTrimmedText(goal, "goal");
     Instant occurredAt = Instant.now();
 
     Ref<String> coordinator = resolveCoordinator(project, coordinatorAgentId);
@@ -427,7 +429,7 @@ public class TeamAiMcpTools {
           "Cannot cancel step in state " + step.getDescription().status());
     }
 
-    String normalizedReason = requireText(reason, "reason");
+    String normalizedReason = requireTrimmedText(reason, "reason");
     String previousStatus = step.getDescription().status().name();
     Instant now = Instant.now();
     project
@@ -476,7 +478,7 @@ public class TeamAiMcpTools {
       @ToolParam(description = "Orchestration session ID") String orchestrationId,
       @ToolParam(description = "Cancellation reason") String reason) {
     Project project = requireProject(projectId);
-    String normalizedReason = requireText(reason, "reason");
+    String normalizedReason = requireTrimmedText(reason, "reason");
     OrchestrationSession session =
         requireOrchestration(project, orchestrationId)
             .orElseThrow(
@@ -511,7 +513,7 @@ public class TeamAiMcpTools {
   }
 
   private OrchestrationStep requireStep(Project project, String orchestrationId, String stepId) {
-    String normalizedStepId = requireText(stepId, "stepId");
+    String normalizedStepId = requireTrimmedText(stepId, "stepId");
     return project.orchestrationSessions().findSteps(orchestrationId).stream()
         .filter(step -> normalizedStepId.equals(step.getIdentity()))
         .findFirst()
@@ -873,14 +875,6 @@ public class TeamAiMcpTools {
 
   private String nextTraceId() {
     return "mcp-" + UUID.randomUUID();
-  }
-
-  private String requireText(String value, String fieldName) {
-    String normalized = blankToNull(value);
-    if (normalized == null) {
-      throw new IllegalArgumentException(fieldName + " must not be blank");
-    }
-    return normalized;
   }
 
   private String toOrchestrationState(OrchestrationSessionDescription.Status status) {

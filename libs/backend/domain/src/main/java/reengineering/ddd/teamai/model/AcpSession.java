@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.model;
 
+import static reengineering.ddd.teamai.validation.DomainValidation.requireText;
+
 import java.time.Instant;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.teamai.description.AcpSessionDescription;
@@ -165,12 +167,6 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
     }
     throw new IllegalStateException(
         "Cannot " + operation + " when session is " + current + ". Allowed: " + expected);
-  }
-
-  private void requireText(String value, String fieldName) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(fieldName + " must not be blank");
-    }
   }
 
   private Instant defaultTime(Instant time) {

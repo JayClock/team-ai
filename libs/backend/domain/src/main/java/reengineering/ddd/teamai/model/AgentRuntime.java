@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.model;
 
+import static reengineering.ddd.teamai.validation.DomainValidation.requireText;
+
 import java.time.Duration;
 import java.time.Instant;
 
@@ -72,11 +74,5 @@ public interface AgentRuntime {
     UP,
     DOWN,
     DEGRADED
-  }
-
-  private static void requireText(String value, String fieldName) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(fieldName + " must not be blank");
-    }
   }
 }

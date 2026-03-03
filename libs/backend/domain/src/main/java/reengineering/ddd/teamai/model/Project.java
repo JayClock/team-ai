@@ -1,5 +1,8 @@
 package reengineering.ddd.teamai.model;
 
+import static reengineering.ddd.teamai.validation.DomainValidation.requireRef;
+import static reengineering.ddd.teamai.validation.DomainValidation.requireText;
+
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
@@ -156,9 +159,7 @@ public class Project implements Entity<String, ProjectDescription> {
   }
 
   public void updateAgent(String agentId, AgentDescription description) {
-    if (agentId == null || agentId.isBlank()) {
-      throw new IllegalArgumentException("agentId must not be blank");
-    }
+    requireText(agentId, "agentId");
     if (description == null) {
       throw new IllegalArgumentException("description must not be null");
     }
@@ -169,9 +170,7 @@ public class Project implements Entity<String, ProjectDescription> {
   }
 
   public void deleteAgent(String agentId) {
-    if (agentId == null || agentId.isBlank()) {
-      throw new IllegalArgumentException("agentId must not be blank");
-    }
+    requireText(agentId, "agentId");
     if (agents.findByIdentity(agentId).isEmpty()) {
       throw new IllegalArgumentException("Agent not found: " + agentId);
     }
@@ -194,9 +193,7 @@ public class Project implements Entity<String, ProjectDescription> {
   }
 
   public Many<AcpSession> findAcpSessions(String projectId, int offset, int limit) {
-    if (projectId == null || projectId.isBlank()) {
-      throw new IllegalArgumentException("projectId must not be blank");
-    }
+    requireText(projectId, "projectId");
     if (offset < 0) {
       throw new IllegalArgumentException("offset must not be negative");
     }
@@ -237,9 +234,7 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public void renameAcpSession(String sessionId, String name) {
     AcpSession session = acpSessionOrThrow(sessionId);
-    if (name == null || name.isBlank()) {
-      throw new IllegalArgumentException("name must not be blank");
-    }
+    requireText(name, "name");
     session.rename(name);
     acpSessions().rename(sessionId, session.getName());
   }
@@ -261,9 +256,7 @@ public class Project implements Entity<String, ProjectDescription> {
   }
 
   public void updateMcpServer(String serverId, McpServerDescription description) {
-    if (serverId == null || serverId.isBlank()) {
-      throw new IllegalArgumentException("serverId must not be blank");
-    }
+    requireText(serverId, "serverId");
     if (description == null) {
       throw new IllegalArgumentException("description must not be null");
     }
@@ -274,9 +267,7 @@ public class Project implements Entity<String, ProjectDescription> {
   }
 
   public void deleteMcpServer(String serverId) {
-    if (serverId == null || serverId.isBlank()) {
-      throw new IllegalArgumentException("serverId must not be blank");
-    }
+    requireText(serverId, "serverId");
     if (mcpServers().findByIdentity(serverId).isEmpty()) {
       throw new IllegalArgumentException("MCP server not found: " + serverId);
     }
@@ -807,18 +798,14 @@ public class Project implements Entity<String, ProjectDescription> {
       };
 
   private Task taskOrThrow(String taskId) {
-    if (taskId == null || taskId.isBlank()) {
-      throw new IllegalArgumentException("taskId must not be blank");
-    }
+    requireText(taskId, "taskId");
     return tasks
         .findByIdentity(taskId)
         .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
   }
 
   private Agent agentOrThrow(Ref<String> agentRef, String fieldName) {
-    if (agentRef == null || agentRef.id() == null || agentRef.id().isBlank()) {
-      throw new IllegalArgumentException(fieldName + " must not be blank");
-    }
+    requireRef(agentRef, fieldName);
     return agents
         .findByIdentity(agentRef.id())
         .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + agentRef.id()));
@@ -880,12 +867,6 @@ public class Project implements Entity<String, ProjectDescription> {
       builder.append(", ").append(status);
     }
     return builder.toString();
-  }
-
-  private void requireText(String value, String fieldName) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(fieldName + " must not be blank");
-    }
   }
 
   private Instant normalizeEventTime(Instant occurredAt) {
@@ -965,9 +946,7 @@ public class Project implements Entity<String, ProjectDescription> {
   }
 
   private AcpSession acpSessionOrThrow(String sessionId) {
-    if (sessionId == null || sessionId.isBlank()) {
-      throw new IllegalArgumentException("sessionId must not be blank");
-    }
+    requireText(sessionId, "sessionId");
     return acpSessions()
         .findByIdentity(sessionId)
         .orElseThrow(() -> new IllegalArgumentException("ACP session not found: " + sessionId));

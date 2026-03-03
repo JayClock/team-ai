@@ -1,5 +1,7 @@
 package reengineering.ddd.teamai.model;
 
+import static reengineering.ddd.teamai.validation.DomainValidation.requireText;
+
 import java.time.Instant;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.teamai.description.OrchestrationStepDescription;
@@ -105,12 +107,6 @@ public class OrchestrationStep implements Entity<String, OrchestrationStepDescri
             description.startedAt(),
             defaultTime(completedAt),
             reason);
-  }
-
-  private void requireText(String value, String fieldName) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(fieldName + " must not be blank");
-    }
   }
 
   private void requireStatus(

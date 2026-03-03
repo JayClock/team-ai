@@ -1,5 +1,8 @@
 package reengineering.ddd.teamai.model;
 
+import static reengineering.ddd.teamai.validation.DomainValidation.requireRef;
+import static reengineering.ddd.teamai.validation.DomainValidation.requireText;
+
 import java.time.Instant;
 import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.Ref;
@@ -117,18 +120,6 @@ public class OrchestrationSession implements Entity<String, OrchestrationSession
             description.startedAt(),
             defaultTime(completedAt),
             reason);
-  }
-
-  private void requireRef(Ref<String> value, String fieldName) {
-    if (value == null || value.id() == null || value.id().isBlank()) {
-      throw new IllegalArgumentException(fieldName + " must not be blank");
-    }
-  }
-
-  private void requireText(String value, String fieldName) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(fieldName + " must not be blank");
-    }
   }
 
   private void requireStatus(
