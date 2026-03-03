@@ -204,4 +204,22 @@ public interface TestDataMapper {
       @Param("started_at") java.time.Instant startedAt,
       @Param("completed_at") java.time.Instant completedAt,
       @Param("failure_reason") String failureReason);
+
+  @Insert(
+      "INSERT INTO project_acp_sessions("
+          + "id, project_id, actor_user_id, provider, mode, status, started_at, last_activity_at, completed_at, failure_reason, last_event_id"
+          + ") VALUES ("
+          + "#{id}, #{project_id}, #{actor_user_id}, #{provider}, #{mode}, #{status}, #{started_at}, #{last_activity_at}, #{completed_at}, #{failure_reason}, #{last_event_id})")
+  void insertProjectAcpSession(
+      @Param("id") int id,
+      @Param("project_id") int projectId,
+      @Param("actor_user_id") Integer actorUserId,
+      @Param("provider") String provider,
+      @Param("mode") String mode,
+      @Param("status") String status,
+      @Param("started_at") java.time.Instant startedAt,
+      @Param("last_activity_at") java.time.Instant lastActivityAt,
+      @Param("completed_at") java.time.Instant completedAt,
+      @Param("failure_reason") String failureReason,
+      @Param("last_event_id") String lastEventId);
 }

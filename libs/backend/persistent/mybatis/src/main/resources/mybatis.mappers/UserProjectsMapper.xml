@@ -36,6 +36,11 @@
         <result column="id" property="projectId" javaType="int"/>
       </association>
       <association
+          property="acpSessions"
+          javaType="reengineering.ddd.teamai.mybatis.associations.ProjectAcpSessions">
+        <result column="id" property="projectId" javaType="int"/>
+      </association>
+      <association
           property="mcpServers"
           javaType="reengineering.ddd.teamai.mybatis.associations.ProjectMcpServers">
         <result column="id" property="projectId" javaType="int"/>
