@@ -33,9 +33,13 @@ import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.MemberDescription;
+import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.infrastructure.config.McpToolConfig;
 import reengineering.ddd.teamai.model.Member;
+import reengineering.ddd.teamai.model.OrchestrationSession;
+import reengineering.ddd.teamai.model.OrchestrationStep;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 
@@ -69,6 +73,7 @@ class McpProtocolE2ETest {
     when(alpha.members()).thenReturn(members);
     when(members.findByIdentity(TEST_USER_ID)).thenReturn(Optional.of(member));
     when(projects.findAll()).thenReturn(manyOf(alpha));
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(alpha));
   }
 
   @Test
@@ -108,6 +113,10 @@ class McpProtocolE2ETest {
             "start_orchestration",
             "get_orchestration",
             "list_orchestrations",
+            "list_orchestration_steps",
+            "get_orchestration_step",
+            "advance_orchestration_step",
+            "cancel_orchestration_step",
             "cancel_orchestration");
   }
 
@@ -128,6 +137,65 @@ class McpProtocolE2ETest {
     assertThat(callBody.path("error").isMissingNode()).isTrue();
     assertThat(callBody.toString()).contains("Alpha Project");
     assertThat(callBody.toString()).contains("p1");
+  }
+
+  @Test
+  void should_call_list_orchestration_steps_tool() throws Exception {
+    Project project = mock(Project.class);
+    Project.Members members = mock(Project.Members.class);
+    Project.OrchestrationSessions orchestrationSessions = mock(Project.OrchestrationSessions.class);
+    Member member =
+        new Member(TEST_USER_ID, new MemberDescription(new Ref<>(TEST_USER_ID), "OWNER"));
+    OrchestrationSession session =
+        new OrchestrationSession(
+            "o-1",
+            new OrchestrationSessionDescription(
+                "goal",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>("a-r"),
+                new Ref<>("a-c"),
+                new Ref<>("t-1"),
+                null,
+                java.time.Instant.parse("2026-01-01T10:00:00Z"),
+                null,
+                null));
+    OrchestrationStep step =
+        new OrchestrationStep(
+            "step-1",
+            new OrchestrationStepDescription(
+                "Implement",
+                "Implement plan",
+                OrchestrationStepDescription.Status.RUNNING,
+                new Ref<>("t-1"),
+                new Ref<>("a-c"),
+                java.time.Instant.parse("2026-01-01T10:05:00Z"),
+                null,
+                null));
+
+    when(project.getIdentity()).thenReturn("p1");
+    when(project.members()).thenReturn(members);
+    when(members.findByIdentity(TEST_USER_ID)).thenReturn(Optional.of(member));
+    when(project.orchestrationSessions()).thenReturn(orchestrationSessions);
+    when(orchestrationSessions.findByIdentity("o-1")).thenReturn(Optional.of(session));
+    when(orchestrationSessions.findSteps("o-1")).thenReturn(List.of(step));
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+
+    ResponseEntity<String> initializeResponse = rpc(initializePayload(), null);
+    String sessionId = initializeResponse.getHeaders().getFirst("Mcp-Session-Id");
+    assertThat(sessionId).isNotBlank();
+
+    String callParams =
+        "{\"name\":\"list_orchestration_steps\",\"arguments\":{\"projectId\":\"p1\",\"orchestrationId\":\"o-1\"}}";
+    ResponseEntity<String> callResponse =
+        rpc(jsonRpc("call-step-1", "tools/call", callParams), sessionId);
+
+    assertThat(callResponse.getStatusCode().is2xxSuccessful()).isTrue();
+    JsonNode callBody = parseBody(callResponse);
+    assertThat(callBody.path("id").asText()).isEqualTo("call-step-1");
+    assertThat(callBody.path("error").isMissingNode()).isTrue();
+    assertThat(callBody.toString()).contains("step-1");
+    assertThat(callBody.toString()).contains("RUNNING");
+    assertThat(callBody.toString()).contains("traceId");
   }
 
   @Test

@@ -35,6 +35,14 @@ class McpToolConfigTest {
             "submit_task_for_review",
             "approve_task",
             "request_task_fix",
-            "list_agent_events");
+            "list_agent_events",
+            "start_orchestration",
+            "get_orchestration",
+            "list_orchestrations",
+            "cancel_orchestration",
+            "list_orchestration_steps",
+            "get_orchestration_step",
+            "advance_orchestration_step",
+            "cancel_orchestration_step");
   }
 }

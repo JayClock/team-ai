@@ -215,6 +215,7 @@ If you need to run persistence layer examples, please refer to [Database Setup D
 
 - [Database Setup](docs/database-setup.md) - PostgreSQL configuration and migration guide
 - [PostgreSQL Migration Summary](docs/postgresql-migration-summary.md) - Detailed database migration records
+- [MCP Tools Guide](docs/mcp-tools.md) - MCP tool list, step controls, and idempotency rules
 
 ## Development Guide
 

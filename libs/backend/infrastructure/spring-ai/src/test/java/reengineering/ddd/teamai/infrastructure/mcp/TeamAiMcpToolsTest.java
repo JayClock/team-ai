@@ -27,12 +27,14 @@ import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentEvent;
 import reengineering.ddd.teamai.model.Member;
 import reengineering.ddd.teamai.model.OrchestrationSession;
+import reengineering.ddd.teamai.model.OrchestrationStep;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 import reengineering.ddd.teamai.model.Task;
@@ -435,6 +437,203 @@ class TeamAiMcpToolsTest {
   }
 
   @Test
+  void should_list_and_get_orchestration_steps_with_trace_context() {
+    OrchestrationSession session =
+        new OrchestrationSession(
+            "o-1",
+            new OrchestrationSessionDescription(
+                "goal",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>("a-r"),
+                new Ref<>("a-c"),
+                new Ref<>("t-1"),
+                null,
+                Instant.parse("2026-01-01T10:00:00Z"),
+                null,
+                null));
+    OrchestrationStep step1 =
+        new OrchestrationStep(
+            "step-1",
+            new OrchestrationStepDescription(
+                "Clarify",
+                "Clarify scope",
+                OrchestrationStepDescription.Status.PENDING,
+                new Ref<>("t-1"),
+                new Ref<>("a-c"),
+                null,
+                null,
+                null));
+    OrchestrationStep step2 =
+        new OrchestrationStep(
+            "step-2",
+            new OrchestrationStepDescription(
+                "Implement",
+                "Implement plan",
+                OrchestrationStepDescription.Status.RUNNING,
+                new Ref<>("t-1"),
+                new Ref<>("a-c"),
+                Instant.parse("2026-01-01T10:10:00Z"),
+                null,
+                null));
+
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+    when(project.orchestrationSessions()).thenReturn(orchestrationSessions);
+    when(orchestrationSessions.findByIdentity("o-1")).thenReturn(Optional.of(session));
+    when(orchestrationSessions.findSteps("o-1")).thenReturn(List.of(step1, step2));
+
+    TeamAiMcpTools.OrchestrationStepListResult listResult =
+        tools.listOrchestrationSteps("p1", "o-1");
+    TeamAiMcpTools.OrchestrationStepResult stepResult =
+        tools.getOrchestrationStep("p1", "o-1", "step-2");
+
+    assertThat(listResult.traceId()).startsWith("mcp-");
+    assertThat(listResult.total()).isEqualTo(2);
+    assertThat(listResult.steps().get(0).id()).isEqualTo("step-1");
+    assertThat(stepResult.traceId()).startsWith("mcp-");
+    assertThat(stepResult.step().id()).isEqualTo("step-2");
+    assertThat(stepResult.step().status()).isEqualTo("RUNNING");
+  }
+
+  @Test
+  void should_advance_orchestration_step_with_request_id_replay() {
+    OrchestrationSession session =
+        new OrchestrationSession(
+            "o-1",
+            new OrchestrationSessionDescription(
+                "goal",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>("a-r"),
+                new Ref<>("a-c"),
+                new Ref<>("t-1"),
+                null,
+                Instant.parse("2026-01-01T10:00:00Z"),
+                null,
+                null));
+    OrchestrationStep stepRunning =
+        new OrchestrationStep(
+            "step-1",
+            new OrchestrationStepDescription(
+                "Implement",
+                "Implement plan",
+                OrchestrationStepDescription.Status.RUNNING,
+                new Ref<>("t-1"),
+                new Ref<>("a-c"),
+                Instant.parse("2026-01-01T10:10:00Z"),
+                null,
+                null));
+    OrchestrationStep stepCompleted =
+        new OrchestrationStep(
+            "step-1",
+            new OrchestrationStepDescription(
+                "Implement",
+                "Implement plan",
+                OrchestrationStepDescription.Status.COMPLETED,
+                new Ref<>("t-1"),
+                new Ref<>("a-c"),
+                Instant.parse("2026-01-01T10:10:00Z"),
+                Instant.parse("2026-01-01T10:20:00Z"),
+                null));
+
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+    when(project.orchestrationSessions()).thenReturn(orchestrationSessions);
+    when(orchestrationSessions.findByIdentity("o-1")).thenReturn(Optional.of(session));
+    when(orchestrationSessions.findSteps("o-1"))
+        .thenReturn(List.of(stepRunning))
+        .thenReturn(List.of(stepCompleted))
+        .thenReturn(List.of(stepCompleted))
+        .thenReturn(List.of(stepCompleted));
+    when(orchestrationSessions.findNextPendingStep("o-1")).thenReturn(Optional.empty());
+
+    TeamAiMcpTools.OrchestrationStepMutationResult first =
+        tools.advanceOrchestrationStep("p1", "o-1", "step-1", "req-step-1");
+    TeamAiMcpTools.OrchestrationStepMutationResult replay =
+        tools.advanceOrchestrationStep("p1", "o-1", "step-1", "req-step-1");
+
+    verify(orchestrationSessions, org.mockito.Mockito.times(1))
+        .updateStepStatus(
+            eqTask("o-1"),
+            eqTask("step-1"),
+            org.mockito.ArgumentMatchers.eq(OrchestrationStepDescription.Status.COMPLETED),
+            org.mockito.ArgumentMatchers.isNull(),
+            any(Instant.class),
+            org.mockito.ArgumentMatchers.isNull());
+    assertThat(first.replayed()).isFalse();
+    assertThat(first.currentStatus()).isEqualTo("COMPLETED");
+    assertThat(replay.replayed()).isTrue();
+    assertThat(replay.requestId()).isEqualTo("req-step-1");
+  }
+
+  @Test
+  void should_reject_step_request_id_reuse_across_different_steps() {
+    OrchestrationSession session =
+        new OrchestrationSession(
+            "o-1",
+            new OrchestrationSessionDescription(
+                "goal",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>("a-r"),
+                new Ref<>("a-c"),
+                new Ref<>("t-1"),
+                null,
+                Instant.parse("2026-01-01T10:00:00Z"),
+                null,
+                null));
+    OrchestrationStep stepRunning =
+        new OrchestrationStep(
+            "step-1",
+            new OrchestrationStepDescription(
+                "Implement",
+                "Implement plan",
+                OrchestrationStepDescription.Status.RUNNING,
+                new Ref<>("t-1"),
+                new Ref<>("a-c"),
+                Instant.parse("2026-01-01T10:10:00Z"),
+                null,
+                null));
+    OrchestrationStep stepCancelled =
+        new OrchestrationStep(
+            "step-1",
+            new OrchestrationStepDescription(
+                "Implement",
+                "Implement plan",
+                OrchestrationStepDescription.Status.CANCELLED,
+                new Ref<>("t-1"),
+                new Ref<>("a-c"),
+                Instant.parse("2026-01-01T10:10:00Z"),
+                Instant.parse("2026-01-01T10:20:00Z"),
+                "manual stop"));
+    OrchestrationStep stepPending =
+        new OrchestrationStep(
+            "step-2",
+            new OrchestrationStepDescription(
+                "Validate",
+                "Validate output",
+                OrchestrationStepDescription.Status.PENDING,
+                new Ref<>("t-1"),
+                new Ref<>("a-c"),
+                null,
+                null,
+                null));
+
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+    when(project.orchestrationSessions()).thenReturn(orchestrationSessions);
+    when(orchestrationSessions.findByIdentity("o-1")).thenReturn(Optional.of(session));
+    when(orchestrationSessions.findSteps("o-1"))
+        .thenReturn(List.of(stepRunning, stepPending))
+        .thenReturn(List.of(stepCancelled, stepPending))
+        .thenReturn(List.of(stepCancelled, stepPending));
+
+    tools.cancelOrchestrationStep("p1", "o-1", "step-1", "manual stop", "req-step-cancel");
+
+    assertThatThrownBy(
+            () ->
+                tools.cancelOrchestrationStep(
+                    "p1", "o-1", "step-2", "manual stop", "req-step-cancel"))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("requestId 'req-step-cancel' was already used");
+  }
+
+  @Test
   void should_cancel_running_orchestration() {
     OrchestrationSession running =
         new OrchestrationSession(
@@ -513,6 +712,18 @@ class TeamAiMcpToolsTest {
     when(members.findByIdentity(outsider)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> tools.listTasks("p1"))
+        .isInstanceOf(SecurityException.class)
+        .hasMessage("User u-outsider is not a member of project p1");
+  }
+
+  @Test
+  void should_reject_step_tools_for_non_member_project_access() {
+    String outsider = "u-outsider";
+    setCurrentUser(outsider);
+    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
+    when(members.findByIdentity(outsider)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> tools.listOrchestrationSteps("p1", "o-1"))
         .isInstanceOf(SecurityException.class)
         .hasMessage("User u-outsider is not a member of project p1");
   }
