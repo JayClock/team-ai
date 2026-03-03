@@ -56,6 +56,8 @@ public class NodesApiTest extends ApiTest {
             null,
             null,
             null,
+            null,
+            null,
             null);
 
     Viewport viewport = new Viewport(100.0, 50.0, 1.5);

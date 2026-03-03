@@ -45,6 +45,8 @@ public class ProjectsApiTest extends ApiTest {
             agents,
             tasks,
             events,
+            null,
+            null,
             null);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
   }

@@ -50,6 +50,8 @@ public class AgentEventsApiTest extends ApiTest {
             agents,
             tasks,
             events,
+            null,
+            null,
             null);
     event =
         new AgentEvent(

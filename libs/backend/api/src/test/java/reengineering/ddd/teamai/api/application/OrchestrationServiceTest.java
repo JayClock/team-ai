@@ -72,7 +72,9 @@ class OrchestrationServiceTest {
             agents,
             tasks,
             events,
-            orchestrationSessions);
+            orchestrationSessions,
+            null,
+            null);
   }
 
   @Test

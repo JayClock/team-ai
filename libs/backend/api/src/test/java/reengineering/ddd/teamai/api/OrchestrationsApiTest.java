@@ -62,7 +62,9 @@ public class OrchestrationsApiTest extends ApiTest {
             agents,
             tasks,
             events,
-            orchestrationSessions);
+            orchestrationSessions,
+            null,
+            null);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
     when(agentRuntime.start(any(AgentRuntime.StartRequest.class)))
         .thenAnswer(

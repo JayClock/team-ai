@@ -36,6 +36,8 @@ public class KnowledgeGraphApiTest extends ApiTest {
             null,
             null,
             null,
+            null,
+            null,
             null);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));
   }

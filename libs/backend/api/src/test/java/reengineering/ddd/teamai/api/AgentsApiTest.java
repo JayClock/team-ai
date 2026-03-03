@@ -48,6 +48,8 @@ public class AgentsApiTest extends ApiTest {
             agents,
             tasks,
             events,
+            null,
+            null,
             null);
     agent =
         new Agent(

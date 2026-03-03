@@ -65,59 +65,6 @@ public class Project implements Entity<String, ProjectDescription> {
       Agents agents,
       Tasks tasks,
       AgentEvents events,
-      OrchestrationSessions orchestrationSessions) {
-    this(
-        identity,
-        description,
-        members,
-        conversations,
-        logicalEntities,
-        diagrams,
-        agents,
-        tasks,
-        events,
-        orchestrationSessions,
-        null,
-        null);
-  }
-
-  public Project(
-      String identity,
-      ProjectDescription description,
-      Members members,
-      Conversations conversations,
-      LogicalEntities logicalEntities,
-      Diagrams diagrams,
-      Agents agents,
-      Tasks tasks,
-      AgentEvents events,
-      OrchestrationSessions orchestrationSessions,
-      McpServers mcpServers) {
-    this(
-        identity,
-        description,
-        members,
-        conversations,
-        logicalEntities,
-        diagrams,
-        agents,
-        tasks,
-        events,
-        orchestrationSessions,
-        null,
-        mcpServers);
-  }
-
-  public Project(
-      String identity,
-      ProjectDescription description,
-      Members members,
-      Conversations conversations,
-      LogicalEntities logicalEntities,
-      Diagrams diagrams,
-      Agents agents,
-      Tasks tasks,
-      AgentEvents events,
       OrchestrationSessions orchestrationSessions,
       AcpSessions acpSessions,
       McpServers mcpServers) {

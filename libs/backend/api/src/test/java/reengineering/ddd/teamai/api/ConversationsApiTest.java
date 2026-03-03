@@ -64,6 +64,8 @@ public class ConversationsApiTest extends ApiTest {
             null,
             null,
             null,
+            null,
+            null,
             null);
     conversation =
         new Conversation(

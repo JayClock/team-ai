@@ -55,6 +55,8 @@ public class LogicalEntitiesApiTest extends ApiTest {
             null,
             null,
             null,
+            null,
+            null,
             null);
 
     logicalEntity =

@@ -67,6 +67,8 @@ public class DiagramsApiTest extends ApiTest {
             null,
             null,
             null,
+            null,
+            null,
             null);
 
     Viewport viewport = new Viewport(100, 50, 1.5);

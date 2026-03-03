@@ -48,6 +48,7 @@ class McpServersApiTest extends ApiTest {
             tasks,
             events,
             null,
+            null,
             mcpServers);
     mcpServer =
         new McpServer(

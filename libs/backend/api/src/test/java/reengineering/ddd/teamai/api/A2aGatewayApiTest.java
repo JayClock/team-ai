@@ -66,7 +66,9 @@ public class A2aGatewayApiTest extends ApiTest {
             agents,
             tasks,
             events,
-            orchestrationSessions);
+            orchestrationSessions,
+            null,
+            null);
     task =
         new Task(
             TASK_ID,
