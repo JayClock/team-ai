@@ -22,6 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.api.config.TraceIdFilter;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
@@ -153,11 +154,13 @@ public class OrchestrationsApiTest extends ApiTest {
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
         .contentType("application/json")
+        .header(TraceIdFilter.TRACE_ID_HEADER, "trace-orch-start-1")
         .body(request)
         .when()
         .post("/projects/{projectId}/orchestrations", project.getIdentity())
         .then()
         .statusCode(201)
+        .header(TraceIdFilter.TRACE_ID_HEADER, is("trace-orch-start-1"))
         .contentType(startsWith(ResourceTypes.ORCHESTRATION))
         .body("id", is("session-1"))
         .body("goal", is("Implement feature"))
@@ -404,11 +407,13 @@ public class OrchestrationsApiTest extends ApiTest {
     given(documentationSpec)
         .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
         .contentType("application/json")
+        .header(TraceIdFilter.TRACE_ID_HEADER, "trace-orch-fail-1")
         .body(request)
         .when()
         .post("/projects/{projectId}/orchestrations", project.getIdentity())
         .then()
-        .statusCode(502);
+        .statusCode(502)
+        .header(TraceIdFilter.TRACE_ID_HEADER, is("trace-orch-fail-1"));
 
     verify(orchestrationSessions, atLeast(1))
         .updateStatus(
@@ -431,6 +436,99 @@ public class OrchestrationsApiTest extends ApiTest {
     verify(events, atLeast(1)).append(any(AgentEventDescription.class));
     verify(agentRuntime, times(2)).start(any(AgentRuntime.StartRequest.class));
     verify(agentRuntime, times(2))
+        .send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class));
+  }
+
+  @Test
+  void should_retry_runtime_once_and_still_start_orchestration() {
+    Agent coordinator =
+        new Agent(
+            "agent-routa",
+            new AgentDescription(
+                "Routa",
+                AgentDescription.Role.ROUTA,
+                "SMART",
+                AgentDescription.Status.PENDING,
+                null));
+    Agent implementer =
+        new Agent(
+            "agent-crafter",
+            new AgentDescription(
+                "Crafter",
+                AgentDescription.Role.CRAFTER,
+                "SMART",
+                AgentDescription.Status.PENDING,
+                null));
+
+    Task createdTask =
+        new Task(
+            "task-3",
+            new TaskDescription(
+                "Retry orchestration",
+                "Retry orchestration",
+                null,
+                List.of("tests pass"),
+                List.of("./gradlew :backend:api:test"),
+                TaskDescription.Status.PENDING,
+                null,
+                null,
+                null,
+                null,
+                null));
+
+    OrchestrationSession started =
+        new OrchestrationSession(
+            "session-3",
+            new OrchestrationSessionDescription(
+                "Retry orchestration",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>("agent-routa"),
+                new Ref<>("agent-crafter"),
+                new Ref<>("task-3"),
+                defaultSpec(),
+                null,
+                Instant.parse("2026-03-02T12:00:00Z"),
+                null,
+                null));
+
+    when(agents.findAll()).thenReturn(new EntityList<>(coordinator, implementer));
+    when(agents.findByIdentity(coordinator.getIdentity())).thenReturn(Optional.of(coordinator));
+    when(agents.findByIdentity(implementer.getIdentity())).thenReturn(Optional.of(implementer));
+    when(tasks.create(any(TaskDescription.class))).thenReturn(createdTask);
+    when(tasks.findByIdentity(createdTask.getIdentity())).thenReturn(Optional.of(createdTask));
+    when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
+        .thenReturn(started);
+    when(orchestrationSessions.findByIdentity("session-3")).thenReturn(Optional.of(started));
+    when(orchestrationSessions.findSteps("session-3"))
+        .thenReturn(plannedSteps("task-3", "agent-crafter"));
+    when(agentRuntime.send(
+            any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
+        .thenThrow(new AgentRuntimeException("transient failure"))
+        .thenReturn(new AgentRuntime.SendResult("ok", Instant.parse("2026-03-02T12:00:01Z")))
+        .thenReturn(new AgentRuntime.SendResult("ok", Instant.parse("2026-03-02T12:00:02Z")))
+        .thenReturn(new AgentRuntime.SendResult("ok", Instant.parse("2026-03-02T12:00:03Z")));
+
+    Map<String, Object> request =
+        Map.of(
+            "goal",
+            "Retry orchestration",
+            "spec",
+            defaultSpecPayload(),
+            "occurredAt",
+            Instant.parse("2026-03-02T12:00:00Z").toString());
+
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .contentType("application/json")
+        .body(request)
+        .when()
+        .post("/projects/{projectId}/orchestrations", project.getIdentity())
+        .then()
+        .statusCode(201)
+        .body("id", is("session-3"))
+        .body("state", is("RUNNING"));
+
+    verify(agentRuntime, times(4))
         .send(any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class));
   }
 

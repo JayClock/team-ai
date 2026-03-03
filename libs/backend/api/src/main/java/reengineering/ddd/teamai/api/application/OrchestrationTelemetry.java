@@ -75,6 +75,35 @@ public class OrchestrationTelemetry {
     incrementCounter("teamai.orchestration.step.transition", Tags.of("to", value(toState)));
   }
 
+  public void stepDuration(
+      String sessionId,
+      String stepId,
+      String taskId,
+      String agentId,
+      String outcome,
+      Duration duration) {
+    String traceId = ensureTraceId();
+    Duration safeDuration = duration == null ? Duration.ZERO : duration;
+    if (safeDuration.isNegative()) {
+      safeDuration = Duration.ZERO;
+    }
+    log.info(
+        "event=orchestration_step_duration traceId={} sessionId={} stepId={} taskId={} agentId={} outcome={} durationMs={}",
+        traceId,
+        value(sessionId),
+        value(stepId),
+        value(taskId),
+        value(agentId),
+        value(outcome),
+        safeDuration.toMillis());
+    if (meterRegistry != null) {
+      Timer.builder("teamai.orchestration.step.duration")
+          .tags("outcome", value(outcome))
+          .register(meterRegistry)
+          .record(safeDuration);
+    }
+  }
+
   public void runtimeResult(
       String sessionId, String taskId, String agentId, String outcome, Duration latency) {
     String traceId = ensureTraceId();
@@ -106,7 +135,13 @@ public class OrchestrationTelemetry {
         value(agentId),
         value(message),
         error);
-    incrementCounter("teamai.orchestration.runtime.error", Tags.empty());
+    incrementCounter(
+        "teamai.orchestration.runtime.error",
+        Tags.of(
+            "exception",
+            error == null ? "n/a" : value(error.getClass().getSimpleName()),
+            "category",
+            classifyError(error)));
   }
 
   public void runtimeRetry(
@@ -120,7 +155,9 @@ public class OrchestrationTelemetry {
         value(agentId),
         nextAttempt,
         value(reason));
-    incrementCounter("teamai.orchestration.runtime.retry", Tags.empty());
+    incrementCounter(
+        "teamai.orchestration.runtime.retry",
+        Tags.of("attempt", Integer.toString(Math.max(1, nextAttempt))));
   }
 
   private void incrementCounter(String name, Tags tags) {
@@ -134,5 +171,19 @@ public class OrchestrationTelemetry {
       return "n/a";
     }
     return value;
+  }
+
+  private String classifyError(Throwable error) {
+    if (error == null) {
+      return "unknown";
+    }
+    String name = error.getClass().getSimpleName().toLowerCase();
+    if (name.contains("timeout")) {
+      return "timeout";
+    }
+    if (name.contains("auth")) {
+      return "auth";
+    }
+    return "runtime";
   }
 }

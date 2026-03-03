@@ -217,6 +217,7 @@ If you need to run persistence layer examples, please refer to [Database Setup D
 - [PostgreSQL Migration Summary](docs/postgresql-migration-summary.md) - Detailed database migration records
 - [MCP Tools Guide](docs/mcp-tools.md) - MCP tool list, step controls, and idempotency rules
 - [A2A Gateway Guide](docs/a2a-gateway.md) - ACP envelope contract, forwarding flow, and protocol errors
+- [Orchestration Observability Guide](docs/orchestration-observability.md) - E2E gate suite, telemetry metrics, trace flow, and alert thresholds
 
 ## Development Guide
 

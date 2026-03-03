@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.hateoas.MediaTypes;
 import reengineering.ddd.archtype.Ref;
+import reengineering.ddd.teamai.api.config.TraceIdFilter;
 import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.AgentEvent;
@@ -121,9 +123,11 @@ public class AgentEventsApiTest extends ApiTest {
         .get("/projects/{projectId}/events/stream?once=true", project.getIdentity())
         .then()
         .statusCode(200)
+        .header(TraceIdFilter.TRACE_ID_HEADER, notNullValue())
         .contentType(startsWith(MediaType.SERVER_SENT_EVENTS))
         .body(containsString("event: snapshot"))
         .body(containsString("\"cursorSource\":\"none\""))
+        .body(containsString("\"traceId\":\""))
         .body(containsString("event: agent-event"))
         .body(containsString("id: event-1"))
         .body(containsString("\"type\":\"TASK_ASSIGNED\""));

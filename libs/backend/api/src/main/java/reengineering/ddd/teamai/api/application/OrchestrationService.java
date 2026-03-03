@@ -1,6 +1,7 @@
 package reengineering.ddd.teamai.api.application;
 
 import jakarta.inject.Inject;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
@@ -235,6 +236,7 @@ public class OrchestrationService {
     int attempts = 0;
     while (attempts < maxRuntimeAttempts) {
       attempts++;
+      Instant stepRuntimeStartedAt = Instant.now();
       Instant startedAt = attempts == 1 ? Instant.now() : null;
       project
           .orchestrationSessions()
@@ -293,6 +295,13 @@ public class OrchestrationService {
             taskId(step, session),
             assigneeId(step, session),
             OrchestrationStepDescription.Status.COMPLETED.name());
+        telemetry.stepDuration(
+            session.getIdentity(),
+            step.getIdentity(),
+            taskId(step, session),
+            assigneeId(step, session),
+            "success",
+            safeDuration(stepRuntimeStartedAt, Instant.now()));
         return;
       } catch (AgentRuntimeException error) {
         if (attempts >= maxRuntimeAttempts) {
@@ -325,6 +334,13 @@ public class OrchestrationService {
               taskId(step, session),
               assigneeId(step, session),
               OrchestrationStepDescription.Status.FAILED.name());
+          telemetry.stepDuration(
+              session.getIdentity(),
+              step.getIdentity(),
+              taskId(step, session),
+              assigneeId(step, session),
+              "failed",
+              safeDuration(stepRuntimeStartedAt, Instant.now()));
           telemetry.sessionTransition(
               session.getIdentity(),
               taskId(step, session),
@@ -338,6 +354,13 @@ public class OrchestrationService {
         int nextAttempt = attempts + 1;
         rollbackForRetry(
             project, session, step, sequenceNo, nextAttempt, occurredAt, error.getMessage());
+        telemetry.stepDuration(
+            session.getIdentity(),
+            step.getIdentity(),
+            taskId(step, session),
+            assigneeId(step, session),
+            "retry",
+            safeDuration(stepRuntimeStartedAt, Instant.now()));
         telemetry.runtimeRetry(
             session.getIdentity(),
             taskId(step, session),
@@ -592,6 +615,14 @@ public class OrchestrationService {
 
   private String normalize(String value) {
     return value == null || value.isBlank() ? "unknown" : value;
+  }
+
+  private Duration safeDuration(Instant startedAt, Instant endedAt) {
+    if (startedAt == null || endedAt == null) {
+      return Duration.ZERO;
+    }
+    Duration duration = Duration.between(startedAt, endedAt);
+    return duration.isNegative() ? Duration.ZERO : duration;
   }
 
   private TaskSpecDescription requireSpec(TaskSpecDescription spec) {
