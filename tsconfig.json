@@ -47,6 +47,9 @@
     },
     {
       "path": "./libs/frontend/shells/project"
+    },
+    {
+      "path": "./apps/agent-gateway"
     }
   ]
 }

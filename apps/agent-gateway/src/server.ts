@@ -3,7 +3,6 @@ import { URL } from 'node:url';
 import type { GatewayConfig } from './config.js';
 import { Logger } from './logger.js';
 import { classifyErrorCode, GatewayMetrics, resolveTraceId } from './observability.js';
-import { ProviderRuntime } from './provider-runtime.js';
 import {
   SessionNotFoundError,
   SessionStateTransitionError,
@@ -19,11 +18,27 @@ class BadRequestError extends Error {
   readonly code = 'INVALID_REQUEST_BODY';
 }
 
+export type ProviderRuntimePort = {
+  prompt(
+    providerName: string,
+    sessionId: string,
+    input: string,
+    timeoutMs: number,
+    traceId: string | undefined,
+    callbacks: {
+      onChunk: (chunk: string) => void;
+      onComplete: () => void;
+      onError: (error: { code: string; message: string; retryable: boolean; retryAfterMs: number }) => void;
+    }
+  ): void;
+  cancel(providerName: string, sessionId: string): boolean;
+};
+
 export function createGatewayServer(
   config: GatewayConfig,
   logger: Logger,
   sessionStore: SessionStore,
-  providerRuntime: ProviderRuntime,
+  providerRuntime: ProviderRuntimePort,
   metrics: GatewayMetrics
 ): http.Server {
   const startedAt = Date.now();

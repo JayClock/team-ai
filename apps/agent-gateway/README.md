@@ -51,3 +51,12 @@ npx nx dev @agent-gateway/main
 # or
 cd apps/agent-gateway && pnpm dev
 ```
+
+## Contract tests
+
+```bash
+npx nx test @agent-gateway/main
+```
+
+Versioned protocol contract:
+- `docs/contracts/agent-gateway-acp-v1.md`
