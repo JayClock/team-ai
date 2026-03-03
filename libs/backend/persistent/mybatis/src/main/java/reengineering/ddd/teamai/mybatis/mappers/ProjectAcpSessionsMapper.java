@@ -37,5 +37,10 @@ public interface ProjectAcpSessionsMapper {
       @Param("id") int id,
       @Param("last_event_id") String lastEventId);
 
+  int renameSession(
+      @Param("project_id") int projectId, @Param("id") int id, @Param("name") String name);
+
+  int deleteSession(@Param("project_id") int projectId, @Param("id") int id);
+
   int countSessionsByProject(@Param("project_id") int projectId);
 }

@@ -288,6 +288,24 @@ public class Project implements Entity<String, ProjectDescription> {
         .updateStatus(sessionId, status, resolvedCompletedAt, normalizeText(failureReason));
   }
 
+  public void renameAcpSession(String sessionId, String name) {
+    AcpSession session = acpSessionOrThrow(sessionId);
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("name must not be blank");
+    }
+    session.rename(name);
+    acpSessions().rename(sessionId, session.getName());
+  }
+
+  public void deleteAcpSession(String sessionId) {
+    AcpSession session = acpSessionOrThrow(sessionId);
+    if (!session.getDescription().status().isTerminal()) {
+      throw new IllegalStateException(
+          "Cannot delete active ACP session in state " + session.getDescription().status());
+    }
+    acpSessions().delete(sessionId);
+  }
+
   public McpServer createMcpServer(McpServerDescription description) {
     if (description == null) {
       throw new IllegalArgumentException("description must not be null");
@@ -711,6 +729,10 @@ public class Project implements Entity<String, ProjectDescription> {
     void touch(String sessionId, Instant lastActivityAt);
 
     void bindLastEventId(String sessionId, String lastEventId);
+
+    void rename(String sessionId, String name);
+
+    void delete(String sessionId);
   }
 
   public interface McpServers extends HasMany<String, McpServer> {
@@ -823,6 +845,16 @@ public class Project implements Entity<String, ProjectDescription> {
 
         @Override
         public void bindLastEventId(String sessionId, String lastEventId) {
+          throw new IllegalStateException("acpSessions association is not configured");
+        }
+
+        @Override
+        public void rename(String sessionId, String name) {
+          throw new IllegalStateException("acpSessions association is not configured");
+        }
+
+        @Override
+        public void delete(String sessionId) {
           throw new IllegalStateException("acpSessions association is not configured");
         }
       };

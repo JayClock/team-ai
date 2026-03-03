@@ -12,6 +12,29 @@ import reengineering.ddd.teamai.description.AcpSessionDescription;
 class AcpSessionTest {
 
   @Test
+  void should_normalize_session_name() {
+    AcpSession session =
+        new AcpSession(
+            "acp-session-1",
+            "  Initial Session  ",
+            new AcpSessionDescription(
+                new Ref<>("project-1"),
+                new Ref<>("user-1"),
+                "codex",
+                "default",
+                AcpSessionDescription.Status.PENDING,
+                null,
+                null,
+                null,
+                null,
+                null));
+
+    session.rename("  Refined Session Name  ");
+
+    assertEquals("Refined Session Name", session.getName());
+  }
+
+  @Test
   void should_mark_running_touch_bind_event_and_complete() {
     AcpSession session =
         new AcpSession(
@@ -92,5 +115,28 @@ class AcpSessionTest {
             () -> session.markRunning(Instant.parse("2026-03-03T10:03:00Z")));
 
     assertTrue(error.getMessage().contains("Cannot mark running"));
+  }
+
+  @Test
+  void should_reject_blank_name_on_rename() {
+    AcpSession session =
+        new AcpSession(
+            "acp-session-1",
+            new AcpSessionDescription(
+                new Ref<>("project-1"),
+                new Ref<>("user-1"),
+                "codex",
+                "default",
+                AcpSessionDescription.Status.PENDING,
+                null,
+                null,
+                null,
+                null,
+                null));
+
+    IllegalArgumentException error =
+        assertThrows(IllegalArgumentException.class, () -> session.rename(" "));
+
+    assertEquals("name must not be blank", error.getMessage());
   }
 }

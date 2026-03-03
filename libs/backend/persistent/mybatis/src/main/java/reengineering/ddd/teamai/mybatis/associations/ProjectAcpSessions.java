@@ -118,4 +118,25 @@ public class ProjectAcpSessions extends EntityList<String, AcpSession>
   public void bindLastEventId(String sessionId, String lastEventId) {
     mapper.bindLastEventId(projectId, Integer.parseInt(sessionId), lastEventId);
   }
+
+  @Override
+  @Caching(
+      evict = {
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_NAME, allEntries = true)
+      })
+  public void rename(String sessionId, String name) {
+    mapper.renameSession(projectId, Integer.parseInt(sessionId), name);
+  }
+
+  @Override
+  @Caching(
+      evict = {
+        @CacheEvict(value = CACHE_LIST, allEntries = true),
+        @CacheEvict(value = CACHE_NAME, allEntries = true),
+        @CacheEvict(value = CACHE_COUNT, key = "#root.target.projectId")
+      })
+  public void delete(String sessionId) {
+    mapper.deleteSession(projectId, Integer.parseInt(sessionId));
+  }
 }

@@ -636,6 +636,108 @@ public class ProjectTest {
       assertEquals("Cannot transition ACP session from COMPLETED to RUNNING", error.getMessage());
       verify(acpSessions, never()).updateStatus(anyString(), any(), any(), any());
     }
+
+    @Test
+    @DisplayName("should rename ACP session")
+    void shouldRenameAcpSession() {
+      AcpSession session =
+          new AcpSession(
+              "acp-rename",
+              new AcpSessionDescription(
+                  new Ref<>("project-1"),
+                  new Ref<>("user-1"),
+                  "codex",
+                  "default",
+                  AcpSessionDescription.Status.RUNNING,
+                  Instant.parse("2026-03-03T10:00:00Z"),
+                  Instant.parse("2026-03-03T10:01:00Z"),
+                  null,
+                  null,
+                  "evt-1"));
+      when(acpSessions.findByIdentity("acp-rename")).thenReturn(Optional.of(session));
+
+      project.renameAcpSession("acp-rename", "  Iteration Planning  ");
+
+      assertEquals("Iteration Planning", session.getName());
+      verify(acpSessions).rename("acp-rename", "Iteration Planning");
+    }
+
+    @Test
+    @DisplayName("should reject blank ACP session name")
+    void shouldRejectBlankAcpSessionName() {
+      AcpSession session =
+          new AcpSession(
+              "acp-rename",
+              new AcpSessionDescription(
+                  new Ref<>("project-1"),
+                  new Ref<>("user-1"),
+                  "codex",
+                  "default",
+                  AcpSessionDescription.Status.RUNNING,
+                  Instant.parse("2026-03-03T10:00:00Z"),
+                  Instant.parse("2026-03-03T10:01:00Z"),
+                  null,
+                  null,
+                  "evt-1"));
+      when(acpSessions.findByIdentity("acp-rename")).thenReturn(Optional.of(session));
+
+      IllegalArgumentException error =
+          assertThrows(
+              IllegalArgumentException.class, () -> project.renameAcpSession("acp-rename", " "));
+
+      assertEquals("name must not be blank", error.getMessage());
+      verify(acpSessions, never()).rename(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("should delete terminal ACP session")
+    void shouldDeleteTerminalAcpSession() {
+      AcpSession session =
+          new AcpSession(
+              "acp-delete",
+              new AcpSessionDescription(
+                  new Ref<>("project-1"),
+                  new Ref<>("user-1"),
+                  "codex",
+                  "default",
+                  AcpSessionDescription.Status.COMPLETED,
+                  Instant.parse("2026-03-03T10:00:00Z"),
+                  Instant.parse("2026-03-03T10:01:00Z"),
+                  Instant.parse("2026-03-03T10:02:00Z"),
+                  null,
+                  "evt-1"));
+      when(acpSessions.findByIdentity("acp-delete")).thenReturn(Optional.of(session));
+
+      project.deleteAcpSession("acp-delete");
+
+      verify(acpSessions).delete("acp-delete");
+    }
+
+    @Test
+    @DisplayName("should reject deleting active ACP session")
+    void shouldRejectDeletingActiveAcpSession() {
+      AcpSession session =
+          new AcpSession(
+              "acp-delete",
+              new AcpSessionDescription(
+                  new Ref<>("project-1"),
+                  new Ref<>("user-1"),
+                  "codex",
+                  "default",
+                  AcpSessionDescription.Status.RUNNING,
+                  Instant.parse("2026-03-03T10:00:00Z"),
+                  Instant.parse("2026-03-03T10:01:00Z"),
+                  null,
+                  null,
+                  "evt-1"));
+      when(acpSessions.findByIdentity("acp-delete")).thenReturn(Optional.of(session));
+
+      IllegalStateException error =
+          assertThrows(IllegalStateException.class, () -> project.deleteAcpSession("acp-delete"));
+
+      assertEquals("Cannot delete active ACP session in state RUNNING", error.getMessage());
+      verify(acpSessions, never()).delete("acp-delete");
+    }
   }
 
   @Nested

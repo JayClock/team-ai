@@ -6,10 +6,16 @@ import reengineering.ddd.teamai.description.AcpSessionDescription;
 
 public class AcpSession implements Entity<String, AcpSessionDescription> {
   private String identity;
+  private String name;
   private AcpSessionDescription description;
 
   public AcpSession(String identity, AcpSessionDescription description) {
+    this(identity, null, description);
+  }
+
+  public AcpSession(String identity, String name, AcpSessionDescription description) {
     this.identity = identity;
+    this.name = normalizeName(name);
     this.description = description;
   }
 
@@ -23,6 +29,21 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
   @Override
   public AcpSessionDescription getDescription() {
     return description;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = normalizeName(name);
+  }
+
+  public void rename(String name) {
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("name must not be blank");
+    }
+    this.name = normalizeName(name);
   }
 
   public void markRunning(Instant startedAt) {
@@ -154,5 +175,13 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
 
   private Instant defaultTime(Instant time) {
     return time == null ? Instant.now() : time;
+  }
+
+  private String normalizeName(String value) {
+    if (value == null) {
+      return null;
+    }
+    String trimmed = value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
   }
 }

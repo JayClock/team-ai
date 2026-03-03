@@ -4,9 +4,13 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,7 +60,8 @@ class SessionsApiTest extends ApiTest {
 
   @Test
   void should_list_project_acp_sessions() {
-    AcpSession running = session("101", "user-1", AcpSessionDescription.Status.RUNNING);
+    AcpSession running =
+        session("101", "user-1", "Sprint planning", AcpSessionDescription.Status.RUNNING);
     AcpSession completed = session("102", "user-2", AcpSessionDescription.Status.COMPLETED);
     when(acpSessions.findAll()).thenReturn(new EntityList<>(running, completed));
 
@@ -70,6 +75,7 @@ class SessionsApiTest extends ApiTest {
         .body("_embedded.sessions", hasSize(2))
         .body("_embedded.sessions[0].id", is("101"))
         .body("_embedded.sessions[0].state", is("RUNNING"))
+        .body("_embedded.sessions[0].name", is("Sprint planning"))
         .body("_embedded.sessions[0].project.id", is(project.getIdentity()))
         .body("_embedded.sessions[0].actor.id", is("user-1"))
         .body(
@@ -81,7 +87,8 @@ class SessionsApiTest extends ApiTest {
 
   @Test
   void should_get_project_acp_session_by_id() {
-    AcpSession running = session("201", "user-9", AcpSessionDescription.Status.RUNNING);
+    AcpSession running =
+        session("201", "user-9", "Bug triage", AcpSessionDescription.Status.RUNNING);
     when(acpSessions.findByIdentity("201")).thenReturn(Optional.of(running));
 
     given(documentationSpec)
@@ -93,10 +100,74 @@ class SessionsApiTest extends ApiTest {
         .contentType(startsWith(ResourceTypes.SESSION))
         .body("id", is("201"))
         .body("state", is("RUNNING"))
+        .body("name", is("Bug triage"))
         .body("provider", is("team-ai"))
         .body("mode", is("CHAT"))
         .body("_links.self.href", is("/api/projects/" + project.getIdentity() + "/sessions/201"))
         .body("_links.collection.href", is("/api/projects/" + project.getIdentity() + "/sessions"));
+  }
+
+  @Test
+  void should_rename_project_acp_session() {
+    AcpSession running = session("301", "user-3", AcpSessionDescription.Status.RUNNING);
+    when(acpSessions.findByIdentity("301")).thenReturn(Optional.of(running), Optional.of(running));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(Map.of("name", "  Session Renamed  "))
+        .when()
+        .patch("/projects/{projectId}/sessions/{sessionId}", project.getIdentity(), "301")
+        .then()
+        .statusCode(200)
+        .body("ok", is(true))
+        .body("name", is("Session Renamed"));
+
+    verify(acpSessions).rename("301", "Session Renamed");
+  }
+
+  @Test
+  void should_reject_blank_session_name_on_rename() {
+    AcpSession running = session("302", "user-3", AcpSessionDescription.Status.RUNNING);
+    when(acpSessions.findByIdentity("302")).thenReturn(Optional.of(running), Optional.of(running));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(Map.of("name", "   "))
+        .when()
+        .patch("/projects/{projectId}/sessions/{sessionId}", project.getIdentity(), "302")
+        .then()
+        .statusCode(400);
+
+    verify(acpSessions, never()).rename(anyString(), anyString());
+  }
+
+  @Test
+  void should_delete_terminal_session() {
+    AcpSession completed = session("401", "user-4", AcpSessionDescription.Status.COMPLETED);
+    when(acpSessions.findByIdentity("401"))
+        .thenReturn(Optional.of(completed), Optional.of(completed));
+
+    given(documentationSpec)
+        .when()
+        .delete("/projects/{projectId}/sessions/{sessionId}", project.getIdentity(), "401")
+        .then()
+        .statusCode(204);
+
+    verify(acpSessions).delete("401");
+  }
+
+  @Test
+  void should_reject_delete_for_running_session() {
+    AcpSession running = session("402", "user-4", AcpSessionDescription.Status.RUNNING);
+    when(acpSessions.findByIdentity("402")).thenReturn(Optional.of(running), Optional.of(running));
+
+    given(documentationSpec)
+        .when()
+        .delete("/projects/{projectId}/sessions/{sessionId}", project.getIdentity(), "402")
+        .then()
+        .statusCode(409);
+
+    verify(acpSessions, never()).delete("402");
   }
 
   @Test
@@ -113,8 +184,14 @@ class SessionsApiTest extends ApiTest {
 
   private AcpSession session(
       String sessionId, String actorId, AcpSessionDescription.Status status) {
+    return session(sessionId, actorId, null, status);
+  }
+
+  private AcpSession session(
+      String sessionId, String actorId, String name, AcpSessionDescription.Status status) {
     return new AcpSession(
         sessionId,
+        name,
         new AcpSessionDescription(
             new Ref<>(project.getIdentity()),
             new Ref<>(actorId),

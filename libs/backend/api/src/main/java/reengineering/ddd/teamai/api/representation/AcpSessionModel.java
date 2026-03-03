@@ -17,6 +17,7 @@ public class AcpSessionModel extends RepresentationModel<AcpSessionModel> {
   @JsonProperty private String id;
   @JsonProperty private Ref<String> project;
   @JsonProperty private Ref<String> actor;
+  @JsonProperty private String name;
   @JsonProperty private String provider;
   @JsonProperty private String mode;
   @JsonProperty private String state;
@@ -31,6 +32,7 @@ public class AcpSessionModel extends RepresentationModel<AcpSessionModel> {
     this.id = session.getIdentity();
     this.project = description.project();
     this.actor = description.actor();
+    this.name = session.getName();
     this.provider = description.provider();
     this.mode = description.mode();
     this.state = description.status().name();

@@ -477,6 +477,7 @@ public class AcpApi {
     payload.put("id", session.getIdentity());
     payload.put("projectId", id(description.project()));
     payload.put("actorUserId", id(description.actor()));
+    payload.put("name", session.getName());
     payload.put("provider", description.provider());
     payload.put("mode", description.mode());
     payload.put("state", description.status().name());
