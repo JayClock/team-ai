@@ -2,6 +2,7 @@ package reengineering.ddd.teamai.api;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -47,6 +50,9 @@ public class AcpApi {
   private static final String METHOD_SESSION_PROMPT = "session/prompt";
   private static final String METHOD_SESSION_CANCEL = "session/cancel";
   private static final String METHOD_SESSION_LOAD = "session/load";
+  private static final long STREAM_POLL_INTERVAL_MILLIS = 1000;
+  private static final int STREAM_HEARTBEAT_TICKS = 10;
+  private static final ExecutorService STREAM_EXECUTOR = Executors.newCachedThreadPool();
 
   @Inject Projects projects;
   @Inject AcpSseEventWriter sseEventWriter;
@@ -95,25 +101,95 @@ public class AcpApi {
   @Produces(MediaType.SERVER_SENT_EVENTS)
   public void stream(
       @QueryParam("sessionId") String sessionId,
+      @QueryParam("since") String sinceEventId,
       @HeaderParam("Last-Event-ID") String lastEventId,
+      @DefaultValue("false") @QueryParam("once") boolean once,
       @Context SseEventSink sink,
       @Context Sse sse) {
     if (sink == null) {
       return;
     }
-    String resolvedSessionId =
-        sessionId == null || sessionId.isBlank() ? "unknown" : sessionId.trim();
+    String resolvedSessionId = normalizedSessionId(sessionId);
+    String resumeCursor = resolveResumeCursor(sinceEventId, lastEventId);
+    STREAM_EXECUTOR.submit(() -> streamLoop(resolvedSessionId, resumeCursor, once, sink, sse));
+  }
+
+  private void streamLoop(
+      String sessionId, String resumeCursor, boolean once, SseEventSink sink, Sse sse) {
+    String traceId = traceId();
+    String cursor = resumeCursor;
+    int ticks = 0;
+    try {
+      AcpEventEnvelope connectedEnvelope =
+          sseEventWriter.envelope(
+              sessionId,
+              AcpEventEnvelope.TYPE_STATUS,
+              streamStatusPayload("CONNECTED", cursor, traceId),
+              null);
+      sendEnvelope(sink, sse, connectedEnvelope);
+
+      cursor = replayPendingEvents(sessionId, cursor, sink, sse);
+      if (once) {
+        return;
+      }
+
+      while (!sink.isClosed()) {
+        Thread.sleep(STREAM_POLL_INTERVAL_MILLIS);
+        ticks++;
+
+        cursor = replayPendingEvents(sessionId, cursor, sink, sse);
+
+        if (ticks % STREAM_HEARTBEAT_TICKS == 0) {
+          AcpEventEnvelope heartbeat =
+              sseEventWriter.envelope(
+                  sessionId,
+                  AcpEventEnvelope.TYPE_STATUS,
+                  streamStatusPayload("HEARTBEAT", cursor, traceId),
+                  null);
+          sendEnvelope(sink, sse, heartbeat);
+        }
+      }
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      sendStreamError(sink, sse, sessionId, "STREAM_INTERRUPTED", "SSE stream interrupted");
+    } catch (RuntimeException error) {
+      sendStreamError(sink, sse, sessionId, "STREAM_FAILURE", message(error));
+    } finally {
+      if (!sink.isClosed()) {
+        sink.close();
+      }
+    }
+  }
+
+  private String replayPendingEvents(String sessionId, String cursor, SseEventSink sink, Sse sse) {
+    String latestCursor = cursor;
+    List<AcpEventEnvelope> pendingEvents = runtimeBridgeService.findEventsSince(sessionId, cursor);
+    for (AcpEventEnvelope event : pendingEvents) {
+      sendEnvelope(sink, sse, event);
+      latestCursor = event.eventId();
+    }
+    return latestCursor;
+  }
+
+  private void sendEnvelope(SseEventSink sink, Sse sse, AcpEventEnvelope envelope) {
+    if (sink.isClosed()) {
+      return;
+    }
+    sseEventWriter.send(sink, sse, envelope);
+  }
+
+  private void sendStreamError(
+      SseEventSink sink, Sse sse, String sessionId, String code, String errorMessage) {
+    if (sink.isClosed()) {
+      return;
+    }
     AcpEventEnvelope envelope =
         sseEventWriter.envelope(
-            resolvedSessionId,
-            AcpEventEnvelope.TYPE_STATUS,
-            Map.of("state", "CONNECTED", "transport", "sse", "traceId", traceId()),
-            null);
-    sseEventWriter.send(sink, sse, envelope);
-    runtimeBridgeService
-        .findEventsSince(resolvedSessionId, lastEventId)
-        .forEach(event -> sseEventWriter.send(sink, sse, event));
-    sink.close();
+            sessionId,
+            AcpEventEnvelope.TYPE_ERROR,
+            Map.of("state", "FAILED", "transport", "sse", "traceId", traceId()),
+            new AcpEventEnvelope.EventError(code, errorMessage, true, 1000));
+    sendEnvelope(sink, sse, envelope);
   }
 
   private void validateRequestEnvelope(JsonRpcRequest request) {
@@ -315,6 +391,41 @@ public class AcpApi {
   private String message(Throwable error) {
     String message = error == null ? null : error.getMessage();
     return message == null || message.isBlank() ? "runtime failed" : message;
+  }
+
+  private String normalizedSessionId(String sessionId) {
+    if (sessionId == null || sessionId.isBlank()) {
+      return "unknown";
+    }
+    return sessionId.trim();
+  }
+
+  private String resolveResumeCursor(String sinceEventId, String lastEventId) {
+    String since = blankToNull(sinceEventId);
+    if (since != null) {
+      return since;
+    }
+    return blankToNull(lastEventId);
+  }
+
+  private String blankToNull(String value) {
+    if (value == null) {
+      return null;
+    }
+    String trimmed = value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
+  }
+
+  private Map<String, Object> streamStatusPayload(
+      String state, String latestEventId, String traceId) {
+    Map<String, Object> payload = new LinkedHashMap<>();
+    payload.put("state", state);
+    payload.put("transport", "sse");
+    payload.put("traceId", traceId);
+    if (latestEventId != null) {
+      payload.put("latestEventId", latestEventId);
+    }
+    return payload;
   }
 
   private void authorizeProjectMember(

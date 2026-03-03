@@ -391,6 +391,7 @@ class AcpApiTest extends ApiTest {
     given(documentationSpec)
         .accept("text/event-stream")
         .queryParam("sessionId", "s-1")
+        .queryParam("once", true)
         .when()
         .get("/acp")
         .then()
