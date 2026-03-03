@@ -22,6 +22,7 @@ import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.model.AcpSession;
 import reengineering.ddd.teamai.model.AgentRuntime;
+import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 import reengineering.ddd.teamai.model.Project;
 
 class AcpApiTest extends ApiTest {
@@ -301,6 +302,63 @@ class AcpApiTest extends ApiTest {
         .body("result", equalTo(null))
         .body("error.code", equalTo(-32602))
         .body("error.message", containsString("projectId"));
+  }
+
+  @Test
+  void should_map_session_not_found_error() {
+    when(acpSessions.findByIdentity("999")).thenReturn(Optional.empty());
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/load",
+                "params", Map.of("projectId", "project-1", "sessionId", "999"),
+                "id", "req-load-missing"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200)
+        .body("result", equalTo(null))
+        .body("error.code", equalTo(-32004))
+        .body("error.meta.acpCode", equalTo("ACP_SESSION_NOT_FOUND"))
+        .body("error.meta.httpStatus", equalTo(404))
+        .body("error.meta.retryable", equalTo(false));
+  }
+
+  @Test
+  void should_map_runtime_timeout_error() {
+    AcpSession pending = session("302", "user-3", AcpSessionDescription.Status.PENDING);
+    when(acpSessions.findByIdentity("302"))
+        .thenReturn(Optional.of(pending), Optional.of(pending), Optional.of(pending));
+    when(agentRuntime.send(
+            any(AgentRuntime.SessionHandle.class), any(AgentRuntime.SendRequest.class)))
+        .thenThrow(new AgentRuntimeTimeoutException("runtime timeout"));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/prompt",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "sessionId", "302",
+                        "prompt", "timeout case",
+                        "timeoutMs", 10),
+                "id", "req-timeout-1"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200)
+        .body("result", equalTo(null))
+        .body("error.code", equalTo(-32060))
+        .body("error.message", containsString("runtime timeout"))
+        .body("error.meta.acpCode", equalTo("ACP_RUNTIME_TIMEOUT"))
+        .body("error.meta.httpStatus", equalTo(504))
+        .body("error.meta.retryable", equalTo(true));
   }
 
   @Test

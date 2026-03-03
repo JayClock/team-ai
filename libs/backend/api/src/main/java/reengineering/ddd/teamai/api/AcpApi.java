@@ -25,12 +25,14 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.acp.AcpEventEnvelope;
+import reengineering.ddd.teamai.api.acp.AcpProtocolError;
 import reengineering.ddd.teamai.api.acp.AcpSseEventWriter;
 import reengineering.ddd.teamai.api.application.AcpRuntimeBridgeService;
 import reengineering.ddd.teamai.api.config.TraceIdFilter;
 import reengineering.ddd.teamai.description.AcpSessionDescription;
 import reengineering.ddd.teamai.model.AcpSession;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
+import reengineering.ddd.teamai.model.AgentRuntimeTimeoutException;
 import reengineering.ddd.teamai.model.Member;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
@@ -40,11 +42,6 @@ import reengineering.ddd.teamai.model.Projects;
 public class AcpApi {
   private static final Logger log = LoggerFactory.getLogger(AcpApi.class);
   private static final String JSON_RPC_VERSION = "2.0";
-  private static final int ERR_INVALID_REQUEST = -32600;
-  private static final int ERR_METHOD_NOT_FOUND = -32601;
-  private static final int ERR_INVALID_PARAMS = -32602;
-  private static final int ERR_INTERNAL = -32603;
-  private static final int ERR_FORBIDDEN = -32003;
   private static final String METHOD_INITIALIZE = "initialize";
   private static final String METHOD_SESSION_NEW = "session/new";
   private static final String METHOD_SESSION_PROMPT = "session/prompt";
@@ -59,7 +56,7 @@ public class AcpApi {
   @Consumes(MediaType.APPLICATION_JSON)
   public JsonRpcResponse rpc(JsonRpcRequest request, @Context SecurityContext securityContext) {
     if (request == null) {
-      return JsonRpcResponse.error(null, ERR_INVALID_REQUEST, "Invalid Request");
+      return JsonRpcResponse.error(null, AcpProtocolError.INVALID_REQUEST, "Invalid Request");
     }
     Object id = request.id();
     String traceId = traceId();
@@ -90,7 +87,7 @@ public class AcpApi {
           id,
           message(error),
           error);
-      return JsonRpcResponse.error(id, ERR_INTERNAL, "Internal error");
+      return JsonRpcResponse.error(id, AcpProtocolError.INTERNAL, "Internal error");
     }
   }
 
@@ -121,10 +118,10 @@ public class AcpApi {
 
   private void validateRequestEnvelope(JsonRpcRequest request) {
     if (request.jsonrpc() == null || !JSON_RPC_VERSION.equals(request.jsonrpc().trim())) {
-      throw new RpcException(ERR_INVALID_REQUEST, "jsonrpc must be '2.0'");
+      throw new RpcException(AcpProtocolError.INVALID_REQUEST, "jsonrpc must be '2.0'");
     }
     if (request.method() == null || request.method().isBlank()) {
-      throw new RpcException(ERR_INVALID_REQUEST, "method must not be blank");
+      throw new RpcException(AcpProtocolError.INVALID_REQUEST, "method must not be blank");
     }
   }
 
@@ -136,7 +133,8 @@ public class AcpApi {
       case METHOD_SESSION_PROMPT -> sessionPrompt(params, securityContext);
       case METHOD_SESSION_CANCEL -> sessionCancel(params, securityContext);
       case METHOD_SESSION_LOAD -> sessionLoad(params, securityContext);
-      default -> throw new RpcException(ERR_METHOD_NOT_FOUND, "Method not found: " + method);
+      default ->
+          throw new RpcException(AcpProtocolError.METHOD_NOT_FOUND, "Method not found: " + method);
     };
   }
 
@@ -194,7 +192,7 @@ public class AcpApi {
     authorizeProjectMember(project, id(current.getDescription().actor()), securityContext);
     if (current.getDescription().status().isTerminal()) {
       throw new RpcException(
-          ERR_INVALID_PARAMS,
+          AcpProtocolError.INVALID_PARAMS,
           "sessionId %s is not active, status=%s"
               .formatted(sessionId, current.getDescription().status().name()));
     }
@@ -218,8 +216,11 @@ public class AcpApi {
           Map.of("content", prompt, "receivedAt", now.toString()),
           "runtime",
           Map.of("output", runtimeResult.output(), "completedAt", runtimeResult.completedAt()));
+    } catch (AgentRuntimeTimeoutException error) {
+      throw new RpcException(
+          AcpProtocolError.RUNTIME_TIMEOUT, "runtime timeout: " + message(error));
     } catch (AgentRuntimeException | IllegalStateException error) {
-      throw new RpcException(ERR_INTERNAL, "runtime failed: " + message(error));
+      throw new RpcException(AcpProtocolError.RUNTIME_FAILED, "runtime failed: " + message(error));
     }
   }
 
@@ -251,7 +252,9 @@ public class AcpApi {
     return projects
         .findByIdentity(projectId)
         .orElseThrow(
-            () -> new RpcException(ERR_INVALID_PARAMS, "projectId not found: " + projectId));
+            () ->
+                new RpcException(
+                    AcpProtocolError.PROJECT_NOT_FOUND, "projectId not found: " + projectId));
   }
 
   private AcpSession requireSession(Project project, String sessionId) {
@@ -259,13 +262,15 @@ public class AcpApi {
         .acpSessions()
         .findByIdentity(sessionId)
         .orElseThrow(
-            () -> new RpcException(ERR_INVALID_PARAMS, "sessionId not found: " + sessionId));
+            () ->
+                new RpcException(
+                    AcpProtocolError.SESSION_NOT_FOUND, "sessionId not found: " + sessionId));
   }
 
   private String requireText(Map<String, Object> params, String field) {
     String value = optionalText(params, field).orElse(null);
     if (value == null) {
-      throw new RpcException(ERR_INVALID_PARAMS, field + " must not be blank");
+      throw new RpcException(AcpProtocolError.INVALID_PARAMS, field + " must not be blank");
     }
     return value;
   }
@@ -276,7 +281,7 @@ public class AcpApi {
       return Optional.empty();
     }
     if (!(value instanceof String text)) {
-      throw new RpcException(ERR_INVALID_PARAMS, field + " must be a string");
+      throw new RpcException(AcpProtocolError.INVALID_PARAMS, field + " must be a string");
     }
     String normalized = text.trim();
     if (normalized.isEmpty()) {
@@ -296,13 +301,13 @@ public class AcpApi {
       try {
         timeoutMs = Long.parseLong(text.trim());
       } catch (NumberFormatException error) {
-        throw new RpcException(ERR_INVALID_PARAMS, "timeoutMs must be a number");
+        throw new RpcException(AcpProtocolError.INVALID_PARAMS, "timeoutMs must be a number");
       }
     } else {
-      throw new RpcException(ERR_INVALID_PARAMS, "timeoutMs must be a number");
+      throw new RpcException(AcpProtocolError.INVALID_PARAMS, "timeoutMs must be a number");
     }
     if (timeoutMs <= 0) {
-      throw new RpcException(ERR_INVALID_PARAMS, "timeoutMs must be greater than 0");
+      throw new RpcException(AcpProtocolError.INVALID_PARAMS, "timeoutMs must be greater than 0");
     }
     return Duration.ofMillis(timeoutMs);
   }
@@ -315,19 +320,21 @@ public class AcpApi {
   private void authorizeProjectMember(
       Project project, String actorUserId, SecurityContext securityContext) {
     if (actorUserId == null || actorUserId.isBlank()) {
-      throw new RpcException(ERR_FORBIDDEN, "actorUserId is required for authorization");
+      throw new RpcException(
+          AcpProtocolError.FORBIDDEN, "actorUserId is required for authorization");
     }
     if (securityContext == null || securityContext.getUserPrincipal() == null) {
       return;
     }
     String principalId = securityContext.getUserPrincipal().getName();
     if (principalId == null || principalId.isBlank() || !principalId.equals(actorUserId)) {
-      throw new RpcException(ERR_FORBIDDEN, "actorUserId does not match authenticated user");
+      throw new RpcException(
+          AcpProtocolError.FORBIDDEN, "actorUserId does not match authenticated user");
     }
     Optional<Member> member = project.members().findByIdentity(principalId);
     if (member.isEmpty()) {
       throw new RpcException(
-          ERR_FORBIDDEN,
+          AcpProtocolError.FORBIDDEN,
           "user %s is not a member of project %s".formatted(principalId, project.getIdentity()));
     }
   }
@@ -374,22 +381,32 @@ public class AcpApi {
   public record JsonRpcRequest(
       String jsonrpc, String method, Map<String, Object> params, Object id) {}
 
-  public record JsonRpcError(int code, String message) {}
+  public record JsonRpcError(int code, String message, Map<String, Object> meta) {}
 
   public record JsonRpcResponse(String jsonrpc, Object id, Object result, JsonRpcError error) {
     static JsonRpcResponse result(Object id, Object result) {
       return new JsonRpcResponse(JSON_RPC_VERSION, id, result, null);
     }
 
-    static JsonRpcResponse error(Object id, int code, String message) {
-      return new JsonRpcResponse(JSON_RPC_VERSION, id, null, new JsonRpcError(code, message));
+    static JsonRpcResponse error(Object id, AcpProtocolError error, String message) {
+      return new JsonRpcResponse(
+          JSON_RPC_VERSION,
+          id,
+          null,
+          new JsonRpcError(
+              error.jsonRpcCode(),
+              message,
+              Map.of(
+                  "acpCode", error.acpCode(),
+                  "httpStatus", error.httpStatus(),
+                  "retryable", error.retryable())));
     }
   }
 
   private static class RpcException extends RuntimeException {
-    private final int code;
+    private final AcpProtocolError code;
 
-    private RpcException(int code, String message) {
+    private RpcException(AcpProtocolError code, String message) {
       super(message);
       this.code = code;
     }
