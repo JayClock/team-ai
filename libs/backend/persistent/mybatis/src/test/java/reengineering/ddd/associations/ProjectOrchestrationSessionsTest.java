@@ -20,9 +20,11 @@ import reengineering.ddd.TestDataSetup;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.OrchestrationSession;
+import reengineering.ddd.teamai.model.OrchestrationStep;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Task;
 import reengineering.ddd.teamai.model.User;
@@ -106,5 +108,120 @@ class ProjectOrchestrationSessionsTest {
     assertNotNull(loaded.getDescription().coordinator());
     assertEquals(coordinator.getIdentity(), loaded.getDescription().coordinator().id());
     assertNull(loaded.getDescription().failureReason());
+  }
+
+  @Test
+  void should_create_and_progress_orchestration_steps() {
+    Agent coordinator =
+        project.createAgent(
+            new AgentDescription(
+                "Coordinator",
+                AgentDescription.Role.ROUTA,
+                "SMART",
+                AgentDescription.Status.ACTIVE,
+                null));
+    Agent implementer =
+        project.createAgent(
+            new AgentDescription(
+                "Crafter",
+                AgentDescription.Role.CRAFTER,
+                "SMART",
+                AgentDescription.Status.PENDING,
+                new Ref<>(coordinator.getIdentity())));
+    Task task =
+        project.createTask(
+            new TaskDescription(
+                "Ship orchestration",
+                "Support step scheduling",
+                "backend",
+                List.of("three-step flow"),
+                List.of("./gradlew :backend:persistent:mybatis:test"),
+                TaskDescription.Status.PENDING,
+                null,
+                null,
+                null,
+                null,
+                null));
+    OrchestrationSession session =
+        project.startOrchestrationSession(
+            new OrchestrationSessionDescription(
+                "Ship orchestration",
+                OrchestrationSessionDescription.Status.RUNNING,
+                new Ref<>(coordinator.getIdentity()),
+                new Ref<>(implementer.getIdentity()),
+                new Ref<>(task.getIdentity()),
+                null,
+                Instant.parse("2026-03-02T12:00:00Z"),
+                null,
+                null));
+
+    OrchestrationStep step1 =
+        project
+            .orchestrationSessions()
+            .createStep(
+                session.getIdentity(),
+                1,
+                new OrchestrationStepDescription(
+                    "Clarify",
+                    "Define scope",
+                    OrchestrationStepDescription.Status.PENDING,
+                    new Ref<>(task.getIdentity()),
+                    new Ref<>(implementer.getIdentity()),
+                    null,
+                    null,
+                    null));
+    OrchestrationStep step2 =
+        project
+            .orchestrationSessions()
+            .createStep(
+                session.getIdentity(),
+                2,
+                new OrchestrationStepDescription(
+                    "Implement",
+                    "Deliver implementation",
+                    OrchestrationStepDescription.Status.PENDING,
+                    new Ref<>(task.getIdentity()),
+                    new Ref<>(implementer.getIdentity()),
+                    null,
+                    null,
+                    null));
+
+    project
+        .orchestrationSessions()
+        .updateStepStatus(
+            session.getIdentity(),
+            step1.getIdentity(),
+            OrchestrationStepDescription.Status.RUNNING,
+            Instant.parse("2026-03-02T12:05:00Z"),
+            null,
+            null);
+    project
+        .orchestrationSessions()
+        .updateStepStatus(
+            session.getIdentity(),
+            step1.getIdentity(),
+            OrchestrationStepDescription.Status.COMPLETED,
+            null,
+            Instant.parse("2026-03-02T12:08:00Z"),
+            null);
+    project.updateOrchestrationSessionStatus(
+        session.getIdentity(),
+        OrchestrationSessionDescription.Status.RUNNING,
+        new Ref<>(step1.getIdentity()),
+        null,
+        null);
+
+    List<OrchestrationStep> steps =
+        project.orchestrationSessions().findSteps(session.getIdentity());
+    OrchestrationStep nextPending =
+        project.orchestrationSessions().findNextPendingStep(session.getIdentity()).orElseThrow();
+    OrchestrationSession loaded =
+        project.orchestrationSessions().findByIdentity(session.getIdentity()).orElseThrow();
+
+    assertEquals(2, steps.size());
+    assertEquals(
+        OrchestrationStepDescription.Status.COMPLETED, steps.get(0).getDescription().status());
+    assertEquals(step2.getIdentity(), nextPending.getIdentity());
+    assertEquals(step1.getIdentity(), loaded.getDescription().currentStep().id());
   }
 }

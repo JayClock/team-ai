@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -21,6 +22,7 @@ import reengineering.ddd.teamai.description.McpServerDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.description.TaskReportDescription;
@@ -583,6 +585,13 @@ public class Project implements Entity<String, ProjectDescription> {
   public interface OrchestrationSessions extends HasMany<String, OrchestrationSession> {
     OrchestrationSession create(OrchestrationSessionDescription description);
 
+    OrchestrationStep createStep(
+        String sessionId, int sequenceNo, OrchestrationStepDescription description);
+
+    List<OrchestrationStep> findSteps(String sessionId);
+
+    Optional<OrchestrationStep> findNextPendingStep(String sessionId);
+
     Optional<OrchestrationSession> findByStartRequestId(String requestId);
 
     void bindStartRequestId(String sessionId, String requestId);
@@ -591,6 +600,14 @@ public class Project implements Entity<String, ProjectDescription> {
         String sessionId,
         OrchestrationSessionDescription.Status status,
         Ref<String> currentStep,
+        Instant completedAt,
+        String failureReason);
+
+    void updateStepStatus(
+        String sessionId,
+        String stepId,
+        OrchestrationStepDescription.Status status,
+        Instant startedAt,
         Instant completedAt,
         String failureReason);
   }

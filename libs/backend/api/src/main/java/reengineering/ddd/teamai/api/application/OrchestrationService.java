@@ -12,17 +12,19 @@ import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.OrchestrationSession;
+import reengineering.ddd.teamai.model.OrchestrationStep;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Task;
 
 @Component
 public class OrchestrationService {
-  private static final String DEFAULT_ROUTA_NAME = "Routa Coordinator";
-  private static final String DEFAULT_CRAFTER_NAME = "Crafter Implementer";
+  private static final String DEFAULT_COORDINATOR_NAME = "Coordinator Agent";
+  private static final String DEFAULT_IMPLEMENTER_NAME = "Crafter Implementer";
   private static final Set<OrchestrationSessionDescription.Status> CANCELLABLE =
       EnumSet.of(
           OrchestrationSessionDescription.Status.PENDING,
@@ -31,19 +33,25 @@ public class OrchestrationService {
 
   private final OrchestrationRuntimeService runtimeService;
   private final int maxRuntimeAttempts;
+  private final long retryBackoffMillis;
   private final OrchestrationTelemetry telemetry;
 
   public OrchestrationService(OrchestrationRuntimeService runtimeService, int maxRuntimeAttempts) {
-    this(runtimeService, maxRuntimeAttempts, OrchestrationTelemetry.noop());
+    this.runtimeService = runtimeService;
+    this.maxRuntimeAttempts = Math.max(1, maxRuntimeAttempts);
+    this.retryBackoffMillis = 0L;
+    this.telemetry = OrchestrationTelemetry.noop();
   }
 
   @Inject
   public OrchestrationService(
       OrchestrationRuntimeService runtimeService,
       @Value("${team-ai.orchestration.max-runtime-attempts:2}") int maxRuntimeAttempts,
+      @Value("${team-ai.orchestration.retry-backoff-millis:0}") long retryBackoffMillis,
       OrchestrationTelemetry telemetry) {
     this.runtimeService = runtimeService;
     this.maxRuntimeAttempts = Math.max(1, maxRuntimeAttempts);
+    this.retryBackoffMillis = Math.max(0L, retryBackoffMillis);
     this.telemetry = telemetry == null ? OrchestrationTelemetry.noop() : telemetry;
   }
 
@@ -95,7 +103,6 @@ public class OrchestrationService {
       project.orchestrationSessions().bindStartRequestId(session.getIdentity(), requestId);
     }
 
-    executeWithRetry(project, session, occurredAt);
     telemetry.sessionTransition(
         session.getIdentity(),
         task.getIdentity(),
@@ -103,6 +110,10 @@ public class OrchestrationService {
         OrchestrationSessionDescription.Status.PENDING.name(),
         OrchestrationSessionDescription.Status.RUNNING.name(),
         "orchestration started");
+
+    List<OrchestrationStep> steps = createStepPlan(project, session, command, taskRef, implementer);
+    executePlannedSteps(project, session, steps, occurredAt);
+
     return project.orchestrationSessions().findByIdentity(session.getIdentity()).orElse(session);
   }
 
@@ -141,25 +152,214 @@ public class OrchestrationService {
     return project.orchestrationSessions().findByIdentity(session.getIdentity()).orElse(session);
   }
 
-  private void executeWithRetry(Project project, OrchestrationSession session, Instant occurredAt) {
+  private List<OrchestrationStep> createStepPlan(
+      Project project,
+      OrchestrationSession session,
+      StartCommand command,
+      Ref<String> taskRef,
+      Ref<String> implementer) {
+    List<StepPlan> plans = buildDefaultStepPlan(command);
+    for (int i = 0; i < plans.size(); i++) {
+      StepPlan step = plans.get(i);
+      project
+          .orchestrationSessions()
+          .createStep(
+              session.getIdentity(),
+              i + 1,
+              new OrchestrationStepDescription(
+                  step.title(),
+                  step.objective(),
+                  OrchestrationStepDescription.Status.PENDING,
+                  taskRef,
+                  implementer,
+                  null,
+                  null,
+                  null));
+    }
+    return project.orchestrationSessions().findSteps(session.getIdentity());
+  }
+
+  private List<StepPlan> buildDefaultStepPlan(StartCommand command) {
+    String goal = normalize(command.goal());
+    String scope = normalize(command.scope());
+    String acceptance =
+        command.acceptanceCriteria() == null || command.acceptanceCriteria().isEmpty()
+            ? "No explicit acceptance criteria"
+            : String.join("; ", command.acceptanceCriteria());
+    String verification =
+        command.verificationCommands() == null || command.verificationCommands().isEmpty()
+            ? "No explicit verification commands"
+            : String.join("; ", command.verificationCommands());
+
+    return List.of(
+        new StepPlan(
+            "Clarify scope",
+            "Align implementation boundaries for goal: " + goal + " (scope: " + scope + ")"),
+        new StepPlan("Implement changes", "Deliver implementation for goal: " + goal),
+        new StepPlan(
+            "Validate and finalize",
+            "Validate against acceptance: " + acceptance + " | verification: " + verification));
+  }
+
+  private void executePlannedSteps(
+      Project project,
+      OrchestrationSession session,
+      List<OrchestrationStep> steps,
+      Instant occurredAt) {
+    if (steps == null || steps.size() < 3) {
+      throw new IllegalStateException("orchestration requires at least 3 planned steps");
+    }
+
+    for (int index = 0; index < steps.size(); index++) {
+      OrchestrationStep step = steps.get(index);
+      executeStepWithRetry(project, session, step, index + 1, steps.size(), occurredAt);
+    }
+
+    OrchestrationStep lastStep = steps.get(steps.size() - 1);
+    Ref<String> lastStepRef = new Ref<>(lastStep.getIdentity());
+    project.updateOrchestrationSessionStatus(
+        session.getIdentity(),
+        OrchestrationSessionDescription.Status.COMPLETED,
+        lastStepRef,
+        Instant.now(),
+        null);
+    project.appendEvent(
+        new AgentEventDescription(
+            AgentEventDescription.Type.TASK_COMPLETED,
+            session.getDescription().implementer(),
+            session.getDescription().task(),
+            "Orchestration completed with " + steps.size() + " steps",
+            occurredAt));
+    telemetry.sessionTransition(
+        session.getIdentity(),
+        session.getDescription().task().id(),
+        session.getDescription().implementer().id(),
+        OrchestrationSessionDescription.Status.REVIEW_REQUIRED.name(),
+        OrchestrationSessionDescription.Status.COMPLETED.name(),
+        "all orchestration steps completed");
+  }
+
+  private void executeStepWithRetry(
+      Project project,
+      OrchestrationSession session,
+      OrchestrationStep step,
+      int sequenceNo,
+      int totalSteps,
+      Instant occurredAt) {
+    Ref<String> stepRef = new Ref<>(step.getIdentity());
     int attempts = 0;
     while (attempts < maxRuntimeAttempts) {
       attempts++;
+      Instant startedAt = attempts == 1 ? Instant.now() : null;
+      project
+          .orchestrationSessions()
+          .updateStepStatus(
+              session.getIdentity(),
+              step.getIdentity(),
+              OrchestrationStepDescription.Status.RUNNING,
+              startedAt,
+              null,
+              null);
+      project.updateOrchestrationSessionStatus(
+          session.getIdentity(),
+          OrchestrationSessionDescription.Status.RUNNING,
+          stepRef,
+          null,
+          null);
+      project.updateTaskStatus(
+          taskId(step, session),
+          TaskDescription.Status.IN_PROGRESS,
+          "Executing orchestration step "
+              + sequenceNo
+              + "/"
+              + totalSteps
+              + ": "
+              + step.getDescription().title());
+      appendStepEvent(
+          project,
+          session,
+          step,
+          AgentEventDescription.Type.TASK_STATUS_CHANGED,
+          "Step " + sequenceNo + " started (attempt " + attempts + ")",
+          occurredAt);
+
+      OrchestrationSession executionSession = sessionWithCurrentStep(session, stepRef);
       try {
-        runtimeService.onSessionStarted(project, session, occurredAt);
+        runtimeService.onSessionStarted(project, executionSession, occurredAt);
+        project
+            .orchestrationSessions()
+            .updateStepStatus(
+                session.getIdentity(),
+                step.getIdentity(),
+                OrchestrationStepDescription.Status.COMPLETED,
+                null,
+                Instant.now(),
+                null);
+        appendStepEvent(
+            project,
+            session,
+            step,
+            AgentEventDescription.Type.TASK_STATUS_CHANGED,
+            "Step " + sequenceNo + " completed",
+            occurredAt);
+        telemetry.stepTransition(
+            session.getIdentity(),
+            step.getIdentity(),
+            taskId(step, session),
+            assigneeId(step, session),
+            OrchestrationStepDescription.Status.COMPLETED.name());
         return;
       } catch (AgentRuntimeException error) {
         if (attempts >= maxRuntimeAttempts) {
+          String reason = normalize(error.getMessage());
+          project
+              .orchestrationSessions()
+              .updateStepStatus(
+                  session.getIdentity(),
+                  step.getIdentity(),
+                  OrchestrationStepDescription.Status.FAILED,
+                  null,
+                  Instant.now(),
+                  reason);
+          project.updateOrchestrationSessionStatus(
+              session.getIdentity(),
+              OrchestrationSessionDescription.Status.FAILED,
+              stepRef,
+              Instant.now(),
+              reason);
+          appendStepEvent(
+              project,
+              session,
+              step,
+              AgentEventDescription.Type.TASK_FAILED,
+              "Step " + sequenceNo + " failed after " + attempts + " attempts: " + reason,
+              occurredAt);
+          telemetry.stepTransition(
+              session.getIdentity(),
+              step.getIdentity(),
+              taskId(step, session),
+              assigneeId(step, session),
+              OrchestrationStepDescription.Status.FAILED.name());
+          telemetry.sessionTransition(
+              session.getIdentity(),
+              taskId(step, session),
+              assigneeId(step, session),
+              OrchestrationSessionDescription.Status.RUNNING.name(),
+              OrchestrationSessionDescription.Status.FAILED.name(),
+              reason);
           throw error;
         }
+
         int nextAttempt = attempts + 1;
-        rollbackForRetry(project, session, occurredAt, nextAttempt, error.getMessage());
+        rollbackForRetry(
+            project, session, step, sequenceNo, nextAttempt, occurredAt, error.getMessage());
         telemetry.runtimeRetry(
             session.getIdentity(),
-            session.getDescription().task().id(),
-            session.getDescription().implementer().id(),
+            taskId(step, session),
+            assigneeId(step, session),
             nextAttempt,
             error.getMessage());
+        sleepForBackoff(nextAttempt);
       }
     }
   }
@@ -167,28 +367,110 @@ public class OrchestrationService {
   private void rollbackForRetry(
       Project project,
       OrchestrationSession session,
-      Instant occurredAt,
+      OrchestrationStep step,
+      int sequenceNo,
       int nextAttempt,
+      Instant occurredAt,
       String reason) {
     OrchestrationSessionDescription description = session.getDescription();
-    String taskId = description.task().id();
-    Ref<String> implementer = description.implementer();
     String message =
-        "Retrying after runtime failure (attempt " + nextAttempt + "): " + normalize(reason);
-    project.updateTaskStatus(taskId, TaskDescription.Status.IN_PROGRESS, message);
+        "Rollback step "
+            + sequenceNo
+            + " for retry attempt "
+            + nextAttempt
+            + ": "
+            + normalize(reason);
+    project
+        .orchestrationSessions()
+        .updateStepStatus(
+            session.getIdentity(),
+            step.getIdentity(),
+            OrchestrationStepDescription.Status.PENDING,
+            null,
+            null,
+            null);
+    project.updateTaskStatus(taskId(step, session), TaskDescription.Status.IN_PROGRESS, message);
     project.appendEvent(
         new AgentEventDescription(
             AgentEventDescription.Type.TASK_STATUS_CHANGED,
-            implementer,
+            description.implementer(),
             description.task(),
             message,
             occurredAt));
     project.updateOrchestrationSessionStatus(
         session.getIdentity(),
         OrchestrationSessionDescription.Status.RUNNING,
-        description.currentStep(),
+        new Ref<>(step.getIdentity()),
         null,
         null);
+  }
+
+  private void sleepForBackoff(int attempt) {
+    if (retryBackoffMillis <= 0) {
+      return;
+    }
+    long delay = retryBackoffMillis * Math.max(1, attempt - 1L);
+    try {
+      Thread.sleep(delay);
+    } catch (InterruptedException interruptedException) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException(
+          "Interrupted while waiting for orchestration retry", interruptedException);
+    }
+  }
+
+  private void appendStepEvent(
+      Project project,
+      OrchestrationSession session,
+      OrchestrationStep step,
+      AgentEventDescription.Type type,
+      String message,
+      Instant occurredAt) {
+    OrchestrationSessionDescription description = session.getDescription();
+    project.appendEvent(
+        new AgentEventDescription(
+            type,
+            step.getDescription().assignee() == null
+                ? description.implementer()
+                : step.getDescription().assignee(),
+            step.getDescription().task() == null
+                ? description.task()
+                : step.getDescription().task(),
+            message,
+            occurredAt));
+  }
+
+  private String taskId(OrchestrationStep step, OrchestrationSession session) {
+    Ref<String> task = step.getDescription().task();
+    if (task != null && task.id() != null && !task.id().isBlank()) {
+      return task.id();
+    }
+    return session.getDescription().task().id();
+  }
+
+  private String assigneeId(OrchestrationStep step, OrchestrationSession session) {
+    Ref<String> assignee = step.getDescription().assignee();
+    if (assignee != null && assignee.id() != null && !assignee.id().isBlank()) {
+      return assignee.id();
+    }
+    return session.getDescription().implementer().id();
+  }
+
+  private OrchestrationSession sessionWithCurrentStep(
+      OrchestrationSession source, Ref<String> currentStep) {
+    OrchestrationSessionDescription description = source.getDescription();
+    return new OrchestrationSession(
+        source.getIdentity(),
+        new OrchestrationSessionDescription(
+            description.goal(),
+            OrchestrationSessionDescription.Status.RUNNING,
+            description.coordinator(),
+            description.implementer(),
+            description.task(),
+            currentStep,
+            description.startedAt(),
+            description.completedAt(),
+            description.failureReason()));
   }
 
   private TaskDescription toTaskDescription(StartCommand command) {
@@ -229,7 +511,7 @@ public class OrchestrationService {
     Agent created =
         project.createAgent(
             new AgentDescription(
-                DEFAULT_ROUTA_NAME,
+                DEFAULT_COORDINATOR_NAME,
                 AgentDescription.Role.ROUTA,
                 "SMART",
                 AgentDescription.Status.PENDING,
@@ -268,7 +550,7 @@ public class OrchestrationService {
     Agent created =
         project.createAgent(
             new AgentDescription(
-                DEFAULT_CRAFTER_NAME,
+                DEFAULT_IMPLEMENTER_NAME,
                 AgentDescription.Role.CRAFTER,
                 "SMART",
                 AgentDescription.Status.PENDING,
@@ -336,4 +618,6 @@ public class OrchestrationService {
       String coordinatorAgentId,
       String implementerAgentId,
       Instant occurredAt) {}
+
+  private record StepPlan(String title, String objective) {}
 }

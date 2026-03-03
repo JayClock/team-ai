@@ -1,8 +1,11 @@
 package reengineering.ddd.teamai.api.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -20,11 +23,13 @@ import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
+import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentRuntimeException;
 import reengineering.ddd.teamai.model.OrchestrationSession;
+import reengineering.ddd.teamai.model.OrchestrationStep;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Task;
 
@@ -71,53 +76,11 @@ class OrchestrationServiceTest {
   }
 
   @Test
-  void should_retry_once_and_rollback_to_recoverable_state() {
-    Agent coordinator =
-        new Agent(
-            "agent-routa",
-            new AgentDescription(
-                "Routa",
-                AgentDescription.Role.ROUTA,
-                "SMART",
-                AgentDescription.Status.PENDING,
-                null));
-    Agent implementer =
-        new Agent(
-            "agent-crafter",
-            new AgentDescription(
-                "Crafter",
-                AgentDescription.Role.CRAFTER,
-                "SMART",
-                AgentDescription.Status.PENDING,
-                null));
-    Task createdTask =
-        new Task(
-            "task-1",
-            new TaskDescription(
-                "title",
-                "goal",
-                null,
-                List.of(),
-                List.of(),
-                TaskDescription.Status.PENDING,
-                null,
-                null,
-                null,
-                null,
-                null));
-    OrchestrationSession session =
-        new OrchestrationSession(
-            "session-1",
-            new OrchestrationSessionDescription(
-                "goal",
-                OrchestrationSessionDescription.Status.RUNNING,
-                new Ref<>("agent-routa"),
-                new Ref<>("agent-crafter"),
-                new Ref<>("task-1"),
-                null,
-                Instant.parse("2026-03-02T12:00:00Z"),
-                null,
-                null));
+  void should_generate_three_steps_and_execute_in_sequence() {
+    Agent coordinator = coordinator();
+    Agent implementer = implementer();
+    Task createdTask = task();
+    OrchestrationSession session = session("session-1");
 
     when(agents.findAll()).thenReturn(manyOf(coordinator, implementer));
     when(tasks.create(any(TaskDescription.class))).thenReturn(createdTask);
@@ -128,10 +91,23 @@ class OrchestrationServiceTest {
         .thenReturn(session);
     when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(session));
 
-    doThrow(new AgentRuntimeException("runtime fail"))
-        .doNothing()
+    OrchestrationStep step1 = step("step-1", "Clarify");
+    OrchestrationStep step2 = step("step-2", "Implement");
+    OrchestrationStep step3 = step("step-3", "Validate");
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(1), any(OrchestrationStepDescription.class)))
+        .thenReturn(step1);
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(2), any(OrchestrationStepDescription.class)))
+        .thenReturn(step2);
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(3), any(OrchestrationStepDescription.class)))
+        .thenReturn(step3);
+    when(orchestrationSessions.findSteps("session-1")).thenReturn(List.of(step1, step2, step3));
+
+    doNothing()
         .when(runtimeService)
-        .onSessionStarted(eq(project), eq(session), any(Instant.class));
+        .onSessionStarted(eq(project), any(OrchestrationSession.class), any(Instant.class));
 
     OrchestrationService.StartCommand command =
         new OrchestrationService.StartCommand(
@@ -147,34 +123,169 @@ class OrchestrationServiceTest {
 
     OrchestrationSession result = service.start(project, command);
 
-    verify(runtimeService, times(2)).onSessionStarted(eq(project), eq(session), any(Instant.class));
-    verify(tasks, times(1))
-        .updateStatus(eq("task-1"), eq(TaskDescription.Status.IN_PROGRESS), any(String.class));
+    verify(runtimeService, times(3))
+        .onSessionStarted(eq(project), any(OrchestrationSession.class), any(Instant.class));
+    verify(orchestrationSessions, times(3))
+        .createStep(eq("session-1"), anyInt(), any(OrchestrationStepDescription.class));
+    verify(orchestrationSessions, times(6))
+        .updateStepStatus(
+            eq("session-1"),
+            any(String.class),
+            any(OrchestrationStepDescription.Status.class),
+            any(),
+            any(),
+            any());
     verify(orchestrationSessions, times(1))
         .updateStatus(
             eq("session-1"),
-            eq(OrchestrationSessionDescription.Status.RUNNING),
-            eq(null),
-            eq(null),
+            eq(OrchestrationSessionDescription.Status.COMPLETED),
+            any(),
+            any(),
             eq(null));
     assertThat(result.getIdentity()).isEqualTo("session-1");
   }
 
   @Test
+  void should_retry_once_and_rollback_failed_step_then_recover() {
+    Agent coordinator = coordinator();
+    Agent implementer = implementer();
+    Task createdTask = task();
+    OrchestrationSession session = session("session-1");
+
+    when(agents.findAll()).thenReturn(manyOf(coordinator, implementer));
+    when(tasks.create(any(TaskDescription.class))).thenReturn(createdTask);
+    when(tasks.findByIdentity("task-1")).thenReturn(Optional.of(createdTask));
+    when(agents.findByIdentity("agent-routa")).thenReturn(Optional.of(coordinator));
+    when(agents.findByIdentity("agent-crafter")).thenReturn(Optional.of(implementer));
+    when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
+        .thenReturn(session);
+    when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(session));
+
+    OrchestrationStep step1 = step("step-1", "Clarify");
+    OrchestrationStep step2 = step("step-2", "Implement");
+    OrchestrationStep step3 = step("step-3", "Validate");
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(1), any(OrchestrationStepDescription.class)))
+        .thenReturn(step1);
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(2), any(OrchestrationStepDescription.class)))
+        .thenReturn(step2);
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(3), any(OrchestrationStepDescription.class)))
+        .thenReturn(step3);
+    when(orchestrationSessions.findSteps("session-1")).thenReturn(List.of(step1, step2, step3));
+
+    doThrow(new AgentRuntimeException("runtime fail"))
+        .doNothing()
+        .doNothing()
+        .doNothing()
+        .when(runtimeService)
+        .onSessionStarted(eq(project), any(OrchestrationSession.class), any(Instant.class));
+
+    OrchestrationService.StartCommand command =
+        new OrchestrationService.StartCommand(
+            null,
+            "goal",
+            "title",
+            null,
+            List.of(),
+            List.of(),
+            null,
+            null,
+            Instant.parse("2026-03-02T12:00:00Z"));
+
+    OrchestrationSession result = service.start(project, command);
+
+    verify(runtimeService, times(4))
+        .onSessionStarted(eq(project), any(OrchestrationSession.class), any(Instant.class));
+    verify(orchestrationSessions, times(1))
+        .updateStepStatus(
+            eq("session-1"),
+            eq("step-1"),
+            eq(OrchestrationStepDescription.Status.PENDING),
+            eq(null),
+            eq(null),
+            eq(null));
+    verify(orchestrationSessions, times(1))
+        .updateStatus(
+            eq("session-1"),
+            eq(OrchestrationSessionDescription.Status.COMPLETED),
+            any(),
+            any(),
+            eq(null));
+    assertThat(result.getIdentity()).isEqualTo("session-1");
+  }
+
+  @Test
+  void should_mark_session_failed_when_retry_exhausted() {
+    Agent coordinator = coordinator();
+    Agent implementer = implementer();
+    Task createdTask = task();
+    OrchestrationSession session = session("session-1");
+
+    when(agents.findAll()).thenReturn(manyOf(coordinator, implementer));
+    when(tasks.create(any(TaskDescription.class))).thenReturn(createdTask);
+    when(tasks.findByIdentity("task-1")).thenReturn(Optional.of(createdTask));
+    when(agents.findByIdentity("agent-routa")).thenReturn(Optional.of(coordinator));
+    when(agents.findByIdentity("agent-crafter")).thenReturn(Optional.of(implementer));
+    when(orchestrationSessions.create(any(OrchestrationSessionDescription.class)))
+        .thenReturn(session);
+    when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(session));
+
+    OrchestrationStep step1 = step("step-1", "Clarify");
+    OrchestrationStep step2 = step("step-2", "Implement");
+    OrchestrationStep step3 = step("step-3", "Validate");
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(1), any(OrchestrationStepDescription.class)))
+        .thenReturn(step1);
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(2), any(OrchestrationStepDescription.class)))
+        .thenReturn(step2);
+    when(orchestrationSessions.createStep(
+            eq("session-1"), eq(3), any(OrchestrationStepDescription.class)))
+        .thenReturn(step3);
+    when(orchestrationSessions.findSteps("session-1")).thenReturn(List.of(step1, step2, step3));
+
+    doThrow(new AgentRuntimeException("runtime always fails"))
+        .when(runtimeService)
+        .onSessionStarted(eq(project), any(OrchestrationSession.class), any(Instant.class));
+
+    OrchestrationService.StartCommand command =
+        new OrchestrationService.StartCommand(
+            null,
+            "goal",
+            "title",
+            null,
+            List.of(),
+            List.of(),
+            null,
+            null,
+            Instant.parse("2026-03-02T12:00:00Z"));
+
+    assertThrows(AgentRuntimeException.class, () -> service.start(project, command));
+
+    verify(runtimeService, times(2))
+        .onSessionStarted(eq(project), any(OrchestrationSession.class), any(Instant.class));
+    verify(orchestrationSessions, times(1))
+        .updateStepStatus(
+            eq("session-1"),
+            eq("step-1"),
+            eq(OrchestrationStepDescription.Status.FAILED),
+            eq(null),
+            any(),
+            any(String.class));
+    verify(orchestrationSessions, times(1))
+        .updateStatus(
+            eq("session-1"),
+            eq(OrchestrationSessionDescription.Status.FAILED),
+            any(),
+            any(),
+            any(String.class));
+  }
+
+  @Test
   void should_delegate_cancel_to_runtime_service_and_update_status() {
-    OrchestrationSession session =
-        new OrchestrationSession(
-            "session-1",
-            new OrchestrationSessionDescription(
-                "goal",
-                OrchestrationSessionDescription.Status.RUNNING,
-                new Ref<>("agent-routa"),
-                new Ref<>("agent-crafter"),
-                new Ref<>("task-1"),
-                null,
-                Instant.parse("2026-03-02T12:00:00Z"),
-                null,
-                null));
+    OrchestrationSession session = session("session-1");
     when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(session));
 
     OrchestrationSession result =
@@ -217,6 +328,74 @@ class OrchestrationServiceTest {
     verify(orchestrationSessions, times(0)).create(any(OrchestrationSessionDescription.class));
     verify(runtimeService, times(0)).onSessionStarted(any(), any(), any());
     assertThat(replayed.getIdentity()).isEqualTo("session-existing");
+  }
+
+  private Agent coordinator() {
+    return new Agent(
+        "agent-routa",
+        new AgentDescription(
+            "Coordinator",
+            AgentDescription.Role.ROUTA,
+            "SMART",
+            AgentDescription.Status.PENDING,
+            null));
+  }
+
+  private Agent implementer() {
+    return new Agent(
+        "agent-crafter",
+        new AgentDescription(
+            "Crafter",
+            AgentDescription.Role.CRAFTER,
+            "SMART",
+            AgentDescription.Status.PENDING,
+            null));
+  }
+
+  private Task task() {
+    return new Task(
+        "task-1",
+        new TaskDescription(
+            "title",
+            "goal",
+            null,
+            List.of(),
+            List.of(),
+            TaskDescription.Status.PENDING,
+            null,
+            null,
+            null,
+            null,
+            null));
+  }
+
+  private OrchestrationSession session(String sessionId) {
+    return new OrchestrationSession(
+        sessionId,
+        new OrchestrationSessionDescription(
+            "goal",
+            OrchestrationSessionDescription.Status.RUNNING,
+            new Ref<>("agent-routa"),
+            new Ref<>("agent-crafter"),
+            new Ref<>("task-1"),
+            null,
+            Instant.parse("2026-03-02T12:00:00Z"),
+            null,
+            null));
+  }
+
+  private OrchestrationStep step(String id, String title) {
+    return new OrchestrationStep(
+        id,
+        new OrchestrationStepDescription(
+            title,
+            title + " objective",
+            OrchestrationStepDescription.Status.PENDING,
+            new Ref<>("task-1"),
+            new Ref<>("agent-crafter"),
+            null,
+            null,
+            null));
   }
 
   private Many<Agent> manyOf(Agent... values) {
