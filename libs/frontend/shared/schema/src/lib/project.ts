@@ -30,7 +30,7 @@ export type Project = Entity<
     'events-stream': Entity<ReadableStream<Uint8Array>>;
     'knowledge-graph': KnowledgeGraph;
     'logical-entities': Collection<LogicalEntity>;
-    orchestrations: Orchestration;
+    orchestrations: Collection<Orchestration>;
     sidebar: Sidebar;
     tasks: TaskCollection;
     default: Project;

@@ -1,4 +1,4 @@
-import { State } from '@hateoas-ts/resource';
+import { Collection, State } from '@hateoas-ts/resource';
 import { useSuspenseResource } from '@hateoas-ts/resource-react';
 import { type Signal } from '@preact/signals-react';
 import {
@@ -11,7 +11,14 @@ import {
   Project,
   TaskCollection,
 } from '@shared/schema';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 const GRAPH_HEIGHT = 560;
 
@@ -24,6 +31,8 @@ type OrchestrationRequestPayload = {
   acceptanceCriteria?: string[];
   verificationCommands?: string[];
 };
+
+type StreamStatus = 'idle' | 'connecting' | 'connected' | 'retrying';
 
 interface G6GraphInstance {
   render: () => void | Promise<void>;
@@ -130,10 +139,16 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
     () => projectState.follow('orchestrations'),
     [projectState],
   );
+  const eventsStreamHref = useMemo(
+    () => projectState.getLink('events-stream')?.href ?? null,
+    [projectState],
+  );
   const agentsResource = useMemo(() => projectState.follow('agents'), [projectState]);
   const tasksResource = useMemo(() => projectState.follow('tasks'), [projectState]);
   const eventsResource = useMemo(() => projectState.follow('events'), [projectState]);
 
+  const { resourceState: orchestrationsState, resource: orchestrationsApi } =
+    useSuspenseResource<Collection<Orchestration>>(orchestrationApi);
   const { resourceState: agentsState, resource: agentsApi } =
     useSuspenseResource<AgentCollection>(agentsResource);
   const { resourceState: tasksState, resource: tasksApi } =
@@ -149,6 +164,13 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
   const [submitting, setSubmitting] = useState(false);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
+  const [streamMessage, setStreamMessage] = useState<string | null>(null);
+  const [lastRealtimeUpdateAt, setLastRealtimeUpdateAt] = useState<string | null>(
+    null,
+  );
+
+  const streamRefreshTimerRef = useRef<number | null>(null);
 
   const events = useMemo(
     () =>
@@ -158,6 +180,78 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
       ),
     [eventsState.collection],
   );
+  const orchestrations = useMemo(
+    () =>
+      [...orchestrationsState.collection].sort(
+        (left, right) =>
+          Date.parse(right.data.startedAt ?? '') -
+          Date.parse(left.data.startedAt ?? ''),
+      ),
+    [orchestrationsState.collection],
+  );
+
+  const refreshOrchestrationPanel = useCallback(async () => {
+    await Promise.all([
+      orchestrationsApi.refresh(),
+      agentsApi.refresh(),
+      tasksApi.refresh(),
+      eventsApi.refresh(),
+    ]);
+  }, [agentsApi, eventsApi, orchestrationsApi, tasksApi]);
+
+  const schedulePanelRefresh = useCallback(() => {
+    if (streamRefreshTimerRef.current !== null) {
+      return;
+    }
+    streamRefreshTimerRef.current = window.setTimeout(() => {
+      streamRefreshTimerRef.current = null;
+      void refreshOrchestrationPanel();
+    }, 200);
+  }, [refreshOrchestrationPanel]);
+
+  useEffect(() => {
+    return () => {
+      if (streamRefreshTimerRef.current !== null) {
+        window.clearTimeout(streamRefreshTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!eventsStreamHref) {
+      setStreamStatus('idle');
+      setStreamMessage('events-stream link unavailable');
+      return;
+    }
+
+    setStreamStatus('connecting');
+    setStreamMessage(null);
+    const eventSource = new EventSource(eventsStreamHref);
+
+    eventSource.onopen = () => {
+      setStreamStatus('connected');
+      setStreamMessage(null);
+    };
+
+    const handleRealtimeUpdate = () => {
+      setLastRealtimeUpdateAt(new Date().toISOString());
+      schedulePanelRefresh();
+    };
+
+    eventSource.addEventListener('snapshot', handleRealtimeUpdate);
+    eventSource.addEventListener('agent-event', handleRealtimeUpdate);
+    eventSource.addEventListener('heartbeat', () => {
+      setLastRealtimeUpdateAt(new Date().toISOString());
+    });
+    eventSource.onerror = () => {
+      setStreamStatus('retrying');
+      setStreamMessage('realtime stream disconnected, retrying...');
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [eventsStreamHref, schedulePanelRefresh]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -200,11 +294,7 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
       );
       const data = orchestrationState.data as Orchestration['data'];
 
-      await Promise.all([
-        agentsApi.refresh(),
-        tasksApi.refresh(),
-        eventsApi.refresh(),
-      ]);
+      await refreshOrchestrationPanel();
 
       setResultMessage(
         `Started task ${data.task.id} with coordinator ${data.coordinator.id} and implementer ${data.implementer.id}.`,
@@ -307,6 +397,45 @@ function ProjectOrchestrationContent(props: { projectState: State<Project> }) {
       </section>
 
       <section className="grid gap-3">
+        <article className="rounded-lg border p-4">
+          <header className="mb-2 flex items-baseline justify-between gap-2">
+            <h3 className="text-sm font-semibold">Realtime</h3>
+            <span className="text-xs text-muted-foreground">
+              {streamStatusLabel(streamStatus)}
+            </span>
+          </header>
+          <p className="text-xs text-muted-foreground">
+            Last update:{' '}
+            {lastRealtimeUpdateAt
+              ? formatTimestamp(lastRealtimeUpdateAt)
+              : 'awaiting stream data'}
+          </p>
+          {streamMessage ? (
+            <p className="mt-2 text-xs text-amber-700">{streamMessage}</p>
+          ) : null}
+        </article>
+
+        <ResourceListCard
+          title="Orchestrations"
+          subtitle={`${orchestrations.length} total`}
+          emptyText="No orchestration sessions found."
+          rows={orchestrations.map((orchestrationState) => ({
+            key: orchestrationState.data.id,
+            title: `${orchestrationState.data.id} · ${orchestrationState.data.state}`,
+            meta: [
+              `started: ${formatNullableTimestamp(orchestrationState.data.startedAt)}`,
+              orchestrationState.data.currentStep?.id
+                ? `step: ${orchestrationState.data.currentStep.id}`
+                : null,
+              orchestrationState.data.failureReason
+                ? `failure: ${orchestrationState.data.failureReason}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          }))}
+        />
+
         <ResourceListCard
           title="Agents"
           subtitle={`${agentsState.collection.length} total`}
@@ -593,6 +722,26 @@ function formatTimestamp(value: string): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(parsed);
+}
+
+function formatNullableTimestamp(value: string | null): string {
+  if (!value) {
+    return 'n/a';
+  }
+  return formatTimestamp(value);
+}
+
+function streamStatusLabel(status: StreamStatus): string {
+  if (status === 'idle') {
+    return 'idle';
+  }
+  if (status === 'connecting') {
+    return 'connecting';
+  }
+  if (status === 'connected') {
+    return 'connected';
+  }
+  return 'reconnecting';
 }
 
 export default FeaturesProjects;

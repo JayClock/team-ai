@@ -1,18 +1,35 @@
-import { Entity } from '@hateoas-ts/resource';
-import { Agent } from './agent.js';
-import { Task } from './task.js';
+import { Collection, Entity } from '@hateoas-ts/resource';
+import { AgentCollection } from './agent.js';
+import { AgentEventCollection } from './agent-event.js';
+import { TaskCollection } from './task.js';
+
+export type OrchestrationState =
+  | 'PENDING'
+  | 'STARTED'
+  | 'REVIEW_REQUIRED'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
 
 export type Orchestration = Entity<
   {
+    id: string;
     goal: string;
-    state: 'STARTED';
+    state: OrchestrationState;
     coordinator: { id: string };
     implementer: { id: string };
     task: { id: string };
+    currentStep: { id: string } | null;
+    startedAt: string | null;
+    completedAt: string | null;
+    failureReason: string | null;
   },
   {
-    self: Task;
-    tasks: Task;
-    agents: Agent;
+    self: Orchestration;
+    collection: Collection<Orchestration>;
+    tasks: TaskCollection;
+    events: AgentEventCollection;
+    agents: AgentCollection;
+    cancel?: Orchestration;
   }
 >;
