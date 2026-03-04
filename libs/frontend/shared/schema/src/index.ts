@@ -15,6 +15,17 @@ export type { Account } from './lib/account.js';
 export type { Conversation } from './lib/conversation.js';
 export type { Message } from './lib/message.js';
 export type {
+  AcpRef,
+  AcpSessionState,
+  AcpSessionData,
+  AcpEventError,
+  AcpEventEnvelope,
+  AcpSessionHistory,
+  AcpSessionSummary,
+  AcpSessionCollection,
+  AcpSession,
+} from './lib/session.js';
+export type {
   Agent,
   AgentCollection,
   AgentRole,
