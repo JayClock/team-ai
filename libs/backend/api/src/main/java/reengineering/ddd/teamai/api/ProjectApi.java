@@ -2,10 +2,8 @@ package reengineering.ddd.teamai.api;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.ResourceContext;
 import jakarta.ws.rs.core.Context;
-import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -60,11 +58,6 @@ public class ProjectApi {
   @Path("sessions")
   public SessionsApi sessions() {
     return resourceContext.initResource(new SessionsApi(project));
-  }
-
-  @Path("orchestrations")
-  public OrchestrationsApi orchestrations() {
-    throw new WebApplicationException(Response.Status.NOT_FOUND);
   }
 
   @Path("mcp-servers")

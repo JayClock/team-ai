@@ -99,14 +99,6 @@ public class ApiTemplates {
     return events(uriInfo).path(AgentEventsApi.class, "stream");
   }
 
-  public static UriBuilder orchestrations(UriInfo uriInfo) {
-    return project(uriInfo).path(ProjectApi.class, "orchestrations");
-  }
-
-  public static UriBuilder orchestration(UriInfo uriInfo) {
-    return orchestrations(uriInfo).path(OrchestrationsApi.class, "findById");
-  }
-
   public static UriBuilder event(UriInfo uriInfo) {
     return events(uriInfo).path(AgentEventsApi.class, "findById");
   }

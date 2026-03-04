@@ -214,61 +214,16 @@ public class TeamAiMcpTools {
       @ToolParam(required = false, description = "Coordinator agent ID") String coordinatorAgentId,
       @ToolParam(required = false, description = "Implementer agent ID")
           String implementerAgentId) {
-    Project project = requireProject(projectId);
-    String normalizedGoal = requireTrimmedText(goal, "goal");
-    Instant occurredAt = Instant.now();
-
-    Ref<String> coordinator = resolveCoordinator(project, coordinatorAgentId);
-    Ref<String> implementer = resolveImplementer(project, implementerAgentId);
-
-    Task task =
-        project.createTask(
-            new TaskDescription(
-                resolveTaskTitle(title, normalizedGoal),
-                normalizedGoal,
-                blankToNull(scope),
-                emptyToNull(acceptanceCriteria),
-                emptyToNull(verificationCommands),
-                TaskDescription.Status.PENDING,
-                null,
-                null,
-                null,
-                null,
-                null));
-    Ref<String> taskRef = new Ref<>(task.getIdentity());
-    project.appendEvent(
-        new AgentEventDescription(
-            AgentEventDescription.Type.MESSAGE_SENT,
-            coordinator,
-            taskRef,
-            normalizedGoal,
-            occurredAt));
-    project.delegateTaskForExecution(task.getIdentity(), implementer, coordinator, occurredAt);
-
-    OrchestrationSession session =
-        project.startOrchestrationSession(
-            new OrchestrationSessionDescription(
-                normalizedGoal,
-                OrchestrationSessionDescription.Status.RUNNING,
-                coordinator,
-                implementer,
-                taskRef,
-                null,
-                occurredAt,
-                null,
-                null));
-    return toOrchestrationSummary(session);
+    throw new UnsupportedOperationException(
+        "Orchestration tools are disabled. Project now manages ACP sessions only.");
   }
 
   @Tool(name = "get_orchestration", description = "Get a project orchestration session.")
   public OrchestrationSummary getOrchestration(
       @ToolParam(description = "Project ID") String projectId,
       @ToolParam(description = "Orchestration session ID") String orchestrationId) {
-    Project project = requireProject(projectId);
-    return requireOrchestration(project, orchestrationId)
-        .map(this::toOrchestrationSummary)
-        .orElseThrow(
-            () -> new IllegalArgumentException("Orchestration not found: " + orchestrationId));
+    throw new UnsupportedOperationException(
+        "Orchestration tools are disabled. Project now manages ACP sessions only.");
   }
 
   @Tool(name = "list_orchestrations", description = "List orchestration sessions in a project.")
@@ -276,17 +231,8 @@ public class TeamAiMcpTools {
       @ToolParam(description = "Project ID") String projectId,
       @ToolParam(required = false, description = "Max number of sessions, default 50")
           Integer limit) {
-    Project project = requireProject(projectId);
-    int resolvedLimit = limit == null || limit < 1 ? 50 : limit;
-    return project.orchestrationSessions().findAll().stream()
-        .sorted(
-            Comparator.comparing(
-                    (OrchestrationSession session) -> session.getDescription().startedAt(),
-                    Comparator.nullsLast(Comparator.naturalOrder()))
-                .reversed())
-        .limit(resolvedLimit)
-        .map(this::toOrchestrationSummary)
-        .toList();
+    throw new UnsupportedOperationException(
+        "Orchestration tools are disabled. Project now manages ACP sessions only.");
   }
 
   @Tool(
@@ -295,18 +241,8 @@ public class TeamAiMcpTools {
   public OrchestrationStepListResult listOrchestrationSteps(
       @ToolParam(description = "Project ID") String projectId,
       @ToolParam(description = "Orchestration session ID") String orchestrationId) {
-    String traceId = nextTraceId();
-    Project project = requireProject(projectId);
-    OrchestrationSession session =
-        requireOrchestration(project, orchestrationId)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Orchestration not found: " + orchestrationId));
-    List<OrchestrationStepSummary> steps =
-        project.orchestrationSessions().findSteps(session.getIdentity()).stream()
-            .map(this::toOrchestrationStepSummary)
-            .toList();
-    return new OrchestrationStepListResult(
-        traceId, project.getIdentity(), session.getIdentity(), steps.size(), steps);
+    throw new UnsupportedOperationException(
+        "Orchestration tools are disabled. Project now manages ACP sessions only.");
   }
 
   @Tool(
@@ -316,15 +252,8 @@ public class TeamAiMcpTools {
       @ToolParam(description = "Project ID") String projectId,
       @ToolParam(description = "Orchestration session ID") String orchestrationId,
       @ToolParam(description = "Orchestration step ID") String stepId) {
-    String traceId = nextTraceId();
-    Project project = requireProject(projectId);
-    OrchestrationSession session =
-        requireOrchestration(project, orchestrationId)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Orchestration not found: " + orchestrationId));
-    OrchestrationStep step = requireStep(project, session.getIdentity(), stepId);
-    return new OrchestrationStepResult(
-        traceId, project.getIdentity(), session.getIdentity(), toOrchestrationStepSummary(step));
+    throw new UnsupportedOperationException(
+        "Orchestration tools are disabled. Project now manages ACP sessions only.");
   }
 
   @Tool(
@@ -336,66 +265,8 @@ public class TeamAiMcpTools {
       @ToolParam(description = "Orchestration step ID") String stepId,
       @ToolParam(required = false, description = "Idempotency key for safe replay")
           String requestId) {
-    String traceId = nextTraceId();
-    String normalizedRequestId = blankToNull(requestId);
-    Project project = requireProject(projectId);
-    OrchestrationSession session = requireMutableOrchestration(project, orchestrationId);
-    OrchestrationStep step = requireStep(project, session.getIdentity(), stepId);
-
-    Optional<StepActionReceipt> replay =
-        findStepActionReplay(
-            normalizedRequestId,
-            "advance_orchestration_step",
-            project.getIdentity(),
-            session.getIdentity(),
-            step.getIdentity());
-    if (replay.isPresent()) {
-      OrchestrationStep reloadedStep = requireStep(project, session.getIdentity(), stepId);
-      return mutationResult(traceId, replay.get(), true, project, session, reloadedStep);
-    }
-
-    String previousStatus = step.getDescription().status().name();
-    OrchestrationStepDescription.Status nextStepStatus = resolveAdvanceStatus(step);
-    Instant now = Instant.now();
-    Instant startedAt = nextStepStatus == OrchestrationStepDescription.Status.RUNNING ? now : null;
-    Instant completedAt =
-        nextStepStatus == OrchestrationStepDescription.Status.COMPLETED ? now : null;
-    project
-        .orchestrationSessions()
-        .updateStepStatus(
-            session.getIdentity(),
-            step.getIdentity(),
-            nextStepStatus,
-            startedAt,
-            completedAt,
-            null);
-    updateSessionAfterStepAdvance(project, session, step, nextStepStatus, now);
-    appendStepAuditEvent(
-        project,
-        session,
-        step,
-        nextStepStatus == OrchestrationStepDescription.Status.COMPLETED
-            ? AgentEventDescription.Type.TASK_COMPLETED
-            : AgentEventDescription.Type.TASK_STATUS_CHANGED,
-        "Step %s moved from %s to %s"
-            .formatted(step.getIdentity(), previousStatus, nextStepStatus.name()),
-        now);
-
-    OrchestrationStep reloadedStep =
-        requireStep(project, session.getIdentity(), step.getIdentity());
-    StepActionReceipt receipt =
-        new StepActionReceipt(
-            normalizedRequestId,
-            "advance_orchestration_step",
-            project.getIdentity(),
-            session.getIdentity(),
-            step.getIdentity(),
-            previousStatus,
-            reloadedStep.getDescription().status().name());
-    bindStepActionRequestId(normalizedRequestId, receipt);
-    OrchestrationSession reloadedSession =
-        requireOrchestration(project, session.getIdentity()).orElse(session);
-    return mutationResult(traceId, receipt, false, project, reloadedSession, reloadedStep);
+    throw new UnsupportedOperationException(
+        "Orchestration tools are disabled. Project now manages ACP sessions only.");
   }
 
   @Tool(name = "cancel_orchestration_step", description = "Cancel a mutable orchestration step.")
@@ -406,70 +277,8 @@ public class TeamAiMcpTools {
       @ToolParam(description = "Cancellation reason") String reason,
       @ToolParam(required = false, description = "Idempotency key for safe replay")
           String requestId) {
-    String traceId = nextTraceId();
-    String normalizedRequestId = blankToNull(requestId);
-    Project project = requireProject(projectId);
-    OrchestrationSession session = requireMutableOrchestration(project, orchestrationId);
-    OrchestrationStep step = requireStep(project, session.getIdentity(), stepId);
-
-    Optional<StepActionReceipt> replay =
-        findStepActionReplay(
-            normalizedRequestId,
-            "cancel_orchestration_step",
-            project.getIdentity(),
-            session.getIdentity(),
-            step.getIdentity());
-    if (replay.isPresent()) {
-      OrchestrationStep reloadedStep = requireStep(project, session.getIdentity(), stepId);
-      return mutationResult(traceId, replay.get(), true, project, session, reloadedStep);
-    }
-
-    if (!CANCELLABLE_STEP_STATES.contains(step.getDescription().status())) {
-      throw new IllegalStateException(
-          "Cannot cancel step in state " + step.getDescription().status());
-    }
-
-    String normalizedReason = requireTrimmedText(reason, "reason");
-    String previousStatus = step.getDescription().status().name();
-    Instant now = Instant.now();
-    project
-        .orchestrationSessions()
-        .updateStepStatus(
-            session.getIdentity(),
-            step.getIdentity(),
-            OrchestrationStepDescription.Status.CANCELLED,
-            null,
-            now,
-            normalizedReason);
-    project.updateOrchestrationSessionStatus(
-        session.getIdentity(),
-        OrchestrationSessionDescription.Status.CANCELLED,
-        new Ref<>(step.getIdentity()),
-        now,
-        normalizedReason);
-    appendStepAuditEvent(
-        project,
-        session,
-        step,
-        AgentEventDescription.Type.TASK_FAILED,
-        "Step %s cancelled: %s".formatted(step.getIdentity(), normalizedReason),
-        now);
-
-    OrchestrationStep reloadedStep =
-        requireStep(project, session.getIdentity(), step.getIdentity());
-    StepActionReceipt receipt =
-        new StepActionReceipt(
-            normalizedRequestId,
-            "cancel_orchestration_step",
-            project.getIdentity(),
-            session.getIdentity(),
-            step.getIdentity(),
-            previousStatus,
-            reloadedStep.getDescription().status().name());
-    bindStepActionRequestId(normalizedRequestId, receipt);
-    OrchestrationSession reloadedSession =
-        requireOrchestration(project, session.getIdentity()).orElse(session);
-    return mutationResult(traceId, receipt, false, project, reloadedSession, reloadedStep);
+    throw new UnsupportedOperationException(
+        "Orchestration tools are disabled. Project now manages ACP sessions only.");
   }
 
   @Tool(name = "cancel_orchestration", description = "Cancel an active orchestration session.")
@@ -477,26 +286,8 @@ public class TeamAiMcpTools {
       @ToolParam(description = "Project ID") String projectId,
       @ToolParam(description = "Orchestration session ID") String orchestrationId,
       @ToolParam(description = "Cancellation reason") String reason) {
-    Project project = requireProject(projectId);
-    String normalizedReason = requireTrimmedText(reason, "reason");
-    OrchestrationSession session =
-        requireOrchestration(project, orchestrationId)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Orchestration not found: " + orchestrationId));
-
-    if (!CANCELLABLE_ORCHESTRATION_STATES.contains(session.getDescription().status())) {
-      throw new IllegalStateException(
-          "Cannot cancel orchestration in state " + session.getDescription().status());
-    }
-
-    project.updateOrchestrationSessionStatus(
-        orchestrationId,
-        OrchestrationSessionDescription.Status.CANCELLED,
-        session.getDescription().currentStep(),
-        Instant.now(),
-        normalizedReason);
-
-    return getOrchestration(projectId, orchestrationId);
+    throw new UnsupportedOperationException(
+        "Orchestration tools are disabled. Project now manages ACP sessions only.");
   }
 
   private OrchestrationSession requireMutableOrchestration(
