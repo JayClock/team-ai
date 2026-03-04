@@ -35,7 +35,6 @@ class AcpApiTest extends ApiTest {
   @Mock private Project.Agents agents;
   @Mock private Project.Tasks tasks;
   @Mock private Project.AgentEvents events;
-  @Mock private Project.OrchestrationSessions orchestrationSessions;
   @Mock private Project.AcpSessions acpSessions;
 
   @BeforeEach
@@ -51,7 +50,7 @@ class AcpApiTest extends ApiTest {
             agents,
             tasks,
             events,
-            orchestrationSessions,
+            null,
             acpSessions,
             null);
     when(projects.findByIdentity(project.getIdentity())).thenReturn(Optional.of(project));

@@ -25,8 +25,6 @@ import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.McpServerDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
-import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
-import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.description.TaskReportDescription;
@@ -54,9 +52,36 @@ public class Project implements Entity<String, ProjectDescription> {
   private Agents agents;
   private Tasks tasks;
   private AgentEvents events;
-  private OrchestrationSessions orchestrationSessions;
   private AcpSessions acpSessions;
   private McpServers mcpServers;
+
+  @Deprecated(forRemoval = true)
+  public Project(
+      String identity,
+      ProjectDescription description,
+      Members members,
+      Conversations conversations,
+      LogicalEntities logicalEntities,
+      Diagrams diagrams,
+      Agents agents,
+      Tasks tasks,
+      AgentEvents events,
+      Object ignoredOrchestrationSessions,
+      AcpSessions acpSessions,
+      McpServers mcpServers) {
+    this(
+        identity,
+        description,
+        members,
+        conversations,
+        logicalEntities,
+        diagrams,
+        agents,
+        tasks,
+        events,
+        acpSessions,
+        mcpServers);
+  }
 
   public Project(
       String identity,
@@ -68,7 +93,6 @@ public class Project implements Entity<String, ProjectDescription> {
       Agents agents,
       Tasks tasks,
       AgentEvents events,
-      OrchestrationSessions orchestrationSessions,
       AcpSessions acpSessions,
       McpServers mcpServers) {
     this.identity = identity;
@@ -80,7 +104,6 @@ public class Project implements Entity<String, ProjectDescription> {
     this.agents = agents;
     this.tasks = tasks;
     this.events = events;
-    this.orchestrationSessions = orchestrationSessions;
     this.acpSessions = acpSessions;
     this.mcpServers = mcpServers;
   }
@@ -512,39 +535,6 @@ public class Project implements Entity<String, ProjectDescription> {
     return events.append(description);
   }
 
-  public OrchestrationSessions orchestrationSessions() {
-    return requireOrchestrationSessions();
-  }
-
-  public OrchestrationSession startOrchestrationSession(
-      OrchestrationSessionDescription description) {
-    return requireOrchestrationSessions().create(description);
-  }
-
-  public void updateOrchestrationSessionStatus(
-      String sessionId,
-      OrchestrationSessionDescription.Status status,
-      Ref<String> currentStep,
-      Instant completedAt,
-      String failureReason) {
-    requireText(sessionId, "sessionId");
-    if (status == null) {
-      throw new IllegalArgumentException("status must not be null");
-    }
-
-    OrchestrationSessions sessions = requireOrchestrationSessions();
-    OrchestrationSession session =
-        sessions
-            .findByIdentity(sessionId)
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException("Orchestration session not found: " + sessionId));
-    requireOrchestrationStatusTransition(session.getDescription().status(), status);
-    requireFailureReasonForOrchestrationStatus(status, failureReason);
-    Instant resolvedCompletedAt = resolveOrchestrationCompletedAt(status, completedAt);
-    sessions.updateStatus(sessionId, status, currentStep, resolvedCompletedAt, failureReason);
-  }
-
   public interface Members extends HasMany<String, Member> {
     Member addMember(MemberDescription description);
   }
@@ -621,36 +611,6 @@ public class Project implements Entity<String, ProjectDescription> {
 
   public interface AgentEvents extends HasMany<String, AgentEvent> {
     AgentEvent append(AgentEventDescription description);
-  }
-
-  public interface OrchestrationSessions extends HasMany<String, OrchestrationSession> {
-    OrchestrationSession create(OrchestrationSessionDescription description);
-
-    OrchestrationStep createStep(
-        String sessionId, int sequenceNo, OrchestrationStepDescription description);
-
-    List<OrchestrationStep> findSteps(String sessionId);
-
-    Optional<OrchestrationStep> findNextPendingStep(String sessionId);
-
-    Optional<OrchestrationSession> findByStartRequestId(String requestId);
-
-    void bindStartRequestId(String sessionId, String requestId);
-
-    void updateStatus(
-        String sessionId,
-        OrchestrationSessionDescription.Status status,
-        Ref<String> currentStep,
-        Instant completedAt,
-        String failureReason);
-
-    void updateStepStatus(
-        String sessionId,
-        String stepId,
-        OrchestrationStepDescription.Status status,
-        Instant startedAt,
-        Instant completedAt,
-        String failureReason);
   }
 
   public interface AcpSessions extends HasMany<String, AcpSession> {
@@ -881,70 +841,6 @@ public class Project implements Entity<String, ProjectDescription> {
     return normalized.isEmpty() ? null : normalized;
   }
 
-  private void requireOrchestrationStatusTransition(
-      OrchestrationSessionDescription.Status current, OrchestrationSessionDescription.Status next) {
-    if (current == next) {
-      return;
-    }
-
-    boolean allowed =
-        switch (current) {
-          case PENDING ->
-              next == OrchestrationSessionDescription.Status.RUNNING
-                  || next == OrchestrationSessionDescription.Status.CANCELLED;
-          case RUNNING ->
-              next == OrchestrationSessionDescription.Status.REVIEW_REQUIRED
-                  || next == OrchestrationSessionDescription.Status.COMPLETED
-                  || next == OrchestrationSessionDescription.Status.FAILED
-                  || next == OrchestrationSessionDescription.Status.CANCELLED;
-          case REVIEW_REQUIRED ->
-              next == OrchestrationSessionDescription.Status.RUNNING
-                  || next == OrchestrationSessionDescription.Status.COMPLETED
-                  || next == OrchestrationSessionDescription.Status.FAILED
-                  || next == OrchestrationSessionDescription.Status.CANCELLED;
-          case FAILED ->
-              next == OrchestrationSessionDescription.Status.RUNNING
-                  || next == OrchestrationSessionDescription.Status.CANCELLED;
-          case COMPLETED, CANCELLED -> false;
-        };
-
-    if (!allowed) {
-      throw new IllegalStateException(
-          "Cannot transition orchestration session from " + current + " to " + next);
-    }
-  }
-
-  private void requireFailureReasonForOrchestrationStatus(
-      OrchestrationSessionDescription.Status status, String failureReason) {
-    boolean requiresReason =
-        status == OrchestrationSessionDescription.Status.FAILED
-            || status == OrchestrationSessionDescription.Status.CANCELLED;
-    if (requiresReason) {
-      requireText(failureReason, "failureReason");
-      return;
-    }
-    if (failureReason != null && !failureReason.isBlank()) {
-      throw new IllegalArgumentException(
-          "failureReason is only allowed for FAILED or CANCELLED status");
-    }
-  }
-
-  private Instant resolveOrchestrationCompletedAt(
-      OrchestrationSessionDescription.Status status, Instant completedAt) {
-    boolean terminal =
-        status == OrchestrationSessionDescription.Status.COMPLETED
-            || status == OrchestrationSessionDescription.Status.FAILED
-            || status == OrchestrationSessionDescription.Status.CANCELLED;
-    if (!terminal) {
-      if (completedAt != null) {
-        throw new IllegalArgumentException(
-            "completedAt is only allowed for COMPLETED, FAILED or CANCELLED status");
-      }
-      return null;
-    }
-    return completedAt == null ? Instant.now() : completedAt;
-  }
-
   private AcpSession acpSessionOrThrow(String sessionId) {
     requireText(sessionId, "sessionId");
     return acpSessions()
@@ -990,10 +886,4 @@ public class Project implements Entity<String, ProjectDescription> {
     }
   }
 
-  private OrchestrationSessions requireOrchestrationSessions() {
-    if (orchestrationSessions == null) {
-      throw new IllegalStateException("orchestrationSessions association is not configured");
-    }
-    return orchestrationSessions;
-  }
 }

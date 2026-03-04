@@ -26,7 +26,6 @@ import reengineering.ddd.teamai.description.LogicalEntityDescription;
 import reengineering.ddd.teamai.description.McpServerDescription;
 import reengineering.ddd.teamai.description.MemberDescription;
 import reengineering.ddd.teamai.description.NodeDescription;
-import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.description.TaskDescription.Status;
@@ -42,7 +41,6 @@ public class ProjectTest {
   @Mock private Project.Agents agents;
   @Mock private Project.Tasks tasks;
   @Mock private Project.AgentEvents events;
-  @Mock private Project.OrchestrationSessions orchestrationSessions;
   @Mock private Project.AcpSessions acpSessions;
   @Mock private Project.McpServers mcpServers;
   @Mock private Project.KnowledgeGraphPublisher knowledgeGraphPublisher;
@@ -64,7 +62,6 @@ public class ProjectTest {
             agents,
             tasks,
             events,
-            orchestrationSessions,
             acpSessions,
             mcpServers);
   }
@@ -407,112 +404,6 @@ public class ProjectTest {
 
       assertSame(expectedEvent, result);
       verify(events).append(description);
-    }
-  }
-
-  @Nested
-  @DisplayName("Orchestration sessions association")
-  class OrchestrationSessionsAssociation {
-
-    @Test
-    @DisplayName("should return OrchestrationSessions association object")
-    void shouldReturnOrchestrationSessionsAssociation() {
-      var result = project.orchestrationSessions();
-
-      assertSame(orchestrationSessions, result);
-    }
-
-    @Test
-    @DisplayName("should delegate start orchestration session")
-    void shouldDelegateStartOrchestrationSession() {
-      OrchestrationSessionDescription description =
-          new OrchestrationSessionDescription(
-              "Ship onboarding",
-              OrchestrationSessionDescription.Status.PENDING,
-              new Ref<>("agent-routa"),
-              new Ref<>("agent-crafter"),
-              null,
-              null,
-              null,
-              null,
-              null);
-      OrchestrationSession expected = new OrchestrationSession("session-1", description);
-
-      when(orchestrationSessions.create(description)).thenReturn(expected);
-
-      OrchestrationSession result = project.startOrchestrationSession(description);
-
-      assertSame(expected, result);
-      verify(orchestrationSessions).create(description);
-    }
-
-    @Test
-    @DisplayName("should delegate update orchestration session status")
-    void shouldDelegateUpdateOrchestrationSessionStatus() {
-      OrchestrationSession existing =
-          new OrchestrationSession(
-              "session-1",
-              new OrchestrationSessionDescription(
-                  "Ship onboarding",
-                  OrchestrationSessionDescription.Status.RUNNING,
-                  new Ref<>("agent-routa"),
-                  new Ref<>("agent-crafter"),
-                  new Ref<>("task-1"),
-                  new Ref<>("step-1"),
-                  Instant.parse("2026-03-02T11:55:00Z"),
-                  null,
-                  null));
-      when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(existing));
-
-      Instant completedAt = Instant.parse("2026-03-02T12:00:00Z");
-      project.updateOrchestrationSessionStatus(
-          "session-1",
-          OrchestrationSessionDescription.Status.COMPLETED,
-          new Ref<>("step-2"),
-          completedAt,
-          null);
-
-      verify(orchestrationSessions)
-          .updateStatus(
-              "session-1",
-              OrchestrationSessionDescription.Status.COMPLETED,
-              new Ref<>("step-2"),
-              completedAt,
-              null);
-    }
-
-    @Test
-    @DisplayName("should reject invalid orchestration session transition")
-    void shouldRejectInvalidOrchestrationSessionTransition() {
-      OrchestrationSession existing =
-          new OrchestrationSession(
-              "session-1",
-              new OrchestrationSessionDescription(
-                  "Ship onboarding",
-                  OrchestrationSessionDescription.Status.COMPLETED,
-                  new Ref<>("agent-routa"),
-                  new Ref<>("agent-crafter"),
-                  new Ref<>("task-1"),
-                  new Ref<>("step-2"),
-                  Instant.parse("2026-03-02T11:55:00Z"),
-                  Instant.parse("2026-03-02T12:00:00Z"),
-                  null));
-      when(orchestrationSessions.findByIdentity("session-1")).thenReturn(Optional.of(existing));
-
-      IllegalStateException error =
-          assertThrows(
-              IllegalStateException.class,
-              () ->
-                  project.updateOrchestrationSessionStatus(
-                      "session-1",
-                      OrchestrationSessionDescription.Status.RUNNING,
-                      new Ref<>("step-2"),
-                      null,
-                      null));
-
-      assertEquals(
-          "Cannot transition orchestration session from COMPLETED to RUNNING", error.getMessage());
-      verify(orchestrationSessions, never()).updateStatus(anyString(), any(), any(), any(), any());
     }
   }
 

@@ -35,7 +35,9 @@ class McpToolConfigTest {
             "submit_task_for_review",
             "approve_task",
             "request_task_fix",
-            "list_agent_events",
+            "list_agent_events");
+    assertThat(toolNames)
+        .doesNotContain(
             "start_orchestration",
             "get_orchestration",
             "list_orchestrations",

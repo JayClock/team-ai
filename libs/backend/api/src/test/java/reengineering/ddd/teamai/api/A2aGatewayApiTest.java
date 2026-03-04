@@ -51,7 +51,6 @@ public class A2aGatewayApiTest extends ApiTest {
   @Mock private Project.Agents agents;
   @Mock private Project.Tasks tasks;
   @Mock private Project.AgentEvents events;
-  @Mock private Project.OrchestrationSessions orchestrationSessions;
 
   @BeforeEach
   void beforeEach() {
@@ -66,7 +65,7 @@ public class A2aGatewayApiTest extends ApiTest {
             agents,
             tasks,
             events,
-            orchestrationSessions,
+            null,
             null,
             null);
     task =
