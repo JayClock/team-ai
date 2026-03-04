@@ -88,21 +88,6 @@ public class ProjectsApiTest extends ApiTest {
             is("/api/projects/" + project.getIdentity() + "/events/stream"))
         .body("_links.sessions.href", is("/api/projects/" + project.getIdentity() + "/sessions"))
         .body(
-            "_links.orchestrations.href",
-            is("/api/projects/" + project.getIdentity() + "/orchestrations"))
-        .body("_templates.start-orchestration.method", is("POST"))
-        .body("_templates.start-orchestration.properties", hasSize(7))
-        .body(
-            "_templates.start-orchestration.properties.name",
-            containsInAnyOrder(
-                "requestId",
-                "goal",
-                "title",
-                "spec",
-                "coordinatorAgentId",
-                "implementerAgentId",
-                "occurredAt"))
-        .body(
             "_links.logical-entities.href",
             is("/api/projects/" + project.getIdentity() + "/logical-entities"))
         .body(
@@ -148,5 +133,15 @@ public class ProjectsApiTest extends ApiTest {
         .body(
             "_templates.create-logical-entity.properties[3].options.inline.value",
             containsInAnyOrder("EVIDENCE", "PARTICIPANT", "ROLE", "CONTEXT"));
+  }
+
+  @Test
+  public void should_return_not_found_for_orchestrations_collection() {
+    given(documentationSpec)
+        .accept(MediaTypes.HAL_FORMS_JSON_VALUE)
+        .when()
+        .get("/projects/{projectId}/orchestrations", project.getIdentity())
+        .then()
+        .statusCode(404);
   }
 }

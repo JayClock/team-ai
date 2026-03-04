@@ -31,11 +31,6 @@
         <result column="id" property="projectId" javaType="int"/>
       </association>
       <association
-          property="orchestrationSessions"
-          javaType="reengineering.ddd.teamai.mybatis.associations.ProjectOrchestrationSessions">
-        <result column="id" property="projectId" javaType="int"/>
-      </association>
-      <association
           property="acpSessions"
           javaType="reengineering.ddd.teamai.mybatis.associations.ProjectAcpSessions">
         <result column="id" property="projectId" javaType="int"/>
