@@ -66,7 +66,7 @@ public class Project implements Entity<String, ProjectDescription> {
       Agents agents,
       Tasks tasks,
       AgentEvents events,
-      Object ignoredOrchestrationSessions,
+      Object ignoredLegacySessions,
       AcpSessions acpSessions,
       McpServers mcpServers) {
     this(

@@ -39,8 +39,6 @@ public class ResourceTypes {
   public static final String SESSION = VENDOR + ".session+json";
   public static final String SESSION_COLLECTION = VENDOR + ".sessions+json";
 
-  public static final String ORCHESTRATION = VENDOR + ".orchestration+json";
-  public static final String ORCHESTRATION_COLLECTION = VENDOR + ".orchestrations+json";
 
   public static final String MCP_SERVER = VENDOR + ".mcp-server+json";
   public static final String MCP_SERVER_COLLECTION = VENDOR + ".mcp-servers+json";

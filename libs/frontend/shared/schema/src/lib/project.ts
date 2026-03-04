@@ -5,7 +5,6 @@ import { Conversation } from './conversation.js';
 import { Diagram } from './diagram.js';
 import { KnowledgeGraph } from './knowledge-graph.js';
 import { LogicalEntity } from './logical-entity.js';
-import { Orchestration } from './orchestration.js';
 import { Sidebar } from './sidebar.js';
 import { TaskCollection } from './task.js';
 
@@ -30,7 +29,6 @@ export type Project = Entity<
     'events-stream': Entity<ReadableStream<Uint8Array>>;
     'knowledge-graph': KnowledgeGraph;
     'logical-entities': Collection<LogicalEntity>;
-    orchestrations: Collection<Orchestration>;
     sidebar: Sidebar;
     tasks: TaskCollection;
     default: Project;
