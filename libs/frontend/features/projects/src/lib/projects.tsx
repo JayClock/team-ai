@@ -8,6 +8,7 @@ import {
   Project,
 } from '@shared/schema';
 import { useEffect, useMemo, useRef } from 'react';
+import { ProjectSessionsWorkspace } from './components/project-sessions-workspace';
 
 const GRAPH_HEIGHT = 560;
 
@@ -36,6 +37,7 @@ export function FeaturesProjects(props: Props) {
 
 function ProjectsWorkspaceContent(props: { projectState: State<Project> }) {
   const { projectState } = props;
+  const hasSessions = projectState.hasLink('sessions');
   const hasGraph = projectState.hasLink('knowledge-graph');
 
   return (
@@ -43,12 +45,20 @@ function ProjectsWorkspaceContent(props: { projectState: State<Project> }) {
       <header className="mb-4">
         <h2 className="text-lg font-semibold">Project Workspace</h2>
         <p className="text-sm text-muted-foreground">
-          Inspect project knowledge graph.
+          Manage ACP sessions and inspect project knowledge graph.
         </p>
       </header>
 
+      {hasSessions ? (
+        <ProjectSessionsWorkspace projectState={projectState} />
+      ) : (
+        <MissingPanelMessage message="Current project does not expose sessions link." />
+      )}
+
       {hasGraph ? (
-        <ProjectsKnowledgeGraphContent projectState={projectState} />
+        <div className="mt-6">
+          <ProjectsKnowledgeGraphContent projectState={projectState} />
+        </div>
       ) : (
         <MissingPanelMessage message="Current project does not expose a knowledge graph link." />
       )}

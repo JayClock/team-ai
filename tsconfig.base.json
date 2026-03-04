@@ -21,6 +21,12 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {
+      "@features/project-conversations": [
+        "libs/frontend/features/project-conversations/src/index.ts"
+      ],
+      "@features/project-conversations/*": [
+        "libs/frontend/features/project-conversations/src/*"
+      ],
       "@shared/ui": ["libs/frontend/shared/ui/src/index.ts"],
       "@shared/ui/*": ["libs/frontend/shared/ui/src/*"],
       "@shared/util-http": ["libs/frontend/shared/util-http/src/index.ts"],

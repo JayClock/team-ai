@@ -12,6 +12,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@features/project-conversations": "workspace:*",
     "@hateoas-ts/resource-react": "workspace:*",
     "@shared/schema": "workspace:*",
     "@shared/ui": "workspace:*"

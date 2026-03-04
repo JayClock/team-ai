@@ -88,6 +88,15 @@ export type ReplayAcpSessionHistoryInput = {
   merge?: boolean;
 };
 
+export type RenameAcpSessionInput = {
+  name: string;
+  session?: string | AcpSessionRef;
+};
+
+export type DeleteAcpSessionInput = {
+  session?: string | AcpSessionRef;
+};
+
 export type UseAcpSessionOptions = {
   actorUserId?: string;
   provider?: string;
@@ -213,6 +222,13 @@ export function useAcpSession(
     },
     [options.historyLimit, selectedSession],
   );
+
+  const ingestEvents = useCallback((events: AcpEventEnvelope[]) => {
+    if (events.length === 0) {
+      return;
+    }
+    setHistory((current) => mergeHistory(current, events));
+  }, []);
 
   const select = useCallback(
     async (input: SelectAcpSessionInput): Promise<State<AcpSession>> => {
@@ -357,15 +373,90 @@ export function useAcpSession(
     ],
   );
 
+  const rename = useCallback(
+    async (input: RenameAcpSessionInput): Promise<State<AcpSession>> => {
+      const name = input.name.trim();
+      if (!name) {
+        throw new Error('name must not be blank');
+      }
+      const base =
+        input.session !== undefined
+          ? await resolveSession(input.session)
+          : selectedSession;
+      if (!base) {
+        throw new Error('Cannot rename without a selected session');
+      }
+      const self = base.follow('self');
+      const response = await fetch(self.uri, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Rename failed with status ${response.status}`);
+      }
+      const refreshed = await self.refresh();
+      setSelectedSession(refreshed);
+      await replayHistory({
+        session: refreshed,
+        merge: false,
+      });
+      return refreshed;
+    },
+    [replayHistory, resolveSession, selectedSession],
+  );
+
+  const deleteSession = useCallback(
+    async (input: DeleteAcpSessionInput = {}): Promise<string> => {
+      const base =
+        input.session !== undefined
+          ? await resolveSession(input.session)
+          : selectedSession;
+      if (!base) {
+        throw new Error('Cannot delete without a selected session');
+      }
+      const response = await fetch(base.follow('self').uri, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok && response.status !== 204) {
+        const message = await response.text();
+        throw new Error(message || `Delete failed with status ${response.status}`);
+      }
+      const deletedId = base.data.id;
+      setSelectedSession((current) =>
+        current?.data.id === deletedId ? null : current,
+      );
+      setHistory((current) =>
+        current.filter((event) => event.sessionId !== deletedId),
+      );
+      return deletedId;
+    },
+    [resolveSession, selectedSession],
+  );
+
+  const clearSelection = useCallback(() => {
+    setSelectedSession(null);
+    setHistory([]);
+  }, []);
+
   return {
     sessionsResource,
     selectedSession,
     history,
     lastError,
+    clearSelection,
+    ingestEvents,
     create,
     select,
     prompt,
     cancel,
+    rename,
+    deleteSession,
     replayHistory,
   };
 }

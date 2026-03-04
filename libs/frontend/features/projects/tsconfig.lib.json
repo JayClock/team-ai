@@ -2,11 +2,7 @@
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "lib": [
-      "es2022",
-      "dom",
-      "dom.iterable"
-    ],
+    "lib": ["es2022", "dom", "dom.iterable"],
     "types": [
       "node",
       "@nx/react/typings/cssmodule.d.ts",
@@ -56,6 +52,9 @@
     },
     {
       "path": "../../../../packages/resource-react/tsconfig.lib.json"
+    },
+    {
+      "path": "../project-conversations/tsconfig.lib.json"
     }
   ]
 }

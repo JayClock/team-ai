@@ -1,10 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'node:path';
 
 export default defineConfig(() => ({
   root: __dirname,
   cacheDir: '../../../../node_modules/.vite/libs/frontend/features/projects',
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@features/project-conversations': path.resolve(
+        __dirname,
+        '../project-conversations/src/index.ts',
+      ),
+    },
+  },
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [],
