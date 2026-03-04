@@ -54,34 +54,6 @@ public class Project implements Entity<String, ProjectDescription> {
   private AcpSessions acpSessions;
   private McpServers mcpServers;
 
-  @Deprecated(forRemoval = true)
-  public Project(
-      String identity,
-      ProjectDescription description,
-      Members members,
-      Conversations conversations,
-      LogicalEntities logicalEntities,
-      Diagrams diagrams,
-      Agents agents,
-      Tasks tasks,
-      AgentEvents events,
-      Object ignoredLegacySessions,
-      AcpSessions acpSessions,
-      McpServers mcpServers) {
-    this(
-        identity,
-        description,
-        members,
-        conversations,
-        logicalEntities,
-        diagrams,
-        agents,
-        tasks,
-        events,
-        acpSessions,
-        mcpServers);
-  }
-
   public Project(
       String identity,
       ProjectDescription description,
