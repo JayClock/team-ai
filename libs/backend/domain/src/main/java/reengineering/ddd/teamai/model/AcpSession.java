@@ -4,6 +4,7 @@ import static reengineering.ddd.teamai.validation.DomainValidation.requireText;
 
 import java.time.Instant;
 import reengineering.ddd.archtype.Entity;
+import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AcpSessionDescription;
 
 public class AcpSession implements Entity<String, AcpSessionDescription> {
@@ -62,7 +63,8 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
             eventTime,
             null,
             null,
-            description.lastEventId());
+            description.lastEventId(),
+            description.parentSession());
   }
 
   public void touch(Instant lastActivityAt) {
@@ -81,7 +83,8 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
             defaultTime(lastActivityAt),
             description.completedAt(),
             description.failureReason(),
-            description.lastEventId());
+            description.lastEventId(),
+            description.parentSession());
   }
 
   public void bindLastEventId(String lastEventId) {
@@ -97,7 +100,8 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
             description.lastActivityAt(),
             description.completedAt(),
             description.failureReason(),
-            lastEventId.trim());
+            new Ref<>(lastEventId.trim()),
+            description.parentSession());
   }
 
   public void markCompleted(Instant completedAt) {
@@ -113,7 +117,8 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
             description.lastActivityAt(),
             defaultTime(completedAt),
             null,
-            description.lastEventId());
+            description.lastEventId(),
+            description.parentSession());
   }
 
   public void markFailed(String reason, Instant completedAt) {
@@ -131,7 +136,8 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
             description.lastActivityAt(),
             defaultTime(completedAt),
             reason.trim(),
-            description.lastEventId());
+            description.lastEventId(),
+            description.parentSession());
   }
 
   public void cancel(String reason, Instant completedAt) {
@@ -149,7 +155,8 @@ public class AcpSession implements Entity<String, AcpSessionDescription> {
             description.lastActivityAt(),
             defaultTime(completedAt),
             reason.trim(),
-            description.lastEventId());
+            description.lastEventId(),
+            description.parentSession());
   }
 
   private void requireStatus(

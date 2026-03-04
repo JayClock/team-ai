@@ -29,7 +29,16 @@
         <arg column="last_activity_at" jdbcType="TIMESTAMP" javaType="java.time.Instant"/>
         <arg column="completed_at" jdbcType="TIMESTAMP" javaType="java.time.Instant"/>
         <arg column="failure_reason" jdbcType="VARCHAR" javaType="String"/>
-        <arg column="last_event_id" jdbcType="VARCHAR" javaType="String"/>
+        <arg
+            column="last_event_id"
+            jdbcType="VARCHAR"
+            javaType="reengineering.ddd.archtype.Ref"
+            typeHandler="reengineering.ddd.mybatis.support.RefStringTypeHandler"/>
+        <arg
+            column="parent_session_id"
+            jdbcType="INTEGER"
+            javaType="reengineering.ddd.archtype.Ref"
+            typeHandler="reengineering.ddd.mybatis.support.RefIntegerTypeHandler"/>
       </constructor>
     </association>
   </resultMap>
@@ -47,7 +56,8 @@
       last_activity_at,
       completed_at,
       failure_reason,
-      last_event_id
+      last_event_id,
+      parent_session_id
     FROM project_acp_sessions
     WHERE project_id = #{project_id} AND id = #{id}
   </select>
@@ -65,7 +75,8 @@
       last_activity_at,
       completed_at,
       failure_reason,
-      last_event_id
+      last_event_id,
+      parent_session_id
     FROM project_acp_sessions
     WHERE project_id = #{project_id}
     ORDER BY created_at DESC, id DESC
@@ -84,7 +95,8 @@
       last_activity_at,
       completed_at,
       failure_reason,
-      last_event_id
+      last_event_id,
+      parent_session_id
     )
     VALUES (
       #{project_id},
@@ -96,7 +108,8 @@
       #{description.lastActivityAt, jdbcType=TIMESTAMP},
       #{description.completedAt, jdbcType=TIMESTAMP},
       #{description.failureReason},
-      #{description.lastEventId}
+      #{description.lastEventId, typeHandler=reengineering.ddd.mybatis.support.RefStringTypeHandler},
+      #{description.parentSession, typeHandler=reengineering.ddd.mybatis.support.RefIntegerTypeHandler}
     )
   </insert>
 

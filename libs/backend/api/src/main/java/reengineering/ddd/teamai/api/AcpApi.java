@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
@@ -55,12 +56,14 @@ public class AcpApi {
   private static final String METHOD_SESSION_LOAD = "session/load";
   private static final long STREAM_POLL_INTERVAL_MILLIS = 1000;
   private static final int STREAM_HEARTBEAT_TICKS = 10;
+  private static final Duration IDEMPOTENCY_TTL = Duration.ofSeconds(30);
   private static final ExecutorService STREAM_EXECUTOR = Executors.newCachedThreadPool();
 
   @Inject Projects projects;
   @Inject AcpSseEventWriter sseEventWriter;
   @Inject AcpRuntimeBridgeService runtimeBridgeService;
   @Inject AcpGatewayAdminApi gatewayAdminApi;
+  private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
 
   @POST
   @Consumes(MediaType.APPLICATION_JSON)
@@ -243,10 +246,29 @@ public class AcpApi {
     String actorUserId = requiredTextParam(params, "actorUserId");
     String provider = optionalText(params, "provider").orElse("team-ai");
     String mode = optionalText(params, "mode").orElse("CHAT");
+    String parentSessionId = optionalText(params, "parentSessionId").orElse(null);
+    String idempotencyKey = optionalText(params, "idempotencyKey").orElse(null);
     Instant now = Instant.now();
 
     Project project = requireProject(projectId);
     authorizeProjectMember(project, actorUserId, securityContext);
+    if (parentSessionId != null) {
+      requireSession(project, parentSessionId);
+    }
+    if (idempotencyKey != null) {
+      cleanupExpiredIdempotencyEntries(now);
+      String cacheKey = idempotencyCacheKey(projectId, actorUserId, idempotencyKey);
+      IdempotencyEntry cachedEntry = idempotencyCache.get(cacheKey);
+      if (cachedEntry != null) {
+        Optional<AcpSession> cachedSession =
+            project.acpSessions().findByIdentity(cachedEntry.sessionId());
+        if (cachedSession.isPresent()) {
+          return Map.of(
+              "session", sessionPayload(cachedSession.get()), "accepted", true, "cached", true);
+        }
+        idempotencyCache.remove(cacheKey);
+      }
+    }
     AcpSession session =
         project.startAcpSession(
             new AcpSessionDescription(
@@ -259,10 +281,16 @@ public class AcpApi {
                 now,
                 null,
                 null,
-                null));
+                null,
+                parentSessionId == null ? null : new Ref<>(parentSessionId)));
     String goal = optionalText(params, "goal").orElse("ACP session " + session.getIdentity());
     runtimeBridgeService.startSession(projectId, session.getIdentity(), actorUserId, goal);
-    return Map.of("session", sessionPayload(session), "accepted", true);
+    if (idempotencyKey != null) {
+      idempotencyCache.put(
+          idempotencyCacheKey(projectId, actorUserId, idempotencyKey),
+          new IdempotencyEntry(session.getIdentity(), now));
+    }
+    return Map.of("session", sessionPayload(session), "accepted", true, "cached", false);
   }
 
   private Object sessionPrompt(Map<String, Object> params, SecurityContext securityContext) {
@@ -482,6 +510,15 @@ public class AcpApi {
     return traceId;
   }
 
+  private void cleanupExpiredIdempotencyEntries(Instant now) {
+    Instant expiresAt = now.minus(IDEMPOTENCY_TTL);
+    idempotencyCache.entrySet().removeIf(entry -> entry.getValue().createdAt().isBefore(expiresAt));
+  }
+
+  private String idempotencyCacheKey(String projectId, String actorUserId, String idempotencyKey) {
+    return projectId + ":" + actorUserId + ":" + idempotencyKey;
+  }
+
   private Map<String, Object> sessionPayload(AcpSession session) {
     AcpSessionDescription description = session.getDescription();
     Map<String, Object> payload = new LinkedHashMap<>();
@@ -496,7 +533,8 @@ public class AcpApi {
     payload.put("lastActivityAt", description.lastActivityAt());
     payload.put("completedAt", description.completedAt());
     payload.put("failureReason", description.failureReason());
-    payload.put("lastEventId", description.lastEventId());
+    payload.put("lastEventId", id(description.lastEventId()));
+    payload.put("parentSessionId", id(description.parentSession()));
     return payload;
   }
 
@@ -537,4 +575,6 @@ public class AcpApi {
       this.code = code;
     }
   }
+
+  private record IdempotencyEntry(String sessionId, Instant createdAt) {}
 }

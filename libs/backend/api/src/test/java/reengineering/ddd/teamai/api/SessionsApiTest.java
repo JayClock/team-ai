@@ -201,6 +201,7 @@ class SessionsApiTest extends ApiTest {
             LAST_ACTIVITY_AT,
             status.isTerminal() ? COMPLETED_AT : null,
             status == AcpSessionDescription.Status.FAILED ? "runtime failed" : null,
-            "evt-" + sessionId));
+            new Ref<>("evt-" + sessionId),
+            null));
   }
 }

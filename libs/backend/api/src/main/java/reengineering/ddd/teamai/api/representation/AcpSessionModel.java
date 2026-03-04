@@ -17,6 +17,7 @@ public class AcpSessionModel extends RepresentationModel<AcpSessionModel> {
   @JsonProperty private String id;
   @JsonProperty private Ref<String> project;
   @JsonProperty private Ref<String> actor;
+  @JsonProperty private Ref<String> parentSession;
   @JsonProperty private String name;
   @JsonProperty private String provider;
   @JsonProperty private String mode;
@@ -25,13 +26,14 @@ public class AcpSessionModel extends RepresentationModel<AcpSessionModel> {
   @JsonProperty private Instant lastActivityAt;
   @JsonProperty private Instant completedAt;
   @JsonProperty private String failureReason;
-  @JsonProperty private String lastEventId;
+  @JsonProperty private Ref<String> lastEventId;
 
   private AcpSessionModel(AcpSession session) {
     AcpSessionDescription description = session.getDescription();
     this.id = session.getIdentity();
     this.project = description.project();
     this.actor = description.actor();
+    this.parentSession = description.parentSession();
     this.name = session.getName();
     this.provider = description.provider();
     this.mode = description.mode();

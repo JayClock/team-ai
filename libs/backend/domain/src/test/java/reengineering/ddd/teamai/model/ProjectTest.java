@@ -474,6 +474,7 @@ public class ProjectTest {
               null,
               null,
               null,
+              null,
               null);
       AcpSession session = new AcpSession("acp-1", description);
       when(acpSessions.create(description)).thenReturn(session);
@@ -515,7 +516,8 @@ public class ProjectTest {
                   Instant.parse("2026-03-03T10:01:00Z"),
                   Instant.parse("2026-03-03T10:02:00Z"),
                   null,
-                  "evt-1"));
+                  new Ref<>("evt-1"),
+                  null));
       when(acpSessions.findByIdentity("acp-1")).thenReturn(Optional.of(session));
 
       IllegalStateException error =
@@ -544,7 +546,8 @@ public class ProjectTest {
                   Instant.parse("2026-03-03T10:01:00Z"),
                   null,
                   null,
-                  "evt-1"));
+                  new Ref<>("evt-1"),
+                  null));
       when(acpSessions.findByIdentity("acp-rename")).thenReturn(Optional.of(session));
 
       project.renameAcpSession("acp-rename", "  Iteration Planning  ");
@@ -569,7 +572,8 @@ public class ProjectTest {
                   Instant.parse("2026-03-03T10:01:00Z"),
                   null,
                   null,
-                  "evt-1"));
+                  new Ref<>("evt-1"),
+                  null));
       when(acpSessions.findByIdentity("acp-rename")).thenReturn(Optional.of(session));
 
       IllegalArgumentException error =
@@ -596,7 +600,8 @@ public class ProjectTest {
                   Instant.parse("2026-03-03T10:01:00Z"),
                   Instant.parse("2026-03-03T10:02:00Z"),
                   null,
-                  "evt-1"));
+                  new Ref<>("evt-1"),
+                  null));
       when(acpSessions.findByIdentity("acp-delete")).thenReturn(Optional.of(session));
 
       project.deleteAcpSession("acp-delete");
@@ -620,7 +625,8 @@ public class ProjectTest {
                   Instant.parse("2026-03-03T10:01:00Z"),
                   null,
                   null,
-                  "evt-1"));
+                  new Ref<>("evt-1"),
+                  null));
       when(acpSessions.findByIdentity("acp-delete")).thenReturn(Optional.of(session));
 
       IllegalStateException error =

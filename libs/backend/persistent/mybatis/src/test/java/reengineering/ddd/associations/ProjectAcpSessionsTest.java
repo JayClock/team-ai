@@ -54,6 +54,7 @@ class ProjectAcpSessionsTest {
                 Instant.parse("2026-03-03T10:00:00Z"),
                 null,
                 null,
+                null,
                 null));
 
     project.updateAcpSessionStatus(
@@ -68,7 +69,7 @@ class ProjectAcpSessionsTest {
 
     AcpSession loaded = project.acpSessions().findByIdentity(created.getIdentity()).orElseThrow();
     assertEquals(AcpSessionDescription.Status.COMPLETED, loaded.getDescription().status());
-    assertEquals("evt-100", loaded.getDescription().lastEventId());
+    assertEquals("evt-100", loaded.getDescription().lastEventId().id());
     assertEquals(Instant.parse("2026-03-03T10:03:00Z"), loaded.getDescription().completedAt());
   }
 
@@ -85,6 +86,7 @@ class ProjectAcpSessionsTest {
             Instant.parse("2026-03-03T11:00:00Z"),
             null,
             null,
+            null,
             null));
     project.startAcpSession(
         new AcpSessionDescription(
@@ -97,10 +99,48 @@ class ProjectAcpSessionsTest {
             Instant.parse("2026-03-03T11:05:00Z"),
             null,
             null,
+            null,
             null));
 
     var list = project.findAcpSessions(project.getIdentity(), 0, 10);
     assertTrue(list.size() >= 2);
     assertNotNull(list.iterator().next().getDescription().provider());
+  }
+
+  @Test
+  void should_persist_parent_session_id_for_child_session() {
+    AcpSession parent =
+        project.startAcpSession(
+            new AcpSessionDescription(
+                new Ref<>(project.getIdentity()),
+                new Ref<>("1"),
+                "codex",
+                "default",
+                AcpSessionDescription.Status.PENDING,
+                Instant.parse("2026-03-03T12:00:00Z"),
+                Instant.parse("2026-03-03T12:00:00Z"),
+                null,
+                null,
+                null,
+                null));
+
+    AcpSession child =
+        project.startAcpSession(
+            new AcpSessionDescription(
+                new Ref<>(project.getIdentity()),
+                new Ref<>("1"),
+                "codex",
+                "default",
+                AcpSessionDescription.Status.PENDING,
+                Instant.parse("2026-03-03T12:01:00Z"),
+                Instant.parse("2026-03-03T12:01:00Z"),
+                null,
+                null,
+                null,
+                new Ref<>(parent.getIdentity())));
+
+    AcpSession loadedChild =
+        project.acpSessions().findByIdentity(child.getIdentity()).orElseThrow();
+    assertEquals(parent.getIdentity(), loadedChild.getDescription().parentSession().id());
   }
 }

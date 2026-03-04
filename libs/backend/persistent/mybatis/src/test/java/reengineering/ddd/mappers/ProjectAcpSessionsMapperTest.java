@@ -72,7 +72,7 @@ class ProjectAcpSessionsMapperTest {
     assertEquals("codex", session.getDescription().provider());
     assertEquals("default", session.getDescription().mode());
     assertEquals(String.valueOf(userId), session.getDescription().actor().id());
-    assertEquals("evt-1", session.getDescription().lastEventId());
+    assertEquals("evt-1", session.getDescription().lastEventId().id());
   }
 
   @Test
@@ -89,7 +89,8 @@ class ProjectAcpSessionsMapperTest {
             Instant.parse("2026-03-03T11:00:00Z"),
             null,
             null,
-            null);
+            null,
+            new Ref<>(String.valueOf(sessionId)));
 
     sessionsMapper.insertSession(holder, projectId, description);
     sessionsMapper.touchSession(projectId, holder.id(), Instant.parse("2026-03-03T11:05:00Z"));
@@ -105,7 +106,8 @@ class ProjectAcpSessionsMapperTest {
     assertEquals(AcpSessionDescription.Status.FAILED, saved.getDescription().status());
     assertEquals("runtime failed", saved.getDescription().failureReason());
     assertEquals(Instant.parse("2026-03-03T11:05:00Z"), saved.getDescription().lastActivityAt());
-    assertEquals("evt-new", saved.getDescription().lastEventId());
+    assertEquals("evt-new", saved.getDescription().lastEventId().id());
+    assertEquals(String.valueOf(sessionId), saved.getDescription().parentSession().id());
 
     int count = sessionsMapper.countSessionsByProject(projectId);
     assertEquals(3, count);

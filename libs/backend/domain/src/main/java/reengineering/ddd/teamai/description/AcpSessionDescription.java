@@ -13,7 +13,8 @@ public record AcpSessionDescription(
     Instant lastActivityAt,
     Instant completedAt,
     String failureReason,
-    String lastEventId) {
+    Ref<String> lastEventId,
+    Ref<String> parentSession) {
 
   public enum Status {
     PENDING,

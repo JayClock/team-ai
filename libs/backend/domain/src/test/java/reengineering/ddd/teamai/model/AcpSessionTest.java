@@ -27,7 +27,8 @@ class AcpSessionTest {
                 null,
                 null,
                 null,
-                null));
+                null,
+                new Ref<>("acp-parent-1")));
 
     session.rename("  Refined Session Name  ");
 
@@ -49,7 +50,8 @@ class AcpSessionTest {
                 null,
                 null,
                 null,
-                null));
+                null,
+                new Ref<>("acp-parent-1")));
 
     Instant startedAt = Instant.parse("2026-03-03T10:00:00Z");
     Instant touchedAt = Instant.parse("2026-03-03T10:01:00Z");
@@ -64,7 +66,8 @@ class AcpSessionTest {
     assertEquals(startedAt, session.getDescription().startedAt());
     assertEquals(touchedAt, session.getDescription().lastActivityAt());
     assertEquals(completedAt, session.getDescription().completedAt());
-    assertEquals("evt-100", session.getDescription().lastEventId());
+    assertEquals("evt-100", session.getDescription().lastEventId().id());
+    assertEquals("acp-parent-1", session.getDescription().parentSession().id());
   }
 
   @Test
@@ -80,6 +83,7 @@ class AcpSessionTest {
                 AcpSessionDescription.Status.RUNNING,
                 Instant.parse("2026-03-03T10:00:00Z"),
                 Instant.parse("2026-03-03T10:00:30Z"),
+                null,
                 null,
                 null,
                 null));
@@ -107,7 +111,8 @@ class AcpSessionTest {
                 Instant.parse("2026-03-03T10:01:00Z"),
                 Instant.parse("2026-03-03T10:02:00Z"),
                 null,
-                "evt-100"));
+                new Ref<>("evt-100"),
+                null));
 
     IllegalStateException error =
         assertThrows(
@@ -128,6 +133,7 @@ class AcpSessionTest {
                 "codex",
                 "default",
                 AcpSessionDescription.Status.PENDING,
+                null,
                 null,
                 null,
                 null,

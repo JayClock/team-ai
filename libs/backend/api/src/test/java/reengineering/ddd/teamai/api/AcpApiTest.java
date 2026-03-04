@@ -5,8 +5,10 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +17,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.api.config.TraceIdFilter;
@@ -156,6 +159,86 @@ class AcpApiTest extends ApiTest {
 
     verify(acpSessions).create(any(AcpSessionDescription.class));
     verify(agentRuntime).start(any(AgentRuntime.StartRequest.class));
+  }
+
+  @Test
+  void should_create_session_with_parent_session_id() {
+    AcpSession parent = session("700", "user-7", AcpSessionDescription.Status.RUNNING);
+    AcpSession child = session("701", "user-7", AcpSessionDescription.Status.PENDING, "700");
+    when(acpSessions.findByIdentity("700")).thenReturn(Optional.of(parent));
+    when(acpSessions.create(any(AcpSessionDescription.class))).thenReturn(child);
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/new",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "actorUserId", "user-7",
+                        "provider", "team-ai",
+                        "mode", "CHAT",
+                        "parentSessionId", "700"),
+                "id", "req-new-701"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200)
+        .body("result.session.id", equalTo("701"))
+        .body("result.session.parentSessionId", equalTo("700"))
+        .body("result.cached", equalTo(false))
+        .body("error", equalTo(null));
+
+    ArgumentCaptor<AcpSessionDescription> descriptionCaptor =
+        ArgumentCaptor.forClass(AcpSessionDescription.class);
+    verify(acpSessions).create(descriptionCaptor.capture());
+    assertEquals("700", descriptionCaptor.getValue().parentSession().id());
+  }
+
+  @Test
+  void should_return_cached_session_when_idempotency_key_is_reused() {
+    AcpSession pending = session("710", "user-7", AcpSessionDescription.Status.PENDING);
+    when(acpSessions.create(any(AcpSessionDescription.class))).thenReturn(pending);
+    when(acpSessions.findByIdentity("710")).thenReturn(Optional.of(pending));
+
+    Map<String, Object> params =
+        Map.of(
+            "projectId", "project-1",
+            "actorUserId", "user-7",
+            "provider", "team-ai",
+            "mode", "CHAT",
+            "idempotencyKey", "idem-710");
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0", "method", "session/new", "params", params, "id", "req-new-710-a"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200)
+        .body("result.session.id", equalTo("710"))
+        .body("result.cached", equalTo(false))
+        .body("error", equalTo(null));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0", "method", "session/new", "params", params, "id", "req-new-710-b"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200)
+        .body("result.session.id", equalTo("710"))
+        .body("result.cached", equalTo(true))
+        .body("error", equalTo(null));
+
+    verify(acpSessions, times(1)).create(any(AcpSessionDescription.class));
+    verify(agentRuntime, times(1)).start(any(AgentRuntime.StartRequest.class));
   }
 
   @Test
@@ -514,6 +597,14 @@ class AcpApiTest extends ApiTest {
 
   private AcpSession session(
       String sessionId, String actorUserId, AcpSessionDescription.Status status) {
+    return session(sessionId, actorUserId, status, null);
+  }
+
+  private AcpSession session(
+      String sessionId,
+      String actorUserId,
+      AcpSessionDescription.Status status,
+      String parentSessionId) {
     return new AcpSession(
         sessionId,
         new AcpSessionDescription(
@@ -526,6 +617,7 @@ class AcpApiTest extends ApiTest {
             Instant.parse("2026-03-03T10:01:00Z"),
             status.isTerminal() ? Instant.parse("2026-03-03T10:02:00Z") : null,
             status == AcpSessionDescription.Status.FAILED ? "runtime failed" : null,
-            "evt-" + sessionId));
+            new Ref<>("evt-" + sessionId),
+            parentSessionId == null ? null : new Ref<>(parentSessionId)));
   }
 }

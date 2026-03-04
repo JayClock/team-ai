@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -885,5 +884,4 @@ public class Project implements Entity<String, ProjectDescription> {
           "failureReason is only allowed for FAILED or CANCELLED status");
     }
   }
-
 }
