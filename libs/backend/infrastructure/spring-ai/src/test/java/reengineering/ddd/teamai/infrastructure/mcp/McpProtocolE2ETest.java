@@ -33,13 +33,9 @@ import reengineering.ddd.archtype.Entity;
 import reengineering.ddd.archtype.Many;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.MemberDescription;
-import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
-import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.ProjectDescription;
 import reengineering.ddd.teamai.infrastructure.config.McpToolConfig;
 import reengineering.ddd.teamai.model.Member;
-import reengineering.ddd.teamai.model.OrchestrationSession;
-import reengineering.ddd.teamai.model.OrchestrationStep;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 
@@ -109,7 +105,9 @@ class McpProtocolE2ETest {
             "submit_task_for_review",
             "approve_task",
             "request_task_fix",
-            "list_agent_events",
+            "list_agent_events");
+    assertThat(toolNames(listBody))
+        .doesNotContain(
             "start_orchestration",
             "get_orchestration",
             "list_orchestrations",
@@ -140,46 +138,7 @@ class McpProtocolE2ETest {
   }
 
   @Test
-  void should_call_list_orchestration_steps_tool() throws Exception {
-    Project project = mock(Project.class);
-    Project.Members members = mock(Project.Members.class);
-    Project.OrchestrationSessions orchestrationSessions = mock(Project.OrchestrationSessions.class);
-    Member member =
-        new Member(TEST_USER_ID, new MemberDescription(new Ref<>(TEST_USER_ID), "OWNER"));
-    OrchestrationSession session =
-        new OrchestrationSession(
-            "o-1",
-            new OrchestrationSessionDescription(
-                "goal",
-                OrchestrationSessionDescription.Status.RUNNING,
-                new Ref<>("a-r"),
-                new Ref<>("a-c"),
-                new Ref<>("t-1"),
-                null,
-                java.time.Instant.parse("2026-01-01T10:00:00Z"),
-                null,
-                null));
-    OrchestrationStep step =
-        new OrchestrationStep(
-            "step-1",
-            new OrchestrationStepDescription(
-                "Implement",
-                "Implement plan",
-                OrchestrationStepDescription.Status.RUNNING,
-                new Ref<>("t-1"),
-                new Ref<>("a-c"),
-                java.time.Instant.parse("2026-01-01T10:05:00Z"),
-                null,
-                null));
-
-    when(project.getIdentity()).thenReturn("p1");
-    when(project.members()).thenReturn(members);
-    when(members.findByIdentity(TEST_USER_ID)).thenReturn(Optional.of(member));
-    when(project.orchestrationSessions()).thenReturn(orchestrationSessions);
-    when(orchestrationSessions.findByIdentity("o-1")).thenReturn(Optional.of(session));
-    when(orchestrationSessions.findSteps("o-1")).thenReturn(List.of(step));
-    when(projects.findByIdentity("p1")).thenReturn(Optional.of(project));
-
+  void should_return_error_when_list_orchestration_steps_tool_is_called() throws Exception {
     ResponseEntity<String> initializeResponse = rpc(initializePayload(), null);
     String sessionId = initializeResponse.getHeaders().getFirst("Mcp-Session-Id");
     assertThat(sessionId).isNotBlank();
@@ -192,10 +151,10 @@ class McpProtocolE2ETest {
     assertThat(callResponse.getStatusCode().is2xxSuccessful()).isTrue();
     JsonNode callBody = parseBody(callResponse);
     assertThat(callBody.path("id").asText()).isEqualTo("call-step-1");
-    assertThat(callBody.path("error").isMissingNode()).isTrue();
-    assertThat(callBody.toString()).contains("step-1");
-    assertThat(callBody.toString()).contains("RUNNING");
-    assertThat(callBody.toString()).contains("traceId");
+    boolean protocolError = callBody.path("error").isObject();
+    boolean toolResultError = callBody.path("result").path("isError").asBoolean(false);
+    assertThat(protocolError || toolResultError).isTrue();
+    assertThat(callBody.toString()).contains("list_orchestration_steps");
   }
 
   @Test

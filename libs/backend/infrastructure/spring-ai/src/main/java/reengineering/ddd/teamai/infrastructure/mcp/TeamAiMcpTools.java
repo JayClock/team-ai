@@ -1,18 +1,11 @@
 package reengineering.ddd.teamai.infrastructure.mcp;
 
-import static reengineering.ddd.teamai.validation.DomainValidation.requireTrimmedText;
-
 import java.time.Instant;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -21,40 +14,16 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
 import reengineering.ddd.teamai.description.AgentEventDescription;
-import reengineering.ddd.teamai.description.OrchestrationSessionDescription;
-import reengineering.ddd.teamai.description.OrchestrationStepDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentEvent;
-import reengineering.ddd.teamai.model.OrchestrationSession;
-import reengineering.ddd.teamai.model.OrchestrationStep;
 import reengineering.ddd.teamai.model.Project;
 import reengineering.ddd.teamai.model.Projects;
 import reengineering.ddd.teamai.model.Task;
 
 @Component
 public class TeamAiMcpTools {
-  private static final String DEFAULT_COORDINATOR_NAME = "Routa Coordinator";
-  private static final String DEFAULT_IMPLEMENTER_NAME = "Crafter Implementer";
-  private static final Set<OrchestrationSessionDescription.Status>
-      CANCELLABLE_ORCHESTRATION_STATES =
-          EnumSet.of(
-              OrchestrationSessionDescription.Status.PENDING,
-              OrchestrationSessionDescription.Status.RUNNING,
-              OrchestrationSessionDescription.Status.REVIEW_REQUIRED);
-  private static final Set<OrchestrationSessionDescription.Status> STEP_MUTABLE_SESSION_STATES =
-      EnumSet.of(
-          OrchestrationSessionDescription.Status.RUNNING,
-          OrchestrationSessionDescription.Status.REVIEW_REQUIRED);
-  private static final Set<OrchestrationStepDescription.Status> CANCELLABLE_STEP_STATES =
-      EnumSet.of(
-          OrchestrationStepDescription.Status.PENDING,
-          OrchestrationStepDescription.Status.RUNNING,
-          OrchestrationStepDescription.Status.REVIEW_REQUIRED);
-
   private final Projects projects;
-  private final ConcurrentMap<String, StepActionReceipt> stepActionReceipts =
-      new ConcurrentHashMap<>();
 
   public TeamAiMcpTools(Projects projects) {
     this.projects = projects;
@@ -201,249 +170,6 @@ public class TeamAiMcpTools {
         .toList();
   }
 
-  @Tool(name = "start_orchestration", description = "Start a project orchestration session.")
-  public OrchestrationSummary startOrchestration(
-      @ToolParam(description = "Project ID") String projectId,
-      @ToolParam(description = "Orchestration goal") String goal,
-      @ToolParam(required = false, description = "Task title") String title,
-      @ToolParam(required = false, description = "Task scope") String scope,
-      @ToolParam(required = false, description = "Acceptance criteria list")
-          List<String> acceptanceCriteria,
-      @ToolParam(required = false, description = "Verification command list")
-          List<String> verificationCommands,
-      @ToolParam(required = false, description = "Coordinator agent ID") String coordinatorAgentId,
-      @ToolParam(required = false, description = "Implementer agent ID")
-          String implementerAgentId) {
-    throw new UnsupportedOperationException(
-        "Orchestration tools are disabled. Project now manages ACP sessions only.");
-  }
-
-  @Tool(name = "get_orchestration", description = "Get a project orchestration session.")
-  public OrchestrationSummary getOrchestration(
-      @ToolParam(description = "Project ID") String projectId,
-      @ToolParam(description = "Orchestration session ID") String orchestrationId) {
-    throw new UnsupportedOperationException(
-        "Orchestration tools are disabled. Project now manages ACP sessions only.");
-  }
-
-  @Tool(name = "list_orchestrations", description = "List orchestration sessions in a project.")
-  public List<OrchestrationSummary> listOrchestrations(
-      @ToolParam(description = "Project ID") String projectId,
-      @ToolParam(required = false, description = "Max number of sessions, default 50")
-          Integer limit) {
-    throw new UnsupportedOperationException(
-        "Orchestration tools are disabled. Project now manages ACP sessions only.");
-  }
-
-  @Tool(
-      name = "list_orchestration_steps",
-      description = "List all orchestration steps in a session with trace context.")
-  public OrchestrationStepListResult listOrchestrationSteps(
-      @ToolParam(description = "Project ID") String projectId,
-      @ToolParam(description = "Orchestration session ID") String orchestrationId) {
-    throw new UnsupportedOperationException(
-        "Orchestration tools are disabled. Project now manages ACP sessions only.");
-  }
-
-  @Tool(
-      name = "get_orchestration_step",
-      description = "Get a single orchestration step with trace context.")
-  public OrchestrationStepResult getOrchestrationStep(
-      @ToolParam(description = "Project ID") String projectId,
-      @ToolParam(description = "Orchestration session ID") String orchestrationId,
-      @ToolParam(description = "Orchestration step ID") String stepId) {
-    throw new UnsupportedOperationException(
-        "Orchestration tools are disabled. Project now manages ACP sessions only.");
-  }
-
-  @Tool(
-      name = "advance_orchestration_step",
-      description = "Advance a step from PENDING->RUNNING or RUNNING/REVIEW_REQUIRED->COMPLETED.")
-  public OrchestrationStepMutationResult advanceOrchestrationStep(
-      @ToolParam(description = "Project ID") String projectId,
-      @ToolParam(description = "Orchestration session ID") String orchestrationId,
-      @ToolParam(description = "Orchestration step ID") String stepId,
-      @ToolParam(required = false, description = "Idempotency key for safe replay")
-          String requestId) {
-    throw new UnsupportedOperationException(
-        "Orchestration tools are disabled. Project now manages ACP sessions only.");
-  }
-
-  @Tool(name = "cancel_orchestration_step", description = "Cancel a mutable orchestration step.")
-  public OrchestrationStepMutationResult cancelOrchestrationStep(
-      @ToolParam(description = "Project ID") String projectId,
-      @ToolParam(description = "Orchestration session ID") String orchestrationId,
-      @ToolParam(description = "Orchestration step ID") String stepId,
-      @ToolParam(description = "Cancellation reason") String reason,
-      @ToolParam(required = false, description = "Idempotency key for safe replay")
-          String requestId) {
-    throw new UnsupportedOperationException(
-        "Orchestration tools are disabled. Project now manages ACP sessions only.");
-  }
-
-  @Tool(name = "cancel_orchestration", description = "Cancel an active orchestration session.")
-  public OrchestrationSummary cancelOrchestration(
-      @ToolParam(description = "Project ID") String projectId,
-      @ToolParam(description = "Orchestration session ID") String orchestrationId,
-      @ToolParam(description = "Cancellation reason") String reason) {
-    throw new UnsupportedOperationException(
-        "Orchestration tools are disabled. Project now manages ACP sessions only.");
-  }
-
-  private OrchestrationSession requireMutableOrchestration(
-      Project project, String orchestrationId) {
-    OrchestrationSession session =
-        requireOrchestration(project, orchestrationId)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Orchestration not found: " + orchestrationId));
-    if (!STEP_MUTABLE_SESSION_STATES.contains(session.getDescription().status())) {
-      throw new IllegalStateException(
-          "Cannot mutate steps when orchestration is " + session.getDescription().status());
-    }
-    return session;
-  }
-
-  private OrchestrationStep requireStep(Project project, String orchestrationId, String stepId) {
-    String normalizedStepId = requireTrimmedText(stepId, "stepId");
-    return project.orchestrationSessions().findSteps(orchestrationId).stream()
-        .filter(step -> normalizedStepId.equals(step.getIdentity()))
-        .findFirst()
-        .orElseThrow(
-            () ->
-                new IllegalArgumentException("Orchestration step not found: " + normalizedStepId));
-  }
-
-  private OrchestrationStepDescription.Status resolveAdvanceStatus(OrchestrationStep step) {
-    OrchestrationStepDescription.Status current = step.getDescription().status();
-    if (current == OrchestrationStepDescription.Status.PENDING) {
-      return OrchestrationStepDescription.Status.RUNNING;
-    }
-    if (current == OrchestrationStepDescription.Status.RUNNING
-        || current == OrchestrationStepDescription.Status.REVIEW_REQUIRED) {
-      return OrchestrationStepDescription.Status.COMPLETED;
-    }
-    if (current == OrchestrationStepDescription.Status.COMPLETED) {
-      return OrchestrationStepDescription.Status.COMPLETED;
-    }
-    throw new IllegalStateException("Cannot advance step in state " + current);
-  }
-
-  private void updateSessionAfterStepAdvance(
-      Project project,
-      OrchestrationSession session,
-      OrchestrationStep currentStep,
-      OrchestrationStepDescription.Status nextStepStatus,
-      Instant occurredAt) {
-    if (nextStepStatus == OrchestrationStepDescription.Status.RUNNING) {
-      project.updateOrchestrationSessionStatus(
-          session.getIdentity(),
-          OrchestrationSessionDescription.Status.RUNNING,
-          new Ref<>(currentStep.getIdentity()),
-          null,
-          null);
-      return;
-    }
-
-    Optional<OrchestrationStep> nextPending =
-        project.orchestrationSessions().findNextPendingStep(session.getIdentity());
-    if (nextPending.isPresent()) {
-      project.updateOrchestrationSessionStatus(
-          session.getIdentity(),
-          OrchestrationSessionDescription.Status.RUNNING,
-          new Ref<>(nextPending.get().getIdentity()),
-          null,
-          null);
-      return;
-    }
-
-    project.updateOrchestrationSessionStatus(
-        session.getIdentity(),
-        OrchestrationSessionDescription.Status.COMPLETED,
-        new Ref<>(currentStep.getIdentity()),
-        occurredAt,
-        null);
-  }
-
-  private void appendStepAuditEvent(
-      Project project,
-      OrchestrationSession session,
-      OrchestrationStep step,
-      AgentEventDescription.Type eventType,
-      String message,
-      Instant occurredAt) {
-    OrchestrationStepDescription stepDescription = step.getDescription();
-    OrchestrationSessionDescription sessionDescription = session.getDescription();
-    project.appendEvent(
-        new AgentEventDescription(
-            eventType,
-            stepDescription.assignee() == null
-                ? sessionDescription.implementer()
-                : stepDescription.assignee(),
-            stepDescription.task() == null ? sessionDescription.task() : stepDescription.task(),
-            message,
-            occurredAt));
-  }
-
-  private Optional<StepActionReceipt> findStepActionReplay(
-      String requestId, String action, String projectId, String orchestrationId, String stepId) {
-    if (requestId == null) {
-      return Optional.empty();
-    }
-    StepActionReceipt receipt = stepActionReceipts.get(requestId);
-    if (receipt == null) {
-      return Optional.empty();
-    }
-    if (receipt.matches(action, projectId, orchestrationId, stepId)) {
-      return Optional.of(receipt);
-    }
-    throw new IllegalStateException(
-        "requestId '%s' was already used for %s on project=%s orchestration=%s step=%s"
-            .formatted(
-                requestId,
-                receipt.action(),
-                receipt.projectId(),
-                receipt.orchestrationId(),
-                receipt.stepId()));
-  }
-
-  private void bindStepActionRequestId(String requestId, StepActionReceipt receipt) {
-    if (requestId == null) {
-      return;
-    }
-    StepActionReceipt existing = stepActionReceipts.putIfAbsent(requestId, receipt);
-    if (existing != null && !existing.matches(receipt)) {
-      throw new IllegalStateException(
-          "requestId '%s' was already used for %s on project=%s orchestration=%s step=%s"
-              .formatted(
-                  requestId,
-                  existing.action(),
-                  existing.projectId(),
-                  existing.orchestrationId(),
-                  existing.stepId()));
-    }
-  }
-
-  private OrchestrationStepMutationResult mutationResult(
-      String traceId,
-      StepActionReceipt receipt,
-      boolean replayed,
-      Project project,
-      OrchestrationSession session,
-      OrchestrationStep step) {
-    return new OrchestrationStepMutationResult(
-        traceId,
-        replayed,
-        receipt.action(),
-        receipt.requestId(),
-        project.getIdentity(),
-        session.getIdentity(),
-        step.getIdentity(),
-        receipt.previousStatus(),
-        receipt.currentStatus(),
-        toOrchestrationStepSummary(step),
-        toOrchestrationSummary(session));
-  }
-
   private Project requireProject(String projectId) {
     if (isBlank(projectId)) {
       throw new IllegalArgumentException("projectId must not be blank");
@@ -487,14 +213,6 @@ public class TeamAiMcpTools {
     return project.tasks().findByIdentity(taskId).map(this::toTaskSummary).orElseThrow();
   }
 
-  private Optional<OrchestrationSession> requireOrchestration(
-      Project project, String orchestrationId) {
-    if (isBlank(orchestrationId)) {
-      throw new IllegalArgumentException("orchestrationId must not be blank");
-    }
-    return project.orchestrationSessions().findByIdentity(orchestrationId.trim());
-  }
-
   private ProjectSummary toProjectSummary(Project project) {
     return new ProjectSummary(project.getIdentity(), project.getDescription().name());
   }
@@ -519,9 +237,7 @@ public class TeamAiMcpTools {
         description.assignedTo() == null ? null : description.assignedTo().id(),
         description.delegatedBy() == null ? null : description.delegatedBy().id(),
         description.completionSummary(),
-        description.verificationVerdict() == null
-            ? null
-            : description.verificationVerdict().name());
+        description.verificationVerdict() == null ? null : description.verificationVerdict().name());
   }
 
   private AgentEventSummary toAgentEventSummary(AgentEvent event) {
@@ -532,120 +248,6 @@ public class TeamAiMcpTools {
         event.getDescription().task() == null ? null : event.getDescription().task().id(),
         event.getDescription().message(),
         event.getDescription().occurredAt());
-  }
-
-  private OrchestrationSummary toOrchestrationSummary(OrchestrationSession session) {
-    OrchestrationSessionDescription description = session.getDescription();
-    return new OrchestrationSummary(
-        session.getIdentity(),
-        description.goal(),
-        toOrchestrationState(description.status()),
-        description.coordinator() == null ? null : description.coordinator().id(),
-        description.implementer() == null ? null : description.implementer().id(),
-        description.task() == null ? null : description.task().id(),
-        description.currentStep() == null ? null : description.currentStep().id(),
-        description.startedAt(),
-        description.completedAt(),
-        description.failureReason());
-  }
-
-  private OrchestrationStepSummary toOrchestrationStepSummary(OrchestrationStep step) {
-    OrchestrationStepDescription description = step.getDescription();
-    return new OrchestrationStepSummary(
-        step.getIdentity(),
-        description.title(),
-        description.objective(),
-        description.status().name(),
-        description.task() == null ? null : description.task().id(),
-        description.assignee() == null ? null : description.assignee().id(),
-        description.startedAt(),
-        description.completedAt(),
-        description.failureReason());
-  }
-
-  private Ref<String> resolveCoordinator(Project project, String explicitAgentId) {
-    if (!isBlank(explicitAgentId)) {
-      Agent coordinator =
-          project
-              .agents()
-              .findByIdentity(explicitAgentId.trim())
-              .orElseThrow(
-                  () -> new IllegalArgumentException("Coordinator not found: " + explicitAgentId));
-      if (coordinator.getDescription().role() == AgentDescription.Role.GATE) {
-        throw new IllegalStateException(
-            "coordinator role must be one of [ROUTA, CRAFTER, DEVELOPER], but was GATE");
-      }
-      return new Ref<>(coordinator.getIdentity());
-    }
-
-    return project.agents().findAll().stream()
-        .filter(agent -> agent.getDescription().role() == AgentDescription.Role.ROUTA)
-        .findFirst()
-        .map(Agent::getIdentity)
-        .map(Ref::new)
-        .orElseGet(
-            () ->
-                new Ref<>(
-                    project
-                        .createAgent(
-                            new AgentDescription(
-                                DEFAULT_COORDINATOR_NAME,
-                                AgentDescription.Role.ROUTA,
-                                "SMART",
-                                AgentDescription.Status.PENDING,
-                                null,
-                                null))
-                        .getIdentity()));
-  }
-
-  private Ref<String> resolveImplementer(Project project, String explicitAgentId) {
-    if (!isBlank(explicitAgentId)) {
-      Agent implementer =
-          project
-              .agents()
-              .findByIdentity(explicitAgentId.trim())
-              .orElseThrow(
-                  () -> new IllegalArgumentException("Implementer not found: " + explicitAgentId));
-      if (!isImplementerRole(implementer.getDescription().role())) {
-        throw new IllegalStateException(
-            "implementer role must be one of [CRAFTER, DEVELOPER, SPECIALIST], but was "
-                + implementer.getDescription().role());
-      }
-      return new Ref<>(implementer.getIdentity());
-    }
-
-    return project.agents().findAll().stream()
-        .filter(agent -> isImplementerRole(agent.getDescription().role()))
-        .findFirst()
-        .map(Agent::getIdentity)
-        .map(Ref::new)
-        .orElseGet(
-            () ->
-                new Ref<>(
-                    project
-                        .createAgent(
-                            new AgentDescription(
-                                DEFAULT_IMPLEMENTER_NAME,
-                                AgentDescription.Role.CRAFTER,
-                                "SMART",
-                                AgentDescription.Status.PENDING,
-                                null,
-                                null))
-                        .getIdentity()));
-  }
-
-  private boolean isImplementerRole(AgentDescription.Role role) {
-    return role == AgentDescription.Role.CRAFTER
-        || role == AgentDescription.Role.DEVELOPER
-        || role == AgentDescription.Role.SPECIALIST;
-  }
-
-  private String resolveTaskTitle(String title, String goal) {
-    String normalizedTitle = blankToNull(title);
-    if (normalizedTitle != null) {
-      return normalizedTitle;
-    }
-    return goal.length() <= 120 ? goal : goal.substring(0, 120);
   }
 
   private String blankToNull(String value) {
@@ -662,14 +264,6 @@ public class TeamAiMcpTools {
 
   private boolean isBlank(String value) {
     return value == null || value.isBlank();
-  }
-
-  private String nextTraceId() {
-    return "mcp-" + UUID.randomUUID();
-  }
-
-  private String toOrchestrationState(OrchestrationSessionDescription.Status status) {
-    return status.name();
   }
 
   public record ProjectSummary(String id, String name) {}
@@ -689,71 +283,4 @@ public class TeamAiMcpTools {
 
   public record AgentEventSummary(
       String id, String type, String agentId, String taskId, String message, Instant occurredAt) {}
-
-  public record OrchestrationSummary(
-      String id,
-      String goal,
-      String state,
-      String coordinatorAgentId,
-      String implementerAgentId,
-      String taskId,
-      String currentStepId,
-      Instant startedAt,
-      Instant completedAt,
-      String failureReason) {}
-
-  public record OrchestrationStepSummary(
-      String id,
-      String title,
-      String objective,
-      String status,
-      String taskId,
-      String assigneeId,
-      Instant startedAt,
-      Instant completedAt,
-      String failureReason) {}
-
-  public record OrchestrationStepListResult(
-      String traceId,
-      String projectId,
-      String orchestrationId,
-      int total,
-      List<OrchestrationStepSummary> steps) {}
-
-  public record OrchestrationStepResult(
-      String traceId, String projectId, String orchestrationId, OrchestrationStepSummary step) {}
-
-  public record OrchestrationStepMutationResult(
-      String traceId,
-      boolean replayed,
-      String action,
-      String requestId,
-      String projectId,
-      String orchestrationId,
-      String stepId,
-      String previousStatus,
-      String currentStatus,
-      OrchestrationStepSummary step,
-      OrchestrationSummary orchestration) {}
-
-  private record StepActionReceipt(
-      String requestId,
-      String action,
-      String projectId,
-      String orchestrationId,
-      String stepId,
-      String previousStatus,
-      String currentStatus) {
-    private boolean matches(
-        String action, String projectId, String orchestrationId, String stepId) {
-      return Objects.equals(this.action, action)
-          && Objects.equals(this.projectId, projectId)
-          && Objects.equals(this.orchestrationId, orchestrationId)
-          && Objects.equals(this.stepId, stepId);
-    }
-
-    private boolean matches(StepActionReceipt other) {
-      return matches(other.action, other.projectId, other.orchestrationId, other.stepId);
-    }
-  }
 }
