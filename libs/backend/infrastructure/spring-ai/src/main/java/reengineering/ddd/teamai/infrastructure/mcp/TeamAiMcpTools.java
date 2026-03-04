@@ -5,7 +5,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Optional;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -13,7 +12,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import reengineering.ddd.archtype.Ref;
 import reengineering.ddd.teamai.description.AgentDescription;
-import reengineering.ddd.teamai.description.AgentEventDescription;
 import reengineering.ddd.teamai.description.TaskDescription;
 import reengineering.ddd.teamai.model.Agent;
 import reengineering.ddd.teamai.model.AgentEvent;
@@ -237,7 +235,9 @@ public class TeamAiMcpTools {
         description.assignedTo() == null ? null : description.assignedTo().id(),
         description.delegatedBy() == null ? null : description.delegatedBy().id(),
         description.completionSummary(),
-        description.verificationVerdict() == null ? null : description.verificationVerdict().name());
+        description.verificationVerdict() == null
+            ? null
+            : description.verificationVerdict().name());
   }
 
   private AgentEventSummary toAgentEventSummary(AgentEvent event) {
