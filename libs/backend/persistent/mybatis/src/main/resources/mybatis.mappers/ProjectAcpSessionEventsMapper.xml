@@ -30,6 +30,7 @@
       #{event.dataJson},
       #{event.errorJson}
     )
+    ON CONFLICT (event_id) DO NOTHING
   </insert>
 
   <select id="findEventsBySession" resultMap="acpSessionEventRow">
@@ -44,14 +45,14 @@
     WHERE project_id = #{project_id}
       AND session_id = #{session_id}
       AND (
-        #{after_event_id} IS NULL
+        #{after_event_id, jdbcType=VARCHAR} IS NULL
         OR id > COALESCE(
           (
             SELECT id
             FROM project_acp_session_events
             WHERE project_id = #{project_id}
               AND session_id = #{session_id}
-              AND event_id = #{after_event_id}
+              AND event_id = #{after_event_id, jdbcType=VARCHAR}
             ORDER BY id DESC
             LIMIT 1
           ),

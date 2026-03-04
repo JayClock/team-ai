@@ -6,13 +6,18 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.restassured.response.Response;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -549,6 +554,183 @@ class AcpApiTest extends ApiTest {
         .body("history[0].type", equalTo("status"))
         .body("history[1].type", equalTo("delta"))
         .body("history[2].type", equalTo("complete"));
+  }
+
+  @Test
+  void should_filter_session_history_with_since_cursor() {
+    AcpSession pending = session("602", "user-6", AcpSessionDescription.Status.PENDING);
+    AcpSession running = session("602", "user-6", AcpSessionDescription.Status.RUNNING);
+    when(acpSessions.create(any(AcpSessionDescription.class))).thenReturn(pending);
+    when(acpSessions.findByIdentity("602"))
+        .thenReturn(
+            Optional.of(pending),
+            Optional.of(pending),
+            Optional.of(pending),
+            Optional.of(running),
+            Optional.of(running),
+            Optional.of(running));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/new",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "actorUserId", "user-6",
+                        "provider", "team-ai",
+                        "mode", "CHAT"),
+                "id", "req-new-602"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200);
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/prompt",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "sessionId", "602",
+                        "prompt", "generate summary"),
+                "id", "req-prompt-602"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200);
+
+    Response fullHistory =
+        given(documentationSpec)
+            .accept("application/json")
+            .queryParam("limit", 10)
+            .when()
+            .get("/projects/{projectId}/sessions/{sessionId}/history", "project-1", "602")
+            .then()
+            .statusCode(200)
+            .extract()
+            .response();
+
+    List<String> eventIds = fullHistory.jsonPath().getList("history.eventId");
+    assertNotNull(eventIds);
+    assertEquals(3, eventIds.size());
+
+    given(documentationSpec)
+        .accept("application/json")
+        .queryParam("limit", 10)
+        .queryParam("since", eventIds.get(0))
+        .when()
+        .get("/projects/{projectId}/sessions/{sessionId}/history", "project-1", "602")
+        .then()
+        .statusCode(200)
+        .body("history.size()", equalTo(2))
+        .body("history[0].eventId", equalTo(eventIds.get(1)))
+        .body("history[1].eventId", equalTo(eventIds.get(2)));
+  }
+
+  @Test
+  void should_resume_sse_with_since_cursor_prioritized_over_last_event_id_header() {
+    AcpSession pending = session("603", "user-6", AcpSessionDescription.Status.PENDING);
+    AcpSession running = session("603", "user-6", AcpSessionDescription.Status.RUNNING);
+    when(acpSessions.create(any(AcpSessionDescription.class))).thenReturn(pending);
+    when(acpSessions.findByIdentity("603"))
+        .thenReturn(
+            Optional.of(pending),
+            Optional.of(pending),
+            Optional.of(pending),
+            Optional.of(running),
+            Optional.of(running));
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/new",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "actorUserId", "user-6",
+                        "provider", "team-ai",
+                        "mode", "CHAT"),
+                "id", "req-new-603"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200);
+
+    given(documentationSpec)
+        .contentType("application/json")
+        .body(
+            Map.of(
+                "jsonrpc", "2.0",
+                "method", "session/prompt",
+                "params",
+                    Map.of(
+                        "projectId", "project-1",
+                        "sessionId", "603",
+                        "prompt", "generate summary"),
+                "id", "req-prompt-603"))
+        .when()
+        .post("/acp")
+        .then()
+        .statusCode(200);
+
+    Response historyResponse =
+        given(documentationSpec)
+            .accept("application/json")
+            .queryParam("limit", 10)
+            .when()
+            .get("/projects/{projectId}/sessions/{sessionId}/history", "project-1", "603")
+            .then()
+            .statusCode(200)
+            .extract()
+            .response();
+    List<String> eventIds = historyResponse.jsonPath().getList("history.eventId");
+    assertNotNull(eventIds);
+    assertEquals(3, eventIds.size());
+
+    String resumedBody =
+        given(documentationSpec)
+            .accept("text/event-stream")
+            .queryParam("sessionId", "603")
+            .queryParam("since", eventIds.get(0))
+            .queryParam("once", true)
+            .header("Last-Event-ID", eventIds.get(1))
+            .when()
+            .get("/acp")
+            .then()
+            .statusCode(200)
+            .contentType(containsString("text/event-stream"))
+            .extract()
+            .asString();
+
+    assertTrue(resumedBody.contains("id: " + eventIds.get(1)));
+    assertTrue(resumedBody.contains("id: " + eventIds.get(2)));
+    assertFalse(resumedBody.contains("id: " + eventIds.get(0)));
+
+    String lastEventIdBody =
+        given(documentationSpec)
+            .accept("text/event-stream")
+            .queryParam("sessionId", "603")
+            .queryParam("once", true)
+            .header("Last-Event-ID", eventIds.get(0))
+            .when()
+            .get("/acp")
+            .then()
+            .statusCode(200)
+            .contentType(containsString("text/event-stream"))
+            .extract()
+            .asString();
+
+    assertTrue(lastEventIdBody.contains("id: " + eventIds.get(1)));
+    assertTrue(lastEventIdBody.contains("id: " + eventIds.get(2)));
+    assertFalse(lastEventIdBody.contains("id: " + eventIds.get(0)));
   }
 
   @Test
