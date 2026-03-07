@@ -14,5 +14,9 @@ nx affected -t lint --fix
 
 # Re-stage only files that were already staged.
 while IFS= read -r -d '' file; do
-  git add -A -- "$file"
+  if [ -e "$file" ] || [ -L "$file" ]; then
+    git add -- "$file"
+  else
+    git add -u -- "$file"
+  fi
 done < "$STAGED_FILES"
