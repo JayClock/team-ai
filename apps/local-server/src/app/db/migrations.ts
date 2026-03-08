@@ -128,4 +128,34 @@ export const sqliteMigrations: SqliteMigration[] = [
         ON orchestration_events(step_id, at);
     `,
   },
+  {
+    version: '005_sync_tables',
+    sql: `
+      CREATE TABLE IF NOT EXISTS sync_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        status TEXT NOT NULL,
+        paused INTEGER NOT NULL DEFAULT 0,
+        last_run_at TEXT,
+        last_successful_sync_at TEXT,
+        last_error TEXT,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS sync_conflicts (
+        id TEXT PRIMARY KEY,
+        resource_type TEXT NOT NULL,
+        resource_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        local_summary TEXT NOT NULL,
+        remote_summary TEXT NOT NULL,
+        status TEXT NOT NULL,
+        resolution TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_sync_conflicts_status
+        ON sync_conflicts(status, updated_at);
+    `,
+  },
 ];
