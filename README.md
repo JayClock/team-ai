@@ -213,6 +213,7 @@ If you need to run persistence layer examples, please refer to [Database Setup D
 
 ### Supplementary Documentation
 
+- [Desktop Local-First Status](docs/desktop-local-first-status.md) - Current Electron + local Node server delivery status, implemented routes, and remaining gaps
 - [Database Setup](docs/database-setup.md) - PostgreSQL configuration and migration guide
 - [PostgreSQL Migration Summary](docs/postgresql-migration-summary.md) - Detailed database migration records
 - [MCP Tools Guide](docs/mcp-tools.md) - MCP tool list, step controls, and idempotency rules
@@ -227,6 +228,8 @@ If you need to run persistence layer examples, please refer to [Database Setup D
 team-ai/
 ├── apps/                    # Example applications
 │   ├── server/             # Backend server example (Java Spring Boot)
+│   ├── desktop/            # Electron desktop shell
+│   ├── local-server/       # Local Node server for desktop mode
 │   └── web/                # Frontend application example (React)
 ├── libs/                   # Backend core libraries
 │   └── backend/            # Smart Domain DDD implementation
