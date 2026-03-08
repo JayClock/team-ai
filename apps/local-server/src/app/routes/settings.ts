@@ -11,12 +11,14 @@ const updateSettingsSchema = z.object({
 });
 
 const settingsRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/settings', async () => presentSettings(await getSettings()));
+  fastify.get('/settings', async () =>
+    presentSettings(await getSettings(fastify.sqlite)),
+  );
 
   fastify.patch('/settings', async (request) => {
     const patch = updateSettingsSchema.parse(request.body);
 
-    return presentSettings(await updateSettings(patch));
+    return presentSettings(await updateSettings(fastify.sqlite, patch));
   });
 };
 

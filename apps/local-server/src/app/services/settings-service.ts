@@ -1,63 +1,78 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import type { Database } from 'better-sqlite3';
 import type { SettingsPatch, SettingsPayload } from '../schemas/settings';
 
-const defaultSettings: Omit<SettingsPayload, 'updatedAt'> = {
-  theme: 'system',
-  modelProvider: 'deepseek',
-  defaultModel: 'deepseek-chat',
-  syncEnabled: false,
-};
-
-function createSettingsPath(): string {
-  const dataDir = process.env.TEAMAI_DATA_DIR ?? join(process.cwd(), '.team-ai');
-
-  return join(dataDir, 'settings.json');
+interface SettingsRow {
+  default_model: string;
+  model_provider: string;
+  sync_enabled: number;
+  theme: SettingsPayload['theme'];
+  updated_at: string;
 }
 
-async function ensureSettingsDirectoryExists(settingsPath: string) {
-  await mkdir(dirname(settingsPath), { recursive: true });
-}
-
-function createDefaultSettings(): SettingsPayload {
+function mapSettingsRow(row: SettingsRow): SettingsPayload {
   return {
-    ...defaultSettings,
-    updatedAt: new Date().toISOString(),
+    theme: row.theme,
+    modelProvider: row.model_provider,
+    defaultModel: row.default_model,
+    syncEnabled: Boolean(row.sync_enabled),
+    updatedAt: row.updated_at,
   };
 }
 
-export async function getSettings(): Promise<SettingsPayload> {
-  const settingsPath = createSettingsPath();
+export async function getSettings(sqlite: Database): Promise<SettingsPayload> {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT
+          theme,
+          model_provider,
+          default_model,
+          sync_enabled,
+          updated_at
+        FROM settings
+        WHERE id = 1
+      `,
+    )
+    .get() as SettingsRow | undefined;
 
-  try {
-    const raw = await readFile(settingsPath, 'utf8');
-
-    return JSON.parse(raw) as SettingsPayload;
-  } catch {
-    const settings = createDefaultSettings();
-    await persistSettings(settings);
-
-    return settings;
+  if (!row) {
+    throw new Error('Missing settings row in SQLite database');
   }
+
+  return mapSettingsRow(row);
 }
 
 export async function updateSettings(
+  sqlite: Database,
   patch: SettingsPatch,
 ): Promise<SettingsPayload> {
-  const current = await getSettings();
+  const current = await getSettings(sqlite);
   const next: SettingsPayload = {
     ...current,
     ...patch,
     updatedAt: new Date().toISOString(),
   };
 
-  await persistSettings(next);
+  sqlite
+    .prepare(
+      `
+        UPDATE settings
+        SET
+          theme = @theme,
+          model_provider = @modelProvider,
+          default_model = @defaultModel,
+          sync_enabled = @syncEnabled,
+          updated_at = @updatedAt
+        WHERE id = 1
+      `,
+    )
+    .run({
+      theme: next.theme,
+      modelProvider: next.modelProvider,
+      defaultModel: next.defaultModel,
+      syncEnabled: next.syncEnabled ? 1 : 0,
+      updatedAt: next.updatedAt,
+    });
 
   return next;
-}
-
-async function persistSettings(settings: SettingsPayload): Promise<void> {
-  const settingsPath = createSettingsPath();
-  await ensureSettingsDirectoryExists(settingsPath);
-  await writeFile(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
 }
