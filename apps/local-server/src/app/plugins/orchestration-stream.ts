@@ -4,7 +4,7 @@ import type { OrchestrationEventPayload } from '../schemas/orchestration';
 
 type OrchestrationListener = (event: OrchestrationEventPayload) => void;
 
-class OrchestrationStreamBroker {
+export class OrchestrationStreamBroker {
   private readonly listeners = new Map<string, Set<OrchestrationListener>>();
 
   publish(event: OrchestrationEventPayload) {

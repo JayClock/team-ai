@@ -67,8 +67,15 @@ export interface OrchestrationEventPayload {
   stepId?: string;
   type:
     | 'session.created'
+    | 'session.running'
     | 'session.cancelled'
+    | 'session.completed'
+    | 'session.failed'
     | 'session.resumed'
     | 'session.retried'
+    | 'step.ready'
+    | 'step.started'
+    | 'step.completed'
+    | 'step.failed'
     | 'step.retried';
 }

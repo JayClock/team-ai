@@ -3,6 +3,7 @@ import type { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
 import AutoLoad from '@fastify/autoload';
 import desktopAuthPlugin from './plugins/desktop-auth';
 import messageStreamPlugin from './plugins/message-stream';
+import orchestrationRuntimePlugin from './plugins/orchestration-runtime';
 import orchestrationStreamPlugin from './plugins/orchestration-stream';
 import problemJsonPlugin from './plugins/problem-json';
 import sensiblePlugin from './plugins/sensible';
@@ -18,6 +19,7 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
   fastify.register(sqlitePlugin);
   fastify.register(messageStreamPlugin);
   fastify.register(orchestrationStreamPlugin);
+  fastify.register(orchestrationRuntimePlugin);
   fastify.register(desktopAuthPlugin, {
     desktopSessionToken: opts.desktopSessionToken,
   });

@@ -77,4 +77,55 @@ export const sqliteMigrations: SqliteMigration[] = [
       );
     `,
   },
+  {
+    version: '004_orchestration_tables',
+    sql: `
+      CREATE TABLE IF NOT EXISTS orchestration_sessions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        goal TEXT NOT NULL,
+        status TEXT NOT NULL,
+        strategy_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS orchestration_steps (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        status TEXT NOT NULL,
+        attempt INTEGER NOT NULL,
+        max_attempts INTEGER NOT NULL,
+        depends_on_json TEXT NOT NULL,
+        order_index INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (session_id) REFERENCES orchestration_sessions(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS orchestration_events (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        step_id TEXT,
+        type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        at TEXT NOT NULL,
+        FOREIGN KEY (session_id) REFERENCES orchestration_sessions(id),
+        FOREIGN KEY (step_id) REFERENCES orchestration_steps(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_orchestration_steps_session_id
+        ON orchestration_steps(session_id, order_index);
+
+      CREATE INDEX IF NOT EXISTS idx_orchestration_events_session_id
+        ON orchestration_events(session_id, at);
+
+      CREATE INDEX IF NOT EXISTS idx_orchestration_events_step_id
+        ON orchestration_events(step_id, at);
+    `,
+  },
 ];
