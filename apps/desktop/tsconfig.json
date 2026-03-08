@@ -1,7 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "outDir": "../../dist/types/apps/desktop",
+    "tsBuildInfoFile": "../../dist/types/apps/desktop/tsconfig.tsbuildinfo"
   },
   "include": ["**/*.ts"]
 }
