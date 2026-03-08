@@ -53,4 +53,12 @@ export const sqliteMigrations: SqliteMigration[] = [
         ON messages(conversation_id);
     `,
   },
+  {
+    version: '002_message_runtime_columns',
+    sql: `
+      ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'completed';
+      ALTER TABLE messages ADD COLUMN error_message TEXT;
+      ALTER TABLE messages ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];
