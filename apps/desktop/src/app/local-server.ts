@@ -25,6 +25,7 @@ export class LocalServerManager {
     const port = await LocalServerManager.findAvailablePort();
     const serverEntry = LocalServerManager.resolveServerEntry(application);
     const desktopSessionToken = randomUUID();
+    const dataDir = join(application.getPath('userData'), 'local-server');
 
     LocalServerManager.child = fork(serverEntry, [], {
       env: {
@@ -33,6 +34,7 @@ export class LocalServerManager {
         ELECTRON_RUN_AS_NODE: '1',
         HOST: localServerHost,
         PORT: String(port),
+        TEAMAI_DATA_DIR: dataDir,
       },
       stdio: 'inherit',
     });

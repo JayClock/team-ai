@@ -4,7 +4,11 @@ const rootRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', async () => ({
     name: 'team-ai-local-server',
     capabilities: {
+      agents: true,
       health: true,
+      orchestration: true,
+      settings: true,
+      syncStatus: true,
     },
     _links: {
       self: {
@@ -12,6 +16,24 @@ const rootRoute: FastifyPluginAsync = async (fastify) => {
       },
       health: {
         href: '/api/health',
+      },
+      settings: {
+        href: '/api/settings',
+      },
+      projects: {
+        href: '/api/projects',
+      },
+      orchestration: {
+        href: '/api/orchestration',
+      },
+      agents: {
+        href: '/api/agents',
+      },
+      providers: {
+        href: '/api/providers',
+      },
+      'sync-status': {
+        href: '/api/sync/status',
       },
     },
   }));
