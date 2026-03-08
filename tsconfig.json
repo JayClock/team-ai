@@ -50,6 +50,9 @@
     },
     {
       "path": "./apps/agent-gateway"
+    },
+    {
+      "path": "./apps/desktop"
     }
   ]
 }
