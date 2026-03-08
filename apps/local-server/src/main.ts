@@ -8,7 +8,9 @@ const server = Fastify({
   logger: true,
 });
 
-server.register(app);
+server.register(app, {
+  desktopSessionToken: process.env.DESKTOP_SESSION_TOKEN,
+});
 
 server.listen({ port, host }, (err) => {
   if (err) {

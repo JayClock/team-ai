@@ -1,17 +1,23 @@
-import * as path from 'path';
+import { join } from 'node:path';
 import type { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
 import AutoLoad from '@fastify/autoload';
+import desktopAuthPlugin from './plugins/desktop-auth';
+import problemJsonPlugin from './plugins/problem-json';
+import sensiblePlugin from './plugins/sensible';
 
-export type AppOptions = FastifyPluginOptions;
+export interface AppOptions extends FastifyPluginOptions {
+  desktopSessionToken?: string;
+}
 
 export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
-  fastify.register(AutoLoad, {
-    dir: path.join(__dirname, 'plugins'),
-    options: { ...opts },
+  fastify.register(problemJsonPlugin);
+  fastify.register(sensiblePlugin);
+  fastify.register(desktopAuthPlugin, {
+    desktopSessionToken: opts.desktopSessionToken,
   });
 
   fastify.register(AutoLoad, {
-    dir: path.join(__dirname, 'routes'),
+    dir: join(__dirname, 'routes'),
     options: { ...opts, prefix: '/api' },
   });
 };

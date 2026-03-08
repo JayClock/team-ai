@@ -1,8 +1,12 @@
 import { fork, type ChildProcess } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import type { App } from 'electron';
-import type { DesktopRuntimeConfig } from './api/runtime-config';
+import {
+  desktopSessionHeader,
+  type DesktopRuntimeConfig,
+} from './api/runtime-config';
 
 const localServerHost = '127.0.0.1';
 const healthcheckTimeoutMs = 15_000;
@@ -20,9 +24,11 @@ export class LocalServerManager {
 
     const port = await LocalServerManager.findAvailablePort();
     const serverEntry = LocalServerManager.resolveServerEntry(application);
+    const desktopSessionToken = randomUUID();
 
     LocalServerManager.child = fork(serverEntry, [], {
       env: {
+        DESKTOP_SESSION_TOKEN: desktopSessionToken,
         ...process.env,
         ELECTRON_RUN_AS_NODE: '1',
         HOST: localServerHost,
@@ -37,11 +43,13 @@ export class LocalServerManager {
     });
 
     const apiBaseUrl = `http://${localServerHost}:${port}/api`;
-    await LocalServerManager.waitForHealthcheck(apiBaseUrl);
+    await LocalServerManager.waitForHealthcheck(apiBaseUrl, desktopSessionToken);
 
     LocalServerManager.runtimeConfig = {
       apiBaseUrl,
       appVersion: application.getVersion(),
+      desktopSessionHeader,
+      desktopSessionToken,
       platform: process.platform,
     };
 
@@ -103,13 +111,20 @@ export class LocalServerManager {
     return join(process.resourcesPath, 'local-server', 'main.js');
   }
 
-  private static async waitForHealthcheck(apiBaseUrl: string): Promise<void> {
+  private static async waitForHealthcheck(
+    apiBaseUrl: string,
+    desktopSessionToken: string,
+  ): Promise<void> {
     const deadline = Date.now() + healthcheckTimeoutMs;
     const healthUrl = `${apiBaseUrl}/health`;
 
     while (Date.now() < deadline) {
       try {
-        const response = await fetch(healthUrl);
+        const response = await fetch(healthUrl, {
+          headers: {
+            [desktopSessionHeader]: desktopSessionToken,
+          },
+        });
 
         if (response.ok) {
           return;
