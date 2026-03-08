@@ -61,4 +61,20 @@ export const sqliteMigrations: SqliteMigration[] = [
       ALTER TABLE messages ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: '003_agents_table',
+    sql: `
+      CREATE TABLE IF NOT EXISTS agents (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        system_prompt TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT
+      );
+    `,
+  },
 ];
