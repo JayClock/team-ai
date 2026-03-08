@@ -3,10 +3,12 @@ import SmartDomainPage from '../features/landing/smart-domain-page';
 import { Login } from '../features/auth/login';
 import { Signup } from '../features/auth/signup';
 import AcpDebugPage from '../features/acp/acp-debug';
+import OrchestrationDashboard from '../features/orchestration/orchestration-dashboard';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { layoutRoutes } from '@shells/layout';
+import { Layout, layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
 import { protectedRouteLoader } from './protected-route-loader';
+import { Suspense } from 'react';
 
 const protectedLayoutRoutes = [
   {
@@ -21,6 +23,25 @@ const protectedLayoutRoutes = [
 
 const router = createBrowserRouter([
   ...protectedLayoutRoutes,
+  {
+    path: '/orchestration',
+    loader: protectedRouteLoader,
+    element: (
+      <Suspense>
+        <Layout />
+      </Suspense>
+    ),
+    children: [
+      {
+        index: true,
+        element: <OrchestrationDashboard />,
+      },
+      {
+        path: ':sessionId',
+        element: <OrchestrationDashboard />,
+      },
+    ],
+  },
   {
     path: '/login',
     element: <Login />,

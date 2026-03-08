@@ -6,6 +6,7 @@ import {
   FrameIcon,
   GalleryVerticalEndIcon,
   MapIcon,
+  PlaySquareIcon,
   PieChartIcon,
   Settings2Icon,
   SquareTerminalIcon,
@@ -108,6 +109,17 @@ export const layoutSidebarData: LayoutSidebarData = {
         {
           title: 'Quantum',
           url: '#',
+        },
+      ],
+    },
+    {
+      title: 'Automation',
+      url: '#',
+      icon: PlaySquareIcon,
+      items: [
+        {
+          title: 'Orchestration',
+          url: '/orchestration',
         },
       ],
     },
