@@ -1,7 +1,16 @@
 import { createClient, FetchMiddleware } from '@hateoas-ts/resource';
-import { appConfig } from './config/app.config.js';
+import {
+  appConfig,
+  getDesktopRuntimeConfig,
+  type DesktopRuntimeConfig,
+} from './config/app.config.js';
 import { Root } from '@shared/schema';
 import { halFormsJsonSchemaZodSchemaPlugin } from './hal-forms-json-schema-zod-schema-plugin.js';
+
+interface ClientRuntimeConfig {
+  apiBaseURL: string;
+  desktopRuntimeConfig: DesktopRuntimeConfig | null;
+}
 
 function buildLoginUrlWithReturnTo(): string {
   const currentPath = window.location.pathname + window.location.search;
@@ -9,13 +18,29 @@ function buildLoginUrlWithReturnTo(): string {
   return `${appConfig.auth.loginPath}?return_to=${returnTo}`;
 }
 
-export const apiClient = createClient({
-  baseURL: appConfig.api.baseURL,
-  sendUserAgent: false,
-  schemaPlugin: halFormsJsonSchemaZodSchemaPlugin,
-});
+function createClientRuntimeConfig(
+  desktopRuntimeConfig: DesktopRuntimeConfig | null,
+): ClientRuntimeConfig {
+  return {
+    apiBaseURL: desktopRuntimeConfig?.apiBaseUrl ?? appConfig.api.baseURL,
+    desktopRuntimeConfig,
+  };
+}
 
-export const rootResource = apiClient.go<Root>('/api');
+function createConfiguredClient(runtimeConfig: ClientRuntimeConfig) {
+  const client = createClient({
+    baseURL: runtimeConfig.apiBaseURL,
+    sendUserAgent: false,
+    schemaPlugin: halFormsJsonSchemaZodSchemaPlugin,
+  });
+
+  client.use(createCredentialsMiddleware());
+  client.use(createApiKeyMiddleware());
+  client.use(createDesktopSessionMiddleware(runtimeConfig));
+  client.use(createAuthMiddleware(runtimeConfig));
+
+  return client;
+}
 
 function createCredentialsMiddleware(): FetchMiddleware {
   return (request, next) => {
@@ -23,6 +48,26 @@ function createCredentialsMiddleware(): FetchMiddleware {
       credentials: 'include',
     });
     return next(requestWithCredentials);
+  };
+}
+
+function createDesktopSessionMiddleware(
+  runtimeConfig: ClientRuntimeConfig,
+): FetchMiddleware {
+  return (request, next) => {
+    const desktopRuntimeConfig = runtimeConfig.desktopRuntimeConfig;
+
+    if (!desktopRuntimeConfig) {
+      return next(request);
+    }
+
+    const requestWithDesktopSession = new Request(request);
+    requestWithDesktopSession.headers.set(
+      desktopRuntimeConfig.desktopSessionHeader,
+      desktopRuntimeConfig.desktopSessionToken,
+    );
+
+    return next(requestWithDesktopSession);
   };
 }
 
@@ -39,12 +84,13 @@ function createApiKeyMiddleware(): FetchMiddleware {
   };
 }
 
-function createAuthMiddleware(): FetchMiddleware {
+function createAuthMiddleware(runtimeConfig: ClientRuntimeConfig): FetchMiddleware {
   return async (request, next) => {
     const response = await next(request);
 
     if (
       response.status === 401 &&
+      !runtimeConfig.desktopRuntimeConfig &&
       window.location.pathname !== appConfig.auth.loginPath
     ) {
       window.location.href = buildLoginUrlWithReturnTo();
@@ -54,6 +100,15 @@ function createAuthMiddleware(): FetchMiddleware {
   };
 }
 
-apiClient.use(createCredentialsMiddleware());
-apiClient.use(createApiKeyMiddleware());
-apiClient.use(createAuthMiddleware());
+let currentRuntimeConfig = createClientRuntimeConfig(null);
+
+export let apiClient = createConfiguredClient(currentRuntimeConfig);
+
+export let rootResource = apiClient.go<Root>('/api');
+
+export async function initializeApiClient(): Promise<void> {
+  const desktopRuntimeConfig = await getDesktopRuntimeConfig();
+  currentRuntimeConfig = createClientRuntimeConfig(desktopRuntimeConfig);
+  apiClient = createConfiguredClient(currentRuntimeConfig);
+  rootResource = apiClient.go<Root>('/api');
+}
