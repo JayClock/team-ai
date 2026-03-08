@@ -53,6 +53,9 @@
     },
     {
       "path": "./apps/desktop"
+    },
+    {
+      "path": "./apps/local-server"
     }
   ]
 }
