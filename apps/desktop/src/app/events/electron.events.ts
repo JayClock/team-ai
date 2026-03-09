@@ -8,18 +8,16 @@ import { environment } from '../../environments/environment';
 
 export default class ElectronEvents {
   static bootstrapElectronEvents(): Electron.IpcMain {
+    ipcMain.handle('get-app-version', () => {
+      console.log(`Fetching application version... [v${environment.version}]`);
+
+      return environment.version;
+    });
+
+    ipcMain.on('quit', (event, code) => {
+      app.exit(code);
+    });
+
     return ipcMain;
   }
 }
-
-// Retrieve app version
-ipcMain.handle('get-app-version', (event) => {
-  console.log(`Fetching application version... [v${environment.version}]`);
-
-  return environment.version;
-});
-
-// Handle App termination
-ipcMain.on('quit', (event, code) => {
-  app.exit(code);
-});

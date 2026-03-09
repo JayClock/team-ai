@@ -88,7 +88,6 @@ export default class App {
   static main(app: Electron.App, browserWindow: typeof BrowserWindow) {
     App.application = app;
 
-    ipcMain.handle('get-app-version', () => App.application.getVersion());
     ipcMain.handle(desktopRuntimeChannel, () => {
       const runtimeConfig = LocalServerManager.getRuntimeConfig();
 

@@ -38,6 +38,7 @@
     },
     "serve": {
       "executor": "nx-electron:execute",
+      "dependsOn": ["@web/main:serve"],
       "options": {
         "buildTarget": "desktop:build"
       }
