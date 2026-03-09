@@ -5,8 +5,12 @@ import type { Database } from 'better-sqlite3';
 import { sqliteMigrations } from './migrations';
 
 const defaultBusyTimeoutMs = 5_000;
+const legacyMigrationAliases: Record<string, string[]> = {
+  '007_project_workspace_root': ['007_project_repository_metadata'],
+  '008_project_repository_source': ['007_project_repository_metadata'],
+};
 
-function resolveDataDirectory(): string {
+export function resolveDataDirectory(): string {
   return process.env.TEAMAI_DATA_DIR ?? join(process.cwd(), '.team-ai');
 }
 
@@ -37,6 +41,14 @@ export function initializeDatabase(): Database {
         .all() as Array<{ version: string }>
     ).map(({ version }) => String(version)),
   );
+
+  for (const [currentVersion, legacyVersions] of Object.entries(
+    legacyMigrationAliases,
+  )) {
+    if (legacyVersions.some((version) => appliedVersions.has(version))) {
+      appliedVersions.add(currentVersion);
+    }
+  }
 
   const insertMigration = database.prepare(`
     INSERT INTO schema_migrations(version, applied_at)

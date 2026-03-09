@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import {
   createProject,
+  findProjectBySourceUrl,
   findProjectByWorkspaceRoot,
   getProjectById,
   listProjects,
@@ -30,12 +31,16 @@ describe('project service', () => {
     const project = await createProject(sqlite, {
       title: 'Team AI',
       description: 'Local repo',
+      sourceType: 'github',
+      sourceUrl: 'https://github.com/team-ai/team-ai',
       workspaceRoot: '/Users/example/team-ai',
     });
 
     const reloadedProject = await getProjectById(sqlite, project.id);
 
     expect(reloadedProject.workspaceRoot).toBe('/Users/example/team-ai');
+    expect(reloadedProject.sourceType).toBe('github');
+    expect(reloadedProject.sourceUrl).toBe('https://github.com/team-ai/team-ai');
   });
 
   it('filters projects by workspaceRoot', async () => {
@@ -75,6 +80,23 @@ describe('project service', () => {
     expect(resolvedProject?.id).toBe(project.id);
   });
 
+  it('finds a project by sourceUrl for reuse', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Team AI',
+      sourceType: 'github',
+      sourceUrl: 'https://github.com/team-ai/team-ai',
+      workspaceRoot: '/Users/example/team-ai',
+    });
+
+    const resolvedProject = await findProjectBySourceUrl(
+      sqlite,
+      'https://github.com/team-ai/team-ai',
+    );
+
+    expect(resolvedProject?.id).toBe(project.id);
+  });
+
   it('updates workspaceRoot', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
@@ -86,6 +108,21 @@ describe('project service', () => {
     });
 
     expect(updatedProject.workspaceRoot).toBe('/Users/example/team-ai');
+  });
+
+  it('updates repository source metadata', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Team AI',
+    });
+
+    const updatedProject = await updateProject(sqlite, project.id, {
+      sourceType: 'github',
+      sourceUrl: 'https://github.com/team-ai/team-ai',
+    });
+
+    expect(updatedProject.sourceType).toBe('github');
+    expect(updatedProject.sourceUrl).toBe('https://github.com/team-ai/team-ai');
   });
 
   it('rejects duplicate workspaceRoot values', async () => {

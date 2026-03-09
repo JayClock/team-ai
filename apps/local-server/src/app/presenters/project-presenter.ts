@@ -25,7 +25,7 @@ export function presentProject(project: ProjectPayload) {
 }
 
 export function presentProjectList(payload: ProjectListPayload) {
-  const { items, page, pageSize, q, total, workspaceRoot } = payload;
+  const { items, page, pageSize, q, sourceUrl, total, workspaceRoot } = payload;
   const query = new URLSearchParams({
     page: String(page),
     pageSize: String(pageSize),
@@ -37,6 +37,10 @@ export function presentProjectList(payload: ProjectListPayload) {
 
   if (workspaceRoot) {
     query.set('workspaceRoot', workspaceRoot);
+  }
+
+  if (sourceUrl) {
+    query.set('sourceUrl', sourceUrl);
   }
 
   return {

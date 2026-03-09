@@ -230,4 +230,18 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE workspace_root IS NOT NULL AND deleted_at IS NULL;
     `,
   },
+  {
+    version: '008_project_repository_source',
+    sql: `
+      ALTER TABLE projects
+        ADD COLUMN source_type TEXT;
+
+      ALTER TABLE projects
+        ADD COLUMN source_url TEXT;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_source_url_active
+        ON projects(source_url)
+        WHERE source_url IS NOT NULL AND deleted_at IS NULL;
+    `,
+  },
 ];

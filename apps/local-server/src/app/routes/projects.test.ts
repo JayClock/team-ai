@@ -54,6 +54,31 @@ describe('projects route', () => {
     });
   });
 
+  it('rejects invalid repository URLs when cloning a project', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+    fastify.decorate('sqlite', sqlite);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/projects/clone',
+      payload: {
+        repositoryUrl: 'not-a-github-repo',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      title: 'Invalid Repository URL',
+      type: 'https://team-ai.dev/problems/invalid-repository-url',
+    });
+  });
+
   it('filters projects by workspaceRoot', async () => {
     const sqlite = await createTestDatabase();
     const fastify = Fastify();

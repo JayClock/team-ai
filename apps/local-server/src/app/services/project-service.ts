@@ -14,6 +14,7 @@ interface ListProjectsQuery {
   page: number;
   pageSize: number;
   q?: string;
+  sourceUrl?: string;
   workspaceRoot?: string;
 }
 
@@ -21,6 +22,8 @@ interface ProjectRow {
   created_at: string;
   description: string | null;
   id: string;
+  source_type: 'github' | 'local' | null;
+  source_url: string | null;
   title: string;
   updated_at: string;
   workspace_root: string | null;
@@ -33,6 +36,8 @@ function mapProjectRow(row: ProjectRow): ProjectPayload {
     description: row.description,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    sourceType: row.source_type,
+    sourceUrl: row.source_url,
     workspaceRoot: row.workspace_root,
   };
 }
@@ -59,6 +64,15 @@ function throwWorkspaceRootConflict(workspaceRoot: string): never {
   });
 }
 
+function throwSourceUrlConflict(sourceUrl: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/project-source-conflict',
+    title: 'Project Source Conflict',
+    status: 409,
+    detail: `Repository source ${sourceUrl} is already assigned to another project`,
+  });
+}
+
 function isWorkspaceRootConstraintError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -67,11 +81,19 @@ function isWorkspaceRootConstraintError(error: unknown): boolean {
   );
 }
 
+function isSourceUrlConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes('idx_projects_source_url_active') ||
+      error.message.includes('UNIQUE constraint failed: projects.source_url'))
+  );
+}
+
 export async function listProjects(
   sqlite: Database,
   query: ListProjectsQuery,
 ): Promise<ProjectListPayload> {
-  const { page, pageSize, q, workspaceRoot } = query;
+  const { page, pageSize, q, sourceUrl, workspaceRoot } = query;
   const offset = (page - 1) * pageSize;
   const filters = ['deleted_at IS NULL'];
   const parameters: Record<string, unknown> = {
@@ -89,13 +111,18 @@ export async function listProjects(
     parameters.workspaceRoot = workspaceRoot.trim();
   }
 
+  if (sourceUrl) {
+    filters.push('source_url = @sourceUrl');
+    parameters.sourceUrl = sourceUrl.trim();
+  }
+
   const whereClause = filters.join(' AND ');
 
   const items = sqlite
     .prepare(
       `
         SELECT id, title, description, created_at, updated_at
-               , workspace_root
+               , source_type, source_url, workspace_root
         FROM projects
         WHERE ${whereClause}
         ORDER BY updated_at DESC
@@ -120,6 +147,7 @@ export async function listProjects(
     pageSize,
     q,
     total: total.count,
+    sourceUrl,
     workspaceRoot,
   };
 }
@@ -138,11 +166,36 @@ export async function findProjectByWorkspaceRoot(
     .prepare(
       `
         SELECT id, title, description, created_at, updated_at, workspace_root
+             , source_type, source_url
         FROM projects
         WHERE workspace_root = ? AND deleted_at IS NULL
       `,
     )
     .get(normalizedWorkspaceRoot) as ProjectRow | undefined;
+
+  return row ? mapProjectRow(row) : undefined;
+}
+
+export async function findProjectBySourceUrl(
+  sqlite: Database,
+  sourceUrl: string,
+): Promise<ProjectPayload | undefined> {
+  const normalizedSourceUrl = sourceUrl.trim();
+
+  if (normalizedSourceUrl.length === 0) {
+    return undefined;
+  }
+
+  const row = sqlite
+    .prepare(
+      `
+        SELECT id, title, description, created_at, updated_at
+             , source_type, source_url, workspace_root
+        FROM projects
+        WHERE source_url = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(normalizedSourceUrl) as ProjectRow | undefined;
 
   return row ? mapProjectRow(row) : undefined;
 }
@@ -153,12 +206,15 @@ export async function createProject(
 ): Promise<ProjectPayload> {
   const now = new Date().toISOString();
   const workspaceRoot = input.workspaceRoot?.trim() || null;
+  const sourceUrl = input.sourceUrl?.trim() || null;
   const project: ProjectPayload = {
     id: createProjectId(),
     title: input.title,
     description: input.description ?? null,
     createdAt: now,
     updatedAt: now,
+    sourceType: input.sourceType ?? null,
+    sourceUrl,
     workspaceRoot,
   };
 
@@ -170,6 +226,8 @@ export async function createProject(
             id,
             title,
             description,
+            source_type,
+            source_url,
             workspace_root,
             created_at,
             updated_at,
@@ -179,6 +237,8 @@ export async function createProject(
             @id,
             @title,
             @description,
+            @sourceType,
+            @sourceUrl,
             @workspaceRoot,
             @createdAt,
             @updatedAt,
@@ -190,6 +250,10 @@ export async function createProject(
   } catch (error) {
     if (workspaceRoot && isWorkspaceRootConstraintError(error)) {
       throwWorkspaceRootConflict(workspaceRoot);
+    }
+
+    if (sourceUrl && isSourceUrlConstraintError(error)) {
+      throwSourceUrlConflict(sourceUrl);
     }
 
     throw error;
@@ -206,7 +270,7 @@ export async function getProjectById(
     .prepare(
       `
         SELECT id, title, description, created_at, updated_at
-             , workspace_root
+             , source_type, source_url, workspace_root
         FROM projects
         WHERE id = ? AND deleted_at IS NULL
       `,
@@ -232,6 +296,12 @@ export async function updateProject(
     description:
       input.description === undefined ? current.description : input.description,
     updatedAt: new Date().toISOString(),
+    sourceType:
+      input.sourceType === undefined ? current.sourceType : input.sourceType,
+    sourceUrl:
+      input.sourceUrl === undefined
+        ? current.sourceUrl
+        : input.sourceUrl?.trim() || null,
     workspaceRoot:
       input.workspaceRoot === undefined
         ? current.workspaceRoot
@@ -246,6 +316,8 @@ export async function updateProject(
           SET
             title = @title,
             description = @description,
+            source_type = @sourceType,
+            source_url = @sourceUrl,
             workspace_root = @workspaceRoot,
             updated_at = @updatedAt
           WHERE id = @id AND deleted_at IS NULL
@@ -255,6 +327,10 @@ export async function updateProject(
   } catch (error) {
     if (next.workspaceRoot && isWorkspaceRootConstraintError(error)) {
       throwWorkspaceRootConflict(next.workspaceRoot);
+    }
+
+    if (next.sourceUrl && isSourceUrlConstraintError(error)) {
+      throwSourceUrlConflict(next.sourceUrl);
     }
 
     throw error;
