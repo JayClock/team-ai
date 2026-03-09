@@ -14,8 +14,18 @@ import type {
   StepStatus,
 } from '../schemas/orchestration';
 import { createOrchestrationArtifact, listArtifactsBySession } from './orchestration-artifact-service';
-import { executeOrchestrationStepViaGateway } from './orchestration-step-executor';
+import {
+  executeOrchestrationStepViaGateway,
+  resumeOrchestrationStepViaGateway,
+  type OrchestrationGatewayExecutionResult,
+} from './orchestration-step-executor';
 import { getProjectById } from './project-service';
+import {
+  getCancelableStepStatuses,
+  getRecoverableSessionStatuses,
+  isRetryableStepStatus,
+  shouldFailSessionForWaitingRetry,
+} from './orchestration-recovery-service';
 
 const sessionIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -618,17 +628,20 @@ function finalizeSessionIfComplete(
   const steps = listSessionStepRows(sqlite, sessionId);
   const hasRunning = steps.some((step) => step.status === 'RUNNING');
   const hasFailed = steps.some((step) => step.status === 'FAILED');
+  const hasWaitingRetry = shouldFailSessionForWaitingRetry(
+    steps.map((step) => step.status),
+  );
   const hasPending = steps.some(
     (step) => step.status === 'PENDING' || step.status === 'READY',
   );
 
-  if (hasFailed) {
+  if (hasFailed || hasWaitingRetry) {
     writeSessionStatus(sqlite, sessionId, 'FAILED');
     appendEvent(sqlite, broker, {
       sessionId,
       type: 'session.failed',
       payload: {
-        reason: 'step-failed',
+        reason: hasWaitingRetry ? 'step-waiting-retry' : 'step-failed',
       },
     });
     return true;
@@ -725,6 +738,205 @@ function buildGatewayEventPayload(event: Record<string, unknown>) {
   };
 }
 
+function resetStepForRetry(
+  sqlite: Database,
+  stepId: string,
+  nextStatus: StepStatus,
+  nextAttempt: number,
+) {
+  sqlite
+    .prepare(
+      `
+        UPDATE orchestration_steps
+        SET
+          status = @status,
+          attempt = @attempt,
+          runtime_session_id = NULL,
+          runtime_cursor = NULL,
+          started_at = NULL,
+          completed_at = NULL,
+          error_code = NULL,
+          error_message = NULL,
+          output_json = NULL,
+          updated_at = @updatedAt
+        WHERE id = @id
+      `,
+    )
+    .run({
+      id: stepId,
+      status: nextStatus,
+      attempt: nextAttempt,
+      updatedAt: new Date().toISOString(),
+    });
+}
+
+function markStepWaitingRetry(
+  sqlite: Database,
+  broker: OrchestrationStreamBroker,
+  sessionId: string,
+  step: StepRow,
+  input: {
+    errorCode: string;
+    errorMessage: string;
+    reason: string;
+  },
+) {
+  writeStepStatus(sqlite, step.id, 'WAITING_RETRY');
+  writeStepExecutionData(sqlite, step.id, {
+    completedAt: new Date().toISOString(),
+    errorCode: input.errorCode,
+    errorMessage: input.errorMessage,
+  });
+  appendEvent(sqlite, broker, {
+    sessionId,
+    stepId: step.id,
+    type: 'step.failed',
+    payload: {
+      attempt: step.attempt,
+      kind: step.kind,
+      reason: input.reason,
+      retryable: true,
+      errorCode: input.errorCode,
+      message: input.errorMessage,
+    },
+  });
+}
+
+async function applyExecutionResult(
+  sqlite: Database,
+  broker: OrchestrationStreamBroker,
+  sessionId: string,
+  step: StepRow,
+  result: OrchestrationGatewayExecutionResult,
+) {
+  writeStepExecutionData(sqlite, step.id, {
+    inputJson: result.prompt
+      ? {
+          artifactKind: result.prompt.artifactKind,
+          promptVersion: result.prompt.version,
+          systemPrompt: result.prompt.systemPrompt,
+          userPrompt: result.prompt.userPrompt,
+        }
+      : undefined,
+    runtimeCursor: result.runtimeCursor,
+    runtimeSessionId: result.runtimeSessionId,
+  });
+
+  if (result.status === 'failed') {
+    const waitingRetryCodes = new Set([
+      'ORCHESTRATION_GATEWAY_TIMEOUT',
+      'ORCHESTRATION_GATEWAY_FAILED',
+      'ORCHESTRATION_GATEWAY_ERROR',
+      'PROVIDER_TIMEOUT',
+      'PROVIDER_PROCESS_EXITED',
+      'PROVIDER_PROCESS_START_FAILED',
+    ]);
+
+    if (waitingRetryCodes.has(result.errorCode)) {
+      markStepWaitingRetry(sqlite, broker, sessionId, step, {
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        reason: 'runtime-retry-required',
+      });
+      return;
+    }
+
+    if (result.errorCode === 'ORCHESTRATION_GATEWAY_CANCELLED') {
+      writeStepStatus(sqlite, step.id, 'CANCELLED');
+      writeStepExecutionData(sqlite, step.id, {
+        completedAt: new Date().toISOString(),
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+      });
+      appendEvent(sqlite, broker, {
+        sessionId,
+        stepId: step.id,
+        type: 'step.cancelled',
+        payload: {
+          attempt: step.attempt,
+          kind: step.kind,
+          runtimeSessionId: result.runtimeSessionId ?? null,
+        },
+      });
+      return;
+    }
+
+    writeStepStatus(sqlite, step.id, 'FAILED');
+    writeStepExecutionData(sqlite, step.id, {
+      completedAt: new Date().toISOString(),
+      errorCode: result.errorCode,
+      errorMessage: result.errorMessage,
+    });
+    appendEvent(sqlite, broker, {
+      sessionId,
+      stepId: step.id,
+      type: 'step.failed',
+      payload: {
+        attempt: step.attempt,
+        kind: step.kind,
+        reason: result.errorCode,
+        message: result.errorMessage,
+        runtimeSessionId: result.runtimeSessionId ?? null,
+        retryable: false,
+      },
+    });
+    return;
+  }
+
+  await createOrchestrationArtifact(sqlite, {
+    sessionId,
+    stepId: step.id,
+    kind: result.artifactKind,
+    content: result.parsedOutput,
+  });
+
+  writeStepExecutionData(sqlite, step.id, {
+    completedAt: new Date().toISOString(),
+    outputJson: result.parsedOutput,
+    runtimeCursor: result.runtimeCursor,
+    runtimeSessionId: result.runtimeSessionId,
+    errorCode: null,
+    errorMessage: null,
+  });
+
+  if (step.kind === 'VERIFY' && result.parsedOutput.verdict === 'fail') {
+    writeStepStatus(sqlite, step.id, 'FAILED');
+    writeStepExecutionData(sqlite, step.id, {
+      errorCode: 'VERIFICATION_FAILED',
+      errorMessage:
+        typeof result.parsedOutput.summary === 'string'
+          ? result.parsedOutput.summary
+          : 'Verification reported a failed verdict',
+    });
+    appendEvent(sqlite, broker, {
+      sessionId,
+      stepId: step.id,
+      type: 'step.failed',
+      payload: {
+        attempt: step.attempt,
+        kind: step.kind,
+        reason: 'verification-failed',
+        verdict: result.parsedOutput.verdict,
+        runtimeSessionId: result.runtimeSessionId,
+      },
+    });
+    return;
+  }
+
+  writeStepStatus(sqlite, step.id, 'COMPLETED');
+  appendEvent(sqlite, broker, {
+    sessionId,
+    stepId: step.id,
+    type: 'step.completed',
+    payload: {
+      attempt: step.attempt,
+      artifactKind: result.artifactKind,
+      kind: step.kind,
+      runtimeSessionId: result.runtimeSessionId,
+    },
+  });
+}
+
 async function executeStep(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
@@ -772,6 +984,11 @@ async function executeStep(
       session,
       step: orchestrationStep,
       upstreamArtifacts,
+      onRuntimeStarted: (runtimeSessionId) => {
+        writeStepExecutionData(sqlite, step.id, {
+          runtimeSessionId,
+        });
+      },
       onGatewayEvent: (event) => {
         writeStepExecutionData(sqlite, step.id, {
           runtimeCursor: event.cursor ?? null,
@@ -793,95 +1010,7 @@ async function executeStep(
         });
       },
     });
-
-    writeStepExecutionData(sqlite, step.id, {
-      inputJson: result.prompt
-        ? {
-            artifactKind: result.prompt.artifactKind,
-            promptVersion: result.prompt.version,
-            systemPrompt: result.prompt.systemPrompt,
-            userPrompt: result.prompt.userPrompt,
-          }
-        : undefined,
-      runtimeCursor: result.runtimeCursor,
-      runtimeSessionId: result.runtimeSessionId,
-    });
-
-    if (result.status === 'failed') {
-      writeStepStatus(sqlite, step.id, 'FAILED');
-      writeStepExecutionData(sqlite, step.id, {
-        completedAt: new Date().toISOString(),
-        errorCode: result.errorCode,
-        errorMessage: result.errorMessage,
-      });
-      appendEvent(sqlite, broker, {
-        sessionId,
-        stepId: step.id,
-        type: 'step.failed',
-        payload: {
-          attempt: step.attempt,
-          kind: step.kind,
-          reason: result.errorCode,
-          message: result.errorMessage,
-          runtimeSessionId: result.runtimeSessionId ?? null,
-        },
-      });
-      return;
-    }
-
-    await createOrchestrationArtifact(sqlite, {
-      sessionId,
-      stepId: step.id,
-      kind: result.artifactKind,
-      content: result.parsedOutput,
-    });
-
-    writeStepExecutionData(sqlite, step.id, {
-      completedAt: new Date().toISOString(),
-      outputJson: result.parsedOutput,
-      runtimeCursor: result.runtimeCursor,
-      runtimeSessionId: result.runtimeSessionId,
-    });
-
-    if (
-      step.kind === 'VERIFY' &&
-      result.parsedOutput.verdict === 'fail'
-    ) {
-      writeStepStatus(sqlite, step.id, 'FAILED');
-      writeStepExecutionData(sqlite, step.id, {
-        errorCode: 'VERIFICATION_FAILED',
-        errorMessage:
-          typeof result.parsedOutput.summary === 'string'
-            ? result.parsedOutput.summary
-            : 'Verification reported a failed verdict',
-      });
-      appendEvent(sqlite, broker, {
-        sessionId,
-        stepId: step.id,
-        type: 'step.failed',
-        payload: {
-          attempt: step.attempt,
-          kind: step.kind,
-          reason: 'verification-failed',
-          verdict: result.parsedOutput.verdict,
-          runtimeSessionId: result.runtimeSessionId,
-        },
-      });
-      return;
-    }
-
-    writeStepStatus(sqlite, step.id, 'COMPLETED');
-    appendEvent(sqlite, broker, {
-      sessionId,
-      stepId: step.id,
-      type: 'step.completed',
-      payload: {
-        attempt: step.attempt,
-        artifactKind: result.artifactKind,
-        kind: step.kind,
-        runtimeSessionId: result.runtimeSessionId,
-      },
-    });
+    await applyExecutionResult(sqlite, broker, sessionId, step, result);
   } catch (error) {
     const detail =
       error instanceof ProblemError
@@ -1328,14 +1457,51 @@ export async function cancelOrchestrationSession(
     runner.cancelled = true;
   }
 
-  const activeRuntimeSessionId = listSessionStepRows(sqlite, sessionId).find(
+  const steps = listSessionStepRows(sqlite, sessionId);
+  const activeStep = steps.find(
     (step) => step.status === 'RUNNING' && step.runtime_session_id,
-  )?.runtime_session_id;
+  );
+  const activeRuntimeSessionId = activeStep?.runtime_session_id;
 
   if (agentGatewayClient?.isConfigured() && activeRuntimeSessionId) {
-    await agentGatewayClient.cancel(activeRuntimeSessionId, {
-      reason: 'orchestration-session-cancelled',
-      traceId: session.trace_id ?? undefined,
+    try {
+      await agentGatewayClient.cancel(activeRuntimeSessionId, {
+        reason: 'orchestration-session-cancelled',
+        traceId: session.trace_id ?? undefined,
+      });
+    } catch (error) {
+      if (!(error instanceof ProblemError) || error.status !== 404) {
+        throw error;
+      }
+    }
+  }
+
+  for (const step of steps) {
+    if (!getCancelableStepStatuses().includes(step.status)) {
+      continue;
+    }
+
+    writeStepStatus(sqlite, step.id, 'CANCELLED');
+    writeStepExecutionData(sqlite, step.id, {
+      completedAt: new Date().toISOString(),
+      errorCode:
+        step.id === activeStep?.id
+          ? 'ORCHESTRATION_SESSION_CANCELLED'
+          : step.error_code,
+      errorMessage:
+        step.id === activeStep?.id
+          ? 'Cancelled by orchestration session request'
+          : step.error_message,
+    });
+    appendEvent(sqlite, broker, {
+      sessionId,
+      stepId: step.id,
+      type: 'step.cancelled',
+      payload: {
+        attempt: step.attempt,
+        kind: step.kind,
+        runtimeSessionId: step.runtime_session_id,
+      },
     });
   }
 
@@ -1343,7 +1509,9 @@ export async function cancelOrchestrationSession(
   appendEvent(sqlite, broker, {
     sessionId,
     type: 'session.cancelled',
-    payload: {},
+    payload: {
+      runtimeSessionId: activeRuntimeSessionId ?? null,
+    },
   });
 
   return {
@@ -1372,7 +1540,7 @@ export async function resumeOrchestrationSession(
             status = 'PENDING',
             updated_at = @updatedAt
           WHERE session_id = @sessionId
-            AND status IN ('PENDING', 'READY', 'RUNNING', 'WAITING_RETRY')
+            AND status IN ('PENDING', 'READY', 'RUNNING', 'WAITING_RETRY', 'CANCELLED')
         `,
       )
       .run({
@@ -1407,7 +1575,7 @@ export async function retryOrchestrationSession(
   getSessionRow(sqlite, sessionId);
 
   const failedSteps = listSessionStepRows(sqlite, sessionId).filter(
-    (step) => step.status === 'FAILED',
+    (step) => isRetryableStepStatus(step.status),
   );
 
   if (failedSteps.length === 0) {
@@ -1418,21 +1586,15 @@ export async function retryOrchestrationSession(
     writeSessionStatus(sqlite, sessionId, 'RUNNING');
 
     const statement = sqlite.prepare(
-      `
-        UPDATE orchestration_steps
-        SET
-          status = 'READY',
-          attempt = attempt + 1,
-          updated_at = @updatedAt
-        WHERE id = @id
-      `,
+      `SELECT 1`,
     );
 
     for (const step of failedSteps) {
-      statement.run({
-        id: step.id,
-        updatedAt: new Date().toISOString(),
-      });
+      statement.get();
+      if (step.attempt >= step.max_attempts) {
+        throwInvalidState(`Step ${step.id} exhausted max attempts (${step.max_attempts})`);
+      }
+      resetStepForRetry(sqlite, step.id, 'READY', step.attempt + 1);
     }
   });
 
@@ -1445,6 +1607,18 @@ export async function retryOrchestrationSession(
       stepIds: failedSteps.map((step) => step.id),
     },
   });
+
+  for (const step of failedSteps) {
+    appendEvent(sqlite, broker, {
+      sessionId,
+      stepId: step.id,
+      type: 'step.retried',
+      payload: {
+        attempt: step.attempt + 1,
+        previousStatus: step.status,
+      },
+    });
+  }
 
   launchSessionSchedule(sqlite, broker, sessionId, agentGatewayClient);
 
@@ -1461,13 +1635,15 @@ export async function retryOrchestrationStep(
 ) {
   const step = getStepRow(sqlite, stepId);
 
-  if (step.status !== 'FAILED') {
+  if (!isRetryableStepStatus(step.status)) {
     throwInvalidState(`Step ${stepId} is not retryable from status ${step.status}`);
   }
 
-  writeStepStatus(sqlite, stepId, 'READY', {
-    incrementAttempt: true,
-  });
+  if (step.attempt >= step.max_attempts) {
+    throwInvalidState(`Step ${stepId} exhausted max attempts (${step.max_attempts})`);
+  }
+
+  resetStepForRetry(sqlite, stepId, 'READY', step.attempt + 1);
   writeSessionStatus(sqlite, step.session_id, 'RUNNING');
 
   appendEvent(sqlite, broker, {
@@ -1501,32 +1677,18 @@ export async function recoverActiveOrchestrationSessions(
       `
         SELECT id
         FROM orchestration_sessions
-        WHERE status IN ('PENDING', 'PLANNING', 'RUNNING')
+        WHERE status IN (${getRecoverableSessionStatuses()
+          .map((status) => `'${status}'`)
+          .join(', ')})
       `,
     )
     .all() as Array<{ id: string }>;
 
+  if (!agentGatewayClient?.isConfigured()) {
+    return;
+  }
+
   for (const row of rows) {
-    sqlite.transaction(() => {
-      sqlite
-        .prepare(
-          `
-            UPDATE orchestration_steps
-            SET
-              status = 'PENDING',
-              updated_at = @updatedAt
-            WHERE session_id = @sessionId
-              AND status IN ('PENDING', 'READY', 'RUNNING', 'WAITING_RETRY')
-          `,
-        )
-        .run({
-          sessionId: row.id,
-          updatedAt: new Date().toISOString(),
-        });
-
-      writeSessionStatus(sqlite, row.id, 'RUNNING');
-    })();
-
     appendEvent(sqlite, broker, {
       sessionId: row.id,
       type: 'session.resumed',
@@ -1535,6 +1697,91 @@ export async function recoverActiveOrchestrationSessions(
       },
     });
 
-    launchSessionSchedule(sqlite, broker, row.id, agentGatewayClient);
+    const steps = listSessionStepRows(sqlite, row.id);
+    const runningStep = steps.find((step) => step.status === 'RUNNING');
+
+    if (runningStep?.runtime_session_id) {
+      const session = await getOrchestrationSessionById(sqlite, row.id);
+      const step = await getOrchestrationStepById(sqlite, runningStep.id);
+      const upstreamArtifacts = await listArtifactsBySession(sqlite, row.id);
+
+      try {
+        const result = await resumeOrchestrationStepViaGateway({
+          agentGatewayClient,
+          session,
+          step,
+          upstreamArtifacts,
+          runtimeSessionId: runningStep.runtime_session_id,
+          runtimeCursor: runningStep.runtime_cursor,
+          onGatewayEvent: (event) => {
+            writeStepExecutionData(sqlite, runningStep.id, {
+              runtimeCursor: event.cursor ?? null,
+            });
+            appendEvent(sqlite, broker, {
+              sessionId: row.id,
+              stepId: runningStep.id,
+              type: 'step.runtime.event',
+              payload: buildGatewayEventPayload({
+                cursor: event.cursor ?? null,
+                data: event.data ?? {},
+                error: event.error ?? null,
+                eventId: event.eventId ?? null,
+                emittedAt: event.emittedAt ?? null,
+                sessionId: event.sessionId ?? null,
+                traceId: event.traceId ?? null,
+                type: event.type,
+                recovery: true,
+              }),
+            });
+          },
+        });
+
+        await applyExecutionResult(sqlite, broker, row.id, runningStep, result);
+      } catch (error) {
+        if (error instanceof ProblemError && error.status === 404) {
+          markStepWaitingRetry(sqlite, broker, row.id, runningStep, {
+            errorCode: 'ORCHESTRATION_RUNTIME_MISSING',
+            errorMessage: `Runtime session ${runningStep.runtime_session_id} is no longer available`,
+            reason: 'runtime-missing-after-recovery',
+          });
+        } else {
+          markStepWaitingRetry(sqlite, broker, row.id, runningStep, {
+            errorCode: 'ORCHESTRATION_RECOVERY_FAILED',
+            errorMessage:
+              error instanceof Error
+                ? error.message
+                : 'Failed to recover runtime session',
+            reason: 'recovery-failed',
+          });
+        }
+      }
+    } else if (runningStep) {
+      markStepWaitingRetry(sqlite, broker, row.id, runningStep, {
+        errorCode: 'ORCHESTRATION_RUNTIME_MISSING',
+        errorMessage: `Running step ${runningStep.id} has no runtime session id during recovery`,
+        reason: 'runtime-metadata-missing',
+      });
+    } else {
+      sqlite
+        .prepare(
+          `
+            UPDATE orchestration_steps
+            SET
+              status = 'PENDING',
+              updated_at = @updatedAt
+            WHERE session_id = @sessionId
+              AND status IN ('PENDING', 'READY')
+          `,
+        )
+        .run({
+          sessionId: row.id,
+          updatedAt: new Date().toISOString(),
+        });
+    }
+
+    if (!finalizeSessionIfComplete(sqlite, broker, row.id)) {
+      writeSessionStatus(sqlite, row.id, 'RUNNING');
+      launchSessionSchedule(sqlite, broker, row.id, agentGatewayClient);
+    }
   }
 }

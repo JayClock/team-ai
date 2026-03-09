@@ -8,13 +8,19 @@ import type {
   AgentGatewayEventEnvelope,
 } from '../clients/agent-gateway-client';
 import { initializeDatabase } from '../db/sqlite';
+import { ProblemError } from '../errors/problem-error';
 import { OrchestrationStreamBroker } from '../plugins/orchestration-stream';
+import { createOrchestrationArtifact } from './orchestration-artifact-service';
 import { createProject } from './project-service';
 import {
+  cancelOrchestrationSession,
   createOrchestrationSession,
   getOrchestrationSessionById,
   listOrchestrationEvents,
   listOrchestrationSteps,
+  recoverActiveOrchestrationSessions,
+  retryOrchestrationSession,
+  retryOrchestrationStep,
 } from './orchestration-service';
 
 describe('orchestration storage metadata', () => {
@@ -168,7 +174,7 @@ describe('orchestration storage metadata', () => {
         workspaceRoot: '/tmp/team-ai-workspace',
         traceId: 'trace-execution-1',
       },
-      gatewayClient,
+      gatewayClient.client,
     );
 
     await waitForTerminalSession(sqlite, session.id, 'COMPLETED');
@@ -248,7 +254,7 @@ describe('orchestration storage metadata', () => {
         title: 'Implement local workflow',
         goal: 'Wire local orchestration runtime',
       },
-      gatewayClient,
+      gatewayClient.client,
     );
 
     await waitForTerminalSession(sqlite, session.id, 'FAILED');
@@ -265,6 +271,300 @@ describe('orchestration storage metadata', () => {
       verdict: 'fail',
       summary: 'Verification found a regression',
     });
+  });
+
+  it('cancels the active runtime session and marks active steps cancelled', async () => {
+    const sqlite = await createTestDatabase();
+    const broker = new OrchestrationStreamBroker();
+    const project = await createProject(sqlite, {
+      title: 'Gateway Cancel Project',
+      description: 'Cancel the active runtime session',
+    });
+
+    const gatewayClient = createScriptedGatewayClient({
+      onPlan: {
+        summary: 'Plan local orchestration',
+        tasks: [
+          {
+            id: 'task-1',
+            title: 'Hook local gateway',
+            description: 'Replace the synthetic executor',
+            acceptanceCriteria: ['uses gateway client'],
+          },
+        ],
+        files: [],
+        verification: { commands: [], notes: [] },
+        risks: [],
+      },
+      onImplement: {
+        summary: 'Implemented gateway-backed execution',
+        changedFiles: [],
+        implementationNotes: [],
+        followUps: [],
+      },
+      onVerify: {
+        verdict: 'pass',
+        summary: 'ok',
+        findings: [],
+        recommendedNextStep: 'complete',
+      },
+      disableAutoCompletion: true,
+    });
+
+    const { session } = await createOrchestrationSession(
+      sqlite,
+      broker,
+      {
+        projectId: project.id,
+        title: 'Implement local workflow',
+        goal: 'Wire local orchestration runtime',
+      },
+      gatewayClient.client,
+    );
+
+    await waitForRuntimeSessionId(sqlite, session.id);
+    await cancelOrchestrationSession(
+      sqlite,
+      broker,
+      session.id,
+      gatewayClient.client,
+    );
+
+    const finalSession = await getOrchestrationSessionById(sqlite, session.id);
+    const steps = await listOrchestrationSteps(sqlite, session.id);
+    const events = await listOrchestrationEvents(sqlite, session.id);
+
+    expect(finalSession.status).toBe('CANCELLED');
+    expect(gatewayClient.cancelledSessionIds.length).toBe(1);
+    expect(steps[0]?.status).toBe('CANCELLED');
+    expect(events.some((event) => event.type === 'step.cancelled')).toBe(true);
+    expect(events.some((event) => event.type === 'session.cancelled')).toBe(true);
+  });
+
+  it('retries waiting-retry steps without overwriting artifacts', async () => {
+    const sqlite = await createTestDatabase();
+    const broker = new OrchestrationStreamBroker();
+    const project = await createProject(sqlite, {
+      title: 'Gateway Retry Project',
+      description: 'Retry waiting-retry step',
+    });
+
+    const { session } = await createOrchestrationSession(sqlite, broker, {
+      projectId: project.id,
+      title: 'Implement local workflow',
+      goal: 'Wire local orchestration runtime',
+    });
+
+    const stepsBefore = await listOrchestrationSteps(sqlite, session.id);
+    const verifyStepBefore = stepsBefore[2];
+    expect(verifyStepBefore).toBeDefined();
+    if (!verifyStepBefore) {
+      throw new Error('expected verify step to exist');
+    }
+    sqlite
+      .prepare(
+        `
+          UPDATE orchestration_sessions
+          SET status = 'FAILED'
+          WHERE id = ?
+        `,
+      )
+      .run(session.id);
+    sqlite
+      .prepare(
+        `
+          UPDATE orchestration_steps
+          SET
+            status = 'WAITING_RETRY',
+            error_code = 'PROVIDER_TIMEOUT',
+            error_message = 'timed out',
+            completed_at = @completedAt,
+            updated_at = @updatedAt
+          WHERE id = @id
+        `,
+      )
+      .run({
+        id: verifyStepBefore.id,
+        completedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    await createOrchestrationArtifact(sqlite, {
+      sessionId: session.id,
+      stepId: verifyStepBefore.id,
+      kind: 'verification',
+      content: {
+        verdict: 'fail',
+        summary: 'timed out',
+        findings: [],
+        recommendedNextStep: 'retry-step',
+      },
+    });
+
+    const persistedBeforeRetry = (await listOrchestrationSteps(sqlite, session.id))[2];
+    expect(persistedBeforeRetry?.artifacts).toHaveLength(1);
+
+    await retryOrchestrationStep(
+      sqlite,
+      broker,
+      verifyStepBefore.id,
+    );
+
+    const retriedStep = (await listOrchestrationSteps(sqlite, session.id))[2];
+    expect(retriedStep?.attempt).toBe(2);
+    expect(retriedStep?.status).toBe('READY');
+    expect(retriedStep?.artifacts).toHaveLength(1);
+    expect(retriedStep?.errorCode).toBeNull();
+  });
+
+  it('recovers running sessions when runtime is missing by moving step to waiting-retry', async () => {
+    const sqlite = await createTestDatabase();
+    const broker = new OrchestrationStreamBroker();
+    const project = await createProject(sqlite, {
+      title: 'Gateway Recovery Project',
+      description: 'Recover missing runtime session',
+    });
+
+    const { session } = await createOrchestrationSession(sqlite, broker, {
+      projectId: project.id,
+      title: 'Recover local workflow',
+      goal: 'Recover runtime session',
+    });
+
+    const steps = await listOrchestrationSteps(sqlite, session.id);
+    const planStep = steps[0];
+
+    sqlite
+      .prepare(
+        `
+          UPDATE orchestration_sessions
+          SET status = 'RUNNING'
+          WHERE id = ?
+        `,
+      )
+      .run(session.id);
+    sqlite
+      .prepare(
+        `
+          UPDATE orchestration_steps
+          SET
+            status = 'RUNNING',
+            runtime_session_id = 'runtime-missing',
+            started_at = @startedAt,
+            updated_at = @updatedAt
+          WHERE id = @id
+        `,
+      )
+      .run({
+        id: planStep?.id,
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+    const gatewayClient = createScriptedGatewayClient({
+      onPlan: {
+        summary: 'unused',
+        tasks: [],
+        files: [],
+        verification: { commands: [], notes: [] },
+        risks: [],
+      },
+      onImplement: {
+        summary: 'unused',
+        changedFiles: [],
+        implementationNotes: [],
+        followUps: [],
+      },
+      onVerify: {
+        verdict: 'pass',
+        summary: 'unused',
+        findings: [],
+        recommendedNextStep: 'complete',
+      },
+      missingRuntimeSessions: ['runtime-missing'],
+    });
+
+    await recoverActiveOrchestrationSessions(
+      sqlite,
+      broker,
+      gatewayClient.client,
+    );
+
+    const recoveredSession = await getOrchestrationSessionById(sqlite, session.id);
+    const recoveredSteps = await listOrchestrationSteps(sqlite, session.id);
+    const events = await listOrchestrationEvents(sqlite, session.id);
+
+    expect(recoveredSession.status).toBe('FAILED');
+    expect(recoveredSteps[0]?.status).toBe('WAITING_RETRY');
+    expect(recoveredSteps[0]?.errorCode).toBe('ORCHESTRATION_RUNTIME_MISSING');
+    expect(events.some((event) => event.type === 'session.resumed')).toBe(true);
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'step.failed' &&
+          event.payload.reason === 'runtime-missing-after-recovery',
+      ),
+    ).toBe(true);
+  });
+
+  it('retries failed sessions from the failed step forward', async () => {
+    const sqlite = await createTestDatabase();
+    const broker = new OrchestrationStreamBroker();
+    const project = await createProject(sqlite, {
+      title: 'Gateway Session Retry Project',
+      description: 'Retry failed session',
+    });
+
+    const gatewayClient = createScriptedGatewayClient({
+      onPlan: {
+        summary: 'Plan local orchestration',
+        tasks: [
+          {
+            id: 'task-1',
+            title: 'Hook local gateway',
+            description: 'Replace the synthetic executor',
+            acceptanceCriteria: ['uses gateway client'],
+          },
+        ],
+        files: [],
+        verification: { commands: [], notes: [] },
+        risks: [],
+      },
+      onImplement: {
+        summary: 'Implemented gateway-backed execution',
+        changedFiles: [],
+        implementationNotes: [],
+        followUps: [],
+      },
+      onVerify: {
+        verdict: 'fail',
+        summary: 'Verification found a regression',
+        findings: [],
+        recommendedNextStep: 'retry-step',
+      },
+    });
+
+    const { session } = await createOrchestrationSession(
+      sqlite,
+      broker,
+      {
+        projectId: project.id,
+        title: 'Implement local workflow',
+        goal: 'Wire local orchestration runtime',
+      },
+      gatewayClient.client,
+    );
+
+    await waitForTerminalSession(sqlite, session.id, 'FAILED');
+    await retryOrchestrationSession(sqlite, broker, session.id);
+
+    const steps = await listOrchestrationSteps(sqlite, session.id);
+    const events = await listOrchestrationEvents(sqlite, session.id);
+    const verifyStep = steps[2];
+
+    expect(verifyStep?.attempt).toBe(2);
+    expect(verifyStep?.status).toBe('READY');
+    expect(events.some((event) => event.type === 'session.retried')).toBe(true);
+    expect(events.some((event) => event.type === 'step.retried')).toBe(true);
   });
 
   async function createTestDatabase(): Promise<Database> {
@@ -306,18 +606,42 @@ describe('orchestration storage metadata', () => {
       `Session ${sessionId} did not reach ${expectedStatus} before timeout`,
     );
   }
+
+  async function waitForRuntimeSessionId(sqlite: Database, sessionId: string) {
+    const deadline = Date.now() + 5_000;
+
+    while (Date.now() < deadline) {
+      const steps = await listOrchestrationSteps(sqlite, sessionId);
+      if (steps.some((step) => step.runtimeSessionId)) {
+        return;
+      }
+      await sleep(20);
+    }
+
+    throw new Error(`Session ${sessionId} did not receive a runtime session id`);
+  }
 });
 
 function createScriptedGatewayClient(script: {
+  disableAutoCompletion?: boolean;
+  missingRuntimeSessions?: string[];
   onImplement: Record<string, unknown>;
   onPlan: Record<string, unknown>;
   onVerify: Record<string, unknown>;
-}): AgentGatewayClient {
+}): {
+  cancelledSessionIds: string[];
+  client: AgentGatewayClient;
+} {
   let runtimeIndex = 0;
   const eventStore = new Map<string, AgentGatewayEventEnvelope[]>();
+  const cancelledSessionIds: string[] = [];
+  const missingRuntimeSessions = new Set(script.missingRuntimeSessions ?? []);
 
   return {
+    cancelledSessionIds,
+    client: {
     async cancel(sessionId) {
+      cancelledSessionIds.push(sessionId);
       return {
         accepted: true,
         session: {
@@ -347,6 +671,14 @@ function createScriptedGatewayClient(script: {
       return true;
     },
     async listEvents(sessionId, cursor) {
+      if (missingRuntimeSessions.has(sessionId)) {
+        throw new ProblemError({
+          type: 'https://team-ai.dev/problems/agent-gateway-request-failed',
+          title: 'Agent Gateway Request Failed',
+          status: 404,
+          detail: `missing runtime session ${sessionId}`,
+        });
+      }
       const events = eventStore.get(sessionId) ?? [];
       const index = cursor
         ? events.findIndex((event) => event.cursor === cursor)
@@ -368,6 +700,29 @@ function createScriptedGatewayClient(script: {
       };
     },
     async prompt(sessionId, input) {
+      if (script.disableAutoCompletion) {
+        eventStore.set(sessionId, [
+          {
+            type: 'status',
+            cursor: `${sessionId}:1`,
+            data: {
+              state: 'RUNNING',
+            },
+          },
+        ]);
+
+        return {
+          accepted: true,
+          runtime: {
+            provider: 'codex',
+          },
+          session: {
+            sessionId,
+            state: 'RUNNING',
+          },
+        };
+      }
+
       const payload = resolveScriptPayload(script, input.input);
       eventStore.set(sessionId, [
         {
@@ -407,11 +762,14 @@ function createScriptedGatewayClient(script: {
     async stream() {
       return;
     },
+  },
   };
 }
 
 function resolveScriptPayload(
   script: {
+    disableAutoCompletion?: boolean;
+    missingRuntimeSessions?: string[];
     onImplement: Record<string, unknown>;
     onPlan: Record<string, unknown>;
     onVerify: Record<string, unknown>;

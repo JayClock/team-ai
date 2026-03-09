@@ -40,6 +40,7 @@ export type OrchestrationGatewayExecutionResult =
 
 export async function executeOrchestrationStepViaGateway(input: {
   agentGatewayClient: AgentGatewayClient;
+  onRuntimeStarted?: (runtimeSessionId: string) => void;
   onGatewayEvent?: (event: AgentGatewayEventEnvelope) => void;
   session: OrchestrationSessionPayload;
   step: OrchestrationStepPayload;
@@ -62,6 +63,7 @@ export async function executeOrchestrationStepViaGateway(input: {
     },
   });
   const runtimeSessionId = sessionResponse.session.sessionId;
+  input.onRuntimeStarted?.(runtimeSessionId);
 
   await input.agentGatewayClient.prompt(runtimeSessionId, {
     input: renderGatewayPrompt(prompt),
@@ -80,13 +82,53 @@ export async function executeOrchestrationStepViaGateway(input: {
     },
   });
 
-  let cursor: string | null = null;
+  return await collectGatewayExecution({
+    agentGatewayClient: input.agentGatewayClient,
+    onGatewayEvent: input.onGatewayEvent,
+    prompt,
+    runtimeCursor: null,
+    runtimeSessionId,
+  });
+}
+
+export async function resumeOrchestrationStepViaGateway(input: {
+  agentGatewayClient: AgentGatewayClient;
+  onGatewayEvent?: (event: AgentGatewayEventEnvelope) => void;
+  runtimeCursor?: string | null;
+  runtimeSessionId: string;
+  session: OrchestrationSessionPayload;
+  step: OrchestrationStepPayload;
+  upstreamArtifacts: OrchestrationArtifactPayload[];
+}): Promise<OrchestrationGatewayExecutionResult> {
+  const prompt = buildOrchestrationPrompt({
+    session: input.session,
+    step: input.step,
+    upstreamArtifacts: input.upstreamArtifacts,
+  });
+
+  return await collectGatewayExecution({
+    agentGatewayClient: input.agentGatewayClient,
+    onGatewayEvent: input.onGatewayEvent,
+    prompt,
+    runtimeCursor: input.runtimeCursor ?? null,
+    runtimeSessionId: input.runtimeSessionId,
+  });
+}
+
+async function collectGatewayExecution(input: {
+  agentGatewayClient: AgentGatewayClient;
+  onGatewayEvent?: (event: AgentGatewayEventEnvelope) => void;
+  prompt: OrchestrationPromptBuildResult;
+  runtimeCursor: string | null;
+  runtimeSessionId: string;
+}): Promise<OrchestrationGatewayExecutionResult> {
+  let cursor: string | null = input.runtimeCursor;
   const outputChunks: string[] = [];
   const deadline = Date.now() + defaultPromptTimeoutMs + gatewayPollGraceMs;
 
   while (Date.now() < deadline) {
     const page = await input.agentGatewayClient.listEvents(
-      runtimeSessionId,
+      input.runtimeSessionId,
       cursor ?? undefined,
     );
 
@@ -111,19 +153,19 @@ export async function executeOrchestrationStepViaGateway(input: {
           errorMessage:
             event.error?.message ??
             'Gateway execution failed without an error message',
-          prompt,
+          prompt: input.prompt,
           rawOutput: outputChunks.join(''),
           runtimeCursor: cursor,
-          runtimeSessionId,
+          runtimeSessionId: input.runtimeSessionId,
         };
       }
 
       if (event.type === 'complete') {
         return parseCompletedResult({
-          prompt,
+          prompt: input.prompt,
           rawOutput: outputChunks.join(''),
           runtimeCursor: cursor,
-          runtimeSessionId,
+          runtimeSessionId: input.runtimeSessionId,
         });
       }
     }
@@ -139,19 +181,19 @@ export async function executeOrchestrationStepViaGateway(input: {
             ? 'ORCHESTRATION_GATEWAY_CANCELLED'
             : 'ORCHESTRATION_GATEWAY_FAILED',
         errorMessage: `Gateway session ended with state ${page.session.state}`,
-        prompt,
+        prompt: input.prompt,
         rawOutput: outputChunks.join(''),
         runtimeCursor: cursor,
-        runtimeSessionId,
+        runtimeSessionId: input.runtimeSessionId,
       };
     }
 
     if (page.session.state === 'COMPLETED') {
       return parseCompletedResult({
-        prompt,
+        prompt: input.prompt,
         rawOutput: outputChunks.join(''),
         runtimeCursor: cursor,
-        runtimeSessionId,
+        runtimeSessionId: input.runtimeSessionId,
       });
     }
 
@@ -161,11 +203,11 @@ export async function executeOrchestrationStepViaGateway(input: {
   return {
     status: 'failed',
     errorCode: 'ORCHESTRATION_GATEWAY_TIMEOUT',
-    errorMessage: `Gateway session ${runtimeSessionId} did not complete before the poll deadline`,
-    prompt,
+    errorMessage: `Gateway session ${input.runtimeSessionId} did not complete before the poll deadline`,
+    prompt: input.prompt,
     rawOutput: outputChunks.join(''),
     runtimeCursor: cursor,
-    runtimeSessionId,
+    runtimeSessionId: input.runtimeSessionId,
   };
 }
 

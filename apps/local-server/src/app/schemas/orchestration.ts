@@ -100,6 +100,7 @@ export interface OrchestrationEventPayload {
     | 'step.ready'
     | 'step.started'
     | 'step.runtime.event'
+    | 'step.cancelled'
     | 'step.completed'
     | 'step.failed'
     | 'step.retried';
