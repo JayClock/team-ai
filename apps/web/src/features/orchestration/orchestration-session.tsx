@@ -237,7 +237,7 @@ function resolveSelectedSession(
   return sessions.find((session) => session.data.id === targetSessionId) ?? sessions[0];
 }
 
-export default function OrchestrationDashboard() {
+export default function OrchestrationSessionPage() {
   const client = useClient();
   const navigate = useNavigate();
   const { sessionId } = useParams();

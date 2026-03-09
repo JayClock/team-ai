@@ -118,7 +118,7 @@ export const layoutSidebarData: LayoutSidebarData = {
       icon: PlaySquareIcon,
       items: [
         {
-          title: 'Orchestration',
+          title: 'Sessions',
           url: '/orchestration',
         },
       ],

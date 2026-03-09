@@ -3,8 +3,8 @@ import SmartDomainPage from '../features/landing/smart-domain-page';
 import { Login } from '../features/auth/login';
 import { Signup } from '../features/auth/signup';
 import AcpDebugPage from '../features/acp/acp-debug';
-import OrchestrationDashboard from '../features/orchestration/orchestration-dashboard';
 import OrchestrationHome from '../features/orchestration/orchestration-home';
+import OrchestrationSessionPage from '../features/orchestration/orchestration-session';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Layout, layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
@@ -40,7 +40,7 @@ function createAppRouter() {
         },
         {
           path: ':sessionId',
-          element: <OrchestrationDashboard />,
+          element: <OrchestrationSessionPage />,
         },
       ],
     },
