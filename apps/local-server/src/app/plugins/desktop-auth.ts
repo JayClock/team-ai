@@ -28,6 +28,10 @@ const desktopAuthPlugin: FastifyPluginAsync<DesktopAuthOptions> = async (
   fastify.decorate('desktopSessionToken', desktopSessionToken);
 
   fastify.addHook('onRequest', async (request) => {
+    if (request.method === 'OPTIONS') {
+      return;
+    }
+
     const providedToken = request.headers[desktopSessionHeader];
 
     if (providedToken === desktopSessionToken) {

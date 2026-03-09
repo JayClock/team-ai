@@ -8,7 +8,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Layout, layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
 import { protectedRouteLoader } from './protected-route-loader';
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
 
 const protectedLayoutRoutes = [
   {
@@ -21,50 +21,53 @@ const protectedLayoutRoutes = [
   })),
 ];
 
-const router = createBrowserRouter([
-  ...protectedLayoutRoutes,
-  {
-    path: '/orchestration',
-    loader: protectedRouteLoader,
-    element: (
-      <Suspense>
-        <Layout />
-      </Suspense>
-    ),
-    children: [
-      {
-        index: true,
-        element: <OrchestrationDashboard />,
-      },
-      {
-        path: ':sessionId',
-        element: <OrchestrationDashboard />,
-      },
-    ],
-  },
-  {
-    path: '/login',
-    element: <Login />,
-  },
-  {
-    path: '/signup',
-    element: <Signup />,
-  },
-  {
-    path: '/home',
-    element: <Homepage />,
-  },
-  {
-    path: '/smart-domain',
-    element: <SmartDomainPage />,
-  },
-  {
-    path: '/acp-debug',
-    loader: protectedRouteLoader,
-    element: <AcpDebugPage />,
-  },
-]);
+function createAppRouter() {
+  return createBrowserRouter([
+    ...protectedLayoutRoutes,
+    {
+      path: '/orchestration',
+      loader: protectedRouteLoader,
+      element: (
+        <Suspense>
+          <Layout />
+        </Suspense>
+      ),
+      children: [
+        {
+          index: true,
+          element: <OrchestrationDashboard />,
+        },
+        {
+          path: ':sessionId',
+          element: <OrchestrationDashboard />,
+        },
+      ],
+    },
+    {
+      path: '/login',
+      element: <Login />,
+    },
+    {
+      path: '/signup',
+      element: <Signup />,
+    },
+    {
+      path: '/home',
+      element: <Homepage />,
+    },
+    {
+      path: '/smart-domain',
+      element: <SmartDomainPage />,
+    },
+    {
+      path: '/acp-debug',
+      loader: protectedRouteLoader,
+      element: <AcpDebugPage />,
+    },
+  ]);
+}
 
 export default function App() {
+  const router = useMemo(() => createAppRouter(), []);
   return <RouterProvider router={router} />;
 }

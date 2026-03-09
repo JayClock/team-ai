@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@shared/ui/components/
 import { Input } from '@shared/ui/components/input';
 import { Label } from '@shared/ui/components/label';
 import { Textarea } from '@shared/ui/components/textarea';
+import { runtimeFetch } from '@shared/util-http';
 
 type JsonRpcErrorMeta = {
   acpCode: string;
@@ -94,10 +95,9 @@ export default function AcpDebugPage() {
     }
 
     try {
-      const response = await fetch('/api/acp', {
+      const response = await runtimeFetch('/api/acp', {
         method: 'POST',
         headers,
-        credentials: 'include',
         body: JSON.stringify({
           jsonrpc: '2.0',
           method,

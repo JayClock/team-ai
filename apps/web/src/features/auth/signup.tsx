@@ -17,9 +17,11 @@ import { Input } from '@shared/ui/components/input';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useResource } from '@hateoas-ts/resource-react';
-import { rootResource } from '../../lib/api-client';
+import { runtimeFetch } from '@shared/util-http';
+import { getRootResource } from '../../lib/api-client';
 
 export function Signup() {
+  const rootResource = getRootResource();
   const { loading, error: rootError, resourceState: rootState } =
     useResource(rootResource);
   const navigate = useNavigate();
@@ -67,10 +69,9 @@ export function Signup() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(registerLink.href, {
+      const response = await runtimeFetch(registerLink.href, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ name, email, username, password }),
       });
 

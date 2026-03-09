@@ -106,6 +106,10 @@ export let apiClient = createConfiguredClient(currentRuntimeConfig);
 
 export let rootResource = apiClient.go<Root>('/api');
 
+export function getRootResource() {
+  return apiClient.go<Root>('/api');
+}
+
 export function getCurrentApiBaseUrl(): string {
   return currentRuntimeConfig.apiBaseURL;
 }
@@ -118,5 +122,5 @@ export async function initializeApiClient(): Promise<void> {
   const desktopRuntimeConfig = await getDesktopRuntimeConfig();
   currentRuntimeConfig = createClientRuntimeConfig(desktopRuntimeConfig);
   apiClient = createConfiguredClient(currentRuntimeConfig);
-  rootResource = apiClient.go<Root>('/api');
+  rootResource = getRootResource();
 }

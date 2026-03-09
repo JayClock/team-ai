@@ -17,10 +17,12 @@ import { Input } from '@shared/ui/components/input';
 import { Github } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useResource } from '@hateoas-ts/resource-react';
-import { rootResource } from '../../lib/api-client';
+import { resolveRuntimeApiUrl, runtimeFetch } from '@shared/util-http';
+import { getRootResource } from '../../lib/api-client';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 export function Login() {
+  const rootResource = getRootResource();
   const { loading, error: rootError, resourceState: rootState } =
     useResource(rootResource);
   const navigate = useNavigate();
@@ -61,10 +63,9 @@ export function Login() {
     setSubmitting(true);
     setError(null);
     try {
-      const response = await fetch(loginLink.href, {
+      const response = await runtimeFetch(loginLink.href, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
 
@@ -83,7 +84,7 @@ export function Login() {
 
   const handleGithubLogin = () => {
     if (githubLoginLink?.href) {
-      const oauthLoginUrl = new URL(githubLoginLink.href, window.location.origin);
+      const oauthLoginUrl = new URL(resolveRuntimeApiUrl(githubLoginLink.href));
       oauthLoginUrl.searchParams.set('return_to', returnTo);
       window.location.href = oauthLoginUrl.toString();
     }

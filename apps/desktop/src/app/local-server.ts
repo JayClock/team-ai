@@ -1,5 +1,6 @@
 import { fork, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import type { App } from 'electron';
@@ -28,9 +29,10 @@ export class LocalServerManager {
     const dataDir = join(application.getPath('userData'), 'local-server');
 
     LocalServerManager.child = fork(serverEntry, [], {
+      execPath: LocalServerManager.resolveChildExecPath(application),
       env: {
-        DESKTOP_SESSION_TOKEN: desktopSessionToken,
         ...process.env,
+        DESKTOP_SESSION_TOKEN: desktopSessionToken,
         ELECTRON_RUN_AS_NODE: '1',
         HOST: localServerHost,
         PORT: String(port),
@@ -106,11 +108,32 @@ export class LocalServerManager {
   }
 
   private static resolveServerEntry(application: App): string {
-    if (!application.isPackaged) {
-      return join(application.getAppPath(), 'apps', 'local-server', 'dist', 'main.js');
+    const candidates = application.isPackaged
+      ? [join(process.resourcesPath, 'local-server', 'main.js')]
+      : [
+          join(process.cwd(), 'apps', 'local-server', 'dist', 'main.js'),
+          join(application.getAppPath(), 'apps', 'local-server', 'dist', 'main.js'),
+          join(__dirname, 'local-server', 'main.js'),
+          join(application.getAppPath(), 'local-server', 'main.js'),
+        ];
+
+    const serverEntry = candidates.find((candidate) => existsSync(candidate));
+
+    if (!serverEntry) {
+      throw new Error(
+        `Local server entry not found. Tried: ${candidates.join(', ')}`,
+      );
     }
 
-    return join(process.resourcesPath, 'local-server', 'main.js');
+    return serverEntry;
+  }
+
+  private static resolveChildExecPath(application: App): string | undefined {
+    if (application.isPackaged) {
+      return undefined;
+    }
+
+    return process.env.npm_node_execpath ?? process.env.NODE ?? 'node';
   }
 
   private static async waitForHealthcheck(

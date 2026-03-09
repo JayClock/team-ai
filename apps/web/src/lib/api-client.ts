@@ -1,1 +1,6 @@
-export { apiClient, initializeApiClient, rootResource } from '@shared/util-http';
+export {
+  apiClient,
+  getRootResource,
+  initializeApiClient,
+  rootResource,
+} from '@shared/util-http';
