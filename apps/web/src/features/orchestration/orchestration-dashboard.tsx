@@ -7,23 +7,23 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Input,
   ScrollArea,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Separator,
-  Textarea,
   toast,
 } from '@shared/ui';
 import { resolveRuntimeApiUrl, runtimeFetch } from '@shared/util-http';
-import { Loader2Icon, PauseCircleIcon, PlayCircleIcon, RotateCcwIcon } from 'lucide-react';
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ArrowLeftIcon,
+  FolderGit2Icon,
+  Loader2Icon,
+  PauseCircleIcon,
+  PlayCircleIcon,
+  RotateCcwIcon,
+  SparklesIcon,
+} from 'lucide-react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  collectArtifactsByStep,
   collectRuntimeOutputByStep,
   formatTimestamp,
   statusTone,
@@ -33,23 +33,6 @@ import {
   type StepKind,
   type StepStatus,
 } from './orchestration-dashboard-utils';
-
-type LocalProject = Entity<
-  {
-    createdAt: string;
-    description: string | null;
-    id: string;
-    title: string;
-    updatedAt: string;
-  },
-  {
-    self: LocalProject;
-    collection: LocalProjectCollection;
-    conversations: Entity;
-  }
->;
-
-type LocalProjectCollection = Entity<Collection<LocalProject>['data']>;
 
 type OrchestrationRoot = Entity<
   {
@@ -64,7 +47,6 @@ type OrchestrationRoot = Entity<
   {
     self: OrchestrationRoot;
     sessions: OrchestrationSessionCollection;
-    'create-session': Entity;
   }
 >;
 
@@ -97,7 +79,7 @@ type OrchestrationSession = Entity<
   },
   {
     self: OrchestrationSession;
-    project: LocalProject;
+    project: Entity;
     steps: OrchestrationStepCollection;
     events: Entity;
     stream: Entity;
@@ -149,12 +131,7 @@ type LocalRoot = Entity<
   },
   {
     self: LocalRoot;
-    projects: LocalProjectCollection;
     orchestration: OrchestrationRoot;
-    settings: Entity;
-    agents: Entity;
-    providers: Entity;
-    'sync-status': Entity;
   }
 >;
 
@@ -172,6 +149,33 @@ interface OrchestrationEventPayload {
   stepId?: string;
   type: string;
 }
+
+const orderedStageKinds: StepKind[] = ['PLAN', 'IMPLEMENT', 'VERIFY'];
+
+const stageMeta: Record<
+  StepKind,
+  {
+    description: string;
+    index: string;
+    title: string;
+  }
+> = {
+  PLAN: {
+    description: 'Shape the approach, scope, and execution intent.',
+    index: '01',
+    title: 'Plan',
+  },
+  IMPLEMENT: {
+    description: 'Run the change against the selected local repository.',
+    index: '02',
+    title: 'Implement',
+  },
+  VERIFY: {
+    description: 'Review outputs and determine whether the run is complete.',
+    index: '03',
+    title: 'Verify',
+  },
+};
 
 const streamRefreshTypes = new Set([
   'session.running',
@@ -203,120 +207,130 @@ async function readJson<T>(href: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+function summarizeArtifactContent(content: Record<string, unknown>): string {
+  const summary = content.summary;
+  if (typeof summary === 'string' && summary.trim().length > 0) {
+    return summary;
+  }
+
+  const verdict = content.verdict;
+  if (typeof verdict === 'string' && verdict.trim().length > 0) {
+    return verdict;
+  }
+
+  const keys = Object.keys(content);
+  if (keys.length === 0) {
+    return 'No structured content';
+  }
+
+  return keys.slice(0, 3).join(' · ');
+}
+
+function resolveSelectedSession(
+  sessions: Array<State<OrchestrationSession>>,
+  targetSessionId?: string,
+): State<OrchestrationSession> | undefined {
+  if (!targetSessionId) {
+    return sessions[0];
+  }
+
+  return sessions.find((session) => session.data.id === targetSessionId) ?? sessions[0];
+}
+
 export default function OrchestrationDashboard() {
   const client = useClient();
   const navigate = useNavigate();
   const { sessionId } = useParams();
   const rootResource = useMemo(() => client.go<LocalRoot>('/api'), [client]);
-  const [projects, setProjects] = useState<Array<State<LocalProject>>>([]);
-  const [orchestrationRoot, setOrchestrationRoot] =
-    useState<State<OrchestrationRoot>>();
   const [sessions, setSessions] = useState<Array<State<OrchestrationSession>>>([]);
-  const [selectedSession, setSelectedSession] =
-    useState<State<OrchestrationSession>>();
+  const [selectedSession, setSelectedSession] = useState<State<OrchestrationSession>>();
   const [steps, setSteps] = useState<Array<State<OrchestrationStep>>>([]);
   const [events, setEvents] = useState<OrchestrationEventPayload[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [streamStatus, setStreamStatus] = useState<
     'idle' | 'connecting' | 'connected' | 'error'
   >('idle');
-  const [formState, setFormState] = useState({
-    goal: '',
-    projectId: '',
-    title: '',
-  });
+  const [activeAction, setActiveAction] = useState<'cancel' | 'resume' | 'retry' | null>(
+    null,
+  );
+  const [retryingStepId, setRetryingStepId] = useState<string | null>(null);
   const refreshTimeoutRef = useRef<number | undefined>(undefined);
 
-  const reloadSelectedSession = useCallback(
-    async (targetSessionId: string) => {
-      const nextSessionsState = await orchestrationRoot
-        ?.follow('sessions')
-        .get();
-
-      if (!nextSessionsState) {
-        return;
-      }
-
-      setSessions(nextSessionsState.collection as Array<State<OrchestrationSession>>);
-
-      const nextSelectedSession =
-        (nextSessionsState.collection as Array<State<OrchestrationSession>>).find(
-          (item) => item.data.id === targetSessionId,
-        ) ?? (await client.go<OrchestrationSession>(
-          `/api/orchestration/sessions/${targetSessionId}`,
-        ).get());
-
-      setSelectedSession(nextSelectedSession);
-
-      const nextStepsState = await nextSelectedSession.follow('steps').get();
-      setSteps(nextStepsState.collection as Array<State<OrchestrationStep>>);
-
-      const nextEvents = await readJson<OrchestrationEventDocument>(
-        nextSelectedSession.getLink('events')?.href ??
-          `/api/orchestration/sessions/${targetSessionId}/events`,
-      );
-      setEvents(nextEvents._embedded.events);
-    },
-    [client, orchestrationRoot],
-  );
-
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
-
-    try {
+  const loadSessionData = useCallback(
+    async (targetSessionId?: string) => {
       const rootState = await rootResource.get();
-      const [projectCollectionState, orchestrationRootState] = await Promise.all([
-        rootState.follow('projects').get(),
-        rootState.follow('orchestration').get(),
-      ]);
-
-      const nextProjects =
-        projectCollectionState.collection as Array<State<LocalProject>>;
+      const orchestrationRootState = await rootState.follow('orchestration').get();
       const nextSessionsState = await orchestrationRootState.follow('sessions').get();
       const nextSessions =
         nextSessionsState.collection as Array<State<OrchestrationSession>>;
 
-      setProjects(nextProjects);
-      setOrchestrationRoot(orchestrationRootState);
       setSessions(nextSessions);
-      setFormState((current) => ({
-        ...current,
-        projectId: current.projectId || nextProjects[0]?.data.id || '',
-      }));
 
-      const nextSelected =
-        nextSessions.find((session) => session.data.id === sessionId) ??
-        nextSessions[0];
+      const nextSelected = resolveSelectedSession(nextSessions, targetSessionId);
 
-      if (nextSelected) {
-        setSelectedSession(nextSelected);
-        const [stepState, eventDocument] = await Promise.all([
-          nextSelected.follow('steps').get(),
-          readJson<OrchestrationEventDocument>(
-            nextSelected.getLink('events')?.href ??
-              `/api/orchestration/sessions/${nextSelected.data.id}/events`,
-          ),
-        ]);
-        setSteps(stepState.collection as Array<State<OrchestrationStep>>);
-        setEvents(eventDocument._embedded.events);
-      } else {
+      if (!nextSelected) {
         setSelectedSession(undefined);
         setSteps([]);
         setEvents([]);
+        return;
       }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to load orchestration',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [rootResource, sessionId]);
+
+      const hydratedSession =
+        nextSessions.find((session) => session.data.id === nextSelected.data.id) ??
+        (await client.go<OrchestrationSession>(
+          `/api/orchestration/sessions/${nextSelected.data.id}`,
+        ).get());
+
+      setSelectedSession(hydratedSession);
+
+      const [nextStepsState, nextEvents] = await Promise.all([
+        hydratedSession.follow('steps').get(),
+        readJson<OrchestrationEventDocument>(
+          hydratedSession.getLink('events')?.href ??
+            `/api/orchestration/sessions/${hydratedSession.data.id}/events`,
+        ),
+      ]);
+
+      setSteps(nextStepsState.collection as Array<State<OrchestrationStep>>);
+      setEvents(nextEvents._embedded.events);
+    },
+    [client, rootResource],
+  );
+
+  const reloadSelectedSession = useCallback(
+    async (targetSessionId: string) => {
+      await loadSessionData(targetSessionId);
+    },
+    [loadSessionData],
+  );
 
   useEffect(() => {
-    void loadDashboard();
-  }, [loadDashboard]);
+    let disposed = false;
+
+    const load = async () => {
+      setLoading(true);
+
+      try {
+        await loadSessionData(sessionId);
+      } catch (error) {
+        if (!disposed) {
+          toast.error(
+            error instanceof Error ? error.message : 'Failed to load session',
+          );
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [loadSessionData, sessionId]);
 
   useEffect(() => {
     if (!selectedSession) {
@@ -325,7 +339,6 @@ export default function OrchestrationDashboard() {
     }
 
     const streamHref = selectedSession.getLink('stream')?.href;
-
     if (!streamHref) {
       setStreamStatus('idle');
       return;
@@ -367,13 +380,11 @@ export default function OrchestrationDashboard() {
 
         while (!disposed) {
           const { done, value } = await reader.read();
-
           if (done) {
             break;
           }
 
           buffer += decoder.decode(value, { stream: true });
-
           let boundaryIndex = buffer.indexOf('\n\n');
 
           while (boundaryIndex >= 0) {
@@ -394,11 +405,7 @@ export default function OrchestrationDashboard() {
               .map((line) => line.slice('data:'.length).trim())
               .join('\n');
 
-            if (!eventType || !dataLine) {
-              continue;
-            }
-
-            if (eventType === 'connected' || eventType === 'heartbeat') {
+            if (!eventType || !dataLine || eventType === 'connected' || eventType === 'heartbeat') {
               continue;
             }
 
@@ -448,45 +455,6 @@ export default function OrchestrationDashboard() {
     };
   }, [reloadSelectedSession, selectedSession]);
 
-  const handleCreateSession = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-
-      if (!orchestrationRoot || !formState.projectId || !formState.title.trim()) {
-        return;
-      }
-
-      setSubmitting(true);
-
-      try {
-        const created = await orchestrationRoot.follow('create-session').post({
-          data: {
-            projectId: formState.projectId,
-            title: formState.title.trim(),
-            goal: formState.goal.trim() || formState.title.trim(),
-          },
-        });
-
-        const nextSession = created as State<OrchestrationSession>;
-        toast.success(`Started orchestration ${nextSession.data.title}`);
-        setFormState((current) => ({
-          ...current,
-          title: '',
-          goal: '',
-        }));
-        navigate(`/orchestration/${nextSession.data.id}`);
-        await reloadSelectedSession(nextSession.data.id);
-      } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : 'Failed to create session',
-        );
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [formState.goal, formState.projectId, formState.title, navigate, orchestrationRoot, reloadSelectedSession],
-  );
-
   const handleSelectSession = useCallback(
     async (nextSession: State<OrchestrationSession>) => {
       navigate(`/orchestration/${nextSession.data.id}`);
@@ -501,6 +469,8 @@ export default function OrchestrationDashboard() {
         return;
       }
 
+      setActiveAction(rel);
+
       try {
         await selectedSession.follow(rel).post({ data: {} });
         await reloadSelectedSession(selectedSession.data.id);
@@ -508,6 +478,8 @@ export default function OrchestrationDashboard() {
         toast.error(
           error instanceof Error ? error.message : `Failed to ${rel} session`,
         );
+      } finally {
+        setActiveAction(null);
       }
     },
     [reloadSelectedSession, selectedSession],
@@ -515,6 +487,12 @@ export default function OrchestrationDashboard() {
 
   const handleRetryStep = useCallback(
     async (stepState: State<OrchestrationStep>) => {
+      if (!stepState.hasLink('retry')) {
+        return;
+      }
+
+      setRetryingStepId(stepState.data.id);
+
       try {
         await stepState.follow('retry').post({ data: {} });
         await reloadSelectedSession(stepState.data.sessionId);
@@ -522,489 +500,644 @@ export default function OrchestrationDashboard() {
         toast.error(
           error instanceof Error ? error.message : 'Failed to retry step',
         );
+      } finally {
+        setRetryingStepId(null);
       }
     },
     [reloadSelectedSession],
   );
 
-  const streamUrl = selectedSession?.getLink('stream')?.href
-    ? resolveRuntimeApiUrl(selectedSession.getLink('stream')?.href ?? '')
-    : null;
   const runtimeOutputByStep = useMemo(
     () => collectRuntimeOutputByStep(events),
     [events],
   );
-  const artifactEntries = useMemo(
-    () => collectArtifactsByStep(steps.map((step) => step.data)),
+  const recentEvents = useMemo(
+    () =>
+      [...events]
+        .sort((left, right) => right.at.localeCompare(left.at))
+        .slice(0, 14),
+    [events],
+  );
+  const stepByKind = useMemo(
+    () =>
+      steps.reduce<Partial<Record<StepKind, State<OrchestrationStep>>>>((accumulator, step) => {
+        accumulator[step.data.kind] = step;
+        return accumulator;
+      }, {}),
     [steps],
   );
+  const streamUrl = selectedSession?.getLink('stream')?.href
+    ? resolveRuntimeApiUrl(selectedSession.getLink('stream')?.href ?? '')
+    : null;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-slate-50 px-6 py-16">
+        <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-slate-600 shadow-sm">
+          <Loader2Icon className="size-4 animate-spin" />
+          Loading session details...
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-full flex-col gap-4 p-4 md:p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">Orchestration Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Monitor local orchestration sessions, inspect steps, and stream state
-          changes from the desktop server.
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Start New Orchestration</CardTitle>
-          <CardDescription>
-            Create a new local orchestration session against a selected project.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form className="grid gap-3 md:grid-cols-[220px_1fr] lg:grid-cols-[220px_280px_1fr_auto]" onSubmit={handleCreateSession}>
-            <Select
-              value={formState.projectId}
-              onValueChange={(projectId) =>
-                setFormState((current) => ({ ...current, projectId }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects.map((project) => (
-                  <SelectItem key={project.data.id} value={project.data.id}>
-                    {project.data.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              placeholder="Session title"
-              value={formState.title}
-              onChange={(event) =>
-                setFormState((current) => ({
-                  ...current,
-                  title: event.target.value,
-                }))
-              }
-            />
-            <Textarea
-              className="min-h-24"
-              placeholder="Goal / prompt for orchestration"
-              value={formState.goal}
-              onChange={(event) =>
-                setFormState((current) => ({
-                  ...current,
-                  goal: event.target.value,
-                }))
-              }
-            />
-            <Button
-              type="submit"
-              disabled={
-                submitting || !formState.projectId || formState.title.trim().length === 0
-              }
-            >
-              {submitting ? (
-                <>
-                  <Loader2Icon className="size-4 animate-spin" />
-                  Starting…
-                </>
-              ) : (
-                'Start'
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <Card className="min-h-0">
-          <CardHeader>
-            <CardTitle>Sessions</CardTitle>
-            <CardDescription>
-              {sessions.length} session{sessions.length === 1 ? '' : 's'} available
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="min-h-0">
-            <ScrollArea className="h-[540px] pr-3">
-              <div className="space-y-3">
-                {loading ? (
-                  <div className="text-sm text-muted-foreground">Loading…</div>
-                ) : sessions.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    No orchestration sessions yet.
-                  </div>
-                ) : (
-                  sessions.map((session) => {
-                    const isSelected = selectedSession?.data.id === session.data.id;
-
-                    return (
-                      <button
-                        key={session.data.id}
-                        type="button"
-                        className={`w-full rounded-lg border p-3 text-left transition-colors ${
-                          isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'hover:bg-accent'
-                        }`}
-                        onClick={() => void handleSelectSession(session)}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="font-medium">{session.data.title}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {session.data.goal}
-                            </div>
-                          </div>
-                          <span
-                            className={`rounded-full px-2 py-1 text-[11px] font-medium ${statusTone(
-                              session.data.status,
-                            )}`}
-                          >
-                            {session.data.status}
-                          </span>
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                          <span>
-                            {session.data.stepCounts.completed}/
-                            {session.data.stepCounts.total} completed
-                          </span>
-                          <span>{formatTimestamp(session.data.updatedAt)}</span>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
+    <div className="relative min-h-full overflow-hidden bg-[radial-gradient(circle_at_top,#dbeafe_0%,#f8fafc_40%,#ffffff_100%)]">
+      <div className="absolute inset-x-0 top-0 h-72 bg-[linear-gradient(135deg,rgba(14,165,233,0.18),rgba(59,130,246,0.04),rgba(255,255,255,0))]" />
+      <div className="relative mx-auto grid min-h-full w-full max-w-[1600px] gap-6 px-4 py-6 md:px-8 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:py-8">
+        <aside className="flex min-h-0 flex-col gap-6">
+          <Card className="border-slate-200/80 bg-white/90 shadow-[0_20px_80px_-48px_rgba(15,23,42,0.4)] backdrop-blur">
+            <CardHeader className="gap-3">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-sky-700 uppercase">
+                <SparklesIcon className="size-3.5" />
+                Session View
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+              <CardTitle className="text-xl">Execution sessions</CardTitle>
+              <CardDescription className="text-sm leading-6">
+                Switch between recent local runs or start a fresh session from the
+                repository entry page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                className="w-full justify-start"
+                onClick={() => navigate('/orchestration')}
+                variant="outline"
+              >
+                <ArrowLeftIcon className="size-4" />
+                New Session
+              </Button>
+              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                <MetricCard
+                  label="Sessions"
+                  value={sessions.length.toString()}
+                />
+                <MetricCard
+                  label="Running"
+                  value={sessions
+                    .filter((session) => session.data.status === 'RUNNING')
+                    .length.toString()}
+                />
+                <MetricCard
+                  label="Failed"
+                  value={sessions
+                    .filter((session) => session.data.status === 'FAILED')
+                    .length.toString()}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-        <div className="grid min-h-0 gap-4">
-          <Card>
+          <Card className="min-h-0 flex-1 border-slate-200/80 bg-white/90 backdrop-blur">
             <CardHeader>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <CardTitle>
-                    {selectedSession?.data.title ?? 'Select a session'}
-                  </CardTitle>
-                  <CardDescription>
-                    {selectedSession?.data.goal ??
-                      'Choose a session from the list to inspect its runtime.'}
-                  </CardDescription>
+              <CardTitle className="text-base">Recent sessions</CardTitle>
+              <CardDescription>
+                {sessions.length} session{sessions.length === 1 ? '' : 's'} available
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="min-h-0">
+              <ScrollArea className="h-[420px] pr-3 xl:h-[calc(100vh-340px)]">
+                <div className="space-y-3">
+                  {sessions.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+                      No sessions yet. Return to the entry page to start the first
+                      run.
+                    </div>
+                  ) : (
+                    sessions.map((session) => {
+                      const isSelected = selectedSession?.data.id === session.data.id;
+
+                      return (
+                        <button
+                          key={session.data.id}
+                          className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                            isSelected
+                              ? 'border-sky-300 bg-sky-50 text-sky-950 shadow-sm'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                          onClick={() => void handleSelectSession(session)}
+                          type="button"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {session.data.title}
+                              </p>
+                              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                                {session.data.goal}
+                              </p>
+                            </div>
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${statusTone(
+                                session.data.status,
+                              )}`}
+                            >
+                              {session.data.status}
+                            </span>
+                          </div>
+                          <div className="mt-3 space-y-1 text-[11px] text-slate-500">
+                            <div className="truncate">
+                              {session.data.workspaceRoot ?? 'No workspace path'}
+                            </div>
+                            <div>
+                              {session.data.stepCounts.completed}/
+                              {session.data.stepCounts.total} completed
+                            </div>
+                            <div>{formatTimestamp(session.data.updatedAt)}</div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </aside>
+
+        <main className="flex min-h-0 flex-col gap-6">
+          <Card className="border-slate-200/80 bg-white/92 shadow-[0_24px_80px_-52px_rgba(15,23,42,0.45)] backdrop-blur">
+            <CardHeader className="gap-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-3">
+                  <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-slate-600 uppercase">
+                    <FolderGit2Icon className="size-3.5" />
+                    Local workspace session
+                  </div>
+                  <div>
+                    <CardTitle className="text-3xl tracking-tight text-slate-950">
+                      {selectedSession?.data.title ?? 'Session not found'}
+                    </CardTitle>
+                    <CardDescription className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                      {selectedSession?.data.goal ??
+                        'Select a session from the left rail or return to the entry page.'}
+                    </CardDescription>
+                  </div>
                 </div>
                 {selectedSession ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span
-                      className={`rounded-full px-2 py-1 text-xs font-medium ${statusTone(
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${statusTone(
                         selectedSession.data.status,
                       )}`}
                     >
                       {selectedSession.data.status}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
                       stream: {streamStatus}
                     </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void triggerSessionAction('cancel')}
-                      disabled={selectedSession.data.status === 'COMPLETED'}
-                    >
-                      <PauseCircleIcon className="size-4" />
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void triggerSessionAction('resume')}
-                      disabled={selectedSession.data.status === 'COMPLETED'}
-                    >
-                      <PlayCircleIcon className="size-4" />
-                      Resume
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void triggerSessionAction('retry')}
-                      disabled={selectedSession.data.status !== 'FAILED'}
-                    >
-                      <RotateCcwIcon className="size-4" />
-                      Retry
-                    </Button>
                   </div>
                 ) : null}
               </div>
             </CardHeader>
-            <CardContent className="grid gap-3">
-              <div className="grid gap-3 md:grid-cols-4">
-              <MetricCard label="Total" value={selectedSession?.data.stepCounts.total ?? 0} />
-              <MetricCard
-                label="Completed"
-                value={selectedSession?.data.stepCounts.completed ?? 0}
-              />
-              <MetricCard label="Running" value={selectedSession?.data.stepCounts.running ?? 0} />
-              <MetricCard label="Failed" value={selectedSession?.data.stepCounts.failed ?? 0} />
-              </div>
-              {selectedSession ? (
-                <div className="grid gap-3 rounded-lg border p-3 text-sm md:grid-cols-2 xl:grid-cols-3">
-                  <DetailRow label="Provider" value={selectedSession.data.provider} />
-                  <DetailRow
-                    label="Execution"
-                    value={selectedSession.data.executionMode}
-                  />
-                  <DetailRow
-                    label="Current Phase"
-                    value={selectedSession.data.currentPhase ?? '—'}
-                  />
-                  <DetailRow
-                    label="Last Event"
-                    value={formatTimestamp(selectedSession.data.lastEventAt)}
-                  />
-                  <DetailRow
-                    label="Trace Id"
-                    value={selectedSession.data.traceId ?? '—'}
-                  />
-                  <DetailRow
-                    label="Workspace"
-                    value={selectedSession.data.workspaceRoot ?? '—'}
-                  />
-                </div>
-              ) : null}
-            </CardContent>
+            {selectedSession ? (
+              <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <SessionStat
+                  label="Workspace"
+                  value={selectedSession.data.workspaceRoot ?? 'Not attached'}
+                />
+                <SessionStat
+                  label="Current phase"
+                  value={selectedSession.data.currentPhase ?? 'Pending'}
+                />
+                <SessionStat
+                  label="Updated"
+                  value={formatTimestamp(selectedSession.data.updatedAt)}
+                />
+                <SessionStat
+                  label="Provider"
+                  value={`${selectedSession.data.provider} · ${selectedSession.data.executionMode}`}
+                />
+              </CardContent>
+            ) : null}
           </Card>
 
-          <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <Card className="min-h-0">
-              <CardHeader>
-                <CardTitle>Steps</CardTitle>
-                <CardDescription>
-                  Ordered execution plan for the selected orchestration session.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="min-h-0">
-                <ScrollArea className="h-[360px] pr-3">
-                  <div className="space-y-3">
-                    {steps.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">
-                        No step data available.
-                      </div>
-                    ) : (
-                      steps.map((step) => (
-                        <div
-                          key={step.data.id}
-                          className="rounded-lg border p-3 text-sm"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="font-medium">{step.data.title}</div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {step.data.kind} · attempt {step.data.attempt}/
-                                {step.data.maxAttempts}
-                              </div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                role: {step.data.role ?? 'specialist'}
-                              </div>
-                            </div>
-                            <span
-                              className={`rounded-full px-2 py-1 text-[11px] font-medium ${statusTone(
-                                step.data.status,
-                              )}`}
-                            >
-                              {step.data.status}
-                            </span>
-                          </div>
-                          {step.data.dependsOn.length > 0 ? (
-                            <div className="mt-2 text-xs text-muted-foreground">
-                              Depends on: {step.data.dependsOn.join(', ')}
-                            </div>
-                          ) : null}
-                          <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
-                            <span>
-                              runtime: {step.data.runtimeSessionId ?? 'not-started'}
-                            </span>
-                            <span>
-                              cursor: {step.data.runtimeCursor ?? '—'}
-                            </span>
-                            <span>
-                              started: {formatTimestamp(step.data.startedAt)}
-                            </span>
-                            <span>
-                              completed: {formatTimestamp(step.data.completedAt)}
-                            </span>
-                            <span>
-                              artifacts: {step.data.artifacts.length}
-                            </span>
-                          </div>
-                          {step.data.errorCode || step.data.errorMessage ? (
-                            <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">
-                              <div>{step.data.errorCode ?? 'STEP_ERROR'}</div>
-                              <div className="mt-1">
-                                {step.data.errorMessage ?? 'No error message'}
-                              </div>
-                            </div>
-                          ) : null}
-                          <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{formatTimestamp(step.data.updatedAt)}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={
-                                !['FAILED', 'WAITING_RETRY'].includes(step.data.status)
-                              }
-                              onClick={() => void handleRetryStep(step)}
-                            >
-                              Retry step
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    )}
+          {selectedSession ? (
+            <>
+              <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="text-lg">Request context</CardTitle>
+                  <CardDescription>
+                    The repository path and user request that launched this session.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+                  <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5">
+                    <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
+                      Request
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                      {selectedSession.data.goal}
+                    </p>
                   </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+                  <div className="grid gap-3">
+                    <DetailRow
+                      label="Workspace root"
+                      value={selectedSession.data.workspaceRoot ?? '—'}
+                    />
+                    <DetailRow
+                      label="Created"
+                      value={formatTimestamp(selectedSession.data.createdAt)}
+                    />
+                    <DetailRow
+                      label="Last event"
+                      value={formatTimestamp(selectedSession.data.lastEventAt)}
+                    />
+                    <DetailRow
+                      label="Trace ID"
+                      value={selectedSession.data.traceId ?? '—'}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card className="min-h-0">
-              <CardHeader>
-                <CardTitle>Event Timeline</CardTitle>
-                <CardDescription>
-                  Persisted orchestration events with live stream updates.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="min-h-0">
-                <ScrollArea className="h-[360px] pr-3">
-                  <div className="space-y-3">
-                    {events.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">
-                        No orchestration events yet.
-                      </div>
-                    ) : (
-                      events.map((event) => (
+              <Card className="min-h-0 border-slate-200/80 bg-white/92 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="text-lg">Execution feed</CardTitle>
+                  <CardDescription>
+                    Runtime output, structured artifacts, and failures grouped by
+                    stage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="min-h-0">
+                  <div className="space-y-4">
+                    {orderedStageKinds.map((kind) => {
+                      const step = stepByKind[kind];
+                      const runtimeOutput = step
+                        ? (runtimeOutputByStep[step.data.id] ?? []).join('')
+                        : '';
+
+                      return (
+                        <div
+                          key={kind}
+                          className="rounded-[28px] border border-slate-200 bg-slate-50/70 p-5"
+                        >
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="space-y-3">
+                              <div className="inline-flex w-fit items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+                                <span>{stageMeta[kind].index}</span>
+                                <span>{stageMeta[kind].title}</span>
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-slate-950">
+                                  {step?.data.title ?? stageMeta[kind].title}
+                                </h3>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
+                                  {stageMeta[kind].description}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-medium ${statusTone(
+                                  step?.data.status ?? 'PENDING',
+                                )}`}
+                              >
+                                {step?.data.status ?? 'PENDING'}
+                              </span>
+                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
+                                {step
+                                  ? `attempt ${step.data.attempt}/${step.data.maxAttempts}`
+                                  : 'waiting'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {step ? (
+                            <div className="mt-4 grid gap-4">
+                              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                <DetailRow
+                                  label="Role"
+                                  value={step.data.role ?? 'specialist'}
+                                />
+                                <DetailRow
+                                  label="Started"
+                                  value={formatTimestamp(step.data.startedAt)}
+                                />
+                                <DetailRow
+                                  label="Completed"
+                                  value={formatTimestamp(step.data.completedAt)}
+                                />
+                                <DetailRow
+                                  label="Runtime session"
+                                  value={step.data.runtimeSessionId ?? 'Not started'}
+                                />
+                              </div>
+
+                              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
+                                <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                                  <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
+                                    Runtime output
+                                  </div>
+                                  <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">
+                                    {runtimeOutput.length > 0
+                                      ? runtimeOutput
+                                      : 'No streamed output for this stage yet.'}
+                                  </pre>
+                                </div>
+
+                                <div className="space-y-3">
+                                  {step.data.errorCode || step.data.errorMessage ? (
+                                    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                                      <div className="text-xs font-medium tracking-[0.16em] uppercase">
+                                        Failure
+                                      </div>
+                                      <div className="mt-2 font-medium">
+                                        {step.data.errorCode ?? 'STEP_ERROR'}
+                                      </div>
+                                      <p className="mt-2 leading-6">
+                                        {step.data.errorMessage ?? 'No error message'}
+                                      </p>
+                                    </div>
+                                  ) : null}
+
+                                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                                    <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
+                                      Artifacts
+                                    </div>
+                                    {step.data.artifacts.length === 0 ? (
+                                      <p className="mt-3 text-sm text-slate-500">
+                                        No structured artifacts persisted yet.
+                                      </p>
+                                    ) : (
+                                      <div className="mt-3 space-y-3">
+                                        {step.data.artifacts.map((artifact) => (
+                                          <div
+                                            key={artifact.id}
+                                            className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3"
+                                          >
+                                            <div className="flex items-center justify-between gap-3">
+                                              <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white">
+                                                {artifact.kind}
+                                              </span>
+                                              <span className="text-[11px] text-slate-500">
+                                                {formatTimestamp(artifact.updatedAt)}
+                                              </span>
+                                            </div>
+                                            <p className="mt-3 text-sm leading-6 text-slate-600">
+                                              {summarizeArtifactContent(artifact.content)}
+                                            </p>
+                                            <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap break-words rounded-2xl bg-white p-3 text-xs leading-6 text-slate-700">
+                                              {JSON.stringify(artifact.content, null, 2)}
+                                            </pre>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-4 rounded-3xl border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-sm text-slate-500">
+                              This stage has not been materialized yet.
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="text-lg">Event timeline</CardTitle>
+                  <CardDescription>
+                    Most recent persisted events with live stream updates.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {recentEvents.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+                      No events available yet.
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {recentEvents.map((event) => (
                         <div
                           key={event.id}
-                          className="rounded-lg border p-3 text-sm"
+                          className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3"
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="font-medium">{event.type}</div>
-                            <div className="text-xs text-muted-foreground">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="space-y-1">
+                              <div className="text-sm font-medium text-slate-950">
+                                {event.type}
+                              </div>
+                              <div className="text-xs leading-5 text-slate-500">
+                                {summarizeEvent(event)}
+                              </div>
+                            </div>
+                            <div className="text-xs text-slate-500">
                               {formatTimestamp(event.at)}
                             </div>
                           </div>
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            {summarizeEvent(event)}
-                          </div>
                           {event.stepId ? (
-                            <div className="mt-2 text-[11px] text-muted-foreground">
+                            <div className="mt-2 text-[11px] text-slate-500">
                               step: {event.stepId}
                             </div>
                           ) : null}
                         </div>
-                      ))
-                    )}
-                  </div>
-                </ScrollArea>
-                {streamUrl ? (
-                  <>
-                    <Separator className="my-4" />
-                    <div className="text-xs text-muted-foreground">
-                      Stream source: {streamUrl}
+                      ))}
                     </div>
-                  </>
-                ) : null}
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
+              <CardContent className="flex flex-col items-start gap-4 px-6 py-10">
+                <div className="text-lg font-semibold text-slate-950">
+                  Session not found
+                </div>
+                <p className="max-w-xl text-sm leading-6 text-slate-600">
+                  The requested session could not be loaded. Return to the entry page
+                  and create a new one, or choose an existing session from the left
+                  rail.
+                </p>
+                <Button onClick={() => navigate('/orchestration')}>New Session</Button>
               </CardContent>
             </Card>
+          )}
+        </main>
 
-            <Card className="min-h-0">
-              <CardHeader>
-                <CardTitle>Runtime Output</CardTitle>
-                <CardDescription>
-                  Incremental output streamed from local CLI execution.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="min-h-0">
-                <ScrollArea className="h-[360px] pr-3">
-                  <div className="space-y-3">
-                    {steps.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">
-                        No runtime output yet.
-                      </div>
-                    ) : (
-                      steps.map((step) => {
-                        const outputLines = runtimeOutputByStep[step.data.id] ?? [];
+        <aside className="flex min-h-0 flex-col gap-6">
+          <Card className="border-slate-200/80 bg-slate-950 text-slate-100 shadow-[0_20px_80px_-48px_rgba(15,23,42,0.9)]">
+            <CardHeader>
+              <CardTitle className="text-base text-white">Session controls</CardTitle>
+              <CardDescription className="text-slate-300">
+                Control the selected run without leaving the detail view.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3">
+                <ActionButton
+                  busy={activeAction === 'cancel'}
+                  disabled={!selectedSession?.hasLink('cancel')}
+                  icon={<PauseCircleIcon className="size-4" />}
+                  label="Cancel"
+                  onClick={() => void triggerSessionAction('cancel')}
+                />
+                <ActionButton
+                  busy={activeAction === 'resume'}
+                  disabled={!selectedSession?.hasLink('resume')}
+                  icon={<PlayCircleIcon className="size-4" />}
+                  label="Resume"
+                  onClick={() => void triggerSessionAction('resume')}
+                />
+                <ActionButton
+                  busy={activeAction === 'retry'}
+                  disabled={!selectedSession?.hasLink('retry')}
+                  icon={<RotateCcwIcon className="size-4" />}
+                  label="Retry session"
+                  onClick={() => void triggerSessionAction('retry')}
+                />
+              </div>
 
-                        return (
-                          <div key={step.data.id} className="rounded-lg border p-3 text-sm">
-                            <div className="font-medium">{step.data.title}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {step.data.kind} · {step.data.status}
-                            </div>
-                            <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs">
-                              {outputLines.length > 0
-                                ? outputLines.join('')
-                                : 'No streamed output for this step yet.'}
-                            </pre>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+              <Separator className="bg-slate-800" />
 
-            <Card className="min-h-0 xl:col-span-2">
-              <CardHeader>
-                <CardTitle>Artifacts</CardTitle>
-                <CardDescription>
-                  Structured outputs persisted for each orchestration step.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="min-h-0">
-                <ScrollArea className="h-[280px] pr-3">
-                  <div className="space-y-3">
-                    {artifactEntries.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">
-                        No artifacts persisted yet.
-                      </div>
-                    ) : (
-                      artifactEntries.map((entry) => (
-                        <div key={entry.artifact.id} className="rounded-lg border p-3 text-sm">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <div className="font-medium">
-                                {entry.artifact.kind} · {entry.stepTitle}
-                              </div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {entry.stepKind} · {formatTimestamp(entry.artifact.updatedAt)}
-                              </div>
-                            </div>
-                            <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                              {entry.stepId}
-                            </span>
-                          </div>
-                          <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs">
-                            {JSON.stringify(entry.artifact.content, null, 2)}
-                          </pre>
+              <div className="space-y-3 text-sm">
+                <SidebarDetail label="Status" value={selectedSession?.data.status ?? '—'} />
+                <SidebarDetail label="Stream" value={streamStatus} />
+                <SidebarDetail
+                  label="Fail fast"
+                  value={selectedSession?.data.strategy.failFast ? 'Enabled' : 'Disabled'}
+                />
+                <SidebarDetail
+                  label="Parallelism"
+                  value={selectedSession?.data.strategy.maxParallelism.toString() ?? '—'}
+                />
+                <SidebarDetail
+                  label="Mode"
+                  value={selectedSession?.data.strategy.mode ?? '—'}
+                />
+                <SidebarDetail label="Source" value={streamUrl ?? 'No stream URL'} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
+            <CardHeader>
+              <CardTitle className="text-base">Execution stages</CardTitle>
+              <CardDescription>
+                Compact stage status for the fixed Plan, Implement, Verify flow.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {orderedStageKinds.map((kind) => {
+                const step = stepByKind[kind];
+                const canRetry =
+                  step?.hasLink('retry') &&
+                  ['FAILED', 'WAITING_RETRY'].includes(step.data.status);
+
+                return (
+                  <div
+                    key={kind}
+                    className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
+                          {stageMeta[kind].index}
                         </div>
-                      ))
-                    )}
+                        <div className="mt-1 text-sm font-medium text-slate-950">
+                          {stageMeta[kind].title}
+                        </div>
+                      </div>
+                      <span
+                        className={`rounded-full px-2 py-1 text-[11px] font-medium ${statusTone(
+                          step?.data.status ?? 'PENDING',
+                        )}`}
+                      >
+                        {step?.data.status ?? 'PENDING'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      {stageMeta[kind].description}
+                    </p>
+                    {step ? (
+                      <>
+                        <div className="mt-3 space-y-1 text-[11px] text-slate-500">
+                          <div>role: {step.data.role ?? 'specialist'}</div>
+                          <div>updated: {formatTimestamp(step.data.updatedAt)}</div>
+                          <div>artifacts: {step.data.artifacts.length}</div>
+                        </div>
+                        <Button
+                          className="mt-3 w-full"
+                          disabled={!canRetry || retryingStepId === step.data.id}
+                          onClick={() => void handleRetryStep(step)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          {retryingStepId === step.data.id ? (
+                            <>
+                              <Loader2Icon className="size-4 animate-spin" />
+                              Retrying...
+                            </>
+                          ) : (
+                            <>
+                              <RotateCcwIcon className="size-4" />
+                              Retry step
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        </aside>
       </div>
     </div>
   );
 }
 
-function MetricCard(props: { label: string; value: number }) {
+function ActionButton(props: {
+  busy: boolean;
+  disabled: boolean;
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  const { busy, disabled, icon, label, onClick } = props;
+
+  return (
+    <Button
+      className="w-full justify-start border-slate-800 bg-slate-900 text-slate-100 hover:bg-slate-800"
+      disabled={disabled || busy}
+      onClick={onClick}
+      variant="outline"
+    >
+      {busy ? <Loader2Icon className="size-4 animate-spin" /> : icon}
+      {label}
+    </Button>
+  );
+}
+
+function MetricCard(props: { label: string; value: string }) {
   const { label, value } = props;
 
   return (
-    <div className="rounded-lg border p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-2 text-2xl font-semibold">{value}</div>
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+      <div className="text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
+    </div>
+  );
+}
+
+function SessionStat(props: { label: string; value: string }) {
+  const { label, value } = props;
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+      <div className="text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase">
+        {label}
+      </div>
+      <div className="mt-2 break-words text-sm leading-6 text-slate-700">{value}</div>
     </div>
   );
 }
@@ -1013,11 +1146,24 @@ function DetailRow(props: { label: string; value: string }) {
   const { label, value } = props;
 
   return (
-    <div className="rounded-md bg-muted/50 p-2">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase">
         {label}
       </div>
-      <div className="mt-1 break-words text-sm">{value}</div>
+      <div className="mt-2 break-words text-sm leading-6 text-slate-700">{value}</div>
+    </div>
+  );
+}
+
+function SidebarDetail(props: { label: string; value: string }) {
+  const { label, value } = props;
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
+      <div className="text-[11px] font-medium tracking-[0.16em] text-slate-400 uppercase">
+        {label}
+      </div>
+      <div className="mt-1 break-words text-sm text-slate-100">{value}</div>
     </div>
   );
 }
