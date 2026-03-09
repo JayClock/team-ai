@@ -14,7 +14,7 @@ describe('orchestration-prompt-builder', () => {
     id: 'orc_123',
     projectId: 'proj_123',
     provider: 'codex',
-    executionMode: 'local',
+    executionMode: 'ROUTA',
     workspaceRoot: '/tmp/team-ai',
     title: 'Build local orchestration',
     goal: 'Implement a local orchestration workflow',

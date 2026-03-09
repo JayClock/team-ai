@@ -292,6 +292,20 @@ function eventTypeLabel(type: string): string {
   return labels[type] ?? type;
 }
 
+function resolveSessionAgentRole(executionMode?: string | null): 'DEVELOPER' | 'ROUTA' {
+  return executionMode === 'ROUTA' ? 'ROUTA' : 'DEVELOPER';
+}
+
+function sessionModeLabel(executionMode?: string | null): 'Direct' | 'Multi-Agent' {
+  return resolveSessionAgentRole(executionMode) === 'ROUTA' ? 'Multi-Agent' : 'Direct';
+}
+
+function sessionAgentTone(role: 'DEVELOPER' | 'ROUTA'): string {
+  return role === 'ROUTA'
+    ? 'border-amber-200 bg-amber-50 text-amber-700'
+    : 'border-sky-200 bg-sky-50 text-sky-700';
+}
+
 function actionLabel(action: 'cancel' | 'resume' | 'retry'): string {
   switch (action) {
     case 'cancel':
@@ -698,6 +712,12 @@ export default function OrchestrationSessionPage() {
   const selectedStageTitle = selectedSession?.data.currentPhase
     ? stageMeta[selectedSession.data.currentPhase].title
     : '等待开始';
+  const selectedSessionAgentRole = selectedSession
+    ? resolveSessionAgentRole(selectedSession.data.executionMode)
+    : 'DEVELOPER';
+  const selectedSessionMode = selectedSession
+    ? sessionModeLabel(selectedSession.data.executionMode)
+    : 'Direct';
   const activitySummary = selectedSession
     ? `${selectedSession.data.stepCounts.completed}/${selectedSession.data.stepCounts.total} 阶段完成`
     : '暂无会话';
@@ -729,7 +749,7 @@ export default function OrchestrationSessionPage() {
         tone: 'user',
       },
       {
-        content: `会话已载入，当前处于${selectedStageTitle}阶段。执行模式为 ${selectedSession.data.provider} · ${selectedSession.data.executionMode}，当前进度 ${activitySummary}。`,
+        content: `会话已载入，当前模式为 ${sessionModeLabel(selectedSession.data.executionMode)} · ${resolveSessionAgentRole(selectedSession.data.executionMode)}。当前处于${selectedStageTitle}阶段，执行提供方 ${selectedSession.data.provider}，当前进度 ${activitySummary}。`,
         id: `summary-${selectedSession.data.id}`,
         meta: [`流状态 ${streamStatusLabel(streamStatus)}`],
         tone: 'assistant',
@@ -925,6 +945,18 @@ export default function OrchestrationSessionPage() {
                               <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
                                 {session.data.goal}
                               </p>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-medium tracking-[0.14em] text-slate-600 uppercase">
+                                  {sessionModeLabel(session.data.executionMode)}
+                                </span>
+                                <span
+                                  className={`rounded-full border px-2 py-1 text-[10px] font-medium tracking-[0.14em] uppercase ${sessionAgentTone(
+                                    resolveSessionAgentRole(session.data.executionMode),
+                                  )}`}
+                                >
+                                  {resolveSessionAgentRole(session.data.executionMode)}
+                                </span>
+                              </div>
                             </div>
                             <span
                               className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ${statusTone(
@@ -962,6 +994,18 @@ export default function OrchestrationSessionPage() {
                       <FolderGit2Icon className="size-3.5" />
                       Chat Panel
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-slate-600 uppercase">
+                        {selectedSessionMode}
+                      </span>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-[11px] font-medium tracking-[0.16em] uppercase ${sessionAgentTone(
+                          selectedSessionAgentRole,
+                        )}`}
+                      >
+                        {selectedSessionAgentRole}
+                      </span>
+                    </div>
                     <div className="space-y-2">
                       <h2 className="text-xl font-semibold tracking-tight text-slate-950">
                         {selectedSession?.data.title ?? '等待选择会话'}
@@ -981,6 +1025,12 @@ export default function OrchestrationSessionPage() {
                       {selectedSession
                         ? sessionStatusLabel(selectedSession.data.status)
                         : '未选择'}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
+                      模式：{selectedSessionMode}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
+                      Agent：{selectedSessionAgentRole}
                     </span>
                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
                       当前阶段：{selectedStageTitle}
@@ -1109,6 +1159,14 @@ export default function OrchestrationSessionPage() {
                       <SidebarField
                         label="事件流"
                         value={streamStatusLabel(streamStatus)}
+                      />
+                      <SidebarField
+                        label="模式"
+                        value={selectedSessionMode}
+                      />
+                      <SidebarField
+                        label="执行角色"
+                        value={selectedSessionAgentRole}
                       />
                       <SidebarField
                         label="工作区"

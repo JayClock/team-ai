@@ -49,7 +49,7 @@ describe('orchestration storage metadata', () => {
       title: 'Implement local workflow',
       goal: 'Wire local orchestration runtime',
       provider: 'codex',
-      executionMode: 'local',
+      executionMode: 'ROUTA',
       workspaceRoot: '/tmp/team-ai-workspace',
       traceId: 'trace-storage-1',
     });
@@ -58,7 +58,7 @@ describe('orchestration storage metadata', () => {
     const steps = await listOrchestrationSteps(sqlite, session.id);
 
     expect(reloadedSession.provider).toBe('codex');
-    expect(reloadedSession.executionMode).toBe('local');
+    expect(reloadedSession.executionMode).toBe('ROUTA');
     expect(reloadedSession.workspaceRoot).toBe('/tmp/team-ai-workspace');
     expect(reloadedSession.traceId).toBe('trace-storage-1');
 
@@ -170,7 +170,7 @@ describe('orchestration storage metadata', () => {
         title: 'Implement local workflow',
         goal: 'Wire local orchestration runtime',
         provider: 'codex',
-        executionMode: 'local',
+        executionMode: 'ROUTA',
         workspaceRoot: '/tmp/team-ai-workspace',
         traceId: 'trace-execution-1',
       },

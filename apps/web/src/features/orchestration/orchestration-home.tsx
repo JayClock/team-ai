@@ -68,6 +68,7 @@ type OrchestrationSessionResponse = {
 };
 
 type PickerTab = 'existing' | 'clone';
+type SessionMode = 'ROUTA' | 'DEVELOPER';
 
 type DropdownPosition = {
   bottom: number;
@@ -96,6 +97,20 @@ function isRepositoryInput(value: string): boolean {
     /^github\.com\//iu.test(trimmed) ||
     /^[a-zA-Z0-9\-_]+\/[a-zA-Z0-9\-_.]+$/u.test(trimmed)
   );
+}
+
+function sessionModeLabel(mode: SessionMode): string {
+  return mode === 'ROUTA' ? 'Multi-Agent' : 'Direct';
+}
+
+function sessionModeDescription(mode: SessionMode): string {
+  return mode === 'ROUTA'
+    ? '复杂任务交给 ROUTA 做规划、协调和推进。'
+    : '简单任务直接由 DEVELOPER 独立处理。';
+}
+
+function executionModeFromSessionMode(mode: SessionMode): string {
+  return mode;
 }
 
 async function readJson<T>(href: string, init?: RequestInit): Promise<T> {
@@ -476,6 +491,7 @@ export default function OrchestrationHome() {
   const [preparingRepository, setPreparingRepository] = useState(false);
   const [projects, setProjects] = useState<ProjectDocument[]>([]);
   const [prompt, setPrompt] = useState('');
+  const [sessionMode, setSessionMode] = useState<SessionMode>('ROUTA');
   const [selectedProject, setSelectedProject] = useState<ProjectDocument | null>(
     null,
   );
@@ -591,6 +607,7 @@ export default function OrchestrationHome() {
             method: 'POST',
             body: JSON.stringify({
               goal,
+              executionMode: executionModeFromSessionMode(sessionMode),
               projectId: selectedProject.id,
               provider: 'codex',
               title: deriveSessionTitle(goal),
@@ -607,7 +624,7 @@ export default function OrchestrationHome() {
         setStartingSession(false);
       }
     },
-    [navigate, prompt, selectedProject],
+    [navigate, prompt, selectedProject, sessionMode],
   );
 
   const handlePromptKeyDown = useCallback(
@@ -675,8 +692,41 @@ export default function OrchestrationHome() {
                   value={selectedProject}
                 />
 
-                <div className="hidden h-8 items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-600 sm:flex">
-                  Codex
+                <div
+                  className="hidden items-center rounded-lg bg-slate-100 p-0.5 sm:flex"
+                  role="group"
+                  aria-label="Session mode"
+                >
+                  <button
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                      sessionMode === 'ROUTA'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                    onClick={() => setSessionMode('ROUTA')}
+                    title="Multi-Agent orchestration via ROUTA"
+                    type="button"
+                  >
+                    <SparklesIcon className="size-3.5" />
+                    Multi-Agent
+                  </button>
+                  <button
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                      sessionMode === 'DEVELOPER'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                    onClick={() => setSessionMode('DEVELOPER')}
+                    title="Direct single-agent execution via DEVELOPER"
+                    type="button"
+                  >
+                    <ArrowRightIcon className="size-3.5" />
+                    Direct
+                  </button>
+                </div>
+
+                <div className="hidden h-8 items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-600 lg:flex">
+                  {sessionMode === 'ROUTA' ? 'ROUTA' : 'DEVELOPER'}
                 </div>
 
                 <div className="hidden items-center text-[11px] text-slate-400 md:flex">
@@ -715,6 +765,19 @@ export default function OrchestrationHome() {
         </div>
 
         <div className="mx-auto grid w-full max-w-4xl gap-4 md:grid-cols-3">
+          <div className="md:col-span-3 rounded-2xl border border-slate-200/80 bg-white/80 px-5 py-4 shadow-[0_20px_50px_-42px_rgba(15,23,42,0.35)] backdrop-blur">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-amber-700 uppercase">
+                {sessionModeLabel(sessionMode)}
+              </span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-slate-600 uppercase">
+                {sessionMode}
+              </span>
+              <span className="text-sm leading-6 text-slate-500">
+                {sessionModeDescription(sessionMode)}
+              </span>
+            </div>
+          </div>
           {stages.map(([index, title, description], stepIndex) => (
             <div
               key={title}

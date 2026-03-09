@@ -168,7 +168,7 @@ export const sqliteMigrations: SqliteMigration[] = [
         ADD COLUMN workspace_root TEXT;
 
       ALTER TABLE orchestration_sessions
-        ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'local';
+        ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'ROUTA';
 
       ALTER TABLE orchestration_sessions
         ADD COLUMN trace_id TEXT;

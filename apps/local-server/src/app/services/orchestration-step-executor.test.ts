@@ -231,7 +231,7 @@ function createSessionPayload(): OrchestrationSessionPayload {
     id: 'orc-test',
     projectId: 'project-1',
     provider: 'codex',
-    executionMode: 'local',
+    executionMode: 'ROUTA',
     title: 'Run local orchestration',
     goal: 'Implement local orchestration executor',
     status: 'RUNNING',

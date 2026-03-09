@@ -1170,7 +1170,7 @@ export async function createOrchestrationSession(
   const now = new Date().toISOString();
   const sessionId = createSessionId();
   const provider = input.provider?.trim() || 'codex';
-  const executionMode = input.executionMode?.trim() || 'local';
+  const executionMode = input.executionMode?.trim() || 'ROUTA';
   const strategy = {
     failFast: true,
     maxParallelism: 1,
