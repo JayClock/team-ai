@@ -2,11 +2,6 @@ import { Collection, Entity, State } from '@hateoas-ts/resource';
 import { useClient } from '@hateoas-ts/resource-react';
 import {
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   ScrollArea,
   Separator,
   toast,
@@ -24,7 +19,7 @@ import {
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  collectRuntimeOutputByStep,
+  collectArtifactsByStep,
   formatTimestamp,
   statusTone,
   summarizeEvent,
@@ -310,6 +305,103 @@ function actionLabel(action: 'cancel' | 'resume' | 'retry'): string {
   }
 }
 
+interface ChatFeedMessage {
+  content: string;
+  id: string;
+  meta: string[];
+  preformatted?: boolean;
+  tone: 'assistant' | 'system' | 'user';
+}
+
+function looksLikeStructuredRuntimeLog(text: string): boolean {
+  const normalizedLines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (normalizedLines.length === 0) {
+    return true;
+  }
+
+  if (normalizedLines[0]?.startsWith('{') || normalizedLines[0]?.startsWith('[')) {
+    return true;
+  }
+
+  if (
+    text.includes('"summary":') ||
+    text.includes('"tasks":') ||
+    text.includes('"verification":')
+  ) {
+    return true;
+  }
+
+  if (normalizedLines.length > 1 && normalizedLines[0] === normalizedLines[1]) {
+    return true;
+  }
+
+  if (
+    normalizedLines.some((line) => line.startsWith('gateway:')) ||
+    /[A-Z]{3,}(?:_[A-Z0-9]+)+/.test(text)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function shouldShowRuntimeMessage(text: string, stepKind?: StepKind): boolean {
+  const normalized = text.trim();
+  if (normalized.length === 0) {
+    return false;
+  }
+
+  // Main chat feed should behave like a normal conversation, not an internal
+  // orchestration log. Planning/verification runtime output is usually
+  // structured control data rather than user-facing assistant text.
+  if (stepKind !== 'IMPLEMENT') {
+    return false;
+  }
+
+  if (looksLikeStructuredRuntimeLog(normalized)) {
+    return false;
+  }
+
+  return true;
+}
+
+function shouldShowSystemEventInChat(type: string): boolean {
+  return (
+    type === 'session.completed' ||
+    type === 'session.failed' ||
+    type === 'session.cancelled' ||
+    type === 'session.resumed' ||
+    type === 'session.retried'
+  );
+}
+
+function summarizeSystemEventForChat(event: OrchestrationEventPayload): string {
+  const reason =
+    typeof event.payload.reason === 'string' ? event.payload.reason.trim() : '';
+
+  switch (event.type) {
+    case 'session.completed':
+      return '本次会话已完成，结果和产物已经整理到右侧协作栏。';
+    case 'session.failed':
+      if (reason === 'step-waiting-retry') {
+        return '执行在某个阶段停住了，当前正在等待重试。右侧可以直接重试对应阶段。';
+      }
+      return '本次会话执行失败。失败阶段、最近活动和产物摘要都保留在右侧协作栏。';
+    case 'session.cancelled':
+      return '本次会话已取消。';
+    case 'session.resumed':
+      return '会话已恢复执行。';
+    case 'session.retried':
+      return '会话已经重新开始执行。';
+    default:
+      return summarizeEvent(event);
+  }
+}
+
 export default function OrchestrationSessionPage() {
   const client = useClient();
   const navigate = useNavigate();
@@ -580,10 +672,6 @@ export default function OrchestrationSessionPage() {
     [reloadSelectedSession],
   );
 
-  const runtimeOutputByStep = useMemo(
-    () => collectRuntimeOutputByStep(events),
-    [events],
-  );
   const recentEvents = useMemo(
     () =>
       [...events]
@@ -599,9 +687,121 @@ export default function OrchestrationSessionPage() {
       }, {}),
     [steps],
   );
+  const stepById = useMemo(
+    () =>
+      steps.reduce<Record<string, State<OrchestrationStep>>>((accumulator, step) => {
+        accumulator[step.data.id] = step;
+        return accumulator;
+      }, {}),
+    [steps],
+  );
+  const selectedStageTitle = selectedSession?.data.currentPhase
+    ? stageMeta[selectedSession.data.currentPhase].title
+    : '等待开始';
+  const activitySummary = selectedSession
+    ? `${selectedSession.data.stepCounts.completed}/${selectedSession.data.stepCounts.total} 阶段完成`
+    : '暂无会话';
   const streamUrl = selectedSession?.getLink('stream')?.href
     ? resolveRuntimeApiUrl(selectedSession.getLink('stream')?.href ?? '')
     : null;
+  const artifactFeed = useMemo(
+    () =>
+      collectArtifactsByStep(steps.map((step) => step.data))
+        .sort((left, right) =>
+          right.artifact.updatedAt.localeCompare(left.artifact.updatedAt),
+        )
+        .slice(0, 8),
+    [steps],
+  );
+  const chatFeed = useMemo(() => {
+    if (!selectedSession) {
+      return [];
+    }
+
+    const nextFeed: ChatFeedMessage[] = [
+      {
+        content: selectedSession.data.goal,
+        id: `goal-${selectedSession.data.id}`,
+        meta: [
+          selectedSession.data.workspaceRoot ?? '未绑定工作区',
+          formatTimestamp(selectedSession.data.createdAt),
+        ],
+        tone: 'user',
+      },
+      {
+        content: `会话已载入，当前处于${selectedStageTitle}阶段。执行模式为 ${selectedSession.data.provider} · ${selectedSession.data.executionMode}，当前进度 ${activitySummary}。`,
+        id: `summary-${selectedSession.data.id}`,
+        meta: [`流状态 ${streamStatusLabel(streamStatus)}`],
+        tone: 'assistant',
+      },
+    ];
+    let lastAssistantRuntimeText: string | null = null;
+    let lastSystemMessageText: string | null = null;
+
+    const chronologicalEvents = [...events].sort((left, right) =>
+      left.at.localeCompare(right.at),
+    );
+
+    for (const event of chronologicalEvents) {
+      const relatedStep = event.stepId ? stepById[event.stepId] : undefined;
+      const stepTitle = relatedStep
+        ? `${stageMeta[relatedStep.data.kind].title} · ${relatedStep.data.title}`
+        : undefined;
+
+      if (event.type === 'step.runtime.event') {
+        const runtimeText = summarizeEvent(event);
+        const stepKind = relatedStep?.data.kind;
+
+        if (!shouldShowRuntimeMessage(runtimeText, stepKind)) {
+          continue;
+        }
+
+        if (lastAssistantRuntimeText === runtimeText.trim()) {
+          continue;
+        }
+
+        lastAssistantRuntimeText = runtimeText.trim();
+        nextFeed.push({
+          content: runtimeText,
+          id: event.id,
+          meta: [
+            stepTitle ?? '运行输出',
+            relatedStep?.data.role ?? '执行代理',
+            formatTimestamp(event.at),
+          ],
+          preformatted: runtimeText.includes('\n'),
+          tone: 'assistant',
+        });
+        continue;
+      }
+
+      if (!shouldShowSystemEventInChat(event.type)) {
+        continue;
+      }
+
+      const systemMessage = summarizeSystemEventForChat(event);
+      if (lastSystemMessageText === systemMessage) {
+        continue;
+      }
+
+      lastSystemMessageText = systemMessage;
+      nextFeed.push({
+        content: systemMessage,
+        id: event.id,
+        meta: [formatTimestamp(event.at)],
+        tone: 'system',
+      });
+    }
+
+    return nextFeed;
+  }, [
+    activitySummary,
+    events,
+    selectedSession,
+    selectedStageTitle,
+    stepById,
+    streamStatus,
+  ]);
 
   if (loading) {
     return (
@@ -614,64 +814,92 @@ export default function OrchestrationSessionPage() {
     );
   }
 
-  return (
-    <div className="relative min-h-full overflow-hidden bg-[radial-gradient(circle_at_top,#dbeafe_0%,#f8fafc_40%,#ffffff_100%)]">
-      <div className="absolute inset-x-0 top-0 h-72 bg-[linear-gradient(135deg,rgba(14,165,233,0.18),rgba(59,130,246,0.04),rgba(255,255,255,0))]" />
-      <div className="relative mx-auto grid min-h-full w-full max-w-[1600px] gap-6 px-4 py-6 md:px-8 xl:grid-cols-[300px_minmax(0,1fr)_320px] xl:py-8">
-        <aside className="flex min-h-0 flex-col gap-6">
-          <Card className="border-slate-200/80 bg-white/90 shadow-[0_20px_80px_-48px_rgba(15,23,42,0.4)] backdrop-blur">
-            <CardHeader className="gap-3">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-sky-700 uppercase">
-                <SparklesIcon className="size-3.5" />
-                会话视图
-              </div>
-              <CardTitle className="text-xl">执行会话</CardTitle>
-              <CardDescription className="text-sm leading-6">
-                可以在最近的本地执行之间切换，或者回到入口页重新发起新会话。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                className="w-full justify-start"
-                onClick={() => navigate('/orchestration')}
-                variant="outline"
-              >
-                <ArrowLeftIcon className="size-4" />
-                新建会话
-              </Button>
-              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                <MetricCard
-                  label="会话数"
-                  value={sessions.length.toString()}
-                />
-                <MetricCard
-                  label="执行中"
-                  value={sessions
-                    .filter((session) => session.data.status === 'RUNNING')
-                    .length.toString()}
-                />
-                <MetricCard
-                  label="失败"
-                  value={sessions
-                    .filter((session) => session.data.status === 'FAILED')
-                    .length.toString()}
-                />
-              </div>
-            </CardContent>
-          </Card>
+  const runningSessionsCount = sessions.filter(
+    (session) => session.data.status === 'RUNNING',
+  ).length;
+  const failedSessionsCount = sessions.filter(
+    (session) => session.data.status === 'FAILED',
+  ).length;
 
-          <Card className="min-h-0 flex-1 border-slate-200/80 bg-white/90 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="text-base">最近会话</CardTitle>
-              <CardDescription>
-                当前共有 {sessions.length} 个会话
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="min-h-0">
-              <ScrollArea className="h-[420px] pr-3 xl:h-[calc(100vh-340px)]">
-                <div className="space-y-3">
+  return (
+    <div className="relative min-h-full overflow-hidden bg-[radial-gradient(circle_at_top,#dbeafe_0%,#eef6ff_26%,#f8fafc_56%,#ffffff_100%)]">
+      <div className="absolute inset-x-0 top-0 h-72 bg-[linear-gradient(135deg,rgba(14,165,233,0.18),rgba(59,130,246,0.06),rgba(255,255,255,0))]" />
+      <div className="relative mx-auto flex min-h-full max-w-[1680px] flex-col px-4 py-4 md:px-6 xl:px-8 xl:py-6">
+        <header className="mb-4 rounded-[32px] border border-slate-200/80 bg-white/88 p-4 shadow-[0_24px_80px_-54px_rgba(15,23,42,0.38)] backdrop-blur md:p-6">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  className="rounded-full"
+                  onClick={() => navigate('/orchestration')}
+                  size="sm"
+                  variant="outline"
+                >
+                  <ArrowLeftIcon className="size-4" />
+                  返回会话列表
+                </Button>
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-sky-700 uppercase">
+                  <SparklesIcon className="size-3.5" />
+                  Session Workspace
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h1 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
+                  {selectedSession?.data.title ?? '未找到会话'}
+                </h1>
+                <p className="max-w-4xl text-sm leading-6 text-slate-600">
+                  {selectedSession?.data.goal ??
+                    '请从左侧选择一个会话，或返回列表页重新发起执行。'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <NavigatorMetric
+                label="会话总数"
+                value={sessions.length.toString()}
+              />
+              <NavigatorMetric
+                label="执行中"
+                value={runningSessionsCount.toString()}
+              />
+              <NavigatorMetric
+                label="失败"
+                value={failedSessionsCount.toString()}
+              />
+            </div>
+          </div>
+        </header>
+
+        <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[300px_minmax(0,1fr)_340px]">
+          <aside className="min-h-0">
+            <div className="flex h-full min-h-[720px] flex-col overflow-hidden rounded-[30px] border border-slate-200/80 bg-white/92 shadow-[0_20px_60px_-48px_rgba(15,23,42,0.45)] backdrop-blur">
+              <div className="border-b border-slate-200/80 px-4 py-4">
+                <div className="text-[11px] font-medium tracking-[0.18em] text-slate-500 uppercase">
+                  左侧导航
+                </div>
+                <h2 className="mt-2 text-lg font-semibold text-slate-950">Sessions</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  保留会话切换职责，不再承担输出和协作细节。
+                </p>
+              </div>
+
+              <div className="border-b border-slate-200/80 px-4 py-4">
+                <Button
+                  className="w-full justify-start rounded-2xl"
+                  onClick={() => navigate('/orchestration')}
+                  variant="outline"
+                >
+                  <SparklesIcon className="size-4" />
+                  新建会话
+                </Button>
+              </div>
+
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="space-y-3 p-4">
                   {sessions.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+                    <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm text-slate-500">
                       还没有会话。返回入口页即可发起第一次执行。
                     </div>
                   ) : (
@@ -681,7 +909,7 @@ export default function OrchestrationSessionPage() {
                       return (
                         <button
                           key={session.data.id}
-                          className={`w-full rounded-2xl border px-4 py-4 text-left transition ${
+                          className={`w-full rounded-[26px] border px-4 py-4 text-left transition ${
                             isSelected
                               ? 'border-sky-300 bg-sky-50 text-sky-950 shadow-sm'
                               : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
@@ -706,7 +934,7 @@ export default function OrchestrationSessionPage() {
                               {sessionStatusLabel(session.data.status)}
                             </span>
                           </div>
-                          <div className="mt-3 space-y-1 text-[11px] text-slate-500">
+                          <div className="mt-4 grid gap-2 text-[11px] text-slate-500">
                             <div className="truncate">
                               {session.data.workspaceRoot ?? '暂无工作区路径'}
                             </div>
@@ -722,447 +950,330 @@ export default function OrchestrationSessionPage() {
                   )}
                 </div>
               </ScrollArea>
-            </CardContent>
-          </Card>
-        </aside>
+            </div>
+          </aside>
 
-        <main className="flex min-h-0 flex-col gap-6">
-          <Card className="border-slate-200/80 bg-white/92 shadow-[0_24px_80px_-52px_rgba(15,23,42,0.45)] backdrop-blur">
-            <CardHeader className="gap-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-3">
-                  <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-slate-600 uppercase">
-                    <FolderGit2Icon className="size-3.5" />
-                    本地工作区会话
+          <main className="min-h-0">
+            <div className="flex h-full min-h-[720px] flex-col overflow-hidden rounded-[34px] border border-slate-200/80 bg-white/94 shadow-[0_28px_90px_-56px_rgba(15,23,42,0.45)] backdrop-blur">
+              <div className="border-b border-slate-200/80 px-4 py-4 md:px-6">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="space-y-3">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-slate-600 uppercase">
+                      <FolderGit2Icon className="size-3.5" />
+                      Chat Panel
+                    </div>
+                    <div className="space-y-2">
+                      <h2 className="text-xl font-semibold tracking-tight text-slate-950">
+                        {selectedSession?.data.title ?? '等待选择会话'}
+                      </h2>
+                      <p className="text-sm leading-6 text-slate-600">
+                        中间主区负责承载会话目标、阶段输出和事件流，作为 orchestration session 的 chat panel。
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-3xl tracking-tight text-slate-950">
-                      {selectedSession?.data.title ?? '未找到会话'}
-                    </CardTitle>
-                    <CardDescription className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                      {selectedSession?.data.goal ??
-                        '请从左侧选择一个会话，或返回入口页新建会话。'}
-                    </CardDescription>
-                  </div>
-                </div>
-                {selectedSession ? (
+
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-medium ${statusTone(
-                        selectedSession.data.status,
+                        selectedSession?.data.status ?? 'PENDING',
                       )}`}
                     >
-                      {sessionStatusLabel(selectedSession.data.status)}
+                      {selectedSession
+                        ? sessionStatusLabel(selectedSession.data.status)
+                        : '未选择'}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
+                      当前阶段：{selectedStageTitle}
                     </span>
                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
                       事件流：{streamStatusLabel(streamStatus)}
                     </span>
                   </div>
-                ) : null}
+                </div>
               </div>
-            </CardHeader>
-            {selectedSession ? (
-              <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <SessionStat
-                  label="工作区"
-                  value={selectedSession.data.workspaceRoot ?? '未绑定'}
-                />
-                <SessionStat
-                  label="当前阶段"
-                  value={selectedSession.data.currentPhase ? stageMeta[selectedSession.data.currentPhase].title : '待开始'}
-                />
-                <SessionStat
-                  label="更新时间"
-                  value={formatTimestamp(selectedSession.data.updatedAt)}
-                />
-                <SessionStat
-                  label="提供方"
-                  value={`${selectedSession.data.provider} · ${selectedSession.data.executionMode}`}
-                />
-              </CardContent>
-            ) : null}
-          </Card>
 
-          {selectedSession ? (
-            <>
-              <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
-                <CardHeader>
-                  <CardTitle className="text-lg">需求上下文</CardTitle>
-                  <CardDescription>
-                    启动本次会话时使用的仓库路径和用户需求。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5">
-                    <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
-                      需求
+              {selectedSession ? (
+                <>
+                  <ScrollArea className="min-h-0 flex-1">
+                    <div className="flex flex-col gap-4 p-4 md:p-6">
+                      {chatFeed.map((message) => (
+                        <ChatBubble
+                          key={message.id}
+                          meta={message.meta}
+                          tone={message.tone}
+                        >
+                          {message.preformatted ? (
+                            <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-inherit">
+                              {message.content}
+                            </pre>
+                          ) : (
+                            <p className="whitespace-pre-wrap text-sm leading-6 text-inherit/85">
+                              {message.content}
+                            </p>
+                          )}
+                        </ChatBubble>
+                      ))}
+
+                      {chatFeed.length <= 2 ? (
+                        <div className="mx-auto max-w-xl rounded-[26px] border border-dashed border-slate-200 bg-white/70 px-5 py-6 text-center text-sm leading-6 text-slate-500">
+                          会话已创建，但还没有更多执行输出。后续 runtime event 会直接以普通聊天消息继续出现在这里。
+                        </div>
+                      ) : null}
                     </div>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">
-                      {selectedSession.data.goal}
-                    </p>
-                  </div>
-                  <div className="grid gap-3">
-                    <DetailRow
-                      label="工作区路径"
-                      value={selectedSession.data.workspaceRoot ?? '—'}
-                    />
-                    <DetailRow
-                      label="创建时间"
-                      value={formatTimestamp(selectedSession.data.createdAt)}
-                    />
-                    <DetailRow
-                      label="最后事件"
-                      value={formatTimestamp(selectedSession.data.lastEventAt)}
-                    />
-                    <DetailRow
-                      label="追踪 ID"
-                      value={selectedSession.data.traceId ?? '—'}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+                  </ScrollArea>
 
-              <Card className="min-h-0 border-slate-200/80 bg-white/92 backdrop-blur">
-                <CardHeader>
-                  <CardTitle className="text-lg">执行内容</CardTitle>
-                  <CardDescription>
-                    按阶段展示运行输出、结构化产物和失败信息。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="min-h-0">
-                  <div className="space-y-4">
+                  <div className="border-t border-slate-200/80 px-4 py-4 md:px-6">
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto]">
+                      <div className="rounded-[26px] border border-slate-200 bg-slate-50/80 px-4 py-4">
+                        <div className="text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase">
+                          协作提示
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          当前页面已经承担 chat panel 和协作栏职责：中间查看需求、输出和事件，右侧集中处理阶段重试、结构化产物和状态信息。
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
+                            {activitySummary}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-white px-3 py-1">
+                            流地址：{streamUrl ?? '暂无'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <SessionActionButton
+                          busy={activeAction === 'cancel'}
+                          disabled={!selectedSession.hasLink('cancel')}
+                          icon={<PauseCircleIcon className="size-4" />}
+                          label="取消"
+                          onClick={() => void triggerSessionAction('cancel')}
+                        />
+                        <SessionActionButton
+                          busy={activeAction === 'resume'}
+                          disabled={!selectedSession.hasLink('resume')}
+                          icon={<PlayCircleIcon className="size-4" />}
+                          label="恢复"
+                          onClick={() => void triggerSessionAction('resume')}
+                        />
+                        <SessionActionButton
+                          busy={activeAction === 'retry'}
+                          disabled={!selectedSession.hasLink('retry')}
+                          icon={<RotateCcwIcon className="size-4" />}
+                          label="重试会话"
+                          onClick={() => void triggerSessionAction('retry')}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-1 flex-col items-start justify-center gap-4 px-6 py-10">
+                  <div className="text-lg font-semibold text-slate-950">
+                    未找到会话
+                  </div>
+                  <p className="max-w-xl text-sm leading-6 text-slate-600">
+                    无法加载请求的会话。你可以返回入口页新建会话，或者从左侧选择一个已有会话。
+                  </p>
+                  <Button onClick={() => navigate('/orchestration')}>新建会话</Button>
+                </div>
+              )}
+            </div>
+          </main>
+
+          <aside className="min-h-0">
+            <div className="flex h-full min-h-[720px] flex-col overflow-hidden rounded-[30px] border border-slate-900/90 bg-slate-950 text-slate-100 shadow-[0_22px_80px_-54px_rgba(15,23,42,0.92)]">
+              <div className="border-b border-slate-800 px-4 py-4">
+                <div className="text-[11px] font-medium tracking-[0.18em] text-slate-400 uppercase">
+                  协作栏
+                </div>
+                <h2 className="mt-2 text-lg font-semibold text-white">
+                  Collaboration Rail
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-slate-300">
+                  右侧固定承载控制、阶段状态、产物摘要和最近活动。
+                </p>
+              </div>
+
+              <ScrollArea className="min-h-0 flex-1">
+                <div className="space-y-4 p-4">
+                  <div className="rounded-[26px] border border-slate-800 bg-slate-900/80 p-4">
+                    <div className="text-[11px] font-medium tracking-[0.16em] text-slate-400 uppercase">
+                      会话上下文
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      <SidebarField
+                        label="状态"
+                        value={selectedSession ? sessionStatusLabel(selectedSession.data.status) : '—'}
+                      />
+                      <SidebarField
+                        label="事件流"
+                        value={streamStatusLabel(streamStatus)}
+                      />
+                      <SidebarField
+                        label="工作区"
+                        value={selectedSession?.data.workspaceRoot ?? '—'}
+                      />
+                      <SidebarField
+                        label="策略"
+                        value={
+                          selectedSession
+                            ? `${selectedSession.data.strategy.mode} · 并行 ${selectedSession.data.strategy.maxParallelism}`
+                            : '—'
+                        }
+                      />
+                      <SidebarField
+                        label="快速失败"
+                        value={selectedSession?.data.strategy.failFast ? '开启' : '关闭'}
+                      />
+                    </div>
+                  </div>
+
+                  <Separator className="bg-slate-800" />
+
+                  <div className="space-y-3">
+                    <div className="text-[11px] font-medium tracking-[0.16em] text-slate-400 uppercase">
+                      阶段协作
+                    </div>
                     {orderedStageKinds.map((kind) => {
                       const step = stepByKind[kind];
-                      const runtimeOutput = step
-                        ? (runtimeOutputByStep[step.data.id] ?? []).join('')
-                        : '';
+                      const canRetry =
+                        step?.hasLink('retry') &&
+                        ['FAILED', 'WAITING_RETRY'].includes(step.data.status);
 
                       return (
                         <div
                           key={kind}
-                          className="rounded-[28px] border border-slate-200 bg-slate-50/70 p-5"
+                          className="rounded-[24px] border border-slate-800 bg-slate-900/70 p-4"
                         >
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="space-y-3">
-                              <div className="inline-flex w-fit items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-                                <span>{stageMeta[kind].index}</span>
-                                <span>{stageMeta[kind].title}</span>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-[10px] font-medium tracking-[0.16em] text-slate-500 uppercase">
+                                {stageMeta[kind].index}
                               </div>
-                              <div>
-                                <h3 className="text-lg font-semibold text-slate-950">
-                                  {step?.data.title ?? stageMeta[kind].title}
-                                </h3>
-                                <p className="mt-1 text-sm leading-6 text-slate-600">
-                                  {stageMeta[kind].description}
-                                </p>
+                              <div className="mt-1 text-sm font-medium text-slate-100">
+                                {step?.data.title ?? stageMeta[kind].title}
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`rounded-full px-3 py-1 text-xs font-medium ${statusTone(
-                                  step?.data.status ?? 'PENDING',
-                                )}`}
-                              >
-                                {sessionStatusLabel(step?.data.status ?? 'PENDING')}
-                              </span>
-                              <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
-                                {step
-                                  ? `第 ${step.data.attempt}/${step.data.maxAttempts} 次尝试`
-                                  : '等待中'}
-                              </span>
-                            </div>
+                            <span
+                              className={`rounded-full px-2 py-1 text-[11px] font-medium ${statusTone(
+                                step?.data.status ?? 'PENDING',
+                              )}`}
+                            >
+                              {sessionStatusLabel(step?.data.status ?? 'PENDING')}
+                            </span>
                           </div>
-
+                          <p className="mt-2 text-xs leading-5 text-slate-400">
+                            {stageMeta[kind].description}
+                          </p>
                           {step ? (
-                            <div className="mt-4 grid gap-4">
-                              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                                <DetailRow
-                                  label="角色"
-                                  value={step.data.role ?? '执行代理'}
-                                />
-                                <DetailRow
-                                  label="开始时间"
-                                  value={formatTimestamp(step.data.startedAt)}
-                                />
-                                <DetailRow
-                                  label="完成时间"
-                                  value={formatTimestamp(step.data.completedAt)}
-                                />
-                                <DetailRow
-                                  label="运行时会话"
-                                  value={step.data.runtimeSessionId ?? '尚未开始'}
-                                />
+                            <>
+                              <div className="mt-3 space-y-1 text-[11px] text-slate-400">
+                                <div>角色：{step.data.role ?? '执行代理'}</div>
+                                <div>更新时间：{formatTimestamp(step.data.updatedAt)}</div>
+                                <div>产物数：{step.data.artifacts.length}</div>
                               </div>
-
-                              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
-                                <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                                  <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
-                                    运行输出
-                                  </div>
-                                  <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">
-                                    {runtimeOutput.length > 0
-                                      ? runtimeOutput
-                                      : '这个阶段还没有流式输出。'}
-                                  </pre>
-                                </div>
-
-                                <div className="space-y-3">
-                                  {step.data.errorCode || step.data.errorMessage ? (
-                                    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                                      <div className="text-xs font-medium tracking-[0.16em] uppercase">
-                                        失败信息
-                                      </div>
-                                      <div className="mt-2 font-medium">
-                                        {step.data.errorCode ?? 'STEP_ERROR'}
-                                      </div>
-                                      <p className="mt-2 leading-6">
-                                        {step.data.errorMessage ?? '没有错误信息'}
-                                      </p>
-                                    </div>
-                                  ) : null}
-
-                                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                                    <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
-                                      产物
-                                    </div>
-                                    {step.data.artifacts.length === 0 ? (
-                                      <p className="mt-3 text-sm text-slate-500">
-                                        还没有持久化的结构化产物。
-                                      </p>
-                                    ) : (
-                                      <div className="mt-3 space-y-3">
-                                        {step.data.artifacts.map((artifact) => (
-                                          <div
-                                            key={artifact.id}
-                                            className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3"
-                                          >
-                                            <div className="flex items-center justify-between gap-3">
-                                              <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-white">
-                                                {artifact.kind}
-                                              </span>
-                                              <span className="text-[11px] text-slate-500">
-                                                {formatTimestamp(artifact.updatedAt)}
-                                              </span>
-                                            </div>
-                                            <p className="mt-3 text-sm leading-6 text-slate-600">
-                                              {summarizeArtifactContent(artifact.content)}
-                                            </p>
-                                            <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap break-words rounded-2xl bg-white p-3 text-xs leading-6 text-slate-700">
-                                              {JSON.stringify(artifact.content, null, 2)}
-                                            </pre>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="mt-4 rounded-3xl border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-sm text-slate-500">
-                              这个阶段还没有开始执行。
-                            </div>
-                          )}
+                              <Button
+                                className="mt-3 w-full border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800"
+                                disabled={!canRetry || retryingStepId === step.data.id}
+                                onClick={() => void handleRetryStep(step)}
+                                size="sm"
+                                variant="outline"
+                              >
+                                {retryingStepId === step.data.id ? (
+                                  <>
+                                    <Loader2Icon className="size-4 animate-spin" />
+                                    重试中...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RotateCcwIcon className="size-4" />
+                                    重试阶段
+                                  </>
+                                )}
+                              </Button>
+                            </>
+                          ) : null}
                         </div>
                       );
                     })}
                   </div>
-                </CardContent>
-              </Card>
 
-              <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
-                <CardHeader>
-                  <CardTitle className="text-lg">事件时间线</CardTitle>
-                  <CardDescription>
-                    展示最近持久化事件和实时流更新。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {recentEvents.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
-                      还没有事件记录。
+                  <Separator className="bg-slate-800" />
+
+                  <div className="space-y-3">
+                    <div className="text-[11px] font-medium tracking-[0.16em] text-slate-400 uppercase">
+                      最新产物
                     </div>
-                  ) : (
-                    <div className="grid gap-3">
-                      {recentEvents.map((event) => (
+                    {artifactFeed.length === 0 ? (
+                      <div className="rounded-[24px] border border-dashed border-slate-700 bg-slate-900/40 px-4 py-5 text-sm text-slate-400">
+                        还没有结构化产物。
+                      </div>
+                    ) : (
+                      artifactFeed.map((entry) => (
+                        <div
+                          key={entry.artifact.id}
+                          className="rounded-[22px] border border-slate-800 bg-slate-900/70 p-4"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-900">
+                              {entry.artifact.kind}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {formatTimestamp(entry.artifact.updatedAt)}
+                            </span>
+                          </div>
+                          <div className="mt-3 text-xs leading-5 text-slate-400">
+                            {entry.stepTitle}
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-slate-200">
+                            {summarizeArtifactContent(entry.artifact.content)}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <Separator className="bg-slate-800" />
+
+                  <div className="space-y-3">
+                    <div className="text-[11px] font-medium tracking-[0.16em] text-slate-400 uppercase">
+                      最近活动
+                    </div>
+                    {recentEvents.length === 0 ? (
+                      <div className="rounded-[24px] border border-dashed border-slate-700 bg-slate-900/40 px-4 py-5 text-sm text-slate-400">
+                        暂无活动事件。
+                      </div>
+                    ) : (
+                      recentEvents.slice(0, 8).map((event) => (
                         <div
                           key={event.id}
-                          className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3"
+                          className="rounded-[22px] border border-slate-800 bg-slate-900/70 px-4 py-3"
                         >
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="space-y-1">
-                              <div className="text-sm font-medium text-slate-950">
-                                {eventTypeLabel(event.type)}
-                              </div>
-                              <div className="text-xs leading-5 text-slate-500">
-                                {summarizeEvent(event)}
-                              </div>
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {formatTimestamp(event.at)}
-                            </div>
+                          <div className="text-sm font-medium text-slate-100">
+                            {eventTypeLabel(event.type)}
                           </div>
-                          {event.stepId ? (
-                            <div className="mt-2 text-[11px] text-slate-500">
-                              阶段：{event.stepId}
-                            </div>
-                          ) : null}
+                          <div className="mt-1 text-xs leading-5 text-slate-400">
+                            {summarizeEvent(event)}
+                          </div>
+                          <div className="mt-2 text-[11px] text-slate-500">
+                            {formatTimestamp(event.at)}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
-              <CardContent className="flex flex-col items-start gap-4 px-6 py-10">
-                <div className="text-lg font-semibold text-slate-950">
-                  未找到会话
-                </div>
-                <p className="max-w-xl text-sm leading-6 text-slate-600">
-                  无法加载请求的会话。你可以返回入口页新建会话，或者从左侧选择一个已有会话。
-                </p>
-                <Button onClick={() => navigate('/orchestration')}>新建会话</Button>
-              </CardContent>
-            </Card>
-          )}
-        </main>
-
-        <aside className="flex min-h-0 flex-col gap-6">
-          <Card className="border-slate-200/80 bg-slate-950 text-slate-100 shadow-[0_20px_80px_-48px_rgba(15,23,42,0.9)]">
-            <CardHeader>
-              <CardTitle className="text-base text-white">会话控制</CardTitle>
-              <CardDescription className="text-slate-300">
-                无需离开详情页即可控制当前会话。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-3">
-                <ActionButton
-                  busy={activeAction === 'cancel'}
-                  disabled={!selectedSession?.hasLink('cancel')}
-                  icon={<PauseCircleIcon className="size-4" />}
-                  label="取消"
-                  onClick={() => void triggerSessionAction('cancel')}
-                />
-                <ActionButton
-                  busy={activeAction === 'resume'}
-                  disabled={!selectedSession?.hasLink('resume')}
-                  icon={<PlayCircleIcon className="size-4" />}
-                  label="恢复"
-                  onClick={() => void triggerSessionAction('resume')}
-                />
-                <ActionButton
-                  busy={activeAction === 'retry'}
-                  disabled={!selectedSession?.hasLink('retry')}
-                  icon={<RotateCcwIcon className="size-4" />}
-                  label="重试会话"
-                  onClick={() => void triggerSessionAction('retry')}
-                />
-              </div>
-
-              <Separator className="bg-slate-800" />
-
-              <div className="space-y-3 text-sm">
-                <SidebarDetail label="状态" value={selectedSession ? sessionStatusLabel(selectedSession.data.status) : '—'} />
-                <SidebarDetail label="事件流" value={streamStatusLabel(streamStatus)} />
-                <SidebarDetail
-                  label="快速失败"
-                  value={selectedSession?.data.strategy.failFast ? '开启' : '关闭'}
-                />
-                <SidebarDetail
-                  label="并行度"
-                  value={selectedSession?.data.strategy.maxParallelism.toString() ?? '—'}
-                />
-                <SidebarDetail
-                  label="模式"
-                  value={selectedSession?.data.strategy.mode ?? '—'}
-                />
-                <SidebarDetail label="来源" value={streamUrl ?? '暂无事件流地址'} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
-            <CardHeader>
-              <CardTitle className="text-base">执行阶段</CardTitle>
-              <CardDescription>
-                以紧凑视图展示固定的规划、实施、验证三阶段状态。
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {orderedStageKinds.map((kind) => {
-                const step = stepByKind[kind];
-                const canRetry =
-                  step?.hasLink('retry') &&
-                  ['FAILED', 'WAITING_RETRY'].includes(step.data.status);
-
-                return (
-                  <div
-                    key={kind}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
-                          {stageMeta[kind].index}
-                        </div>
-                        <div className="mt-1 text-sm font-medium text-slate-950">
-                          {stageMeta[kind].title}
-                        </div>
-                      </div>
-                      <span
-                        className={`rounded-full px-2 py-1 text-[11px] font-medium ${statusTone(
-                          step?.data.status ?? 'PENDING',
-                        )}`}
-                      >
-                        {sessionStatusLabel(step?.data.status ?? 'PENDING')}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      {stageMeta[kind].description}
-                    </p>
-                    {step ? (
-                      <>
-                        <div className="mt-3 space-y-1 text-[11px] text-slate-500">
-                          <div>角色：{step.data.role ?? '执行代理'}</div>
-                          <div>更新时间：{formatTimestamp(step.data.updatedAt)}</div>
-                          <div>产物数：{step.data.artifacts.length}</div>
-                        </div>
-                        <Button
-                          className="mt-3 w-full"
-                          disabled={!canRetry || retryingStepId === step.data.id}
-                          onClick={() => void handleRetryStep(step)}
-                          size="sm"
-                          variant="outline"
-                        >
-                          {retryingStepId === step.data.id ? (
-                            <>
-                              <Loader2Icon className="size-4 animate-spin" />
-                              重试中...
-                            </>
-                          ) : (
-                            <>
-                              <RotateCcwIcon className="size-4" />
-                              重试阶段
-                            </>
-                          )}
-                        </Button>
-                      </>
-                    ) : null}
+                      ))
+                    )}
                   </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </aside>
+                </div>
+              </ScrollArea>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );
 }
 
-function ActionButton(props: {
+function SessionActionButton(props: {
   busy: boolean;
   disabled: boolean;
   icon: ReactNode;
@@ -1173,7 +1284,7 @@ function ActionButton(props: {
 
   return (
     <Button
-      className="w-full justify-start border-slate-800 bg-slate-900 text-slate-100 hover:bg-slate-800"
+      className="w-full justify-start rounded-2xl border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
       disabled={disabled || busy}
       onClick={onClick}
       variant="outline"
@@ -1184,11 +1295,11 @@ function ActionButton(props: {
   );
 }
 
-function MetricCard(props: { label: string; value: string }) {
+function NavigatorMetric(props: { label: string; value: string }) {
   const { label, value } = props;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+    <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 px-4 py-3">
       <div className="text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase">
         {label}
       </div>
@@ -1197,37 +1308,47 @@ function MetricCard(props: { label: string; value: string }) {
   );
 }
 
-function SessionStat(props: { label: string; value: string }) {
-  const { label, value } = props;
+function ChatBubble(props: {
+  meta?: string[];
+  tone: 'assistant' | 'system' | 'user';
+  children: ReactNode;
+}) {
+  const { meta = [], tone, children } = props;
+  const wrapperClass = tone === 'user' ? 'ml-auto max-w-[80%]' : 'mr-auto max-w-[88%]';
+  const surfaceClass =
+    tone === 'user'
+      ? 'border-sky-200 bg-sky-50 text-sky-950'
+      : tone === 'system'
+        ? 'border-slate-200 bg-slate-100/90 text-slate-700'
+        : 'border-slate-200 bg-white text-slate-950';
+  const speakerLabel =
+    tone === 'user' ? 'You' : tone === 'system' ? 'System' : 'Assistant';
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-      <div className="text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase">
-        {label}
+    <div className={wrapperClass}>
+      <div className={`rounded-[28px] border px-5 py-4 shadow-sm ${surfaceClass}`}>
+        <div className="flex items-center gap-2 text-[11px] font-medium tracking-[0.16em] text-inherit/60 uppercase">
+          <span>{speakerLabel}</span>
+          {meta.length > 0 ? <span className="text-inherit/40">•</span> : null}
+          {meta.length > 0 ? (
+            <div className="flex flex-wrap gap-2 text-[11px] font-normal tracking-normal text-inherit/55 normal-case">
+              {meta.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div className="mt-3">{children}</div>
       </div>
-      <div className="mt-2 break-words text-sm leading-6 text-slate-700">{value}</div>
     </div>
   );
 }
 
-function DetailRow(props: { label: string; value: string }) {
+function SidebarField(props: { label: string; value: string }) {
   const { label, value } = props;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase">
-        {label}
-      </div>
-      <div className="mt-2 break-words text-sm leading-6 text-slate-700">{value}</div>
-    </div>
-  );
-}
-
-function SidebarDetail(props: { label: string; value: string }) {
-  const { label, value } = props;
-
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-3">
+    <div className="rounded-[20px] border border-slate-800 bg-slate-900/80 p-3">
       <div className="text-[11px] font-medium tracking-[0.16em] text-slate-400 uppercase">
         {label}
       </div>
