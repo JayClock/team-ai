@@ -163,9 +163,12 @@ All routes below are currently implemented by `apps/local-server`.
 ### Orchestration Runtime
 
 - Sessions, steps, and events are stored in SQLite.
-- A simple sequential scheduler advances `PLAN -> IMPLEMENT -> VERIFY`.
-- Restart recovery resumes unfinished sessions on local server boot.
-- Sessions with goals containing `[fail-once]` intentionally fail once in the `IMPLEMENT` step to validate retry and recovery behavior.
+- A sequential scheduler advances `PLAN -> IMPLEMENT -> VERIFY`.
+- Each step is executed through `apps/agent-gateway`, which bridges to the local CLI provider such as `codex`.
+- Runtime session ids, cursors, structured artifacts, and streamed output are persisted in SQLite-backed orchestration records.
+- Restart recovery attempts to resume unfinished runtime sessions. Missing runtime sessions move affected steps into `WAITING_RETRY` so they remain observable and retryable from the dashboard.
+- Cancel now propagates to the active gateway runtime session and marks active steps as `CANCELLED`.
+- Step and session retry preserve prior artifacts while incrementing `attempt`.
 
 ### Sync Control
 
@@ -187,3 +190,45 @@ All routes below are currently implemented by `apps/local-server`.
 - Add outbox-based sync worker
 - Add structured conflict merge strategies
 - Add project and conversation management views for desktop-only local-first workflows
+
+## Local Runner Validation
+
+For local orchestration delivery, the most relevant commands are:
+
+```bash
+# agent-gateway
+npx nx test @agent-gateway/main
+npx nx build @agent-gateway/main
+
+# local-server
+cd apps/local-server
+npx vitest run \
+  src/app/services/orchestration-service.test.ts \
+  src/app/services/orchestration-step-executor.test.ts \
+  src/app/services/orchestration-artifact-service.test.ts \
+  src/app/services/orchestration-prompt-builder.test.ts \
+  src/app/clients/agent-gateway-client.test.ts \
+  src/app/plugins/agent-gateway-client.test.ts \
+  src/app/routes/health.test.ts \
+  src/app/plugins/execution-runtime.test.ts
+cd ../..
+npx nx build local-server
+
+# desktop
+cd apps/desktop
+npx vitest run src/app/*.test.ts
+cd ../..
+npx nx build desktop
+```
+
+## Sidecar Debugging Notes
+
+- `apps/desktop` launches `agent-gateway` first, waits for `GET /health`, then launches `local-server`.
+- Packaged desktop builds include both sidecars under Electron resources:
+  - `resources/agent-gateway/main.js`
+  - `resources/local-server/main.js`
+- Desktop injects:
+  - `AGENT_GATEWAY_BASE_URL`
+  - `DESKTOP_SESSION_TOKEN`
+  - `TEAMAI_DATA_DIR`
+- The renderer still talks only to `local-server`; it never calls `agent-gateway` directly.
