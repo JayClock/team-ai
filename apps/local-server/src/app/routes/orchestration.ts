@@ -41,9 +41,13 @@ const listSessionsQuerySchema = z.object({
 });
 
 const createSessionBodySchema = z.object({
+  executionMode: z.string().trim().min(1).optional(),
   projectId: z.string().min(1),
+  provider: z.string().trim().min(1).optional(),
+  traceId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
   goal: z.string().trim().min(1),
+  workspaceRoot: z.string().trim().min(1).optional(),
 });
 
 const sessionParamsSchema = z.object({

@@ -158,4 +158,65 @@ export const sqliteMigrations: SqliteMigration[] = [
         ON sync_conflicts(status, updated_at);
     `,
   },
+  {
+    version: '006_orchestration_runtime_metadata',
+    sql: `
+      ALTER TABLE orchestration_sessions
+        ADD COLUMN provider TEXT NOT NULL DEFAULT 'codex';
+
+      ALTER TABLE orchestration_sessions
+        ADD COLUMN workspace_root TEXT;
+
+      ALTER TABLE orchestration_sessions
+        ADD COLUMN execution_mode TEXT NOT NULL DEFAULT 'local';
+
+      ALTER TABLE orchestration_sessions
+        ADD COLUMN trace_id TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN role TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN input_json TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN output_json TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN runtime_session_id TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN runtime_cursor TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN started_at TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN completed_at TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN error_code TEXT;
+
+      ALTER TABLE orchestration_steps
+        ADD COLUMN error_message TEXT;
+
+      CREATE TABLE IF NOT EXISTS orchestration_artifacts (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        step_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        content_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (session_id) REFERENCES orchestration_sessions(id),
+        FOREIGN KEY (step_id) REFERENCES orchestration_steps(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_orchestration_artifacts_session_id
+        ON orchestration_artifacts(session_id, created_at);
+
+      CREATE INDEX IF NOT EXISTS idx_orchestration_artifacts_step_id
+        ON orchestration_artifacts(step_id, created_at);
+    `,
+  },
 ];

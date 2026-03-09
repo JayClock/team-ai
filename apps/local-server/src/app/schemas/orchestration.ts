@@ -18,10 +18,22 @@ export type StepStatus =
 
 export type StepKind = 'PLAN' | 'IMPLEMENT' | 'VERIFY';
 
+export interface OrchestrationArtifactPayload {
+  content: Record<string, unknown>;
+  createdAt: string;
+  id: string;
+  kind: string;
+  sessionId: string;
+  stepId: string;
+  updatedAt: string;
+}
+
 export interface OrchestrationSessionPayload {
   createdAt: string;
+  executionMode: string;
   goal: string;
   id: string;
+  provider: string;
   projectId: string;
   status: SessionStatus;
   strategy: {
@@ -36,7 +48,9 @@ export interface OrchestrationSessionPayload {
     total: number;
   };
   title: string;
+  traceId?: string;
   updatedAt: string;
+  workspaceRoot?: string | null;
 }
 
 export interface OrchestrationSessionListPayload {
@@ -48,12 +62,22 @@ export interface OrchestrationSessionListPayload {
 
 export interface OrchestrationStepPayload {
   attempt: number;
+  artifacts: OrchestrationArtifactPayload[];
+  completedAt?: string | null;
   createdAt: string;
   dependsOn: string[];
+  errorCode?: string | null;
+  errorMessage?: string | null;
   id: string;
+  input?: Record<string, unknown> | null;
   kind: StepKind;
   maxAttempts: number;
+  output?: Record<string, unknown> | null;
+  role?: string | null;
+  runtimeCursor?: string | null;
+  runtimeSessionId?: string | null;
   sessionId: string;
+  startedAt?: string | null;
   status: StepStatus;
   title: string;
   updatedAt: string;

@@ -3,6 +3,7 @@ import { customAlphabet } from 'nanoid';
 import { ProblemError } from '../errors/problem-error';
 import type { OrchestrationStreamBroker } from '../plugins/orchestration-stream';
 import type {
+  OrchestrationArtifactPayload,
   OrchestrationEventPayload,
   OrchestrationSessionListPayload,
   OrchestrationSessionPayload,
@@ -30,23 +31,36 @@ const stepExecutionDelayMs = 40;
 
 interface SessionRow {
   created_at: string;
+  execution_mode: string;
   goal: string;
   id: string;
+  provider: string;
   project_id: string;
   status: SessionStatus;
   strategy_json: string;
   title: string;
+  trace_id: string | null;
   updated_at: string;
+  workspace_root: string | null;
 }
 
 interface StepRow {
   attempt: number;
+  completed_at: string | null;
   created_at: string;
   depends_on_json: string;
+  error_code: string | null;
+  error_message: string | null;
   id: string;
+  input_json: string | null;
   kind: StepKind;
   max_attempts: number;
+  output_json: string | null;
+  role: string | null;
+  runtime_cursor: string | null;
+  runtime_session_id: string | null;
   session_id: string;
+  started_at: string | null;
   status: StepStatus;
   title: string;
   updated_at: string;
@@ -74,9 +88,23 @@ interface ListOrchestrationSessionsQuery {
 }
 
 interface CreateOrchestrationSessionInput {
+  executionMode?: string;
   goal: string;
+  provider?: string;
   projectId: string;
+  traceId?: string;
   title: string;
+  workspaceRoot?: string;
+}
+
+interface ArtifactRow {
+  content_json: string;
+  created_at: string;
+  id: string;
+  kind: string;
+  session_id: string;
+  step_id: string;
+  updated_at: string;
 }
 
 const sessionRunners = new Map<string, SessionRunner>();
@@ -139,7 +167,47 @@ function throwInvalidState(detail: string): never {
   });
 }
 
-function mapStepRow(row: StepRow): OrchestrationStepPayload {
+function mapArtifactRow(row: ArtifactRow): OrchestrationArtifactPayload {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    stepId: row.step_id,
+    kind: row.kind,
+    content: JSON.parse(row.content_json) as Record<string, unknown>,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function listArtifactsForStep(
+  sqlite: Database,
+  stepId: string,
+): OrchestrationArtifactPayload[] {
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT
+          id,
+          session_id,
+          step_id,
+          kind,
+          content_json,
+          created_at,
+          updated_at
+        FROM orchestration_artifacts
+        WHERE step_id = ?
+        ORDER BY created_at ASC
+      `,
+    )
+    .all(stepId) as ArtifactRow[];
+
+  return rows.map(mapArtifactRow);
+}
+
+function mapStepRow(
+  sqlite: Database,
+  row: StepRow,
+): OrchestrationStepPayload {
   return {
     id: row.id,
     sessionId: row.session_id,
@@ -149,6 +217,20 @@ function mapStepRow(row: StepRow): OrchestrationStepPayload {
     attempt: row.attempt,
     maxAttempts: row.max_attempts,
     dependsOn: JSON.parse(row.depends_on_json) as string[],
+    role: row.role,
+    input: row.input_json
+      ? (JSON.parse(row.input_json) as Record<string, unknown>)
+      : null,
+    output: row.output_json
+      ? (JSON.parse(row.output_json) as Record<string, unknown>)
+      : null,
+    runtimeSessionId: row.runtime_session_id,
+    runtimeCursor: row.runtime_cursor,
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
+    errorCode: row.error_code,
+    errorMessage: row.error_message,
+    artifacts: listArtifactsForStep(sqlite, row.id),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -211,6 +293,10 @@ function mapSessionRow(
   return {
     id: row.id,
     projectId: row.project_id,
+    provider: row.provider,
+    workspaceRoot: row.workspace_root,
+    executionMode: row.execution_mode,
+    traceId: row.trace_id ?? undefined,
     title: row.title,
     goal: row.goal,
     status: row.status,
@@ -228,6 +314,10 @@ function getSessionRow(sqlite: Database, sessionId: string): SessionRow {
         SELECT
           id,
           project_id,
+          provider,
+          workspace_root,
+          execution_mode,
+          trace_id,
           title,
           goal,
           status,
@@ -260,6 +350,15 @@ function getStepRow(sqlite: Database, stepId: string): StepRow {
           attempt,
           max_attempts,
           depends_on_json,
+          role,
+          input_json,
+          output_json,
+          runtime_session_id,
+          runtime_cursor,
+          started_at,
+          completed_at,
+          error_code,
+          error_message,
           created_at,
           updated_at
         FROM orchestration_steps
@@ -288,6 +387,15 @@ function listSessionStepRows(sqlite: Database, sessionId: string): StepRow[] {
           attempt,
           max_attempts,
           depends_on_json,
+          role,
+          input_json,
+          output_json,
+          runtime_session_id,
+          runtime_cursor,
+          started_at,
+          completed_at,
+          error_code,
+          error_message,
           created_at,
           updated_at
         FROM orchestration_steps
@@ -433,6 +541,15 @@ function getNextReadyStep(sqlite: Database, sessionId: string): StepRow | undefi
           attempt,
           max_attempts,
           depends_on_json,
+          role,
+          input_json,
+          output_json,
+          runtime_session_id,
+          runtime_cursor,
+          started_at,
+          completed_at,
+          error_code,
+          error_message,
           created_at,
           updated_at
         FROM orchestration_steps
@@ -688,6 +805,8 @@ export async function createOrchestrationSession(
 
   const now = new Date().toISOString();
   const sessionId = createSessionId();
+  const provider = input.provider?.trim() || 'codex';
+  const executionMode = input.executionMode?.trim() || 'local';
   const strategy = {
     failFast: true,
     maxParallelism: 1,
@@ -697,24 +816,28 @@ export async function createOrchestrationSession(
     dependsOn: string[];
     id: string;
     kind: StepKind;
+    role: string;
     title: string;
   }> = [
     {
       id: createStepId(),
       title: 'Analyze request',
       kind: 'PLAN',
+      role: 'planner',
       dependsOn: [],
     },
     {
       id: createStepId(),
       title: 'Implement local changes',
       kind: 'IMPLEMENT',
+      role: 'crafter',
       dependsOn: [],
     },
     {
       id: createStepId(),
       title: 'Verify result',
       kind: 'VERIFY',
+      role: 'gate',
       dependsOn: [],
     },
   ];
@@ -729,6 +852,10 @@ export async function createOrchestrationSession(
           INSERT INTO orchestration_sessions (
             id,
             project_id,
+            provider,
+            workspace_root,
+            execution_mode,
+            trace_id,
             title,
             goal,
             status,
@@ -739,6 +866,10 @@ export async function createOrchestrationSession(
           VALUES (
             @id,
             @projectId,
+            @provider,
+            @workspaceRoot,
+            @executionMode,
+            @traceId,
             @title,
             @goal,
             @status,
@@ -751,6 +882,10 @@ export async function createOrchestrationSession(
       .run({
         id: sessionId,
         projectId: input.projectId,
+        provider,
+        workspaceRoot: input.workspaceRoot?.trim() || null,
+        executionMode,
+        traceId: input.traceId?.trim() || null,
         title: input.title,
         goal: input.goal,
         status: 'PENDING',
@@ -766,10 +901,19 @@ export async function createOrchestrationSession(
           session_id,
           title,
           kind,
+          role,
           status,
           attempt,
           max_attempts,
           depends_on_json,
+          input_json,
+          output_json,
+          runtime_session_id,
+          runtime_cursor,
+          started_at,
+          completed_at,
+          error_code,
+          error_message,
           order_index,
           created_at,
           updated_at
@@ -779,10 +923,19 @@ export async function createOrchestrationSession(
           @sessionId,
           @title,
           @kind,
+          @role,
           @status,
           @attempt,
           @maxAttempts,
           @dependsOnJson,
+          @inputJson,
+          @outputJson,
+          @runtimeSessionId,
+          @runtimeCursor,
+          @startedAt,
+          @completedAt,
+          @errorCode,
+          @errorMessage,
           @orderIndex,
           @createdAt,
           @updatedAt
@@ -796,10 +949,19 @@ export async function createOrchestrationSession(
         sessionId,
         title: step.title,
         kind: step.kind,
+        role: step.role,
         status: 'PENDING',
         attempt: 1,
         maxAttempts: 3,
         dependsOnJson: JSON.stringify(step.dependsOn),
+        inputJson: null,
+        outputJson: null,
+        runtimeSessionId: null,
+        runtimeCursor: null,
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
         orderIndex: index,
         createdAt: now,
         updatedAt: now,
@@ -815,6 +977,10 @@ export async function createOrchestrationSession(
     payload: {
       projectId: input.projectId,
       title: input.title,
+      provider,
+      executionMode,
+      workspaceRoot: input.workspaceRoot?.trim() || null,
+      traceId: input.traceId?.trim() || null,
     },
   });
 
@@ -855,6 +1021,10 @@ export async function listOrchestrationSessions(
         SELECT
           id,
           project_id,
+          provider,
+          workspace_root,
+          execution_mode,
+          trace_id,
           title,
           goal,
           status,
@@ -899,11 +1069,13 @@ export async function listOrchestrationSteps(
   sessionId: string,
 ) {
   getSessionRow(sqlite, sessionId);
-  return listSessionStepRows(sqlite, sessionId).map(mapStepRow);
+  return listSessionStepRows(sqlite, sessionId).map((row) =>
+    mapStepRow(sqlite, row),
+  );
 }
 
 export async function getOrchestrationStepById(sqlite: Database, stepId: string) {
-  return mapStepRow(getStepRow(sqlite, stepId));
+  return mapStepRow(sqlite, getStepRow(sqlite, stepId));
 }
 
 export async function listOrchestrationEvents(
