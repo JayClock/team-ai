@@ -10,6 +10,10 @@ const healthRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/health', async (request) => {
     const { check } = healthQuerySchema.parse(request.query);
 
+    if (check === 'ready' && fastify.agentGatewayClient.isConfigured()) {
+      await fastify.agentGatewayClient.health();
+    }
+
     return createHealthPayload(check);
   });
 };

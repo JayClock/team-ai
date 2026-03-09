@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import type { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
 import AutoLoad from '@fastify/autoload';
+import agentGatewayClientPlugin from './plugins/agent-gateway-client';
 import desktopAuthPlugin from './plugins/desktop-auth';
 import desktopCorsPlugin from './plugins/desktop-cors';
 import executionRuntimePlugin from './plugins/execution-runtime';
@@ -21,6 +22,9 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
   fastify.register(sensiblePlugin);
   fastify.register(sqlitePlugin);
   fastify.register(executionRuntimePlugin, {
+    agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
+  });
+  fastify.register(agentGatewayClientPlugin, {
     agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
   });
   fastify.register(messageStreamPlugin);
