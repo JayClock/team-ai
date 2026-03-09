@@ -30,9 +30,11 @@ export interface OrchestrationArtifactPayload {
 
 export interface OrchestrationSessionPayload {
   createdAt: string;
+  currentPhase?: StepKind | null;
   executionMode: string;
   goal: string;
   id: string;
+  lastEventAt?: string | null;
   provider: string;
   projectId: string;
   status: SessionStatus;

@@ -309,6 +309,40 @@ function countSteps(sqlite: Database, sessionId: string) {
   );
 }
 
+function resolveCurrentPhase(sqlite: Database, sessionId: string): StepKind | null {
+  const steps = listSessionStepRows(sqlite, sessionId);
+  const activeStep =
+    steps.find((step) => step.status === 'RUNNING') ??
+    steps.find((step) => step.status === 'READY') ??
+    steps.find((step) => step.status === 'WAITING_RETRY');
+
+  if (activeStep) {
+    return activeStep.kind;
+  }
+
+  const latestCompletedStep = [...steps]
+    .reverse()
+    .find((step) => step.status === 'COMPLETED');
+
+  return latestCompletedStep?.kind ?? null;
+}
+
+function resolveLastEventAt(sqlite: Database, sessionId: string): string | null {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT at
+        FROM orchestration_events
+        WHERE session_id = ?
+        ORDER BY at DESC
+        LIMIT 1
+      `,
+    )
+    .get(sessionId) as { at: string } | undefined;
+
+  return row?.at ?? null;
+}
+
 function mapSessionRow(
   sqlite: Database,
   row: SessionRow,
@@ -319,6 +353,8 @@ function mapSessionRow(
     provider: row.provider,
     workspaceRoot: row.workspace_root,
     executionMode: row.execution_mode,
+    currentPhase: resolveCurrentPhase(sqlite, row.id),
+    lastEventAt: resolveLastEventAt(sqlite, row.id),
     traceId: row.trace_id ?? undefined,
     title: row.title,
     goal: row.goal,

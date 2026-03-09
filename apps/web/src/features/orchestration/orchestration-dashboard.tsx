@@ -22,6 +22,17 @@ import { resolveRuntimeApiUrl, runtimeFetch } from '@shared/util-http';
 import { Loader2Icon, PauseCircleIcon, PlayCircleIcon, RotateCcwIcon } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import {
+  collectArtifactsByStep,
+  collectRuntimeOutputByStep,
+  formatTimestamp,
+  statusTone,
+  summarizeEvent,
+  type OrchestrationArtifactView,
+  type SessionStatus,
+  type StepKind,
+  type StepStatus,
+} from './orchestration-dashboard-utils';
 
 type LocalProject = Entity<
   {
@@ -60,10 +71,13 @@ type OrchestrationRoot = Entity<
 type OrchestrationSession = Entity<
   {
     createdAt: string;
-    currentPhase?: string;
+    currentPhase?: StepKind | null;
+    executionMode: string;
     goal: string;
     id: string;
-    lastEventAt?: string;
+    lastEventAt?: string | null;
+    provider: string;
+    traceId?: string;
     projectId: string;
     status: SessionStatus;
     stepCounts: {
@@ -79,6 +93,7 @@ type OrchestrationSession = Entity<
     };
     title: string;
     updatedAt: string;
+    workspaceRoot?: string | null;
   },
   {
     self: OrchestrationSession;
@@ -96,13 +111,23 @@ type OrchestrationSessionCollection = Entity<Collection<OrchestrationSession>['d
 
 type OrchestrationStep = Entity<
   {
+    artifacts: OrchestrationArtifactView[];
     attempt: number;
+    completedAt?: string | null;
     createdAt: string;
     dependsOn: string[];
+    errorCode?: string | null;
+    errorMessage?: string | null;
     id: string;
+    input?: Record<string, unknown> | null;
     kind: StepKind;
     maxAttempts: number;
+    output?: Record<string, unknown> | null;
+    role?: string | null;
+    runtimeCursor?: string | null;
+    runtimeSessionId?: string | null;
     sessionId: string;
+    startedAt?: string | null;
     status: StepStatus;
     title: string;
     updatedAt: string;
@@ -116,26 +141,6 @@ type OrchestrationStep = Entity<
 >;
 
 type OrchestrationStepCollection = Entity<Collection<OrchestrationStep>['data']>;
-
-type SessionStatus =
-  | 'PENDING'
-  | 'PLANNING'
-  | 'RUNNING'
-  | 'PAUSED'
-  | 'FAILED'
-  | 'COMPLETED'
-  | 'CANCELLED';
-
-type StepStatus =
-  | 'PENDING'
-  | 'READY'
-  | 'RUNNING'
-  | 'WAITING_RETRY'
-  | 'FAILED'
-  | 'COMPLETED'
-  | 'CANCELLED';
-
-type StepKind = 'PLAN' | 'IMPLEMENT' | 'VERIFY';
 
 type LocalRoot = Entity<
   {
@@ -177,55 +182,12 @@ const streamRefreshTypes = new Set([
   'session.retried',
   'step.ready',
   'step.started',
+  'step.runtime.event',
+  'step.cancelled',
   'step.completed',
   'step.failed',
   'step.retried',
 ]);
-
-function formatTimestamp(value?: string) {
-  if (!value) {
-    return '—';
-  }
-
-  const parsed = new Date(value);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return parsed.toLocaleString();
-}
-
-function statusTone(status: SessionStatus | StepStatus) {
-  switch (status) {
-    case 'COMPLETED':
-      return 'bg-emerald-100 text-emerald-700';
-    case 'FAILED':
-    case 'CANCELLED':
-      return 'bg-rose-100 text-rose-700';
-    case 'RUNNING':
-    case 'READY':
-      return 'bg-blue-100 text-blue-700';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-}
-
-function summarizeEvent(event: OrchestrationEventPayload) {
-  if (typeof event.payload.reason === 'string') {
-    return event.payload.reason;
-  }
-
-  if (typeof event.payload.kind === 'string') {
-    return event.payload.kind;
-  }
-
-  if (Array.isArray(event.payload.stepIds)) {
-    return `${event.payload.stepIds.length} step(s)`;
-  }
-
-  return JSON.stringify(event.payload);
-}
 
 async function readJson<T>(href: string): Promise<T> {
   const response = await runtimeFetch(href, {
@@ -568,6 +530,14 @@ export default function OrchestrationDashboard() {
   const streamUrl = selectedSession?.getLink('stream')?.href
     ? resolveRuntimeApiUrl(selectedSession.getLink('stream')?.href ?? '')
     : null;
+  const runtimeOutputByStep = useMemo(
+    () => collectRuntimeOutputByStep(events),
+    [events],
+  );
+  const artifactEntries = useMemo(
+    () => collectArtifactsByStep(steps.map((step) => step.data)),
+    [steps],
+  );
 
   return (
     <div className="flex h-full flex-col gap-4 p-4 md:p-6">
@@ -764,7 +734,8 @@ export default function OrchestrationDashboard() {
                 ) : null}
               </div>
             </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-4">
+            <CardContent className="grid gap-3">
+              <div className="grid gap-3 md:grid-cols-4">
               <MetricCard label="Total" value={selectedSession?.data.stepCounts.total ?? 0} />
               <MetricCard
                 label="Completed"
@@ -772,6 +743,32 @@ export default function OrchestrationDashboard() {
               />
               <MetricCard label="Running" value={selectedSession?.data.stepCounts.running ?? 0} />
               <MetricCard label="Failed" value={selectedSession?.data.stepCounts.failed ?? 0} />
+              </div>
+              {selectedSession ? (
+                <div className="grid gap-3 rounded-lg border p-3 text-sm md:grid-cols-2 xl:grid-cols-3">
+                  <DetailRow label="Provider" value={selectedSession.data.provider} />
+                  <DetailRow
+                    label="Execution"
+                    value={selectedSession.data.executionMode}
+                  />
+                  <DetailRow
+                    label="Current Phase"
+                    value={selectedSession.data.currentPhase ?? '—'}
+                  />
+                  <DetailRow
+                    label="Last Event"
+                    value={formatTimestamp(selectedSession.data.lastEventAt)}
+                  />
+                  <DetailRow
+                    label="Trace Id"
+                    value={selectedSession.data.traceId ?? '—'}
+                  />
+                  <DetailRow
+                    label="Workspace"
+                    value={selectedSession.data.workspaceRoot ?? '—'}
+                  />
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -803,6 +800,9 @@ export default function OrchestrationDashboard() {
                                 {step.data.kind} · attempt {step.data.attempt}/
                                 {step.data.maxAttempts}
                               </div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                role: {step.data.role ?? 'specialist'}
+                              </div>
                             </div>
                             <span
                               className={`rounded-full px-2 py-1 text-[11px] font-medium ${statusTone(
@@ -817,12 +817,39 @@ export default function OrchestrationDashboard() {
                               Depends on: {step.data.dependsOn.join(', ')}
                             </div>
                           ) : null}
+                          <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                            <span>
+                              runtime: {step.data.runtimeSessionId ?? 'not-started'}
+                            </span>
+                            <span>
+                              cursor: {step.data.runtimeCursor ?? '—'}
+                            </span>
+                            <span>
+                              started: {formatTimestamp(step.data.startedAt)}
+                            </span>
+                            <span>
+                              completed: {formatTimestamp(step.data.completedAt)}
+                            </span>
+                            <span>
+                              artifacts: {step.data.artifacts.length}
+                            </span>
+                          </div>
+                          {step.data.errorCode || step.data.errorMessage ? (
+                            <div className="mt-3 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">
+                              <div>{step.data.errorCode ?? 'STEP_ERROR'}</div>
+                              <div className="mt-1">
+                                {step.data.errorMessage ?? 'No error message'}
+                              </div>
+                            </div>
+                          ) : null}
                           <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                             <span>{formatTimestamp(step.data.updatedAt)}</span>
                             <Button
                               size="sm"
                               variant="ghost"
-                              disabled={step.data.status !== 'FAILED'}
+                              disabled={
+                                !['FAILED', 'WAITING_RETRY'].includes(step.data.status)
+                              }
                               onClick={() => void handleRetryStep(step)}
                             >
                               Retry step
@@ -885,6 +912,85 @@ export default function OrchestrationDashboard() {
                 ) : null}
               </CardContent>
             </Card>
+
+            <Card className="min-h-0">
+              <CardHeader>
+                <CardTitle>Runtime Output</CardTitle>
+                <CardDescription>
+                  Incremental output streamed from local CLI execution.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="min-h-0">
+                <ScrollArea className="h-[360px] pr-3">
+                  <div className="space-y-3">
+                    {steps.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">
+                        No runtime output yet.
+                      </div>
+                    ) : (
+                      steps.map((step) => {
+                        const outputLines = runtimeOutputByStep[step.data.id] ?? [];
+
+                        return (
+                          <div key={step.data.id} className="rounded-lg border p-3 text-sm">
+                            <div className="font-medium">{step.data.title}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {step.data.kind} · {step.data.status}
+                            </div>
+                            <pre className="mt-3 max-h-44 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs">
+                              {outputLines.length > 0
+                                ? outputLines.join('')
+                                : 'No streamed output for this step yet.'}
+                            </pre>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            <Card className="min-h-0 xl:col-span-2">
+              <CardHeader>
+                <CardTitle>Artifacts</CardTitle>
+                <CardDescription>
+                  Structured outputs persisted for each orchestration step.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="min-h-0">
+                <ScrollArea className="h-[280px] pr-3">
+                  <div className="space-y-3">
+                    {artifactEntries.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">
+                        No artifacts persisted yet.
+                      </div>
+                    ) : (
+                      artifactEntries.map((entry) => (
+                        <div key={entry.artifact.id} className="rounded-lg border p-3 text-sm">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="font-medium">
+                                {entry.artifact.kind} · {entry.stepTitle}
+                              </div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {entry.stepKind} · {formatTimestamp(entry.artifact.updatedAt)}
+                              </div>
+                            </div>
+                            <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                              {entry.stepId}
+                            </span>
+                          </div>
+                          <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs">
+                            {JSON.stringify(entry.artifact.content, null, 2)}
+                          </pre>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
@@ -899,6 +1005,19 @@ function MetricCard(props: { label: string; value: number }) {
     <div className="rounded-lg border p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-2 text-2xl font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function DetailRow(props: { label: string; value: string }) {
+  const { label, value } = props;
+
+  return (
+    <div className="rounded-md bg-muted/50 p-2">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 break-words text-sm">{value}</div>
     </div>
   );
 }
