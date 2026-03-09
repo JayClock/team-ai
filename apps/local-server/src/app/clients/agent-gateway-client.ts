@@ -22,6 +22,7 @@ export interface AgentGatewayHealth {
 export interface AgentGatewaySessionPayload {
   createdAt?: string;
   lastCursor?: string | null;
+  metadata?: Record<string, unknown>;
   provider?: string;
   sessionId: string;
   state?: string;
@@ -47,12 +48,16 @@ export interface AgentGatewayEventEnvelope {
 }
 
 export interface CreateAgentGatewaySessionInput {
+  metadata?: Record<string, unknown>;
   provider?: string;
   traceId?: string;
 }
 
 export interface PromptAgentGatewaySessionInput {
+  cwd?: string;
+  env?: Record<string, string>;
   input: string;
+  metadata?: Record<string, unknown>;
   timeoutMs?: number;
   traceId?: string;
 }

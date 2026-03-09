@@ -7,11 +7,12 @@ const orchestrationRuntimePlugin: FastifyPluginAsync = async (fastify) => {
     await recoverActiveOrchestrationSessions(
       fastify.sqlite,
       fastify.orchestrationStreamBroker,
+      fastify.agentGatewayClient,
     );
   });
 };
 
 export default fp(orchestrationRuntimePlugin, {
   name: 'orchestration-runtime',
-  dependencies: ['sqlite', 'orchestration-stream'],
+  dependencies: ['sqlite', 'orchestration-stream', 'agent-gateway-client'],
 });

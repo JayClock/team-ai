@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import type { AgentGatewayClient } from '../clients/agent-gateway-client';
 import { ProblemError } from '../errors/problem-error';
 import type { OrchestrationStreamBroker } from '../plugins/orchestration-stream';
 import type {
@@ -12,6 +13,8 @@ import type {
   StepKind,
   StepStatus,
 } from '../schemas/orchestration';
+import { createOrchestrationArtifact, listArtifactsBySession } from './orchestration-artifact-service';
+import { executeOrchestrationStepViaGateway } from './orchestration-step-executor';
 import { getProjectById } from './project-service';
 
 const sessionIdGenerator = customAlphabet(
@@ -113,8 +116,18 @@ function launchSessionSchedule(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
   sessionId: string,
+  agentGatewayClient?: AgentGatewayClient,
 ) {
-  void scheduleOrchestrationSession(sqlite, broker, sessionId).catch((error) => {
+  if (!agentGatewayClient?.isConfigured()) {
+    return;
+  }
+
+  void scheduleOrchestrationSession(
+    sqlite,
+    broker,
+    sessionId,
+    agentGatewayClient,
+  ).catch((error) => {
     console.error(
       `[orchestration] failed to schedule session ${sessionId}`,
       error,
@@ -561,20 +574,6 @@ function getNextReadyStep(sqlite: Database, sessionId: string): StepRow | undefi
     .get({ sessionId }) as StepRow | undefined;
 }
 
-function hasFailedBefore(sqlite: Database, stepId: string): boolean {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM orchestration_events
-        WHERE step_id = ? AND type = 'step.failed'
-      `,
-    )
-    .get(stepId) as { count: number };
-
-  return row.count > 0;
-}
-
 function refreshReadySteps(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
@@ -648,12 +647,91 @@ function finalizeSessionIfComplete(
   return true;
 }
 
+function writeStepExecutionData(
+  sqlite: Database,
+  stepId: string,
+  input: {
+    completedAt?: string | null;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    inputJson?: Record<string, unknown> | null;
+    outputJson?: Record<string, unknown> | null;
+    runtimeCursor?: string | null;
+    runtimeSessionId?: string | null;
+    startedAt?: string | null;
+  },
+) {
+  const step = getStepRow(sqlite, stepId);
+  const updatedAt = new Date().toISOString();
+
+  sqlite
+    .prepare(
+      `
+        UPDATE orchestration_steps
+        SET
+          input_json = @inputJson,
+          output_json = @outputJson,
+          runtime_session_id = @runtimeSessionId,
+          runtime_cursor = @runtimeCursor,
+          started_at = @startedAt,
+          completed_at = @completedAt,
+          error_code = @errorCode,
+          error_message = @errorMessage,
+          updated_at = @updatedAt
+        WHERE id = @id
+      `,
+    )
+    .run({
+      id: stepId,
+      inputJson: JSON.stringify(
+        input.inputJson === undefined
+          ? step.input_json
+            ? (JSON.parse(step.input_json) as Record<string, unknown>)
+            : null
+          : input.inputJson,
+      ),
+      outputJson: JSON.stringify(
+        input.outputJson === undefined
+          ? step.output_json
+            ? (JSON.parse(step.output_json) as Record<string, unknown>)
+            : null
+          : input.outputJson,
+      ),
+      runtimeSessionId:
+        input.runtimeSessionId === undefined
+          ? step.runtime_session_id
+          : input.runtimeSessionId,
+      runtimeCursor:
+        input.runtimeCursor === undefined
+          ? step.runtime_cursor
+          : input.runtimeCursor,
+      startedAt:
+        input.startedAt === undefined ? step.started_at : input.startedAt,
+      completedAt:
+        input.completedAt === undefined ? step.completed_at : input.completedAt,
+      errorCode:
+        input.errorCode === undefined ? step.error_code : input.errorCode,
+      errorMessage:
+        input.errorMessage === undefined
+          ? step.error_message
+          : input.errorMessage,
+      updatedAt,
+    });
+}
+
+function buildGatewayEventPayload(event: Record<string, unknown>) {
+  return {
+    gatewayEvent: event,
+  };
+}
+
 async function executeStep(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
   runner: SessionRunner,
   sessionId: string,
   step: StepRow,
+  agentGatewayClient: AgentGatewayClient,
 ) {
   if (runner.cancelled) {
     return;
@@ -674,60 +752,173 @@ async function executeStep(
     payload: {
       attempt: step.attempt,
       kind: step.kind,
+      role: step.role,
     },
   });
+  writeStepExecutionData(sqlite, step.id, {
+    startedAt: new Date().toISOString(),
+    completedAt: null,
+    errorCode: null,
+    errorMessage: null,
+  });
 
-  await sleep(stepExecutionDelayMs);
+  const session = await getOrchestrationSessionById(sqlite, sessionId);
+  const orchestrationStep = await getOrchestrationStepById(sqlite, step.id);
+  const upstreamArtifacts = await listArtifactsBySession(sqlite, sessionId);
 
-  if (runner.cancelled) {
-    return;
-  }
+  try {
+    const result = await executeOrchestrationStepViaGateway({
+      agentGatewayClient,
+      session,
+      step: orchestrationStep,
+      upstreamArtifacts,
+      onGatewayEvent: (event) => {
+        writeStepExecutionData(sqlite, step.id, {
+          runtimeCursor: event.cursor ?? null,
+        });
+        appendEvent(sqlite, broker, {
+          sessionId,
+          stepId: step.id,
+          type: 'step.runtime.event',
+          payload: buildGatewayEventPayload({
+            cursor: event.cursor ?? null,
+            data: event.data ?? {},
+            error: event.error ?? null,
+            eventId: event.eventId ?? null,
+            emittedAt: event.emittedAt ?? null,
+            sessionId: event.sessionId ?? null,
+            traceId: event.traceId ?? null,
+            type: event.type,
+          }),
+        });
+      },
+    });
 
-  const session = getSessionRow(sqlite, sessionId);
-  const shouldFailOnce =
-    step.kind === 'IMPLEMENT' &&
-    session.goal.includes('[fail-once]') &&
-    !hasFailedBefore(sqlite, step.id);
+    writeStepExecutionData(sqlite, step.id, {
+      inputJson: result.prompt
+        ? {
+            artifactKind: result.prompt.artifactKind,
+            promptVersion: result.prompt.version,
+            systemPrompt: result.prompt.systemPrompt,
+            userPrompt: result.prompt.userPrompt,
+          }
+        : undefined,
+      runtimeCursor: result.runtimeCursor,
+      runtimeSessionId: result.runtimeSessionId,
+    });
 
-  if (shouldFailOnce) {
+    if (result.status === 'failed') {
+      writeStepStatus(sqlite, step.id, 'FAILED');
+      writeStepExecutionData(sqlite, step.id, {
+        completedAt: new Date().toISOString(),
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+      });
+      appendEvent(sqlite, broker, {
+        sessionId,
+        stepId: step.id,
+        type: 'step.failed',
+        payload: {
+          attempt: step.attempt,
+          kind: step.kind,
+          reason: result.errorCode,
+          message: result.errorMessage,
+          runtimeSessionId: result.runtimeSessionId ?? null,
+        },
+      });
+      return;
+    }
+
+    await createOrchestrationArtifact(sqlite, {
+      sessionId,
+      stepId: step.id,
+      kind: result.artifactKind,
+      content: result.parsedOutput,
+    });
+
+    writeStepExecutionData(sqlite, step.id, {
+      completedAt: new Date().toISOString(),
+      outputJson: result.parsedOutput,
+      runtimeCursor: result.runtimeCursor,
+      runtimeSessionId: result.runtimeSessionId,
+    });
+
+    if (
+      step.kind === 'VERIFY' &&
+      result.parsedOutput.verdict === 'fail'
+    ) {
+      writeStepStatus(sqlite, step.id, 'FAILED');
+      writeStepExecutionData(sqlite, step.id, {
+        errorCode: 'VERIFICATION_FAILED',
+        errorMessage:
+          typeof result.parsedOutput.summary === 'string'
+            ? result.parsedOutput.summary
+            : 'Verification reported a failed verdict',
+      });
+      appendEvent(sqlite, broker, {
+        sessionId,
+        stepId: step.id,
+        type: 'step.failed',
+        payload: {
+          attempt: step.attempt,
+          kind: step.kind,
+          reason: 'verification-failed',
+          verdict: result.parsedOutput.verdict,
+          runtimeSessionId: result.runtimeSessionId,
+        },
+      });
+      return;
+    }
+
+    writeStepStatus(sqlite, step.id, 'COMPLETED');
+    appendEvent(sqlite, broker, {
+      sessionId,
+      stepId: step.id,
+      type: 'step.completed',
+      payload: {
+        attempt: step.attempt,
+        artifactKind: result.artifactKind,
+        kind: step.kind,
+        runtimeSessionId: result.runtimeSessionId,
+      },
+    });
+  } catch (error) {
+    const detail =
+      error instanceof ProblemError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : 'Unknown orchestration execution failure';
     writeStepStatus(sqlite, step.id, 'FAILED');
+    writeStepExecutionData(sqlite, step.id, {
+      completedAt: new Date().toISOString(),
+      errorCode: 'ORCHESTRATION_EXECUTION_FAILED',
+      errorMessage: detail,
+    });
     appendEvent(sqlite, broker, {
       sessionId,
       stepId: step.id,
       type: 'step.failed',
       payload: {
         attempt: step.attempt,
-        reason: 'synthetic-failure',
+        kind: step.kind,
+        reason: 'ORCHESTRATION_EXECUTION_FAILED',
+        message: detail,
       },
     });
-    writeSessionStatus(sqlite, sessionId, 'FAILED');
-    appendEvent(sqlite, broker, {
-      sessionId,
-      type: 'session.failed',
-      payload: {
-        stepId: step.id,
-      },
-    });
-    return;
   }
-
-  writeStepStatus(sqlite, step.id, 'COMPLETED');
-  appendEvent(sqlite, broker, {
-    sessionId,
-    stepId: step.id,
-    type: 'step.completed',
-    payload: {
-      attempt: step.attempt,
-      kind: step.kind,
-    },
-  });
 }
 
 export async function scheduleOrchestrationSession(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
   sessionId: string,
+  agentGatewayClient?: AgentGatewayClient,
 ) {
+  if (!agentGatewayClient?.isConfigured()) {
+    return;
+  }
+
   const runner = sessionRunners.get(sessionId) ?? {
     cancelled: false,
     running: false,
@@ -767,7 +958,14 @@ export async function scheduleOrchestrationSession(
         continue;
       }
 
-      await executeStep(sqlite, broker, runner, sessionId, nextStep);
+      await executeStep(
+        sqlite,
+        broker,
+        runner,
+        sessionId,
+        nextStep,
+        agentGatewayClient,
+      );
 
       const currentSession = getSessionRow(sqlite, sessionId);
 
@@ -800,6 +998,7 @@ export async function createOrchestrationSession(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
   input: CreateOrchestrationSessionInput,
+  agentGatewayClient?: AgentGatewayClient,
 ) {
   await getProjectById(sqlite, input.projectId);
 
@@ -985,7 +1184,7 @@ export async function createOrchestrationSession(
   });
 
   const session = await getOrchestrationSessionById(sqlite, sessionId);
-  launchSessionSchedule(sqlite, broker, sessionId);
+  launchSessionSchedule(sqlite, broker, sessionId, agentGatewayClient);
 
   return {
     session,
@@ -1115,6 +1314,7 @@ export async function cancelOrchestrationSession(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
   sessionId: string,
+  agentGatewayClient?: AgentGatewayClient,
 ) {
   const session = getSessionRow(sqlite, sessionId);
 
@@ -1126,6 +1326,17 @@ export async function cancelOrchestrationSession(
 
   if (runner) {
     runner.cancelled = true;
+  }
+
+  const activeRuntimeSessionId = listSessionStepRows(sqlite, sessionId).find(
+    (step) => step.status === 'RUNNING' && step.runtime_session_id,
+  )?.runtime_session_id;
+
+  if (agentGatewayClient?.isConfigured() && activeRuntimeSessionId) {
+    await agentGatewayClient.cancel(activeRuntimeSessionId, {
+      reason: 'orchestration-session-cancelled',
+      traceId: session.trace_id ?? undefined,
+    });
   }
 
   writeSessionStatus(sqlite, sessionId, 'CANCELLED');
@@ -1144,6 +1355,7 @@ export async function resumeOrchestrationSession(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
   sessionId: string,
+  agentGatewayClient?: AgentGatewayClient,
 ) {
   const session = getSessionRow(sqlite, sessionId);
 
@@ -1179,7 +1391,7 @@ export async function resumeOrchestrationSession(
     },
   });
 
-  launchSessionSchedule(sqlite, broker, sessionId);
+  launchSessionSchedule(sqlite, broker, sessionId, agentGatewayClient);
 
   return {
     session: await getOrchestrationSessionById(sqlite, sessionId),
@@ -1190,6 +1402,7 @@ export async function retryOrchestrationSession(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
   sessionId: string,
+  agentGatewayClient?: AgentGatewayClient,
 ) {
   getSessionRow(sqlite, sessionId);
 
@@ -1233,7 +1446,7 @@ export async function retryOrchestrationSession(
     },
   });
 
-  launchSessionSchedule(sqlite, broker, sessionId);
+  launchSessionSchedule(sqlite, broker, sessionId, agentGatewayClient);
 
   return {
     session: await getOrchestrationSessionById(sqlite, sessionId),
@@ -1244,6 +1457,7 @@ export async function retryOrchestrationStep(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
   stepId: string,
+  agentGatewayClient?: AgentGatewayClient,
 ) {
   const step = getStepRow(sqlite, stepId);
 
@@ -1265,7 +1479,12 @@ export async function retryOrchestrationStep(
     },
   });
 
-  launchSessionSchedule(sqlite, broker, step.session_id);
+  launchSessionSchedule(
+    sqlite,
+    broker,
+    step.session_id,
+    agentGatewayClient,
+  );
 
   return {
     step: await getOrchestrationStepById(sqlite, stepId),
@@ -1275,6 +1494,7 @@ export async function retryOrchestrationStep(
 export async function recoverActiveOrchestrationSessions(
   sqlite: Database,
   broker: OrchestrationStreamBroker,
+  agentGatewayClient?: AgentGatewayClient,
 ) {
   const rows = sqlite
     .prepare(
@@ -1315,6 +1535,6 @@ export async function recoverActiveOrchestrationSessions(
       },
     });
 
-    launchSessionSchedule(sqlite, broker, row.id);
+    launchSessionSchedule(sqlite, broker, row.id, agentGatewayClient);
   }
 }

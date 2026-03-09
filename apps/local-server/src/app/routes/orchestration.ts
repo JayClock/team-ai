@@ -74,6 +74,7 @@ const orchestrationRoute: FastifyPluginAsync = async (fastify) => {
       fastify.sqlite,
       fastify.orchestrationStreamBroker,
       body,
+      fastify.agentGatewayClient,
     );
 
     reply
@@ -155,6 +156,7 @@ const orchestrationRoute: FastifyPluginAsync = async (fastify) => {
       fastify.sqlite,
       fastify.orchestrationStreamBroker,
       sessionId,
+      fastify.agentGatewayClient,
     );
     return presentOrchestrationSession(session);
   });
@@ -165,6 +167,7 @@ const orchestrationRoute: FastifyPluginAsync = async (fastify) => {
       fastify.sqlite,
       fastify.orchestrationStreamBroker,
       sessionId,
+      fastify.agentGatewayClient,
     );
     return presentOrchestrationSession(session);
   });
@@ -175,6 +178,7 @@ const orchestrationRoute: FastifyPluginAsync = async (fastify) => {
       fastify.sqlite,
       fastify.orchestrationStreamBroker,
       sessionId,
+      fastify.agentGatewayClient,
     );
     return presentOrchestrationSession(session);
   });
@@ -198,6 +202,7 @@ const orchestrationRoute: FastifyPluginAsync = async (fastify) => {
       fastify.sqlite,
       fastify.orchestrationStreamBroker,
       stepId,
+      fastify.agentGatewayClient,
     );
     return presentOrchestrationStep(step);
   });

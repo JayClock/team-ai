@@ -99,6 +99,7 @@ export interface OrchestrationEventPayload {
     | 'session.retried'
     | 'step.ready'
     | 'step.started'
+    | 'step.runtime.event'
     | 'step.completed'
     | 'step.failed'
     | 'step.retried';
