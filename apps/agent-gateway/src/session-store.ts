@@ -45,6 +45,7 @@ export type GatewaySession = {
   createdAt: string;
   updatedAt: string;
   lastCursor: string | null;
+  metadata: Record<string, unknown>;
 };
 
 type SessionRecord = GatewaySession & {
@@ -86,7 +87,11 @@ export class SessionStore {
   private readonly sessions = new Map<string, SessionRecord>();
   private readonly emitter = new EventEmitter();
 
-  createSession(provider: string, traceId?: string): GatewaySession {
+  createSession(
+    provider: string,
+    traceId?: string,
+    metadata: Record<string, unknown> = {}
+  ): GatewaySession {
     const now = new Date().toISOString();
     const sessionId = randomUUID();
     const record: SessionRecord = {
@@ -96,6 +101,7 @@ export class SessionStore {
       createdAt: now,
       updatedAt: now,
       lastCursor: null,
+      metadata: { ...metadata },
       counter: 0,
       events: [],
     };
@@ -107,6 +113,7 @@ export class SessionStore {
       traceId,
       data: {
         provider,
+        metadata: record.metadata,
         state: 'PENDING',
         reason: 'session-created',
       },
@@ -210,6 +217,7 @@ export class SessionStore {
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       lastCursor: record.lastCursor,
+      metadata: { ...record.metadata },
     };
   }
 

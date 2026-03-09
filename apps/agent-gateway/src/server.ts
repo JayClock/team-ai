@@ -11,6 +11,7 @@ import {
   type ProtocolName,
 } from './session-store.js';
 import { mapProtocolEvent } from './protocol-event-mapper.js';
+import type { ProviderPromptRequest } from './providers/provider-types.js';
 
 const TRACE_ID_HEADER = 'X-Trace-Id';
 
@@ -21,10 +22,7 @@ class BadRequestError extends Error {
 export type ProviderRuntimePort = {
   prompt(
     providerName: string,
-    sessionId: string,
-    input: string,
-    timeoutMs: number,
-    traceId: string | undefined,
+    request: ProviderPromptRequest,
     callbacks: {
       onChunk: (chunk: string) => void;
       onComplete: () => void;
@@ -94,8 +92,9 @@ export function createGatewayServer(
         const body = await readJsonBody(req);
         const traceId = resolveTraceId(traceIdFromHeader, asOptionalString(body.traceId));
         const provider = asOptionalString(body.provider) ?? config.defaultProvider;
+        const metadata = asRecord(body.metadata) ?? {};
         metrics.sessionCreateStarted();
-        const session = sessionStore.createSession(provider, traceId);
+        const session = sessionStore.createSession(provider, traceId, metadata);
         metrics.sessionCreateSucceeded();
         writeJsonWithTrace(res, 201, traceId, {
           session,
@@ -123,6 +122,18 @@ export function createGatewayServer(
 
         const timeoutMs = asPositiveNumber(body.timeoutMs) ?? config.timeoutMs;
         const session = sessionStore.getSession(promptRoute.param);
+        const cwd = asOptionalString(body.cwd);
+        const env = asStringRecord(body.env);
+        const metadata = asRecord(body.metadata);
+        const request: ProviderPromptRequest = {
+          sessionId: promptRoute.param,
+          input,
+          timeoutMs,
+          traceId,
+          ...(cwd ? { cwd } : {}),
+          ...(env ? { env } : {}),
+          ...(metadata ? { metadata } : {}),
+        };
         metrics.promptStarted(promptRoute.param);
 
         sessionStore.appendEvent(promptRoute.param, {
@@ -132,11 +143,13 @@ export function createGatewayServer(
             state: 'RUNNING',
             reason: 'prompt-started',
             provider: session.provider,
+            ...(request.cwd ? { cwd: request.cwd } : {}),
+            ...(request.metadata ? { metadata: request.metadata } : {}),
           },
           nextState: 'RUNNING',
         });
 
-        providerRuntime.prompt(session.provider, promptRoute.param, input, timeoutMs, traceId, {
+        providerRuntime.prompt(session.provider, request, {
           onChunk: (chunk) => {
             metrics.firstToken(promptRoute.param);
             sessionStore.appendEvent(promptRoute.param, {
@@ -200,6 +213,9 @@ export function createGatewayServer(
           runtime: {
             provider: session.provider,
             timeoutMs,
+            ...(request.cwd ? { cwd: request.cwd } : {}),
+            ...(request.env ? { env: request.env } : {}),
+            ...(request.metadata ? { metadata: request.metadata } : {}),
           },
         });
         return;
@@ -515,4 +531,25 @@ function asPositiveNumber(value: unknown): number | null {
     return null;
   }
   return value;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return { ...(value as Record<string, unknown>) };
+}
+
+function asStringRecord(value: unknown): Record<string, string> | null {
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  const entries = Object.entries(record);
+  if (entries.some(([, entryValue]) => typeof entryValue !== 'string')) {
+    throw new BadRequestError('env must be a JSON object with string values');
+  }
+
+  return Object.fromEntries(entries) as Record<string, string>;
 }

@@ -3,10 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { GatewayConfig } from './config.js';
 import { Logger } from './logger.js';
 import { GatewayMetrics } from './observability.js';
+import type { ProviderPromptRequest } from './providers/provider-types.js';
 import { createGatewayServer, type ProviderRuntimePort } from './server.js';
 import { SessionStore } from './session-store.js';
 
 class MockProviderRuntime implements ProviderRuntimePort {
+  readonly requests: Array<{ providerName: string; request: ProviderPromptRequest }> = [];
   private readonly active = new Map<
     string,
     {
@@ -17,41 +19,39 @@ class MockProviderRuntime implements ProviderRuntimePort {
   >();
 
   prompt(
-    _providerName: string,
-    sessionId: string,
-    input: string,
-    _timeoutMs: number,
-    _traceId: string | undefined,
+    providerName: string,
+    request: ProviderPromptRequest,
     callbacks: {
       onChunk: (chunk: string) => void;
       onComplete: () => void;
       onError: (error: { code: string; message: string; retryable: boolean; retryAfterMs: number }) => void;
     }
   ): void {
-    this.active.set(sessionId, callbacks);
+    this.requests.push({ providerName, request });
+    this.active.set(request.sessionId, callbacks);
 
-    if (input.startsWith('slow')) {
+    if (request.input.startsWith('slow')) {
       return;
     }
 
     queueMicrotask(() => {
-      if (!this.active.has(sessionId)) {
+      if (!this.active.has(request.sessionId)) {
         return;
       }
-      if (input.startsWith('fail')) {
+      if (request.input.startsWith('fail')) {
         callbacks.onError({
           code: 'PROVIDER_PROCESS_EXITED',
           message: 'mock provider failed',
           retryable: true,
           retryAfterMs: 500,
         });
-        this.active.delete(sessionId);
+        this.active.delete(request.sessionId);
         return;
       }
 
-      callbacks.onChunk(`mock:${input}`);
+      callbacks.onChunk(`mock:${request.input}`);
       callbacks.onComplete();
-      this.active.delete(sessionId);
+      this.active.delete(request.sessionId);
     });
   }
 
@@ -82,12 +82,24 @@ describe('gateway contract', () => {
           'Content-Type': 'application/json',
           'X-Trace-Id': 'trace-contract-1',
         },
-        body: JSON.stringify({ provider: 'codex' }),
+        body: JSON.stringify({
+          provider: 'codex',
+          metadata: {
+            role: 'planner',
+            workspaceRoot: '/tmp/repo',
+          },
+        }),
       });
       expect(createResponse.status).toBe(201);
       expect(createResponse.headers.get('x-trace-id')).toBe('trace-contract-1');
-      const created = (await createResponse.json()) as { session: { sessionId: string } };
+      const created = (await createResponse.json()) as {
+        session: { sessionId: string; metadata: Record<string, unknown> };
+      };
       const sessionId = created.session.sessionId;
+      expect(created.session.metadata).toEqual({
+        role: 'planner',
+        workspaceRoot: '/tmp/repo',
+      });
 
       const promptResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/prompt`, {
         method: 'POST',
@@ -95,10 +107,57 @@ describe('gateway contract', () => {
           'Content-Type': 'application/json',
           'X-Trace-Id': 'trace-contract-1',
         },
-        body: JSON.stringify({ input: 'hello-contract', timeoutMs: 2000 }),
+        body: JSON.stringify({
+          input: 'hello-contract',
+          timeoutMs: 2000,
+          cwd: '/tmp/repo',
+          env: {
+            TEAM_AI_STEP: 'planner',
+          },
+          metadata: {
+            stepId: 'step-1',
+          },
+        }),
       });
       expect(promptResponse.status).toBe(202);
+      const promptPayload = (await promptResponse.json()) as {
+        runtime: {
+          provider: string;
+          timeoutMs: number;
+          cwd?: string;
+          env?: Record<string, string>;
+          metadata?: Record<string, unknown>;
+        };
+      };
+      expect(promptPayload.runtime).toMatchObject({
+        provider: 'codex',
+        timeoutMs: 2000,
+        cwd: '/tmp/repo',
+        env: {
+          TEAM_AI_STEP: 'planner',
+        },
+        metadata: {
+          stepId: 'step-1',
+        },
+      });
       await sleep(30);
+      expect(runtime.requests).toHaveLength(1);
+      expect(runtime.requests[0]).toEqual({
+        providerName: 'codex',
+        request: {
+          sessionId,
+          input: 'hello-contract',
+          timeoutMs: 2000,
+          traceId: 'trace-contract-1',
+          cwd: '/tmp/repo',
+          env: {
+            TEAM_AI_STEP: 'planner',
+          },
+          metadata: {
+            stepId: 'step-1',
+          },
+        },
+      });
 
       const eventsResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/events`);
       expect(eventsResponse.status).toBe(200);
@@ -131,6 +190,41 @@ describe('gateway contract', () => {
       expect(metrics.prompts.attempts).toBe(1);
       expect(metrics.prompts.completionRate).toBe(1);
       expect(metrics.prompts.firstTokenLatencyMs.count).toBe(1);
+    } finally {
+      await gateway.close();
+    }
+  });
+
+  it('rejects prompt env values that are not strings', async () => {
+    const runtime = new MockProviderRuntime();
+    const gateway = await startGateway(runtime);
+    try {
+      const createResponse = await fetch(`${gateway.baseUrl}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'codex' }),
+      });
+      const created = (await createResponse.json()) as { session: { sessionId: string } };
+
+      const promptResponse = await fetch(`${gateway.baseUrl}/sessions/${created.session.sessionId}/prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: 'hello-contract',
+          timeoutMs: 2000,
+          env: {
+            TEAM_AI_STEP: 1,
+          },
+        }),
+      });
+
+      expect(promptResponse.status).toBe(400);
+      const payload = (await promptResponse.json()) as {
+        error: { code: string; message: string };
+      };
+      expect(payload.error.code).toBe('INVALID_REQUEST_BODY');
+      expect(payload.error.message).toContain('env must be a JSON object with string values');
+      expect(runtime.requests).toHaveLength(0);
     } finally {
       await gateway.close();
     }

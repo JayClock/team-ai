@@ -1,6 +1,6 @@
 import type { GatewayEventError } from './session-store.js';
 import { CodexProviderAdapter } from './providers/codex-provider.js';
-import type { ProviderAdapter } from './providers/provider-types.js';
+import type { ProviderAdapter, ProviderPromptRequest } from './providers/provider-types.js';
 
 export class ProviderRuntime {
   private readonly adapters = new Map<string, ProviderAdapter>();
@@ -11,10 +11,7 @@ export class ProviderRuntime {
 
   prompt(
     providerName: string,
-    sessionId: string,
-    input: string,
-    timeoutMs: number,
-    traceId: string | undefined,
+    request: ProviderPromptRequest,
     callbacks: {
       onChunk: (chunk: string) => void;
       onComplete: () => void;
@@ -33,12 +30,7 @@ export class ProviderRuntime {
     }
 
     adapter.prompt(
-      {
-        sessionId,
-        input,
-        timeoutMs,
-        traceId,
-      },
+      request,
       {
         onChunk: callbacks.onChunk,
         onComplete: callbacks.onComplete,

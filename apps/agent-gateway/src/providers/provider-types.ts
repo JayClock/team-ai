@@ -3,6 +3,9 @@ export type ProviderPromptRequest = {
   input: string;
   timeoutMs: number;
   traceId?: string;
+  cwd?: string;
+  env?: Record<string, string>;
+  metadata?: Record<string, unknown>;
 };
 
 export type ProviderError = {

@@ -32,23 +32,25 @@ export class CodexProviderAdapter implements ProviderAdapter {
     }
 
     const [command, ...args] = this.commandParts;
-    const process = spawn(command, args, {
+    const childProcess = spawn(command, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: false,
+      ...(request.cwd ? { cwd: request.cwd } : {}),
+      ...(request.env ? { env: { ...process.env, ...request.env } } : {}),
     });
 
     let stderr = '';
     let settled = false;
 
-    process.stdout.on('data', (chunk: Buffer) => {
+    childProcess.stdout.on('data', (chunk: Buffer) => {
       callbacks.onChunk(chunk.toString('utf-8'));
     });
 
-    process.stderr.on('data', (chunk: Buffer) => {
+    childProcess.stderr.on('data', (chunk: Buffer) => {
       stderr += chunk.toString('utf-8');
     });
 
-    process.on('error', (error: Error) => {
+    childProcess.on('error', (error: Error) => {
       if (settled) {
         return;
       }
@@ -62,7 +64,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
       });
     });
 
-    process.on('close', (exitCode: number | null, signal: NodeJS.Signals | null) => {
+    childProcess.on('close', (exitCode: number | null, signal: NodeJS.Signals | null) => {
       if (settled) {
         return;
       }
@@ -97,10 +99,10 @@ export class CodexProviderAdapter implements ProviderAdapter {
         return;
       }
       settled = true;
-      process.kill('SIGTERM');
+      childProcess.kill('SIGTERM');
       setTimeout(() => {
-        if (process.exitCode == null) {
-          process.kill('SIGKILL');
+        if (childProcess.exitCode == null) {
+          childProcess.kill('SIGKILL');
         }
       }, DEFAULT_CANCEL_GRACE_MS);
       callbacks.onError({
@@ -111,10 +113,10 @@ export class CodexProviderAdapter implements ProviderAdapter {
       });
     }, request.timeoutMs);
 
-    this.activeRuns.set(request.sessionId, { process, timeout });
+    this.activeRuns.set(request.sessionId, { process: childProcess, timeout });
 
-    process.stdin.write(request.input);
-    process.stdin.end();
+    childProcess.stdin.write(request.input);
+    childProcess.stdin.end();
   }
 
   cancel(sessionId: string): boolean {
