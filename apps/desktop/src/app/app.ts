@@ -3,6 +3,7 @@ import { rendererAppName, rendererAppPort } from './constants';
 import { environment } from '../environments/environment';
 import { join } from 'path';
 import { format } from 'url';
+import { AgentGatewayManager } from './agent-gateway';
 import { LocalServerManager } from './local-server';
 import { desktopRuntimeChannel } from './api/runtime-config';
 
@@ -29,7 +30,10 @@ export default class App {
     }
 
     try {
-      await LocalServerManager.start(App.application);
+      const gatewayRuntime = await AgentGatewayManager.start(App.application);
+      await LocalServerManager.start(App.application, {
+        agentGatewayBaseUrl: gatewayRuntime.baseUrl,
+      });
       App.initMainWindow();
       App.loadMainWindow();
     } catch (error) {
@@ -100,7 +104,10 @@ export default class App {
 
     App.application.on('window-all-closed', App.onWindowAllClosed);
     App.application.on('before-quit', () => {
-      void LocalServerManager.stop();
+      void Promise.all([
+        LocalServerManager.stop(),
+        AgentGatewayManager.stop(),
+      ]);
     });
     App.application.on('ready', () => {
       void App.onReady();

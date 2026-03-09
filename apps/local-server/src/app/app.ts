@@ -3,6 +3,7 @@ import type { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
 import AutoLoad from '@fastify/autoload';
 import desktopAuthPlugin from './plugins/desktop-auth';
 import desktopCorsPlugin from './plugins/desktop-cors';
+import executionRuntimePlugin from './plugins/execution-runtime';
 import messageStreamPlugin from './plugins/message-stream';
 import orchestrationRuntimePlugin from './plugins/orchestration-runtime';
 import orchestrationStreamPlugin from './plugins/orchestration-stream';
@@ -11,6 +12,7 @@ import sensiblePlugin from './plugins/sensible';
 import sqlitePlugin from './plugins/sqlite';
 
 export interface AppOptions extends FastifyPluginOptions {
+  agentGatewayBaseUrl?: string;
   desktopSessionToken?: string;
 }
 
@@ -18,6 +20,9 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
   fastify.register(problemJsonPlugin);
   fastify.register(sensiblePlugin);
   fastify.register(sqlitePlugin);
+  fastify.register(executionRuntimePlugin, {
+    agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
+  });
   fastify.register(messageStreamPlugin);
   fastify.register(orchestrationStreamPlugin);
   fastify.register(orchestrationRuntimePlugin);

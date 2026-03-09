@@ -7,7 +7,7 @@
   "targets": {
     "build": {
       "executor": "nx-electron:build",
-      "dependsOn": ["local-server:build"],
+      "dependsOn": ["local-server:build", "@agent-gateway/main:build"],
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/apps/desktop",
@@ -19,6 +19,11 @@
             "input": "apps/local-server/dist",
             "glob": "**/*",
             "output": "local-server"
+          },
+          {
+            "input": "apps/agent-gateway/dist",
+            "glob": "**/*",
+            "output": "agent-gateway"
           }
         ]
       },

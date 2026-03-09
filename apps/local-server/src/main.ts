@@ -9,6 +9,7 @@ const server = Fastify({
 });
 
 server.register(app, {
+  agentGatewayBaseUrl: process.env.AGENT_GATEWAY_BASE_URL,
   desktopSessionToken: process.env.DESKTOP_SESSION_TOKEN,
 });
 

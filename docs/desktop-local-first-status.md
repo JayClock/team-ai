@@ -8,7 +8,7 @@
 
 ## Overview
 
-The desktop runtime now consists of three cooperating parts:
+The desktop runtime now consists of four cooperating parts:
 
 - `apps/desktop`
   - Starts Electron
@@ -18,6 +18,10 @@ The desktop runtime now consists of three cooperating parts:
   - Exposes the local HTTP API on `127.0.0.1`
   - Persists desktop data in SQLite
   - Owns orchestration runtime, message streaming, and sync control state
+- `apps/agent-gateway`
+  - Exposes the local execution gateway on `127.0.0.1`
+  - Owns local provider session state and CLI execution lifecycle
+  - Bridges orchestration requests to local agent CLIs such as `codex`
 - `apps/web`
   - Uses the desktop runtime API base URL when running inside Electron
   - Sends the desktop session header automatically
@@ -52,13 +56,15 @@ The desktop runtime now consists of three cooperating parts:
 ## Desktop Startup Flow
 
 1. Electron main starts.
-2. Electron starts `apps/local-server`.
-3. The desktop shell waits for `GET /api/health`.
-4. Preload exposes:
+2. Electron starts `apps/agent-gateway`.
+3. Electron waits for `GET /health` on the local gateway.
+4. Electron starts `apps/local-server` with the local gateway base URL injected.
+5. The desktop shell waits for `GET /api/health`.
+6. Preload exposes:
    - local API base URL
    - desktop session header name
    - desktop session token
-5. The web renderer initializes the HATEOAS client from that runtime config.
+7. The web renderer initializes the HATEOAS client from that runtime config.
 
 ## Implemented Local API Surface
 
@@ -181,4 +187,3 @@ All routes below are currently implemented by `apps/local-server`.
 - Add outbox-based sync worker
 - Add structured conflict merge strategies
 - Add project and conversation management views for desktop-only local-first workflows
-
