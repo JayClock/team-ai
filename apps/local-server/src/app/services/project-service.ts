@@ -14,6 +14,7 @@ interface ListProjectsQuery {
   page: number;
   pageSize: number;
   q?: string;
+  workspaceRoot?: string;
 }
 
 interface ProjectRow {
@@ -22,6 +23,7 @@ interface ProjectRow {
   id: string;
   title: string;
   updated_at: string;
+  workspace_root: string | null;
 }
 
 function mapProjectRow(row: ProjectRow): ProjectPayload {
@@ -31,6 +33,7 @@ function mapProjectRow(row: ProjectRow): ProjectPayload {
     description: row.description,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    workspaceRoot: row.workspace_root,
   };
 }
 
@@ -47,11 +50,28 @@ function throwProjectNotFound(projectId: string): never {
   });
 }
 
+function throwWorkspaceRootConflict(workspaceRoot: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/project-workspace-conflict',
+    title: 'Project Workspace Conflict',
+    status: 409,
+    detail: `Workspace root ${workspaceRoot} is already assigned to another project`,
+  });
+}
+
+function isWorkspaceRootConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes('idx_projects_workspace_root_active') ||
+      error.message.includes('UNIQUE constraint failed: projects.workspace_root'))
+  );
+}
+
 export async function listProjects(
   sqlite: Database,
   query: ListProjectsQuery,
 ): Promise<ProjectListPayload> {
-  const { page, pageSize, q } = query;
+  const { page, pageSize, q, workspaceRoot } = query;
   const offset = (page - 1) * pageSize;
   const filters = ['deleted_at IS NULL'];
   const parameters: Record<string, unknown> = {
@@ -64,12 +84,18 @@ export async function listProjects(
     parameters.search = `%${q}%`;
   }
 
+  if (workspaceRoot) {
+    filters.push('workspace_root = @workspaceRoot');
+    parameters.workspaceRoot = workspaceRoot.trim();
+  }
+
   const whereClause = filters.join(' AND ');
 
   const items = sqlite
     .prepare(
       `
         SELECT id, title, description, created_at, updated_at
+               , workspace_root
         FROM projects
         WHERE ${whereClause}
         ORDER BY updated_at DESC
@@ -94,7 +120,31 @@ export async function listProjects(
     pageSize,
     q,
     total: total.count,
+    workspaceRoot,
   };
+}
+
+export async function findProjectByWorkspaceRoot(
+  sqlite: Database,
+  workspaceRoot: string,
+): Promise<ProjectPayload | undefined> {
+  const normalizedWorkspaceRoot = workspaceRoot.trim();
+
+  if (normalizedWorkspaceRoot.length === 0) {
+    return undefined;
+  }
+
+  const row = sqlite
+    .prepare(
+      `
+        SELECT id, title, description, created_at, updated_at, workspace_root
+        FROM projects
+        WHERE workspace_root = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(normalizedWorkspaceRoot) as ProjectRow | undefined;
+
+  return row ? mapProjectRow(row) : undefined;
 }
 
 export async function createProject(
@@ -102,36 +152,48 @@ export async function createProject(
   input: CreateProjectInput,
 ): Promise<ProjectPayload> {
   const now = new Date().toISOString();
+  const workspaceRoot = input.workspaceRoot?.trim() || null;
   const project: ProjectPayload = {
     id: createProjectId(),
     title: input.title,
     description: input.description ?? null,
     createdAt: now,
     updatedAt: now,
+    workspaceRoot,
   };
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO projects (
-          id,
-          title,
-          description,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @title,
-          @description,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-      `,
-    )
-    .run(project);
+  try {
+    sqlite
+      .prepare(
+        `
+          INSERT INTO projects (
+            id,
+            title,
+            description,
+            workspace_root,
+            created_at,
+            updated_at,
+            deleted_at
+          )
+          VALUES (
+            @id,
+            @title,
+            @description,
+            @workspaceRoot,
+            @createdAt,
+            @updatedAt,
+            NULL
+          )
+        `,
+      )
+      .run(project);
+  } catch (error) {
+    if (workspaceRoot && isWorkspaceRootConstraintError(error)) {
+      throwWorkspaceRootConflict(workspaceRoot);
+    }
+
+    throw error;
+  }
 
   return project;
 }
@@ -144,6 +206,7 @@ export async function getProjectById(
     .prepare(
       `
         SELECT id, title, description, created_at, updated_at
+             , workspace_root
         FROM projects
         WHERE id = ? AND deleted_at IS NULL
       `,
@@ -169,20 +232,33 @@ export async function updateProject(
     description:
       input.description === undefined ? current.description : input.description,
     updatedAt: new Date().toISOString(),
+    workspaceRoot:
+      input.workspaceRoot === undefined
+        ? current.workspaceRoot
+        : input.workspaceRoot?.trim() || null,
   };
 
-  sqlite
-    .prepare(
-      `
-        UPDATE projects
-        SET
-          title = @title,
-          description = @description,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
-    )
-    .run(next);
+  try {
+    sqlite
+      .prepare(
+        `
+          UPDATE projects
+          SET
+            title = @title,
+            description = @description,
+            workspace_root = @workspaceRoot,
+            updated_at = @updatedAt
+          WHERE id = @id AND deleted_at IS NULL
+        `,
+      )
+      .run(next);
+  } catch (error) {
+    if (next.workspaceRoot && isWorkspaceRootConstraintError(error)) {
+      throwWorkspaceRootConflict(next.workspaceRoot);
+    }
+
+    throw error;
+  }
 
   return next;
 }

@@ -4,6 +4,7 @@ export interface ProjectPayload {
   id: string;
   title: string;
   updatedAt: string;
+  workspaceRoot: string | null;
 }
 
 export interface ProjectListPayload {
@@ -12,14 +13,17 @@ export interface ProjectListPayload {
   pageSize: number;
   q?: string;
   total: number;
+  workspaceRoot?: string;
 }
 
 export interface CreateProjectInput {
   description?: string;
   title: string;
+  workspaceRoot?: string;
 }
 
 export interface UpdateProjectInput {
   description?: string | null;
   title?: string;
+  workspaceRoot?: string | null;
 }

@@ -13,17 +13,20 @@ const listProjectsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   q: z.string().trim().optional(),
+  workspaceRoot: z.string().trim().min(1).optional(),
 });
 
 const createProjectBodySchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().optional(),
+  workspaceRoot: z.string().trim().min(1).optional(),
 });
 
 const updateProjectBodySchema = z
   .object({
     title: z.string().trim().min(1).optional(),
     description: z.string().trim().optional().nullable(),
+    workspaceRoot: z.string().trim().min(1).optional().nullable(),
   })
   .refine(
     (value) => value.title !== undefined || value.description !== undefined,

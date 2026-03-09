@@ -219,4 +219,15 @@ export const sqliteMigrations: SqliteMigration[] = [
         ON orchestration_artifacts(step_id, created_at);
     `,
   },
+  {
+    version: '007_project_workspace_root',
+    sql: `
+      ALTER TABLE projects
+        ADD COLUMN workspace_root TEXT;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_workspace_root_active
+        ON projects(workspace_root)
+        WHERE workspace_root IS NOT NULL AND deleted_at IS NULL;
+    `,
+  },
 ];

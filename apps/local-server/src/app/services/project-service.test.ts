@@ -1,0 +1,129 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import type { Database } from 'better-sqlite3';
+import { afterEach, describe, expect, it } from 'vitest';
+import { initializeDatabase } from '../db/sqlite';
+import {
+  createProject,
+  findProjectByWorkspaceRoot,
+  getProjectById,
+  listProjects,
+  updateProject,
+} from './project-service';
+
+describe('project service', () => {
+  const cleanupTasks: Array<() => Promise<void>> = [];
+
+  afterEach(async () => {
+    while (cleanupTasks.length > 0) {
+      const cleanup = cleanupTasks.pop();
+      if (cleanup) {
+        await cleanup();
+      }
+    }
+  });
+
+  it('persists workspaceRoot when creating and loading a project', async () => {
+    const sqlite = await createTestDatabase();
+
+    const project = await createProject(sqlite, {
+      title: 'Team AI',
+      description: 'Local repo',
+      workspaceRoot: '/Users/example/team-ai',
+    });
+
+    const reloadedProject = await getProjectById(sqlite, project.id);
+
+    expect(reloadedProject.workspaceRoot).toBe('/Users/example/team-ai');
+  });
+
+  it('filters projects by workspaceRoot', async () => {
+    const sqlite = await createTestDatabase();
+
+    await createProject(sqlite, {
+      title: 'Team AI',
+      workspaceRoot: '/Users/example/team-ai',
+    });
+    await createProject(sqlite, {
+      title: 'Other',
+      workspaceRoot: '/Users/example/other',
+    });
+
+    const filteredProjects = await listProjects(sqlite, {
+      page: 1,
+      pageSize: 20,
+      workspaceRoot: '/Users/example/team-ai',
+    });
+
+    expect(filteredProjects.items).toHaveLength(1);
+    expect(filteredProjects.items[0]?.title).toBe('Team AI');
+  });
+
+  it('finds a project by workspaceRoot for reuse', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Team AI',
+      workspaceRoot: '/Users/example/team-ai',
+    });
+
+    const resolvedProject = await findProjectByWorkspaceRoot(
+      sqlite,
+      '/Users/example/team-ai',
+    );
+
+    expect(resolvedProject?.id).toBe(project.id);
+  });
+
+  it('updates workspaceRoot', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Team AI',
+    });
+
+    const updatedProject = await updateProject(sqlite, project.id, {
+      workspaceRoot: '/Users/example/team-ai',
+    });
+
+    expect(updatedProject.workspaceRoot).toBe('/Users/example/team-ai');
+  });
+
+  it('rejects duplicate workspaceRoot values', async () => {
+    const sqlite = await createTestDatabase();
+
+    await createProject(sqlite, {
+      title: 'Team AI',
+      workspaceRoot: '/Users/example/team-ai',
+    });
+
+    await expect(
+      createProject(sqlite, {
+        title: 'Team AI Copy',
+        workspaceRoot: '/Users/example/team-ai',
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      type: 'https://team-ai.dev/problems/project-workspace-conflict',
+    });
+  });
+
+  async function createTestDatabase(): Promise<Database> {
+    const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-project-service-'));
+    const previousDataDir = process.env.TEAMAI_DATA_DIR;
+
+    process.env.TEAMAI_DATA_DIR = dataDir;
+    const sqlite = initializeDatabase();
+
+    cleanupTasks.push(async () => {
+      sqlite.close();
+      if (previousDataDir === undefined) {
+        delete process.env.TEAMAI_DATA_DIR;
+      } else {
+        process.env.TEAMAI_DATA_DIR = previousDataDir;
+      }
+      await rm(dataDir, { recursive: true, force: true });
+    });
+
+    return sqlite;
+  }
+});
