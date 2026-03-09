@@ -35,21 +35,54 @@ function resolveAllowedOrigin(origin?: string): string | null {
   return null;
 }
 
+function resolveAllowHeaders(
+  requestedHeaders?: string | string[],
+): string {
+  if (typeof requestedHeaders === 'string' && requestedHeaders.length > 0) {
+    return requestedHeaders;
+  }
+
+  if (Array.isArray(requestedHeaders) && requestedHeaders.length > 0) {
+    return requestedHeaders.join(', ');
+  }
+
+  return allowedHeaders.join(', ');
+}
+
+export function resolveDesktopCorsHeaders(
+  origin?: string | string[],
+  requestedHeaders?: string | string[],
+): Record<string, string> {
+  const normalizedOrigin =
+    typeof origin === 'string'
+      ? origin
+      : Array.isArray(origin)
+        ? origin[0]
+        : undefined;
+  const allowedOrigin = resolveAllowedOrigin(normalizedOrigin);
+
+  if (!allowedOrigin) {
+    return {};
+  }
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Headers': resolveAllowHeaders(requestedHeaders),
+    'Access-Control-Allow-Methods': allowedMethods.join(', '),
+    Vary: 'Origin, Access-Control-Request-Headers',
+  };
+}
+
 const desktopCorsPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onRequest', async (request, reply) => {
-    const allowedOrigin = resolveAllowedOrigin(request.headers.origin);
-    const requestedHeaders = request.headers['access-control-request-headers'];
-    const allowHeaders =
-      typeof requestedHeaders === 'string' && requestedHeaders.length > 0
-        ? requestedHeaders
-        : allowedHeaders.join(', ');
+    const corsHeaders = resolveDesktopCorsHeaders(
+      request.headers.origin,
+      request.headers['access-control-request-headers'],
+    );
 
-    if (allowedOrigin) {
-      reply.header('Access-Control-Allow-Origin', allowedOrigin);
-      reply.header('Access-Control-Allow-Credentials', 'true');
-      reply.header('Access-Control-Allow-Headers', allowHeaders);
-      reply.header('Access-Control-Allow-Methods', allowedMethods.join(', '));
-      reply.header('Vary', 'Origin, Access-Control-Request-Headers');
+    for (const [name, value] of Object.entries(corsHeaders)) {
+      reply.header(name, value);
     }
 
     if (request.method === 'OPTIONS') {

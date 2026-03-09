@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { resolveDesktopCorsHeaders } from '../plugins/desktop-cors';
 import { presentMessage, presentMessageList } from '../presenters/message-presenter';
 import {
   createMessagePair,
@@ -84,6 +85,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
     const { conversationId } = conversationParamsSchema.parse(request.params);
 
     reply.raw.writeHead(200, {
+      ...resolveDesktopCorsHeaders(request.headers.origin),
       Connection: 'keep-alive',
       'Cache-Control': 'no-cache',
       'Content-Type': 'text/event-stream',

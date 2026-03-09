@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { resolveDesktopCorsHeaders } from '../plugins/desktop-cors';
 import {
   presentOrchestrationEvents,
   presentOrchestrationRoot,
@@ -113,6 +114,7 @@ const orchestrationRoute: FastifyPluginAsync = async (fastify) => {
       await getOrchestrationSessionById(fastify.sqlite, sessionId);
 
       reply.raw.writeHead(200, {
+        ...resolveDesktopCorsHeaders(request.headers.origin),
         Connection: 'keep-alive',
         'Cache-Control': 'no-cache',
         'Content-Type': 'text/event-stream',
