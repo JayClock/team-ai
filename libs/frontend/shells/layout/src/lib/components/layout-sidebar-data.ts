@@ -57,114 +57,114 @@ export const layoutSidebarData: LayoutSidebarData = {
   },
   teams: [
     {
-      name: 'Acme Inc',
+      name: '示例团队 A',
       logo: GalleryVerticalEndIcon,
-      plan: 'Enterprise',
+      plan: '企业版',
     },
     {
-      name: 'Acme Corp.',
+      name: '示例团队 B',
       logo: AudioWaveformIcon,
-      plan: 'Startup',
+      plan: '创业版',
     },
     {
-      name: 'Evil Corp.',
+      name: '示例团队 C',
       logo: CommandIcon,
-      plan: 'Free',
+      plan: '免费版',
     },
   ],
   navMain: [
     {
-      title: 'Playground',
+      title: '工作台',
       url: '#',
       icon: SquareTerminalIcon,
       isActive: true,
       items: [
         {
-          title: 'History',
+          title: '历史记录',
           url: '#',
         },
         {
-          title: 'Starred',
+          title: '已标星',
           url: '#',
         },
         {
-          title: 'Settings',
+          title: '设置',
           url: '#',
         },
       ],
     },
     {
-      title: 'Models',
+      title: '模型',
       url: '#',
       icon: BotIcon,
       items: [
         {
-          title: 'Genesis',
+          title: '基础模型',
           url: '#',
         },
         {
-          title: 'Explorer',
+          title: '探索模型',
           url: '#',
         },
         {
-          title: 'Quantum',
+          title: '量子模型',
           url: '#',
         },
       ],
     },
     {
-      title: 'Automation',
+      title: '自动化',
       url: '#',
       icon: PlaySquareIcon,
       items: [
         {
-          title: 'Sessions',
+          title: '会话',
           url: '/orchestration',
         },
       ],
     },
     {
-      title: 'Documentation',
+      title: '文档',
       url: '#',
       icon: BookOpenIcon,
       items: [
         {
-          title: 'Introduction',
+          title: '简介',
           url: '#',
         },
         {
-          title: 'Get Started',
+          title: '快速开始',
           url: '#',
         },
         {
-          title: 'Tutorials',
+          title: '教程',
           url: '#',
         },
         {
-          title: 'Changelog',
+          title: '变更日志',
           url: '#',
         },
       ],
     },
     {
-      title: 'Settings',
+      title: '设置',
       url: '#',
       icon: Settings2Icon,
       items: [
         {
-          title: 'General',
+          title: '通用',
           url: '#',
         },
         {
-          title: 'Team',
+          title: '团队',
           url: '#',
         },
         {
-          title: 'Billing',
+          title: '账单',
           url: '#',
         },
         {
-          title: 'Limits',
+          title: '配额',
           url: '#',
         },
       ],
@@ -172,17 +172,17 @@ export const layoutSidebarData: LayoutSidebarData = {
   ],
   projects: [
     {
-      name: 'Design Engineering',
+      name: '设计工程',
       url: '#',
       icon: FrameIcon,
     },
     {
-      name: 'Sales & Marketing',
+      name: '销售与市场',
       url: '#',
       icon: PieChartIcon,
     },
     {
-      name: 'Travel',
+      name: '出行',
       url: '#',
       icon: MapIcon,
     },

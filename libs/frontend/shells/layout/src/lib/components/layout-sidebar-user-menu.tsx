@@ -71,28 +71,28 @@ export function LayoutSidebarUserMenu({ user }: LayoutSidebarUserMenuProps) {
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <SparklesIcon />
-                Upgrade to Pro
+                升级到专业版
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <BadgeCheckIcon />
-                Account
+                账号
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCardIcon />
-                Billing
+                账单
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <BellIcon />
-                Notifications
+                通知
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <LogOutIcon />
-              Log out
+              退出登录
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

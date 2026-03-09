@@ -78,7 +78,7 @@ function normalizeWorkspaceRoot(value: string): string {
 
 function deriveProjectTitle(workspaceRoot: string): string {
   const segments = normalizeWorkspaceRoot(workspaceRoot).split(/[\\/]/u).filter(Boolean);
-  return segments.at(-1) || 'Workspace';
+  return segments.at(-1) || '工作区';
 }
 
 function deriveSessionTitle(goal: string): string {
@@ -102,7 +102,7 @@ async function readJson<T>(href: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    const error = new Error(errorText || `Request failed: ${response.status}`);
+    const error = new Error(errorText || `请求失败：${response.status}`);
     Object.assign(error, { status: response.status });
     throw error;
   }
@@ -140,7 +140,7 @@ export default function OrchestrationHome() {
       } catch (error) {
         if (!disposed) {
           toast.error(
-            error instanceof Error ? error.message : 'Failed to load workspaces',
+            error instanceof Error ? error.message : '加载工作区失败',
           );
         }
       } finally {
@@ -237,11 +237,11 @@ export default function OrchestrationHome() {
           },
         );
 
-        toast.success(`Started session ${session.title}`);
+        toast.success(`已启动会话：${session.title}`);
         navigate(`/orchestration/${session.id}`);
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : 'Failed to start session',
+          error instanceof Error ? error.message : '启动会话失败',
         );
       } finally {
         setSubmitting(false);
@@ -257,15 +257,15 @@ export default function OrchestrationHome() {
         <div className="flex flex-col gap-4 md:max-w-3xl">
           <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-3 py-1 text-xs font-medium tracking-[0.18em] text-sky-700 uppercase backdrop-blur">
             <SparklesIcon className="size-3.5" />
-            Local Session Flow
+            本地会话流程
           </div>
           <div className="space-y-3">
             <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-              Pick a repository and start a focused execution session.
+              选择仓库并启动一次聚焦执行会话。
             </h1>
             <p className="max-w-2xl text-base leading-7 text-slate-600 md:text-lg">
-              Choose a local workspace, describe the change, and run the fixed
-              flow: Plan, Implement, Verify.
+              选择本地工作区，描述你的需求，然后按固定流程执行：
+              规划、实施、验证。
             </p>
           </div>
         </div>
@@ -273,10 +273,9 @@ export default function OrchestrationHome() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_320px]">
           <Card className="border-slate-200/80 bg-white/90 shadow-[0_20px_80px_-48px_rgba(15,23,42,0.5)] backdrop-blur">
             <CardHeader className="gap-3">
-              <CardTitle className="text-2xl">New Session</CardTitle>
+              <CardTitle className="text-2xl">新建会话</CardTitle>
               <CardDescription className="text-sm leading-6">
-                Repository path and request are the only required inputs. Session
-                title is derived automatically from your request.
+                只需要填写仓库路径和需求描述。会话标题会根据你的需求自动生成。
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -286,7 +285,7 @@ export default function OrchestrationHome() {
                     className="text-sm font-medium text-slate-700"
                     htmlFor="workspace-root"
                   >
-                    Repository path
+                    仓库路径
                   </label>
                   <Input
                     id="workspace-root"
@@ -300,8 +299,7 @@ export default function OrchestrationHome() {
                     }
                   />
                   <p className="text-xs text-slate-500">
-                    Repositories are reused by path, so returning to the same
-                    folder keeps the same workspace record.
+                    仓库会按路径复用，所以再次选择同一目录时会沿用同一个工作区记录。
                   </p>
                 </div>
 
@@ -310,12 +308,12 @@ export default function OrchestrationHome() {
                     className="text-sm font-medium text-slate-700"
                     htmlFor="session-goal"
                   >
-                    Request
+                    需求说明
                   </label>
                   <Textarea
                     id="session-goal"
                     className="min-h-40 resize-none"
-                    placeholder="Describe what you want changed in this repository"
+                    placeholder="描述你希望在这个仓库里完成的改动"
                     value={formState.goal}
                     onChange={(event) =>
                       setFormState((current) => ({
@@ -329,10 +327,10 @@ export default function OrchestrationHome() {
                 <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-800">
-                      Execution stages
+                      执行阶段
                     </p>
                     <p className="text-xs text-slate-500">
-                      Plan, Implement, Verify through the local agent gateway.
+                      通过本地 agent gateway 按规划、实施、验证三个阶段执行。
                     </p>
                   </div>
                   <Button
@@ -347,11 +345,11 @@ export default function OrchestrationHome() {
                     {submitting ? (
                       <>
                         <Loader2Icon className="size-4 animate-spin" />
-                        Starting...
+                        启动中...
                       </>
                     ) : (
                       <>
-                        New Session
+                        新建会话
                         <ArrowRightIcon className="size-4" />
                       </>
                     )}
@@ -364,16 +362,16 @@ export default function OrchestrationHome() {
           <div className="space-y-6">
             <Card className="border-slate-200/80 bg-white/90 backdrop-blur">
               <CardHeader>
-                <CardTitle className="text-base">Recent Workspaces</CardTitle>
+                <CardTitle className="text-base">最近工作区</CardTitle>
                 <CardDescription>
-                  Reuse a repository you already opened in the local app.
+                  复用你已经在本地应用中打开过的仓库。
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 {loading ? (
                   <div className="flex items-center gap-2 text-sm text-slate-500">
                     <Loader2Icon className="size-4 animate-spin" />
-                    Loading workspaces...
+                    正在加载工作区...
                   </div>
                 ) : recentProjects.length > 0 ? (
                   recentProjects.map((project) => {
@@ -405,7 +403,7 @@ export default function OrchestrationHome() {
                             {project.data.title}
                           </p>
                           <p className="mt-1 break-all text-xs leading-5 text-slate-500">
-                            {project.data.workspaceRoot ?? 'No workspace path'}
+                            {project.data.workspaceRoot ?? '暂无工作区路径'}
                           </p>
                         </div>
                       </button>
@@ -413,8 +411,7 @@ export default function OrchestrationHome() {
                   })
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
-                    No saved workspaces yet. Enter a repository path to create the
-                    first one.
+                    还没有保存的工作区。输入一个仓库路径即可创建第一个工作区。
                   </div>
                 )}
               </CardContent>
@@ -422,16 +419,16 @@ export default function OrchestrationHome() {
 
             <Card className="border-slate-200/80 bg-slate-950 text-slate-100 shadow-[0_20px_80px_-48px_rgba(15,23,42,0.9)]">
               <CardHeader>
-                <CardTitle className="text-base text-white">Session flow</CardTitle>
+                <CardTitle className="text-base text-white">会话流程</CardTitle>
                 <CardDescription className="text-slate-300">
-                  Fixed main path for local execution.
+                  本地执行的固定主流程。
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 text-sm">
                 {[
-                  ['01', 'Plan', 'Analyze the request and shape the execution plan.'],
-                  ['02', 'Implement', 'Run the change in the selected repository.'],
-                  ['03', 'Verify', 'Review the result before the session completes.'],
+                  ['01', '规划', '分析需求并整理执行计划。'],
+                  ['02', '实施', '在所选仓库中执行改动。'],
+                  ['03', '验证', '在会话结束前检查执行结果。'],
                 ].map(([index, title, description], step) => (
                   <div key={title}>
                     {step > 0 ? <Separator className="mb-4 bg-slate-800" /> : null}

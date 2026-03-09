@@ -161,19 +161,19 @@ const stageMeta: Record<
   }
 > = {
   PLAN: {
-    description: 'Shape the approach, scope, and execution intent.',
+    description: '整理方案、范围和执行意图。',
     index: '01',
-    title: 'Plan',
+    title: '规划',
   },
   IMPLEMENT: {
-    description: 'Run the change against the selected local repository.',
+    description: '在选定的本地仓库中执行改动。',
     index: '02',
-    title: 'Implement',
+    title: '实施',
   },
   VERIFY: {
-    description: 'Review outputs and determine whether the run is complete.',
+    description: '检查输出结果并判断本次执行是否完成。',
     index: '03',
-    title: 'Verify',
+    title: '验证',
   },
 };
 
@@ -201,7 +201,7 @@ async function readJson<T>(href: string): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(`请求失败：${response.status}`);
   }
 
   return (await response.json()) as T;
@@ -220,7 +220,7 @@ function summarizeArtifactContent(content: Record<string, unknown>): string {
 
   const keys = Object.keys(content);
   if (keys.length === 0) {
-    return 'No structured content';
+    return '没有结构化内容';
   }
 
   return keys.slice(0, 3).join(' · ');
@@ -235,6 +235,79 @@ function resolveSelectedSession(
   }
 
   return sessions.find((session) => session.data.id === targetSessionId) ?? sessions[0];
+}
+
+function sessionStatusLabel(status: SessionStatus | StepStatus): string {
+  switch (status) {
+    case 'PENDING':
+      return '待处理';
+    case 'PLANNING':
+      return '规划中';
+    case 'READY':
+      return '就绪';
+    case 'RUNNING':
+      return '执行中';
+    case 'PAUSED':
+      return '已暂停';
+    case 'WAITING_RETRY':
+      return '等待重试';
+    case 'FAILED':
+      return '失败';
+    case 'COMPLETED':
+      return '已完成';
+    case 'CANCELLED':
+      return '已取消';
+    default:
+      return status;
+  }
+}
+
+function streamStatusLabel(status: 'idle' | 'connecting' | 'connected' | 'error'): string {
+  switch (status) {
+    case 'idle':
+      return '空闲';
+    case 'connecting':
+      return '连接中';
+    case 'connected':
+      return '已连接';
+    case 'error':
+      return '异常';
+    default:
+      return status;
+  }
+}
+
+function eventTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    'session.running': '会话执行中',
+    'session.completed': '会话已完成',
+    'session.failed': '会话失败',
+    'session.cancelled': '会话已取消',
+    'session.resumed': '会话已恢复',
+    'session.retried': '会话已重试',
+    'step.ready': '阶段就绪',
+    'step.started': '阶段开始',
+    'step.runtime.event': '运行事件',
+    'step.cancelled': '阶段已取消',
+    'step.completed': '阶段已完成',
+    'step.failed': '阶段失败',
+    'step.retried': '阶段已重试',
+  };
+
+  return labels[type] ?? type;
+}
+
+function actionLabel(action: 'cancel' | 'resume' | 'retry'): string {
+  switch (action) {
+    case 'cancel':
+      return '取消';
+    case 'resume':
+      return '恢复';
+    case 'retry':
+      return '重试';
+    default:
+      return action;
+  }
 }
 
 export default function OrchestrationSessionPage() {
@@ -315,7 +388,7 @@ export default function OrchestrationSessionPage() {
       } catch (error) {
         if (!disposed) {
           toast.error(
-            error instanceof Error ? error.message : 'Failed to load session',
+            error instanceof Error ? error.message : '加载会话失败',
           );
         }
       } finally {
@@ -369,7 +442,7 @@ export default function OrchestrationSessionPage() {
         });
 
         if (!response.ok || !response.body) {
-          throw new Error(`Failed to open stream: ${response.status}`);
+          throw new Error(`打开事件流失败：${response.status}`);
         }
 
         setStreamStatus('connected');
@@ -476,7 +549,7 @@ export default function OrchestrationSessionPage() {
         await reloadSelectedSession(selectedSession.data.id);
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : `Failed to ${rel} session`,
+          error instanceof Error ? error.message : `会话${actionLabel(rel)}操作失败`,
         );
       } finally {
         setActiveAction(null);
@@ -498,7 +571,7 @@ export default function OrchestrationSessionPage() {
         await reloadSelectedSession(stepState.data.sessionId);
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : 'Failed to retry step',
+          error instanceof Error ? error.message : '重试阶段失败',
         );
       } finally {
         setRetryingStepId(null);
@@ -535,7 +608,7 @@ export default function OrchestrationSessionPage() {
       <div className="flex min-h-full items-center justify-center bg-slate-50 px-6 py-16">
         <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm text-slate-600 shadow-sm">
           <Loader2Icon className="size-4 animate-spin" />
-          Loading session details...
+          正在加载会话详情...
         </div>
       </div>
     );
@@ -550,12 +623,11 @@ export default function OrchestrationSessionPage() {
             <CardHeader className="gap-3">
               <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-medium tracking-[0.18em] text-sky-700 uppercase">
                 <SparklesIcon className="size-3.5" />
-                Session View
+                会话视图
               </div>
-              <CardTitle className="text-xl">Execution sessions</CardTitle>
+              <CardTitle className="text-xl">执行会话</CardTitle>
               <CardDescription className="text-sm leading-6">
-                Switch between recent local runs or start a fresh session from the
-                repository entry page.
+                可以在最近的本地执行之间切换，或者回到入口页重新发起新会话。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -565,21 +637,21 @@ export default function OrchestrationSessionPage() {
                 variant="outline"
               >
                 <ArrowLeftIcon className="size-4" />
-                New Session
+                新建会话
               </Button>
               <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
                 <MetricCard
-                  label="Sessions"
+                  label="会话数"
                   value={sessions.length.toString()}
                 />
                 <MetricCard
-                  label="Running"
+                  label="执行中"
                   value={sessions
                     .filter((session) => session.data.status === 'RUNNING')
                     .length.toString()}
                 />
                 <MetricCard
-                  label="Failed"
+                  label="失败"
                   value={sessions
                     .filter((session) => session.data.status === 'FAILED')
                     .length.toString()}
@@ -590,9 +662,9 @@ export default function OrchestrationSessionPage() {
 
           <Card className="min-h-0 flex-1 border-slate-200/80 bg-white/90 backdrop-blur">
             <CardHeader>
-              <CardTitle className="text-base">Recent sessions</CardTitle>
+              <CardTitle className="text-base">最近会话</CardTitle>
               <CardDescription>
-                {sessions.length} session{sessions.length === 1 ? '' : 's'} available
+                当前共有 {sessions.length} 个会话
               </CardDescription>
             </CardHeader>
             <CardContent className="min-h-0">
@@ -600,8 +672,7 @@ export default function OrchestrationSessionPage() {
                 <div className="space-y-3">
                   {sessions.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
-                      No sessions yet. Return to the entry page to start the first
-                      run.
+                      还没有会话。返回入口页即可发起第一次执行。
                     </div>
                   ) : (
                     sessions.map((session) => {
@@ -632,16 +703,16 @@ export default function OrchestrationSessionPage() {
                                 session.data.status,
                               )}`}
                             >
-                              {session.data.status}
+                              {sessionStatusLabel(session.data.status)}
                             </span>
                           </div>
                           <div className="mt-3 space-y-1 text-[11px] text-slate-500">
                             <div className="truncate">
-                              {session.data.workspaceRoot ?? 'No workspace path'}
+                              {session.data.workspaceRoot ?? '暂无工作区路径'}
                             </div>
                             <div>
                               {session.data.stepCounts.completed}/
-                              {session.data.stepCounts.total} completed
+                              {session.data.stepCounts.total} 已完成
                             </div>
                             <div>{formatTimestamp(session.data.updatedAt)}</div>
                           </div>
@@ -662,15 +733,15 @@ export default function OrchestrationSessionPage() {
                 <div className="space-y-3">
                   <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-slate-600 uppercase">
                     <FolderGit2Icon className="size-3.5" />
-                    Local workspace session
+                    本地工作区会话
                   </div>
                   <div>
                     <CardTitle className="text-3xl tracking-tight text-slate-950">
-                      {selectedSession?.data.title ?? 'Session not found'}
+                      {selectedSession?.data.title ?? '未找到会话'}
                     </CardTitle>
                     <CardDescription className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                       {selectedSession?.data.goal ??
-                        'Select a session from the left rail or return to the entry page.'}
+                        '请从左侧选择一个会话，或返回入口页新建会话。'}
                     </CardDescription>
                   </div>
                 </div>
@@ -681,10 +752,10 @@ export default function OrchestrationSessionPage() {
                         selectedSession.data.status,
                       )}`}
                     >
-                      {selectedSession.data.status}
+                      {sessionStatusLabel(selectedSession.data.status)}
                     </span>
                     <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
-                      stream: {streamStatus}
+                      事件流：{streamStatusLabel(streamStatus)}
                     </span>
                   </div>
                 ) : null}
@@ -693,19 +764,19 @@ export default function OrchestrationSessionPage() {
             {selectedSession ? (
               <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <SessionStat
-                  label="Workspace"
-                  value={selectedSession.data.workspaceRoot ?? 'Not attached'}
+                  label="工作区"
+                  value={selectedSession.data.workspaceRoot ?? '未绑定'}
                 />
                 <SessionStat
-                  label="Current phase"
-                  value={selectedSession.data.currentPhase ?? 'Pending'}
+                  label="当前阶段"
+                  value={selectedSession.data.currentPhase ? stageMeta[selectedSession.data.currentPhase].title : '待开始'}
                 />
                 <SessionStat
-                  label="Updated"
+                  label="更新时间"
                   value={formatTimestamp(selectedSession.data.updatedAt)}
                 />
                 <SessionStat
-                  label="Provider"
+                  label="提供方"
                   value={`${selectedSession.data.provider} · ${selectedSession.data.executionMode}`}
                 />
               </CardContent>
@@ -716,15 +787,15 @@ export default function OrchestrationSessionPage() {
             <>
               <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
                 <CardHeader>
-                  <CardTitle className="text-lg">Request context</CardTitle>
+                  <CardTitle className="text-lg">需求上下文</CardTitle>
                   <CardDescription>
-                    The repository path and user request that launched this session.
+                    启动本次会话时使用的仓库路径和用户需求。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
                   <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-5">
                     <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
-                      Request
+                      需求
                     </div>
                     <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">
                       {selectedSession.data.goal}
@@ -732,19 +803,19 @@ export default function OrchestrationSessionPage() {
                   </div>
                   <div className="grid gap-3">
                     <DetailRow
-                      label="Workspace root"
+                      label="工作区路径"
                       value={selectedSession.data.workspaceRoot ?? '—'}
                     />
                     <DetailRow
-                      label="Created"
+                      label="创建时间"
                       value={formatTimestamp(selectedSession.data.createdAt)}
                     />
                     <DetailRow
-                      label="Last event"
+                      label="最后事件"
                       value={formatTimestamp(selectedSession.data.lastEventAt)}
                     />
                     <DetailRow
-                      label="Trace ID"
+                      label="追踪 ID"
                       value={selectedSession.data.traceId ?? '—'}
                     />
                   </div>
@@ -753,10 +824,9 @@ export default function OrchestrationSessionPage() {
 
               <Card className="min-h-0 border-slate-200/80 bg-white/92 backdrop-blur">
                 <CardHeader>
-                  <CardTitle className="text-lg">Execution feed</CardTitle>
+                  <CardTitle className="text-lg">执行内容</CardTitle>
                   <CardDescription>
-                    Runtime output, structured artifacts, and failures grouped by
-                    stage.
+                    按阶段展示运行输出、结构化产物和失败信息。
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="min-h-0">
@@ -793,12 +863,12 @@ export default function OrchestrationSessionPage() {
                                   step?.data.status ?? 'PENDING',
                                 )}`}
                               >
-                                {step?.data.status ?? 'PENDING'}
+                                {sessionStatusLabel(step?.data.status ?? 'PENDING')}
                               </span>
                               <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500">
                                 {step
-                                  ? `attempt ${step.data.attempt}/${step.data.maxAttempts}`
-                                  : 'waiting'}
+                                  ? `第 ${step.data.attempt}/${step.data.maxAttempts} 次尝试`
+                                  : '等待中'}
                               </span>
                             </div>
                           </div>
@@ -807,32 +877,32 @@ export default function OrchestrationSessionPage() {
                             <div className="mt-4 grid gap-4">
                               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                                 <DetailRow
-                                  label="Role"
-                                  value={step.data.role ?? 'specialist'}
+                                  label="角色"
+                                  value={step.data.role ?? '执行代理'}
                                 />
                                 <DetailRow
-                                  label="Started"
+                                  label="开始时间"
                                   value={formatTimestamp(step.data.startedAt)}
                                 />
                                 <DetailRow
-                                  label="Completed"
+                                  label="完成时间"
                                   value={formatTimestamp(step.data.completedAt)}
                                 />
                                 <DetailRow
-                                  label="Runtime session"
-                                  value={step.data.runtimeSessionId ?? 'Not started'}
+                                  label="运行时会话"
+                                  value={step.data.runtimeSessionId ?? '尚未开始'}
                                 />
                               </div>
 
                               <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
                                 <div className="rounded-3xl border border-slate-200 bg-white p-4">
                                   <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
-                                    Runtime output
+                                    运行输出
                                   </div>
                                   <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">
                                     {runtimeOutput.length > 0
                                       ? runtimeOutput
-                                      : 'No streamed output for this stage yet.'}
+                                      : '这个阶段还没有流式输出。'}
                                   </pre>
                                 </div>
 
@@ -840,24 +910,24 @@ export default function OrchestrationSessionPage() {
                                   {step.data.errorCode || step.data.errorMessage ? (
                                     <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
                                       <div className="text-xs font-medium tracking-[0.16em] uppercase">
-                                        Failure
+                                        失败信息
                                       </div>
                                       <div className="mt-2 font-medium">
                                         {step.data.errorCode ?? 'STEP_ERROR'}
                                       </div>
                                       <p className="mt-2 leading-6">
-                                        {step.data.errorMessage ?? 'No error message'}
+                                        {step.data.errorMessage ?? '没有错误信息'}
                                       </p>
                                     </div>
                                   ) : null}
 
                                   <div className="rounded-3xl border border-slate-200 bg-white p-4">
                                     <div className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
-                                      Artifacts
+                                      产物
                                     </div>
                                     {step.data.artifacts.length === 0 ? (
                                       <p className="mt-3 text-sm text-slate-500">
-                                        No structured artifacts persisted yet.
+                                        还没有持久化的结构化产物。
                                       </p>
                                     ) : (
                                       <div className="mt-3 space-y-3">
@@ -890,7 +960,7 @@ export default function OrchestrationSessionPage() {
                             </div>
                           ) : (
                             <div className="mt-4 rounded-3xl border border-dashed border-slate-200 bg-white/80 px-4 py-6 text-sm text-slate-500">
-                              This stage has not been materialized yet.
+                              这个阶段还没有开始执行。
                             </div>
                           )}
                         </div>
@@ -902,15 +972,15 @@ export default function OrchestrationSessionPage() {
 
               <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
                 <CardHeader>
-                  <CardTitle className="text-lg">Event timeline</CardTitle>
+                  <CardTitle className="text-lg">事件时间线</CardTitle>
                   <CardDescription>
-                    Most recent persisted events with live stream updates.
+                    展示最近持久化事件和实时流更新。
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {recentEvents.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
-                      No events available yet.
+                      还没有事件记录。
                     </div>
                   ) : (
                     <div className="grid gap-3">
@@ -922,7 +992,7 @@ export default function OrchestrationSessionPage() {
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div className="space-y-1">
                               <div className="text-sm font-medium text-slate-950">
-                                {event.type}
+                                {eventTypeLabel(event.type)}
                               </div>
                               <div className="text-xs leading-5 text-slate-500">
                                 {summarizeEvent(event)}
@@ -934,7 +1004,7 @@ export default function OrchestrationSessionPage() {
                           </div>
                           {event.stepId ? (
                             <div className="mt-2 text-[11px] text-slate-500">
-                              step: {event.stepId}
+                              阶段：{event.stepId}
                             </div>
                           ) : null}
                         </div>
@@ -948,14 +1018,12 @@ export default function OrchestrationSessionPage() {
             <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
               <CardContent className="flex flex-col items-start gap-4 px-6 py-10">
                 <div className="text-lg font-semibold text-slate-950">
-                  Session not found
+                  未找到会话
                 </div>
                 <p className="max-w-xl text-sm leading-6 text-slate-600">
-                  The requested session could not be loaded. Return to the entry page
-                  and create a new one, or choose an existing session from the left
-                  rail.
+                  无法加载请求的会话。你可以返回入口页新建会话，或者从左侧选择一个已有会话。
                 </p>
-                <Button onClick={() => navigate('/orchestration')}>New Session</Button>
+                <Button onClick={() => navigate('/orchestration')}>新建会话</Button>
               </CardContent>
             </Card>
           )}
@@ -964,9 +1032,9 @@ export default function OrchestrationSessionPage() {
         <aside className="flex min-h-0 flex-col gap-6">
           <Card className="border-slate-200/80 bg-slate-950 text-slate-100 shadow-[0_20px_80px_-48px_rgba(15,23,42,0.9)]">
             <CardHeader>
-              <CardTitle className="text-base text-white">Session controls</CardTitle>
+              <CardTitle className="text-base text-white">会话控制</CardTitle>
               <CardDescription className="text-slate-300">
-                Control the selected run without leaving the detail view.
+                无需离开详情页即可控制当前会话。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -975,21 +1043,21 @@ export default function OrchestrationSessionPage() {
                   busy={activeAction === 'cancel'}
                   disabled={!selectedSession?.hasLink('cancel')}
                   icon={<PauseCircleIcon className="size-4" />}
-                  label="Cancel"
+                  label="取消"
                   onClick={() => void triggerSessionAction('cancel')}
                 />
                 <ActionButton
                   busy={activeAction === 'resume'}
                   disabled={!selectedSession?.hasLink('resume')}
                   icon={<PlayCircleIcon className="size-4" />}
-                  label="Resume"
+                  label="恢复"
                   onClick={() => void triggerSessionAction('resume')}
                 />
                 <ActionButton
                   busy={activeAction === 'retry'}
                   disabled={!selectedSession?.hasLink('retry')}
                   icon={<RotateCcwIcon className="size-4" />}
-                  label="Retry session"
+                  label="重试会话"
                   onClick={() => void triggerSessionAction('retry')}
                 />
               </div>
@@ -997,30 +1065,30 @@ export default function OrchestrationSessionPage() {
               <Separator className="bg-slate-800" />
 
               <div className="space-y-3 text-sm">
-                <SidebarDetail label="Status" value={selectedSession?.data.status ?? '—'} />
-                <SidebarDetail label="Stream" value={streamStatus} />
+                <SidebarDetail label="状态" value={selectedSession ? sessionStatusLabel(selectedSession.data.status) : '—'} />
+                <SidebarDetail label="事件流" value={streamStatusLabel(streamStatus)} />
                 <SidebarDetail
-                  label="Fail fast"
-                  value={selectedSession?.data.strategy.failFast ? 'Enabled' : 'Disabled'}
+                  label="快速失败"
+                  value={selectedSession?.data.strategy.failFast ? '开启' : '关闭'}
                 />
                 <SidebarDetail
-                  label="Parallelism"
+                  label="并行度"
                   value={selectedSession?.data.strategy.maxParallelism.toString() ?? '—'}
                 />
                 <SidebarDetail
-                  label="Mode"
+                  label="模式"
                   value={selectedSession?.data.strategy.mode ?? '—'}
                 />
-                <SidebarDetail label="Source" value={streamUrl ?? 'No stream URL'} />
+                <SidebarDetail label="来源" value={streamUrl ?? '暂无事件流地址'} />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-slate-200/80 bg-white/92 backdrop-blur">
             <CardHeader>
-              <CardTitle className="text-base">Execution stages</CardTitle>
+              <CardTitle className="text-base">执行阶段</CardTitle>
               <CardDescription>
-                Compact stage status for the fixed Plan, Implement, Verify flow.
+                以紧凑视图展示固定的规划、实施、验证三阶段状态。
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1049,7 +1117,7 @@ export default function OrchestrationSessionPage() {
                           step?.data.status ?? 'PENDING',
                         )}`}
                       >
-                        {step?.data.status ?? 'PENDING'}
+                        {sessionStatusLabel(step?.data.status ?? 'PENDING')}
                       </span>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-slate-500">
@@ -1058,9 +1126,9 @@ export default function OrchestrationSessionPage() {
                     {step ? (
                       <>
                         <div className="mt-3 space-y-1 text-[11px] text-slate-500">
-                          <div>role: {step.data.role ?? 'specialist'}</div>
-                          <div>updated: {formatTimestamp(step.data.updatedAt)}</div>
-                          <div>artifacts: {step.data.artifacts.length}</div>
+                          <div>角色：{step.data.role ?? '执行代理'}</div>
+                          <div>更新时间：{formatTimestamp(step.data.updatedAt)}</div>
+                          <div>产物数：{step.data.artifacts.length}</div>
                         </div>
                         <Button
                           className="mt-3 w-full"
@@ -1072,12 +1140,12 @@ export default function OrchestrationSessionPage() {
                           {retryingStepId === step.data.id ? (
                             <>
                               <Loader2Icon className="size-4 animate-spin" />
-                              Retrying...
+                              重试中...
                             </>
                           ) : (
                             <>
                               <RotateCcwIcon className="size-4" />
-                              Retry step
+                              重试阶段
                             </>
                           )}
                         </Button>

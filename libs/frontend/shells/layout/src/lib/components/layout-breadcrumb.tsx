@@ -32,7 +32,7 @@ function titleCaseSegment(segment: string) {
 
 function buildBreadcrumbSegments(pathname: string): BreadcrumbSegment[] {
   if (pathname === '/') {
-    return [{ label: 'Dashboard', path: '/' }];
+    return [{ label: '首页', path: '/' }];
   }
 
   let currentPath = '';
