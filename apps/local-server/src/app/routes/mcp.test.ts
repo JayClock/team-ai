@@ -10,7 +10,6 @@ import { createAgent } from '../services/agent-service';
 import { createProject } from '../services/project-service';
 import acpRoute from './acp';
 import mcpRoute from './mcp';
-import orchestrationRoute from './orchestration';
 import projectsRoute from './projects';
 import rootRoute from './root';
 
@@ -80,7 +79,6 @@ describe('mcp route', () => {
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
-    await fastify.register(orchestrationRoute, { prefix: '/api' });
     await fastify.register(mcpRoute, { prefix: '/api' });
     await fastify.ready();
 

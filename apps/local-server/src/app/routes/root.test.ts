@@ -1,0 +1,64 @@
+import Fastify from 'fastify';
+import { afterEach, describe, expect, it } from 'vitest';
+import problemJsonPlugin from '../plugins/problem-json';
+import rootRoute from './root';
+
+describe('root route', () => {
+  const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];
+
+  afterEach(async () => {
+    while (fastifyInstances.length > 0) {
+      const fastify = fastifyInstances.pop();
+      if (fastify) {
+        await fastify.close();
+      }
+    }
+  });
+
+  it('exposes local-server discovery links with sessions as the primary entrypoint', async () => {
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/api',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      name: 'team-ai-local-server',
+      capabilities: {
+        acp: true,
+        agents: true,
+        health: true,
+        mcp: true,
+        sessions: true,
+        settings: true,
+        syncStatus: true,
+      },
+      _links: {
+        self: {
+          href: '/api',
+        },
+        projects: {
+          href: '/api/projects',
+        },
+        sessions: {
+          href: '/api/sessions{?projectId,status,page,pageSize}',
+          templated: true,
+        },
+        acp: {
+          href: '/api/acp',
+        },
+        mcp: {
+          href: '/api/mcp',
+        },
+      },
+    });
+    expect(response.json()._links.orchestration).toBeUndefined();
+  });
+});

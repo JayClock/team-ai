@@ -118,6 +118,52 @@ describe('projects route', () => {
     });
   });
 
+  it('exposes project links for orchestration and acp sessions', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+    fastify.decorate('sqlite', sqlite);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/projects',
+      payload: {
+        title: 'Desktop Links',
+        workspaceRoot: '/Users/example/desktop-links',
+      },
+    });
+    const project = createResponse.json() as { id: string };
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      id: project.id,
+      _links: {
+        self: {
+          href: `/api/projects/${project.id}`,
+        },
+        collection: {
+          href: '/api/projects',
+        },
+        sessions: {
+          href: `/api/projects/${project.id}/sessions`,
+        },
+        'acp-sessions': {
+          href: `/api/projects/${project.id}/acp-sessions`,
+        },
+      },
+    });
+    expect(response.json()._links.conversations).toBeUndefined();
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-project-route-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;

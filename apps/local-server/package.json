@@ -2,6 +2,9 @@
   "name": "local-server",
   "version": "0.0.1",
   "private": true,
+  "scripts": {
+    "test": "vitest run"
+  },
   "nx": {
     "targets": {
       "build": {
@@ -94,6 +97,12 @@
           "production": {
             "buildTarget": "local-server:build:production"
           }
+        }
+      },
+      "test": {
+        "executor": "nx:run-script",
+        "options": {
+          "script": "test"
         }
       }
     },
