@@ -80,16 +80,12 @@ export const layoutSidebarData: LayoutSidebarData = {
       isActive: true,
       items: [
         {
-          title: '历史记录',
-          url: '#',
+          title: 'ACP 会话',
+          url: '/workspace',
         },
         {
-          title: '已标星',
-          url: '#',
-        },
-        {
-          title: '设置',
-          url: '#',
+          title: '编排',
+          url: '/orchestration',
         },
       ],
     },
@@ -118,7 +114,7 @@ export const layoutSidebarData: LayoutSidebarData = {
       icon: PlaySquareIcon,
       items: [
         {
-          title: '会话',
+          title: '编排会话',
           url: '/orchestration',
         },
       ],

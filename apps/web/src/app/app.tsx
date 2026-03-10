@@ -5,11 +5,13 @@ import { Signup } from '../features/auth/signup';
 import AcpDebugPage from '../features/acp/acp-debug';
 import OrchestrationHome from '../features/orchestration/orchestration-home';
 import OrchestrationSessionPage from '../features/orchestration/orchestration-session';
+import WorkspaceHome from '../features/workspace/workspace-home';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Layout, layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
 import { protectedRouteLoader } from './protected-route-loader';
 import { Suspense, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
 
 const protectedLayoutRoutes = [
   {
@@ -24,7 +26,31 @@ const protectedLayoutRoutes = [
 
 function createAppRouter() {
   return createBrowserRouter([
+    {
+      path: '/',
+      loader: protectedRouteLoader,
+      element: <Navigate to="/workspace" replace />,
+    },
     ...protectedLayoutRoutes,
+    {
+      path: '/workspace',
+      loader: protectedRouteLoader,
+      element: (
+        <Suspense>
+          <Layout />
+        </Suspense>
+      ),
+      children: [
+        {
+          index: true,
+          element: <WorkspaceHome />,
+        },
+        {
+          path: ':projectId',
+          element: <WorkspaceHome />,
+        },
+      ],
+    },
     {
       path: '/orchestration',
       loader: protectedRouteLoader,
