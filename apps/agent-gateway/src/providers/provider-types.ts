@@ -1,3 +1,5 @@
+import type { ProtocolName } from '../session-store.js';
+
 export type ProviderPromptRequest = {
   sessionId: string;
   input: string;
@@ -15,8 +17,15 @@ export type ProviderError = {
   retryAfterMs: number;
 };
 
+export type ProviderProtocolEvent = {
+  protocol: ProtocolName;
+  payload: unknown;
+  traceId?: string;
+};
+
 export type ProviderPromptCallbacks = {
   onChunk: (chunk: string) => void;
+  onEvent: (event: ProviderProtocolEvent) => void;
   onComplete: () => void;
   onError: (error: ProviderError) => void;
 };

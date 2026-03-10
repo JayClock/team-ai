@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import type { GatewayConfig } from './config.js';
 import { Logger } from './logger.js';
 import { GatewayMetrics } from './observability.js';
-import type { ProviderPromptRequest } from './providers/provider-types.js';
+import type {
+  ProviderPromptRequest,
+  ProviderProtocolEvent,
+} from './providers/provider-types.js';
 import { createGatewayServer, type ProviderRuntimePort } from './server.js';
 import { SessionStore } from './session-store.js';
 
@@ -13,6 +16,7 @@ class MockProviderRuntime implements ProviderRuntimePort {
     string,
     {
       onChunk: (chunk: string) => void;
+      onEvent: (event: ProviderProtocolEvent) => void;
       onComplete: () => void;
       onError: (error: { code: string; message: string; retryable: boolean; retryAfterMs: number }) => void;
     }
@@ -23,6 +27,7 @@ class MockProviderRuntime implements ProviderRuntimePort {
     request: ProviderPromptRequest,
     callbacks: {
       onChunk: (chunk: string) => void;
+      onEvent: (event: ProviderProtocolEvent) => void;
       onComplete: () => void;
       onError: (error: { code: string; message: string; retryable: boolean; retryAfterMs: number }) => void;
     }
@@ -45,6 +50,31 @@ class MockProviderRuntime implements ProviderRuntimePort {
           retryable: true,
           retryAfterMs: 500,
         });
+        this.active.delete(request.sessionId);
+        return;
+      }
+
+      if (request.input.startsWith('structured')) {
+        callbacks.onEvent({
+          protocol: 'acp',
+          payload: {
+            type: 'tool_call',
+            toolName: 'read_file',
+            arguments: {
+              path: 'README.md',
+            },
+          },
+          traceId: request.traceId,
+        });
+        callbacks.onEvent({
+          protocol: 'acp',
+          payload: {
+            type: 'agent_message_chunk',
+            content: 'structured:hello',
+          },
+          traceId: request.traceId,
+        });
+        callbacks.onComplete();
         this.active.delete(request.sessionId);
         return;
       }
@@ -190,6 +220,48 @@ describe('gateway contract', () => {
       expect(metrics.prompts.attempts).toBe(1);
       expect(metrics.prompts.completionRate).toBe(1);
       expect(metrics.prompts.firstTokenLatencyMs.count).toBe(1);
+    } finally {
+      await gateway.close();
+    }
+  });
+
+  it('stores structured provider events as tool and delta envelopes', async () => {
+    const runtime = new MockProviderRuntime();
+    const gateway = await startGateway(runtime);
+    try {
+      const createResponse = await fetch(`${gateway.baseUrl}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'codex' }),
+      });
+      const created = (await createResponse.json()) as { session: { sessionId: string } };
+      const sessionId = created.session.sessionId;
+
+      const promptResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Trace-Id': 'trace-structured-1' },
+        body: JSON.stringify({ input: 'structured-contract', timeoutMs: 2000 }),
+      });
+      expect(promptResponse.status).toBe(202);
+
+      await sleep(30);
+
+      const eventsResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/events`);
+      const eventsPage = (await eventsResponse.json()) as {
+        events: Array<{ type: string; data: Record<string, unknown>; traceId: string }>;
+      };
+      const structuredEvents = eventsPage.events.filter(
+        (event) => event.traceId === 'trace-structured-1'
+      );
+
+      expect(structuredEvents.some((event) => event.type === 'tool')).toBe(true);
+      expect(
+        structuredEvents.some(
+          (event) =>
+            event.type === 'delta' && event.data.text === 'structured:hello'
+        )
+      ).toBe(true);
+      expect(structuredEvents.at(-1)?.type).toBe('complete');
     } finally {
       await gateway.close();
     }

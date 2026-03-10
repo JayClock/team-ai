@@ -28,6 +28,7 @@ describe('CodexProviderAdapter', () => {
     vi.mocked(spawn).mockReturnValue(childProcess as never);
     const adapter = new CodexProviderAdapter('codex exec -');
     const onChunk = vi.fn();
+    const onEvent = vi.fn();
     const onComplete = vi.fn();
     const onError = vi.fn();
 
@@ -44,6 +45,7 @@ describe('CodexProviderAdapter', () => {
       },
       {
         onChunk,
+        onEvent,
         onComplete,
         onError,
       }
@@ -51,7 +53,7 @@ describe('CodexProviderAdapter', () => {
 
     expect(spawn).toHaveBeenCalledWith(
       'codex',
-      ['exec', '-'],
+      ['exec', '--json', '-'],
       expect.objectContaining({
         stdio: ['pipe', 'pipe', 'pipe'],
         shell: false,
@@ -69,6 +71,59 @@ describe('CodexProviderAdapter', () => {
     childProcess.emit('close', 0, null);
 
     expect(onChunk).toHaveBeenCalledWith('partial');
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('emits structured protocol events from jsonl stdout', () => {
+    const childProcess = new FakeChildProcess();
+    vi.mocked(spawn).mockReturnValue(childProcess as never);
+    const adapter = new CodexProviderAdapter('codex exec --json -');
+    const onChunk = vi.fn();
+    const onEvent = vi.fn();
+    const onComplete = vi.fn();
+    const onError = vi.fn();
+
+    adapter.prompt(
+      {
+        sessionId: 'session-2',
+        input: 'structured prompt',
+        timeoutMs: 1000,
+        traceId: 'trace-2',
+      },
+      {
+        onChunk,
+        onEvent,
+        onComplete,
+        onError,
+      }
+    );
+
+    childProcess.stdout.emit(
+      'data',
+      Buffer.from('{"type":"tool_call","toolName":"shell"}\n{"type":"agent_message_chunk","content":"hello"}\n')
+    );
+    childProcess.exitCode = 0;
+    childProcess.emit('close', 0, null);
+
+    expect(onEvent).toHaveBeenNthCalledWith(1, {
+      protocol: 'acp',
+      payload: {
+        type: 'tool_call',
+        toolName: 'shell',
+      },
+      traceId: 'trace-2',
+    });
+    expect(onEvent).toHaveBeenNthCalledWith(2, {
+      protocol: 'acp',
+      payload: {
+        type: 'agent_message_chunk',
+        content: 'hello',
+      },
+      traceId: 'trace-2',
+    });
+    expect(onChunk).not.toHaveBeenCalled();
     expect(onComplete).toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
   });

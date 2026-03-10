@@ -1,5 +1,10 @@
 import { spawn } from 'node:child_process';
-import type { ProviderAdapter, ProviderPromptCallbacks, ProviderPromptRequest } from './provider-types.js';
+import type {
+  ProviderAdapter,
+  ProviderPromptCallbacks,
+  ProviderPromptRequest,
+  ProviderProtocolEvent,
+} from './provider-types.js';
 
 const DEFAULT_CANCEL_GRACE_MS = 3_000;
 
@@ -11,13 +16,15 @@ type ActiveRun = {
 export class CodexProviderAdapter implements ProviderAdapter {
   readonly name = 'codex';
   private readonly commandParts: string[];
+  private readonly jsonMode: boolean;
   private readonly activeRuns = new Map<string, ActiveRun>();
 
   constructor(command: string) {
-    this.commandParts = tokenize(command);
+    this.commandParts = ensureCodexJsonOutput(tokenize(command));
     if (this.commandParts.length === 0) {
       throw new Error('codex command must not be empty');
     }
+    this.jsonMode = this.commandParts.includes('--json');
   }
 
   prompt(request: ProviderPromptRequest, callbacks: ProviderPromptCallbacks): void {
@@ -40,10 +47,18 @@ export class CodexProviderAdapter implements ProviderAdapter {
     });
 
     let stderr = '';
+    let stdoutBuffer = '';
     let settled = false;
 
     childProcess.stdout.on('data', (chunk: Buffer) => {
-      callbacks.onChunk(chunk.toString('utf-8'));
+      const text = chunk.toString('utf-8');
+      if (!this.jsonMode) {
+        callbacks.onChunk(text);
+        return;
+      }
+
+      stdoutBuffer += text;
+      stdoutBuffer = emitStructuredStdout(stdoutBuffer, callbacks, request.traceId);
     });
 
     childProcess.stderr.on('data', (chunk: Buffer) => {
@@ -70,6 +85,9 @@ export class CodexProviderAdapter implements ProviderAdapter {
       }
       settled = true;
       this.clearRun(request.sessionId);
+      if (this.jsonMode && stdoutBuffer.trim().length > 0) {
+        emitStructuredLine(stdoutBuffer, callbacks, request.traceId);
+      }
 
       if (signal === 'SIGTERM' || signal === 'SIGKILL') {
         callbacks.onError({
@@ -152,4 +170,84 @@ function tokenize(command: string): string[] {
     .split(/\s+/)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+}
+
+function ensureCodexJsonOutput(commandParts: string[]): string[] {
+  if (
+    commandParts.length >= 2 &&
+    commandParts[0] === 'codex' &&
+    commandParts[1] === 'exec' &&
+    !commandParts.includes('--json')
+  ) {
+    return [commandParts[0], commandParts[1], '--json', ...commandParts.slice(2)];
+  }
+
+  return commandParts;
+}
+
+function emitStructuredStdout(
+  buffer: string,
+  callbacks: ProviderPromptCallbacks,
+  traceId?: string
+): string {
+  let remainder = buffer;
+  let newlineIndex = remainder.indexOf('\n');
+
+  while (newlineIndex >= 0) {
+    const line = remainder.slice(0, newlineIndex);
+    emitStructuredLine(line, callbacks, traceId);
+    remainder = remainder.slice(newlineIndex + 1);
+    newlineIndex = remainder.indexOf('\n');
+  }
+
+  return remainder;
+}
+
+function emitStructuredLine(
+  line: string,
+  callbacks: ProviderPromptCallbacks,
+  traceId?: string
+): void {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return;
+  }
+
+  const event = parseProtocolEvent(trimmed, traceId);
+  if (event) {
+    callbacks.onEvent(event);
+    return;
+  }
+
+  callbacks.onChunk(trimmed);
+}
+
+function parseProtocolEvent(
+  line: string,
+  traceId?: string
+): ProviderProtocolEvent | null {
+  try {
+    const payload = JSON.parse(line) as unknown;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return null;
+    }
+
+    const protocol =
+      typeof (payload as { protocol?: unknown }).protocol === 'string' &&
+      isProtocolName((payload as { protocol?: string }).protocol)
+        ? ((payload as { protocol: ProviderProtocolEvent['protocol'] }).protocol)
+        : 'acp';
+
+    return {
+      protocol,
+      payload,
+      traceId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isProtocolName(value: string | undefined): value is ProviderProtocolEvent['protocol'] {
+  return value === 'acp' || value === 'mcp' || value === 'a2a';
 }

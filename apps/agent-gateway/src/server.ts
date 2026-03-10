@@ -11,9 +11,13 @@ import {
   type ProtocolName,
 } from './session-store.js';
 import { mapProtocolEvent } from './protocol-event-mapper.js';
-import type { ProviderPromptRequest } from './providers/provider-types.js';
+import type {
+  ProviderPromptRequest,
+  ProviderProtocolEvent,
+} from './providers/provider-types.js';
 
 const TRACE_ID_HEADER = 'X-Trace-Id';
+const TERMINAL_SESSION_STATES = new Set(['COMPLETED', 'FAILED', 'CANCELLED']);
 
 class BadRequestError extends Error {
   readonly code = 'INVALID_REQUEST_BODY';
@@ -25,6 +29,7 @@ export type ProviderRuntimePort = {
     request: ProviderPromptRequest,
     callbacks: {
       onChunk: (chunk: string) => void;
+      onEvent: (event: ProviderProtocolEvent) => void;
       onComplete: () => void;
       onError: (error: { code: string; message: string; retryable: boolean; retryAfterMs: number }) => void;
     }
@@ -150,6 +155,34 @@ export function createGatewayServer(
         });
 
         providerRuntime.prompt(session.provider, request, {
+          onEvent: (event) => {
+            const normalizedEvent = mapProtocolEvent({
+              protocol: event.protocol,
+              payload: event.payload,
+              traceId: event.traceId ?? traceId,
+            });
+
+            if (
+              normalizedEvent.nextState &&
+              TERMINAL_SESSION_STATES.has(normalizedEvent.nextState)
+            ) {
+              normalizedEvent.nextState = undefined;
+            }
+
+            if (normalizedEvent.type === 'delta') {
+              metrics.firstToken(promptRoute.param);
+            }
+
+            if (normalizedEvent.error) {
+              metrics.recordError(normalizedEvent.error.code);
+              normalizedEvent.data = {
+                ...(normalizedEvent.data ?? {}),
+                category: classifyErrorCode(normalizedEvent.error.code),
+              };
+            }
+
+            sessionStore.appendEvent(promptRoute.param, normalizedEvent);
+          },
           onChunk: (chunk) => {
             metrics.firstToken(promptRoute.param);
             sessionStore.appendEvent(promptRoute.param, {
@@ -164,6 +197,10 @@ export function createGatewayServer(
             });
           },
           onComplete: () => {
+            const currentSession = sessionStore.getSession(promptRoute.param);
+            if (TERMINAL_SESSION_STATES.has(currentSession.state)) {
+              return;
+            }
             metrics.promptCompletedNow(promptRoute.param);
             sessionStore.appendEvent(promptRoute.param, {
               type: 'complete',
@@ -176,12 +213,12 @@ export function createGatewayServer(
             });
           },
           onError: (error) => {
+            const currentSession = sessionStore.getSession(promptRoute.param);
+            if (TERMINAL_SESSION_STATES.has(currentSession.state)) {
+              return;
+            }
             metrics.promptFailedNow(promptRoute.param, error.code);
             if (error.code === 'PROVIDER_CANCELLED') {
-              const currentSession = sessionStore.getSession(promptRoute.param);
-              if (currentSession.state === 'CANCELLED') {
-                return;
-              }
               sessionStore.appendEvent(promptRoute.param, {
                 type: 'complete',
                 traceId,

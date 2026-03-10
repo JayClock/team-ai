@@ -37,7 +37,7 @@ Configuration priority (high to low):
 - `AGENT_GATEWAY_PROTOCOLS` (comma-separated, default: `mcp,acp,a2a`)
 - `AGENT_GATEWAY_PROVIDERS` (comma-separated, default: `codex`)
 - `AGENT_GATEWAY_DEFAULT_PROVIDER` (default: `codex`)
-- `AGENT_GATEWAY_CODEX_COMMAND` (default: `codex exec -`)
+- `AGENT_GATEWAY_CODEX_COMMAND` (default: `codex exec --json -`)
 - `AGENT_GATEWAY_TIMEOUT_MS` (default: `30000`)
 - `AGENT_GATEWAY_RETRY_ATTEMPTS` (default: `2`)
 - `AGENT_GATEWAY_MAX_CONCURRENT_SESSIONS` (default: `32`)

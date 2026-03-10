@@ -26,7 +26,7 @@ const DEFAULT_CONFIG: GatewayConfig = {
   protocols: ['mcp', 'acp', 'a2a'],
   providers: ['codex'],
   defaultProvider: 'codex',
-  codexCommand: 'codex exec -',
+  codexCommand: 'codex exec --json -',
   timeoutMs: 30_000,
   retryAttempts: 2,
   maxConcurrentSessions: 32,
