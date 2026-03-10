@@ -184,7 +184,7 @@ describe('acp route', () => {
     expect(historyResponse.statusCode).toBe(200);
     expect(
       historyResponse.json().history.map((event: { type: string }) => event.type),
-    ).toContain('tool');
+    ).toEqual(expect.arrayContaining(['status', 'message', 'tool_call', 'complete']));
 
     const rootResponse = await fastify.inject({
       method: 'GET',

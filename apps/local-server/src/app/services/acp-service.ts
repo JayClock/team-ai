@@ -13,6 +13,7 @@ import type {
   AcpSessionListPayload,
   AcpSessionPayload,
   AcpSessionState,
+  AcpEventTypePayload,
 } from '../schemas/acp';
 import { getProjectById } from './project-service';
 
@@ -51,6 +52,12 @@ interface AcpEventRow {
   session_id: string;
   type: string;
 }
+
+type NormalizedGatewayEvent = {
+  error?: AcpEventErrorPayload | null;
+  payload: Record<string, unknown>;
+  type: AcpEventTypePayload;
+};
 
 interface ListSessionsQuery {
   page: number;
@@ -114,7 +121,7 @@ function mapEventRow(row: AcpEventRow): AcpEventEnvelopePayload {
   return {
     eventId: row.event_id,
     sessionId: row.session_id,
-    type: row.type,
+    type: row.type as AcpEventTypePayload,
     emittedAt: row.emitted_at,
     data: JSON.parse(row.payload_json) as Record<string, unknown>,
     error: row.error_json
@@ -217,7 +224,7 @@ function appendLocalEvent(
     eventId?: string;
     payload: Record<string, unknown>;
     sessionId: string;
-    type: string;
+    type: AcpEventTypePayload;
   },
 ): AcpEventEnvelopePayload {
   const emittedAt = new Date().toISOString();
@@ -270,6 +277,117 @@ function appendLocalEvent(
 
   broker.publish(event);
   return event;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function asText(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeGatewayEvent(
+  event: AgentGatewayEventEnvelope,
+): NormalizedGatewayEvent {
+  const payload = asRecord(event.data) ?? {};
+  const protocol = asText(payload.protocol) ?? undefined;
+  const rawPayload = asRecord(payload.payload);
+  const toolPayload = rawPayload ?? payload;
+
+  if (event.type === 'status') {
+    return {
+      type: 'status',
+      payload: {
+        ...payload,
+        ...(protocol ? { protocol } : {}),
+      },
+      error: gatewayErrorToPayload(event.error),
+    };
+  }
+
+  if (event.type === 'delta') {
+    return {
+      type: 'message',
+      payload: {
+        content: asText(payload.text) ?? asText(payload.content),
+        ...(protocol ? { protocol } : {}),
+        payload,
+      },
+      error: gatewayErrorToPayload(event.error),
+    };
+  }
+
+  if (event.type === 'tool') {
+    const toolType = asText(toolPayload.type);
+    const toolName =
+      asText(toolPayload.toolName) ??
+      asText(toolPayload.name) ??
+      asText(payload.toolName) ??
+      asText(payload.name);
+    const isResult = toolType === 'tool_result';
+
+    return {
+      type: isResult ? 'tool_result' : 'tool_call',
+      payload: {
+        toolName,
+        ...(isResult
+          ? {
+              output:
+                toolPayload.result ??
+                toolPayload.output ??
+                toolPayload.content ??
+                payload.result ??
+                payload.output ??
+                payload.content,
+            }
+          : {
+              input:
+                toolPayload.arguments ??
+                toolPayload.input ??
+                payload.arguments ??
+                payload.input,
+            }),
+        ...(protocol ? { protocol } : {}),
+        payload: toolPayload,
+      },
+      error: gatewayErrorToPayload(event.error),
+    };
+  }
+
+  if (event.type === 'complete') {
+    return {
+      type: 'complete',
+      payload: {
+        reason: asText(payload.reason),
+        state: asText(payload.state),
+        ...(protocol ? { protocol } : {}),
+        payload,
+      },
+      error: gatewayErrorToPayload(event.error),
+    };
+  }
+
+    return {
+      type: 'error',
+      payload: {
+        message: event.error?.message ?? asText(payload.message),
+        state: asText(payload.state),
+        source: asText(payload.source) ?? 'agent-gateway',
+        ...(protocol ? { protocol } : {}),
+        payload,
+      },
+    error: gatewayErrorToPayload(event.error),
+  };
 }
 
 function gatewayErrorToPayload(
@@ -403,12 +521,13 @@ function startGatewayPolling(input: {
         }
 
         eventsSeen++;
+        const normalizedEvent = normalizeGatewayEvent(event);
         appendLocalEvent(input.sqlite, input.broker, {
           sessionId: input.sessionId,
           eventId,
-          type: event.type,
-          payload: event.data ?? {},
-          error: gatewayErrorToPayload(event.error),
+          type: normalizedEvent.type,
+          payload: normalizedEvent.payload,
+          error: normalizedEvent.error,
         });
 
         const nextState = resolveSessionState(event, current.state);
@@ -465,6 +584,7 @@ function startGatewayPolling(input: {
         type: 'error',
         payload: {
           source: 'local-server',
+          message: error instanceof Error ? error.message : 'ACP gateway poll failed',
           state: 'FAILED',
         },
         error: {
@@ -570,9 +690,10 @@ export async function createAcpSession(
     sessionId,
     type: 'status',
     payload: {
-      provider: input.provider,
       state: 'PENDING',
-      type: 'session_created',
+      reason: 'session_created',
+      source: 'local-server',
+      provider: input.provider,
     },
   });
 
@@ -784,9 +905,9 @@ export async function promptAcpSession(
     type: 'status',
     payload: {
       prompt: input.prompt,
+      reason: 'prompt_requested',
       source: 'local-server',
       state: 'RUNNING',
-      type: 'prompt_requested',
     },
   });
   updateSessionRuntime(sqlite, sessionId, {

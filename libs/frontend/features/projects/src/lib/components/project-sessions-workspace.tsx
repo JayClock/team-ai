@@ -6,6 +6,10 @@ import {
   AcpSessionSummary,
   Project,
   Root,
+  type AcpBaseEventData,
+  type AcpMessageEventData,
+  type AcpToolCallEventData,
+  type AcpToolResultEventData,
 } from '@shared/schema';
 import {
   Button,
@@ -55,13 +59,6 @@ function formatDateTime(value: string | null): string {
   return parsed.toLocaleString();
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
 function asText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
@@ -70,79 +67,62 @@ function formatJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
-function toolPayload(event: AcpEventEnvelope): Record<string, unknown> | null {
-  return asRecord(event.data.payload);
+function basePayload(event: AcpEventEnvelope): Record<string, unknown> | undefined {
+  return (event.data as AcpBaseEventData).payload;
 }
 
 function eventLabel(event: AcpEventEnvelope): string {
-  if (event.type !== 'tool') {
-    return event.type;
-  }
-
-  const payload = toolPayload(event);
-  return asText(payload?.type) ?? 'tool';
-}
-
-function eventHeadline(event: AcpEventEnvelope): string {
-  const payload = toolPayload(event);
-  const toolName =
-    asText(payload?.toolName) ??
-    asText(payload?.name) ??
-    asText(payload?.tool) ??
-    asText(event.data.toolName) ??
-    asText(event.data.name);
-
-  if (toolName) {
-    return toolName;
-  }
-
-  if (event.type === 'delta') {
-    return asText(event.data.text) ?? asText(event.data.content) ?? 'message';
-  }
-
-  if (event.type === 'status') {
-    return asText(event.data.reason) ?? asText(event.data.state) ?? 'status';
-  }
-
-  if (event.type === 'complete') {
-    return asText(event.data.reason) ?? 'completed';
-  }
-
-  if (event.type === 'error') {
-    return event.error?.message ?? 'error';
-  }
-
   return event.type;
 }
 
+function eventHeadline(event: AcpEventEnvelope): string {
+  switch (event.type) {
+    case 'tool_call':
+    case 'tool_result':
+      return event.data.toolName ?? event.type;
+    case 'message':
+      return event.data.content ?? 'message';
+    case 'status':
+      return event.data.reason ?? event.data.state ?? 'status';
+    case 'complete':
+      return event.data.reason ?? 'completed';
+    case 'error':
+      return event.error?.message ?? event.data.message ?? 'error';
+    default:
+      return 'event';
+  }
+}
+
 function eventSummary(event: AcpEventEnvelope): string {
-  if (typeof event.data.text === 'string' && event.data.text.trim()) {
-    return event.data.text;
+  switch (event.type) {
+    case 'message':
+      return event.data.content ?? 'message';
+    case 'status':
+      return event.data.state ? `state=${event.data.state}` : 'status';
+    case 'tool_result':
+      return typeof event.data.output === 'string'
+        ? event.data.output
+        : JSON.stringify(event.data.output) ?? 'tool_result';
+    case 'error':
+      return event.data.message ?? event.error?.message ?? 'error';
+    default:
+      return JSON.stringify(event.data);
   }
-  if (typeof event.data.content === 'string' && event.data.content.trim()) {
-    return event.data.content;
-  }
-  if (typeof event.data.state === 'string') {
-    return `state=${event.data.state}`;
-  }
-  const payload = toolPayload(event);
-  if (payload) {
-    if (typeof payload.output === 'string' && payload.output.trim()) {
-      return payload.output;
-    }
-    if (typeof payload.content === 'string' && payload.content.trim()) {
-      return payload.content;
-    }
-  }
-  return JSON.stringify(event.data);
 }
 
 function renderEventDetails(event: AcpEventEnvelope) {
-  const payload = toolPayload(event);
-  const protocol = asText(event.data.protocol);
-  const argumentsValue = payload?.arguments ?? payload?.input ?? null;
+  const protocol = asText((event.data as AcpBaseEventData).protocol);
+  const rawPayload = basePayload(event);
+  const argumentsValue =
+    event.type === 'tool_call'
+      ? (event.data as AcpToolCallEventData).input
+      : null;
   const resultValue =
-    payload?.result ?? payload?.output ?? payload?.content ?? event.data.text ?? null;
+    event.type === 'tool_result'
+      ? (event.data as AcpToolResultEventData).output
+      : event.type === 'message'
+        ? (event.data as AcpMessageEventData).content
+        : null;
 
   return (
     <div className="mt-2 space-y-2">
@@ -151,7 +131,7 @@ function renderEventDetails(event: AcpEventEnvelope) {
         {event.error ? <span>error: {event.error.code}</span> : null}
       </div>
 
-      {event.type === 'tool' ? (
+      {event.type === 'tool_call' || event.type === 'tool_result' ? (
         <div className="space-y-2">
           {argumentsValue != null ? (
             <div>
@@ -174,9 +154,18 @@ function renderEventDetails(event: AcpEventEnvelope) {
             </div>
           ) : null}
         </div>
-      ) : (
+      ) : event.type === 'message' || event.type === 'status' || event.type === 'complete' || event.type === 'error' ? (
         <p className="text-sm break-words">{eventSummary(event)}</p>
-      )}
+      ) : null}
+
+      {rawPayload ? (
+        <details className="rounded-md bg-muted/60 p-2">
+          <summary className="cursor-pointer text-[11px] uppercase tracking-wide text-muted-foreground">
+            raw payload
+          </summary>
+          <pre className="mt-2 overflow-x-auto text-xs">{formatJson(rawPayload)}</pre>
+        </details>
+      ) : null}
 
       {event.error ? (
         <div className="rounded-md border border-destructive/20 bg-destructive/5 p-2 text-xs text-destructive">

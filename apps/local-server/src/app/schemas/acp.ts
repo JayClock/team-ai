@@ -16,13 +16,21 @@ export interface AcpEventErrorPayload {
   retryAfterMs: number;
 }
 
+export type AcpEventTypePayload =
+  | 'status'
+  | 'message'
+  | 'tool_call'
+  | 'tool_result'
+  | 'complete'
+  | 'error';
+
 export interface AcpEventEnvelopePayload {
   data: Record<string, unknown>;
   emittedAt: string;
   error: AcpEventErrorPayload | null;
   eventId: string;
   sessionId: string;
-  type: string;
+  type: AcpEventTypePayload;
 }
 
 export interface AcpSessionPayload {
