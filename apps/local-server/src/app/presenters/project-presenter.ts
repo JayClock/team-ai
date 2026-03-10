@@ -8,11 +8,17 @@ function createProjectLinks(project: ProjectPayload) {
     self: {
       href: `/api/projects/${project.id}`,
     },
+    home: {
+      href: `/api/projects/${project.id}/home`,
+    },
     collection: {
       href: '/api/projects',
     },
     sessions: {
       href: `/api/projects/${project.id}/sessions`,
+    },
+    'acp-sessions': {
+      href: `/api/projects/${project.id}/acp-sessions`,
     },
   };
 }

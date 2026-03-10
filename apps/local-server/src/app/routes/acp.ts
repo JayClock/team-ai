@@ -81,7 +81,7 @@ function errorEnvelope(
 }
 
 const acpRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/projects/:projectId/sessions', async (request) => {
+  fastify.get('/projects/:projectId/acp-sessions', async (request) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const query = listSessionsQuerySchema.parse(request.query);
 
@@ -90,7 +90,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.get('/projects/:projectId/sessions/:sessionId', async (request) => {
+  fastify.get('/projects/:projectId/acp-sessions/:sessionId', async (request) => {
     const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
     const session = await getAcpSessionById(fastify.sqlite, sessionId);
 
@@ -101,7 +101,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
     return presentAcpSession(session);
   });
 
-  fastify.get('/projects/:projectId/sessions/:sessionId/history', async (request) => {
+  fastify.get('/projects/:projectId/acp-sessions/:sessionId/history', async (request) => {
     const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
     const query = historyQuerySchema.parse(request.query);
     return presentAcpHistory(
@@ -117,7 +117,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.patch('/projects/:projectId/sessions/:sessionId', async (request) => {
+  fastify.patch('/projects/:projectId/acp-sessions/:sessionId', async (request) => {
     const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
     const body = renameSessionBodySchema.parse(request.body);
     const session = await renameAcpSession(fastify.sqlite, sessionId, body.name);
@@ -129,7 +129,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
     return presentAcpSession(session);
   });
 
-  fastify.delete('/projects/:projectId/sessions/:sessionId', async (request, reply) => {
+  fastify.delete('/projects/:projectId/acp-sessions/:sessionId', async (request, reply) => {
     const { sessionId } = sessionParamsSchema.parse(request.params);
     await deleteAcpSession(fastify.sqlite, sessionId);
     reply.code(204).send();

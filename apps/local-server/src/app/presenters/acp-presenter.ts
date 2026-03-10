@@ -7,16 +7,16 @@ import type {
 function createSessionLinks(session: AcpSessionPayload) {
   return {
     self: {
-      href: `/api/projects/${session.project.id}/sessions/${session.id}`,
+      href: `/api/projects/${session.project.id}/acp-sessions/${session.id}`,
     },
     project: {
       href: `/api/projects/${session.project.id}`,
     },
     history: {
-      href: `/api/projects/${session.project.id}/sessions/${session.id}/history`,
+      href: `/api/projects/${session.project.id}/acp-sessions/${session.id}/history`,
     },
     collection: {
-      href: `/api/projects/${session.project.id}/sessions`,
+      href: `/api/projects/${session.project.id}/acp-sessions`,
     },
   };
 }
@@ -37,7 +37,7 @@ export function presentAcpSessionList(payload: AcpSessionListPayload) {
 
   const links: Record<string, { href: string }> = {
     self: {
-      href: `/api/projects/${projectId}/sessions?${query.toString()}`,
+      href: `/api/projects/${projectId}/acp-sessions?${query.toString()}`,
     },
     project: {
       href: `/api/projects/${projectId}`,
@@ -51,7 +51,7 @@ export function presentAcpSessionList(payload: AcpSessionListPayload) {
     const nextQuery = new URLSearchParams(query);
     nextQuery.set('page', String(page + 1));
     links.next = {
-      href: `/api/projects/${projectId}/sessions?${nextQuery.toString()}`,
+      href: `/api/projects/${projectId}/acp-sessions?${nextQuery.toString()}`,
     };
   }
 
@@ -59,7 +59,7 @@ export function presentAcpSessionList(payload: AcpSessionListPayload) {
     const prevQuery = new URLSearchParams(query);
     prevQuery.set('page', String(page - 1));
     links.prev = {
-      href: `/api/projects/${projectId}/sessions?${prevQuery.toString()}`,
+      href: `/api/projects/${projectId}/acp-sessions?${prevQuery.toString()}`,
     };
   }
 
@@ -86,10 +86,10 @@ export function presentAcpHistory(
   return {
     _links: {
       self: {
-        href: `/api/projects/${projectId}/sessions/${sessionId}/history`,
+        href: `/api/projects/${projectId}/acp-sessions/${sessionId}/history`,
       },
       session: {
-        href: `/api/projects/${projectId}/sessions/${sessionId}`,
+        href: `/api/projects/${projectId}/acp-sessions/${sessionId}`,
       },
     },
     projectId,

@@ -8,7 +8,7 @@ const rootRoute: FastifyPluginAsync = async (fastify) => {
       agents: true,
       health: true,
       mcp: true,
-      orchestration: true,
+      sessions: true,
       settings: true,
       syncStatus: true,
     },
@@ -34,8 +34,9 @@ const rootRoute: FastifyPluginAsync = async (fastify) => {
       mcp: {
         href: '/api/mcp',
       },
-      orchestration: {
-        href: '/api/orchestration',
+      sessions: {
+        href: '/api/sessions{?projectId,status,page,pageSize}',
+        templated: true,
       },
       agents: {
         href: '/api/agents',

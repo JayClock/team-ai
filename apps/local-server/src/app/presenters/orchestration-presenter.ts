@@ -2,34 +2,38 @@ import type {
   OrchestrationEventPayload,
   OrchestrationSessionListPayload,
   OrchestrationSessionPayload,
+  SessionStatus,
   OrchestrationStepPayload,
 } from '../schemas/orchestration';
 
 function createSessionLinks(session: OrchestrationSessionPayload) {
   return {
     self: {
-      href: `/api/orchestration/sessions/${session.id}`,
+      href: `/api/sessions/${session.id}`,
     },
     project: {
       href: `/api/projects/${session.projectId}`,
     },
+    collection: {
+      href: `/api/projects/${session.projectId}/sessions`,
+    },
     steps: {
-      href: `/api/orchestration/sessions/${session.id}/steps`,
+      href: `/api/sessions/${session.id}/steps`,
     },
     events: {
-      href: `/api/orchestration/sessions/${session.id}/events`,
+      href: `/api/sessions/${session.id}/events`,
     },
     stream: {
-      href: `/api/orchestration/sessions/${session.id}/stream`,
+      href: `/api/sessions/${session.id}/stream`,
     },
     cancel: {
-      href: `/api/orchestration/sessions/${session.id}/cancel`,
+      href: `/api/sessions/${session.id}/cancel`,
     },
     resume: {
-      href: `/api/orchestration/sessions/${session.id}/resume`,
+      href: `/api/sessions/${session.id}/resume`,
     },
     retry: {
-      href: `/api/orchestration/sessions/${session.id}/retry`,
+      href: `/api/sessions/${session.id}/retry`,
     },
   };
 }
@@ -37,41 +41,17 @@ function createSessionLinks(session: OrchestrationSessionPayload) {
 function createStepLinks(step: OrchestrationStepPayload) {
   return {
     self: {
-      href: `/api/orchestration/steps/${step.id}`,
+      href: `/api/steps/${step.id}`,
     },
     session: {
-      href: `/api/orchestration/sessions/${step.sessionId}`,
+      href: `/api/sessions/${step.sessionId}`,
     },
     events: {
-      href: `/api/orchestration/steps/${step.id}/events`,
+      href: `/api/steps/${step.id}/events`,
     },
     retry: {
-      href: `/api/orchestration/steps/${step.id}/retry`,
+      href: `/api/steps/${step.id}/retry`,
     },
-  };
-}
-
-export function presentOrchestrationRoot() {
-  return {
-    _links: {
-      self: {
-        href: '/api/orchestration',
-      },
-      sessions: {
-        href: '/api/orchestration/sessions{?projectId,status,page,pageSize}',
-        templated: true,
-      },
-      'create-session': {
-        href: '/api/orchestration/sessions',
-      },
-    },
-    capabilities: {
-      cancel: true,
-      resume: true,
-      retry: true,
-      streaming: true,
-    },
-    name: 'local-orchestration',
   };
 }
 
@@ -86,19 +66,33 @@ export function presentOrchestrationSession(
 
 export function presentOrchestrationSessionList(
   payload: OrchestrationSessionListPayload,
+  requestQuery?: {
+    page?: number;
+    pageSize?: number;
+    projectId?: string;
+    status?: SessionStatus;
+  },
 ) {
-  const query = new URLSearchParams({
-    page: String(payload.page),
-    pageSize: String(payload.pageSize),
+  const searchParams = new URLSearchParams({
+    page: String(requestQuery?.page ?? payload.page),
+    pageSize: String(requestQuery?.pageSize ?? payload.pageSize),
   });
+
+  if (requestQuery?.status) {
+    searchParams.set('status', requestQuery.status);
+  }
+
+  const selfHref = requestQuery?.projectId
+    ? `/api/projects/${requestQuery.projectId}/sessions?${searchParams.toString()}`
+    : `/api/sessions?${searchParams.toString()}`;
 
   return {
     _links: {
       self: {
-        href: `/api/orchestration/sessions?${query.toString()}`,
+        href: selfHref,
       },
       root: {
-        href: '/api/orchestration',
+        href: '/api',
       },
     },
     _embedded: {
@@ -138,10 +132,10 @@ export function presentOrchestrationEvents(
   return {
     _links: {
       self: {
-        href: `/api/orchestration/sessions/${sessionId}/events`,
+        href: `/api/sessions/${sessionId}/events`,
       },
       session: {
-        href: `/api/orchestration/sessions/${sessionId}`,
+        href: `/api/sessions/${sessionId}`,
       },
     },
     _embedded: {
@@ -158,10 +152,10 @@ export function presentStepEvents(
   return {
     _links: {
       self: {
-        href: `/api/orchestration/steps/${stepId}/events`,
+        href: `/api/steps/${stepId}/events`,
       },
       session: {
-        href: `/api/orchestration/sessions/${sessionId}`,
+        href: `/api/sessions/${sessionId}`,
       },
     },
     _embedded: {

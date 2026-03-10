@@ -37,8 +37,7 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
 
   fastify.register(AutoLoad, {
     dir: join(__dirname, 'routes'),
-    ignorePattern:
-      /(?:^|[\\/])(?:project-sessions|.+\.(?:test|spec))\.[cm]?[jt]s$/,
+    ignorePattern: /(?:^|[\\/])(?:.+\.(?:test|spec))\.[cm]?[jt]s$/,
     options: { ...opts, prefix: '/api' },
   });
 };
