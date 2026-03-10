@@ -52,6 +52,7 @@ export function resolveSidecarEntry(
     : [
         join(process.cwd(), developmentFolder, 'main.js'),
         join(application.getAppPath(), developmentFolder, 'main.js'),
+        join(__dirname, '..', '..', '..', developmentFolder, 'main.js'),
         join(__dirname, packagedFolder, 'main.js'),
         join(application.getAppPath(), packagedFolder, 'main.js'),
       ];
