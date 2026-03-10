@@ -24,41 +24,6 @@ export const sqliteMigrations: SqliteMigration[] = [
         updated_at TEXT NOT NULL,
         deleted_at TEXT
       );
-
-      CREATE TABLE IF NOT EXISTS conversations (
-        id TEXT PRIMARY KEY,
-        project_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        deleted_at TEXT,
-        FOREIGN KEY (project_id) REFERENCES projects(id)
-      );
-
-      CREATE TABLE IF NOT EXISTS messages (
-        id TEXT PRIMARY KEY,
-        conversation_id TEXT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        deleted_at TEXT,
-        FOREIGN KEY (conversation_id) REFERENCES conversations(id)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_conversations_project_id
-        ON conversations(project_id);
-
-      CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
-        ON messages(conversation_id);
-    `,
-  },
-  {
-    version: '002_message_runtime_columns',
-    sql: `
-      ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'completed';
-      ALTER TABLE messages ADD COLUMN error_message TEXT;
-      ALTER TABLE messages ADD COLUMN retry_count INTEGER NOT NULL DEFAULT 0;
     `,
   },
   {
@@ -287,6 +252,15 @@ export const sqliteMigrations: SqliteMigration[] = [
 
       CREATE INDEX IF NOT EXISTS idx_project_acp_session_events_session_id
         ON project_acp_session_events(session_id, sequence ASC);
+    `,
+  },
+  {
+    version: '010_remove_conversations_and_messages',
+    sql: `
+      DROP INDEX IF EXISTS idx_messages_conversation_id;
+      DROP INDEX IF EXISTS idx_conversations_project_id;
+      DROP TABLE IF EXISTS messages;
+      DROP TABLE IF EXISTS conversations;
     `,
   },
 ];
