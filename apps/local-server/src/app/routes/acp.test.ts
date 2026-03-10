@@ -17,12 +17,15 @@ describe('acp route', () => {
   const originalDesktopSessionToken = process.env.DESKTOP_SESSION_TOKEN;
   const originalHost = process.env.HOST;
   const originalPort = process.env.PORT;
+  const originalCodexCommand = process.env.TEAMAI_ACP_CODEX_COMMAND;
 
   afterEach(async () => {
     process.env.TEAMAI_DATA_DIR = originalDataDir;
     process.env.DESKTOP_SESSION_TOKEN = originalDesktopSessionToken;
     process.env.HOST = originalHost;
     process.env.PORT = originalPort;
+    process.env.TEAMAI_ACP_CODEX_COMMAND = originalCodexCommand;
+    vi.unstubAllGlobals();
 
     while (fastifyInstances.length > 0) {
       const fastify = fastifyInstances.pop();
@@ -151,5 +154,100 @@ describe('acp route', () => {
     });
     expect(rootResponse.json()._links.me.href).toBe('/api/me');
     expect(rootResponse.json()._links.acp.href).toBe('/api/acp');
+  });
+
+  it('lists ACP providers with merged local and registry discovery metadata', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-test-${Date.now()}`;
+    process.env.TEAMAI_ACP_CODEX_COMMAND = 'node --version';
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          version: 'test',
+          agents: [
+            {
+              id: 'codex',
+              name: 'Codex Registry',
+              description: 'Registry provider',
+              distribution: {
+                npx: {
+                  package: '@example/codex-acp',
+                },
+              },
+            },
+            {
+              id: 'custom-registry',
+              name: 'Custom Registry',
+              description: 'Registry only provider',
+              distribution: {
+                npx: {
+                  package: '@example/custom-acp',
+                },
+              },
+            },
+          ],
+        }),
+      })),
+    );
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => false),
+      loadSession: vi.fn(),
+      promptSession: vi.fn(),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/api/acp/providers?registry=true',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      _links: {
+        self: {
+          href: '/api/acp/providers{?registry}',
+          templated: true,
+        },
+        install: {
+          href: '/api/acp/install',
+        },
+      },
+      registry: {
+        error: null,
+      },
+    });
+
+    expect(response.json()._embedded.providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'codex',
+          status: 'available',
+          source: 'hybrid',
+          envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
+        }),
+        expect.objectContaining({
+          id: 'custom-registry',
+          source: 'registry',
+          installable: true,
+        }),
+      ]),
+    );
   });
 });

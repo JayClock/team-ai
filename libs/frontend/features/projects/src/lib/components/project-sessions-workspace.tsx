@@ -516,7 +516,7 @@ export function ProjectSessionsWorkspace(props: {
     } finally {
       setIsCreating(false);
     }
-  }, [create, loadSessions, me.id, mode, provider]);
+  }, [create, loadSessions, me.id, mode, onSessionNavigate, provider]);
 
   const handleSelect = useCallback(
     async (session: State<AcpSessionSummary>) => {

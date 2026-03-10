@@ -2,10 +2,18 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { resolveDesktopCorsHeaders } from '../plugins/desktop-cors';
 import {
+  presentAcpProviders,
+  presentInstalledAcpProvider,
+} from '../presenters/acp-provider-presenter';
+import {
   presentAcpHistory,
   presentAcpSession,
   presentAcpSessionList,
 } from '../presenters/acp-presenter';
+import {
+  installAcpProvider,
+  listAcpProviders,
+} from '../services/acp-provider-service';
 import {
   cancelAcpSession,
   createAcpSession,
@@ -55,6 +63,15 @@ const acpStreamQuerySchema = z.object({
   sinceEventId: z.string().trim().min(1).optional(),
 });
 
+const listAcpProvidersQuerySchema = z.object({
+  registry: z.coerce.boolean().optional(),
+});
+
+const installAcpProviderBodySchema = z.object({
+  providerId: z.string().trim().min(1),
+  distributionType: z.enum(['npx', 'uvx', 'binary']).optional(),
+});
+
 function resultEnvelope(id: string | number | null | undefined, result: object) {
   return {
     jsonrpc: '2.0' as const,
@@ -81,6 +98,20 @@ function errorEnvelope(
 }
 
 const acpRoute: FastifyPluginAsync = async (fastify) => {
+  fastify.get('/acp/providers', async (request) => {
+    const query = listAcpProvidersQuerySchema.parse(request.query);
+    return presentAcpProviders(
+      await listAcpProviders({
+        includeRegistry: query.registry ?? true,
+      }),
+    );
+  });
+
+  fastify.post('/acp/install', async (request) => {
+    const body = installAcpProviderBodySchema.parse(request.body);
+    return presentInstalledAcpProvider(await installAcpProvider(body));
+  });
+
   fastify.get('/projects/:projectId/acp-sessions', async (request) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const query = listSessionsQuerySchema.parse(request.query);

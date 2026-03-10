@@ -31,6 +31,10 @@ const rootRoute: FastifyPluginAsync = async (fastify) => {
       acp: {
         href: '/api/acp',
       },
+      'acp-providers': {
+        href: '/api/acp/providers{?registry}',
+        templated: true,
+      },
       mcp: {
         href: '/api/mcp',
       },

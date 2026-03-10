@@ -18,6 +18,10 @@ import {
   type WaitForTerminalExitResponse,
 } from '@agentclientprotocol/sdk';
 import { ProblemError } from '../errors/problem-error';
+import {
+  resolveAcpRuntimeProviderCommand,
+  resolveEnvProviderCommand,
+} from '../services/acp-provider-service';
 
 const terminalIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -88,15 +92,6 @@ interface LoggerLike {
 interface CreateAcpRuntimeClientOptions {
   logger?: LoggerLike;
 }
-
-interface ProviderCommand {
-  args: string[];
-  command: string;
-}
-
-const DEFAULT_PROVIDER_COMMANDS: Record<string, string> = {
-  codex: 'codex-acp',
-};
 
 const ACP_INITIALIZE_TIMEOUT_MS = 10_000;
 
@@ -253,7 +248,7 @@ export function createAcpRuntimeClient(
   }
 
   function isConfigured(provider: string): boolean {
-    return resolveProviderCommand(provider) !== null;
+    return resolveEnvProviderCommand(provider) !== null || provider.trim() === 'codex';
   }
 
   function isSessionActive(localSessionId: string): boolean {
@@ -264,7 +259,7 @@ export function createAcpRuntimeClient(
     input: CreateAcpRuntimeSessionInput | LoadAcpRuntimeSessionInput,
   ): Promise<ActiveAcpRuntimeSession> {
     ensureAbsolutePath(input.cwd, 'ACP session cwd');
-    const providerCommand = resolveProviderCommand(input.provider);
+    const providerCommand = await resolveAcpRuntimeProviderCommand(input.provider);
 
     if (!providerCommand) {
       throw new ProblemError({
@@ -578,27 +573,6 @@ async function releaseTerminal(terminal: LocalTerminal): Promise<void> {
   }
 }
 
-function resolveProviderCommand(provider: string): ProviderCommand | null {
-  const normalizedProvider = provider.trim().toLowerCase();
-  const envKey = `TEAMAI_ACP_${normalizeEnvProviderName(provider)}_COMMAND`;
-  const rawCommand =
-    process.env[envKey]?.trim() || DEFAULT_PROVIDER_COMMANDS[normalizedProvider];
-
-  if (!rawCommand) {
-    return null;
-  }
-
-  const [command, ...args] = tokenizeCommand(rawCommand);
-  if (!command) {
-    return null;
-  }
-
-  return {
-    command,
-    args,
-  };
-}
-
 function normalizeEnvProviderName(provider: string): string {
   return provider
     .trim()
@@ -689,14 +663,6 @@ async function initializeAcpConnection(
       clearTimeout(timeoutId);
     }
   }
-}
-
-function tokenizeCommand(command: string): string[] {
-  return command
-    .trim()
-    .split(/\s+/)
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0);
 }
 
 function ensureAbsolutePath(path: string, label: string): void {

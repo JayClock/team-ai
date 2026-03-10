@@ -54,6 +54,10 @@ describe('root route', () => {
         acp: {
           href: '/api/acp',
         },
+        'acp-providers': {
+          href: '/api/acp/providers{?registry}',
+          templated: true,
+        },
         mcp: {
           href: '/api/mcp',
         },

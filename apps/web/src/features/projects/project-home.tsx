@@ -14,17 +14,28 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
+  ScrollArea,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
   toast,
 } from '@shared/ui';
 import {
   ArrowRightIcon,
+  CheckCircle2Icon,
   Clock3Icon,
+  DownloadIcon,
+  LoaderCircleIcon,
   SparklesIcon,
   WorkflowIcon,
+  WrenchIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { storePendingProjectPrompt } from './pending-project-prompt';
+import { useAcpProviders } from './use-acp-providers';
 import {
   LocalProject,
   projectTitle,
@@ -101,15 +112,25 @@ function ProjectHomeContent(props: {
     [client],
   );
   const { data: me } = useSuspenseResource(meResource);
+  const {
+    install,
+    installingProviderId,
+    loading: providersLoading,
+    providers,
+    registryError,
+    selectedProvider,
+    selectedProviderId,
+    setSelectedProviderId,
+  } = useAcpProviders('codex');
   const { sessionsResource, create } = useAcpSession(projectState, {
     actorUserId: me.id,
-    provider: 'codex',
+    provider: selectedProviderId,
     mode: 'CHAT',
     historyLimit: 50,
   });
 
-  const [provider] = useState('codex');
   const [mode, setMode] = useState('CHAT');
+  const [providerSheetOpen, setProviderSheetOpen] = useState(false);
   const [recentSessions, setRecentSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [startingSession, setStartingSession] = useState(false);
@@ -152,12 +173,22 @@ function ProjectHomeContent(props: {
       toast.error('Prompt can not be blank');
       return;
     }
+    if (!selectedProvider) {
+      toast.error('No ACP provider is available yet');
+      setProviderSheetOpen(true);
+      return;
+    }
+    if (selectedProvider.status !== 'available') {
+      toast.error(`Provider ${selectedProvider.name} is not ready yet`);
+      setProviderSheetOpen(true);
+      return;
+    }
 
     setStartingSession(true);
     try {
       const created = await create({
         actorUserId: me.id,
-        provider,
+        provider: selectedProvider.id,
         mode,
         goal: prompt,
       });
@@ -218,9 +249,20 @@ function ProjectHomeContent(props: {
                     >
                       Mode: {mode}
                     </button>
-                    <span className="rounded-full border bg-background px-2.5 py-1">
-                      Provider: {provider}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setProviderSheetOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-full border bg-background px-2.5 py-1 transition-colors hover:bg-muted"
+                    >
+                      <span
+                        className={`size-2 rounded-full ${
+                          selectedProvider?.status === 'available'
+                            ? 'bg-emerald-500'
+                            : 'bg-amber-500'
+                        }`}
+                      />
+                      Provider: {selectedProvider?.name ?? selectedProviderId}
+                    </button>
                   </div>
                 </PromptInputTools>
                 <div className="flex items-center gap-2">
@@ -289,6 +331,132 @@ function ProjectHomeContent(props: {
           )}
         </div>
       </div>
+      <Sheet open={providerSheetOpen} onOpenChange={setProviderSheetOpen}>
+        <SheetContent side="right" className="w-full max-w-xl">
+          <SheetHeader>
+            <SheetTitle>ACP Providers</SheetTitle>
+            <SheetDescription>
+              Discover providers the way Routa does: inspect local availability,
+              pull ACP registry metadata, and prepare missing runtimes from the UI.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-4">
+            <div className="rounded-2xl border bg-muted/30 p-4 text-sm text-muted-foreground">
+              {registryError ? (
+                <p>Registry unavailable: {registryError}</p>
+              ) : (
+                <p>
+                  Select an available provider for the next session. If a provider
+                  is missing but installable, prepare it here before you start.
+                </p>
+              )}
+            </div>
+            <ScrollArea className="h-[calc(100vh-14rem)] pr-4">
+              <div className="space-y-3">
+                {providersLoading ? (
+                  <Card>
+                    <CardContent className="py-6 text-sm text-muted-foreground">
+                      Loading ACP providers...
+                    </CardContent>
+                  </Card>
+                ) : (
+                  providers.map((provider) => {
+                    const isSelected = provider.id === selectedProviderId;
+                    const isInstalling = installingProviderId === provider.id;
+                    return (
+                      <Card
+                        key={provider.id}
+                        className={
+                          isSelected
+                            ? 'border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.25)]'
+                            : undefined
+                        }
+                      >
+                        <CardContent className="space-y-4 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="text-sm font-medium">
+                                  {provider.name}
+                                </div>
+                                <span className="rounded-full border bg-background px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                                  {provider.source}
+                                </span>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[11px] uppercase tracking-wide ${
+                                    provider.status === 'available'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : 'bg-amber-100 text-amber-700'
+                                  }`}
+                                >
+                                  {provider.status}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {provider.description}
+                              </p>
+                              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                <span className="rounded-full border bg-background px-2 py-1">
+                                  {provider.command ?? provider.envCommandKey}
+                                </span>
+                                {provider.distributionTypes.map((distributionType) => (
+                                  <span
+                                    key={distributionType}
+                                    className="rounded-full border bg-background px-2 py-1"
+                                  >
+                                    {distributionType}
+                                  </span>
+                                ))}
+                              </div>
+                              {provider.unavailableReason ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {provider.unavailableReason}
+                                </p>
+                              ) : null}
+                            </div>
+                            {isSelected ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
+                                <CheckCircle2Icon className="size-3.5" />
+                                Selected
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant={isSelected ? 'secondary' : 'default'}
+                              onClick={() => setSelectedProviderId(provider.id)}
+                              disabled={provider.status !== 'available' && !provider.installable}
+                            >
+                              <WrenchIcon className="size-4" />
+                              Use {provider.name}
+                            </Button>
+                            {provider.installable ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => void install(provider.id)}
+                                disabled={isInstalling}
+                              >
+                                {isInstalling ? (
+                                  <LoaderCircleIcon className="size-4 animate-spin" />
+                                ) : (
+                                  <DownloadIcon className="size-4" />
+                                )}
+                                {provider.installed ? 'Reinstall' : 'Install'}
+                              </Button>
+                            ) : null}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
