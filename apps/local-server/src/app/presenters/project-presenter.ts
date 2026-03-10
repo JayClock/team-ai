@@ -8,9 +8,6 @@ function createProjectLinks(project: ProjectPayload) {
     self: {
       href: `/api/projects/${project.id}`,
     },
-    home: {
-      href: `/api/projects/${project.id}/home`,
-    },
     collection: {
       href: '/api/projects',
     },

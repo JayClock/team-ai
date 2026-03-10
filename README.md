@@ -214,6 +214,7 @@ If you need to run persistence layer examples, please refer to [Database Setup D
 ### Supplementary Documentation
 
 - [Desktop Local-First Status](docs/desktop-local-first-status.md) - Current Electron + local Node server delivery status, implemented routes, and remaining gaps
+- [Desktop-First Multi-Agent Platform Blueprint](docs/desktop-first-multi-agent-platform-blueprint.md) - Refactor plan for turning the current desktop mode into the primary local multi-agent product
 - [Database Setup](docs/database-setup.md) - PostgreSQL configuration and migration guide
 - [PostgreSQL Migration Summary](docs/postgresql-migration-summary.md) - Detailed database migration records
 - [MCP Tools Guide](docs/mcp-tools.md) - MCP tool list, step controls, and idempotency rules
