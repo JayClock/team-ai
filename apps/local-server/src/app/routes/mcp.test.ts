@@ -1,0 +1,210 @@
+import Fastify from 'fastify';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { AgentGatewayClient } from '../clients/agent-gateway-client';
+import acpStreamPlugin from '../plugins/acp-stream';
+import orchestrationStreamPlugin from '../plugins/orchestration-stream';
+import problemJsonPlugin from '../plugins/problem-json';
+import sensiblePlugin from '../plugins/sensible';
+import sqlitePlugin from '../plugins/sqlite';
+import { createAgent } from '../services/agent-service';
+import { createProject } from '../services/project-service';
+import acpRoute from './acp';
+import mcpRoute from './mcp';
+import orchestrationRoute from './orchestration';
+import projectsRoute from './projects';
+import rootRoute from './root';
+
+describe('mcp route', () => {
+  const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];
+  const originalDataDir = process.env.TEAMAI_DATA_DIR;
+
+  afterEach(async () => {
+    process.env.TEAMAI_DATA_DIR = originalDataDir;
+
+    while (fastifyInstances.length > 0) {
+      const fastify = fastifyInstances.pop();
+      if (fastify) {
+        await fastify.close();
+      }
+    }
+  });
+
+  it('lists and executes built-in local mcp tools', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-test-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    const promptMock = vi.fn(async () => ({
+      accepted: true,
+      runtime: { provider: 'codex' },
+      session: {
+        sessionId: 'runtime-1',
+        state: 'RUNNING',
+      },
+    }));
+
+    fastify.decorate('agentGatewayClient', {
+      cancel: vi.fn(async () => ({
+        accepted: true,
+        session: { sessionId: 'runtime-1', state: 'CANCELLED' },
+      })),
+      createSession: vi.fn(async () => ({
+        session: {
+          sessionId: 'runtime-1',
+          state: 'PENDING',
+          provider: 'codex',
+          createdAt: '2026-03-10T00:00:00.000Z',
+        },
+      })),
+      health: vi.fn(),
+      isConfigured: vi.fn(() => true),
+      listEvents: vi.fn(async () => ({
+        cursor: null,
+        nextCursor: 'cursor-1',
+        events: [],
+        session: {
+          sessionId: 'runtime-1',
+          state: 'RUNNING',
+        },
+      })),
+      prompt: promptMock,
+      stream: vi.fn(),
+    } satisfies AgentGatewayClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(orchestrationStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(orchestrationRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Local MCP Project',
+    });
+    await createAgent(fastify.sqlite, {
+      name: 'Planner',
+      role: 'planner',
+      provider: 'codex',
+      model: 'gpt-5',
+      systemPrompt: 'Plan tasks',
+    });
+
+    const listToolsResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-1',
+        method: 'tools/list',
+        params: {},
+      },
+    });
+
+    expect(listToolsResponse.statusCode).toBe(200);
+    expect(
+      listToolsResponse.json().result.tools.map((tool: { name: string }) => tool.name),
+    ).toEqual(
+      expect.arrayContaining([
+        'projects_list',
+        'agents_list',
+        'acp_session_create',
+        'acp_session_prompt',
+        'acp_session_cancel',
+        'orchestration_session_create',
+      ]),
+    );
+
+    const listProjectsResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-2',
+        method: 'tools/call',
+        params: {
+          name: 'projects_list',
+          arguments: {},
+        },
+      },
+    });
+
+    expect(listProjectsResponse.statusCode).toBe(200);
+    expect(
+      listProjectsResponse.json().result.content[0].json.items[0].id,
+    ).toBe(project.id);
+
+    const createAcpResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-3',
+        method: 'tools/call',
+        params: {
+          name: 'acp_session_create',
+          arguments: {
+            projectId: project.id,
+            actorUserId: 'desktop-user',
+            provider: 'codex',
+            mode: 'CHAT',
+          },
+        },
+      },
+    });
+
+    expect(createAcpResponse.statusCode).toBe(200);
+    const acpSessionId = createAcpResponse.json().result.content[0].json.session.id as string;
+    expect(acpSessionId).toMatch(/^acps_/);
+
+    const promptAcpResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-4',
+        method: 'tools/call',
+        params: {
+          name: 'acp_session_prompt',
+          arguments: {
+            projectId: project.id,
+            sessionId: acpSessionId,
+            prompt: 'hello from mcp',
+          },
+        },
+      },
+    });
+
+    expect(promptAcpResponse.statusCode).toBe(200);
+    expect(promptMock).toHaveBeenCalledTimes(1);
+
+    const createOrchestrationResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-5',
+        method: 'tools/call',
+        params: {
+          name: 'orchestration_session_create',
+          arguments: {
+            projectId: project.id,
+            title: 'MCP orchestration',
+            goal: 'Build desktop tool chain',
+            provider: 'codex',
+          },
+        },
+      },
+    });
+
+    expect(createOrchestrationResponse.statusCode).toBe(200);
+    expect(
+      createOrchestrationResponse.json().result.content[0].json.session.id,
+    ).toMatch(/^orc_/);
+  });
+});
