@@ -129,7 +129,7 @@ export function useAcpSession(
   const [lastError, setLastError] = useState<AcpSessionRpcFailure | null>(null);
 
   const sessionsResource = useMemo(
-    () => projectState.follow('sessions'),
+    () => projectState.follow('acp-sessions'),
     [projectState],
   );
 

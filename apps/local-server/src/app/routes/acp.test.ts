@@ -200,7 +200,7 @@ describe('acp route', () => {
 
     const sessionsResponse = await fastify.inject({
       method: 'GET',
-      url: `/api/projects/${project.id}/sessions`,
+      url: `/api/projects/${project.id}/acp-sessions`,
     });
 
     expect(sessionsResponse.statusCode).toBe(200);
@@ -208,7 +208,7 @@ describe('acp route', () => {
 
     const historyResponse = await fastify.inject({
       method: 'GET',
-      url: `/api/projects/${project.id}/sessions/${sessionId}/history`,
+      url: `/api/projects/${project.id}/acp-sessions/${sessionId}/history`,
     });
 
     expect(historyResponse.statusCode).toBe(200);

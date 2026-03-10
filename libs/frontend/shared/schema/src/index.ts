@@ -32,6 +32,16 @@ export type {
   AcpSessionSummary,
   AcpSessionCollection,
   AcpSession,
+  OrchestrationSessionStatus,
+  OrchestrationStepStatus,
+  OrchestrationStepKind,
+  OrchestrationSessionData,
+  OrchestrationEventType,
+  OrchestrationEvent,
+  OrchestrationEvents,
+  OrchestrationSessionSummary,
+  OrchestrationSessionCollection,
+  OrchestrationSession,
 } from './lib/session.js';
 export type {
   Agent,

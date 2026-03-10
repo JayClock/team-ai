@@ -37,7 +37,7 @@ export function FeaturesProjects(props: Props) {
 
 function ProjectsWorkspaceContent(props: { projectState: State<Project> }) {
   const { projectState } = props;
-  const hasSessions = projectState.hasLink('sessions');
+  const hasSessions = projectState.hasLink('acp-sessions');
   const hasGraph = projectState.hasLink('knowledge-graph');
 
   return (
@@ -52,7 +52,7 @@ function ProjectsWorkspaceContent(props: { projectState: State<Project> }) {
       {hasSessions ? (
         <ProjectSessionsWorkspace projectState={projectState} />
       ) : (
-        <MissingPanelMessage message="Current project does not expose sessions link." />
+        <MissingPanelMessage message="Current project does not expose ACP sessions link." />
       )}
 
       {hasGraph ? (

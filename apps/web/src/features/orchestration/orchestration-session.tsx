@@ -29,22 +29,6 @@ import {
   type StepStatus,
 } from './orchestration-dashboard-utils';
 
-type OrchestrationRoot = Entity<
-  {
-    capabilities: {
-      cancel: boolean;
-      resume: boolean;
-      retry: boolean;
-      streaming: boolean;
-    };
-    name: string;
-  },
-  {
-    self: OrchestrationRoot;
-    sessions: OrchestrationSessionCollection;
-  }
->;
-
 type OrchestrationSession = Entity<
   {
     createdAt: string;
@@ -126,7 +110,6 @@ type LocalRoot = Entity<
   },
   {
     self: LocalRoot;
-    orchestration: OrchestrationRoot;
   }
 >;
 
@@ -437,9 +420,8 @@ export default function OrchestrationSessionPage() {
 
   const loadSessionData = useCallback(
     async (targetSessionId?: string) => {
-      const rootState = await rootResource.get();
-      const orchestrationRootState = await rootState.follow('orchestration').get();
-      const nextSessionsState = await orchestrationRootState.follow('sessions').get();
+      await rootResource.get();
+      const nextSessionsState = await client.go<OrchestrationSessionCollection>('/api/sessions').get();
       const nextSessions =
         nextSessionsState.collection as Array<State<OrchestrationSession>>;
 
@@ -457,7 +439,7 @@ export default function OrchestrationSessionPage() {
       const hydratedSession =
         nextSessions.find((session) => session.data.id === nextSelected.data.id) ??
         (await client.go<OrchestrationSession>(
-          `/api/orchestration/sessions/${nextSelected.data.id}`,
+          `/api/sessions/${nextSelected.data.id}`,
         ).get());
 
       setSelectedSession(hydratedSession);
@@ -466,7 +448,7 @@ export default function OrchestrationSessionPage() {
         hydratedSession.follow('steps').get(),
         readJson<OrchestrationEventDocument>(
           hydratedSession.getLink('events')?.href ??
-            `/api/orchestration/sessions/${hydratedSession.data.id}/events`,
+            `/api/sessions/${hydratedSession.data.id}/events`,
         ),
       ]);
 

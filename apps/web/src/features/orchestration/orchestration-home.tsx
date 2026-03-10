@@ -602,13 +602,12 @@ export default function OrchestrationHome() {
 
       try {
         const session = await readJson<OrchestrationSessionResponse>(
-          '/api/orchestration/sessions',
+          `/api/projects/${selectedProject.id}/sessions`,
           {
             method: 'POST',
             body: JSON.stringify({
               goal,
               executionMode: executionModeFromSessionMode(sessionMode),
-              projectId: selectedProject.id,
               provider: 'codex',
               title: deriveSessionTitle(goal),
               workspaceRoot: selectedProject.workspaceRoot,
