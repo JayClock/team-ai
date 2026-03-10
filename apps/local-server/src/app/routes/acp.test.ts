@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AgentGatewayClient } from '../clients/agent-gateway-client';
+import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
 import acpStreamPlugin from '../plugins/acp-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
@@ -42,86 +42,30 @@ describe('acp route', () => {
     fastifyInstances.push(fastify);
 
     const promptMock = vi.fn(async () => ({
-      accepted: true,
-      runtime: { provider: 'codex' },
-      session: {
-        sessionId: 'runtime-1',
-        state: 'RUNNING',
+      runtimeSessionId: 'runtime-1',
+      response: {
+        stopReason: 'end_turn',
       },
     }));
-    const listEventsMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        cursor: null,
-        nextCursor: 'cursor-3',
-        events: [
-          {
-            cursor: 'cursor-1',
-            data: {
-              state: 'RUNNING',
-            },
-            eventId: 'evt-1',
-            type: 'status',
-          },
-          {
-            cursor: 'cursor-2',
-            data: {
-              content: 'chunk',
-            },
-            eventId: 'evt-2',
-            type: 'delta',
-          },
-          {
-            cursor: 'cursor-3',
-            data: {
-              name: 'write_file',
-            },
-            eventId: 'evt-3',
-            type: 'tool',
-          },
-          {
-            cursor: 'cursor-4',
-            data: {
-              reason: 'prompt-finished',
-            },
-            eventId: 'evt-4',
-            type: 'complete',
-          },
-        ],
-        session: {
-          sessionId: 'runtime-1',
-          state: 'COMPLETED',
-        },
-      })
-      .mockResolvedValue({
-        cursor: null,
-        nextCursor: 'cursor-4',
-        events: [],
-        session: {
-          sessionId: 'runtime-1',
-          state: 'COMPLETED',
-        },
-      });
 
-    fastify.decorate('agentGatewayClient', {
-      cancel: vi.fn(async () => ({
-        accepted: true,
-        session: { sessionId: 'runtime-1', state: 'CANCELLED' },
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: 'runtime-1',
+        provider: input.provider,
+        mode: input.mode,
       })),
-      createSession: vi.fn(async () => ({
-        session: {
-          sessionId: 'runtime-1',
-          state: 'PENDING',
-          provider: 'codex',
-          createdAt: '2026-03-10T00:00:00.000Z',
-        },
-      })),
-      health: vi.fn(),
+      deleteSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
-      listEvents: listEventsMock,
-      prompt: promptMock,
-      stream: vi.fn(),
-    } satisfies AgentGatewayClient);
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+        mode: input.mode,
+      })),
+      promptSession: promptMock,
+    } satisfies AcpRuntimeClient);
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
@@ -175,28 +119,13 @@ describe('acp route', () => {
 
     expect(promptResponse.statusCode).toBe(200);
     expect(promptMock).toHaveBeenCalledTimes(1);
-    expect(promptMock).toHaveBeenCalledWith('runtime-1', {
-      cwd: '/tmp/team-ai-desktop-project',
-      env: {
-        TEAMAI_DESKTOP_SESSION_TOKEN: 'desktop-token-test',
-      },
-      input: 'hello desktop acp',
-      metadata: {
-        localSessionId: sessionId,
-        mcpServers: [
-          {
-            bearerTokenEnvVar: 'TEAMAI_DESKTOP_SESSION_TOKEN',
-            name: 'team_ai_local',
-            url: 'http://127.0.0.1:4310/api/mcp',
-          },
-        ],
-        projectId: project.id,
-      },
+    expect(promptMock).toHaveBeenCalledWith({
+      localSessionId: sessionId,
+      prompt: 'hello desktop acp',
       timeoutMs: undefined,
+      eventId: undefined,
       traceId: undefined,
     });
-
-    await new Promise((resolve) => setTimeout(resolve, 350));
 
     const sessionsResponse = await fastify.inject({
       method: 'GET',
@@ -214,7 +143,7 @@ describe('acp route', () => {
     expect(historyResponse.statusCode).toBe(200);
     expect(
       historyResponse.json().history.map((event: { type: string }) => event.type),
-    ).toEqual(expect.arrayContaining(['status', 'message', 'tool_call', 'complete']));
+    ).toEqual(expect.arrayContaining(['session', 'message', 'status', 'complete']));
 
     const rootResponse = await fastify.inject({
       method: 'GET',

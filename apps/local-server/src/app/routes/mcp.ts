@@ -259,7 +259,7 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                   session: await createAcpSession(
                     fastify.sqlite,
                     fastify.acpStreamBroker,
-                    fastify.agentGatewayClient,
+                    fastify.acpRuntime,
                     args,
                   ),
                 }),
@@ -273,7 +273,7 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                   await promptAcpSession(
                     fastify.sqlite,
                     fastify.acpStreamBroker,
-                    fastify.agentGatewayClient,
+                    fastify.acpRuntime,
                     args.projectId,
                     args.sessionId,
                     {
@@ -294,7 +294,7 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                   session: await cancelAcpSession(
                     fastify.sqlite,
                     fastify.acpStreamBroker,
-                    fastify.agentGatewayClient,
+                    fastify.acpRuntime,
                     args.projectId,
                     args.sessionId,
                     args.reason,

@@ -131,7 +131,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.delete('/projects/:projectId/acp-sessions/:sessionId', async (request, reply) => {
     const { sessionId } = sessionParamsSchema.parse(request.params);
-    await deleteAcpSession(fastify.sqlite, sessionId);
+    await deleteAcpSession(fastify.sqlite, fastify.acpRuntime, sessionId);
     reply.code(204).send();
   });
 
@@ -163,7 +163,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           const result = await createAcpSession(
             fastify.sqlite,
             fastify.acpStreamBroker,
-            fastify.agentGatewayClient,
+            fastify.acpRuntime,
             {
               projectId: z.string().min(1).parse(params.projectId),
               actorUserId: z.string().min(1).parse(params.actorUserId),
@@ -184,7 +184,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           const result = await loadAcpSession(
             fastify.sqlite,
             fastify.acpStreamBroker,
-            fastify.agentGatewayClient,
+            fastify.acpRuntime,
             z.string().min(1).parse(params.projectId),
             z.string().min(1).parse(params.sessionId),
           );
@@ -199,7 +199,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           const result = await promptAcpSession(
             fastify.sqlite,
             fastify.acpStreamBroker,
-            fastify.agentGatewayClient,
+            fastify.acpRuntime,
             z.string().min(1).parse(params.projectId),
             z.string().min(1).parse(params.sessionId),
             {
@@ -221,7 +221,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           const result = await cancelAcpSession(
             fastify.sqlite,
             fastify.acpStreamBroker,
-            fastify.agentGatewayClient,
+            fastify.acpRuntime,
             z.string().min(1).parse(params.projectId),
             z.string().min(1).parse(params.sessionId),
             z.string().trim().min(1).optional().parse(params.reason),

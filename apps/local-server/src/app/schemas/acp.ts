@@ -21,6 +21,11 @@ export type AcpEventTypePayload =
   | 'message'
   | 'tool_call'
   | 'tool_result'
+  | 'plan'
+  | 'session'
+  | 'mode'
+  | 'config'
+  | 'usage'
   | 'complete'
   | 'error';
 
@@ -36,6 +41,7 @@ export interface AcpEventEnvelopePayload {
 export interface AcpSessionPayload {
   actor: AcpRefPayload;
   completedAt: string | null;
+  cwd: string;
   failureReason: string | null;
   id: string;
   lastActivityAt: string | null;

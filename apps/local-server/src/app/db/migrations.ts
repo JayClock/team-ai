@@ -263,4 +263,19 @@ export const sqliteMigrations: SqliteMigration[] = [
       DROP TABLE IF EXISTS conversations;
     `,
   },
+  {
+    version: '011_project_acp_session_cwd',
+    sql: `
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN cwd TEXT;
+
+      UPDATE project_acp_sessions
+      SET cwd = (
+        SELECT projects.workspace_root
+        FROM projects
+        WHERE projects.id = project_acp_sessions.project_id
+      )
+      WHERE cwd IS NULL;
+    `,
+  },
 ];

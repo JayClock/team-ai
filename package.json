@@ -8,6 +8,7 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "dependencies": {
+    "@agentclientprotocol/sdk": "0.15.0",
     "@antv/g6": "^5.0.51",
     "@fastify/autoload": "~6.0.3",
     "@fastify/sensible": "~6.0.2",

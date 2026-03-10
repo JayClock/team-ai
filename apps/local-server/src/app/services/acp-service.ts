@@ -1,10 +1,17 @@
 import type { Database } from 'better-sqlite3';
+import { isAbsolute } from 'node:path';
 import { customAlphabet } from 'nanoid';
 import type {
-  AgentGatewayClient,
-  AgentGatewayEventEnvelope,
-  AgentGatewayEventError,
-} from '../clients/agent-gateway-client';
+  ContentBlock,
+  McpServer,
+  PromptResponse,
+  SessionNotification,
+  SessionUpdate,
+} from '@agentclientprotocol/sdk';
+import type {
+  AcpRuntimeClient,
+  AcpRuntimeSessionHooks,
+} from '../clients/acp-runtime-client';
 import { ProblemError } from '../errors/problem-error';
 import type { AcpStreamBroker } from '../plugins/acp-stream';
 import type {
@@ -25,11 +32,11 @@ const eventIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
   16,
 );
-const gatewayPollIntervalMs = 250;
 
 interface AcpSessionRow {
   actor_id: string;
   completed_at: string | null;
+  cwd: string | null;
   failure_reason: string | null;
   id: string;
   last_activity_at: string | null;
@@ -53,12 +60,6 @@ interface AcpEventRow {
   type: string;
 }
 
-type NormalizedGatewayEvent = {
-  error?: AcpEventErrorPayload | null;
-  payload: Record<string, unknown>;
-  type: AcpEventTypePayload;
-};
-
 interface ListSessionsQuery {
   page: number;
   pageSize: number;
@@ -80,13 +81,10 @@ interface PromptSessionInput {
   traceId?: string;
 }
 
-interface LocalMcpServerConfig {
-  bearerTokenEnvVar?: string;
-  name: string;
-  url: string;
-}
-
-const activeGatewayPolls = new Map<string, Promise<void>>();
+type NormalizedAcpUpdateEvent = {
+  type: AcpEventTypePayload;
+  payload: Record<string, unknown>;
+};
 
 function createSessionId() {
   return `acps_${sessionIdGenerator()}`;
@@ -94,21 +92,6 @@ function createSessionId() {
 
 function createEventId() {
   return `acpe_${eventIdGenerator()}`;
-}
-
-function resolveLocalMcpServer(): LocalMcpServerConfig | null {
-  const host = process.env.HOST?.trim() || '127.0.0.1';
-  const port = process.env.PORT?.trim();
-
-  if (!port) {
-    return null;
-  }
-
-  return {
-    name: 'team_ai_local',
-    url: `http://${host}:${port}/api/mcp`,
-    bearerTokenEnvVar: 'TEAMAI_DESKTOP_SESSION_TOKEN',
-  };
 }
 
 function throwSessionNotFound(sessionId: string): never {
@@ -129,6 +112,7 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     name: row.name,
     provider: row.provider,
     mode: row.mode,
+    cwd: row.cwd ?? '',
     state: row.state,
     startedAt: row.started_at,
     lastActivityAt: row.last_activity_at,
@@ -163,6 +147,7 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           name,
           provider,
           mode,
+          cwd,
           state,
           runtime_session_id,
           failure_reason,
@@ -191,6 +176,7 @@ function updateSessionRuntime(
     failureReason?: string | null;
     lastActivityAt?: string | null;
     lastEventId?: string | null;
+    name?: string | null;
     runtimeSessionId?: string | null;
     startedAt?: string | null;
     state?: AcpSessionState;
@@ -202,6 +188,7 @@ function updateSessionRuntime(
       `
         UPDATE project_acp_sessions
         SET
+          name = @name,
           runtime_session_id = @runtimeSessionId,
           state = @state,
           failure_reason = @failureReason,
@@ -215,6 +202,7 @@ function updateSessionRuntime(
     )
     .run({
       id: sessionId,
+      name: update.name === undefined ? current.name : update.name,
       runtimeSessionId: update.runtimeSessionId ?? current.runtime_session_id,
       state: update.state ?? current.state,
       failureReason:
@@ -295,352 +283,405 @@ function appendLocalEvent(
     lastActivityAt: emittedAt,
     lastEventId: event.eventId,
   });
-
   broker.publish(event);
   return event;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
+function resolveSessionCwd(workspaceRoot: string | null): string {
+  const cwd = workspaceRoot?.trim();
+  if (!cwd || !isAbsolute(cwd)) {
+    throw new ProblemError({
+      type: 'https://team-ai.dev/problems/acp-project-workspace-missing',
+      title: 'ACP Project Workspace Missing',
+      status: 409,
+      detail:
+        'ACP sessions require project.workspaceRoot to be set to an absolute local path',
+    });
   }
 
-  return value as Record<string, unknown>;
+  return cwd;
 }
 
-function asText(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
+function resolveLocalMcpServers(): McpServer[] {
+  const host = process.env.HOST?.trim() || '127.0.0.1';
+  const port = process.env.PORT?.trim();
+
+  if (!port) {
+    return [];
   }
 
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  const headers =
+    process.env.DESKTOP_SESSION_TOKEN?.trim()
+      ? [
+          {
+            name: 'Authorization',
+            value: `Bearer ${process.env.DESKTOP_SESSION_TOKEN.trim()}`,
+          },
+        ]
+      : [];
+
+  return [
+    {
+      type: 'http',
+      name: 'team_ai_local',
+      url: `http://${host}:${port}/api/mcp`,
+      headers,
+    },
+  ];
 }
 
-function normalizeGatewayEvent(
-  event: AgentGatewayEventEnvelope,
-): NormalizedGatewayEvent {
-  const payload = asRecord(event.data) ?? {};
-  const protocol = asText(payload.protocol) ?? undefined;
-  const rawPayload = asRecord(payload.payload);
-  const toolPayload = rawPayload ?? payload;
-
-  if (event.type === 'status') {
-    return {
-      type: 'status',
-      payload: {
-        ...payload,
-        ...(protocol ? { protocol } : {}),
-      },
-      error: gatewayErrorToPayload(event.error),
-    };
-  }
-
-  if (event.type === 'delta') {
-    return {
-      type: 'message',
-      payload: {
-        content: asText(payload.text) ?? asText(payload.content),
-        ...(protocol ? { protocol } : {}),
-        payload,
-      },
-      error: gatewayErrorToPayload(event.error),
-    };
-  }
-
-  if (event.type === 'tool') {
-    const toolType = asText(toolPayload.type);
-    const toolName =
-      asText(toolPayload.toolName) ??
-      asText(toolPayload.name) ??
-      asText(payload.toolName) ??
-      asText(payload.name);
-    const isResult = toolType === 'tool_result';
-
-    return {
-      type: isResult ? 'tool_result' : 'tool_call',
-      payload: {
-        toolName,
-        ...(isResult
-          ? {
-              output:
-                toolPayload.result ??
-                toolPayload.output ??
-                toolPayload.content ??
-                payload.result ??
-                payload.output ??
-                payload.content,
-            }
-          : {
-              input:
-                toolPayload.arguments ??
-                toolPayload.input ??
-                payload.arguments ??
-                payload.input,
-            }),
-        ...(protocol ? { protocol } : {}),
-        payload: toolPayload,
-      },
-      error: gatewayErrorToPayload(event.error),
-    };
-  }
-
-  if (event.type === 'complete') {
-    return {
-      type: 'complete',
-      payload: {
-        reason: asText(payload.reason),
-        state: asText(payload.state),
-        ...(protocol ? { protocol } : {}),
-        payload,
-      },
-      error: gatewayErrorToPayload(event.error),
-    };
-  }
-
-    return {
-      type: 'error',
-      payload: {
-        message: event.error?.message ?? asText(payload.message),
-        state: asText(payload.state),
-        source: asText(payload.source) ?? 'agent-gateway',
-        ...(protocol ? { protocol } : {}),
-        payload,
-      },
-    error: gatewayErrorToPayload(event.error),
-  };
-}
-
-function gatewayErrorToPayload(
-  error: AgentGatewayEventError | null | undefined,
-): AcpEventErrorPayload | null {
-  if (!error) {
-    return null;
-  }
-
+function createRuntimeHooks(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  localSessionId: string,
+): AcpRuntimeSessionHooks {
   return {
-    code: error.code,
-    message: error.message,
-    retryable: error.retryable,
-    retryAfterMs: error.retryAfterMs,
+    async onSessionUpdate(notification) {
+      const normalized = normalizeAcpNotification(notification);
+      const emitted = appendLocalEvent(sqlite, broker, {
+        sessionId: localSessionId,
+        type: normalized.type,
+        payload: normalized.payload,
+      });
+
+      const current = getSessionRow(sqlite, localSessionId);
+      const state = resolveSessionStateFromUpdate(notification.update, current.state);
+      updateSessionRuntime(sqlite, localSessionId, {
+        state,
+        lastActivityAt:
+          extractUpdatedAt(notification.update) ?? emitted.emittedAt,
+        name: extractSessionTitle(notification.update) ?? current.name,
+        completedAt:
+          state === 'COMPLETED' || state === 'CANCELLED' || state === 'FAILED'
+            ? emitted.emittedAt
+            : null,
+        failureReason: state === 'FAILED' ? current.failure_reason : null,
+      });
+    },
+    async onClosed(error) {
+      const current = getSessionRow(sqlite, localSessionId);
+      if (!error) {
+        return;
+      }
+
+      if (current.state === 'CANCELLED' || current.state === 'COMPLETED') {
+        return;
+      }
+
+      appendLocalEvent(sqlite, broker, {
+        sessionId: localSessionId,
+        type: 'error',
+        payload: {
+          source: 'acp-sdk',
+          message: error.message,
+        },
+        error: {
+          code: 'ACP_CONNECTION_CLOSED',
+          message: error.message,
+          retryable: true,
+          retryAfterMs: 1000,
+        },
+      });
+
+      updateSessionRuntime(sqlite, localSessionId, {
+        state: 'FAILED',
+        failureReason: error.message,
+        completedAt: new Date().toISOString(),
+      });
+    },
   };
 }
 
-function resolveSessionState(
-  event: AgentGatewayEventEnvelope,
-  fallback: AcpSessionState,
-): AcpSessionState {
-  if (
-    event.type === 'complete' &&
-    typeof event.data?.reason === 'string' &&
-    event.data.reason === 'cancelled'
-  ) {
-    return 'CANCELLED';
+function normalizeAcpNotification(
+  notification: SessionNotification,
+): NormalizedAcpUpdateEvent {
+  const update = notification.update;
+  switch (update.sessionUpdate) {
+    case 'user_message_chunk':
+    case 'agent_message_chunk':
+    case 'agent_thought_chunk':
+      return {
+        type: 'message',
+        payload: {
+          source: 'acp-sdk',
+          kind: update.sessionUpdate,
+          role: resolveMessageRole(update.sessionUpdate),
+          messageId: update.messageId ?? null,
+          content: flattenContentBlock(update.content),
+          contentBlock: update.content,
+        },
+      };
+    case 'tool_call':
+      return {
+        type: 'tool_call',
+        payload: {
+          source: 'acp-sdk',
+          toolCallId: update.toolCallId,
+          title: update.title,
+          status: update.status ?? null,
+          kind: update.kind ?? null,
+          rawInput: update.rawInput ?? null,
+          rawOutput: update.rawOutput ?? null,
+          locations: update.locations ?? [],
+          content: update.content ?? [],
+        },
+      };
+    case 'tool_call_update':
+      return {
+        type: update.status === 'completed' ? 'tool_result' : 'tool_call',
+        payload: {
+          source: 'acp-sdk',
+          toolCallId: update.toolCallId,
+          title: update.title ?? null,
+          status: update.status ?? null,
+          kind: update.kind ?? null,
+          rawInput: update.rawInput ?? null,
+          rawOutput: update.rawOutput ?? null,
+          locations: update.locations ?? [],
+          content: update.content ?? [],
+        },
+      };
+    case 'plan':
+      return {
+        type: 'plan',
+        payload: {
+          source: 'acp-sdk',
+          entries: update.entries,
+        },
+      };
+    case 'session_info_update':
+      return {
+        type: 'session',
+        payload: {
+          source: 'acp-sdk',
+          title: update.title ?? null,
+          updatedAt: update.updatedAt ?? null,
+        },
+      };
+    case 'current_mode_update':
+      return {
+        type: 'mode',
+        payload: {
+          source: 'acp-sdk',
+          currentModeId: update.currentModeId,
+        },
+      };
+    case 'config_option_update':
+      return {
+        type: 'config',
+        payload: {
+          source: 'acp-sdk',
+          configOptions: update.configOptions,
+        },
+      };
+    case 'usage_update':
+      return {
+        type: 'usage',
+        payload: {
+          source: 'acp-sdk',
+          size: update.size,
+          used: update.used,
+          cost: update.cost ?? null,
+        },
+      };
+    case 'available_commands_update':
+      return {
+        type: 'status',
+        payload: {
+          source: 'acp-sdk',
+          availableCommands: update.availableCommands,
+        },
+      };
+  }
+}
+
+function resolveMessageRole(
+  updateType:
+    | 'user_message_chunk'
+    | 'agent_message_chunk'
+    | 'agent_thought_chunk',
+): 'user' | 'assistant' | 'thought' {
+  if (updateType === 'user_message_chunk') {
+    return 'user';
   }
 
-  if (event.type === 'error') {
-    return 'FAILED';
+  if (updateType === 'agent_thought_chunk') {
+    return 'thought';
   }
 
-  if (event.type === 'complete') {
-    return 'COMPLETED';
+  return 'assistant';
+}
+
+function flattenContentBlock(content: ContentBlock): string | null {
+  if (content.type === 'text') {
+    return content.text;
   }
 
-  if (event.type === 'status') {
-    const raw = event.data?.state;
-    if (
-      raw === 'PENDING' ||
-      raw === 'RUNNING' ||
-      raw === 'COMPLETED' ||
-      raw === 'FAILED' ||
-      raw === 'CANCELLED'
-    ) {
-      return raw;
+  if (content.type === 'resource_link') {
+    return content.uri;
+  }
+
+  if (content.type === 'resource') {
+    const resource = content.resource;
+    if ('text' in resource) {
+      return resource.text;
     }
   }
 
-  if (event.type === 'delta' || event.type === 'tool') {
+  return null;
+}
+
+function resolveSessionStateFromUpdate(
+  update: SessionUpdate,
+  fallback: AcpSessionState,
+): AcpSessionState {
+  if (update.sessionUpdate === 'agent_message_chunk') {
+    return 'RUNNING';
+  }
+
+  if (update.sessionUpdate === 'agent_thought_chunk') {
+    return 'RUNNING';
+  }
+
+  if (update.sessionUpdate === 'tool_call') {
+    return 'RUNNING';
+  }
+
+  if (update.sessionUpdate === 'tool_call_update') {
+    if (update.status === 'failed') {
+      return 'FAILED';
+    }
     return 'RUNNING';
   }
 
   return fallback;
 }
 
-async function ensureRuntimeSession(
-  sqlite: Database,
-  sessionId: string,
-  agentGatewayClient: AgentGatewayClient,
-): Promise<string> {
-  const session = getSessionRow(sqlite, sessionId);
-
-  if (session.runtime_session_id) {
-    return session.runtime_session_id;
+function extractSessionTitle(update: SessionUpdate): string | null {
+  if (update.sessionUpdate === 'session_info_update') {
+    return update.title ?? null;
   }
 
-  const created = await agentGatewayClient.createSession({
-    provider: session.provider,
-    metadata: {
-      actorUserId: session.actor_id,
-      localSessionId: session.id,
-      mode: session.mode,
-      projectId: session.project_id,
+  return null;
+}
+
+function extractUpdatedAt(update: SessionUpdate): string | null {
+  if (update.sessionUpdate === 'session_info_update') {
+    return update.updatedAt ?? null;
+  }
+
+  return null;
+}
+
+function appendPromptRequestedEvents(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  sessionId: string,
+  prompt: string,
+  eventId?: string,
+) {
+  appendLocalEvent(sqlite, broker, {
+    sessionId,
+    eventId,
+    type: 'message',
+    payload: {
+      source: 'local-server',
+      role: 'user',
+      content: prompt,
+    },
+  });
+
+  appendLocalEvent(sqlite, broker, {
+    sessionId,
+    type: 'status',
+    payload: {
+      source: 'local-server',
+      state: 'RUNNING',
+      reason: 'prompt_requested',
+    },
+  });
+}
+
+function updateSessionFromPromptResponse(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  sessionId: string,
+  response: PromptResponse,
+) {
+  let state: AcpSessionState = 'COMPLETED';
+  if (response.stopReason === 'cancelled') {
+    state = 'CANCELLED';
+  }
+
+  const completedAt = new Date().toISOString();
+  appendLocalEvent(sqlite, broker, {
+    sessionId,
+    type: 'complete',
+    payload: {
+      source: 'acp-sdk',
+      stopReason: response.stopReason,
+      userMessageId: response.userMessageId ?? null,
+      usage: response.usage ?? null,
+      state,
     },
   });
 
   updateSessionRuntime(sqlite, sessionId, {
-    runtimeSessionId: created.session.sessionId,
-    startedAt: created.session.createdAt ?? session.started_at ?? new Date().toISOString(),
-    state: (created.session.state as AcpSessionState | undefined) ?? session.state,
+    state,
+    failureReason: null,
+    completedAt,
+    lastActivityAt: completedAt,
+  });
+}
+
+async function ensureRuntimeLoaded(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  runtime: AcpRuntimeClient,
+  sessionId: string,
+): Promise<string> {
+  const session = getSessionRow(sqlite, sessionId);
+  if (runtime.isSessionActive(sessionId) && session.runtime_session_id) {
+    return session.runtime_session_id;
+  }
+
+  if (!session.runtime_session_id) {
+    throw new ProblemError({
+      type: 'https://team-ai.dev/problems/acp-runtime-missing',
+      title: 'ACP Runtime Missing',
+      status: 409,
+      detail: `ACP session ${sessionId} does not have a runtime session id`,
+    });
+  }
+
+  await runtime.loadSession({
+    localSessionId: session.id,
+    runtimeSessionId: session.runtime_session_id,
+    provider: session.provider,
+    cwd: session.cwd ?? '',
+    mode: session.mode,
+    mcpServers: resolveLocalMcpServers(),
+    hooks: createRuntimeHooks(sqlite, broker, session.id),
   });
 
-  return created.session.sessionId;
-}
-
-function shouldKeepPolling(state: string | undefined, eventsSeen: number): boolean {
-  if (state === 'PENDING' || state === 'RUNNING') {
-    return true;
-  }
-
-  return eventsSeen > 0;
-}
-
-function startGatewayPolling(input: {
-  agentGatewayClient: AgentGatewayClient;
-  broker: AcpStreamBroker;
-  sessionId: string;
-  sqlite: Database;
-}) {
-  if (activeGatewayPolls.has(input.sessionId)) {
-    return;
-  }
-
-  const task = (async () => {
-    while (true) {
-      const current = getSessionRow(input.sqlite, input.sessionId);
-      const runtimeSessionId = current.runtime_session_id;
-
-      if (!runtimeSessionId) {
-        return;
-      }
-
-      const sinceEventId = current.last_event_id;
-      const page = await input.agentGatewayClient.listEvents(
-        runtimeSessionId,
-        undefined,
-      );
-      let eventsSeen = 0;
-
-      for (const event of page.events) {
-        const eventId = event.eventId ?? event.cursor ?? createEventId();
-        const exists = input.sqlite
-          .prepare(
-            'SELECT 1 FROM project_acp_session_events WHERE event_id = ? LIMIT 1',
-          )
-          .get(eventId) as { 1: number } | undefined;
-        if (exists) {
-          continue;
-        }
-
-        eventsSeen++;
-        const normalizedEvent = normalizeGatewayEvent(event);
-        appendLocalEvent(input.sqlite, input.broker, {
-          sessionId: input.sessionId,
-          eventId,
-          type: normalizedEvent.type,
-          payload: normalizedEvent.payload,
-          error: normalizedEvent.error,
-        });
-
-        const nextState = resolveSessionState(event, current.state);
-        updateSessionRuntime(input.sqlite, input.sessionId, {
-          state: nextState,
-          failureReason:
-            nextState === 'FAILED'
-              ? (event.error?.message ?? current.failure_reason ?? 'Gateway execution failed')
-              : null,
-          completedAt:
-            nextState === 'COMPLETED' || nextState === 'FAILED' || nextState === 'CANCELLED'
-              ? event.emittedAt ?? new Date().toISOString()
-              : null,
-        });
-      }
-
-      const refreshed = getSessionRow(input.sqlite, input.sessionId);
-      const stateFromPage = page.session.state as AcpSessionState | undefined;
-      if (stateFromPage) {
-        updateSessionRuntime(input.sqlite, input.sessionId, {
-          state: stateFromPage,
-          failureReason:
-            stateFromPage === 'FAILED'
-              ? refreshed.failure_reason ?? 'Gateway session failed'
-              : stateFromPage === 'CANCELLED'
-                ? refreshed.failure_reason
-                : null,
-          completedAt:
-            stateFromPage === 'COMPLETED' ||
-            stateFromPage === 'FAILED' ||
-            stateFromPage === 'CANCELLED'
-              ? refreshed.completed_at ?? new Date().toISOString()
-              : null,
-          lastActivityAt:
-            refreshed.last_activity_at ?? new Date().toISOString(),
-        });
-      }
-
-      if (
-        !shouldKeepPolling(page.session.state, eventsSeen) &&
-        sinceEventId === getSessionRow(input.sqlite, input.sessionId).last_event_id
-      ) {
-        return;
-      }
-
-      await new Promise((resolve) => {
-        setTimeout(resolve, gatewayPollIntervalMs);
-      });
-    }
-  })()
-    .catch((error: unknown) => {
-      appendLocalEvent(input.sqlite, input.broker, {
-        sessionId: input.sessionId,
-        type: 'error',
-        payload: {
-          source: 'local-server',
-          message: error instanceof Error ? error.message : 'ACP gateway poll failed',
-          state: 'FAILED',
-        },
-        error: {
-          code: 'ACP_GATEWAY_POLL_FAILED',
-          message: error instanceof Error ? error.message : 'ACP gateway poll failed',
-          retryable: true,
-          retryAfterMs: 1000,
-        },
-      });
-      updateSessionRuntime(input.sqlite, input.sessionId, {
-        state: 'FAILED',
-        failureReason: error instanceof Error ? error.message : 'ACP gateway poll failed',
-        completedAt: new Date().toISOString(),
-      });
-    })
-    .finally(() => {
-      activeGatewayPolls.delete(input.sessionId);
-    });
-
-  activeGatewayPolls.set(input.sessionId, task);
+  return session.runtime_session_id;
 }
 
 export async function createAcpSession(
   sqlite: Database,
   broker: AcpStreamBroker,
-  agentGatewayClient: AgentGatewayClient,
+  runtime: AcpRuntimeClient,
   input: CreateSessionInput,
 ): Promise<AcpSessionPayload> {
-  await getProjectById(sqlite, input.projectId);
+  const project = await getProjectById(sqlite, input.projectId);
   if (input.parentSessionId) {
     getSessionRow(sqlite, input.parentSessionId);
   }
 
+  const cwd = resolveSessionCwd(project.workspaceRoot ?? null);
   const now = new Date().toISOString();
   const sessionId = createSessionId();
+
   sqlite
     .prepare(
       `
@@ -652,6 +693,7 @@ export async function createAcpSession(
           name,
           provider,
           mode,
+          cwd,
           state,
           runtime_session_id,
           failure_reason,
@@ -671,6 +713,7 @@ export async function createAcpSession(
           @name,
           @provider,
           @mode,
+          @cwd,
           @state,
           NULL,
           NULL,
@@ -692,6 +735,7 @@ export async function createAcpSession(
       name: input.goal?.trim() || null,
       provider: input.provider,
       mode: input.mode,
+      cwd,
       state: 'PENDING',
       startedAt: now,
       lastActivityAt: now,
@@ -699,9 +743,17 @@ export async function createAcpSession(
       updatedAt: now,
     });
 
-  const runtimeSessionId = await ensureRuntimeSession(sqlite, sessionId, agentGatewayClient);
+  const runtimeSession = await runtime.createSession({
+    localSessionId: sessionId,
+    provider: input.provider,
+    cwd,
+    mode: input.mode,
+    mcpServers: resolveLocalMcpServers(),
+    hooks: createRuntimeHooks(sqlite, broker, sessionId),
+  });
+
   updateSessionRuntime(sqlite, sessionId, {
-    runtimeSessionId,
+    runtimeSessionId: runtimeSession.runtimeSessionId,
     state: 'PENDING',
     startedAt: now,
     lastActivityAt: now,
@@ -709,12 +761,14 @@ export async function createAcpSession(
 
   appendLocalEvent(sqlite, broker, {
     sessionId,
-    type: 'status',
+    type: 'session',
     payload: {
-      state: 'PENDING',
-      reason: 'session_created',
       source: 'local-server',
       provider: input.provider,
+      mode: input.mode,
+      cwd,
+      state: 'PENDING',
+      reason: 'session_created',
     },
   });
 
@@ -741,6 +795,7 @@ export async function listAcpSessionsByProject(
           name,
           provider,
           mode,
+          cwd,
           state,
           runtime_session_id,
           failure_reason,
@@ -867,9 +922,11 @@ export async function renameAcpSession(
 
 export async function deleteAcpSession(
   sqlite: Database,
+  runtime: AcpRuntimeClient,
   sessionId: string,
 ): Promise<void> {
   getSessionRow(sqlite, sessionId);
+  await runtime.deleteSession(sessionId);
   sqlite
     .prepare(
       `
@@ -884,7 +941,7 @@ export async function deleteAcpSession(
 export async function loadAcpSession(
   sqlite: Database,
   broker: AcpStreamBroker,
-  agentGatewayClient: AgentGatewayClient,
+  runtime: AcpRuntimeClient,
   projectId: string,
   sessionId: string,
 ): Promise<AcpSessionPayload> {
@@ -893,12 +950,15 @@ export async function loadAcpSession(
     throwSessionNotFound(sessionId);
   }
 
-  if (session.runtime_session_id && (session.state === 'PENDING' || session.state === 'RUNNING')) {
-    startGatewayPolling({
-      sqlite,
-      broker,
-      agentGatewayClient,
-      sessionId,
+  if (session.runtime_session_id && !runtime.isSessionActive(sessionId)) {
+    await runtime.loadSession({
+      localSessionId: session.id,
+      runtimeSessionId: session.runtime_session_id,
+      provider: session.provider,
+      cwd: session.cwd ?? '',
+      mode: session.mode,
+      mcpServers: resolveLocalMcpServers(),
+      hooks: createRuntimeHooks(sqlite, broker, session.id),
     });
   }
 
@@ -908,7 +968,7 @@ export async function loadAcpSession(
 export async function promptAcpSession(
   sqlite: Database,
   broker: AcpStreamBroker,
-  agentGatewayClient: AgentGatewayClient,
+  runtime: AcpRuntimeClient,
   projectId: string,
   sessionId: string,
   input: PromptSessionInput,
@@ -917,28 +977,15 @@ export async function promptAcpSession(
   if (session.project_id !== projectId) {
     throwSessionNotFound(sessionId);
   }
-  const project = await getProjectById(sqlite, projectId);
-  const localMcpServer = resolveLocalMcpServer();
-  const gatewayEnv: Record<string, string> = {};
 
-  if (process.env.DESKTOP_SESSION_TOKEN?.trim()) {
-    gatewayEnv.TEAMAI_DESKTOP_SESSION_TOKEN =
-      process.env.DESKTOP_SESSION_TOKEN.trim();
-  }
-
-  const runtimeSessionId = await ensureRuntimeSession(sqlite, sessionId, agentGatewayClient);
-
-  appendLocalEvent(sqlite, broker, {
+  await ensureRuntimeLoaded(sqlite, broker, runtime, sessionId);
+  appendPromptRequestedEvents(
+    sqlite,
+    broker,
     sessionId,
-    eventId: input.eventId,
-    type: 'status',
-    payload: {
-      prompt: input.prompt,
-      reason: 'prompt_requested',
-      source: 'local-server',
-      state: 'RUNNING',
-    },
-  });
+    input.prompt,
+    input.eventId,
+  );
   updateSessionRuntime(sqlite, sessionId, {
     state: 'RUNNING',
     failureReason: null,
@@ -946,42 +993,60 @@ export async function promptAcpSession(
     lastActivityAt: new Date().toISOString(),
   });
 
-  const response = await agentGatewayClient.prompt(runtimeSessionId, {
-    ...(project.workspaceRoot ? { cwd: project.workspaceRoot } : {}),
-    ...(Object.keys(gatewayEnv).length > 0 ? { env: gatewayEnv } : {}),
-    input: input.prompt,
-    timeoutMs: input.timeoutMs,
-    traceId: input.traceId,
-    metadata: {
+  try {
+    const runtimeResult = await runtime.promptSession({
       localSessionId: sessionId,
-      projectId,
-      ...(localMcpServer ? { mcpServers: [localMcpServer] } : {}),
-    },
-  });
-
-  if (response.session.state) {
-    updateSessionRuntime(sqlite, sessionId, {
-      state: response.session.state as AcpSessionState,
+      prompt: input.prompt,
+      eventId: input.eventId,
+      timeoutMs: input.timeoutMs,
+      traceId: input.traceId,
     });
+
+    updateSessionFromPromptResponse(
+      sqlite,
+      broker,
+      sessionId,
+      runtimeResult.response,
+    );
+
+    return {
+      session: await getAcpSessionById(sqlite, sessionId),
+      runtime: {
+        provider: session.provider,
+        sessionId: runtimeResult.runtimeSessionId,
+        stopReason: runtimeResult.response.stopReason,
+      },
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'ACP prompt execution failed';
+    appendLocalEvent(sqlite, broker, {
+      sessionId,
+      type: 'error',
+      payload: {
+        source: 'acp-sdk',
+        message,
+      },
+      error: {
+        code: 'ACP_PROMPT_FAILED',
+        message,
+        retryable: true,
+        retryAfterMs: 1000,
+      },
+    });
+    updateSessionRuntime(sqlite, sessionId, {
+      state: 'FAILED',
+      failureReason: message,
+      completedAt: new Date().toISOString(),
+    });
+    throw error;
   }
-
-  startGatewayPolling({
-    sqlite,
-    broker,
-    agentGatewayClient,
-    sessionId,
-  });
-
-  return {
-    session: await getAcpSessionById(sqlite, sessionId),
-    runtime: response.runtime,
-  };
 }
 
 export async function cancelAcpSession(
   sqlite: Database,
   broker: AcpStreamBroker,
-  agentGatewayClient: AgentGatewayClient,
+  runtime: AcpRuntimeClient,
   projectId: string,
   sessionId: string,
   reason?: string,
@@ -991,32 +1056,30 @@ export async function cancelAcpSession(
     throwSessionNotFound(sessionId);
   }
 
-  if (!session.runtime_session_id) {
-    updateSessionRuntime(sqlite, sessionId, {
-      state: 'CANCELLED',
-      completedAt: new Date().toISOString(),
-      failureReason: reason ?? null,
-    });
-    appendLocalEvent(sqlite, broker, {
-      sessionId,
-      type: 'complete',
-      payload: {
-        reason: reason ?? 'cancel-requested',
-        state: 'CANCELLED',
-      },
-    });
-    return await getAcpSessionById(sqlite, sessionId);
+  if (session.runtime_session_id && !runtime.isSessionActive(sessionId)) {
+    await ensureRuntimeLoaded(sqlite, broker, runtime, sessionId);
   }
 
-  await agentGatewayClient.cancel(session.runtime_session_id, {
-    reason,
-  });
+  if (session.runtime_session_id && runtime.isSessionActive(sessionId)) {
+    await runtime.cancelSession({
+      localSessionId: sessionId,
+      reason,
+    });
+  }
 
-  startGatewayPolling({
-    sqlite,
-    broker,
-    agentGatewayClient,
+  appendLocalEvent(sqlite, broker, {
     sessionId,
+    type: 'complete',
+    payload: {
+      source: 'local-server',
+      reason: reason ?? 'cancel-requested',
+      state: 'CANCELLED',
+    },
+  });
+  updateSessionRuntime(sqlite, sessionId, {
+    state: 'CANCELLED',
+    completedAt: new Date().toISOString(),
+    failureReason: reason ?? null,
   });
 
   return await getAcpSessionById(sqlite, sessionId);

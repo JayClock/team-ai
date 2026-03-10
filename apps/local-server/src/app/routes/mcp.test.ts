@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
 import type { AgentGatewayClient } from '../clients/agent-gateway-client';
 import acpStreamPlugin from '../plugins/acp-stream';
 import orchestrationStreamPlugin from '../plugins/orchestration-stream';
@@ -35,13 +36,30 @@ describe('mcp route', () => {
     fastifyInstances.push(fastify);
 
     const promptMock = vi.fn(async () => ({
-      accepted: true,
-      runtime: { provider: 'codex' },
-      session: {
-        sessionId: 'runtime-1',
-        state: 'RUNNING',
+      runtimeSessionId: 'runtime-1',
+      response: {
+        stopReason: 'end_turn',
       },
     }));
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: 'runtime-1',
+        provider: input.provider,
+        mode: input.mode,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+        mode: input.mode,
+      })),
+      promptSession: promptMock,
+    } satisfies AcpRuntimeClient);
 
     fastify.decorate('agentGatewayClient', {
       cancel: vi.fn(async () => ({
@@ -84,6 +102,7 @@ describe('mcp route', () => {
 
     const project = await createProject(fastify.sqlite, {
       title: 'Local MCP Project',
+      workspaceRoot: '/tmp/team-ai-local-mcp-project',
     });
     await createAgent(fastify.sqlite, {
       name: 'Planner',
