@@ -94,6 +94,12 @@ interface ProviderCommand {
   command: string;
 }
 
+const DEFAULT_PROVIDER_COMMANDS: Record<string, string> = {
+  codex: 'codex-acp',
+};
+
+const ACP_INITIALIZE_TIMEOUT_MS = 10_000;
+
 interface LocalTerminal {
   command: ReturnType<typeof spawn>;
   exitStatus: {
@@ -305,20 +311,11 @@ export function createAcpRuntimeClient(
       );
     });
 
-    const initializeResponse = await connection.initialize({
-      protocolVersion: 1,
-      clientInfo: {
-        name: 'team-ai-local-server',
-        version: 'desktop',
-      },
-      clientCapabilities: {
-        fs: {
-          readTextFile: true,
-          writeTextFile: true,
-        },
-        terminal: true,
-      },
-    });
+    const initializeResponse = await initializeAcpConnection(
+      connection,
+      child,
+      input,
+    );
 
     const session: ActiveAcpRuntimeSession = {
       child,
@@ -582,8 +579,10 @@ async function releaseTerminal(terminal: LocalTerminal): Promise<void> {
 }
 
 function resolveProviderCommand(provider: string): ProviderCommand | null {
+  const normalizedProvider = provider.trim().toLowerCase();
   const envKey = `TEAMAI_ACP_${normalizeEnvProviderName(provider)}_COMMAND`;
-  const rawCommand = process.env[envKey]?.trim();
+  const rawCommand =
+    process.env[envKey]?.trim() || DEFAULT_PROVIDER_COMMANDS[normalizedProvider];
 
   if (!rawCommand) {
     return null;
@@ -605,6 +604,91 @@ function normalizeEnvProviderName(provider: string): string {
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]+/g, '_');
+}
+
+async function initializeAcpConnection(
+  connection: ClientSideConnection,
+  child: ReturnType<typeof spawn>,
+  input: CreateAcpRuntimeSessionInput | LoadAcpRuntimeSessionInput,
+): Promise<InitializeResponse> {
+  const initializeRequest = connection.initialize({
+    protocolVersion: 1,
+    clientInfo: {
+      name: 'team-ai-local-server',
+      version: 'desktop',
+    },
+    clientCapabilities: {
+      fs: {
+        readTextFile: true,
+        writeTextFile: true,
+      },
+      terminal: true,
+    },
+  });
+
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      if (child.exitCode == null) {
+        child.kill('SIGTERM');
+      }
+      reject(
+        new ProblemError({
+          type: 'https://team-ai.dev/problems/acp-provider-initialize-timeout',
+          title: 'ACP Provider Initialize Timeout',
+          status: 503,
+          detail:
+            `ACP provider ${input.provider} did not complete initialize within ` +
+            `${ACP_INITIALIZE_TIMEOUT_MS}ms. ` +
+            'The configured command is likely not an ACP-compatible agent process.',
+        }),
+      );
+    }, ACP_INITIALIZE_TIMEOUT_MS);
+  });
+
+  const exitPromise = new Promise<never>((_, reject) => {
+    child.once('exit', (code, signal) => {
+      reject(
+        new ProblemError({
+          type: 'https://team-ai.dev/problems/acp-provider-exited-during-initialize',
+          title: 'ACP Provider Exited During Initialize',
+          status: 503,
+          detail:
+            `ACP provider ${input.provider} exited before initialize completed ` +
+            `(code=${code ?? 'null'}, signal=${signal ?? 'null'}).`,
+        }),
+      );
+    });
+  });
+
+  const errorPromise = new Promise<never>((_, reject) => {
+    child.once('error', (error) => {
+      reject(
+        new ProblemError({
+          type: 'https://team-ai.dev/problems/acp-provider-launch-failed',
+          title: 'ACP Provider Launch Failed',
+          status: 503,
+          detail:
+            `Failed to launch ACP provider ${input.provider}: ` +
+            `${error.message}`,
+        }),
+      );
+    });
+  });
+
+  try {
+    return await Promise.race([
+      initializeRequest,
+      timeoutPromise,
+      exitPromise,
+      errorPromise,
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 function tokenizeCommand(command: string): string[] {

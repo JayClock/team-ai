@@ -6,8 +6,10 @@ import {
   AcpSessionSummary,
   Project,
   Root,
-  type AcpBaseEventData,
+  type AcpCompleteEventData,
+  type AcpErrorEventData,
   type AcpMessageEventData,
+  type AcpSessionEventData,
   type AcpToolCallEventData,
   type AcpToolResultEventData,
 } from '@shared/schema';
@@ -17,20 +19,42 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
   Input,
+  Message,
+  MessageContent,
+  MessageResponse,
+  PromptInput,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
   ScrollArea,
-  Textarea,
+  Spinner,
   toast,
 } from '@shared/ui';
 import {
   getCurrentDesktopRuntimeConfig,
   resolveRuntimeApiUrl,
 } from '@shared/util-http';
+import { BotIcon, SparklesIcon, WrenchIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const STREAM_RETRY_DELAY_MS = 1500;
 
 type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error';
+
+type ChatEntry = {
+  content: string;
+  emittedAt: string;
+  id: string;
+  role: 'assistant' | 'system' | 'user';
+  tone?: 'default' | 'thought';
+};
 
 function sessionDisplayName(session: State<AcpSessionSummary>): string {
   const name = session.data.name?.trim();
@@ -67,117 +91,232 @@ function formatJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
-function basePayload(event: AcpEventEnvelope): Record<string, unknown> | undefined {
-  return (event.data as AcpBaseEventData).payload;
-}
-
 function eventLabel(event: AcpEventEnvelope): string {
-  return event.type;
+  switch (event.type) {
+    case 'tool_call':
+      return 'Tool Call';
+    case 'tool_result':
+      return 'Tool Result';
+    case 'session':
+      return 'Session';
+    case 'plan':
+      return 'Plan';
+    case 'usage':
+      return 'Usage';
+    case 'mode':
+      return 'Mode';
+    case 'config':
+      return 'Config';
+    case 'complete':
+      return 'Complete';
+    case 'error':
+      return 'Error';
+    case 'status':
+      return 'Status';
+    case 'message':
+      return 'Message';
+  }
 }
 
 function eventHeadline(event: AcpEventEnvelope): string {
   switch (event.type) {
     case 'tool_call':
+      return event.data.title ?? event.data.toolName ?? 'tool call';
     case 'tool_result':
-      return event.data.toolName ?? event.type;
-    case 'message':
-      return event.data.content ?? 'message';
-    case 'status':
-      return event.data.reason ?? event.data.state ?? 'status';
+      return event.data.title ?? event.data.toolName ?? 'tool result';
+    case 'plan':
+      return `${event.data.entries.length} planned item(s)`;
+    case 'usage':
+      return `${event.data.used}/${event.data.size} context tokens`;
+    case 'session':
+      return event.data.reason ?? event.data.title ?? event.data.state ?? 'session';
+    case 'mode':
+      return event.data.currentModeId;
+    case 'config':
+      return `${event.data.configOptions.length} config option(s)`;
     case 'complete':
-      return event.data.reason ?? 'completed';
+      return event.data.stopReason ?? event.data.reason ?? 'completed';
     case 'error':
       return event.error?.message ?? event.data.message ?? 'error';
-    default:
-      return 'event';
+    case 'status':
+      return event.data.reason ?? event.data.state ?? 'status';
+    case 'message':
+      return event.data.role ?? 'message';
   }
 }
 
-function eventSummary(event: AcpEventEnvelope): string {
+function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
   switch (event.type) {
-    case 'message':
-      return event.data.content ?? 'message';
-    case 'status':
-      return event.data.state ? `state=${event.data.state}` : 'status';
-    case 'tool_result':
-      return typeof event.data.output === 'string'
-        ? event.data.output
-        : JSON.stringify(event.data.output) ?? 'tool_result';
-    case 'error':
-      return event.data.message ?? event.error?.message ?? 'error';
+    case 'session': {
+      const data = event.data as AcpSessionEventData;
+      if (data.reason === 'session_created') {
+        return '会话已创建，可以直接继续对话。';
+      }
+      if (data.title) {
+        return `会话标题已更新为 ${data.title}。`;
+      }
+      if (data.state) {
+        return `会话状态已变更为 ${data.state}。`;
+      }
+      return null;
+    }
+    case 'complete': {
+      const data = event.data as AcpCompleteEventData;
+      if (data.state === 'CANCELLED' || data.stopReason === 'cancelled') {
+        return '本次对话已取消。';
+      }
+      return '本轮对话已结束。';
+    }
+    case 'error': {
+      const data = event.data as AcpErrorEventData;
+      return data.message ?? event.error?.message ?? '执行过程中发生错误。';
+    }
     default:
-      return JSON.stringify(event.data);
+      return null;
   }
+}
+
+function buildChatEntries(history: AcpEventEnvelope[]): ChatEntry[] {
+  const messages: Array<ChatEntry & { chunkKey?: string }> = [];
+
+  for (const event of history) {
+    if (event.type === 'message') {
+      const data = event.data as AcpMessageEventData;
+      const content = asText(data.content);
+      if (!content) {
+        continue;
+      }
+
+      const role =
+        data.role === 'user'
+          ? 'user'
+          : data.role === 'thought'
+            ? 'assistant'
+            : 'assistant';
+      const chunkKey = `${role}:${data.messageId ?? event.eventId}:${data.role ?? 'assistant'}`;
+      const previous = messages[messages.length - 1];
+
+      if (previous && previous.chunkKey === chunkKey) {
+        previous.content += content;
+        previous.id = event.eventId;
+        previous.emittedAt = event.emittedAt;
+        continue;
+      }
+
+      messages.push({
+        id: event.eventId,
+        role,
+        emittedAt: event.emittedAt,
+        content,
+        tone: data.role === 'thought' ? 'thought' : 'default',
+        chunkKey,
+      });
+      continue;
+    }
+
+    const summary = summarizeSessionEvent(event);
+    if (!summary) {
+      continue;
+    }
+
+    messages.push({
+      id: event.eventId,
+      role: 'system',
+      emittedAt: event.emittedAt,
+      content: summary,
+    });
+  }
+
+  return messages.map(({ chunkKey: _chunkKey, ...message }) => message);
 }
 
 function renderEventDetails(event: AcpEventEnvelope) {
-  const protocol = asText((event.data as AcpBaseEventData).protocol);
-  const rawPayload = basePayload(event);
-  const argumentsValue =
-    event.type === 'tool_call'
-      ? (event.data as AcpToolCallEventData).input
-      : null;
-  const resultValue =
-    event.type === 'tool_result'
-      ? (event.data as AcpToolResultEventData).output
-      : event.type === 'message'
-        ? (event.data as AcpMessageEventData).content
-        : null;
+  const rawPayload = event.data.payload;
 
-  return (
-    <div className="mt-2 space-y-2">
-      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-        {protocol ? <span>protocol: {protocol}</span> : null}
-        {event.error ? <span>error: {event.error.code}</span> : null}
+  if (event.type === 'tool_call' || event.type === 'tool_result') {
+    const data =
+      event.type === 'tool_call'
+        ? (event.data as AcpToolCallEventData)
+        : (event.data as AcpToolResultEventData);
+    const primaryValue =
+      event.type === 'tool_call'
+        ? (data as AcpToolCallEventData).input ?? data.rawInput
+        : (data as AcpToolResultEventData).output ?? data.rawOutput;
+
+    return (
+      <div className="mt-2 space-y-2">
+        {primaryValue !== undefined ? (
+          <pre className="overflow-x-auto rounded-md bg-muted/70 p-2 text-xs">
+            {typeof primaryValue === 'string' ? primaryValue : formatJson(primaryValue)}
+          </pre>
+        ) : null}
+        {data.locations && data.locations.length > 0 ? (
+          <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+            {data.locations.map((location, index) => (
+              <span key={`${location.path}-${index}`}>
+                {location.path}
+                {location.line ? `:${location.line}` : ''}
+              </span>
+            ))}
+          </div>
+        ) : null}
+        {rawPayload ? (
+          <details className="rounded-md bg-muted/40 p-2">
+            <summary className="cursor-pointer text-[11px] uppercase tracking-wide text-muted-foreground">
+              raw payload
+            </summary>
+            <pre className="mt-2 overflow-x-auto text-xs">{formatJson(rawPayload)}</pre>
+          </details>
+        ) : null}
       </div>
+    );
+  }
 
-      {event.type === 'tool_call' || event.type === 'tool_result' ? (
-        <div className="space-y-2">
-          {argumentsValue != null ? (
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                input
-              </p>
-              <pre className="mt-1 overflow-x-auto rounded-md bg-muted p-2 text-xs">
-                {formatJson(argumentsValue)}
-              </pre>
+  if (event.type === 'plan') {
+    return (
+      <div className="mt-2 space-y-2">
+        {event.data.entries.map((entry, index) => (
+          <div key={`${event.eventId}-${index}`} className="rounded-md bg-muted/70 p-2 text-xs">
+            <div className="font-medium">{entry.content}</div>
+            <div className="mt-1 text-muted-foreground">
+              {entry.priority} · {entry.status}
             </div>
-          ) : null}
-          {resultValue != null ? (
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                output
-              </p>
-              <pre className="mt-1 overflow-x-auto rounded-md bg-muted p-2 text-xs">
-                {typeof resultValue === 'string' ? resultValue : formatJson(resultValue)}
-              </pre>
-            </div>
-          ) : null}
-        </div>
-      ) : event.type === 'message' || event.type === 'status' || event.type === 'complete' || event.type === 'error' ? (
-        <p className="text-sm break-words">{eventSummary(event)}</p>
-      ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
 
-      {rawPayload ? (
-        <details className="rounded-md bg-muted/60 p-2">
-          <summary className="cursor-pointer text-[11px] uppercase tracking-wide text-muted-foreground">
-            raw payload
-          </summary>
-          <pre className="mt-2 overflow-x-auto text-xs">{formatJson(rawPayload)}</pre>
-        </details>
-      ) : null}
+  const summary = summarizeSessionEvent(event);
+  if (summary) {
+    return <p className="mt-2 text-sm break-words">{summary}</p>;
+  }
 
-      {event.error ? (
-        <div className="rounded-md border border-destructive/20 bg-destructive/5 p-2 text-xs text-destructive">
-          {event.error.message}
-        </div>
-      ) : null}
-    </div>
-  );
+  if (rawPayload) {
+    return (
+      <pre className="mt-2 overflow-x-auto rounded-md bg-muted/70 p-2 text-xs">
+        {formatJson(rawPayload)}
+      </pre>
+    );
+  }
+
+  return null;
 }
 
-export function ProjectSessionsWorkspace(props: { projectState: State<Project> }) {
-  const { projectState } = props;
+export function ProjectSessionsWorkspace(props: {
+  projectState: State<Project>;
+  initialSessionId?: string;
+  pendingPrompt?: string | null;
+  onPendingPromptConsumed?: () => void;
+  onSessionNavigate?: (sessionId: string) => void;
+}) {
+  const {
+    projectState,
+    initialSessionId,
+    pendingPrompt,
+    onPendingPromptConsumed,
+    onSessionNavigate,
+  } = props;
   const client = useClient();
   const meResource = useMemo(
     () => client.go<Root>('/api').follow('me'),
@@ -205,7 +344,6 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
 
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const [promptText, setPromptText] = useState('');
   const [provider, setProvider] = useState('codex');
   const [mode, setMode] = useState('CHAT');
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
@@ -216,6 +354,14 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
   const reconnectTimerRef = useRef<number | null>(null);
   const allowReconnectRef = useRef(true);
   const latestEventIdRef = useRef<string | undefined>(undefined);
+  const initialSelectionAppliedRef = useRef<string | null>(null);
+  const pendingPromptKeyRef = useRef<string | null>(null);
+
+  const chatEntries = useMemo(() => buildChatEntries(history), [history]);
+  const sideEvents = useMemo(
+    () => history.filter((event) => event.type !== 'message'),
+    [history],
+  );
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;
@@ -333,6 +479,25 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
     return () => stopStream(true);
   }, [selectedSessionId, startStream, stopStream]);
 
+  const selectSessionFromList = useCallback(
+    async (
+      session: State<AcpSessionSummary>,
+      navigateToSession = true,
+    ) => {
+      try {
+        await select({ session: session.data.id });
+        if (navigateToSession) {
+          onSessionNavigate?.(session.data.id);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to select session';
+        toast.error(message);
+      }
+    },
+    [onSessionNavigate, select],
+  );
+
   const handleCreate = useCallback(async () => {
     setIsCreating(true);
     try {
@@ -342,6 +507,7 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
         mode,
       });
       await loadSessions();
+      onSessionNavigate?.(created.data.id);
       toast.success(`Created session ${created.data.id}`);
     } catch (error) {
       const message =
@@ -354,36 +520,44 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
 
   const handleSelect = useCallback(
     async (session: State<AcpSessionSummary>) => {
-      try {
-        await select({ session: session.data.id });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'Failed to select session';
-        toast.error(message);
-      }
+      await selectSessionFromList(session);
     },
-    [select],
+    [selectSessionFromList],
   );
 
-  const handlePrompt = useCallback(async () => {
-    if (!promptText.trim()) {
-      toast.error('Prompt can not be blank');
-      return;
-    }
-    setIsPrompting(true);
-    try {
-      await prompt({
-        prompt: promptText,
-      });
-      setPromptText('');
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to send prompt';
-      toast.error(message);
-    } finally {
-      setIsPrompting(false);
-    }
-  }, [prompt, promptText]);
+  const handlePromptSubmit = useCallback(
+    async ({ text }: { files: unknown[]; text: string }) => {
+      const trimmed = text.trim();
+      if (!trimmed) {
+        toast.error('Prompt can not be blank');
+        return;
+      }
+
+      setIsPrompting(true);
+      try {
+        const targetSession =
+          selectedSession ??
+          (await create({
+            actorUserId: me.id,
+            provider,
+            mode,
+          }));
+
+        await prompt({
+          session: targetSession.data.id,
+          prompt: trimmed,
+        });
+        await loadSessions();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Failed to send prompt';
+        toast.error(message);
+      } finally {
+        setIsPrompting(false);
+      }
+    },
+    [create, loadSessions, me.id, mode, prompt, provider, selectedSession],
+  );
 
   const handleCancel = useCallback(async () => {
     try {
@@ -444,9 +618,63 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
     [deleteSession, loadSessions],
   );
 
+  useEffect(() => {
+    if (!initialSessionId || sessionsLoading) {
+      return;
+    }
+    if (selectedSession?.data.id === initialSessionId) {
+      initialSelectionAppliedRef.current = initialSessionId;
+      return;
+    }
+    if (initialSelectionAppliedRef.current === initialSessionId) {
+      return;
+    }
+    const target = sessions.find((session) => session.data.id === initialSessionId);
+    if (!target) {
+      return;
+    }
+    initialSelectionAppliedRef.current = initialSessionId;
+    void selectSessionFromList(target, false);
+  }, [
+    initialSessionId,
+    selectSessionFromList,
+    selectedSession?.data.id,
+    sessions,
+    sessionsLoading,
+  ]);
+
+  useEffect(() => {
+    const text = pendingPrompt?.trim();
+    if (!text || !selectedSession) {
+      return;
+    }
+    const promptKey = `${selectedSession.data.id}:${text}`;
+    if (pendingPromptKeyRef.current === promptKey) {
+      return;
+    }
+    pendingPromptKeyRef.current = promptKey;
+    onPendingPromptConsumed?.();
+    setIsPrompting(true);
+    void prompt({
+      session: selectedSession.data.id,
+      prompt: text,
+    })
+      .then(async () => {
+        await loadSessions();
+      })
+      .catch((error) => {
+        const message =
+          error instanceof Error ? error.message : 'Failed to send prompt';
+        toast.error(message);
+      })
+      .finally(() => {
+        setIsPrompting(false);
+      });
+  }, [loadSessions, onPendingPromptConsumed, pendingPrompt, prompt, selectedSession]);
+
   return (
-    <div className="grid gap-4 xl:grid-cols-[320px_1fr]">
-      <Card className="min-h-[560px]">
+    <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+      <Card className="min-h-[640px]">
         <CardHeader className="space-y-3">
           <CardTitle>ACP Sessions</CardTitle>
           <div className="grid grid-cols-2 gap-2">
@@ -466,7 +694,7 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
           </Button>
         </CardHeader>
         <CardContent className="pt-0">
-          <ScrollArea className="h-[440px] pr-2">
+          <ScrollArea className="h-[520px] pr-2">
             <div className="space-y-2">
               {sessionsLoading ? (
                 <p className="text-sm text-muted-foreground">Loading sessions...</p>
@@ -478,7 +706,7 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
                   return (
                     <div
                       key={session.data.id}
-                      className={`rounded-md border p-2 ${
+                      className={`rounded-lg border p-3 ${
                         selected ? 'border-primary bg-primary/5' : 'border-border'
                       }`}
                     >
@@ -490,11 +718,11 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
                         <p className="truncate text-sm font-medium">
                           {sessionDisplayName(session)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="mt-1 text-xs text-muted-foreground">
                           {session.data.state} · {formatDateTime(session.data.lastActivityAt)}
                         </p>
                       </button>
-                      <div className="mt-2 flex gap-2">
+                      <div className="mt-3 flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -519,80 +747,185 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
         </CardContent>
       </Card>
 
-      <Card className="min-h-[560px]">
-        <CardHeader className="space-y-2">
-          <CardTitle>
-            {selectedSession
-              ? `${selectedSession.data.id} (${selectedSession.data.state})`
-              : 'Select a session'}
-          </CardTitle>
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span>Stream: {streamStatus}</span>
-            <span>Last Event: {history[history.length - 1]?.eventId ?? 'n/a'}</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!selectedSession}
-              onClick={() => startStream()}
-            >
-              Reconnect SSE
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => stopStream(true)}>
-              Disconnect SSE
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!selectedSession}
-              onClick={() => void handleCancel()}
-            >
-              Cancel Session
-            </Button>
-          </div>
-          <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-            <Textarea
-              rows={3}
-              value={promptText}
-              onChange={(event) => setPromptText(event.target.value)}
-              placeholder="Send prompt to selected session"
-            />
-            <Button
-              className="md:self-end"
-              disabled={!selectedSession || isPrompting}
-              onClick={() => void handlePrompt()}
-            >
-              {isPrompting ? 'Sending...' : 'Send Prompt'}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <ScrollArea className="h-[360px] pr-2">
-            {history.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No history yet. Select a session to replay history.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {history.map((event: AcpEventEnvelope) => (
-                  <div
-                    key={event.eventId}
-                    className="rounded-md border border-border bg-background p-2"
-                  >
-                    <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span className="font-medium">{eventLabel(event)}</span>
-                      <span>{formatDateTime(event.emittedAt)}</span>
-                    </div>
-                    <p className="mt-1 text-sm font-medium">{eventHeadline(event)}</p>
-                    {renderEventDetails(event)}
-                  </div>
-                ))}
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,1fr)]">
+        <Card className="flex min-h-[640px] flex-col overflow-hidden">
+          <CardHeader className="space-y-3 border-b">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle>
+                  {selectedSession
+                    ? sessionDisplayName(selectedSession as State<AcpSessionSummary>)
+                    : 'ACP Conversation'}
+                </CardTitle>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>Stream: {streamStatus}</span>
+                  {selectedSession ? <span>Status: {selectedSession.data.state}</span> : null}
+                  {selectedSession?.data.provider ? (
+                    <span>Provider: {selectedSession.data.provider}</span>
+                  ) : null}
+                  {selectedSession?.data.mode ? <span>Mode: {selectedSession.data.mode}</span> : null}
+                  {selectedSession?.data.cwd ? <span>CWD: {selectedSession.data.cwd}</span> : null}
+                </div>
               </div>
-            )}
-          </ScrollArea>
-        </CardContent>
-      </Card>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!selectedSession}
+                  onClick={() => startStream()}
+                >
+                  Reconnect SSE
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => stopStream(true)}>
+                  Disconnect SSE
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!selectedSession}
+                  onClick={() => void handleCancel()}
+                >
+                  Cancel Session
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col">
+            <Conversation className="min-h-0 flex-1">
+              <ConversationContent className="gap-4 px-4 py-5 md:px-6">
+                {chatEntries.length === 0 ? (
+                  <ConversationEmptyState
+                    icon={<BotIcon className="size-10 text-muted-foreground/60" />}
+                    title="暂无对话"
+                    description="选择一个 ACP session，或者直接在下方发送第一条消息。"
+                  />
+                ) : (
+                  <>
+                    {chatEntries.map((entry) => (
+                      <Message
+                        key={entry.id}
+                        from={entry.role === 'user' ? 'user' : 'assistant'}
+                        className={
+                          entry.role === 'system'
+                            ? 'mx-auto max-w-2xl'
+                            : entry.tone === 'thought'
+                              ? 'opacity-85'
+                              : undefined
+                        }
+                      >
+                        <MessageContent
+                          className={
+                            entry.role === 'system'
+                              ? 'mx-auto rounded-full border bg-muted/50 px-3 py-2 text-xs text-muted-foreground'
+                              : entry.tone === 'thought'
+                                ? 'rounded-lg border border-dashed border-border/70 bg-muted/40 px-4 py-3'
+                                : undefined
+                          }
+                        >
+                          {entry.tone === 'thought' ? (
+                            <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                              <SparklesIcon className="size-3.5" />
+                              <span>Assistant reasoning</span>
+                            </div>
+                          ) : null}
+                          <MessageResponse>{entry.content}</MessageResponse>
+                          <div className="mt-2 text-[11px] text-muted-foreground">
+                            {formatDateTime(entry.emittedAt)}
+                          </div>
+                        </MessageContent>
+                      </Message>
+                    ))}
+                    {isPrompting ? (
+                      <Message key="assistant-loading" from="assistant">
+                        <MessageContent>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Spinner className="size-4" />
+                            Waiting for ACP session response...
+                          </div>
+                        </MessageContent>
+                      </Message>
+                    ) : null}
+                  </>
+                )}
+              </ConversationContent>
+              <ConversationScrollButton />
+            </Conversation>
+
+            <div className="shrink-0 border-t bg-background/95 p-4 backdrop-blur">
+              <PromptInput onSubmit={handlePromptSubmit}>
+                <PromptInputBody className="rounded-xl border border-input bg-background shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                  <PromptInputTextarea
+                    placeholder={
+                      selectedSession
+                        ? 'Continue this ACP session...'
+                        : 'Start a new ACP session by sending your first message...'
+                    }
+                    className="min-h-20 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                    disabled={isPrompting}
+                    aria-label="ACP session prompt"
+                  />
+                </PromptInputBody>
+                <PromptInputFooter className="mt-2 flex items-center justify-between">
+                  <PromptInputTools>
+                    <div className="text-xs text-muted-foreground">
+                      {selectedSession ? selectedSession.data.id : 'Will create a new session'}
+                    </div>
+                  </PromptInputTools>
+                  <PromptInputSubmit status={isPrompting ? 'submitted' : undefined} />
+                </PromptInputFooter>
+              </PromptInput>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="min-h-[640px]">
+          <CardHeader className="space-y-2 border-b">
+            <CardTitle>Runtime Inspector</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Tool calls, session updates, plans, and raw ACP events stay here.
+            </p>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <ScrollArea className="h-[540px] pr-2">
+              {sideEvents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No runtime events yet.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {sideEvents.map((event) => (
+                    <div
+                      key={event.eventId}
+                      className="rounded-lg border border-border bg-background p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          {(event.type === 'tool_call' || event.type === 'tool_result') ? (
+                            <WrenchIcon className="size-4 text-muted-foreground" />
+                          ) : (
+                            <SparklesIcon className="size-4 text-muted-foreground" />
+                          )}
+                          <div>
+                            <div className="text-sm font-medium">{eventLabel(event)}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {eventHeadline(event)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {formatDateTime(event.emittedAt)}
+                        </div>
+                      </div>
+                      {renderEventDetails(event)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

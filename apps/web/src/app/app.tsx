@@ -5,7 +5,8 @@ import { Signup } from '../features/auth/signup';
 import AcpDebugPage from '../features/acp/acp-debug';
 import OrchestrationHome from '../features/orchestration/orchestration-home';
 import OrchestrationSessionPage from '../features/orchestration/orchestration-session';
-import WorkspaceHome from '../features/workspace/workspace-home';
+import ProjectHome from '../features/projects/project-home';
+import ProjectSessionPage from '../features/projects/project-session-page';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Layout, layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
@@ -29,27 +30,28 @@ function createAppRouter() {
     {
       path: '/',
       loader: protectedRouteLoader,
-      element: <Navigate to="/workspace" replace />,
+      element: <ProjectHome />,
+    },
+    {
+      path: '/sessions/:sessionId',
+      loader: protectedRouteLoader,
+      element: <ProjectSessionPage />,
     },
     ...protectedLayoutRoutes,
     {
-      path: '/workspace',
+      path: '/projects',
       loader: protectedRouteLoader,
-      element: (
-        <Suspense>
-          <Layout />
-        </Suspense>
-      ),
-      children: [
-        {
-          index: true,
-          element: <WorkspaceHome />,
-        },
-        {
-          path: ':projectId',
-          element: <WorkspaceHome />,
-        },
-      ],
+      element: <Navigate to="/" replace />,
+    },
+    {
+      path: '/projects/:projectId',
+      loader: protectedRouteLoader,
+      element: <Navigate to="/" replace />,
+    },
+    {
+      path: '/projects/:projectId/sessions/:sessionId',
+      loader: protectedRouteLoader,
+      element: <ProjectSessionPage />,
     },
     {
       path: '/orchestration',

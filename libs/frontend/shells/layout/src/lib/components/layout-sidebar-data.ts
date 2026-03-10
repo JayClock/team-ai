@@ -80,8 +80,8 @@ export const layoutSidebarData: LayoutSidebarData = {
       isActive: true,
       items: [
         {
-          title: 'ACP 会话',
-          url: '/workspace',
+          title: '项目会话',
+          url: '/projects',
         },
         {
           title: '编排',
