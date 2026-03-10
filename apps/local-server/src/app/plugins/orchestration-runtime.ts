@@ -4,11 +4,18 @@ import { recoverActiveOrchestrationSessions } from '../services/orchestration-se
 
 const orchestrationRuntimePlugin: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onReady', async () => {
-    await recoverActiveOrchestrationSessions(
-      fastify.sqlite,
-      fastify.orchestrationStreamBroker,
-      fastify.agentGatewayClient,
-    );
+    setImmediate(() => {
+      void recoverActiveOrchestrationSessions(
+        fastify.sqlite,
+        fastify.orchestrationStreamBroker,
+        fastify.agentGatewayClient,
+      ).catch((error) => {
+        fastify.log.error(
+          { err: error },
+          'Failed to recover active orchestration sessions',
+        );
+      });
+    });
   });
 };
 
