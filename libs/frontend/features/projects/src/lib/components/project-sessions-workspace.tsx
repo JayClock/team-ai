@@ -55,14 +55,136 @@ function formatDateTime(value: string | null): string {
   return parsed.toLocaleString();
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function asText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function formatJson(value: unknown): string {
+  return JSON.stringify(value, null, 2);
+}
+
+function toolPayload(event: AcpEventEnvelope): Record<string, unknown> | null {
+  return asRecord(event.data.payload);
+}
+
+function eventLabel(event: AcpEventEnvelope): string {
+  if (event.type !== 'tool') {
+    return event.type;
+  }
+
+  const payload = toolPayload(event);
+  return asText(payload?.type) ?? 'tool';
+}
+
+function eventHeadline(event: AcpEventEnvelope): string {
+  const payload = toolPayload(event);
+  const toolName =
+    asText(payload?.toolName) ??
+    asText(payload?.name) ??
+    asText(payload?.tool) ??
+    asText(event.data.toolName) ??
+    asText(event.data.name);
+
+  if (toolName) {
+    return toolName;
+  }
+
+  if (event.type === 'delta') {
+    return asText(event.data.text) ?? asText(event.data.content) ?? 'message';
+  }
+
+  if (event.type === 'status') {
+    return asText(event.data.reason) ?? asText(event.data.state) ?? 'status';
+  }
+
+  if (event.type === 'complete') {
+    return asText(event.data.reason) ?? 'completed';
+  }
+
+  if (event.type === 'error') {
+    return event.error?.message ?? 'error';
+  }
+
+  return event.type;
+}
+
 function eventSummary(event: AcpEventEnvelope): string {
+  if (typeof event.data.text === 'string' && event.data.text.trim()) {
+    return event.data.text;
+  }
   if (typeof event.data.content === 'string' && event.data.content.trim()) {
     return event.data.content;
   }
   if (typeof event.data.state === 'string') {
     return `state=${event.data.state}`;
   }
+  const payload = toolPayload(event);
+  if (payload) {
+    if (typeof payload.output === 'string' && payload.output.trim()) {
+      return payload.output;
+    }
+    if (typeof payload.content === 'string' && payload.content.trim()) {
+      return payload.content;
+    }
+  }
   return JSON.stringify(event.data);
+}
+
+function renderEventDetails(event: AcpEventEnvelope) {
+  const payload = toolPayload(event);
+  const protocol = asText(event.data.protocol);
+  const argumentsValue = payload?.arguments ?? payload?.input ?? null;
+  const resultValue =
+    payload?.result ?? payload?.output ?? payload?.content ?? event.data.text ?? null;
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+        {protocol ? <span>protocol: {protocol}</span> : null}
+        {event.error ? <span>error: {event.error.code}</span> : null}
+      </div>
+
+      {event.type === 'tool' ? (
+        <div className="space-y-2">
+          {argumentsValue != null ? (
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                input
+              </p>
+              <pre className="mt-1 overflow-x-auto rounded-md bg-muted p-2 text-xs">
+                {formatJson(argumentsValue)}
+              </pre>
+            </div>
+          ) : null}
+          {resultValue != null ? (
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                output
+              </p>
+              <pre className="mt-1 overflow-x-auto rounded-md bg-muted p-2 text-xs">
+                {typeof resultValue === 'string' ? resultValue : formatJson(resultValue)}
+              </pre>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-sm break-words">{eventSummary(event)}</p>
+      )}
+
+      {event.error ? (
+        <div className="rounded-md border border-destructive/20 bg-destructive/5 p-2 text-xs text-destructive">
+          {event.error.message}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function ProjectSessionsWorkspace(props: { projectState: State<Project> }) {
@@ -470,10 +592,11 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
                     className="rounded-md border border-border bg-background p-2"
                   >
                     <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span>{event.type}</span>
+                      <span className="font-medium">{eventLabel(event)}</span>
                       <span>{formatDateTime(event.emittedAt)}</span>
                     </div>
-                    <p className="mt-1 text-sm">{eventSummary(event)}</p>
+                    <p className="mt-1 text-sm font-medium">{eventHeadline(event)}</p>
+                    {renderEventDetails(event)}
                   </div>
                 ))}
               </div>

@@ -83,7 +83,7 @@ function mapAcpEvent(payload: Record<string, unknown>, traceId?: string): Sessio
   if (eventType === 'agent_message_chunk') {
     return deltaEvent(payload, traceId, 'acp');
   }
-  if (eventType === 'tool_call') {
+  if (eventType === 'tool_call' || eventType === 'tool_result') {
     return toolEvent(payload, traceId, 'acp');
   }
   if (eventType === 'complete') {
