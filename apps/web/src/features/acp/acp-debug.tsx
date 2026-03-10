@@ -4,7 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@shared/ui/components/
 import { Input } from '@shared/ui/components/input';
 import { Label } from '@shared/ui/components/label';
 import { Textarea } from '@shared/ui/components/textarea';
-import { runtimeFetch } from '@shared/util-http';
+import {
+  getCurrentDesktopRuntimeConfig,
+  resolveRuntimeApiUrl,
+  runtimeFetch,
+} from '@shared/util-http';
 
 type JsonRpcErrorMeta = {
   acpCode: string;
@@ -62,7 +66,7 @@ export default function AcpDebugPage() {
 
   const [projectId, setProjectId] = useState('1');
   const [actorUserId, setActorUserId] = useState('1');
-  const [provider, setProvider] = useState('team-ai');
+  const [provider, setProvider] = useState('codex');
   const [mode, setMode] = useState('CHAT');
   const [sessionId, setSessionId] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -198,8 +202,15 @@ export default function AcpDebugPage() {
     }
     disconnectStream();
 
-    const url = new URL('/api/acp', window.location.origin);
+    const url = new URL(resolveRuntimeApiUrl('/api/acp'));
     url.searchParams.set('sessionId', sessionId.trim());
+    const desktopRuntimeConfig = getCurrentDesktopRuntimeConfig();
+    if (desktopRuntimeConfig) {
+      url.searchParams.set(
+        'desktopSessionToken',
+        desktopRuntimeConfig.desktopSessionToken,
+      );
+    }
     const source = new EventSource(url.toString(), { withCredentials: true });
 
     source.addEventListener('acp-event', (event) => {

@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
+import { URL } from 'node:url';
 import { ProblemError } from '../errors/problem-error';
 
 export const desktopSessionHeader = 'x-desktop-session';
@@ -33,8 +34,14 @@ const desktopAuthPlugin: FastifyPluginAsync<DesktopAuthOptions> = async (
     }
 
     const providedToken = request.headers[desktopSessionHeader];
+    const queryToken =
+      request.method === 'GET'
+        ? new URL(request.url, 'http://localhost').searchParams.get(
+            'desktopSessionToken',
+          )
+        : null;
 
-    if (providedToken === desktopSessionToken) {
+    if (providedToken === desktopSessionToken || queryToken === desktopSessionToken) {
       return;
     }
 

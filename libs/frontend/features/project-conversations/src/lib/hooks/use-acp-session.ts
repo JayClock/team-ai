@@ -387,18 +387,9 @@ export function useAcpSession(
         throw new Error('Cannot rename without a selected session');
       }
       const self = base.follow('self');
-      const response = await fetch(self.uri, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name }),
+      await self.patch({
+        data: { name },
       });
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Rename failed with status ${response.status}`);
-      }
       const refreshed = await self.refresh();
       setSelectedSession(refreshed);
       await replayHistory({
@@ -419,14 +410,7 @@ export function useAcpSession(
       if (!base) {
         throw new Error('Cannot delete without a selected session');
       }
-      const response = await fetch(base.follow('self').uri, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!response.ok && response.status !== 204) {
-        const message = await response.text();
-        throw new Error(message || `Delete failed with status ${response.status}`);
-      }
+      await base.follow('self').delete();
       const deletedId = base.data.id;
       setSelectedSession((current) =>
         current?.data.id === deletedId ? null : current,

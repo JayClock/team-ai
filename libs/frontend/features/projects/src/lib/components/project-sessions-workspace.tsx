@@ -18,6 +18,10 @@ import {
   Textarea,
   toast,
 } from '@shared/ui';
+import {
+  getCurrentDesktopRuntimeConfig,
+  resolveRuntimeApiUrl,
+} from '@shared/util-http';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const STREAM_RETRY_DELAY_MS = 1500;
@@ -82,7 +86,7 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
     ingestEvents,
   } = useAcpSession(projectState, {
     actorUserId: me.id,
-    provider: 'team-ai',
+    provider: 'codex',
     mode: 'CHAT',
     historyLimit: 200,
   });
@@ -91,7 +95,7 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [promptText, setPromptText] = useState('');
-  const [provider, setProvider] = useState('team-ai');
+  const [provider, setProvider] = useState('codex');
   const [mode, setMode] = useState('CHAT');
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
   const [isPrompting, setIsPrompting] = useState(false);
@@ -161,11 +165,18 @@ export function ProjectSessionsWorkspace(props: { projectState: State<Project> }
     allowReconnectRef.current = true;
     setStreamStatus('connecting');
 
-    const url = new URL('/api/acp', window.location.origin);
+    const url = new URL(resolveRuntimeApiUrl('/api/acp'));
     url.searchParams.set('sessionId', selectedSession.data.id);
+    const desktopRuntimeConfig = getCurrentDesktopRuntimeConfig();
+    if (desktopRuntimeConfig) {
+      url.searchParams.set(
+        'desktopSessionToken',
+        desktopRuntimeConfig.desktopSessionToken,
+      );
+    }
     const latest = latestEventIdRef.current;
     if (latest) {
-      url.searchParams.set('sinceEventId', latest);
+      url.searchParams.set('since', latest);
     }
 
     const source = new EventSource(url.toString(), { withCredentials: true });

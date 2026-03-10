@@ -244,4 +244,49 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE source_url IS NOT NULL AND deleted_at IS NULL;
     `,
   },
+  {
+    version: '009_project_acp_sessions',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_acp_sessions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        parent_session_id TEXT,
+        name TEXT,
+        provider TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        state TEXT NOT NULL,
+        runtime_session_id TEXT,
+        failure_reason TEXT,
+        last_event_id TEXT,
+        started_at TEXT,
+        last_activity_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (parent_session_id) REFERENCES project_acp_sessions(id)
+      );
+
+      CREATE TABLE IF NOT EXISTS project_acp_session_events (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT NOT NULL UNIQUE,
+        session_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        error_json TEXT,
+        emitted_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (session_id) REFERENCES project_acp_sessions(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_acp_sessions_project_id
+        ON project_acp_sessions(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_acp_session_events_session_id
+        ON project_acp_session_events(session_id, sequence ASC);
+    `,
+  },
 ];
