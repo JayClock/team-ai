@@ -14,9 +14,15 @@ import rootRoute from './root';
 describe('acp route', () => {
   const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];
   const originalDataDir = process.env.TEAMAI_DATA_DIR;
+  const originalDesktopSessionToken = process.env.DESKTOP_SESSION_TOKEN;
+  const originalHost = process.env.HOST;
+  const originalPort = process.env.PORT;
 
   afterEach(async () => {
     process.env.TEAMAI_DATA_DIR = originalDataDir;
+    process.env.DESKTOP_SESSION_TOKEN = originalDesktopSessionToken;
+    process.env.HOST = originalHost;
+    process.env.PORT = originalPort;
 
     while (fastifyInstances.length > 0) {
       const fastify = fastifyInstances.pop();
@@ -28,6 +34,9 @@ describe('acp route', () => {
 
   it('creates desktop acp sessions and exposes history/resources from local-server', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-test-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
 
     const fastify = Fastify();
     fastifyInstances.push(fastify);
@@ -126,6 +135,7 @@ describe('acp route', () => {
 
     const project = await createProject(fastify.sqlite, {
       title: 'Desktop ACP Project',
+      workspaceRoot: '/tmp/team-ai-desktop-project',
     });
 
     const createResponse = await fastify.inject({
@@ -165,6 +175,26 @@ describe('acp route', () => {
 
     expect(promptResponse.statusCode).toBe(200);
     expect(promptMock).toHaveBeenCalledTimes(1);
+    expect(promptMock).toHaveBeenCalledWith('runtime-1', {
+      cwd: '/tmp/team-ai-desktop-project',
+      env: {
+        TEAMAI_DESKTOP_SESSION_TOKEN: 'desktop-token-test',
+      },
+      input: 'hello desktop acp',
+      metadata: {
+        localSessionId: sessionId,
+        mcpServers: [
+          {
+            bearerTokenEnvVar: 'TEAMAI_DESKTOP_SESSION_TOKEN',
+            name: 'team_ai_local',
+            url: 'http://127.0.0.1:4310/api/mcp',
+          },
+        ],
+        projectId: project.id,
+      },
+      timeoutMs: undefined,
+      traceId: undefined,
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 350));
 

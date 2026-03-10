@@ -13,6 +13,12 @@ type ActiveRun = {
   timeout: ReturnType<typeof setTimeout>;
 };
 
+interface CodexMcpServerConfig {
+  bearerTokenEnvVar?: string;
+  name: string;
+  url: string;
+}
+
 export class CodexProviderAdapter implements ProviderAdapter {
   readonly name = 'codex';
   private readonly commandParts: string[];
@@ -38,7 +44,7 @@ export class CodexProviderAdapter implements ProviderAdapter {
       return;
     }
 
-    const [command, ...args] = this.commandParts;
+    const [command, ...args] = buildCommandParts(this.commandParts, request);
     const childProcess = spawn(command, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       shell: false,
@@ -164,6 +170,30 @@ export class CodexProviderAdapter implements ProviderAdapter {
   }
 }
 
+function buildCommandParts(
+  commandParts: string[],
+  request: ProviderPromptRequest
+): string[] {
+  const extraArgs = resolveMcpServerConfigArgs(request.metadata);
+  if (extraArgs.length === 0) {
+    return [...commandParts];
+  }
+
+  const [command, ...args] = commandParts;
+  const stdinPromptIndex = args.lastIndexOf('-');
+
+  if (stdinPromptIndex >= 0) {
+    return [
+      command,
+      ...args.slice(0, stdinPromptIndex),
+      ...extraArgs,
+      ...args.slice(stdinPromptIndex),
+    ];
+  }
+
+  return [command, ...args, ...extraArgs];
+}
+
 function tokenize(command: string): string[] {
   return command
     .trim()
@@ -183,6 +213,73 @@ function ensureCodexJsonOutput(commandParts: string[]): string[] {
   }
 
   return commandParts;
+}
+
+function resolveMcpServerConfigArgs(
+  metadata?: Record<string, unknown>
+): string[] {
+  const mcpServers = parseMcpServers(metadata?.mcpServers);
+  if (mcpServers.length === 0) {
+    return [];
+  }
+
+  return mcpServers.flatMap((server) => {
+    const args = [
+      '-c',
+      `mcp_servers.${server.name}.url=${toTomlString(server.url)}`,
+    ];
+
+    if (server.bearerTokenEnvVar) {
+      args.push(
+        '-c',
+        `mcp_servers.${server.name}.bearer_token_env_var=${toTomlString(server.bearerTokenEnvVar)}`
+      );
+    }
+
+    return args;
+  });
+}
+
+function parseMcpServers(value: unknown): CodexMcpServerConfig[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return [];
+    }
+
+    const name =
+      typeof (entry as { name?: unknown }).name === 'string'
+        ? (entry as { name: string }).name.trim()
+        : '';
+    const url =
+      typeof (entry as { url?: unknown }).url === 'string'
+        ? (entry as { url: string }).url.trim()
+        : '';
+    const bearerTokenEnvVar =
+      typeof (entry as { bearerTokenEnvVar?: unknown }).bearerTokenEnvVar ===
+      'string'
+        ? (entry as { bearerTokenEnvVar: string }).bearerTokenEnvVar.trim()
+        : undefined;
+
+    if (!name || !url) {
+      return [];
+    }
+
+    return [
+      {
+        name,
+        url,
+        ...(bearerTokenEnvVar ? { bearerTokenEnvVar } : {}),
+      },
+    ];
+  });
+}
+
+function toTomlString(value: string): string {
+  return JSON.stringify(value);
 }
 
 function emitStructuredStdout(

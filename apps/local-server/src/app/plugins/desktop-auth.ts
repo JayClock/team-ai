@@ -4,6 +4,7 @@ import { URL } from 'node:url';
 import { ProblemError } from '../errors/problem-error';
 
 export const desktopSessionHeader = 'x-desktop-session';
+const authorizationHeader = 'authorization';
 
 interface DesktopAuthOptions {
   desktopSessionToken?: string;
@@ -34,6 +35,12 @@ const desktopAuthPlugin: FastifyPluginAsync<DesktopAuthOptions> = async (
     }
 
     const providedToken = request.headers[desktopSessionHeader];
+    const authorization = request.headers[authorizationHeader];
+    const bearerToken =
+      typeof authorization === 'string' &&
+      authorization.startsWith('Bearer ')
+        ? authorization.slice('Bearer '.length).trim()
+        : null;
     const queryToken =
       request.method === 'GET'
         ? new URL(request.url, 'http://localhost').searchParams.get(
@@ -41,7 +48,11 @@ const desktopAuthPlugin: FastifyPluginAsync<DesktopAuthOptions> = async (
           )
         : null;
 
-    if (providedToken === desktopSessionToken || queryToken === desktopSessionToken) {
+    if (
+      providedToken === desktopSessionToken ||
+      bearerToken === desktopSessionToken ||
+      queryToken === desktopSessionToken
+    ) {
       return;
     }
 
@@ -49,7 +60,7 @@ const desktopAuthPlugin: FastifyPluginAsync<DesktopAuthOptions> = async (
       type: 'https://team-ai.dev/problems/desktop-session-required',
       title: 'Desktop Session Required',
       status: 401,
-      detail: 'Missing or invalid X-Desktop-Session header',
+      detail: 'Missing or invalid desktop session token',
     });
   });
 };

@@ -4,6 +4,7 @@ import type { FastifyPluginAsync } from 'fastify';
 const allowedHeaders = [
   'Accept',
   'Accept-Language',
+  'Authorization',
   'Content-Type',
   'X-Api-Key',
   'X-Desktop-Session',

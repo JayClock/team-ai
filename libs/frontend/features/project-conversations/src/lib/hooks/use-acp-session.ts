@@ -267,7 +267,7 @@ export function useAcpSession(
         {
           projectId: projectState.data.id,
           actorUserId,
-          provider: input.provider ?? options.provider ?? 'team-ai',
+          provider: input.provider ?? options.provider ?? 'codex',
           mode: input.mode ?? options.mode ?? 'CHAT',
           parentSessionId: input.parentSessionId,
           idempotencyKey: input.idempotencyKey,

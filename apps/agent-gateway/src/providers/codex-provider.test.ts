@@ -127,4 +127,50 @@ describe('CodexProviderAdapter', () => {
     expect(onComplete).toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
   });
+
+  it('injects local mcp servers into codex config overrides', () => {
+    const childProcess = new FakeChildProcess();
+    vi.mocked(spawn).mockReturnValue(childProcess as never);
+    const adapter = new CodexProviderAdapter('codex exec --json -');
+
+    adapter.prompt(
+      {
+        sessionId: 'session-3',
+        input: 'use local mcp',
+        timeoutMs: 1000,
+        metadata: {
+          mcpServers: [
+            {
+              name: 'team_ai_local',
+              url: 'http://127.0.0.1:4310/api/mcp',
+              bearerTokenEnvVar: 'TEAMAI_DESKTOP_SESSION_TOKEN',
+            },
+          ],
+        },
+      },
+      {
+        onChunk: vi.fn(),
+        onEvent: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+      }
+    );
+
+    expect(spawn).toHaveBeenCalledWith(
+      'codex',
+      [
+        'exec',
+        '--json',
+        '-c',
+        'mcp_servers.team_ai_local.url="http://127.0.0.1:4310/api/mcp"',
+        '-c',
+        'mcp_servers.team_ai_local.bearer_token_env_var="TEAMAI_DESKTOP_SESSION_TOKEN"',
+        '-',
+      ],
+      expect.objectContaining({
+        stdio: ['pipe', 'pipe', 'pipe'],
+        shell: false,
+      })
+    );
+  });
 });

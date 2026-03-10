@@ -42,7 +42,7 @@ function createFixture() {
     actor: { id: 'u-1' },
     parentSession: null,
     name: 'Session 1',
-    provider: 'team-ai',
+    provider: 'codex',
     mode: 'CHAT',
     state: 'RUNNING',
     startedAt: '2026-03-04T00:00:00Z',

@@ -80,6 +80,12 @@ interface PromptSessionInput {
   traceId?: string;
 }
 
+interface LocalMcpServerConfig {
+  bearerTokenEnvVar?: string;
+  name: string;
+  url: string;
+}
+
 const activeGatewayPolls = new Map<string, Promise<void>>();
 
 function createSessionId() {
@@ -88,6 +94,21 @@ function createSessionId() {
 
 function createEventId() {
   return `acpe_${eventIdGenerator()}`;
+}
+
+function resolveLocalMcpServer(): LocalMcpServerConfig | null {
+  const host = process.env.HOST?.trim() || '127.0.0.1';
+  const port = process.env.PORT?.trim();
+
+  if (!port) {
+    return null;
+  }
+
+  return {
+    name: 'team_ai_local',
+    url: `http://${host}:${port}/api/mcp`,
+    bearerTokenEnvVar: 'TEAMAI_DESKTOP_SESSION_TOKEN',
+  };
 }
 
 function throwSessionNotFound(sessionId: string): never {
@@ -896,6 +917,14 @@ export async function promptAcpSession(
   if (session.project_id !== projectId) {
     throwSessionNotFound(sessionId);
   }
+  const project = await getProjectById(sqlite, projectId);
+  const localMcpServer = resolveLocalMcpServer();
+  const gatewayEnv: Record<string, string> = {};
+
+  if (process.env.DESKTOP_SESSION_TOKEN?.trim()) {
+    gatewayEnv.TEAMAI_DESKTOP_SESSION_TOKEN =
+      process.env.DESKTOP_SESSION_TOKEN.trim();
+  }
 
   const runtimeSessionId = await ensureRuntimeSession(sqlite, sessionId, agentGatewayClient);
 
@@ -918,12 +947,15 @@ export async function promptAcpSession(
   });
 
   const response = await agentGatewayClient.prompt(runtimeSessionId, {
+    ...(project.workspaceRoot ? { cwd: project.workspaceRoot } : {}),
+    ...(Object.keys(gatewayEnv).length > 0 ? { env: gatewayEnv } : {}),
     input: input.prompt,
     timeoutMs: input.timeoutMs,
     traceId: input.traceId,
     metadata: {
       localSessionId: sessionId,
       projectId,
+      ...(localMcpServer ? { mcpServers: [localMcpServer] } : {}),
     },
   });
 
