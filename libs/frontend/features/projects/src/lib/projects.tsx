@@ -50,7 +50,10 @@ function ProjectsWorkspaceContent(props: { projectState: State<Project> }) {
       </header>
 
       {hasSessions ? (
-        <ProjectSessionsWorkspace projectState={projectState} />
+        <ProjectSessionsWorkspace
+          projectState={projectState}
+          projectTitle={projectState.data.name}
+        />
       ) : (
         <MissingPanelMessage message="Current project does not expose ACP sessions link." />
       )}

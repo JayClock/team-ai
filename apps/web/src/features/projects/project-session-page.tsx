@@ -43,6 +43,10 @@ export default function ProjectSessionPage() {
     [navigate, projectState],
   );
 
+  const handleBack = useCallback(() => {
+    navigate('/');
+  }, [navigate]);
+
   const safeSessionId = useMemo(() => sessionId ?? undefined, [sessionId]);
 
   if (projects.length === 0) {
@@ -50,10 +54,10 @@ export default function ProjectSessionPage() {
       <div className="p-4 md:p-6">
         <Card className="mx-auto max-w-3xl">
           <CardHeader>
-            <CardTitle>Projects</CardTitle>
+            <CardTitle>项目</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            No local project yet.
+            当前还没有本地项目。
           </CardContent>
         </Card>
       </div>
@@ -65,22 +69,16 @@ export default function ProjectSessionPage() {
   }
 
   return (
-    <div className="min-w-0 p-4 md:p-6">
-      <div className="mx-auto max-w-[1600px]">
-        <div className="mb-4">
-          <h1 className="text-xl font-semibold">{projectTitle(currentProject)}</h1>
-          <p className="text-sm text-muted-foreground">
-            Dedicated ACP session view for this project.
-          </p>
-        </div>
-        <ProjectSessionsWorkspace
-          projectState={projectState}
-          initialSessionId={safeSessionId}
-          pendingPrompt={pendingPrompt}
-          onPendingPromptConsumed={handlePendingPromptConsumed}
-          onSessionNavigate={handleSessionNavigate}
-        />
-      </div>
+    <div className="min-w-0 h-[100dvh] overflow-hidden bg-background">
+      <ProjectSessionsWorkspace
+        projectState={projectState}
+        projectTitle={projectTitle(currentProject)}
+        onBack={handleBack}
+        initialSessionId={safeSessionId}
+        pendingPrompt={pendingPrompt}
+        onPendingPromptConsumed={handlePendingPromptConsumed}
+        onSessionNavigate={handleSessionNavigate}
+      />
     </div>
   );
 }
