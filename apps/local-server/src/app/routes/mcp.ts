@@ -32,6 +32,7 @@ const projectsListArgsSchema = z.object({
 const agentsListArgsSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
+  projectId: z.string().trim().min(1),
 });
 
 const createAcpSessionArgsSchema = z.object({
@@ -87,10 +88,12 @@ const mcpTools = [
   {
     name: 'agents_list',
     title: 'List Agents',
-    description: 'List local agent profiles available in the desktop runtime.',
+    description: 'List local agent profiles available for a project in the desktop runtime.',
     inputSchema: {
       type: 'object',
+      required: ['projectId'],
       properties: {
+        projectId: { type: 'string' },
         page: { type: 'number', minimum: 1, default: 1 },
         pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
       },

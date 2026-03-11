@@ -3,10 +3,13 @@ import type { AgentListPayload, AgentPayload } from '../schemas/agent';
 function createAgentLinks(agent: AgentPayload) {
   return {
     self: {
-      href: `/api/agents/${agent.id}`,
+      href: `/api/projects/${agent.projectId}/agents/${agent.id}`,
     },
     collection: {
-      href: '/api/agents',
+      href: `/api/projects/${agent.projectId}/agents`,
+    },
+    project: {
+      href: `/api/projects/${agent.projectId}`,
     },
   };
 }
@@ -27,10 +30,13 @@ export function presentAgentList(payload: AgentListPayload) {
   return {
     _links: {
       self: {
-        href: `/api/agents?${query.toString()}`,
+        href: `/api/projects/${payload.projectId}/agents?${query.toString()}`,
       },
       root: {
         href: '/api',
+      },
+      project: {
+        href: `/api/projects/${payload.projectId}`,
       },
     },
     _embedded: {

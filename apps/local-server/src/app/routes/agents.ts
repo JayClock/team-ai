@@ -32,38 +32,50 @@ const agentPatchSchema = agentBodySchema.partial().refine(
   'At least one field must be provided',
 );
 
-const agentParamsSchema = z.object({
+const projectParamsSchema = z.object({
+  projectId: z.string().min(1),
+});
+
+const projectAgentParamsSchema = z.object({
+  projectId: z.string().min(1),
   agentId: z.string().min(1),
 });
 
 const agentsRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/agents', async (request) => {
+  fastify.get('/projects/:projectId/agents', async (request) => {
+    const { projectId } = projectParamsSchema.parse(request.params);
     const query = listAgentsQuerySchema.parse(request.query);
-    return presentAgentList(await listAgents(fastify.sqlite, query));
+    return presentAgentList(await listAgents(fastify.sqlite, { ...query, projectId }));
   });
 
-  fastify.post('/agents', async (request, reply) => {
+  fastify.post('/projects/:projectId/agents', async (request, reply) => {
+    const { projectId } = projectParamsSchema.parse(request.params);
     const body = agentBodySchema.parse(request.body);
-    const agent = await createAgent(fastify.sqlite, body);
+    const agent = await createAgent(fastify.sqlite, {
+      ...body,
+      projectId,
+    });
 
-    reply.code(201).header('Location', `/api/agents/${agent.id}`);
+    reply
+      .code(201)
+      .header('Location', `/api/projects/${projectId}/agents/${agent.id}`);
     return presentAgent(agent);
   });
 
-  fastify.get('/agents/:agentId', async (request) => {
-    const { agentId } = agentParamsSchema.parse(request.params);
-    return presentAgent(await getAgentById(fastify.sqlite, agentId));
+  fastify.get('/projects/:projectId/agents/:agentId', async (request) => {
+    const { projectId, agentId } = projectAgentParamsSchema.parse(request.params);
+    return presentAgent(await getAgentById(fastify.sqlite, projectId, agentId));
   });
 
-  fastify.patch('/agents/:agentId', async (request) => {
-    const { agentId } = agentParamsSchema.parse(request.params);
+  fastify.patch('/projects/:projectId/agents/:agentId', async (request) => {
+    const { projectId, agentId } = projectAgentParamsSchema.parse(request.params);
     const body = agentPatchSchema.parse(request.body);
-    return presentAgent(await updateAgent(fastify.sqlite, agentId, body));
+    return presentAgent(await updateAgent(fastify.sqlite, projectId, agentId, body));
   });
 
-  fastify.delete('/agents/:agentId', async (request, reply) => {
-    const { agentId } = agentParamsSchema.parse(request.params);
-    await deleteAgent(fastify.sqlite, agentId);
+  fastify.delete('/projects/:projectId/agents/:agentId', async (request, reply) => {
+    const { projectId, agentId } = projectAgentParamsSchema.parse(request.params);
+    await deleteAgent(fastify.sqlite, projectId, agentId);
     reply.code(204).send();
   });
 };

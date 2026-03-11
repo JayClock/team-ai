@@ -105,6 +105,7 @@ describe('mcp route', () => {
       repoPath: '/tmp/team-ai-local-mcp-project',
     });
     await createAgent(fastify.sqlite, {
+      projectId: project.id,
       name: 'Planner',
       role: 'planner',
       provider: 'codex',
@@ -155,6 +156,30 @@ describe('mcp route', () => {
     expect(
       listProjectsResponse.json().result.content[0].json.items[0].id,
     ).toBe(project.id);
+
+    const listAgentsResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-agents',
+        method: 'tools/call',
+        params: {
+          name: 'agents_list',
+          arguments: {
+            projectId: project.id,
+          },
+        },
+      },
+    });
+
+    expect(listAgentsResponse.statusCode).toBe(200);
+    expect(
+      listAgentsResponse.json().result.content[0].json.items[0],
+    ).toMatchObject({
+      projectId: project.id,
+      name: 'Planner',
+    });
 
     const createAcpResponse = await fastify.inject({
       method: 'POST',

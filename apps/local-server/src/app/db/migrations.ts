@@ -363,4 +363,26 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '014_project_agents',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_agents (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        system_prompt TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_agents_project_id
+        ON project_agents(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

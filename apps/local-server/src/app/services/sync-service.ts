@@ -161,7 +161,7 @@ function countUpdatedSince(
 function countPendingChanges(sqlite: Database, lastSuccessfulSyncAt: string | null) {
   return (
     countUpdatedSince(sqlite, 'projects', lastSuccessfulSyncAt) +
-    countUpdatedSince(sqlite, 'agents', lastSuccessfulSyncAt) +
+    countUpdatedSince(sqlite, 'project_agents', lastSuccessfulSyncAt) +
     countUpdatedSince(sqlite, 'orchestration_sessions', lastSuccessfulSyncAt, {
       hasSoftDelete: false,
     })

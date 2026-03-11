@@ -159,6 +159,9 @@ describe('projects route', () => {
         tasks: {
           href: `/api/projects/${project.id}/tasks`,
         },
+        agents: {
+          href: `/api/projects/${project.id}/agents`,
+        },
         specialists: {
           href: `/api/projects/${project.id}/specialists`,
         },
