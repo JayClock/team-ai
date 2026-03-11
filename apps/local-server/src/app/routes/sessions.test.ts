@@ -72,6 +72,9 @@ describe('sessions routes', () => {
         collection: {
           href: `/api/projects/${project.id}/sessions`,
         },
+        tasks: {
+          href: `/api/sessions/${rootSession.id}/tasks`,
+        },
         context: {
           href: `/api/sessions/${rootSession.id}/context`,
         },

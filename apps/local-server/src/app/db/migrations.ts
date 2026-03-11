@@ -308,4 +308,59 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '013_project_tasks',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_tasks (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        trigger_session_id TEXT,
+        title TEXT NOT NULL,
+        objective TEXT NOT NULL,
+        scope TEXT,
+        status TEXT NOT NULL,
+        board_id TEXT,
+        column_id TEXT,
+        position INTEGER,
+        priority TEXT,
+        labels_json TEXT NOT NULL DEFAULT '[]',
+        assignee TEXT,
+        assigned_provider TEXT,
+        assigned_role TEXT,
+        assigned_specialist_id TEXT,
+        assigned_specialist_name TEXT,
+        dependencies_json TEXT NOT NULL DEFAULT '[]',
+        parallel_group TEXT,
+        acceptance_criteria_json TEXT NOT NULL DEFAULT '[]',
+        verification_commands_json TEXT NOT NULL DEFAULT '[]',
+        completion_summary TEXT,
+        verification_verdict TEXT,
+        verification_report TEXT,
+        github_id TEXT,
+        github_number INTEGER,
+        github_url TEXT,
+        github_repo TEXT,
+        github_state TEXT,
+        github_synced_at TEXT,
+        last_sync_error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (trigger_session_id) REFERENCES project_sessions(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_project_id
+        ON project_tasks(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_trigger_session_id
+        ON project_tasks(trigger_session_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_status
+        ON project_tasks(status, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

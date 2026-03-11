@@ -16,6 +16,9 @@ function createSessionLinks(session: SessionPayload) {
     collection: {
       href: `/api/projects/${session.projectId}/sessions`,
     },
+    tasks: {
+      href: `/api/sessions/${session.id}/tasks`,
+    },
     context: {
       href: `/api/sessions/${session.id}/context`,
     },
