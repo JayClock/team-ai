@@ -22,7 +22,9 @@ import type {
   AcpSessionState,
   AcpEventTypePayload,
 } from '../schemas/acp';
+import { createAgent } from './agent-service';
 import { getProjectById } from './project-service';
+import { getSpecialistById } from './specialist-service';
 
 const sessionIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -34,6 +36,7 @@ const eventIdGenerator = customAlphabet(
 );
 
 interface AcpSessionRow {
+  agent_id: string | null;
   actor_id: string;
   completed_at: string | null;
   cwd: string | null;
@@ -47,6 +50,7 @@ interface AcpSessionRow {
   project_id: string;
   provider: string;
   runtime_session_id: string | null;
+  specialist_id: string | null;
   started_at: string | null;
   state: AcpSessionState;
 }
@@ -72,6 +76,7 @@ interface CreateSessionInput {
   parentSessionId?: string | null;
   projectId: string;
   provider: string;
+  specialistId?: string;
 }
 
 interface PromptSessionInput {
@@ -107,10 +112,12 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
   return {
     id: row.id,
     project: { id: row.project_id },
+    agent: row.agent_id ? { id: row.agent_id } : null,
     actor: { id: row.actor_id },
     parentSession: row.parent_session_id ? { id: row.parent_session_id } : null,
     name: row.name,
     provider: row.provider,
+    specialistId: row.specialist_id,
     mode: row.mode,
     cwd: row.cwd ?? '',
     state: row.state,
@@ -142,6 +149,7 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
         SELECT
           id,
           project_id,
+          agent_id,
           actor_id,
           parent_session_id,
           name,
@@ -150,6 +158,7 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           cwd,
           state,
           runtime_session_id,
+          specialist_id,
           failure_reason,
           last_event_id,
           started_at,
@@ -285,6 +294,47 @@ function appendLocalEvent(
   });
   broker.publish(event);
   return event;
+}
+
+function getSessionAgentPrompt(
+  sqlite: Database,
+  session: Pick<AcpSessionRow, 'agent_id' | 'project_id'>,
+): string | null {
+  if (!session.agent_id) {
+    return null;
+  }
+
+  const row = sqlite
+    .prepare(
+      `
+        SELECT system_prompt
+        FROM project_agents
+        WHERE id = ? AND project_id = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(session.agent_id, session.project_id) as
+    | { system_prompt: string | null }
+    | undefined;
+
+  return row?.system_prompt?.trim() || null;
+}
+
+function sessionHasPromptHistory(sqlite: Database, sessionId: string): boolean {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT COUNT(*) AS count
+        FROM project_acp_session_events
+        WHERE session_id = ? AND type = 'message'
+      `,
+    )
+    .get(sessionId) as { count: number };
+
+  return row.count > 0;
+}
+
+function buildBootstrapPrompt(systemPrompt: string, userPrompt: string): string {
+  return [`System:\n${systemPrompt.trim()}`, `User:\n${userPrompt}`].join('\n\n');
 }
 
 function resolveSessionCwd(repoPath: string | null): string {
@@ -674,13 +724,28 @@ export async function createAcpSession(
   input: CreateSessionInput,
 ): Promise<AcpSessionPayload> {
   const project = await getProjectById(sqlite, input.projectId);
-  if (input.parentSessionId) {
-    getSessionRow(sqlite, input.parentSessionId);
-  }
+  const parentSession = input.parentSessionId
+    ? getSessionRow(sqlite, input.parentSessionId)
+    : null;
+  const specialist = input.specialistId
+    ? await getSpecialistById(sqlite, input.projectId, input.specialistId)
+    : null;
 
   const cwd = resolveSessionCwd(project.repoPath ?? null);
   const now = new Date().toISOString();
   const sessionId = createSessionId();
+  const agent = specialist
+    ? await createAgent(sqlite, {
+        projectId: input.projectId,
+        name: specialist.name,
+        role: specialist.role,
+        provider: input.provider,
+        model: specialist.modelTier ?? 'default',
+        systemPrompt: specialist.systemPrompt,
+        specialistId: specialist.id,
+        parentAgentId: parentSession?.agent_id ?? null,
+      })
+    : null;
 
   sqlite
     .prepare(
@@ -688,8 +753,10 @@ export async function createAcpSession(
         INSERT INTO project_acp_sessions (
           id,
           project_id,
+          agent_id,
           actor_id,
           parent_session_id,
+          specialist_id,
           name,
           provider,
           mode,
@@ -708,8 +775,10 @@ export async function createAcpSession(
         VALUES (
           @id,
           @projectId,
+          @agentId,
           @actorId,
           @parentSessionId,
+          @specialistId,
           @name,
           @provider,
           @mode,
@@ -730,8 +799,10 @@ export async function createAcpSession(
     .run({
       id: sessionId,
       projectId: input.projectId,
+      agentId: agent?.id ?? null,
       actorId: input.actorUserId,
       parentSessionId: input.parentSessionId ?? null,
+      specialistId: specialist?.id ?? null,
       name: input.goal?.trim() || null,
       provider: input.provider,
       mode: input.mode,
@@ -766,6 +837,10 @@ export async function createAcpSession(
       source: 'local-server',
       provider: input.provider,
       mode: input.mode,
+      agentId: agent?.id ?? null,
+      agentName: agent?.name ?? null,
+      agentRole: agent?.role ?? null,
+      specialistId: specialist?.id ?? null,
       cwd,
       state: 'PENDING',
       reason: 'session_created',
@@ -790,8 +865,10 @@ export async function listAcpSessionsByProject(
         SELECT
           id,
           project_id,
+          agent_id,
           actor_id,
           parent_session_id,
+          specialist_id,
           name,
           provider,
           mode,
@@ -978,6 +1055,13 @@ export async function promptAcpSession(
     throwSessionNotFound(sessionId);
   }
 
+  const bootstrapPrompt = sessionHasPromptHistory(sqlite, sessionId)
+    ? null
+    : getSessionAgentPrompt(sqlite, session);
+  const effectivePrompt = bootstrapPrompt
+    ? buildBootstrapPrompt(bootstrapPrompt, input.prompt)
+    : input.prompt;
+
   await ensureRuntimeLoaded(sqlite, broker, runtime, sessionId);
   appendPromptRequestedEvents(
     sqlite,
@@ -996,7 +1080,7 @@ export async function promptAcpSession(
   try {
     const runtimeResult = await runtime.promptSession({
       localSessionId: sessionId,
-      prompt: input.prompt,
+      prompt: effectivePrompt,
       eventId: input.eventId,
       timeoutMs: input.timeoutMs,
       traceId: input.traceId,

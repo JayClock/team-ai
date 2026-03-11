@@ -201,6 +201,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
               provider: z.string().trim().min(1).optional().parse(params.provider) ?? 'codex',
               mode: z.string().trim().min(1).optional().parse(params.mode) ?? 'CHAT',
               parentSessionId: z.string().trim().min(1).optional().parse(params.parentSessionId),
+              specialistId: z.string().trim().min(1).optional().parse(params.specialistId),
               goal: z.string().trim().min(1).optional().parse(params.goal),
             },
           );

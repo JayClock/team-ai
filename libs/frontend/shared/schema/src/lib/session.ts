@@ -14,10 +14,12 @@ export type AcpSessionState =
 export type AcpSessionData = {
   id: string;
   project: AcpRef;
+  agent: AcpRef | null;
   actor: AcpRef;
   parentSession: AcpRef | null;
   name: string | null;
   provider: string;
+  specialistId: string | null;
   mode: string;
   cwd: string;
   state: AcpSessionState;

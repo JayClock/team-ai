@@ -39,6 +39,7 @@ export interface AcpEventEnvelopePayload {
 }
 
 export interface AcpSessionPayload {
+  agent: AcpRefPayload | null;
   actor: AcpRefPayload;
   completedAt: string | null;
   cwd: string;
@@ -51,6 +52,7 @@ export interface AcpSessionPayload {
   parentSession: AcpRefPayload | null;
   project: AcpRefPayload;
   provider: string;
+  specialistId: string | null;
   startedAt: string | null;
   state: AcpSessionState;
 }

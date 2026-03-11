@@ -55,6 +55,7 @@ export type CreateAcpSessionInput = {
   provider?: string;
   mode?: string;
   parentSessionId?: string;
+  specialistId?: string;
   idempotencyKey?: string;
   goal?: string;
   traceId?: string;
@@ -270,6 +271,7 @@ export function useAcpSession(
           provider: input.provider ?? options.provider ?? 'codex',
           mode: input.mode ?? options.mode ?? 'CHAT',
           parentSessionId: input.parentSessionId,
+          specialistId: input.specialistId,
           idempotencyKey: input.idempotencyKey,
           goal: input.goal,
         },

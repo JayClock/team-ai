@@ -7,6 +7,7 @@ import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
 import { createProject } from '../services/project-service';
 import acpRoute from './acp';
+import agentsRoute from './agents';
 import meRoute from './me';
 import projectsRoute from './projects';
 import rootRoute from './root';
@@ -77,6 +78,7 @@ describe('acp route', () => {
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(meRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(agentsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
     await fastify.ready();
 
@@ -97,6 +99,7 @@ describe('acp route', () => {
           mode: 'CHAT',
           projectId: project.id,
           provider: 'codex',
+          specialistId: 'solo-developer',
         },
       },
     });
@@ -104,6 +107,23 @@ describe('acp route', () => {
     expect(createResponse.statusCode).toBe(200);
     const createBody = createResponse.json();
     const sessionId = createBody.result.session.id as string;
+
+    const agentsResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/agents`,
+    });
+
+    expect(agentsResponse.statusCode).toBe(200);
+    expect(agentsResponse.json()._embedded.agents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Solo Developer',
+          role: 'DEVELOPER',
+          provider: 'codex',
+          specialistId: 'solo-developer',
+        }),
+      ]),
+    );
 
     const promptResponse = await fastify.inject({
       method: 'POST',
@@ -124,7 +144,11 @@ describe('acp route', () => {
     expect(promptMock).toHaveBeenCalledTimes(1);
     expect(promptMock).toHaveBeenCalledWith({
       localSessionId: sessionId,
-      prompt: 'hello desktop acp',
+      prompt:
+        'System:\nHandle planning, implementation, and verification in one pass when the workflow\n' +
+        'does not need multi-agent decomposition.\n\nStay in the current ACP session and complete the task directly unless the user\n' +
+        'explicitly asks for decomposition or a downstream specialist is strictly\n' +
+        'required.\n\nUser:\nhello desktop acp',
       timeoutMs: undefined,
       eventId: undefined,
       traceId: undefined,
@@ -137,6 +161,12 @@ describe('acp route', () => {
 
     expect(sessionsResponse.statusCode).toBe(200);
     expect(sessionsResponse.json()._embedded.sessions).toHaveLength(1);
+    expect(sessionsResponse.json()._embedded.sessions[0]).toMatchObject({
+      agent: {
+        id: expect.stringMatching(/^agent_/),
+      },
+      specialistId: 'solo-developer',
+    });
 
     const historyResponse = await fastify.inject({
       method: 'GET',

@@ -25,9 +25,11 @@ interface AgentRow {
   id: string;
   model: string;
   name: string;
+  parent_agent_id: string | null;
   provider: string;
   project_id: string;
   role: string;
+  specialist_id: string | null;
   system_prompt: string | null;
   updated_at: string;
 }
@@ -39,7 +41,9 @@ function mapAgentRow(row: AgentRow): AgentPayload {
     role: row.role,
     provider: row.provider,
     model: row.model,
+    parentAgentId: row.parent_agent_id,
     projectId: row.project_id,
+    specialistId: row.specialist_id,
     systemPrompt: row.system_prompt,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -75,6 +79,8 @@ export async function listAgents(
           role,
           provider,
           model,
+          parent_agent_id,
+          specialist_id,
           system_prompt,
           created_at,
           updated_at
@@ -123,7 +129,9 @@ export async function createAgent(
     role: input.role,
     provider: input.provider,
     model: input.model,
+    parentAgentId: input.parentAgentId ?? null,
     projectId: input.projectId,
+    specialistId: input.specialistId ?? null,
     systemPrompt: input.systemPrompt ?? null,
     createdAt: now,
     updatedAt: now,
@@ -139,6 +147,8 @@ export async function createAgent(
           role,
           provider,
           model,
+          parent_agent_id,
+          specialist_id,
           system_prompt,
           created_at,
           updated_at,
@@ -151,6 +161,8 @@ export async function createAgent(
           @role,
           @provider,
           @model,
+          @parentAgentId,
+          @specialistId,
           @systemPrompt,
           @createdAt,
           @updatedAt,
@@ -179,6 +191,8 @@ export async function getAgentById(
           role,
           provider,
           model,
+          parent_agent_id,
+          specialist_id,
           system_prompt,
           created_at,
           updated_at
@@ -208,6 +222,14 @@ export async function updateAgent(
     role: input.role ?? current.role,
     provider: input.provider ?? current.provider,
     model: input.model ?? current.model,
+    parentAgentId:
+      input.parentAgentId === undefined
+        ? current.parentAgentId
+        : input.parentAgentId,
+    specialistId:
+      input.specialistId === undefined
+        ? current.specialistId
+        : input.specialistId,
     systemPrompt:
       input.systemPrompt === undefined ? current.systemPrompt : input.systemPrompt,
     updatedAt: new Date().toISOString(),
@@ -222,6 +244,8 @@ export async function updateAgent(
           role = @role,
           provider = @provider,
           model = @model,
+          parent_agent_id = @parentAgentId,
+          specialist_id = @specialistId,
           system_prompt = @systemPrompt,
           updated_at = @updatedAt
         WHERE project_id = @projectId AND id = @id AND deleted_at IS NULL

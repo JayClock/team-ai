@@ -3,9 +3,11 @@ export interface AgentPayload {
   id: string;
   model: string;
   name: string;
+  parentAgentId: string | null;
   provider: string;
   projectId: string;
   role: string;
+  specialistId: string | null;
   systemPrompt: string | null;
   updatedAt: string;
 }
@@ -21,16 +23,20 @@ export interface AgentListPayload {
 export interface CreateAgentInput {
   model: string;
   name: string;
+  parentAgentId?: string | null;
   provider: string;
   projectId: string;
   role: string;
+  specialistId?: string | null;
   systemPrompt?: string | null;
 }
 
 export interface UpdateAgentInput {
   model?: string;
   name?: string;
+  parentAgentId?: string | null;
   provider?: string;
   role?: string;
+  specialistId?: string | null;
   systemPrompt?: string | null;
 }

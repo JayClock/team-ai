@@ -385,4 +385,32 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '015_acp_session_agents',
+    sql: `
+      ALTER TABLE project_agents
+        ADD COLUMN parent_agent_id TEXT;
+
+      ALTER TABLE project_agents
+        ADD COLUMN specialist_id TEXT;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN agent_id TEXT;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN specialist_id TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_project_agents_parent_agent_id
+        ON project_agents(parent_agent_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_agents_specialist_id
+        ON project_agents(specialist_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_acp_sessions_agent_id
+        ON project_acp_sessions(agent_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

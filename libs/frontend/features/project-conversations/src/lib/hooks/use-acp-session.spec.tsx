@@ -39,11 +39,14 @@ function createFixture() {
   const sessionData: AcpSession['data'] = {
     id: 's-1',
     project: { id: 'p-1' },
+    agent: { id: 'agent-1' },
     actor: { id: 'u-1' },
     parentSession: null,
     name: 'Session 1',
     provider: 'codex',
+    specialistId: 'routa-coordinator',
     mode: 'CHAT',
+    cwd: '/tmp/project',
     state: 'RUNNING',
     startedAt: '2026-03-04T00:00:00Z',
     lastActivityAt: '2026-03-04T00:00:00Z',
@@ -126,7 +129,7 @@ function createFixture() {
     collection: [],
     hasLink: vi.fn(() => true),
     follow: vi.fn((rel: string) => {
-      if (rel !== 'sessions') {
+      if (rel !== 'acp-sessions') {
         throw new Error(`Unsupported project rel: ${rel}`);
       }
       return sessionsResource;
@@ -219,6 +222,7 @@ describe('useAcpSession', () => {
     await act(async () => {
       await result.current.create({
         actorUserId: 'u-1',
+        specialistId: 'routa-coordinator',
       });
     });
 
@@ -228,6 +232,19 @@ describe('useAcpSession', () => {
         result.current.history.map((item: AcpEventEnvelope) => item.eventId),
       ).toEqual(['evt-1']);
       expect(fixture.sessionsResource.refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(fixture.rpcInvocations[0]).toEqual({
+      method: 'session/new',
+      params: {
+        projectId: 'p-1',
+        actorUserId: 'u-1',
+        provider: 'codex',
+        mode: 'CHAT',
+        parentSessionId: undefined,
+        specialistId: 'routa-coordinator',
+        idempotencyKey: undefined,
+        goal: undefined,
+      },
     });
   });
 

@@ -73,12 +73,30 @@ type CloneProjectResponse = {
 };
 
 type PickerTab = 'existing' | 'clone';
+type HomeAgentType = 'routa-coordinator' | 'solo-developer';
 
 type DropdownPosition = {
   bottom: number;
   left: number;
   width: number;
 };
+
+const HOME_AGENT_OPTIONS: Array<{
+  description: string;
+  id: HomeAgentType;
+  label: string;
+}> = [
+  {
+    id: 'routa-coordinator',
+    label: 'Routa',
+    description: '多 agent 协调与委派。',
+  },
+  {
+    id: 'solo-developer',
+    label: 'Developer',
+    description: '单 agent 直接推进实现。',
+  },
+];
 
 function timestamp(value: string | null): number {
   if (!value) {
@@ -163,6 +181,19 @@ function sessionModeDescription(mode: 'CHAT' | 'PLAN'): string {
   return mode === 'CHAT'
     ? '适合直接协作和快速推进。'
     : '适合先整理任务边界，再进入实现。';
+}
+
+function sessionAgentDescription(agentType: HomeAgentType): string {
+  return (
+    HOME_AGENT_OPTIONS.find((option) => option.id === agentType)?.description ??
+    '使用默认 agent。'
+  );
+}
+
+function sessionAgentLabel(value: string | null | undefined): string | null {
+  return (
+    HOME_AGENT_OPTIONS.find((option) => option.id === value)?.label ?? null
+  );
 }
 
 function normalizeRepositoryUrl(value: string): string {
@@ -290,6 +321,7 @@ function ProjectHomeContent(props: {
   });
 
   const [prompt, setPrompt] = useState('');
+  const [agentType, setAgentType] = useState<HomeAgentType>('routa-coordinator');
   const [mode, setMode] = useState<'CHAT' | 'PLAN'>('CHAT');
   const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
   const [providerDropdownPos, setProviderDropdownPos] = useState<{
@@ -479,6 +511,7 @@ function ProjectHomeContent(props: {
         const created = await create({
           actorUserId: me.id,
           provider: selectedProvider.id,
+          specialistId: agentType,
           mode,
           goal,
         });
@@ -494,7 +527,16 @@ function ProjectHomeContent(props: {
         setStartingSession(false);
       }
     },
-    [create, loadRecentSessions, me.id, mode, navigate, prompt, selectedProvider],
+    [
+      agentType,
+      create,
+      loadRecentSessions,
+      me.id,
+      mode,
+      navigate,
+      prompt,
+      selectedProvider,
+    ],
   );
 
   const handlePromptKeyDown = useCallback(
@@ -574,6 +616,27 @@ function ProjectHomeContent(props: {
                   projects={projects}
                   value={selectedProject}
                 />
+
+                <div
+                  className="flex items-center rounded-lg bg-slate-100 p-0.5 dark:bg-[#1a1d2a]"
+                  role="group"
+                  aria-label="Agent type"
+                >
+                  {HOME_AGENT_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                        agentType === option.id
+                          ? 'bg-white text-slate-900 shadow-sm dark:bg-[#1f2233] dark:text-slate-100'
+                          : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+                      }`}
+                      onClick={() => setAgentType(option.id)}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
 
                 <div
                   className="hidden items-center rounded-lg bg-slate-100 p-0.5 sm:flex dark:bg-[#1a1d2a]"
@@ -746,7 +809,7 @@ function ProjectHomeContent(props: {
             : null}
 
           <div className="mt-2 px-1 text-[10px] text-slate-400 dark:text-slate-500">
-            {sessionModeDescription(mode)}
+            {sessionAgentDescription(agentType)} {sessionModeDescription(mode)}
           </div>
         </div>
 
@@ -799,6 +862,11 @@ function ProjectHomeContent(props: {
                           </span>
                         </div>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                          {sessionAgentLabel(session.data.specialistId) ? (
+                            <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                              {sessionAgentLabel(session.data.specialistId)}
+                            </span>
+                          ) : null}
                           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                             {sessionStateLabel(session.data.state)}
                           </span>
