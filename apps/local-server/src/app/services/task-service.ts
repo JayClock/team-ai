@@ -9,6 +9,11 @@ import type {
 } from '../schemas/task';
 import { getProjectById } from './project-service';
 import { getSessionById } from './session-service';
+import {
+  ensureRoleValue,
+  getSpecialistById,
+  throwSpecialistRoleMismatch,
+} from './specialist-service';
 
 const taskIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -133,6 +138,46 @@ function throwTaskSessionProjectMismatch(
   });
 }
 
+async function resolveTaskAssignment(
+  sqlite: Database,
+  input: {
+    assignedRole?: string | null;
+    assignedSpecialistId?: string | null;
+    assignedSpecialistName?: string | null;
+    projectId: string;
+  },
+) {
+  const assignedRole = ensureRoleValue(input.assignedRole);
+
+  if (!input.assignedSpecialistId) {
+    return {
+      assignedRole,
+      assignedSpecialistId: null,
+      assignedSpecialistName: input.assignedSpecialistName ?? null,
+    };
+  }
+
+  const specialist = await getSpecialistById(
+    sqlite,
+    input.projectId,
+    input.assignedSpecialistId,
+  );
+
+  if (assignedRole && assignedRole !== specialist.role) {
+    throwSpecialistRoleMismatch(
+      specialist.id,
+      assignedRole,
+      specialist.role,
+    );
+  }
+
+  return {
+    assignedRole: specialist.role,
+    assignedSpecialistId: specialist.id,
+    assignedSpecialistName: input.assignedSpecialistName ?? specialist.name,
+  };
+}
+
 function getTaskRow(sqlite: Database, taskId: string): TaskRow {
   const row = sqlite
     .prepare(
@@ -212,6 +257,12 @@ export async function createTask(
     input.projectId,
     input.triggerSessionId,
   );
+  const assignment = await resolveTaskAssignment(sqlite, {
+    assignedRole: input.assignedRole,
+    assignedSpecialistId: input.assignedSpecialistId,
+    assignedSpecialistName: input.assignedSpecialistName,
+    projectId: input.projectId,
+  });
   const now = new Date().toISOString();
   const taskId = createTaskId();
 
@@ -295,9 +346,9 @@ export async function createTask(
     .run({
       acceptanceCriteriaJson: JSON.stringify(input.acceptanceCriteria ?? []),
       assignedProvider: input.assignedProvider ?? null,
-      assignedRole: input.assignedRole ?? null,
-      assignedSpecialistId: input.assignedSpecialistId ?? null,
-      assignedSpecialistName: input.assignedSpecialistName ?? null,
+      assignedRole: assignment.assignedRole,
+      assignedSpecialistId: assignment.assignedSpecialistId,
+      assignedSpecialistName: assignment.assignedSpecialistName,
       assignee: input.assignee ?? null,
       boardId: input.boardId ?? null,
       columnId: input.columnId ?? null,
@@ -456,6 +507,21 @@ export async function updateTask(
           current.project_id,
           input.triggerSessionId,
         );
+  const assignment = await resolveTaskAssignment(sqlite, {
+    assignedRole:
+      input.assignedRole === undefined ? current.assigned_role : input.assignedRole,
+    assignedSpecialistId:
+      input.assignedSpecialistId === undefined
+        ? current.assigned_specialist_id
+        : input.assignedSpecialistId,
+    assignedSpecialistName:
+      input.assignedSpecialistId === null && input.assignedSpecialistName === undefined
+        ? null
+        : input.assignedSpecialistName === undefined
+          ? current.assigned_specialist_name
+          : input.assignedSpecialistName,
+    projectId: current.project_id,
+  });
 
   const next = {
     acceptanceCriteriaJson:
@@ -466,16 +532,9 @@ export async function updateTask(
       input.assignedProvider === undefined
         ? current.assigned_provider
         : input.assignedProvider,
-    assignedRole:
-      input.assignedRole === undefined ? current.assigned_role : input.assignedRole,
-    assignedSpecialistId:
-      input.assignedSpecialistId === undefined
-        ? current.assigned_specialist_id
-        : input.assignedSpecialistId,
-    assignedSpecialistName:
-      input.assignedSpecialistName === undefined
-        ? current.assigned_specialist_name
-        : input.assignedSpecialistName,
+    assignedRole: assignment.assignedRole,
+    assignedSpecialistId: assignment.assignedSpecialistId,
+    assignedSpecialistName: assignment.assignedSpecialistName,
     assignee: input.assignee === undefined ? current.assignee : input.assignee,
     boardId: input.boardId === undefined ? current.board_id : input.boardId,
     columnId: input.columnId === undefined ? current.column_id : input.columnId,

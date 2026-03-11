@@ -17,6 +17,12 @@ function createProjectLinks(project: ProjectPayload) {
     tasks: {
       href: `/api/projects/${project.id}/tasks`,
     },
+    specialists: {
+      href: `/api/projects/${project.id}/specialists`,
+    },
+    roles: {
+      href: '/api/roles',
+    },
     'acp-sessions': {
       href: `/api/projects/${project.id}/acp-sessions`,
     },

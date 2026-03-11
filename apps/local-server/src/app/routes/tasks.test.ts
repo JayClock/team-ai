@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Fastify from 'fastify';
@@ -124,7 +124,7 @@ describe('tasks routes', () => {
       method: 'PATCH',
       url: `/api/tasks/${taskId}`,
       payload: {
-        assignedRole: 'planner',
+        assignedRole: 'CRAFTER',
         status: 'RUNNING',
         verificationVerdict: 'pending',
       },
@@ -132,7 +132,7 @@ describe('tasks routes', () => {
 
     expect(patchResponse.statusCode).toBe(200);
     expect(patchResponse.json()).toMatchObject({
-      assignedRole: 'planner',
+      assignedRole: 'CRAFTER',
       id: taskId,
       status: 'RUNNING',
       verificationVerdict: 'pending',
@@ -191,6 +191,79 @@ describe('tasks routes', () => {
     expect(missingSessionResponse.json()).toMatchObject({
       title: 'Session Not Found',
       type: 'https://team-ai.dev/problems/session-not-found',
+    });
+  });
+
+  it('resolves assigned specialists from workspace directories', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-task-route-specialist-'));
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+    await mkdir(join(repoPath, 'resources', 'specialists'), {
+      recursive: true,
+    });
+    await writeFile(
+      join(repoPath, 'resources', 'specialists', 'frontend-crafter.md'),
+      [
+        '---',
+        'id: frontend-crafter',
+        'name: Frontend Crafter',
+        'role: CRAFTER',
+        'description: Implements frontend changes.',
+        '---',
+        'Focus on frontend implementation details.',
+      ].join('\n'),
+      'utf8',
+    );
+    const project = await createProject(sqlite, {
+      title: 'Specialist Project',
+      repoPath,
+    });
+    const sessionId = await createSession(fastify, project.id, 'Specialist task session');
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/sessions/${sessionId}/tasks`,
+      payload: {
+        assignedSpecialistId: 'frontend-crafter',
+        objective: 'Use specialist',
+        title: 'Specialist-backed task',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      assignedRole: 'CRAFTER',
+      assignedSpecialistId: 'frontend-crafter',
+      assignedSpecialistName: 'Frontend Crafter',
+    });
+  });
+
+  it('rejects invalid task roles', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Invalid Role Project',
+      repoPath: '/tmp/team-ai-task-invalid-role',
+    });
+    const sessionId = await createSession(fastify, project.id, 'Invalid role session');
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/sessions/${sessionId}/tasks`,
+      payload: {
+        assignedRole: 'planner',
+        objective: 'Reject invalid role',
+        title: 'Invalid role task',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      title: 'Invalid Role',
+      type: 'https://team-ai.dev/problems/invalid-role',
     });
   });
 

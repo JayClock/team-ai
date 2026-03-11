@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { Database } from 'better-sqlite3';
@@ -81,7 +81,7 @@ describe('task service', () => {
 
     const updated = await updateTask(sqlite, task.id, {
       assignedProvider: 'opencode',
-      assignedRole: 'crafter',
+      assignedRole: 'CRAFTER',
       completionSummary: 'Implemented routes',
       dependencies: ['task_prev'],
       status: 'COMPLETED',
@@ -91,7 +91,7 @@ describe('task service', () => {
 
     expect(updated).toMatchObject({
       assignedProvider: 'opencode',
-      assignedRole: 'crafter',
+      assignedRole: 'CRAFTER',
       completionSummary: 'Implemented routes',
       dependencies: ['task_prev'],
       status: 'COMPLETED',
@@ -125,6 +125,101 @@ describe('task service', () => {
     ).rejects.toMatchObject({
       status: 409,
       type: 'https://team-ai.dev/problems/task-session-project-mismatch',
+    });
+  });
+
+  it('resolves specialist assignments from workspace directories', async () => {
+    const sqlite = await createTestDatabase();
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-task-specialist-workspace-'));
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+    await mkdir(join(repoPath, 'resources', 'specialists'), {
+      recursive: true,
+    });
+    await writeFile(
+      join(repoPath, 'resources', 'specialists', 'backend-crafter.md'),
+      [
+        '---',
+        'id: backend-crafter',
+        'name: Backend Crafter',
+        'role: CRAFTER',
+        'description: Implements backend changes.',
+        '---',
+        'Implement backend changes carefully.',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const project = await createProject(sqlite, {
+      repoPath,
+      title: 'Specialist Task',
+    });
+
+    const task = await createTask(sqlite, {
+      assignedSpecialistId: 'backend-crafter',
+      objective: 'Use specialist role',
+      projectId: project.id,
+      title: 'Specialist task',
+    });
+
+    expect(task).toMatchObject({
+      assignedRole: 'CRAFTER',
+      assignedSpecialistId: 'backend-crafter',
+      assignedSpecialistName: 'Backend Crafter',
+    });
+  });
+
+  it('rejects invalid roles and specialist-role mismatches', async () => {
+    const sqlite = await createTestDatabase();
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-task-role-mismatch-'));
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+    await mkdir(join(repoPath, 'resources', 'specialists'), {
+      recursive: true,
+    });
+    await writeFile(
+      join(repoPath, 'resources', 'specialists', 'gate-reviewer.md'),
+      [
+        '---',
+        'id: gate-reviewer',
+        'name: Gate Reviewer',
+        'role: GATE',
+        'description: Reviews code.',
+        '---',
+        'Review work before completion.',
+      ].join('\n'),
+      'utf8',
+    );
+    const project = await createProject(sqlite, {
+      repoPath,
+      title: 'Role Mismatch',
+    });
+
+    await expect(
+      createTask(sqlite, {
+        assignedRole: 'planner',
+        objective: 'Bad role',
+        projectId: project.id,
+        title: 'Invalid role task',
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      type: 'https://team-ai.dev/problems/invalid-role',
+    });
+
+    await expect(
+      createTask(sqlite, {
+        assignedRole: 'CRAFTER',
+        assignedSpecialistId: 'gate-reviewer',
+        objective: 'Mismatch role',
+        projectId: project.id,
+        title: 'Mismatch role task',
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      type: 'https://team-ai.dev/problems/specialist-role-mismatch',
     });
   });
 
