@@ -43,6 +43,7 @@ export function useProjectSelection() {
 
   return {
     projects,
+    refreshProjects: () => projectsResource.refresh(),
     selectedProject,
   };
 }
