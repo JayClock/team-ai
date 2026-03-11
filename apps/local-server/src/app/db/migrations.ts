@@ -278,4 +278,34 @@ export const sqliteMigrations: SqliteMigration[] = [
       WHERE cwd IS NULL;
     `,
   },
+  {
+    version: '012_project_sessions',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_sessions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        parent_session_id TEXT,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (parent_session_id) REFERENCES project_sessions(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_sessions_project_id
+        ON project_sessions(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_sessions_parent_session_id
+        ON project_sessions(parent_session_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_sessions_status
+        ON project_sessions(status, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

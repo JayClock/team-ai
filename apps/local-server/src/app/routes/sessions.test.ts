@@ -1,13 +1,10 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Fastify from 'fastify';
 import type { Database } from 'better-sqlite3';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AgentGatewayClient } from '../clients/agent-gateway-client';
+import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
-import { OrchestrationStreamBroker } from '../plugins/orchestration-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import { createProject } from '../services/project-service';
@@ -34,7 +31,7 @@ describe('sessions routes', () => {
     }
   });
 
-  it('creates orchestration sessions and exposes detail, steps, and events routes', async () => {
+  it('creates sessions and exposes detail, history, and context routes', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -42,91 +39,117 @@ describe('sessions routes', () => {
       repoPath: '/tmp/team-ai-desktop-project',
     });
 
-    const createResponse = await fastify.inject({
+    const rootResponse = await fastify.inject({
       method: 'POST',
       url: `/api/projects/${project.id}/sessions`,
       payload: {
-        goal: 'Promote local-server as the desktop-first runtime',
-        title: 'Promote desktop runtime',
-        cwd: '/tmp/team-ai-desktop-project',
+        metadata: {
+          mode: 'ROUTA',
+        },
+        status: 'ACTIVE',
+        title: 'Root session',
       },
     });
 
-    expect(createResponse.statusCode).toBe(201);
-    expect(createResponse.headers.location).toMatch(/^\/api\/sessions\/orc_/);
+    expect(rootResponse.statusCode).toBe(201);
+    expect(rootResponse.headers.location).toMatch(/^\/api\/sessions\/sess_/);
 
-    const createdSession = createResponse.json();
-    expect(createdSession).toMatchObject({
+    const rootSession = rootResponse.json() as {
+      id: string;
+      _links: Record<string, { href: string }>;
+    };
+    expect(rootSession).toMatchObject({
+      metadata: {
+        mode: 'ROUTA',
+      },
       projectId: project.id,
-      status: 'PENDING',
-      title: 'Promote desktop runtime',
-      cwd: '/tmp/team-ai-desktop-project',
+      status: 'ACTIVE',
+      title: 'Root session',
       _links: {
         self: {
-          href: createResponse.headers.location,
+          href: rootResponse.headers.location,
         },
         collection: {
           href: `/api/projects/${project.id}/sessions`,
         },
-        events: {
-          href: `/api/sessions/${createdSession.id}/events`,
+        context: {
+          href: `/api/sessions/${rootSession.id}/context`,
         },
-        steps: {
-          href: `/api/sessions/${createdSession.id}/steps`,
+        history: {
+          href: `/api/sessions/${rootSession.id}/history`,
         },
       },
     });
 
+    const childResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/sessions`,
+      payload: {
+        parentSessionId: rootSession.id,
+        title: 'Child session',
+      },
+    });
+
+    expect(childResponse.statusCode).toBe(201);
+    const childSession = childResponse.json() as { id: string };
+
     const detailResponse = await fastify.inject({
       method: 'GET',
-      url: createResponse.headers.location ?? `/api/sessions/${createdSession.id}`,
+      url: `/api/sessions/${childSession.id}`,
     });
 
     expect(detailResponse.statusCode).toBe(200);
     expect(detailResponse.json()).toMatchObject({
-      id: createdSession.id,
+      id: childSession.id,
+      metadata: {},
+      parentSessionId: rootSession.id,
       projectId: project.id,
-      status: 'PENDING',
-      title: 'Promote desktop runtime',
+      status: 'ACTIVE',
+      title: 'Child session',
     });
 
-    const stepsResponse = await fastify.inject({
+    const historyResponse = await fastify.inject({
       method: 'GET',
-      url: `/api/sessions/${createdSession.id}/steps`,
+      url: `/api/sessions/${childSession.id}/history`,
     });
 
-    expect(stepsResponse.statusCode).toBe(200);
-    expect(stepsResponse.json()._embedded.steps).toHaveLength(3);
-    expect(
-      stepsResponse
-        .json()
-        ._embedded.steps.map((step: { kind: string }) => step.kind),
-    ).toEqual(['PLAN', 'IMPLEMENT', 'VERIFY']);
-
-    const eventsResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/sessions/${createdSession.id}/events`,
-    });
-
-    expect(eventsResponse.statusCode).toBe(200);
-    expect(eventsResponse.json()).toMatchObject({
-      _links: {
-        self: {
-          href: `/api/sessions/${createdSession.id}/events`,
-        },
-        session: {
-          href: `/api/sessions/${createdSession.id}`,
-        },
+    expect(historyResponse.statusCode).toBe(200);
+    expect(historyResponse.json()).toMatchObject({
+      _embedded: {
+        sessions: [
+          expect.objectContaining({
+            id: rootSession.id,
+            title: 'Root session',
+          }),
+          expect.objectContaining({
+            id: childSession.id,
+            title: 'Child session',
+          }),
+        ],
       },
+      currentSessionId: childSession.id,
     });
-    expect(
-      eventsResponse
-        .json()
-        ._embedded.events.map((event: { type: string }) => event.type),
-    ).toContain('session.created');
+
+    const contextResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/sessions/${rootSession.id}/context`,
+    });
+
+    expect(contextResponse.statusCode).toBe(200);
+    expect(contextResponse.json()).toMatchObject({
+      current: expect.objectContaining({
+        id: rootSession.id,
+      }),
+      parent: null,
+      children: [
+        expect.objectContaining({
+          id: childSession.id,
+        }),
+      ],
+    });
   });
 
-  it('lists orchestration sessions from project and global entrypoints', async () => {
+  it('lists sessions from project and global entrypoints with status filtering', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const projectA = await createProject(sqlite, {
@@ -138,21 +161,13 @@ describe('sessions routes', () => {
       repoPath: '/tmp/team-ai-project-b',
     });
 
-    await fastify.inject({
-      method: 'POST',
-      url: `/api/projects/${projectA.id}/sessions`,
-      payload: {
-        goal: 'Create desktop-first orchestration home',
-        title: 'Desktop-first session',
-      },
+    await createSession(fastify, projectA.id, {
+      status: 'ACTIVE',
+      title: 'Desktop root',
     });
-    await fastify.inject({
-      method: 'POST',
-      url: `/api/projects/${projectB.id}/sessions`,
-      payload: {
-        goal: 'Stabilize ACP boundary',
-        title: 'ACP stabilization',
-      },
+    await createSession(fastify, projectB.id, {
+      status: 'PAUSED',
+      title: 'Gateway root',
     });
 
     const projectSessionsResponse = await fastify.inject({
@@ -172,7 +187,7 @@ describe('sessions routes', () => {
     expect(projectSessionsResponse.json()._embedded.sessions).toHaveLength(1);
     expect(projectSessionsResponse.json()._embedded.sessions[0]).toMatchObject({
       projectId: projectA.id,
-      title: 'Desktop-first session',
+      title: 'Desktop root',
     });
 
     const globalSessionsResponse = await fastify.inject({
@@ -189,11 +204,10 @@ describe('sessions routes', () => {
       },
       total: 2,
     });
-    expect(globalSessionsResponse.json()._embedded.sessions).toHaveLength(2);
 
     const filteredSessionsResponse = await fastify.inject({
       method: 'GET',
-      url: `/api/sessions?projectId=${projectB.id}`,
+      url: '/api/sessions?status=PAUSED',
     });
 
     expect(filteredSessionsResponse.statusCode).toBe(200);
@@ -203,14 +217,15 @@ describe('sessions routes', () => {
         sessions: [
           expect.objectContaining({
             projectId: projectB.id,
-            title: 'ACP stabilization',
+            status: 'PAUSED',
+            title: 'Gateway root',
           }),
         ],
       },
     });
   });
 
-  it('cancels and resumes orchestration sessions through session control routes', async () => {
+  it('updates and deletes sessions through session detail routes', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -218,342 +233,117 @@ describe('sessions routes', () => {
       repoPath: '/tmp/team-ai-controls',
     });
     const sessionId = await createSession(fastify, project.id, {
-      goal: 'Cancel and resume a desktop session',
       title: 'Session controls',
     });
 
-    const cancelResponse = await fastify.inject({
-      method: 'POST',
-      url: `/api/sessions/${sessionId}/cancel`,
+    const patchResponse = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/sessions/${sessionId}`,
+      payload: {
+        metadata: {
+          lane: 'research',
+        },
+        status: 'PAUSED',
+        title: 'Session controls updated',
+      },
     });
 
-    expect(cancelResponse.statusCode).toBe(200);
-    expect(cancelResponse.json()).toMatchObject({
+    expect(patchResponse.statusCode).toBe(200);
+    expect(patchResponse.json()).toMatchObject({
       id: sessionId,
-      status: 'CANCELLED',
+      metadata: {
+        lane: 'research',
+      },
+      status: 'PAUSED',
+      title: 'Session controls updated',
     });
 
-    const cancelledStepsResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/sessions/${sessionId}/steps`,
+    const deleteResponse = await fastify.inject({
+      method: 'DELETE',
+      url: `/api/sessions/${sessionId}`,
     });
 
-    expect(cancelledStepsResponse.statusCode).toBe(200);
-    expect(
-      cancelledStepsResponse
-        .json()
-        ._embedded.steps.every((step: { status: string }) => step.status === 'CANCELLED'),
-    ).toBe(true);
-
-    const resumeResponse = await fastify.inject({
-      method: 'POST',
-      url: `/api/sessions/${sessionId}/resume`,
-    });
-
-    expect(resumeResponse.statusCode).toBe(200);
-    expect(resumeResponse.json()).toMatchObject({
-      id: sessionId,
-      status: 'RUNNING',
-    });
-
-    const resumedStepsResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/sessions/${sessionId}/steps`,
-    });
-
-    expect(resumedStepsResponse.statusCode).toBe(200);
-    expect(
-      resumedStepsResponse
-        .json()
-        ._embedded.steps.every((step: { status: string }) => step.status === 'PENDING'),
-    ).toBe(true);
-
-    const eventsResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/sessions/${sessionId}/events`,
-    });
-
-    expect(eventsResponse.statusCode).toBe(200);
-    expect(
-      eventsResponse
-        .json()
-        ._embedded.events.map((event: { type: string }) => event.type),
-    ).toEqual(
-      expect.arrayContaining(['session.created', 'session.cancelled', 'session.resumed']),
-    );
-  });
-
-  it('retries failed orchestration sessions and resets failed steps', async () => {
-    const sqlite = await createTestDatabase();
-    const fastify = await createTestServer(sqlite);
-    const project = await createProject(sqlite, {
-      title: 'Retry Session',
-      repoPath: '/tmp/team-ai-retry',
-    });
-    const sessionId = await createSession(fastify, project.id, {
-      goal: 'Retry a failed orchestration session',
-      title: 'Retry controls',
-    });
-
-    const failedStepId = markSessionStepFailed(sqlite, sessionId, 'IMPLEMENT');
-
-    const retryResponse = await fastify.inject({
-      method: 'POST',
-      url: `/api/sessions/${sessionId}/retry`,
-    });
-
-    expect(retryResponse.statusCode).toBe(200);
-    expect(retryResponse.json()).toMatchObject({
-      id: sessionId,
-      status: 'RUNNING',
-    });
-
-    const stepsResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/sessions/${sessionId}/steps`,
-    });
-
-    expect(stepsResponse.statusCode).toBe(200);
-    expect(stepsResponse.json()._embedded.steps).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          attempt: 2,
-          errorCode: null,
-          errorMessage: null,
-          id: failedStepId,
-          kind: 'IMPLEMENT',
-          status: 'READY',
-        }),
-      ]),
-    );
-
-    const eventsResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/sessions/${sessionId}/events`,
-    });
-
-    expect(eventsResponse.statusCode).toBe(200);
-    expect(
-      eventsResponse
-        .json()
-        ._embedded.events.map((event: { type: string }) => event.type),
-    ).toEqual(
-      expect.arrayContaining(['session.created', 'session.retried', 'step.retried']),
-    );
-  });
-
-  it('exposes step detail and retries failed steps through step routes', async () => {
-    const sqlite = await createTestDatabase();
-    const fastify = await createTestServer(sqlite);
-    const project = await createProject(sqlite, {
-      title: 'Step Controls',
-      repoPath: '/tmp/team-ai-step-controls',
-    });
-    const sessionId = await createSession(fastify, project.id, {
-      goal: 'Retry a failed orchestration step',
-      title: 'Step retry controls',
-    });
-
-    const failedStepId = markSessionStepFailed(sqlite, sessionId, 'VERIFY');
+    expect(deleteResponse.statusCode).toBe(204);
 
     const detailResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/steps/${failedStepId}`,
-    });
-
-    expect(detailResponse.statusCode).toBe(200);
-    expect(detailResponse.json()).toMatchObject({
-      id: failedStepId,
-      sessionId,
-      kind: 'VERIFY',
-      status: 'FAILED',
-      _links: {
-        self: {
-          href: `/api/steps/${failedStepId}`,
-        },
-        events: {
-          href: `/api/steps/${failedStepId}/events`,
-        },
-        retry: {
-          href: `/api/steps/${failedStepId}/retry`,
-        },
-        session: {
-          href: `/api/sessions/${sessionId}`,
-        },
-      },
-    });
-
-    const eventsResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/steps/${failedStepId}/events`,
-    });
-
-    expect(eventsResponse.statusCode).toBe(200);
-    expect(eventsResponse.json()).toMatchObject({
-      _links: {
-        self: {
-          href: `/api/steps/${failedStepId}/events`,
-        },
-        session: {
-          href: `/api/sessions/${sessionId}`,
-        },
-      },
-    });
-    expect(
-      eventsResponse
-        .json()
-        ._embedded.events.map((event: { type: string }) => event.type),
-    ).toContain('step.failed');
-
-    const retryResponse = await fastify.inject({
-      method: 'POST',
-      url: `/api/steps/${failedStepId}/retry`,
-    });
-
-    expect(retryResponse.statusCode).toBe(200);
-    expect(retryResponse.json()).toMatchObject({
-      id: failedStepId,
-      sessionId,
-      kind: 'VERIFY',
-      status: 'READY',
-      attempt: 2,
-      errorCode: null,
-      errorMessage: null,
-    });
-
-    const sessionResponse = await fastify.inject({
       method: 'GET',
       url: `/api/sessions/${sessionId}`,
     });
 
-    expect(sessionResponse.statusCode).toBe(200);
-    expect(sessionResponse.json()).toMatchObject({
-      id: sessionId,
-      status: 'RUNNING',
+    expect(detailResponse.statusCode).toBe(404);
+    expect(detailResponse.json()).toMatchObject({
+      title: 'Session Not Found',
+      type: 'https://team-ai.dev/problems/session-not-found',
     });
   });
 
-  it('returns 404 for missing sessions and steps', async () => {
-    const sqlite = await createTestDatabase();
-    const fastify = await createTestServer(sqlite);
-
-    const missingSessionResponse = await fastify.inject({
-      method: 'GET',
-      url: '/api/sessions/orc_missing',
-    });
-
-    expect(missingSessionResponse.statusCode).toBe(404);
-    expect(missingSessionResponse.json()).toMatchObject({
-      type: 'https://team-ai.dev/problems/orchestration-session-not-found',
-      title: 'Orchestration Session Not Found',
-      status: 404,
-      instance: '/api/sessions/orc_missing',
-    });
-
-    const missingStepResponse = await fastify.inject({
-      method: 'GET',
-      url: '/api/steps/step_missing',
-    });
-
-    expect(missingStepResponse.statusCode).toBe(404);
-    expect(missingStepResponse.json()).toMatchObject({
-      type: 'https://team-ai.dev/problems/orchestration-step-not-found',
-      title: 'Orchestration Step Not Found',
-      status: 404,
-      instance: '/api/steps/step_missing',
-    });
-  });
-
-  it('returns 409 when retrying sessions or steps from invalid states', async () => {
+  it('rejects empty patch payloads and cyclic parent reassignment', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
-      title: 'Invalid State Checks',
-      repoPath: '/tmp/team-ai-invalid-states',
+      title: 'Patch Guardrails',
+      repoPath: '/tmp/team-ai-patch-guardrails',
     });
-    const sessionId = await createSession(fastify, project.id, {
-      goal: 'Exercise invalid orchestration transitions',
-      title: 'Invalid transitions',
+    const rootId = await createSession(fastify, project.id, {
+      title: 'Root',
     });
-    const stepId = getSessionStepId(sqlite, sessionId, 'PLAN');
-
-    const retrySessionResponse = await fastify.inject({
-      method: 'POST',
-      url: `/api/sessions/${sessionId}/retry`,
+    const childId = await createSession(fastify, project.id, {
+      parentSessionId: rootId,
+      title: 'Child',
     });
 
-    expect(retrySessionResponse.statusCode).toBe(409);
-    expect(retrySessionResponse.json()).toMatchObject({
-      type: 'https://team-ai.dev/problems/orchestration-invalid-state',
-      title: 'Invalid Orchestration State',
-      status: 409,
-      instance: `/api/sessions/${sessionId}/retry`,
+    const emptyPatchResponse = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/sessions/${rootId}`,
+      payload: {},
     });
 
-    const retryStepResponse = await fastify.inject({
-      method: 'POST',
-      url: `/api/steps/${stepId}/retry`,
-    });
+    expect(emptyPatchResponse.statusCode).toBe(400);
 
-    expect(retryStepResponse.statusCode).toBe(409);
-    expect(retryStepResponse.json()).toMatchObject({
-      type: 'https://team-ai.dev/problems/orchestration-invalid-state',
-      title: 'Invalid Orchestration State',
-      status: 409,
-      instance: `/api/steps/${stepId}/retry`,
-    });
-  });
-
-  it('streams orchestration session events over sse', async () => {
-    const sqlite = await createTestDatabase();
-    const fastify = await createTestServer(sqlite);
-    const project = await createProject(sqlite, {
-      title: 'SSE Session',
-      repoPath: '/tmp/team-ai-sse',
-    });
-    const sessionId = await createSession(fastify, project.id, {
-      goal: 'Observe orchestration session stream',
-      title: 'SSE stream',
-    });
-
-    await fastify.listen({ port: 0, host: '127.0.0.1' });
-    const controller = new AbortController();
-    const response = await fetch(
-      `${urlFor(fastify.server)}/api/sessions/${sessionId}/stream`,
-      {
-        signal: controller.signal,
-      },
-    );
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get('content-type')).toContain('text/event-stream');
-
-    if (!response.body) {
-      throw new Error('Expected SSE response body to be present');
-    }
-
-    const reader = response.body.getReader();
-
-    const connectedChunk = await readSseChunk(reader);
-    expect(connectedChunk).toContain('event: connected');
-    expect(connectedChunk).toContain(`"sessionId":"${sessionId}"`);
-
-    fastify.orchestrationStreamBroker.publish({
-      at: new Date().toISOString(),
-      id: `evt_stream_${sessionId}`,
+    const cyclicPatchResponse = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/sessions/${rootId}`,
       payload: {
-        source: 'test',
+        parentSessionId: childId,
       },
-      sessionId,
-      type: 'session.running',
     });
 
-    const eventChunk = await readSseChunk(reader);
-    expect(eventChunk).toContain('event: session.running');
-    expect(eventChunk).toContain(`"sessionId":"${sessionId}"`);
-    expect(eventChunk).toContain('"source":"test"');
+    expect(cyclicPatchResponse.statusCode).toBe(409);
+    expect(cyclicPatchResponse.json()).toMatchObject({
+      title: 'Session Hierarchy Cycle',
+      type: 'https://team-ai.dev/problems/session-hierarchy-cycle',
+    });
+  });
 
-    controller.abort();
+  it('rejects parent sessions from a different project', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const projectA = await createProject(sqlite, {
+      title: 'Project A',
+      repoPath: '/tmp/team-ai-project-aa',
+    });
+    const projectB = await createProject(sqlite, {
+      title: 'Project B',
+      repoPath: '/tmp/team-ai-project-bb',
+    });
+    const foreignParentId = await createSession(fastify, projectA.id, {
+      title: 'Foreign parent',
+    });
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/projects/${projectB.id}/sessions`,
+      payload: {
+        parentSessionId: foreignParentId,
+        title: 'Invalid child',
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      title: 'Session Parent Project Mismatch',
+      type: 'https://team-ai.dev/problems/session-parent-project-mismatch',
+    });
   });
 
   async function createTestDatabase(): Promise<Database> {
@@ -580,22 +370,6 @@ describe('sessions routes', () => {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
     fastify.decorate('sqlite', sqlite);
-    fastify.decorate(
-      'agentGatewayClient',
-      {
-        cancel: vi.fn(),
-        createSession: vi.fn(),
-        health: vi.fn(),
-        isConfigured: vi.fn(() => false),
-        listEvents: vi.fn(),
-        prompt: vi.fn(),
-        stream: vi.fn(),
-      } satisfies AgentGatewayClient,
-    );
-    fastify.decorate(
-      'orchestrationStreamBroker',
-      new OrchestrationStreamBroker(),
-    );
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
@@ -610,9 +384,9 @@ describe('sessions routes', () => {
     fastify: ReturnType<typeof Fastify>,
     projectId: string,
     payload: {
-      goal: string;
+      parentSessionId?: string;
+      status?: string;
       title: string;
-      cwd?: string;
     },
   ) {
     const response = await fastify.inject({
@@ -624,141 +398,5 @@ describe('sessions routes', () => {
     expect(response.statusCode).toBe(201);
 
     return (response.json() as { id: string }).id;
-  }
-
-  function markSessionStepFailed(
-    sqlite: Database,
-    sessionId: string,
-    kind: 'PLAN' | 'IMPLEMENT' | 'VERIFY',
-  ) {
-    const failedAt = new Date().toISOString();
-    const failedStep = sqlite
-      .prepare(
-        `
-          SELECT id, attempt
-          FROM orchestration_steps
-          WHERE session_id = ? AND kind = ?
-          LIMIT 1
-        `,
-      )
-      .get(sessionId, kind) as { attempt: number; id: string } | undefined;
-
-    if (!failedStep) {
-      throw new Error(`Failed to locate ${kind} step for session ${sessionId}`);
-    }
-
-    sqlite
-      .prepare(
-        `
-          UPDATE orchestration_sessions
-          SET
-            status = 'FAILED',
-            updated_at = ?
-          WHERE id = ?
-        `,
-      )
-      .run(failedAt, sessionId);
-
-    sqlite
-      .prepare(
-        `
-          UPDATE orchestration_steps
-          SET
-            status = 'FAILED',
-            error_code = 'TEST_STEP_FAILED',
-            error_message = 'Simulated step failure',
-            completed_at = ?,
-            updated_at = ?
-          WHERE id = ?
-        `,
-      )
-      .run(failedAt, failedAt, failedStep.id);
-
-    sqlite
-      .prepare(
-        `
-          INSERT INTO orchestration_events (
-            id,
-            session_id,
-            step_id,
-            type,
-            payload_json,
-            at
-          )
-          VALUES (?, ?, ?, ?, ?, ?)
-        `,
-      )
-      .run(
-        `evt_failed_${failedStep.id}`,
-        sessionId,
-        failedStep.id,
-        'step.failed',
-        JSON.stringify({
-          attempt: failedStep.attempt,
-          errorCode: 'TEST_STEP_FAILED',
-          errorMessage: 'Simulated step failure',
-          kind,
-        }),
-        failedAt,
-      );
-
-    return failedStep.id;
-  }
-
-  function getSessionStepId(
-    sqlite: Database,
-    sessionId: string,
-    kind: 'PLAN' | 'IMPLEMENT' | 'VERIFY',
-  ) {
-    const step = sqlite
-      .prepare(
-        `
-          SELECT id
-          FROM orchestration_steps
-          WHERE session_id = ? AND kind = ?
-          LIMIT 1
-        `,
-      )
-      .get(sessionId, kind) as { id: string } | undefined;
-
-    if (!step) {
-      throw new Error(`Failed to locate ${kind} step for session ${sessionId}`);
-    }
-
-    return step.id;
-  }
-
-  async function readSseChunk(
-    reader: ReadableStreamDefaultReader<Uint8Array>,
-  ) {
-    const timeout = setTimeout;
-
-    return await new Promise<string>((resolve, reject) => {
-      const timer = timeout(() => {
-        reject(new Error('Timed out while waiting for SSE chunk'));
-      }, 3_000);
-
-      void reader
-        .read()
-        .then(({ done, value }) => {
-          clearTimeout(timer);
-
-          if (done || !value) {
-            reject(new Error('SSE stream closed before yielding a chunk'));
-            return;
-          }
-
-          resolve(new TextDecoder().decode(value));
-        })
-        .catch((error: unknown) => {
-          clearTimeout(timer);
-          reject(error);
-        });
-    });
-  }
-
-  function urlFor(server: ReturnType<typeof Fastify>['server']) {
-    const address = server.address() as AddressInfo;
-    return `http://127.0.0.1:${address.port}`;
   }
 });
