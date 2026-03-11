@@ -248,7 +248,7 @@ function createSessionPayload(): OrchestrationSessionPayload {
     },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    workspaceRoot: '/tmp/team-ai',
+    cwd: '/tmp/team-ai',
     traceId: 'trace-test',
   };
 }

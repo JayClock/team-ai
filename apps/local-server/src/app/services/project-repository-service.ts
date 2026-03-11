@@ -8,8 +8,8 @@ import { ProblemError } from '../errors/problem-error';
 import type { ProjectPayload, UpdateProjectInput } from '../schemas/project';
 import {
   createProject,
+  findProjectByRepoPath,
   findProjectBySourceUrl,
-  findProjectByWorkspaceRoot,
   updateProject,
 } from './project-service';
 
@@ -27,8 +27,8 @@ interface ParsedGithubRepository {
   canonicalSourceUrl: string;
   cloneUrl: string;
   owner: string;
+  repoPath: string;
   repo: string;
-  workspaceRoot: string;
 }
 
 interface ProjectRepositoryServiceDependencies {
@@ -89,7 +89,7 @@ function parseGithubRepository(
         repo,
         canonicalSourceUrl: `https://github.com/${owner}/${repo}`,
         cloneUrl: `https://github.com/${owner}/${repo}.git`,
-        workspaceRoot: join(cloneBaseDir, `${owner}--${repo}`),
+        repoPath: join(cloneBaseDir, `${owner}--${repo}`),
       };
     }
   }
@@ -104,7 +104,7 @@ function parseGithubRepository(
       repo,
       canonicalSourceUrl: `https://github.com/${owner}/${repo}`,
       cloneUrl: `https://github.com/${owner}/${repo}.git`,
-      workspaceRoot: join(cloneBaseDir, `${owner}--${repo}`),
+      repoPath: join(cloneBaseDir, `${owner}--${repo}`),
     };
   }
 
@@ -120,15 +120,15 @@ function parseGithubRepository(
 async function resolveExistingProject(
   sqlite: Database,
   sourceUrl: string,
-  workspaceRoot: string,
+  repoPath: string,
 ): Promise<ProjectPayload | undefined> {
   const projectBySource = await findProjectBySourceUrl(sqlite, sourceUrl);
-  const projectByWorkspace = await findProjectByWorkspaceRoot(sqlite, workspaceRoot);
+  const projectByRepoPath = await findProjectByRepoPath(sqlite, repoPath);
 
   if (
     projectBySource &&
-    projectByWorkspace &&
-    projectBySource.id !== projectByWorkspace.id
+    projectByRepoPath &&
+    projectBySource.id !== projectByRepoPath.id
   ) {
     throw new ProblemError({
       type: 'https://team-ai.dev/problems/project-source-conflict',
@@ -139,19 +139,19 @@ async function resolveExistingProject(
     });
   }
 
-  return projectBySource ?? projectByWorkspace;
+  return projectBySource ?? projectByRepoPath;
 }
 
 function buildProjectPatch(
   current: ProjectPayload,
   input: CloneProjectRepositoryInput,
   sourceUrl: string,
-  workspaceRoot: string,
+  repoPath: string,
 ): UpdateProjectInput {
   const patch: UpdateProjectInput = {
+    repoPath,
     sourceType: 'github',
     sourceUrl,
-    workspaceRoot,
   };
 
   if (input.title?.trim()) {
@@ -177,25 +177,25 @@ async function upsertProjectForRepository(
   sqlite: Database,
   input: CloneProjectRepositoryInput,
   sourceUrl: string,
-  workspaceRoot: string,
+  repoPath: string,
   repo: string,
 ): Promise<ProjectPayload> {
-  const existingProject = await resolveExistingProject(sqlite, sourceUrl, workspaceRoot);
+  const existingProject = await resolveExistingProject(sqlite, sourceUrl, repoPath);
 
   if (existingProject) {
     return updateProject(
       sqlite,
       existingProject.id,
-      buildProjectPatch(existingProject, input, sourceUrl, workspaceRoot),
+      buildProjectPatch(existingProject, input, sourceUrl, repoPath),
     );
   }
 
   return createProject(sqlite, {
     title: input.title?.trim() || repo,
     description: input.description?.trim() || undefined,
+    repoPath,
     sourceType: 'github',
     sourceUrl,
-    workspaceRoot,
   });
 }
 
@@ -209,10 +209,10 @@ export async function cloneProjectRepository(
 
   await dependencies.ensureDirectory(cloneBaseDir);
 
-  const alreadyCloned = await dependencies.pathExists(parsed.workspaceRoot);
+  const alreadyCloned = await dependencies.pathExists(parsed.repoPath);
 
   if (alreadyCloned) {
-    await dependencies.runGit(['pull', '--ff-only'], parsed.workspaceRoot).catch(() => undefined);
+    await dependencies.runGit(['pull', '--ff-only'], parsed.repoPath).catch(() => undefined);
 
     return {
       cloneStatus: 'reused',
@@ -220,7 +220,7 @@ export async function cloneProjectRepository(
         sqlite,
         input,
         parsed.canonicalSourceUrl,
-        parsed.workspaceRoot,
+        parsed.repoPath,
         parsed.repo,
       ),
     };
@@ -231,9 +231,9 @@ export async function cloneProjectRepository(
     '--depth',
     '1',
     parsed.cloneUrl,
-    parsed.workspaceRoot,
+    parsed.repoPath,
   ]);
-  await dependencies.runGit(['fetch', '--all'], parsed.workspaceRoot).catch(() => undefined);
+  await dependencies.runGit(['fetch', '--all'], parsed.repoPath).catch(() => undefined);
 
   return {
     cloneStatus: 'cloned',
@@ -241,7 +241,7 @@ export async function cloneProjectRepository(
       sqlite,
       input,
       parsed.canonicalSourceUrl,
-      parsed.workspaceRoot,
+      parsed.repoPath,
       parsed.repo,
     ),
   };

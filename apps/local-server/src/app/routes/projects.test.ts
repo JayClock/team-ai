@@ -28,7 +28,7 @@ describe('projects route', () => {
     }
   });
 
-  it('creates projects with workspaceRoot', async () => {
+  it('creates projects with repoPath', async () => {
     const sqlite = await createTestDatabase();
     const fastify = Fastify();
     fastifyInstances.push(fastify);
@@ -43,14 +43,14 @@ describe('projects route', () => {
       url: '/api/projects',
       payload: {
         title: 'Team AI',
-        workspaceRoot: '/Users/example/team-ai',
+        repoPath: '/Users/example/team-ai',
       },
     });
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({
       title: 'Team AI',
-      workspaceRoot: '/Users/example/team-ai',
+      repoPath: '/Users/example/team-ai',
     });
   });
 
@@ -79,7 +79,7 @@ describe('projects route', () => {
     });
   });
 
-  it('filters projects by workspaceRoot', async () => {
+  it('filters projects by repoPath', async () => {
     const sqlite = await createTestDatabase();
     const fastify = Fastify();
     fastifyInstances.push(fastify);
@@ -94,14 +94,14 @@ describe('projects route', () => {
       url: '/api/projects',
       payload: {
         title: 'Team AI',
-        workspaceRoot: '/Users/example/team-ai',
+        repoPath: '/Users/example/team-ai',
       },
     });
     const project = createResponse.json() as { id: string };
 
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/projects?workspaceRoot=%2FUsers%2Fexample%2Fteam-ai',
+      url: '/api/projects?repoPath=%2FUsers%2Fexample%2Fteam-ai',
     });
 
     expect(response.statusCode).toBe(200);
@@ -110,7 +110,7 @@ describe('projects route', () => {
         projects: [
           {
             id: project.id,
-            workspaceRoot: '/Users/example/team-ai',
+            repoPath: '/Users/example/team-ai',
           },
         ],
       },
@@ -133,7 +133,7 @@ describe('projects route', () => {
       url: '/api/projects',
       payload: {
         title: 'Desktop Links',
-        workspaceRoot: '/Users/example/desktop-links',
+        repoPath: '/Users/example/desktop-links',
       },
     });
     const project = createResponse.json() as { id: string };

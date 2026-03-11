@@ -65,11 +65,11 @@ type CloneProjectResponse = {
   createdAt: string;
   description: string | null;
   id: string;
+  repoPath: string | null;
   sourceType: 'github' | 'local' | null;
   sourceUrl: string | null;
   title: string;
   updatedAt: string;
-  workspaceRoot: string | null;
 };
 
 type PickerTab = 'existing' | 'clone';
@@ -520,7 +520,7 @@ function ProjectHomeContent(props: {
         <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold tracking-[0.16em] text-slate-500 uppercase dark:text-slate-400">
-              Project
+              项目
             </p>
             <h1 className="truncate text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100 md:text-xl">
               {projectTitle(selectedProject)}
@@ -547,7 +547,7 @@ function ProjectHomeContent(props: {
             发起会话
           </div>
           <p className="mx-auto mb-4 max-w-xl text-center text-sm leading-6 text-gray-500 dark:text-gray-400">
-            输入首条指令后，会自动创建会话并进入工作区协作。
+            输入首条指令后，会自动创建会话并进入项目协作。
           </p>
           <div className="group relative" id="home-input-container">
             <div className="pointer-events-none absolute -inset-1 rounded-[28px] bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20 opacity-0 blur-xl transition-opacity duration-500 group-focus-within:opacity-100" />
@@ -737,7 +737,7 @@ function ProjectHomeContent(props: {
 
                   <div className="border-t border-gray-100 p-2 dark:border-gray-800">
                     <div className="px-2 py-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
-                      Agents 按钮位于页头
+                      Agent 管理入口位于页头
                     </div>
                   </div>
                 </div>,
@@ -775,7 +775,7 @@ function ProjectHomeContent(props: {
                     继续最近的会话
                   </CardTitle>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    从这个项目最近的 ACP 会话继续。
+                    从当前项目最近的 ACP 会话继续。
                   </p>
                 </div>
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -1025,7 +1025,7 @@ function ProjectHomeContent(props: {
             </TabsContent>
 
             <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-400 dark:border-[#1c1f2e] dark:text-slate-500">
-              Source: ACP providers registry and local runtime checks
+              数据来源：ACP provider 注册表与本地运行时检查
             </div>
           </Tabs>
         </DialogContent>
@@ -1066,7 +1066,7 @@ function RepositoryPicker(props: {
       [
         projectTitle(project),
         project.data.sourceUrl,
-        project.data.workspaceRoot,
+        project.data.repoPath,
       ].some((valuePart) => valuePart?.toLowerCase().includes(normalizedQuery)),
     );
   }, [projects, searchQuery]);
@@ -1271,7 +1271,7 @@ function RepositoryPicker(props: {
                                 {project.data.sourceUrl ?? '未记录来源地址'}
                               </p>
                               <p className="mt-1 truncate text-[11px] text-slate-400 dark:text-slate-500">
-                                {project.data.workspaceRoot ?? '未记录本地目录'}
+                                {project.data.repoPath ?? '未记录本地目录'}
                               </p>
                             </div>
                           </button>
@@ -1290,7 +1290,7 @@ function RepositoryPicker(props: {
                 <div className="space-y-3 p-3">
                   <div className="space-y-1">
                     <label className="text-[11px] font-medium tracking-[0.14em] text-slate-500 uppercase dark:text-slate-400">
-                      Repository URL
+                      仓库地址
                     </label>
                     <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-[#2a2d3d] dark:bg-[#161922]">
                       <span className="shrink-0 text-[11px] font-mono text-slate-400">

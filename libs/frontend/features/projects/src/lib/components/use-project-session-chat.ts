@@ -3,7 +3,6 @@ import { UIMessage, useChat } from '@ai-sdk/react';
 import {
   AcpEventEnvelope,
   AcpSession,
-  type AcpCompleteEventData,
   type AcpErrorEventData,
   type AcpMessageEventData,
   type AcpSessionEventData,
@@ -11,7 +10,7 @@ import {
 import { toast } from '@shared/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-type SessionChatMessage = UIMessage<{
+export type SessionChatMessage = UIMessage<{
   chunkKey?: string;
   emittedAt: string;
   optimistic?: boolean;
@@ -71,9 +70,6 @@ function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
   switch (event.type) {
     case 'session': {
       const data = event.data as AcpSessionEventData;
-      if (data.reason === 'session_created') {
-        return '会话已创建，可以直接继续对话。';
-      }
       if (data.title) {
         return `会话标题已更新为 ${data.title}。`;
       }
@@ -82,13 +78,8 @@ function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
       }
       return null;
     }
-    case 'complete': {
-      const data = event.data as AcpCompleteEventData;
-      if (data.state === 'CANCELLED' || data.stopReason === 'cancelled') {
-        return '本次对话已取消。';
-      }
-      return '本轮对话已结束。';
-    }
+    case 'complete':
+      return null;
     case 'error': {
       const data = event.data as AcpErrorEventData;
       return data.message ?? event.error?.message ?? '执行过程中发生错误。';

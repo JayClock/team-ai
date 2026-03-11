@@ -14,16 +14,16 @@ const listProjectsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   q: z.string().trim().optional(),
+  repoPath: z.string().trim().min(1).optional(),
   sourceUrl: z.string().trim().min(1).optional(),
-  workspaceRoot: z.string().trim().min(1).optional(),
 });
 
 const createProjectBodySchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().trim().optional(),
+  repoPath: z.string().trim().min(1).optional(),
   sourceType: z.enum(['github', 'local']).optional(),
   sourceUrl: z.string().trim().min(1).optional(),
-  workspaceRoot: z.string().trim().min(1).optional(),
 });
 
 const cloneProjectBodySchema = z.object({
@@ -36,17 +36,17 @@ const updateProjectBodySchema = z
   .object({
     title: z.string().trim().min(1).optional(),
     description: z.string().trim().optional().nullable(),
+    repoPath: z.string().trim().min(1).optional().nullable(),
     sourceType: z.enum(['github', 'local']).optional().nullable(),
     sourceUrl: z.string().trim().min(1).optional().nullable(),
-    workspaceRoot: z.string().trim().min(1).optional().nullable(),
   })
   .refine(
     (value) =>
       value.title !== undefined ||
       value.description !== undefined ||
+      value.repoPath !== undefined ||
       value.sourceType !== undefined ||
-      value.sourceUrl !== undefined ||
-      value.workspaceRoot !== undefined,
+      value.sourceUrl !== undefined,
     'At least one field must be provided',
   );
 

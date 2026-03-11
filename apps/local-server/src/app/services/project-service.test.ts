@@ -7,7 +7,7 @@ import { initializeDatabase } from '../db/sqlite';
 import {
   createProject,
   findProjectBySourceUrl,
-  findProjectByWorkspaceRoot,
+  findProjectByRepoPath,
   getProjectById,
   listProjects,
   updateProject,
@@ -25,7 +25,7 @@ describe('project service', () => {
     }
   });
 
-  it('persists workspaceRoot when creating and loading a project', async () => {
+  it('persists repoPath when creating and loading a project', async () => {
     const sqlite = await createTestDatabase();
 
     const project = await createProject(sqlite, {
@@ -33,46 +33,46 @@ describe('project service', () => {
       description: 'Local repo',
       sourceType: 'github',
       sourceUrl: 'https://github.com/team-ai/team-ai',
-      workspaceRoot: '/Users/example/team-ai',
+      repoPath: '/Users/example/team-ai',
     });
 
     const reloadedProject = await getProjectById(sqlite, project.id);
 
-    expect(reloadedProject.workspaceRoot).toBe('/Users/example/team-ai');
+    expect(reloadedProject.repoPath).toBe('/Users/example/team-ai');
     expect(reloadedProject.sourceType).toBe('github');
     expect(reloadedProject.sourceUrl).toBe('https://github.com/team-ai/team-ai');
   });
 
-  it('filters projects by workspaceRoot', async () => {
+  it('filters projects by repoPath', async () => {
     const sqlite = await createTestDatabase();
 
     await createProject(sqlite, {
       title: 'Team AI',
-      workspaceRoot: '/Users/example/team-ai',
+      repoPath: '/Users/example/team-ai',
     });
     await createProject(sqlite, {
       title: 'Other',
-      workspaceRoot: '/Users/example/other',
+      repoPath: '/Users/example/other',
     });
 
     const filteredProjects = await listProjects(sqlite, {
       page: 1,
       pageSize: 20,
-      workspaceRoot: '/Users/example/team-ai',
+      repoPath: '/Users/example/team-ai',
     });
 
     expect(filteredProjects.items).toHaveLength(1);
     expect(filteredProjects.items[0]?.title).toBe('Team AI');
   });
 
-  it('finds a project by workspaceRoot for reuse', async () => {
+  it('finds a project by repoPath for reuse', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Team AI',
-      workspaceRoot: '/Users/example/team-ai',
+      repoPath: '/Users/example/team-ai',
     });
 
-    const resolvedProject = await findProjectByWorkspaceRoot(
+    const resolvedProject = await findProjectByRepoPath(
       sqlite,
       '/Users/example/team-ai',
     );
@@ -86,7 +86,7 @@ describe('project service', () => {
       title: 'Team AI',
       sourceType: 'github',
       sourceUrl: 'https://github.com/team-ai/team-ai',
-      workspaceRoot: '/Users/example/team-ai',
+      repoPath: '/Users/example/team-ai',
     });
 
     const resolvedProject = await findProjectBySourceUrl(
@@ -97,17 +97,17 @@ describe('project service', () => {
     expect(resolvedProject?.id).toBe(project.id);
   });
 
-  it('updates workspaceRoot', async () => {
+  it('updates repoPath', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Team AI',
     });
 
     const updatedProject = await updateProject(sqlite, project.id, {
-      workspaceRoot: '/Users/example/team-ai',
+      repoPath: '/Users/example/team-ai',
     });
 
-    expect(updatedProject.workspaceRoot).toBe('/Users/example/team-ai');
+    expect(updatedProject.repoPath).toBe('/Users/example/team-ai');
   });
 
   it('updates repository source metadata', async () => {
@@ -125,18 +125,18 @@ describe('project service', () => {
     expect(updatedProject.sourceUrl).toBe('https://github.com/team-ai/team-ai');
   });
 
-  it('rejects duplicate workspaceRoot values', async () => {
+  it('rejects duplicate repoPath values', async () => {
     const sqlite = await createTestDatabase();
 
     await createProject(sqlite, {
       title: 'Team AI',
-      workspaceRoot: '/Users/example/team-ai',
+      repoPath: '/Users/example/team-ai',
     });
 
     await expect(
       createProject(sqlite, {
         title: 'Team AI Copy',
-        workspaceRoot: '/Users/example/team-ai',
+        repoPath: '/Users/example/team-ai',
       }),
     ).rejects.toMatchObject({
       status: 409,

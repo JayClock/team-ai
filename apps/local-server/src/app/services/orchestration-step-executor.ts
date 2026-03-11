@@ -59,7 +59,7 @@ export async function executeOrchestrationStepViaGateway(input: {
       orchestrationSessionId: input.session.id,
       orchestrationStepId: input.step.id,
       role: input.step.role ?? null,
-      workspaceRoot: input.session.workspaceRoot ?? null,
+      cwd: input.session.cwd ?? null,
     },
   });
   const runtimeSessionId = sessionResponse.session.sessionId;
@@ -69,7 +69,7 @@ export async function executeOrchestrationStepViaGateway(input: {
     input: renderGatewayPrompt(prompt),
     timeoutMs: defaultPromptTimeoutMs,
     traceId: input.session.traceId,
-    cwd: input.session.workspaceRoot ?? undefined,
+    cwd: input.session.cwd ?? undefined,
     env: {
       TEAM_AI_ORCHESTRATION_SESSION_ID: input.session.id,
       TEAM_AI_ORCHESTRATION_STEP_ID: input.step.id,

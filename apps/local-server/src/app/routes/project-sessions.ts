@@ -30,12 +30,12 @@ const projectParamsSchema = z.object({
 });
 
 const createSessionBodySchema = z.object({
+  cwd: z.string().trim().min(1).optional(),
   executionMode: z.enum(['ROUTA', 'DEVELOPER']).optional(),
   provider: z.string().trim().min(1).optional(),
   traceId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
   goal: z.string().trim().min(1),
-  workspaceRoot: z.string().trim().min(1).optional(),
 });
 
 const projectSessionsRoute: FastifyPluginAsync = async (fastify) => {

@@ -5,6 +5,6 @@ describe('FeaturesProjects', () => {
   it('renders empty state when no project is selected', () => {
     render(<FeaturesProjects />);
 
-    expect(screen.getByText('No project selected.')).toBeTruthy();
+    expect(screen.getByText('未选择项目。')).toBeTruthy();
   });
 });

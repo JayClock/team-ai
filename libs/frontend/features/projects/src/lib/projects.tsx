@@ -8,7 +8,7 @@ import {
   Project,
 } from '@shared/schema';
 import { useEffect, useMemo, useRef } from 'react';
-import { ProjectSessionsWorkspace } from './components/project-sessions-workspace';
+import { ProjectSessionWorkbench } from './components/project-session-workbench';
 
 const GRAPH_HEIGHT = 560;
 
@@ -27,7 +27,7 @@ export function FeaturesProjects(props: Props) {
   if (!state?.value) {
     return (
       <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
-        No project selected.
+        未选择项目。
       </div>
     );
   }
@@ -43,19 +43,19 @@ function ProjectsWorkspaceContent(props: { projectState: State<Project> }) {
   return (
     <div className="h-full overflow-auto p-4 md:p-6">
       <header className="mb-4">
-        <h2 className="text-lg font-semibold">Project Workspace</h2>
+        <h2 className="text-lg font-semibold">项目</h2>
         <p className="text-sm text-muted-foreground">
-          Manage ACP sessions and inspect project knowledge graph.
+          管理 ACP 会话，并查看当前项目的知识图谱。
         </p>
       </header>
 
       {hasSessions ? (
-        <ProjectSessionsWorkspace
+        <ProjectSessionWorkbench
           projectState={projectState}
           projectTitle={projectState.data.name}
         />
       ) : (
-        <MissingPanelMessage message="Current project does not expose ACP sessions link." />
+        <MissingPanelMessage message="当前项目未暴露 ACP sessions 链接。" />
       )}
 
       {hasGraph ? (
@@ -63,7 +63,7 @@ function ProjectsWorkspaceContent(props: { projectState: State<Project> }) {
           <ProjectsKnowledgeGraphContent projectState={projectState} />
         </div>
       ) : (
-        <MissingPanelMessage message="Current project does not expose a knowledge graph link." />
+        <MissingPanelMessage message="当前项目未暴露知识图谱链接。" />
       )}
     </div>
   );
@@ -175,15 +175,14 @@ function ProjectsKnowledgeGraphContent(props: { projectState: State<Project> }) 
   return (
     <div>
       <div className="mb-4 flex flex-col gap-1">
-        <h3 className="text-lg font-semibold">Knowledge Graph</h3>
+        <h3 className="text-lg font-semibold">知识图谱</h3>
         <p className="text-sm text-muted-foreground">
-          {nodes.length} node{nodes.length === 1 ? '' : 's'} · {edges.length} edge
-          {edges.length === 1 ? '' : 's'}
+          {nodes.length} 个节点 · {edges.length} 条关系
         </p>
       </div>
       {nodes.length === 0 ? (
         <div className="flex h-[560px] items-center justify-center rounded-md border text-sm text-muted-foreground">
-          No knowledge graph data yet.
+          暂无知识图谱数据。
         </div>
       ) : (
         <div
@@ -193,10 +192,10 @@ function ProjectsKnowledgeGraphContent(props: { projectState: State<Project> }) 
       )}
 
       <div className="mt-4 rounded-md border p-3">
-        <h4 className="text-sm font-semibold">Relations</h4>
+        <h4 className="text-sm font-semibold">关系</h4>
         <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
           {edges.length === 0 ? (
-            <li>No relations found.</li>
+            <li>暂未发现关系。</li>
           ) : (
             edges.slice(0, 12).map((edge, index) => (
               <li

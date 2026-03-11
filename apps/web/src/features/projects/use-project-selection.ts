@@ -7,11 +7,11 @@ export type LocalProject = Entity<{
   createdAt: string;
   description: string | null;
   id: string;
+  repoPath: string | null;
   sourceType: 'github' | 'local' | null;
   sourceUrl: string | null;
   title: string;
   updatedAt: string;
-  workspaceRoot: string | null;
 }>;
 
 export function projectTitle(project: State<LocalProject>): string {

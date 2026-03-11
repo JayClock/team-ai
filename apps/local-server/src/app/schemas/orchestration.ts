@@ -52,7 +52,7 @@ export interface OrchestrationSessionPayload {
   title: string;
   traceId?: string;
   updatedAt: string;
-  workspaceRoot?: string | null;
+  cwd?: string | null;
 }
 
 export interface OrchestrationSessionListPayload {

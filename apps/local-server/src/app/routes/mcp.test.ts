@@ -102,7 +102,7 @@ describe('mcp route', () => {
 
     const project = await createProject(fastify.sqlite, {
       title: 'Local MCP Project',
-      workspaceRoot: '/tmp/team-ai-local-mcp-project',
+      repoPath: '/tmp/team-ai-local-mcp-project',
     });
     await createAgent(fastify.sqlite, {
       name: 'Planner',

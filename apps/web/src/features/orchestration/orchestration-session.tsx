@@ -54,7 +54,7 @@ type OrchestrationSession = Entity<
     };
     title: string;
     updatedAt: string;
-    workspaceRoot?: string | null;
+    cwd?: string | null;
   },
   {
     self: OrchestrationSession;
@@ -725,7 +725,7 @@ export default function OrchestrationSessionPage() {
         content: selectedSession.data.goal,
         id: `goal-${selectedSession.data.id}`,
         meta: [
-          selectedSession.data.workspaceRoot ?? '未绑定工作区',
+          selectedSession.data.cwd ?? '未绑定目录',
           formatTimestamp(selectedSession.data.createdAt),
         ],
         tone: 'user',
@@ -950,7 +950,7 @@ export default function OrchestrationSessionPage() {
                           </div>
                           <div className="mt-4 grid gap-2 text-[11px] text-slate-500">
                             <div className="truncate">
-                              {session.data.workspaceRoot ?? '暂无工作区路径'}
+                              {session.data.cwd ?? '暂无目录路径'}
                             </div>
                             <div>
                               {session.data.stepCounts.completed}/
@@ -1152,7 +1152,7 @@ export default function OrchestrationSessionPage() {
                       />
                       <SidebarField
                         label="工作区"
-                        value={selectedSession?.data.workspaceRoot ?? '—'}
+                        value={selectedSession?.data.cwd ?? '—'}
                       />
                       <SidebarField
                         label="策略"

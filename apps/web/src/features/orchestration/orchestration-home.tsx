@@ -27,11 +27,11 @@ type LocalProject = Entity<{
   createdAt: string;
   description: string | null;
   id: string;
+  repoPath: string | null;
   sourceType: 'github' | 'local' | null;
   sourceUrl: string | null;
   title: string;
   updatedAt: string;
-  workspaceRoot: string | null;
 }>;
 
 type LocalProjectCollection = Entity<Collection<LocalProject>['data']>;
@@ -51,11 +51,11 @@ type ProjectDocument = {
   createdAt: string;
   description: string | null;
   id: string;
+  repoPath: string | null;
   sourceType: 'github' | 'local' | null;
   sourceUrl: string | null;
   title: string;
   updatedAt: string;
-  workspaceRoot: string | null;
 };
 
 type CloneProjectResponse = ProjectDocument & {
@@ -179,11 +179,7 @@ function RepositoryPicker({
     }
 
     return projects.filter((project) =>
-      [
-        project.title,
-        project.sourceUrl,
-        project.workspaceRoot,
-      ].some((valuePart) =>
+      [project.title, project.sourceUrl, project.repoPath].some((valuePart) =>
         valuePart?.toLowerCase().includes(normalizedQuery),
       ),
     );
@@ -396,7 +392,7 @@ function RepositoryPicker({
                                 {project.sourceUrl ?? '未记录来源地址'}
                               </p>
                               <p className="mt-1 truncate text-[11px] text-slate-400">
-                                {project.workspaceRoot ?? '未记录本地目录'}
+                                {project.repoPath ?? '未记录本地目录'}
                               </p>
                             </div>
                           </button>
@@ -588,7 +584,7 @@ export default function OrchestrationHome() {
 
       const goal = prompt.trim();
 
-      if (!selectedProject?.workspaceRoot) {
+      if (!selectedProject?.repoPath) {
         toast.error('请先选择一个本地已准备好的仓库');
         return;
       }
@@ -610,7 +606,7 @@ export default function OrchestrationHome() {
               executionMode: executionModeFromSessionMode(sessionMode),
               provider: 'codex',
               title: deriveSessionTitle(goal),
-              workspaceRoot: selectedProject.workspaceRoot,
+              cwd: selectedProject.repoPath,
             }),
           },
         );

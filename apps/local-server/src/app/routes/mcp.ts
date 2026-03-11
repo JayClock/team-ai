@@ -25,8 +25,8 @@ const projectsListArgsSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   q: z.string().trim().min(1).optional(),
+  repoPath: z.string().trim().min(1).optional(),
   sourceUrl: z.string().trim().min(1).optional(),
-  workspaceRoot: z.string().trim().min(1).optional(),
 });
 
 const agentsListArgsSchema = z.object({
@@ -59,13 +59,13 @@ const cancelAcpSessionArgsSchema = z.object({
 });
 
 const createOrchestrationSessionArgsSchema = z.object({
+  cwd: z.string().trim().min(1).optional(),
   executionMode: z.enum(['ROUTA', 'DEVELOPER']).optional(),
   goal: z.string().trim().min(1),
   projectId: z.string().trim().min(1),
   provider: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
   traceId: z.string().trim().min(1).optional(),
-  workspaceRoot: z.string().trim().min(1).optional(),
 });
 
 const mcpTools = [
@@ -79,8 +79,8 @@ const mcpTools = [
         page: { type: 'number', minimum: 1, default: 1 },
         pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
         q: { type: 'string' },
+        repoPath: { type: 'string' },
         sourceUrl: { type: 'string' },
-        workspaceRoot: { type: 'string' },
       },
     },
   },
@@ -157,7 +157,7 @@ const mcpTools = [
         goal: { type: 'string' },
         provider: { type: 'string' },
         traceId: { type: 'string' },
-        workspaceRoot: { type: 'string' },
+        cwd: { type: 'string' },
         executionMode: { type: 'string', enum: ['ROUTA', 'DEVELOPER'] },
       },
     },

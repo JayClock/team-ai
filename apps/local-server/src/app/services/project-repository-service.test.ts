@@ -56,7 +56,7 @@ describe('project repository service', () => {
     expect(result.project.title).toBe('agent-workbench');
     expect(result.project.sourceType).toBe('github');
     expect(result.project.sourceUrl).toBe('https://github.com/acme/agent-workbench');
-    expect(result.project.workspaceRoot).toBe(join(cloneBaseDir, 'acme--agent-workbench'));
+    expect(result.project.repoPath).toBe(join(cloneBaseDir, 'acme--agent-workbench'));
     expect(runGit).toHaveBeenCalledWith(
       ['clone', '--depth', '1', 'https://github.com/acme/agent-workbench.git', join(cloneBaseDir, 'acme--agent-workbench')],
     );
@@ -65,10 +65,10 @@ describe('project repository service', () => {
   it('reuses an existing managed clone and project by repository source', async () => {
     const sqlite = await createTestDatabase();
     const cloneBaseDir = await mkdtemp(join(tmpdir(), 'team-ai-managed-repos-'));
-    const workspaceRoot = join(cloneBaseDir, 'acme--agent-workbench');
+    const repoPath = join(cloneBaseDir, 'acme--agent-workbench');
 
     cleanupTasks.push(() => rm(cloneBaseDir, { recursive: true, force: true }));
-    await mkdir(workspaceRoot, { recursive: true });
+    await mkdir(repoPath, { recursive: true });
 
     const existing = await cloneProjectRepository(
       sqlite,
@@ -80,7 +80,7 @@ describe('project repository service', () => {
           await mkdir(path, { recursive: true });
         },
         async pathExists(path) {
-          return path === workspaceRoot;
+          return path === repoPath;
         },
         resolveCloneBaseDir() {
           return cloneBaseDir;
@@ -101,7 +101,7 @@ describe('project repository service', () => {
           await mkdir(path, { recursive: true });
         },
         async pathExists(path) {
-          return path === workspaceRoot;
+          return path === repoPath;
         },
         resolveCloneBaseDir() {
           return cloneBaseDir;
@@ -112,7 +112,7 @@ describe('project repository service', () => {
 
     expect(result.cloneStatus).toBe('reused');
     expect(result.project.id).toBe(existing.project.id);
-    expect(runGit).toHaveBeenCalledWith(['pull', '--ff-only'], workspaceRoot);
+    expect(runGit).toHaveBeenCalledWith(['pull', '--ff-only'], repoPath);
 
     const storedProject = await getProjectById(sqlite, existing.project.id);
     expect(storedProject.sourceUrl).toBe('https://github.com/acme/agent-workbench');

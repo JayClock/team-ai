@@ -13,6 +13,7 @@ export type CrafterOutput = z.infer<typeof crafterOutputSchema>;
 
 export function buildCrafterPrompts(input: {
   constraints: string[];
+  cwd?: string | null;
   executionMode: string;
   goal: string;
   planSummary: string;
@@ -27,7 +28,6 @@ export function buildCrafterPrompts(input: {
   sessionId: string;
   stepId: string;
   title: string;
-  workspaceRoot?: string | null;
 }) {
   const systemPrompt = [
     'You are the implementation specialist for a local orchestration workflow.',
@@ -47,7 +47,7 @@ export function buildCrafterPrompts(input: {
     `Project: ${input.projectId}`,
     `Provider: ${input.provider}`,
     `Execution mode: ${input.executionMode}`,
-    `Workspace root: ${input.workspaceRoot ?? 'not-provided'}`,
+    `CWD: ${input.cwd ?? 'not-provided'}`,
     `Title: ${input.title}`,
     `Goal: ${input.goal}`,
     `Plan summary: ${input.planSummary}`,

@@ -50,7 +50,7 @@ describe('orchestration storage metadata', () => {
       goal: 'Wire local orchestration runtime',
       provider: 'codex',
       executionMode: 'ROUTA',
-      workspaceRoot: '/tmp/team-ai-workspace',
+      cwd: '/tmp/team-ai-workspace',
       traceId: 'trace-storage-1',
     });
 
@@ -59,7 +59,7 @@ describe('orchestration storage metadata', () => {
 
     expect(reloadedSession.provider).toBe('codex');
     expect(reloadedSession.executionMode).toBe('ROUTA');
-    expect(reloadedSession.workspaceRoot).toBe('/tmp/team-ai-workspace');
+    expect(reloadedSession.cwd).toBe('/tmp/team-ai-workspace');
     expect(reloadedSession.traceId).toBe('trace-storage-1');
 
     expect(steps).toHaveLength(3);
@@ -171,7 +171,7 @@ describe('orchestration storage metadata', () => {
         goal: 'Wire local orchestration runtime',
         provider: 'codex',
         executionMode: 'ROUTA',
-        workspaceRoot: '/tmp/team-ai-workspace',
+        cwd: '/tmp/team-ai-workspace',
         traceId: 'trace-execution-1',
       },
       gatewayClient.client,

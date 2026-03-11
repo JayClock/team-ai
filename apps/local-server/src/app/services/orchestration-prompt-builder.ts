@@ -42,7 +42,7 @@ interface PromptContext {
     | 'projectId'
     | 'provider'
     | 'title'
-    | 'workspaceRoot'
+    | 'cwd'
   >;
   step: Pick<
     OrchestrationStepPayload,
@@ -67,7 +67,7 @@ export function buildOrchestrationPrompt(
         sessionId: context.session.id,
         stepId: context.step.id,
         title: context.step.title,
-        workspaceRoot: context.session.workspaceRoot,
+        cwd: context.session.cwd,
       });
 
       return {
@@ -95,7 +95,7 @@ export function buildOrchestrationPrompt(
         sessionId: context.session.id,
         stepId: context.step.id,
         title: context.step.title,
-        workspaceRoot: context.session.workspaceRoot,
+        cwd: context.session.cwd,
       });
 
       return {
@@ -129,7 +129,7 @@ export function buildOrchestrationPrompt(
         stepId: context.step.id,
         title: context.step.title,
         verificationCommands: plan.verification.commands,
-        workspaceRoot: context.session.workspaceRoot,
+        cwd: context.session.cwd,
       });
 
       return {

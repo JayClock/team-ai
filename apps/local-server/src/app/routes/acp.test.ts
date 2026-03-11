@@ -82,7 +82,7 @@ describe('acp route', () => {
 
     const project = await createProject(fastify.sqlite, {
       title: 'Desktop ACP Project',
-      workspaceRoot: '/tmp/team-ai-desktop-project',
+      repoPath: '/tmp/team-ai-desktop-project',
     });
 
     const createResponse = await fastify.inject({

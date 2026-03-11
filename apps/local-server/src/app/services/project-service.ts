@@ -14,8 +14,8 @@ interface ListProjectsQuery {
   page: number;
   pageSize: number;
   q?: string;
+  repoPath?: string;
   sourceUrl?: string;
-  workspaceRoot?: string;
 }
 
 interface ProjectRow {
@@ -36,9 +36,9 @@ function mapProjectRow(row: ProjectRow): ProjectPayload {
     description: row.description,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    repoPath: row.workspace_root,
     sourceType: row.source_type,
     sourceUrl: row.source_url,
-    workspaceRoot: row.workspace_root,
   };
 }
 
@@ -55,12 +55,12 @@ function throwProjectNotFound(projectId: string): never {
   });
 }
 
-function throwWorkspaceRootConflict(workspaceRoot: string): never {
+function throwRepoPathConflict(repoPath: string): never {
   throw new ProblemError({
     type: 'https://team-ai.dev/problems/project-workspace-conflict',
     title: 'Project Workspace Conflict',
     status: 409,
-    detail: `Workspace root ${workspaceRoot} is already assigned to another project`,
+    detail: `Repository path ${repoPath} is already assigned to another project`,
   });
 }
 
@@ -93,7 +93,7 @@ export async function listProjects(
   sqlite: Database,
   query: ListProjectsQuery,
 ): Promise<ProjectListPayload> {
-  const { page, pageSize, q, sourceUrl, workspaceRoot } = query;
+  const { page, pageSize, q, repoPath, sourceUrl } = query;
   const offset = (page - 1) * pageSize;
   const filters = ['deleted_at IS NULL'];
   const parameters: Record<string, unknown> = {
@@ -106,9 +106,9 @@ export async function listProjects(
     parameters.search = `%${q}%`;
   }
 
-  if (workspaceRoot) {
-    filters.push('workspace_root = @workspaceRoot');
-    parameters.workspaceRoot = workspaceRoot.trim();
+  if (repoPath) {
+    filters.push('workspace_root = @repoPath');
+    parameters.repoPath = repoPath.trim();
   }
 
   if (sourceUrl) {
@@ -147,18 +147,18 @@ export async function listProjects(
     pageSize,
     q,
     total: total.count,
+    repoPath,
     sourceUrl,
-    workspaceRoot,
   };
 }
 
-export async function findProjectByWorkspaceRoot(
+export async function findProjectByRepoPath(
   sqlite: Database,
-  workspaceRoot: string,
+  repoPath: string,
 ): Promise<ProjectPayload | undefined> {
-  const normalizedWorkspaceRoot = workspaceRoot.trim();
+  const normalizedRepoPath = repoPath.trim();
 
-  if (normalizedWorkspaceRoot.length === 0) {
+  if (normalizedRepoPath.length === 0) {
     return undefined;
   }
 
@@ -171,7 +171,7 @@ export async function findProjectByWorkspaceRoot(
         WHERE workspace_root = ? AND deleted_at IS NULL
       `,
     )
-    .get(normalizedWorkspaceRoot) as ProjectRow | undefined;
+    .get(normalizedRepoPath) as ProjectRow | undefined;
 
   return row ? mapProjectRow(row) : undefined;
 }
@@ -205,7 +205,7 @@ export async function createProject(
   input: CreateProjectInput,
 ): Promise<ProjectPayload> {
   const now = new Date().toISOString();
-  const workspaceRoot = input.workspaceRoot?.trim() || null;
+  const repoPath = input.repoPath?.trim() || null;
   const sourceUrl = input.sourceUrl?.trim() || null;
   const project: ProjectPayload = {
     id: createProjectId(),
@@ -213,9 +213,9 @@ export async function createProject(
     description: input.description ?? null,
     createdAt: now,
     updatedAt: now,
+    repoPath,
     sourceType: input.sourceType ?? null,
     sourceUrl,
-    workspaceRoot,
   };
 
   try {
@@ -239,7 +239,7 @@ export async function createProject(
             @description,
             @sourceType,
             @sourceUrl,
-            @workspaceRoot,
+            @repoPath,
             @createdAt,
             @updatedAt,
             NULL
@@ -248,8 +248,8 @@ export async function createProject(
       )
       .run(project);
   } catch (error) {
-    if (workspaceRoot && isWorkspaceRootConstraintError(error)) {
-      throwWorkspaceRootConflict(workspaceRoot);
+    if (repoPath && isWorkspaceRootConstraintError(error)) {
+      throwRepoPathConflict(repoPath);
     }
 
     if (sourceUrl && isSourceUrlConstraintError(error)) {
@@ -295,6 +295,8 @@ export async function updateProject(
     title: input.title ?? current.title,
     description:
       input.description === undefined ? current.description : input.description,
+    repoPath:
+      input.repoPath === undefined ? current.repoPath : input.repoPath?.trim() || null,
     updatedAt: new Date().toISOString(),
     sourceType:
       input.sourceType === undefined ? current.sourceType : input.sourceType,
@@ -302,10 +304,6 @@ export async function updateProject(
       input.sourceUrl === undefined
         ? current.sourceUrl
         : input.sourceUrl?.trim() || null,
-    workspaceRoot:
-      input.workspaceRoot === undefined
-        ? current.workspaceRoot
-        : input.workspaceRoot?.trim() || null,
   };
 
   try {
@@ -318,15 +316,15 @@ export async function updateProject(
             description = @description,
             source_type = @sourceType,
             source_url = @sourceUrl,
-            workspace_root = @workspaceRoot,
+            workspace_root = @repoPath,
             updated_at = @updatedAt
           WHERE id = @id AND deleted_at IS NULL
-        `,
+      `,
       )
       .run(next);
   } catch (error) {
-    if (next.workspaceRoot && isWorkspaceRootConstraintError(error)) {
-      throwWorkspaceRootConflict(next.workspaceRoot);
+    if (next.repoPath && isWorkspaceRootConstraintError(error)) {
+      throwRepoPathConflict(next.repoPath);
     }
 
     if (next.sourceUrl && isSourceUrlConstraintError(error)) {

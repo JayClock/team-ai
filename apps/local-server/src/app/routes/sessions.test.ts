@@ -39,7 +39,7 @@ describe('sessions routes', () => {
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
       title: 'Desktop Project',
-      workspaceRoot: '/tmp/team-ai-desktop-project',
+      repoPath: '/tmp/team-ai-desktop-project',
     });
 
     const createResponse = await fastify.inject({
@@ -48,7 +48,7 @@ describe('sessions routes', () => {
       payload: {
         goal: 'Promote local-server as the desktop-first runtime',
         title: 'Promote desktop runtime',
-        workspaceRoot: '/tmp/team-ai-desktop-project',
+        cwd: '/tmp/team-ai-desktop-project',
       },
     });
 
@@ -60,7 +60,7 @@ describe('sessions routes', () => {
       projectId: project.id,
       status: 'PENDING',
       title: 'Promote desktop runtime',
-      workspaceRoot: '/tmp/team-ai-desktop-project',
+      cwd: '/tmp/team-ai-desktop-project',
       _links: {
         self: {
           href: createResponse.headers.location,
@@ -131,11 +131,11 @@ describe('sessions routes', () => {
     const fastify = await createTestServer(sqlite);
     const projectA = await createProject(sqlite, {
       title: 'Desktop Runtime',
-      workspaceRoot: '/tmp/team-ai-project-a',
+      repoPath: '/tmp/team-ai-project-a',
     });
     const projectB = await createProject(sqlite, {
       title: 'Agent Gateway',
-      workspaceRoot: '/tmp/team-ai-project-b',
+      repoPath: '/tmp/team-ai-project-b',
     });
 
     await fastify.inject({
@@ -215,7 +215,7 @@ describe('sessions routes', () => {
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
       title: 'Session Controls',
-      workspaceRoot: '/tmp/team-ai-controls',
+      repoPath: '/tmp/team-ai-controls',
     });
     const sessionId = await createSession(fastify, project.id, {
       goal: 'Cancel and resume a desktop session',
@@ -288,7 +288,7 @@ describe('sessions routes', () => {
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
       title: 'Retry Session',
-      workspaceRoot: '/tmp/team-ai-retry',
+      repoPath: '/tmp/team-ai-retry',
     });
     const sessionId = await createSession(fastify, project.id, {
       goal: 'Retry a failed orchestration session',
@@ -347,7 +347,7 @@ describe('sessions routes', () => {
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
       title: 'Step Controls',
-      workspaceRoot: '/tmp/team-ai-step-controls',
+      repoPath: '/tmp/team-ai-step-controls',
     });
     const sessionId = await createSession(fastify, project.id, {
       goal: 'Retry a failed orchestration step',
@@ -469,7 +469,7 @@ describe('sessions routes', () => {
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
       title: 'Invalid State Checks',
-      workspaceRoot: '/tmp/team-ai-invalid-states',
+      repoPath: '/tmp/team-ai-invalid-states',
     });
     const sessionId = await createSession(fastify, project.id, {
       goal: 'Exercise invalid orchestration transitions',
@@ -509,7 +509,7 @@ describe('sessions routes', () => {
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
       title: 'SSE Session',
-      workspaceRoot: '/tmp/team-ai-sse',
+      repoPath: '/tmp/team-ai-sse',
     });
     const sessionId = await createSession(fastify, project.id, {
       goal: 'Observe orchestration session stream',
@@ -612,7 +612,7 @@ describe('sessions routes', () => {
     payload: {
       goal: string;
       title: string;
-      workspaceRoot?: string;
+      cwd?: string;
     },
   ) {
     const response = await fastify.inject({

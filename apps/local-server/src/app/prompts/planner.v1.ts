@@ -26,6 +26,7 @@ export type PlannerOutput = z.infer<typeof plannerOutputSchema>;
 
 export function buildPlannerPrompts(input: {
   constraints: string[];
+  cwd?: string | null;
   executionMode: string;
   goal: string;
   projectId: string;
@@ -33,7 +34,6 @@ export function buildPlannerPrompts(input: {
   sessionId: string;
   stepId: string;
   title: string;
-  workspaceRoot?: string | null;
 }) {
   const systemPrompt = [
     'You are the planner for a local orchestration workflow.',
@@ -48,7 +48,7 @@ export function buildPlannerPrompts(input: {
     `Project: ${input.projectId}`,
     `Provider: ${input.provider}`,
     `Execution mode: ${input.executionMode}`,
-    `Workspace root: ${input.workspaceRoot ?? 'not-provided'}`,
+    `CWD: ${input.cwd ?? 'not-provided'}`,
     `Title: ${input.title}`,
     `Goal: ${input.goal}`,
     `Constraints: ${input.constraints.length > 0 ? input.constraints.join('; ') : 'none'}`,

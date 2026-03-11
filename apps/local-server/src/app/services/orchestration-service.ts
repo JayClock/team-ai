@@ -101,13 +101,13 @@ interface ListOrchestrationSessionsQuery {
 }
 
 interface CreateOrchestrationSessionInput {
+  cwd?: string;
   executionMode?: string;
   goal: string;
   provider?: string;
   projectId: string;
   traceId?: string;
   title: string;
-  workspaceRoot?: string;
 }
 
 interface ArtifactRow {
@@ -351,7 +351,7 @@ function mapSessionRow(
     id: row.id,
     projectId: row.project_id,
     provider: row.provider,
-    workspaceRoot: row.workspace_root,
+    cwd: row.workspace_root,
     executionMode: row.execution_mode,
     currentPhase: resolveCurrentPhase(sqlite, row.id),
     lastEventAt: resolveLastEventAt(sqlite, row.id),
@@ -1165,7 +1165,8 @@ export async function createOrchestrationSession(
   input: CreateOrchestrationSessionInput,
   agentGatewayClient?: AgentGatewayClient,
 ) {
-  await getProjectById(sqlite, input.projectId);
+  const project = await getProjectById(sqlite, input.projectId);
+  const cwd = input.cwd?.trim() || project.repoPath?.trim() || null;
 
   const now = new Date().toISOString();
   const sessionId = createSessionId();
@@ -1231,7 +1232,7 @@ export async function createOrchestrationSession(
             @id,
             @projectId,
             @provider,
-            @workspaceRoot,
+            @cwd,
             @executionMode,
             @traceId,
             @title,
@@ -1247,7 +1248,7 @@ export async function createOrchestrationSession(
         id: sessionId,
         projectId: input.projectId,
         provider,
-        workspaceRoot: input.workspaceRoot?.trim() || null,
+        cwd,
         executionMode,
         traceId: input.traceId?.trim() || null,
         title: input.title,
@@ -1343,7 +1344,7 @@ export async function createOrchestrationSession(
       title: input.title,
       provider,
       executionMode,
-      workspaceRoot: input.workspaceRoot?.trim() || null,
+      cwd,
       traceId: input.traceId?.trim() || null,
     },
   });

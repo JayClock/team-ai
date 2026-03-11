@@ -255,7 +255,7 @@ export type OrchestrationSessionData = {
   title: string;
   traceId?: string;
   updatedAt: string;
-  workspaceRoot?: string | null;
+  cwd?: string | null;
 };
 
 export type OrchestrationEventType =

@@ -287,15 +287,15 @@ function appendLocalEvent(
   return event;
 }
 
-function resolveSessionCwd(workspaceRoot: string | null): string {
-  const cwd = workspaceRoot?.trim();
+function resolveSessionCwd(repoPath: string | null): string {
+  const cwd = repoPath?.trim();
   if (!cwd || !isAbsolute(cwd)) {
     throw new ProblemError({
       type: 'https://team-ai.dev/problems/acp-project-workspace-missing',
       title: 'ACP Project Workspace Missing',
       status: 409,
       detail:
-        'ACP sessions require project.workspaceRoot to be set to an absolute local path',
+        'ACP sessions require project.repoPath to be set to an absolute local path',
     });
   }
 
@@ -678,7 +678,7 @@ export async function createAcpSession(
     getSessionRow(sqlite, input.parentSessionId);
   }
 
-  const cwd = resolveSessionCwd(project.workspaceRoot ?? null);
+  const cwd = resolveSessionCwd(project.repoPath ?? null);
   const now = new Date().toISOString();
   const sessionId = createSessionId();
 

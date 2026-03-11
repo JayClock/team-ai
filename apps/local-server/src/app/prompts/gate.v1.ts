@@ -19,6 +19,7 @@ export type GateOutput = z.infer<typeof gateOutputSchema>;
 
 export function buildGatePrompts(input: {
   constraints: string[];
+  cwd?: string | null;
   executionMode: string;
   goal: string;
   implementationSummary: string;
@@ -30,7 +31,6 @@ export function buildGatePrompts(input: {
   stepId: string;
   title: string;
   verificationCommands: string[];
-  workspaceRoot?: string | null;
 }) {
   const systemPrompt = [
     'You are the verification gate for a local orchestration workflow.',
@@ -45,7 +45,7 @@ export function buildGatePrompts(input: {
     `Project: ${input.projectId}`,
     `Provider: ${input.provider}`,
     `Execution mode: ${input.executionMode}`,
-    `Workspace root: ${input.workspaceRoot ?? 'not-provided'}`,
+    `CWD: ${input.cwd ?? 'not-provided'}`,
     `Title: ${input.title}`,
     `Goal: ${input.goal}`,
     `Plan summary: ${input.planSummary}`,

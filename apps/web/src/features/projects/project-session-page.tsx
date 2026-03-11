@@ -3,7 +3,7 @@ import { Project } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@shared/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ProjectSessionsWorkspace } from '@features/projects';
+import { ProjectSessionWorkbench } from '@features/projects';
 import {
   clearPendingProjectPrompt,
   readPendingProjectPrompt,
@@ -70,7 +70,7 @@ export default function ProjectSessionPage() {
 
   return (
     <div className="min-w-0 h-[100dvh] overflow-hidden bg-background">
-      <ProjectSessionsWorkspace
+      <ProjectSessionWorkbench
         projectState={projectState}
         projectTitle={projectTitle(currentProject)}
         onBack={handleBack}
