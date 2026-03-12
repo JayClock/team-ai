@@ -58,6 +58,7 @@ interface AcpSessionRow {
   specialist_id: string | null;
   started_at: string | null;
   state: AcpSessionState;
+  task_id: string | null;
 }
 
 interface AcpEventRow {
@@ -123,6 +124,7 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     name: row.name,
     provider: row.provider,
     specialistId: row.specialist_id,
+    task: row.task_id ? { id: row.task_id } : null,
     cwd: row.cwd ?? '',
     state: row.state,
     startedAt: row.started_at,
@@ -162,6 +164,7 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           state,
           runtime_session_id,
           specialist_id,
+          task_id,
           failure_reason,
           last_event_id,
           started_at,
@@ -232,7 +235,9 @@ function updateSessionRuntime(
           ? current.last_activity_at
           : update.lastActivityAt,
       completedAt:
-        update.completedAt === undefined ? current.completed_at : update.completedAt,
+        update.completedAt === undefined
+          ? current.completed_at
+          : update.completedAt,
       updatedAt: new Date().toISOString(),
     });
 }
@@ -336,8 +341,13 @@ function sessionHasPromptHistory(sqlite: Database, sessionId: string): boolean {
   return row.count > 0;
 }
 
-function buildBootstrapPrompt(systemPrompt: string, userPrompt: string): string {
-  return [`System:\n${systemPrompt.trim()}`, `User:\n${userPrompt}`].join('\n\n');
+function buildBootstrapPrompt(
+  systemPrompt: string,
+  userPrompt: string,
+): string {
+  return [`System:\n${systemPrompt.trim()}`, `User:\n${userPrompt}`].join(
+    '\n\n',
+  );
 }
 
 function resolveSessionCwd(repoPath: string | null): string {
@@ -363,15 +373,14 @@ function resolveLocalMcpServers(): McpServer[] {
     return [];
   }
 
-  const headers =
-    process.env.DESKTOP_SESSION_TOKEN?.trim()
-      ? [
-          {
-            name: 'Authorization',
-            value: `Bearer ${process.env.DESKTOP_SESSION_TOKEN.trim()}`,
-          },
-        ]
-      : [];
+  const headers = process.env.DESKTOP_SESSION_TOKEN?.trim()
+    ? [
+        {
+          name: 'Authorization',
+          value: `Bearer ${process.env.DESKTOP_SESSION_TOKEN.trim()}`,
+        },
+      ]
+    : [];
 
   return [
     {
@@ -398,7 +407,10 @@ function createRuntimeHooks(
       });
 
       const current = getSessionRow(sqlite, localSessionId);
-      const state = resolveSessionStateFromUpdate(notification.update, current.state);
+      const state = resolveSessionStateFromUpdate(
+        notification.update,
+        current.state,
+      );
       updateSessionRuntime(sqlite, localSessionId, {
         state,
         lastActivityAt:
@@ -707,7 +719,7 @@ async function ensureRuntimeLoaded(
     });
   }
 
-  await runtime.loadSession({
+  const loaded = await runtime.loadSession({
     localSessionId: session.id,
     runtimeSessionId: session.runtime_session_id,
     provider: session.provider,
@@ -715,6 +727,13 @@ async function ensureRuntimeLoaded(
     mcpServers: resolveLocalMcpServers(),
     hooks: createRuntimeHooks(sqlite, broker, session.id),
   });
+
+  if (loaded.runtimeSessionId !== session.runtime_session_id) {
+    updateSessionRuntime(sqlite, sessionId, {
+      runtimeSessionId: loaded.runtimeSessionId,
+    });
+    return loaded.runtimeSessionId;
+  }
 
   return session.runtime_session_id;
 }
@@ -739,7 +758,11 @@ export async function createAcpSession(
   }
 
   if (!specialist && role) {
-    specialist = await getDefaultSpecialistByRole(sqlite, input.projectId, role);
+    specialist = await getDefaultSpecialistByRole(
+      sqlite,
+      input.projectId,
+      role,
+    );
   }
 
   const cwd = resolveSessionCwd(project.repoPath ?? null);
@@ -773,6 +796,7 @@ export async function createAcpSession(
           cwd,
           state,
           runtime_session_id,
+          task_id,
           failure_reason,
           last_event_id,
           started_at,
@@ -937,16 +961,17 @@ export async function listAcpSessionHistory(
   }
 
   const sinceSequence = sinceEventId
-    ? ((sqlite
-        .prepare(
-          `
+    ? ((
+        sqlite
+          .prepare(
+            `
             SELECT sequence
             FROM project_acp_session_events
             WHERE event_id = ? AND session_id = ?
           `,
-        )
-        .get(sinceEventId, sessionId) as { sequence: number } | undefined)?.sequence ??
-      0)
+          )
+          .get(sinceEventId, sessionId) as { sequence: number } | undefined
+      )?.sequence ?? 0)
     : 0;
 
   const rows = sqlite
@@ -1034,7 +1059,7 @@ export async function loadAcpSession(
   }
 
   if (session.runtime_session_id && !runtime.isSessionActive(sessionId)) {
-    await runtime.loadSession({
+    const loaded = await runtime.loadSession({
       localSessionId: session.id,
       runtimeSessionId: session.runtime_session_id,
       provider: session.provider,
@@ -1042,6 +1067,12 @@ export async function loadAcpSession(
       mcpServers: resolveLocalMcpServers(),
       hooks: createRuntimeHooks(sqlite, broker, session.id),
     });
+
+    if (loaded.runtimeSessionId !== session.runtime_session_id) {
+      updateSessionRuntime(sqlite, sessionId, {
+        runtimeSessionId: loaded.runtimeSessionId,
+      });
+    }
   }
 
   return mapSessionRow(getSessionRow(sqlite, sessionId));

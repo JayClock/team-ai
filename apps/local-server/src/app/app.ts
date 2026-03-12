@@ -21,13 +21,13 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
   fastify.register(sensiblePlugin);
   fastify.register(sqlitePlugin);
   fastify.register(acpStreamPlugin);
-  fastify.register(acpRuntimePlugin);
   fastify.register(executionRuntimePlugin, {
     agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
   });
   fastify.register(agentGatewayClientPlugin, {
     agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
   });
+  fastify.register(acpRuntimePlugin);
   fastify.register(desktopCorsPlugin);
   fastify.register(desktopAuthPlugin, {
     desktopSessionToken: opts.desktopSessionToken,

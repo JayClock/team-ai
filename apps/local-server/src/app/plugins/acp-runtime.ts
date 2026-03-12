@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
+import { createAgentGatewayRuntimeClient } from '../clients/agent-gateway-runtime-client';
 import {
   createAcpRuntimeClient,
   type AcpRuntimeClient,
@@ -21,9 +22,11 @@ const acpRuntimePlugin: FastifyPluginAsync<AcpRuntimePluginOptions> = async (
 ) => {
   const acpRuntime =
     options.acpRuntime ??
-    createAcpRuntimeClient({
-      logger: fastify.log,
-    });
+    (fastify.agentGatewayClient?.isConfigured()
+      ? createAgentGatewayRuntimeClient(fastify.agentGatewayClient)
+      : createAcpRuntimeClient({
+          logger: fastify.log,
+        }));
 
   fastify.decorate('acpRuntime', acpRuntime);
   fastify.addHook('onClose', async () => {
@@ -33,4 +36,5 @@ const acpRuntimePlugin: FastifyPluginAsync<AcpRuntimePluginOptions> = async (
 
 export default fp(acpRuntimePlugin, {
   name: 'acp-runtime',
+  dependencies: ['agent-gateway-client'],
 });
