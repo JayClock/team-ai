@@ -35,7 +35,7 @@ The desktop runtime now consists of four cooperating parts:
 - Local Node server bootstrap
 - Desktop session authentication
 - Problem JSON error handling
-- SQLite bootstrap and migrations
+- SQLite bootstrap from a single schema snapshot
 - Project CRUD routes
 - Conversation CRUD routes
 - Message routes with local SSE output
@@ -137,6 +137,12 @@ All routes below are currently implemented by `apps/local-server`.
 - Manual `run` updates sync timestamps and surfaces pending changes.
 - Conflicts are persisted in SQLite.
 
+### Local SQLite Lifecycle
+
+- `apps/local-server` now creates the desktop SQLite schema from a single snapshot migration.
+- The desktop runtime no longer preserves old local schema upgrade paths.
+- When local schema changes break compatibility during development, delete `team-ai.db`, `team-ai.db-shm`, and `team-ai.db-wal` under the Electron local data directory and restart the desktop app.
+
 ## Recommended Next Steps
 
 ### Near-Term
@@ -185,4 +191,5 @@ npx nx build desktop
   - `AGENT_GATEWAY_BASE_URL`
   - `DESKTOP_SESSION_TOKEN`
   - `TEAMAI_DATA_DIR`
+- For fresh local-state debugging, remove the SQLite files under `TEAMAI_DATA_DIR` and relaunch the desktop app.
 - The renderer still talks only to `local-server`; it never calls `agent-gateway` directly.

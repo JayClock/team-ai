@@ -8,7 +8,11 @@ import type {
   UpdateProjectInput,
 } from '../schemas/project';
 
-const projectIdGenerator = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 12);
+const projectIdGenerator = customAlphabet(
+  '0123456789abcdefghijklmnopqrstuvwxyz',
+  12,
+);
+const defaultProjectTitle = 'Default Project';
 
 interface ListProjectsQuery {
   page: number;
@@ -77,7 +81,9 @@ function isWorkspaceRootConstraintError(error: unknown): boolean {
   return (
     error instanceof Error &&
     (error.message.includes('idx_projects_workspace_root_active') ||
-      error.message.includes('UNIQUE constraint failed: projects.workspace_root'))
+      error.message.includes(
+        'UNIQUE constraint failed: projects.workspace_root',
+      ))
   );
 }
 
@@ -262,6 +268,31 @@ export async function createProject(
   return project;
 }
 
+export async function ensureDefaultProject(
+  sqlite: Database,
+): Promise<ProjectPayload> {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT id, title, description, created_at, updated_at
+             , source_type, source_url, workspace_root
+        FROM projects
+        WHERE deleted_at IS NULL
+        ORDER BY updated_at DESC
+        LIMIT 1
+      `,
+    )
+    .get() as ProjectRow | undefined;
+
+  if (row) {
+    return mapProjectRow(row);
+  }
+
+  return createProject(sqlite, {
+    title: defaultProjectTitle,
+  });
+}
+
 export async function getProjectById(
   sqlite: Database,
   projectId: string,
@@ -296,7 +327,9 @@ export async function updateProject(
     description:
       input.description === undefined ? current.description : input.description,
     repoPath:
-      input.repoPath === undefined ? current.repoPath : input.repoPath?.trim() || null,
+      input.repoPath === undefined
+        ? current.repoPath
+        : input.repoPath?.trim() || null,
     updatedAt: new Date().toISOString(),
     sourceType:
       input.sourceType === undefined ? current.sourceType : input.sourceType,
