@@ -56,6 +56,10 @@ export type {
   TaskRunStatus,
 } from './lib/task-run.js';
 export type {
+  ProjectRuntimeProfile,
+  ProjectOrchestrationMode,
+} from './lib/runtime-profile.js';
+export type {
   Task,
   TaskCollection,
   TaskKind,

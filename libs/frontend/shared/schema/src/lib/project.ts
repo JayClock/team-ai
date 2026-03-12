@@ -8,6 +8,7 @@ import { LogicalEntity } from './logical-entity.js';
 import { NoteEventCollection } from './note-event.js';
 import { NoteCollection } from './note.js';
 import { RoleCollection } from './role.js';
+import { ProjectRuntimeProfile } from './runtime-profile.js';
 import { AcpSessionCollection } from './session.js';
 import { Sidebar } from './sidebar.js';
 import { SpecialistCollection } from './specialist.js';
@@ -44,6 +45,7 @@ export type Project = Entity<
     'logical-entities': Collection<LogicalEntity>;
     notes: NoteCollection;
     'note-events': NoteEventCollection;
+    'runtime-profile': ProjectRuntimeProfile;
     roles: RoleCollection;
     sidebar: Sidebar;
     specialists: SpecialistCollection;

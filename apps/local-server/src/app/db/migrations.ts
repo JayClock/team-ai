@@ -366,4 +366,26 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '007_project_runtime_profiles',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_runtime_profiles (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        default_provider_id TEXT,
+        default_model TEXT,
+        orchestration_mode TEXT NOT NULL DEFAULT 'ROUTA',
+        enabled_skill_ids_json TEXT NOT NULL DEFAULT '[]',
+        enabled_mcp_server_ids_json TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_runtime_profiles_project_id
+        ON project_runtime_profiles(project_id)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

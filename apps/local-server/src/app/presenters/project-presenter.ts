@@ -20,6 +20,9 @@ function createProjectLinks(project: ProjectPayload) {
     'task-runs': {
       href: `/api/projects/${project.id}/task-runs`,
     },
+    'runtime-profile': {
+      href: `/api/projects/${project.id}/runtime-profile`,
+    },
     agents: {
       href: `/api/projects/${project.id}/agents`,
     },
