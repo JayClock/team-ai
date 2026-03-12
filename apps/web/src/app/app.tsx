@@ -2,7 +2,6 @@ import Homepage from '../features/landing/homepage';
 import SmartDomainPage from '../features/landing/smart-domain-page';
 import { Login } from '../features/auth/login';
 import { Signup } from '../features/auth/signup';
-import AcpDebugPage from '../features/acp/acp-debug';
 import OrchestrationHome from '../features/orchestration/orchestration-home';
 import OrchestrationSessionPage from '../features/orchestration/orchestration-session';
 import ProjectHome from '../features/projects/project-home';
@@ -87,11 +86,6 @@ function createAppRouter() {
     {
       path: '/smart-domain',
       element: <SmartDomainPage />,
-    },
-    {
-      path: '/acp-debug',
-      loader: protectedRouteLoader,
-      element: <AcpDebugPage />,
     },
   ]);
 }
