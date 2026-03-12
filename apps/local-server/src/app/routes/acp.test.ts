@@ -316,18 +316,27 @@ describe('acp route', () => {
     fastifyInstances.push(fastify);
 
     let rootSessionHooks: AcpRuntimeSessionHooks | null = null;
+    const createRuntimeSession = vi.fn(async (input) => {
+      if (!rootSessionHooks) {
+        rootSessionHooks = input.hooks;
+      }
+
+      return {
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      };
+    });
+    const promptRuntimeSession = vi.fn(async () => ({
+      runtimeSessionId: 'runtime-root',
+      response: {
+        stopReason: 'end_turn' as const,
+      },
+    }));
 
     fastify.decorate('acpRuntime', {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
-      createSession: vi.fn(async (input) => {
-        rootSessionHooks = input.hooks;
-
-        return {
-          runtimeSessionId: `runtime-${input.localSessionId}`,
-          provider: input.provider,
-        };
-      }),
+      createSession: createRuntimeSession,
       deleteSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
@@ -335,12 +344,7 @@ describe('acp route', () => {
         runtimeSessionId: input.runtimeSessionId,
         provider: input.provider,
       })),
-      promptSession: vi.fn(async () => ({
-        runtimeSessionId: 'runtime-root',
-        response: {
-          stopReason: 'end_turn' as const,
-        },
-      })),
+      promptSession: promptRuntimeSession,
     } satisfies AcpRuntimeClient);
 
     await fastify.register(problemJsonPlugin);
@@ -407,6 +411,19 @@ describe('acp route', () => {
       method: 'GET',
       url: `/api/projects/${project.id}/tasks`,
     });
+    const syncedTasks = tasksResponse.json()._embedded.tasks as Array<{
+      id: string;
+      title: string;
+    }>;
+    const implementTaskId = syncedTasks.find(
+      (task) => task.title === 'Implement automatic ACP task sync',
+    )?.id;
+
+    if (!implementTaskId) {
+      throw new Error('Expected the synced implement task to exist');
+    }
+
+    const updatedTask = await getTaskById(fastify.sqlite, implementTaskId);
 
     expect(tasksResponse.statusCode).toBe(200);
     expect(tasksResponse.json()._embedded.tasks).toEqual(
@@ -416,7 +433,7 @@ describe('acp route', () => {
           kind: 'implement',
           sourceEntryIndex: 0,
           sourceType: 'acp_plan',
-          status: 'PENDING',
+          status: 'COMPLETED',
           title: 'Implement automatic ACP task sync',
           triggerSessionId: rootSessionId,
         }),
@@ -431,6 +448,14 @@ describe('acp route', () => {
         }),
       ]),
     );
+    expect(updatedTask).toMatchObject({
+      executionSessionId: null,
+      status: 'COMPLETED',
+      triggerSessionId: rootSessionId,
+    });
+    expect(updatedTask.resultSessionId).toMatch(/^acps_/);
+    expect(createRuntimeSession).toHaveBeenCalledTimes(2);
+    expect(promptRuntimeSession).toHaveBeenCalledTimes(1);
   });
 
   it('lists ACP providers with merged local and registry discovery metadata', async () => {

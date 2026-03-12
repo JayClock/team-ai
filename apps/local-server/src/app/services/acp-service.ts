@@ -31,7 +31,7 @@ import {
   getSpecialistById,
   throwSpecialistRoleMismatch,
 } from './specialist-service';
-import { syncPlanEventToTasks } from './acp-plan-task-sync-service';
+import { syncPlanEventToTasksAndDispatch } from './acp-plan-task-sync-service';
 
 const sessionIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -414,25 +414,6 @@ function appendLocalEvent(
     lastEventId: event.eventId,
   });
 
-  if (event.type === 'plan') {
-    syncPlanEventToTasks(sqlite, {
-      emittedAt: event.emittedAt,
-      entries: Array.isArray((event.data as { entries?: unknown }).entries)
-        ? (
-            event.data as {
-              entries: Array<{
-                content: string;
-                priority?: 'high' | 'medium' | 'low';
-                status?: 'pending' | 'in_progress' | 'completed';
-              }>;
-            }
-          ).entries
-        : [],
-      eventId: event.eventId,
-      sessionId: event.sessionId,
-    });
-  }
-
   broker.publish(event);
   return event;
 }
@@ -528,6 +509,7 @@ function resolveLocalMcpServers(): McpServer[] {
 function createRuntimeHooks(
   sqlite: Database,
   broker: AcpStreamBroker,
+  runtime: AcpRuntimeClient,
   localSessionId: string,
 ): AcpRuntimeSessionHooks {
   return {
@@ -555,6 +537,100 @@ function createRuntimeHooks(
             : null,
         failureReason: state === 'FAILED' ? current.failure_reason : null,
       });
+
+      if (normalized.type === 'plan') {
+        const entries = Array.isArray(
+          (emitted.data as { entries?: unknown }).entries,
+        )
+          ? (
+              emitted.data as {
+                entries: Array<{
+                  content: string;
+                  priority?: 'high' | 'medium' | 'low';
+                  status?: 'pending' | 'in_progress' | 'completed';
+                }>;
+              }
+            ).entries
+          : [];
+
+        try {
+          const syncResult = await syncPlanEventToTasksAndDispatch(
+            sqlite,
+            {
+              async createSession(input) {
+                const session = await createAcpSession(
+                  sqlite,
+                  broker,
+                  runtime,
+                  input,
+                );
+
+                return {
+                  id: session.id,
+                };
+              },
+              async promptSession(input) {
+                return await promptAcpSession(
+                  sqlite,
+                  broker,
+                  runtime,
+                  input.projectId,
+                  input.sessionId,
+                  {
+                    prompt: input.prompt,
+                  },
+                );
+              },
+            },
+            {
+              emittedAt: emitted.emittedAt,
+              entries,
+              eventId: emitted.eventId,
+              sessionId: localSessionId,
+            },
+          );
+
+          appendLocalEvent(sqlite, broker, {
+            sessionId: localSessionId,
+            type: 'status',
+            payload: {
+              source: 'local-server',
+              reason: 'plan_sync_dispatch',
+              planEventId: emitted.eventId,
+              createdTaskCount: syncResult.createdCount,
+              skippedPlanSync: syncResult.skipped,
+              autoDispatchEligible: syncResult.autoDispatch.eligible,
+              autoDispatchAttempted: syncResult.autoDispatch.attempted,
+              autoDispatchDispatchedCount:
+                syncResult.autoDispatch.dispatchedCount,
+              autoDispatchSkippedReason: syncResult.autoDispatch.skippedReason,
+              autoDispatchResults: syncResult.autoDispatch.results,
+            },
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'ACP plan sync dispatch failed';
+
+          appendLocalEvent(sqlite, broker, {
+            sessionId: localSessionId,
+            type: 'error',
+            payload: {
+              source: 'local-server',
+              reason: 'plan_sync_dispatch_failed',
+              planEventId: emitted.eventId,
+              message,
+            },
+            error: {
+              code: 'ACP_PLAN_SYNC_DISPATCH_FAILED',
+              message,
+              retryable: true,
+              retryAfterMs: 1000,
+            },
+          });
+        }
+      }
     },
     async onClosed(error) {
       const current = getSessionRow(sqlite, localSessionId);
@@ -877,7 +953,7 @@ async function ensureRuntimeLoaded(
     provider: session.provider,
     cwd: session.cwd ?? '',
     mcpServers: resolveLocalMcpServers(),
-    hooks: createRuntimeHooks(sqlite, broker, session.id),
+    hooks: createRuntimeHooks(sqlite, broker, runtime, session.id),
   });
 
   if (loaded.runtimeSessionId !== session.runtime_session_id) {
@@ -1030,7 +1106,7 @@ export async function createAcpSession(
     provider: input.provider,
     cwd,
     mcpServers: resolveLocalMcpServers(),
-    hooks: createRuntimeHooks(sqlite, broker, sessionId),
+    hooks: createRuntimeHooks(sqlite, broker, runtime, sessionId),
   });
 
   updateSessionRuntime(sqlite, sessionId, {
@@ -1255,7 +1331,7 @@ export async function loadAcpSession(
       provider: session.provider,
       cwd: session.cwd ?? '',
       mcpServers: resolveLocalMcpServers(),
-      hooks: createRuntimeHooks(sqlite, broker, session.id),
+      hooks: createRuntimeHooks(sqlite, broker, runtime, session.id),
     });
 
     if (loaded.runtimeSessionId !== session.runtime_session_id) {

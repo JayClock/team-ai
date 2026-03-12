@@ -1,6 +1,7 @@
 import type { Database } from 'better-sqlite3';
 
 interface InsertAcpSessionInput {
+  agentId?: string | null;
   actorId?: string;
   cwd?: string;
   id: string;
@@ -62,13 +63,14 @@ export function insertAcpSession(
           @updatedAt,
           NULL,
           @cwd,
-          NULL,
+          @agentId,
           NULL,
           @taskId
         )
       `,
     )
     .run({
+      agentId: input.agentId ?? null,
       actorId: input.actorId ?? 'desktop-user',
       createdAt: now,
       cwd: input.cwd ?? '/tmp',

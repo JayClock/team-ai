@@ -20,8 +20,33 @@ interface SyncableSessionRow {
   task_id: string | null;
 }
 
+interface PlanTaskDispatchCallbacks {
+  createSession(input: {
+    actorUserId: string;
+    goal?: string;
+    parentSessionId?: string | null;
+    projectId: string;
+    provider: string;
+    role?: string | null;
+    specialistId?: string;
+    taskId?: string | null;
+  }): Promise<{ id: string }>;
+  promptSession(input: {
+    projectId: string;
+    prompt: string;
+    sessionId: string;
+  }): Promise<unknown>;
+}
+
 interface ExistingPlanTaskRow {
   id: string;
+}
+
+interface SyncPlanEventToTasksTransactionResult {
+  createdCount: number;
+  createdTaskIds: string[];
+  session: SyncableSessionRow | null;
+  skipped: boolean;
 }
 
 interface PlanEntryInput {
@@ -40,6 +65,34 @@ export interface SyncPlanEventToTasksInput {
 export interface SyncPlanEventToTasksResult {
   createdCount: number;
   skipped: boolean;
+}
+
+export interface SyncPlanEventAutoDispatchAttempt {
+  dispatched: boolean;
+  errorMessage: string | null;
+  reason:
+    | 'DISPATCH_ERROR'
+    | 'TASK_ALREADY_DISPATCHING'
+    | 'TASK_NOT_DISPATCHABLE'
+    | null;
+  sessionId: string | null;
+  taskId: string;
+}
+
+export interface SyncPlanEventAutoDispatchResult {
+  attempted: boolean;
+  dispatchedCount: number;
+  eligible: boolean;
+  results: SyncPlanEventAutoDispatchAttempt[];
+  skippedReason:
+    | 'NO_NEW_TASKS'
+    | 'PLAN_SYNC_SKIPPED'
+    | 'SESSION_NOT_TOP_LEVEL_ROUTA'
+    | null;
+}
+
+export interface SyncPlanEventToTasksAndDispatchResult extends SyncPlanEventToTasksResult {
+  autoDispatch: SyncPlanEventAutoDispatchResult;
 }
 
 function createTaskId() {
@@ -75,6 +128,15 @@ function shouldSyncPlanForSession(session: SyncableSessionRow | null) {
   }
 
   return session.parent_session_id === null || session.agent_role === 'ROUTA';
+}
+
+function shouldAutoDispatchPlanForSession(session: SyncableSessionRow | null) {
+  return (
+    session !== null &&
+    session.task_id === null &&
+    session.parent_session_id === null &&
+    session.agent_role === 'ROUTA'
+  );
 }
 
 function normalizePlanContent(content: string, entryIndex: number) {
@@ -139,12 +201,14 @@ function inferTaskShape(
 const syncPlanEventToTasksInTransaction = (
   sqlite: Database,
   input: SyncPlanEventToTasksInput,
-): SyncPlanEventToTasksResult => {
+): SyncPlanEventToTasksTransactionResult => {
   const session = getSyncableSession(sqlite, input.sessionId);
 
   if (!session || !shouldSyncPlanForSession(session)) {
     return {
       createdCount: 0,
+      createdTaskIds: [],
+      session,
       skipped: true,
     };
   }
@@ -252,6 +316,7 @@ const syncPlanEventToTasksInTransaction = (
   );
 
   let createdCount = 0;
+  const createdTaskIds: string[] = [];
 
   for (const [index, entry] of input.entries.entries()) {
     const sourceEntryIndex = index;
@@ -266,11 +331,12 @@ const syncPlanEventToTasksInTransaction = (
 
     const content = normalizePlanContent(entry.content, index);
     const taskShape = inferTaskShape(content, session.agent_role);
+    const taskId = createTaskId();
 
     insertTask.run({
       assignedRole: taskShape.assignedRole,
       createdAt: input.emittedAt,
-      id: createTaskId(),
+      id: taskId,
       kind: taskShape.kind,
       objective: content,
       priority: entry.priority ?? null,
@@ -282,11 +348,14 @@ const syncPlanEventToTasksInTransaction = (
       triggerSessionId: input.sessionId,
       updatedAt: input.emittedAt,
     });
+    createdTaskIds.push(taskId);
     createdCount += 1;
   }
 
   return {
     createdCount,
+    createdTaskIds,
+    session,
     skipped: false,
   };
 };
@@ -296,5 +365,105 @@ export function syncPlanEventToTasks(
   input: SyncPlanEventToTasksInput,
 ): SyncPlanEventToTasksResult {
   const transaction = sqlite.transaction(syncPlanEventToTasksInTransaction);
-  return transaction(sqlite, input);
+  const result = transaction(sqlite, input);
+
+  return {
+    createdCount: result.createdCount,
+    skipped: result.skipped,
+  };
+}
+
+export async function syncPlanEventToTasksAndDispatch(
+  sqlite: Database,
+  callbacks: PlanTaskDispatchCallbacks,
+  input: SyncPlanEventToTasksInput,
+): Promise<SyncPlanEventToTasksAndDispatchResult> {
+  const transaction = sqlite.transaction(syncPlanEventToTasksInTransaction);
+  const syncResult = transaction(sqlite, input);
+
+  if (syncResult.skipped) {
+    return {
+      createdCount: syncResult.createdCount,
+      skipped: true,
+      autoDispatch: {
+        attempted: false,
+        dispatchedCount: 0,
+        eligible: false,
+        results: [],
+        skippedReason: 'PLAN_SYNC_SKIPPED',
+      },
+    };
+  }
+
+  const autoDispatchEligible = shouldAutoDispatchPlanForSession(
+    syncResult.session,
+  );
+
+  if (!autoDispatchEligible) {
+    return {
+      createdCount: syncResult.createdCount,
+      skipped: false,
+      autoDispatch: {
+        attempted: false,
+        dispatchedCount: 0,
+        eligible: false,
+        results: [],
+        skippedReason: 'SESSION_NOT_TOP_LEVEL_ROUTA',
+      },
+    };
+  }
+
+  if (syncResult.createdTaskIds.length === 0) {
+    return {
+      createdCount: syncResult.createdCount,
+      skipped: false,
+      autoDispatch: {
+        attempted: false,
+        dispatchedCount: 0,
+        eligible: true,
+        results: [],
+        skippedReason: 'NO_NEW_TASKS',
+      },
+    };
+  }
+
+  const { dispatchTask } = await import('./task-dispatch-service.js');
+  const results: SyncPlanEventAutoDispatchAttempt[] = [];
+
+  for (const taskId of syncResult.createdTaskIds) {
+    try {
+      const dispatchResult = await dispatchTask(sqlite, callbacks, {
+        taskId,
+      });
+
+      results.push({
+        dispatched: dispatchResult.dispatched,
+        errorMessage: null,
+        reason: dispatchResult.reason,
+        sessionId: dispatchResult.sessionId,
+        taskId,
+      });
+    } catch (error) {
+      results.push({
+        dispatched: false,
+        errorMessage:
+          error instanceof Error ? error.message : 'Task dispatch failed',
+        reason: 'DISPATCH_ERROR',
+        sessionId: null,
+        taskId,
+      });
+    }
+  }
+
+  return {
+    createdCount: syncResult.createdCount,
+    skipped: false,
+    autoDispatch: {
+      attempted: true,
+      dispatchedCount: results.filter((result) => result.dispatched).length,
+      eligible: true,
+      results,
+      skippedReason: null,
+    },
+  };
 }

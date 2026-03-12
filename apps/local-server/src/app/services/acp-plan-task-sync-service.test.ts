@@ -2,12 +2,16 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { Database } from 'better-sqlite3';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createProject } from './project-service';
+import { createAgent } from './agent-service';
 import { listTasks } from './task-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
-import { syncPlanEventToTasks } from './acp-plan-task-sync-service';
+import {
+  syncPlanEventToTasks,
+  syncPlanEventToTasksAndDispatch,
+} from './acp-plan-task-sync-service';
 
 describe('acp plan task sync service', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];
@@ -147,6 +151,191 @@ describe('acp plan task sync service', () => {
 
     expect(result).toEqual({ createdCount: 0, skipped: true });
     expect(tasks.total).toBe(0);
+  });
+
+  it('auto-dispatches only new tasks from top-level ROUTA plan sync events', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Plan Sync Dispatch Project',
+      repoPath: '/Users/example/plan-sync-dispatch',
+    });
+    const routaAgent = await createAgent(sqlite, {
+      model: 'default',
+      name: 'Routa Coordinator',
+      projectId: project.id,
+      provider: 'codex',
+      role: 'ROUTA',
+    });
+
+    insertAcpSession(sqlite, {
+      agentId: routaAgent.id,
+      id: 'acps_routa_root',
+      name: 'Root ROUTA session',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const createSession = vi.fn(async () => ({
+      id: 'acps_routa_child',
+    }));
+    const promptSession = vi.fn(async () => undefined);
+
+    const first = await syncPlanEventToTasksAndDispatch(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        emittedAt: '2026-03-12T11:00:00.000Z',
+        entries: [
+          {
+            content: 'Implement automatic plan dispatch',
+            priority: 'high',
+            status: 'pending',
+          },
+          {
+            content: 'Verify dispatch diagnostics are recorded',
+            priority: 'medium',
+            status: 'completed',
+          },
+        ],
+        eventId: 'acpe_plan_dispatch_01',
+        sessionId: 'acps_routa_root',
+      },
+    );
+    const second = await syncPlanEventToTasksAndDispatch(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        emittedAt: '2026-03-12T11:00:00.000Z',
+        entries: [
+          {
+            content: 'Implement automatic plan dispatch',
+            priority: 'high',
+            status: 'pending',
+          },
+          {
+            content: 'Verify dispatch diagnostics are recorded',
+            priority: 'medium',
+            status: 'completed',
+          },
+        ],
+        eventId: 'acpe_plan_dispatch_01',
+        sessionId: 'acps_routa_root',
+      },
+    );
+
+    expect(first.createdCount).toBe(2);
+    expect(first.skipped).toBe(false);
+    expect(first.autoDispatch).toMatchObject({
+      attempted: true,
+      dispatchedCount: 1,
+      eligible: true,
+      skippedReason: null,
+    });
+    expect(first.autoDispatch.results).toHaveLength(2);
+    expect(first.autoDispatch.results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          dispatched: true,
+          reason: null,
+          sessionId: 'acps_routa_child',
+        }),
+        expect.objectContaining({
+          dispatched: false,
+          reason: 'TASK_NOT_DISPATCHABLE',
+          sessionId: null,
+        }),
+      ]),
+    );
+    expect(createSession).toHaveBeenCalledTimes(1);
+    expect(promptSession).toHaveBeenCalledTimes(1);
+    expect(second).toEqual({
+      createdCount: 0,
+      skipped: false,
+      autoDispatch: {
+        attempted: false,
+        dispatchedCount: 0,
+        eligible: true,
+        results: [],
+        skippedReason: 'NO_NEW_TASKS',
+      },
+    });
+    expect(createSession).toHaveBeenCalledTimes(1);
+    expect(promptSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not auto-dispatch plan sync results for child ROUTA sessions', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Child ROUTA Dispatch Guard Project',
+      repoPath: '/Users/example/child-routa-dispatch-guard',
+    });
+    const routaAgent = await createAgent(sqlite, {
+      model: 'default',
+      name: 'Nested Routa Coordinator',
+      projectId: project.id,
+      provider: 'codex',
+      role: 'ROUTA',
+    });
+
+    insertAcpSession(sqlite, {
+      id: 'acps_parent_root',
+      name: 'Parent root session',
+      projectId: project.id,
+      provider: 'codex',
+    });
+    insertAcpSession(sqlite, {
+      agentId: routaAgent.id,
+      id: 'acps_child_routa',
+      name: 'Child ROUTA session',
+      parentSessionId: 'acps_parent_root',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const createSession = vi.fn(async () => ({
+      id: 'acps_should_not_exist',
+    }));
+    const promptSession = vi.fn(async () => undefined);
+
+    const result = await syncPlanEventToTasksAndDispatch(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        emittedAt: '2026-03-12T11:30:00.000Z',
+        entries: [
+          {
+            content: 'Implement a nested task without auto dispatch',
+            priority: 'medium',
+            status: 'pending',
+          },
+        ],
+        eventId: 'acpe_plan_dispatch_02',
+        sessionId: 'acps_child_routa',
+      },
+    );
+
+    expect(result).toEqual({
+      createdCount: 1,
+      skipped: false,
+      autoDispatch: {
+        attempted: false,
+        dispatchedCount: 0,
+        eligible: false,
+        results: [],
+        skippedReason: 'SESSION_NOT_TOP_LEVEL_ROUTA',
+      },
+    });
+    expect(createSession).not.toHaveBeenCalled();
+    expect(promptSession).not.toHaveBeenCalled();
   });
 
   async function createTestDatabase(): Promise<Database> {
