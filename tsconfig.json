@@ -56,6 +56,9 @@
     },
     {
       "path": "./apps/local-server"
+    },
+    {
+      "path": "./libs/frontend/features/project-sessions"
     }
   ]
 }

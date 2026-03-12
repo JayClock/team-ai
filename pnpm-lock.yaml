@@ -441,11 +441,26 @@ importers:
 
   libs/frontend/features/project-diagrams: {}
 
+  libs/frontend/features/project-sessions:
+    dependencies:
+      '@hateoas-ts/resource':
+        specifier: workspace:*
+        version: link:../../../../packages/resource
+      '@shared/schema':
+        specifier: workspace:*
+        version: link:../../shared/schema
+      '@shared/ui':
+        specifier: workspace:*
+        version: link:../../shared/ui
+
   libs/frontend/features/projects:
     dependencies:
       '@features/project-conversations':
         specifier: workspace:*
         version: link:../project-conversations
+      '@features/project-sessions':
+        specifier: workspace:*
+        version: link:../project-sessions
       '@hateoas-ts/resource-react':
         specifier: workspace:*
         version: link:../../../../packages/resource-react
