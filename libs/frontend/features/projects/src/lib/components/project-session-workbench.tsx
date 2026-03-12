@@ -26,30 +26,21 @@ import {
   Input,
   Sheet,
   SheetContent,
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
   toast,
 } from '@shared/ui';
 import {
   getCurrentDesktopRuntimeConfig,
   resolveRuntimeApiUrl,
-  runtimeFetch,
 } from '@shared/util-http';
 import {
-  BookTextIcon,
   ChevronLeftIcon,
   FolderTreeIcon,
-  GripVerticalIcon,
   PlusIcon,
-  RadioTowerIcon,
   Rows3Icon,
   SparklesIcon,
-  WorkflowIcon,
 } from 'lucide-react';
 import {
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -65,26 +56,15 @@ import {
   buildTaskSnapshot,
   formatStatusLabel,
   sessionDisplayName,
-  WorkbenchProjectInsights,
+  statusChipClasses,
+  statusTone,
 } from './project-session-workbench.shared';
 
 const STREAM_RETRY_DELAY_MS = 1500;
+const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
 const RIGHT_SIDEBAR_WIDTH_KEY = 'team-ai.session.right-sidebar-width';
 
 type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error';
-
-type HalCollectionResponse<TEmbedded extends string, TItem> = {
-  _embedded?: Record<TEmbedded, TItem[]>;
-  total: number;
-};
-
-type RuntimeProfileResponse = {
-  defaultModel: string | null;
-  defaultProviderId: string | null;
-  enabledMcpServerIds: string[];
-  enabledSkillIds: string[];
-  orchestrationMode: 'ROUTA' | 'DEVELOPER';
-};
 
 function timestamp(value: string | null): number {
   if (!value) {
@@ -92,20 +72,6 @@ function timestamp(value: string | null): number {
   }
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-async function readRuntimeJson<T>(href: string): Promise<T> {
-  const response = await runtimeFetch(href, {
-    headers: {
-      Accept: 'application/hal+json, application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`请求失败：${response.status}`);
-  }
-
-  return (await response.json()) as T;
 }
 
 export function ProjectSessionWorkbench(props: {
@@ -154,29 +120,23 @@ export function ProjectSessionWorkbench(props: {
   const provider = 'opencode';
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
   const [isCreating, setIsCreating] = useState(false);
+  const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(360);
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(480);
   const [renameDialogSession, setRenameDialogSession] =
     useState<State<AcpSessionSummary> | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deleteDialogSession, setDeleteDialogSession] =
     useState<State<AcpSessionSummary> | null>(null);
-  const [resizeMode, setResizeMode] = useState<'right' | null>(null);
-  const [contextSummary, setContextSummary] =
-    useState<WorkbenchProjectInsights>({
-      loading: true,
-      noteCount: 0,
-      sessionNoteCount: 0,
-      sessionTaskRunCount: 0,
-      taskRunCount: 0,
-      runtimeProfile: null,
-    });
+  const [resizeMode, setResizeMode] = useState<'left' | 'right' | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const allowReconnectRef = useRef(true);
   const latestEventIdRef = useRef<string | undefined>(undefined);
   const initialSelectionAppliedRef = useRef<string | null>(null);
+  const leftResizeStartRef = useRef({ width: 320, x: 0 });
   const rightResizeStartRef = useRef({ width: 360, x: 0 });
 
   const selectedSessionId = selectedSession?.data.id;
@@ -189,7 +149,8 @@ export function ProjectSessionWorkbench(props: {
     [history],
   );
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
-  const showDesktopInspector = true;
+  const showDesktopInspector =
+    taskSnapshotItems.length > 0 || sideEvents.length > 0;
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;
@@ -200,11 +161,18 @@ export function ProjectSessionWorkbench(props: {
       return;
     }
 
+    const storedLeftWidth = Number.parseFloat(
+      window.localStorage.getItem(LEFT_SIDEBAR_WIDTH_KEY) ?? '',
+    );
+    if (Number.isFinite(storedLeftWidth)) {
+      setLeftSidebarWidth(Math.min(Math.max(storedLeftWidth, 260), 420));
+    }
+
     const storedRightWidth = Number.parseFloat(
       window.localStorage.getItem(RIGHT_SIDEBAR_WIDTH_KEY) ?? '',
     );
     if (Number.isFinite(storedRightWidth)) {
-      setRightSidebarWidth(Math.min(Math.max(storedRightWidth, 300), 520));
+      setRightSidebarWidth(Math.min(Math.max(storedRightWidth, 280), 960));
     }
   }, []);
 
@@ -213,10 +181,14 @@ export function ProjectSessionWorkbench(props: {
       return;
     }
     window.localStorage.setItem(
+      LEFT_SIDEBAR_WIDTH_KEY,
+      String(leftSidebarWidth),
+    );
+    window.localStorage.setItem(
       RIGHT_SIDEBAR_WIDTH_KEY,
       String(rightSidebarWidth),
     );
-  }, [rightSidebarWidth]);
+  }, [leftSidebarWidth, rightSidebarWidth]);
 
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
@@ -253,78 +225,6 @@ export function ProjectSessionWorkbench(props: {
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
-
-  const loadContextSummary = useCallback(async () => {
-    const projectId = projectState.data.id;
-    setContextSummary((current) => ({
-      ...current,
-      loading: true,
-    }));
-
-    try {
-      const projectNotesHref = `/api/projects/${projectId}/notes?page=1&pageSize=1`;
-      const projectTaskRunsHref = `/api/projects/${projectId}/task-runs?page=1&pageSize=1`;
-      const sessionNotesHref = selectedSessionId
-        ? `/api/projects/${projectId}/acp-sessions/${selectedSessionId}/notes?page=1&pageSize=1`
-        : null;
-      const sessionTaskRunsHref = selectedSessionId
-        ? `/api/projects/${projectId}/task-runs?page=1&pageSize=1&sessionId=${encodeURIComponent(selectedSessionId)}`
-        : null;
-
-      const [
-        projectNotes,
-        sessionNotes,
-        projectTaskRuns,
-        sessionTaskRuns,
-        runtimeProfile,
-      ] = await Promise.all([
-        readRuntimeJson<HalCollectionResponse<'notes', unknown>>(
-          projectNotesHref,
-        ),
-        sessionNotesHref
-          ? readRuntimeJson<HalCollectionResponse<'notes', unknown>>(
-              sessionNotesHref,
-            )
-          : Promise.resolve(null),
-        readRuntimeJson<HalCollectionResponse<'taskRuns', unknown>>(
-          projectTaskRunsHref,
-        ),
-        sessionTaskRunsHref
-          ? readRuntimeJson<HalCollectionResponse<'taskRuns', unknown>>(
-              sessionTaskRunsHref,
-            )
-          : Promise.resolve(null),
-        readRuntimeJson<RuntimeProfileResponse>(
-          `/api/projects/${projectId}/runtime-profile`,
-        ),
-      ]);
-
-      setContextSummary({
-        loading: false,
-        noteCount: projectNotes.total,
-        sessionNoteCount: sessionNotes?.total ?? 0,
-        sessionTaskRunCount: sessionTaskRuns?.total ?? 0,
-        taskRunCount: projectTaskRuns.total,
-        runtimeProfile,
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '加载控制面板数据失败';
-      toast.error(message);
-      setContextSummary({
-        loading: false,
-        noteCount: 0,
-        sessionNoteCount: 0,
-        sessionTaskRunCount: 0,
-        taskRunCount: 0,
-        runtimeProfile: null,
-      });
-    }
-  }, [projectState.data.id, selectedSessionId]);
-
-  useEffect(() => {
-    void loadContextSummary();
-  }, [loadContextSummary]);
 
   const { chatMessages, handlePromptSubmit, hasPendingAssistantMessage } =
     useProjectSessionChat({
@@ -538,12 +438,23 @@ export function ProjectSessionWorkbench(props: {
     }
 
     const handleMouseMove = (event: MouseEvent) => {
+      if (resizeMode === 'left') {
+        const delta = event.clientX - leftResizeStartRef.current.x;
+        setLeftSidebarWidth(
+          Math.min(
+            Math.max(leftResizeStartRef.current.width + delta, 260),
+            420,
+          ),
+        );
+        return;
+      }
+
       if (resizeMode === 'right') {
         const delta = rightResizeStartRef.current.x - event.clientX;
         setRightSidebarWidth(
           Math.min(
-            Math.max(rightResizeStartRef.current.width + delta, 300),
-            520,
+            Math.max(rightResizeStartRef.current.width + delta, 280),
+            960,
           ),
         );
       }
@@ -573,12 +484,19 @@ export function ProjectSessionWorkbench(props: {
     setRenameValue(session.data.name ?? sessionDisplayName(session));
   }, []);
 
+  const handleSidebarSessionSelect = useCallback(
+    (session: State<AcpSessionSummary>) => {
+      setMobileSessionsOpen(false);
+      void selectSessionFromList(session);
+    },
+    [selectSessionFromList],
+  );
+
   const leftSidebar = (
     <ProjectSessionHistorySidebar
-      contextSummary={contextSummary}
       onDeleteSession={(session) => setDeleteDialogSession(session)}
       onOpenRename={openRenameDialog}
-      onSelectSession={(session) => void selectSessionFromList(session)}
+      onSelectSession={handleSidebarSessionSelect}
       projectTitle={projectTitle}
       selectedSessionId={selectedSessionId}
       selectedSessionMeta={
@@ -597,135 +515,149 @@ export function ProjectSessionWorkbench(props: {
 
   const inspector = (
     <ProjectSessionStatusSidebar
-      contextSummary={contextSummary}
       events={sideEvents}
-      roleById={new Map()}
       selectedSession={selectedSession}
-      selectedTask={null}
-      specialistById={new Map()}
+      streamStatus={streamStatus}
       taskSnapshotItems={taskSnapshotItems}
-      onOpenTask={() => undefined}
     />
   );
 
   return (
     <>
-      <SidebarProvider defaultOpen>
-        <div className="flex h-full min-h-0 w-full overflow-hidden bg-[#f6f7fb] text-foreground dark:bg-[#0b0d12]">
-          {leftSidebar}
+      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-muted/20 text-foreground">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border/60 bg-background/95 px-3 md:px-4">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="md:hidden"
+            onClick={() => setMobileSessionsOpen(true)}
+          >
+            <FolderTreeIcon className="size-4" />
+            <span className="sr-only">打开会话列表</span>
+          </Button>
 
-          <SidebarInset className="min-h-0 overflow-hidden border border-border/60 bg-background/95 md:rounded-l-none md:shadow-none">
-            <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border/70 px-4 md:px-5">
-              <SidebarTrigger className="size-8" />
+          {onBack ? (
+            <Button variant="ghost" size="icon-sm" onClick={onBack}>
+              <ChevronLeftIcon />
+              <span className="sr-only">返回项目</span>
+            </Button>
+          ) : null}
 
-              {onBack ? (
-                <Button variant="ghost" size="icon-sm" onClick={onBack}>
-                  <ChevronLeftIcon />
-                  <span className="sr-only">返回项目</span>
-                </Button>
-              ) : null}
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <FolderTreeIcon className="size-3.5" />
-                  <span className="truncate">{projectTitle}</span>
-                  <span className="rounded-full border border-border/70 bg-background px-2 py-0.5 font-medium">
-                    {selectedSession?.data.provider ?? 'opencode'}
-                  </span>
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <h2 className="truncate text-sm font-semibold md:text-base">
-                    {selectedSession
-                      ? sessionDisplayName(selectedSession)
-                      : '会话'}
-                  </h2>
-                  <StatusPill
-                    icon={<SparklesIcon className="size-3.5" />}
-                    label={formatStatusLabel(streamStatus)}
-                  />
-                  <StatusPill
-                    icon={<BookTextIcon className="size-3.5" />}
-                    label={`Notes ${contextSummary.sessionNoteCount}/${contextSummary.noteCount}`}
-                  />
-                  <StatusPill
-                    icon={<RadioTowerIcon className="size-3.5" />}
-                    label={`Runs ${contextSummary.sessionTaskRunCount}/${contextSummary.taskRunCount}`}
-                  />
-                  <StatusPill
-                    icon={<WorkflowIcon className="size-3.5" />}
-                    label={
-                      contextSummary.runtimeProfile?.orchestrationMode ??
-                      'ROUTA'
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="ml-auto flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 gap-2 px-3 lg:hidden"
-                  onClick={() => setMobileInspectorOpen(true)}
-                >
-                  <Rows3Icon className="size-4" />
-                  面板
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 gap-2 px-3"
-                  onClick={() => void handleCreate()}
-                  disabled={isCreating}
-                >
-                  <PlusIcon />
-                  <span>{isCreating ? '创建中...' : '新建会话'}</span>
-                </Button>
-              </div>
-            </header>
-
-            <div className="flex min-h-0 flex-1 overflow-hidden bg-muted/20">
-              <main className="flex min-w-0 flex-1 flex-col p-3 md:p-4">
-                <div className="flex min-h-0 flex-1 overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-sm">
-                  <ProjectSessionConversationPane
-                    chatMessages={chatMessages}
-                    hasPendingAssistantMessage={hasPendingAssistantMessage}
-                    onSubmit={handlePromptSubmit}
-                    selectedSession={selectedSession}
-                  />
-                </div>
-              </main>
-
-              {showDesktopInspector ? (
-                <div className="hidden lg:flex">
-                  <ResizeHandle
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      rightResizeStartRef.current = {
-                        width: rightSidebarWidth,
-                        x: event.clientX,
-                      };
-                      setResizeMode('right');
-                    }}
-                  />
-                  <aside
-                    className="flex shrink-0 border-l border-border/70 bg-background/90"
-                    style={{ width: rightSidebarWidth }}
-                  >
-                    {inspector}
-                  </aside>
-                </div>
-              ) : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+              <FolderTreeIcon className="size-3.5" />
+              <span className="truncate">{projectTitle}</span>
+              <span className="rounded-full border border-border/70 bg-background px-2 py-0.5">
+                {selectedSession?.data.provider ?? 'opencode'}
+              </span>
             </div>
-          </SidebarInset>
+            <div className="mt-1 flex items-center gap-2">
+              <h2 className="truncate text-sm font-semibold md:text-base">
+                {selectedSession ? sessionDisplayName(selectedSession) : '会话'}
+              </h2>
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(streamStatus)}`}
+              >
+                <span
+                  className={`size-1.5 rounded-full ${statusTone(streamStatus)}`}
+                />
+                <SparklesIcon className="size-3" />
+                <span>{formatStatusLabel(streamStatus)}</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {showDesktopInspector ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 gap-2 px-3 lg:hidden"
+                onClick={() => setMobileInspectorOpen(true)}
+              >
+                <Rows3Icon className="size-4" />
+                面板
+              </Button>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-2 px-3"
+              onClick={() => void handleCreate()}
+              disabled={isCreating}
+            >
+              <PlusIcon className="size-4" />
+              <span>{isCreating ? '创建中...' : '新建会话'}</span>
+            </Button>
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          <aside
+            className="hidden shrink-0 border-r border-border/60 bg-background md:flex"
+            style={{ width: leftSidebarWidth }}
+          >
+            {leftSidebar}
+          </aside>
+
+          <ResizeHandle
+            onMouseDown={(event) => {
+              event.preventDefault();
+              leftResizeStartRef.current = {
+                width: leftSidebarWidth,
+                x: event.clientX,
+              };
+              setResizeMode('left');
+            }}
+          />
+
+          <main className="min-w-0 flex-1 bg-background">
+            <ProjectSessionConversationPane
+              chatMessages={chatMessages}
+              hasPendingAssistantMessage={hasPendingAssistantMessage}
+              onSubmit={handlePromptSubmit}
+              selectedSession={selectedSession}
+            />
+          </main>
+
+          {showDesktopInspector ? (
+            <div className="hidden lg:flex">
+              <ResizeHandle
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  rightResizeStartRef.current = {
+                    width: rightSidebarWidth,
+                    x: event.clientX,
+                  };
+                  setResizeMode('right');
+                }}
+              />
+              <aside
+                className="flex shrink-0 border-l border-border/60 bg-background"
+                style={{ width: rightSidebarWidth }}
+              >
+                {inspector}
+              </aside>
+            </div>
+          ) : null}
         </div>
-      </SidebarProvider>
+      </div>
+
+      <Sheet open={mobileSessionsOpen} onOpenChange={setMobileSessionsOpen}>
+        <SheetContent side="left" className="w-[360px] p-0 sm:max-w-[360px]">
+          {leftSidebar}
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
         <SheetContent side="right" className="w-[420px] p-0 sm:max-w-[420px]">
           {inspector}
         </SheetContent>
       </Sheet>
+
+      {resizeMode ? (
+        <div className="fixed inset-0 z-40 cursor-col-resize" />
+      ) : null}
 
       <Dialog
         open={Boolean(renameDialogSession)}
@@ -788,17 +720,6 @@ export function ProjectSessionWorkbench(props: {
   );
 }
 
-function StatusPill(props: { icon: ReactNode; label: string }) {
-  const { icon, label } = props;
-
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground shadow-xs">
-      {icon}
-      <span>{label}</span>
-    </span>
-  );
-}
-
 function ResizeHandle(props: {
   onMouseDown: (event: ReactMouseEvent<HTMLButtonElement>) => void;
 }) {
@@ -807,11 +728,11 @@ function ResizeHandle(props: {
   return (
     <button
       type="button"
-      className="group relative hidden w-3 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition hover:bg-muted md:flex"
+      className="group relative hidden w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition hover:bg-muted/60 md:flex"
       onMouseDown={onMouseDown}
       aria-label="调整面板宽度"
     >
-      <GripVerticalIcon className="size-4 text-muted-foreground/50 group-hover:text-muted-foreground" />
+      <span className="h-8 w-0.5 rounded-full bg-border transition group-hover:bg-foreground/30" />
     </button>
   );
 }

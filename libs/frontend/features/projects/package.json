@@ -16,6 +16,7 @@
     "@features/project-sessions": "workspace:*",
     "@hateoas-ts/resource-react": "workspace:*",
     "@shared/schema": "workspace:*",
-    "@shared/ui": "workspace:*"
+    "@shared/ui": "workspace:*",
+    "@shared/util-http": "workspace:^"
   }
 }

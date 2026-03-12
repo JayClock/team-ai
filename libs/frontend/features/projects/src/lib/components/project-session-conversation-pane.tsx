@@ -37,15 +37,15 @@ export function ProjectSessionConversationPane(props: {
   } = props;
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
+    <section className="flex min-h-0 flex-1 flex-col bg-muted/10">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <Conversation className="min-h-0 flex-1" resize="instant">
-          <ConversationContent className="gap-4 px-4 py-5 md:px-6">
+          <ConversationContent className="mx-auto flex w-full max-w-3xl gap-4 px-4 py-6 md:px-5">
             {chatMessages.length === 0 ? (
               <ConversationEmptyState
                 icon={<BotIcon className="size-10 text-muted-foreground/60" />}
-                title="暂无对话"
-                description="选择一个会话，或者直接发送第一条消息。"
+                title="发送第一条消息"
+                description="选择已有会话，或者直接输入内容开始新的对话。"
               />
             ) : (
               <>
@@ -142,33 +142,35 @@ export function ProjectSessionConversationPane(props: {
           <ConversationScrollButton />
         </Conversation>
 
-        <div className="shrink-0 border-t bg-background/95 p-4 backdrop-blur md:px-6">
-          <PromptInput onSubmit={onSubmit}>
-            <PromptInputBody className="rounded-2xl border border-input bg-background shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-              <PromptInputTextarea
-                placeholder={
-                  selectedSession
-                    ? '继续当前会话...'
-                    : '发送第一条消息，开始新的会话...'
-                }
-                className="min-h-24 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                disabled={hasPendingAssistantMessage}
-                aria-label="会话输入框"
-              />
-            </PromptInputBody>
-            <PromptInputFooter className="mt-2 flex items-center justify-between gap-3">
-              <PromptInputTools>
-                <div className="text-xs text-muted-foreground">
-                  {selectedSession
-                    ? formatStatusLabel(selectedSession.data.state)
-                    : '发送后将创建新会话'}
-                </div>
-              </PromptInputTools>
-              <PromptInputSubmit
-                status={hasPendingAssistantMessage ? 'submitted' : undefined}
-              />
-            </PromptInputFooter>
-          </PromptInput>
+        <div className="shrink-0 border-t border-border/60 bg-background/95">
+          <div className="mx-auto w-full max-w-3xl px-4 py-3 md:px-5">
+            <PromptInput onSubmit={onSubmit}>
+              <PromptInputBody className="rounded-3xl border border-input bg-background shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                <PromptInputTextarea
+                  placeholder={
+                    selectedSession
+                      ? '继续当前会话...'
+                      : '发送第一条消息，开始新的会话...'
+                  }
+                  className="min-h-24 resize-none border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  disabled={hasPendingAssistantMessage}
+                  aria-label="会话输入框"
+                />
+              </PromptInputBody>
+              <PromptInputFooter className="mt-2 flex items-center justify-between gap-3">
+                <PromptInputTools>
+                  <div className="text-xs text-muted-foreground">
+                    {selectedSession
+                      ? formatStatusLabel(selectedSession.data.state)
+                      : '发送后将创建新会话'}
+                  </div>
+                </PromptInputTools>
+                <PromptInputSubmit
+                  status={hasPendingAssistantMessage ? 'submitted' : undefined}
+                />
+              </PromptInputFooter>
+            </PromptInput>
+          </div>
         </div>
       </div>
     </section>
