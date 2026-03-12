@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { presentNote, presentNoteList } from '../presenters/note-presenter';
 import { getAcpSessionById } from '../services/acp-service';
+import { recordNoteEvent } from '../services/note-event-service';
 import {
   createNote,
   deleteNote,
@@ -97,6 +98,10 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
       ...body,
       projectId,
     });
+    await recordNoteEvent(fastify.sqlite, {
+      note,
+      type: 'created',
+    });
 
     reply.code(201).header('Location', `/api/notes/${note.id}`);
     return presentNote(note);
@@ -138,6 +143,10 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
         projectId,
         sessionId,
       });
+      await recordNoteEvent(fastify.sqlite, {
+        note,
+        type: 'created',
+      });
 
       reply.code(201).header('Location', `/api/notes/${note.id}`);
       return presentNote(note);
@@ -152,12 +161,21 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
   fastify.patch('/notes/:noteId', async (request) => {
     const { noteId } = noteParamsSchema.parse(request.params);
     const body = notePatchSchema.parse(request.body);
-    return presentNote(await updateNote(fastify.sqlite, noteId, body));
+    const note = await updateNote(fastify.sqlite, noteId, body);
+    await recordNoteEvent(fastify.sqlite, {
+      note,
+      type: 'updated',
+    });
+    return presentNote(note);
   });
 
   fastify.delete('/notes/:noteId', async (request, reply) => {
     const { noteId } = noteParamsSchema.parse(request.params);
-    await deleteNote(fastify.sqlite, noteId);
+    const note = await deleteNote(fastify.sqlite, noteId);
+    await recordNoteEvent(fastify.sqlite, {
+      note,
+      type: 'deleted',
+    });
     reply.code(204).send();
   });
 };

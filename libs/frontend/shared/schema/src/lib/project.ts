@@ -5,6 +5,7 @@ import { Conversation } from './conversation.js';
 import { Diagram } from './diagram.js';
 import { KnowledgeGraph } from './knowledge-graph.js';
 import { LogicalEntity } from './logical-entity.js';
+import { NoteEventCollection } from './note-event.js';
 import { NoteCollection } from './note.js';
 import { RoleCollection } from './role.js';
 import { AcpSessionCollection } from './session.js';
@@ -41,6 +42,7 @@ export type Project = Entity<
     'knowledge-graph': KnowledgeGraph;
     'logical-entities': Collection<LogicalEntity>;
     notes: NoteCollection;
+    'note-events': NoteEventCollection;
     roles: RoleCollection;
     sidebar: Sidebar;
     specialists: SpecialistCollection;

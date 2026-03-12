@@ -293,4 +293,32 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '005_project_note_events',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_note_events (
+        sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id TEXT NOT NULL UNIQUE,
+        project_id TEXT NOT NULL,
+        note_id TEXT NOT NULL,
+        session_id TEXT,
+        type TEXT NOT NULL,
+        source TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        emitted_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (note_id) REFERENCES project_notes(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_note_events_project_id
+        ON project_note_events(project_id, sequence ASC);
+
+      CREATE INDEX IF NOT EXISTS idx_project_note_events_note_id
+        ON project_note_events(note_id, sequence ASC);
+
+      CREATE INDEX IF NOT EXISTS idx_project_note_events_session_id
+        ON project_note_events(session_id, sequence ASC);
+    `,
+  },
 ];

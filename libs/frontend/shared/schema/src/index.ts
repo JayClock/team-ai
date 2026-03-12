@@ -44,6 +44,12 @@ export type {
   NoteType,
 } from './lib/note.js';
 export type {
+  NoteEvent,
+  NoteEventCollection,
+  NoteEventNote,
+  NoteEventType,
+} from './lib/note-event.js';
+export type {
   Task,
   TaskCollection,
   TaskKind,

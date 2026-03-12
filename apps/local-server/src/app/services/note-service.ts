@@ -452,8 +452,8 @@ export async function updateNote(
 export async function deleteNote(
   sqlite: Database,
   noteId: string,
-): Promise<void> {
-  getNoteRow(sqlite, noteId);
+): Promise<NotePayload> {
+  const note = mapNoteRow(getNoteRow(sqlite, noteId));
 
   sqlite
     .prepare(
@@ -467,4 +467,6 @@ export async function deleteNote(
       deletedAt: new Date().toISOString(),
       id: noteId,
     });
+
+  return note;
 }
