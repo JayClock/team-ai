@@ -11,6 +11,10 @@ import type {
 } from '../schemas/task';
 import type { ProjectOrchestrationMode } from '../schemas/runtime-profile';
 import type { RoleValue } from '../schemas/role';
+import type {
+  DispatchTaskCallbacks,
+  DispatchTaskResult,
+} from './task-dispatch-service';
 import { getProjectById } from './project-service';
 import { getAcpSessionById } from './acp-service';
 import {
@@ -101,6 +105,28 @@ export interface TaskDispatchability {
   unresolvedDependencyIds: string[];
 }
 
+export type TaskDispatchTriggerSource = 'automatic' | 'manual';
+
+export type TaskUpdateDispatchTriggerReason = 'MANUAL_RETRY' | 'STATUS_READY';
+
+export interface UpdateTaskAndDispatchOptions {
+  callbacks: DispatchTaskCallbacks;
+  triggerSource: TaskDispatchTriggerSource;
+}
+
+export interface TaskUpdateDispatchAttempt {
+  attempted: boolean;
+  errorMessage: string | null;
+  result: DispatchTaskResult | null;
+  source: TaskDispatchTriggerSource;
+  triggerReason: TaskUpdateDispatchTriggerReason | null;
+}
+
+export interface UpdateTaskAndDispatchResult {
+  dispatch: TaskUpdateDispatchAttempt;
+  task: TaskPayload;
+}
+
 interface TaskDispatchabilityOptions {
   orchestrationMode?: ProjectOrchestrationMode;
 }
@@ -116,6 +142,17 @@ const dispatchableTaskStatuses = new Set([
   'RUNNING',
   'WAITING_RETRY',
 ]);
+const dispatchTriggerTaskStatuses = new Set([
+  'PENDING',
+  'READY',
+  'WAITING_RETRY',
+]);
+const manualRetrySourceTaskStatuses = new Set([
+  'CANCELLED',
+  'FAILED',
+  'WAITING_RETRY',
+]);
+const terminalTaskStatuses = new Set(['CANCELLED', 'COMPLETED']);
 
 function throwInvalidTaskKind(kind: string): never {
   throw new ProblemError({
@@ -186,6 +223,30 @@ function isTaskKindDispatchable(kind: TaskKind | null): boolean {
 
 function isTaskStatusDispatchable(status: string): boolean {
   return dispatchableTaskStatuses.has(status);
+}
+
+function resolveTaskDispatchTriggerReason(
+  currentStatus: string,
+  nextStatus: string,
+  source: TaskDispatchTriggerSource,
+): TaskUpdateDispatchTriggerReason | null {
+  if (currentStatus === nextStatus) {
+    return null;
+  }
+
+  if (terminalTaskStatuses.has(nextStatus)) {
+    return null;
+  }
+
+  if (!dispatchTriggerTaskStatuses.has(nextStatus)) {
+    return null;
+  }
+
+  if (source === 'manual' && manualRetrySourceTaskStatuses.has(currentStatus)) {
+    return 'MANUAL_RETRY';
+  }
+
+  return 'STATUS_READY';
 }
 
 export function resolveDefaultTaskRole(
@@ -1121,6 +1182,64 @@ export async function updateTask(
     .run(next);
 
   return getTaskById(sqlite, taskId);
+}
+
+export async function updateTaskAndDispatch(
+  sqlite: Database,
+  taskId: string,
+  input: UpdateTaskInput,
+  options: UpdateTaskAndDispatchOptions,
+): Promise<UpdateTaskAndDispatchResult> {
+  const current = getTaskRow(sqlite, taskId);
+  const task = await updateTask(sqlite, taskId, input);
+  const triggerReason = resolveTaskDispatchTriggerReason(
+    current.status,
+    task.status,
+    options.triggerSource,
+  );
+
+  if (!triggerReason) {
+    return {
+      dispatch: {
+        attempted: false,
+        errorMessage: null,
+        result: null,
+        source: options.triggerSource,
+        triggerReason: null,
+      },
+      task,
+    };
+  }
+
+  try {
+    const { dispatchTask } = await import('./task-dispatch-service.js');
+    const result = await dispatchTask(sqlite, options.callbacks, {
+      taskId,
+    });
+
+    return {
+      dispatch: {
+        attempted: true,
+        errorMessage: null,
+        result,
+        source: options.triggerSource,
+        triggerReason,
+      },
+      task: await getTaskById(sqlite, taskId),
+    };
+  } catch (error) {
+    return {
+      dispatch: {
+        attempted: true,
+        errorMessage:
+          error instanceof Error ? error.message : 'Task dispatch failed',
+        result: null,
+        source: options.triggerSource,
+        triggerReason,
+      },
+      task: await getTaskById(sqlite, taskId),
+    };
+  }
 }
 
 export async function deleteTask(

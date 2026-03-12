@@ -3,7 +3,10 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Fastify from 'fastify';
 import type { Database } from 'better-sqlite3';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
+import '../plugins/acp-runtime';
+import acpStreamPlugin from '../plugins/acp-stream';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
@@ -156,6 +159,46 @@ describe('tasks routes', () => {
     });
   });
 
+  it('dispatches a task when a manual status update moves it into a ready state', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Task Dispatch Route',
+      repoPath: '/tmp/team-ai-task-dispatch-route',
+    });
+    const sessionId = createAcpSession(sqlite, project.id, 'Dispatch session');
+    const taskId = await createTask(fastify, project.id, sessionId, {
+      objective: 'Dispatch after a manual retry',
+      title: 'Retry-ready task',
+    });
+
+    const patchResponse = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/tasks/${taskId}`,
+      payload: {
+        status: 'READY',
+      },
+    });
+
+    expect(patchResponse.statusCode).toBe(200);
+    expect(patchResponse.json()).toMatchObject({
+      assignedProvider: 'codex',
+      assignedRole: 'CRAFTER',
+      assignedSpecialistId: 'crafter-implementor',
+      executionSessionId: null,
+      id: taskId,
+      resultSessionId: expect.stringMatching(/^acps_/),
+      status: 'COMPLETED',
+    });
+    expect(fastify.acpRuntime.createSession).toHaveBeenCalledTimes(1);
+    expect(fastify.acpRuntime.promptSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localSessionId: expect.any(String),
+        prompt: expect.stringContaining('Task: Retry-ready task'),
+      }),
+    );
+  });
+
   it('rejects empty task patches and missing sessions', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
@@ -163,7 +206,11 @@ describe('tasks routes', () => {
       title: 'Task Errors',
       repoPath: '/tmp/team-ai-task-errors',
     });
-    const sessionId = createAcpSession(sqlite, project.id, 'Task error session');
+    const sessionId = createAcpSession(
+      sqlite,
+      project.id,
+      'Task error session',
+    );
     const taskId = await createTask(fastify, project.id, sessionId, {
       objective: 'Initial objective',
       title: 'Initial task',
@@ -196,7 +243,9 @@ describe('tasks routes', () => {
   it('resolves assigned specialists from workspace directories', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
-    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-task-route-specialist-'));
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-task-route-specialist-'),
+    );
     cleanupTasks.push(async () => {
       await rm(repoPath, { recursive: true, force: true });
     });
@@ -220,7 +269,11 @@ describe('tasks routes', () => {
       title: 'Specialist Project',
       repoPath,
     });
-    const sessionId = createAcpSession(sqlite, project.id, 'Specialist task session');
+    const sessionId = createAcpSession(
+      sqlite,
+      project.id,
+      'Specialist task session',
+    );
 
     const response = await fastify.inject({
       method: 'POST',
@@ -247,7 +300,11 @@ describe('tasks routes', () => {
       title: 'Invalid Role Project',
       repoPath: '/tmp/team-ai-task-invalid-role',
     });
-    const sessionId = createAcpSession(sqlite, project.id, 'Invalid role session');
+    const sessionId = createAcpSession(
+      sqlite,
+      project.id,
+      'Invalid role session',
+    );
 
     const response = await fastify.inject({
       method: 'POST',
@@ -290,9 +347,31 @@ describe('tasks routes', () => {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
     fastify.decorate('sqlite', sqlite);
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        provider: input.provider,
+        runtimeSessionId: 'runtime-1',
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        provider: input.provider,
+        runtimeSessionId: input.runtimeSessionId,
+      })),
+      promptSession: vi.fn(async () => ({
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+        runtimeSessionId: 'runtime-1',
+      })),
+    } satisfies AcpRuntimeClient);
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
+    await fastify.register(acpStreamPlugin);
     await fastify.register(tasksRoute, { prefix: '/api' });
     await fastify.ready();
 

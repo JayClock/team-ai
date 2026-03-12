@@ -1,13 +1,17 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { presentTask, presentTaskList } from '../presenters/task-presenter';
-import { getAcpSessionById } from '../services/acp-service';
+import {
+  createAcpSession,
+  getAcpSessionById,
+  promptAcpSession,
+} from '../services/acp-service';
 import {
   createTask,
   deleteTask,
   getTaskById,
   listTasks,
-  updateTask,
+  updateTaskAndDispatch,
 } from '../services/task-service';
 
 const listTasksQuerySchema = z.object({
@@ -173,7 +177,37 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.patch('/tasks/:taskId', async (request) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
-    return presentTask(await updateTask(fastify.sqlite, taskId, body));
+    const result = await updateTaskAndDispatch(fastify.sqlite, taskId, body, {
+      callbacks: {
+        async createSession(input) {
+          const session = await createAcpSession(
+            fastify.sqlite,
+            fastify.acpStreamBroker,
+            fastify.acpRuntime,
+            input,
+          );
+
+          return {
+            id: session.id,
+          };
+        },
+        async promptSession(input) {
+          return await promptAcpSession(
+            fastify.sqlite,
+            fastify.acpStreamBroker,
+            fastify.acpRuntime,
+            input.projectId,
+            input.sessionId,
+            {
+              prompt: input.prompt,
+            },
+          );
+        },
+      },
+      triggerSource: 'manual',
+    });
+
+    return presentTask(result.task);
   });
 
   fastify.delete('/tasks/:taskId', async (request, reply) => {
