@@ -25,6 +25,23 @@ export type TaskSnapshotItem = {
 
 export type SidebarTab = 'sessions' | 'spec' | 'tasks';
 
+export type WorkbenchRuntimeProfile = {
+  defaultModel: string | null;
+  defaultProviderId: string | null;
+  enabledMcpServerIds: string[];
+  enabledSkillIds: string[];
+  orchestrationMode: 'ROUTA' | 'DEVELOPER';
+};
+
+export type WorkbenchProjectInsights = {
+  loading: boolean;
+  noteCount: number;
+  sessionNoteCount: number;
+  sessionTaskRunCount: number;
+  taskRunCount: number;
+  runtimeProfile: WorkbenchRuntimeProfile | null;
+};
+
 export function formatDateTime(value: string | null): string {
   if (!value) {
     return '无';
