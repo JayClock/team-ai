@@ -201,6 +201,13 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
               'session/new no longer accepts specialistId; pass role instead',
             );
           }
+          if (typeof params.mode === 'string' && params.mode.trim().length > 0) {
+            return errorEnvelope(
+              id,
+              -32602,
+              'session/new no longer accepts mode; choose role instead',
+            );
+          }
           const result = await createAcpSession(
             fastify.sqlite,
             fastify.acpStreamBroker,
@@ -209,7 +216,6 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
               projectId: z.string().min(1).parse(params.projectId),
               actorUserId: z.string().min(1).parse(params.actorUserId),
               provider: z.string().trim().min(1).optional().parse(params.provider) ?? 'codex',
-              mode: z.string().trim().min(1).optional().parse(params.mode) ?? 'CHAT',
               role: z.string().trim().min(1).optional().parse(params.role),
               parentSessionId: z.string().trim().min(1).optional().parse(params.parentSessionId),
               goal: z.string().trim().min(1).optional().parse(params.goal),

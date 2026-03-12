@@ -50,7 +50,6 @@ interface AcpSessionRow {
   id: string;
   last_activity_at: string | null;
   last_event_id: string | null;
-  mode: string;
   name: string | null;
   parent_session_id: string | null;
   project_id: string;
@@ -78,7 +77,6 @@ interface ListSessionsQuery {
 interface CreateSessionInput {
   actorUserId: string;
   goal?: string;
-  mode: string;
   parentSessionId?: string | null;
   projectId: string;
   provider: string;
@@ -125,7 +123,6 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     name: row.name,
     provider: row.provider,
     specialistId: row.specialist_id,
-    mode: row.mode,
     cwd: row.cwd ?? '',
     state: row.state,
     startedAt: row.started_at,
@@ -161,7 +158,6 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           parent_session_id,
           name,
           provider,
-          mode,
           cwd,
           state,
           runtime_session_id,
@@ -716,7 +712,6 @@ async function ensureRuntimeLoaded(
     runtimeSessionId: session.runtime_session_id,
     provider: session.provider,
     cwd: session.cwd ?? '',
-    mode: session.mode,
     mcpServers: resolveLocalMcpServers(),
     hooks: createRuntimeHooks(sqlite, broker, session.id),
   });
@@ -775,7 +770,6 @@ export async function createAcpSession(
           specialist_id,
           name,
           provider,
-          mode,
           cwd,
           state,
           runtime_session_id,
@@ -797,7 +791,6 @@ export async function createAcpSession(
           @specialistId,
           @name,
           @provider,
-          @mode,
           @cwd,
           @state,
           NULL,
@@ -821,7 +814,6 @@ export async function createAcpSession(
       specialistId: specialist?.id ?? null,
       name: input.goal?.trim() || null,
       provider: input.provider,
-      mode: input.mode,
       cwd,
       state: 'PENDING',
       startedAt: now,
@@ -834,7 +826,6 @@ export async function createAcpSession(
     localSessionId: sessionId,
     provider: input.provider,
     cwd,
-    mode: input.mode,
     mcpServers: resolveLocalMcpServers(),
     hooks: createRuntimeHooks(sqlite, broker, sessionId),
   });
@@ -852,7 +843,6 @@ export async function createAcpSession(
     payload: {
       source: 'local-server',
       provider: input.provider,
-      mode: input.mode,
       role: (specialist?.role ?? role) as RoleValue | null,
       agentId: agent?.id ?? null,
       agentName: agent?.name ?? null,
@@ -888,7 +878,6 @@ export async function listAcpSessionsByProject(
           specialist_id,
           name,
           provider,
-          mode,
           cwd,
           state,
           runtime_session_id,
@@ -1050,7 +1039,6 @@ export async function loadAcpSession(
       runtimeSessionId: session.runtime_session_id,
       provider: session.provider,
       cwd: session.cwd ?? '',
-      mode: session.mode,
       mcpServers: resolveLocalMcpServers(),
       hooks: createRuntimeHooks(sqlite, broker, session.id),
     });

@@ -526,4 +526,11 @@ export const sqliteMigrations: SqliteMigration[] = [
       DROP TABLE IF EXISTS project_sessions;
     `,
   },
+  {
+    version: '017_drop_acp_session_mode',
+    sql: `
+      ALTER TABLE project_acp_sessions
+        DROP COLUMN mode;
+    `,
+  },
 ];

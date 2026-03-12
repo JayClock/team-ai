@@ -48,7 +48,6 @@ describe('mcp route', () => {
       createSession: vi.fn(async (input) => ({
         runtimeSessionId: 'runtime-1',
         provider: input.provider,
-        mode: input.mode,
       })),
       deleteSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
@@ -56,7 +55,6 @@ describe('mcp route', () => {
       loadSession: vi.fn(async (input) => ({
         runtimeSessionId: input.runtimeSessionId,
         provider: input.provider,
-        mode: input.mode,
       })),
       promptSession: promptMock,
     } satisfies AcpRuntimeClient);
@@ -74,7 +72,6 @@ describe('mcp route', () => {
           createdAt: '2026-03-10T00:00:00.000Z',
         },
       })),
-      health: vi.fn(),
       isConfigured: vi.fn(() => true),
       listEvents: vi.fn(async () => ({
         cursor: null,
@@ -194,7 +191,6 @@ describe('mcp route', () => {
             projectId: project.id,
             actorUserId: 'desktop-user',
             provider: 'codex',
-            mode: 'CHAT',
           },
         },
       },

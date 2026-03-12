@@ -20,7 +20,6 @@ export type AcpSessionData = {
   name: string | null;
   provider: string;
   specialistId: string | null;
-  mode: string;
   cwd: string;
   state: AcpSessionState;
   startedAt: string | null;
@@ -120,7 +119,6 @@ export type AcpPlanEventData = AcpBaseEventData & {
 
 export type AcpSessionEventData = AcpBaseEventData & {
   cwd?: string;
-  mode?: string;
   provider?: string;
   reason?: string;
   state?: string;

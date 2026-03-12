@@ -47,7 +47,6 @@ export interface AcpSessionPayload {
   id: string;
   lastActivityAt: string | null;
   lastEventId: AcpRefPayload | null;
-  mode: string;
   name: string | null;
   parentSession: AcpRefPayload | null;
   project: AcpRefPayload;

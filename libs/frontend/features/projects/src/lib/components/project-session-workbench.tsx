@@ -111,7 +111,6 @@ export function ProjectSessionWorkbench(props: {
   } = useAcpSession(projectState, {
     actorUserId: me.id,
     provider: 'codex',
-    mode: 'CHAT',
     role: 'DEVELOPER',
     historyLimit: 200,
   });
@@ -119,7 +118,6 @@ export function ProjectSessionWorkbench(props: {
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const provider = 'codex';
-  const mode = 'CHAT';
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('sessions');
   const [, setStreamStatus] = useState<StreamStatus>('idle');
   const [isCreating, setIsCreating] = useState(false);
@@ -264,7 +262,6 @@ export function ProjectSessionWorkbench(props: {
         create({
           actorUserId: me.id,
           provider,
-          mode,
           role: 'DEVELOPER',
         }),
       submitPrompt: async ({ sessionId, prompt: nextPrompt }) => {
@@ -384,7 +381,6 @@ export function ProjectSessionWorkbench(props: {
       const created = await create({
         actorUserId: me.id,
         provider,
-        mode,
         role: 'DEVELOPER',
       });
       await loadSessions();
@@ -398,7 +394,7 @@ export function ProjectSessionWorkbench(props: {
     } finally {
       setIsCreating(false);
     }
-  }, [create, loadSessions, me.id, mode, onSessionNavigate, provider]);
+  }, [create, loadSessions, me.id, onSessionNavigate, provider]);
 
   const submitRename = useCallback(async () => {
     const session = renameDialogSession;

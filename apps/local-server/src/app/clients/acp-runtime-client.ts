@@ -38,7 +38,6 @@ export interface CreateAcpRuntimeSessionInput {
   hooks: AcpRuntimeSessionHooks;
   localSessionId: string;
   mcpServers: McpServer[];
-  mode: string;
   provider: string;
 }
 
@@ -61,7 +60,6 @@ export interface CancelAcpRuntimeSessionInput {
 }
 
 export interface AcpRuntimeSessionSnapshot {
-  mode: string;
   provider: string;
   runtimeSessionId: string;
 }
@@ -115,7 +113,6 @@ interface ActiveAcpRuntimeSession {
   hooks: AcpRuntimeSessionHooks;
   initializeResponse: InitializeResponse;
   localSessionId: string;
-  mode: string;
   provider: string;
   runtimeSessionId: string;
   terminals: Map<string, LocalTerminal>;
@@ -149,14 +146,12 @@ export function createAcpRuntimeClient(
       mcpServers: input.mcpServers,
     });
 
-    await setSessionMode(session, created.sessionId, input.mode);
     session.runtimeSessionId = created.sessionId;
     sessions.set(input.localSessionId, session);
 
     return {
       runtimeSessionId: created.sessionId,
       provider: input.provider,
-      mode: input.mode,
     };
   }
 
@@ -168,7 +163,6 @@ export function createAcpRuntimeClient(
       return {
         runtimeSessionId: existing.runtimeSessionId,
         provider: existing.provider,
-        mode: existing.mode,
       };
     }
 
@@ -179,14 +173,12 @@ export function createAcpRuntimeClient(
       sessionId: input.runtimeSessionId,
     });
 
-    await setSessionMode(session, input.runtimeSessionId, input.mode);
     session.runtimeSessionId = input.runtimeSessionId;
     sessions.set(input.localSessionId, session);
 
     return {
       runtimeSessionId: input.runtimeSessionId,
       provider: input.provider,
-      mode: input.mode,
     };
   }
 
@@ -319,7 +311,6 @@ export function createAcpRuntimeClient(
       hooks: input.hooks,
       initializeResponse,
       localSessionId: input.localSessionId,
-      mode: input.mode,
       provider: input.provider,
       runtimeSessionId:
         'runtimeSessionId' in input ? input.runtimeSessionId : input.localSessionId,
@@ -359,33 +350,6 @@ export function createAcpRuntimeClient(
 
     if (forceKill && session.child.exitCode == null) {
       session.child.kill('SIGTERM');
-    }
-  }
-
-  async function setSessionMode(
-    session: ActiveAcpRuntimeSession,
-    runtimeSessionId: string,
-    mode: string,
-  ): Promise<void> {
-    if (!mode) {
-      return;
-    }
-
-    try {
-      await session.connection.setSessionMode({
-        sessionId: runtimeSessionId,
-        modeId: mode,
-      });
-    } catch (error) {
-      options.logger?.warn?.(
-        {
-          err: error,
-          localSessionId: session.localSessionId,
-          mode,
-          runtimeSessionId,
-        },
-        'Failed to set ACP session mode',
-      );
     }
   }
 

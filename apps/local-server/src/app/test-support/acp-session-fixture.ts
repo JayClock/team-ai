@@ -4,7 +4,6 @@ interface InsertAcpSessionInput {
   actorId?: string;
   cwd?: string;
   id: string;
-  mode?: string;
   name?: string | null;
   parentSessionId?: string | null;
   projectId: string;
@@ -26,7 +25,6 @@ export function insertAcpSession(sqlite: Database, input: InsertAcpSessionInput)
           parent_session_id,
           name,
           provider,
-          mode,
           state,
           runtime_session_id,
           failure_reason,
@@ -48,7 +46,6 @@ export function insertAcpSession(sqlite: Database, input: InsertAcpSessionInput)
           @parentSessionId,
           @name,
           @provider,
-          @mode,
           @state,
           NULL,
           NULL,
@@ -71,7 +68,6 @@ export function insertAcpSession(sqlite: Database, input: InsertAcpSessionInput)
       cwd: input.cwd ?? '/tmp',
       id: input.id,
       lastActivityAt: input.startedAt ?? now,
-      mode: input.mode ?? 'CHAT',
       name: input.name ?? null,
       parentSessionId: input.parentSessionId ?? null,
       projectId: input.projectId,

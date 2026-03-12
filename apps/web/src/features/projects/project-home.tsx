@@ -180,12 +180,6 @@ function providerGroupLabel(key: string): string {
   }
 }
 
-function sessionModeDescription(mode: 'CHAT' | 'PLAN'): string {
-  return mode === 'CHAT'
-    ? '适合直接协作和快速推进。'
-    : '适合先整理任务边界，再进入实现。';
-}
-
 function sessionAgentDescription(agentType: HomeAgentType): string {
   return (
     HOME_AGENT_OPTIONS.find((option) => option.id === agentType)?.description ??
@@ -320,13 +314,11 @@ function ProjectHomeContent(props: {
   const { sessionsResource, create } = useAcpSession(projectState, {
     actorUserId: me.id,
     provider: selectedProviderId,
-    mode: 'CHAT',
     historyLimit: 50,
   });
 
   const [prompt, setPrompt] = useState('');
   const [agentType, setAgentType] = useState<HomeAgentType>('ROUTA');
-  const [mode, setMode] = useState<'CHAT' | 'PLAN'>('CHAT');
   const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
   const [providerDropdownPos, setProviderDropdownPos] = useState<{
     bottom: number;
@@ -516,7 +508,6 @@ function ProjectHomeContent(props: {
           actorUserId: me.id,
           provider: selectedProvider.id,
           role: agentType,
-          mode,
           goal,
         });
         storePendingProjectPrompt(created.data.id, goal);
@@ -536,7 +527,6 @@ function ProjectHomeContent(props: {
       create,
       loadRecentSessions,
       me.id,
-      mode,
       navigate,
       prompt,
       selectedProvider,
@@ -640,39 +630,6 @@ function ProjectHomeContent(props: {
                       {option.label}
                     </button>
                   ))}
-                </div>
-
-                <div
-                  className="hidden items-center rounded-lg bg-slate-100 p-0.5 sm:flex dark:bg-[#1a1d2a]"
-                  role="group"
-                  aria-label="Session mode"
-                >
-                  <button
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                      mode === 'CHAT'
-                        ? 'bg-white text-slate-900 shadow-sm dark:bg-[#1f2233] dark:text-slate-100'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-                    }`}
-                    onClick={() => setMode('CHAT')}
-                    type="button"
-                  >
-                    对话
-                  </button>
-                  <button
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                      mode === 'PLAN'
-                        ? 'bg-white text-slate-900 shadow-sm dark:bg-[#1f2233] dark:text-slate-100'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-                    }`}
-                    onClick={() => setMode('PLAN')}
-                    type="button"
-                  >
-                    规划
-                  </button>
-                </div>
-
-                <div className="hidden h-8 items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs text-slate-600 lg:flex dark:border-[#2a2d3d] dark:bg-[#151823] dark:text-slate-300">
-                  {mode}
                 </div>
 
                 <div className="hidden items-center text-[11px] text-slate-400 md:flex dark:text-slate-500">
@@ -813,7 +770,7 @@ function ProjectHomeContent(props: {
             : null}
 
           <div className="mt-2 px-1 text-[10px] text-slate-400 dark:text-slate-500">
-            {sessionAgentDescription(agentType)} {sessionModeDescription(mode)}
+            {sessionAgentDescription(agentType)}
           </div>
         </div>
 
