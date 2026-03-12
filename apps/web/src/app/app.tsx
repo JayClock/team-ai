@@ -2,15 +2,13 @@ import Homepage from '../features/landing/homepage';
 import SmartDomainPage from '../features/landing/smart-domain-page';
 import { Login } from '../features/auth/login';
 import { Signup } from '../features/auth/signup';
-import OrchestrationHome from '../features/orchestration/orchestration-home';
-import OrchestrationSessionPage from '../features/orchestration/orchestration-session';
 import ProjectHome from '../features/projects/project-home';
 import ProjectSessionPage from '../features/projects/project-session-page';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { Layout, layoutRoutes } from '@shells/layout';
+import { layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
 import { protectedRouteLoader } from './protected-route-loader';
-import { Suspense, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
 
 const protectedLayoutRoutes = [
@@ -51,25 +49,6 @@ function createAppRouter() {
       path: '/projects/:projectId/sessions/:sessionId',
       loader: protectedRouteLoader,
       element: <ProjectSessionPage />,
-    },
-    {
-      path: '/orchestration',
-      loader: protectedRouteLoader,
-      element: (
-        <Suspense>
-          <Layout />
-        </Suspense>
-      ),
-      children: [
-        {
-          index: true,
-          element: <OrchestrationHome />,
-        },
-        {
-          path: ':sessionId',
-          element: <OrchestrationSessionPage />,
-        },
-      ],
     },
     {
       path: '/login',

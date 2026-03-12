@@ -1,9 +1,7 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
-import type { AgentGatewayClient } from '../clients/agent-gateway-client';
 import acpStreamPlugin from '../plugins/acp-stream';
-import orchestrationStreamPlugin from '../plugins/orchestration-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
@@ -59,38 +57,10 @@ describe('mcp route', () => {
       promptSession: promptMock,
     } satisfies AcpRuntimeClient);
 
-    fastify.decorate('agentGatewayClient', {
-      cancel: vi.fn(async () => ({
-        accepted: true,
-        session: { sessionId: 'runtime-1', state: 'CANCELLED' },
-      })),
-      createSession: vi.fn(async () => ({
-        session: {
-          sessionId: 'runtime-1',
-          state: 'PENDING',
-          provider: 'codex',
-          createdAt: '2026-03-10T00:00:00.000Z',
-        },
-      })),
-      isConfigured: vi.fn(() => true),
-      listEvents: vi.fn(async () => ({
-        cursor: null,
-        nextCursor: 'cursor-1',
-        events: [],
-        session: {
-          sessionId: 'runtime-1',
-          state: 'RUNNING',
-        },
-      })),
-      prompt: promptMock,
-      stream: vi.fn(),
-    } satisfies AgentGatewayClient);
-
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(orchestrationStreamPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -131,7 +101,6 @@ describe('mcp route', () => {
         'acp_session_create',
         'acp_session_prompt',
         'acp_session_cancel',
-        'orchestration_session_create',
       ]),
     );
 
@@ -220,29 +189,5 @@ describe('mcp route', () => {
 
     expect(promptAcpResponse.statusCode).toBe(200);
     expect(promptMock).toHaveBeenCalledTimes(1);
-
-    const createOrchestrationResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
-        jsonrpc: '2.0',
-        id: 'mcp-5',
-        method: 'tools/call',
-        params: {
-          name: 'orchestration_session_create',
-          arguments: {
-            projectId: project.id,
-            title: 'MCP orchestration',
-            goal: 'Build desktop tool chain',
-            provider: 'codex',
-          },
-        },
-      },
-    });
-
-    expect(createOrchestrationResponse.statusCode).toBe(200);
-    expect(
-      createOrchestrationResponse.json().result.content[0].json.session.id,
-    ).toMatch(/^orc_/);
   });
 });

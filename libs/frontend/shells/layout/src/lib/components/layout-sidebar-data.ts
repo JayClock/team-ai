@@ -6,7 +6,6 @@ import {
   FrameIcon,
   GalleryVerticalEndIcon,
   MapIcon,
-  PlaySquareIcon,
   PieChartIcon,
   Settings2Icon,
   SquareTerminalIcon,
@@ -83,10 +82,6 @@ export const layoutSidebarData: LayoutSidebarData = {
           title: '项目会话',
           url: '/projects',
         },
-        {
-          title: '编排',
-          url: '/orchestration',
-        },
       ],
     },
     {
@@ -105,17 +100,6 @@ export const layoutSidebarData: LayoutSidebarData = {
         {
           title: '量子模型',
           url: '#',
-        },
-      ],
-    },
-    {
-      title: '自动化',
-      url: '#',
-      icon: PlaySquareIcon,
-      items: [
-        {
-          title: '编排会话',
-          url: '/orchestration',
         },
       ],
     },

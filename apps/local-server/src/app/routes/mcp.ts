@@ -6,7 +6,6 @@ import {
   promptAcpSession,
 } from '../services/acp-service';
 import { listAgents } from '../services/agent-service';
-import { createOrchestrationSession } from '../services/orchestration-service';
 import { listProjects } from '../services/project-service';
 
 const mcpJsonRpcRequestSchema = z.object({
@@ -58,16 +57,6 @@ const cancelAcpSessionArgsSchema = z.object({
   projectId: z.string().trim().min(1),
   reason: z.string().trim().min(1).optional(),
   sessionId: z.string().trim().min(1),
-});
-
-const createOrchestrationSessionArgsSchema = z.object({
-  cwd: z.string().trim().min(1).optional(),
-  executionMode: z.enum(['ROUTA', 'DEVELOPER']).optional(),
-  goal: z.string().trim().min(1),
-  projectId: z.string().trim().min(1),
-  provider: z.string().trim().min(1).optional(),
-  title: z.string().trim().min(1),
-  traceId: z.string().trim().min(1).optional(),
 });
 
 const mcpTools = [
@@ -146,24 +135,6 @@ const mcpTools = [
         projectId: { type: 'string' },
         sessionId: { type: 'string' },
         reason: { type: 'string' },
-      },
-    },
-  },
-  {
-    name: 'orchestration_session_create',
-    title: 'Create Orchestration Session',
-    description: 'Create a local orchestration session for a project goal.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'title', 'goal'],
-      properties: {
-        projectId: { type: 'string' },
-        title: { type: 'string' },
-        goal: { type: 'string' },
-        provider: { type: 'string' },
-        traceId: { type: 'string' },
-        cwd: { type: 'string' },
-        executionMode: { type: 'string', enum: ['ROUTA', 'DEVELOPER'] },
       },
     },
   },
@@ -305,22 +276,6 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                     args.reason,
                   ),
                 }),
-              );
-            }
-            case 'orchestration_session_create': {
-              const args = createOrchestrationSessionArgsSchema.parse(
-                toolCall.arguments,
-              );
-              return resultEnvelope(
-                id,
-                toolSuccess(
-                  await createOrchestrationSession(
-                    fastify.sqlite,
-                    fastify.orchestrationStreamBroker,
-                    args,
-                    fastify.agentGatewayClient,
-                  ),
-                ),
               );
             }
             default:

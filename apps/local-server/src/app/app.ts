@@ -7,8 +7,6 @@ import acpStreamPlugin from './plugins/acp-stream';
 import desktopAuthPlugin from './plugins/desktop-auth';
 import desktopCorsPlugin from './plugins/desktop-cors';
 import executionRuntimePlugin from './plugins/execution-runtime';
-import orchestrationRuntimePlugin from './plugins/orchestration-runtime';
-import orchestrationStreamPlugin from './plugins/orchestration-stream';
 import problemJsonPlugin from './plugins/problem-json';
 import sensiblePlugin from './plugins/sensible';
 import sqlitePlugin from './plugins/sqlite';
@@ -30,8 +28,6 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
   fastify.register(agentGatewayClientPlugin, {
     agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
   });
-  fastify.register(orchestrationStreamPlugin);
-  fastify.register(orchestrationRuntimePlugin);
   fastify.register(desktopCorsPlugin);
   fastify.register(desktopAuthPlugin, {
     desktopSessionToken: opts.desktopSessionToken,

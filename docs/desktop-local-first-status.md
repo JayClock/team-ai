@@ -17,15 +17,15 @@ The desktop runtime now consists of four cooperating parts:
 - `apps/local-server`
   - Exposes the local HTTP API on `127.0.0.1`
   - Persists desktop data in SQLite
-  - Owns orchestration runtime, message streaming, and sync control state
+  - Owns ACP session state, message streaming, and sync control state
 - `apps/agent-gateway`
   - Exposes the local execution gateway on `127.0.0.1`
   - Owns local provider session state and CLI execution lifecycle
-  - Bridges orchestration requests to local agent CLIs such as `codex`
+  - Bridges local execution requests to agent CLIs such as `codex`
 - `apps/web`
   - Uses the desktop runtime API base URL when running inside Electron
   - Sends the desktop session header automatically
-  - Renders orchestration, project, conversation, and message flows against the local server
+  - Renders project, ACP session, conversation, and message flows against the local server
 
 ## Current Delivery Status
 
@@ -40,8 +40,7 @@ The desktop runtime now consists of four cooperating parts:
 - Conversation CRUD routes
 - Message routes with local SSE output
 - Provider and agent routes
-- Orchestration contract, persistence, runtime, and recovery
-- Desktop frontend orchestration dashboard
+- ACP session contract and runtime integration
 - Sync status and manual sync control routes
 
 ### Not Yet Delivered
@@ -109,22 +108,6 @@ All routes below are currently implemented by `apps/local-server`.
 - `PATCH /api/agents/:agentId`
 - `DELETE /api/agents/:agentId`
 
-### Orchestration
-
-- `GET /api/orchestration`
-- `GET /api/orchestration/sessions`
-- `POST /api/orchestration/sessions`
-- `GET /api/orchestration/sessions/:sessionId`
-- `GET /api/orchestration/sessions/:sessionId/steps`
-- `GET /api/orchestration/sessions/:sessionId/events`
-- `GET /api/orchestration/sessions/:sessionId/stream`
-- `POST /api/orchestration/sessions/:sessionId/cancel`
-- `POST /api/orchestration/sessions/:sessionId/resume`
-- `POST /api/orchestration/sessions/:sessionId/retry`
-- `GET /api/orchestration/steps/:stepId`
-- `GET /api/orchestration/steps/:stepId/events`
-- `POST /api/orchestration/steps/:stepId/retry`
-
 ### Sync Control
 
 - `GET /api/sync/status`
@@ -144,37 +127,15 @@ All routes below are currently implemented by `apps/local-server`.
 
 ### Delivered Desktop UI
 
-- Existing project, conversation, and message flows now target the local server in desktop mode.
-- A dedicated orchestration dashboard is available at:
-  - `/orchestration`
-  - `/orchestration/:sessionId`
-- The dashboard supports:
-  - session list
-  - session detail
-  - steps
-  - persisted event timeline
-  - stream updates
-  - cancel / resume / retry session
-  - retry step
+- Existing project, ACP session, conversation, and message flows now target the local server in desktop mode.
 
 ## Behavior Notes
-
-### Orchestration Runtime
-
-- Sessions, steps, and events are stored in SQLite.
-- A sequential scheduler advances `PLAN -> IMPLEMENT -> VERIFY`.
-- Each step is executed through `apps/agent-gateway`, which bridges to the local CLI provider such as `codex`.
-- Runtime session ids, cursors, structured artifacts, and streamed output are persisted in SQLite-backed orchestration records.
-- Restart recovery attempts to resume unfinished runtime sessions. Missing runtime sessions move affected steps into `WAITING_RETRY` so they remain observable and retryable from the dashboard.
-- Cancel now propagates to the active gateway runtime session and marks active steps as `CANCELLED`.
-- Step and session retry preserve prior artifacts while incrementing `attempt`.
 
 ### Sync Control
 
 - Sync control is currently a local control plane.
 - Manual `run` updates sync timestamps and surfaces pending changes.
 - Conflicts are persisted in SQLite.
-- Sessions with titles containing `[conflict]` can seed a synthetic conflict for desktop validation.
 
 ## Recommended Next Steps
 
@@ -182,7 +143,6 @@ All routes below are currently implemented by `apps/local-server`.
 
 - Add real cloud sync transport behind the existing sync routes
 - Add frontend sync status UI
-- Add pagination and filtering to orchestration dashboard
 
 ### Mid-Term
 
@@ -192,7 +152,7 @@ All routes below are currently implemented by `apps/local-server`.
 
 ## Local Runner Validation
 
-For local orchestration delivery, the most relevant commands are:
+For local desktop delivery, the most relevant commands are:
 
 ```bash
 # agent-gateway
@@ -202,10 +162,6 @@ npx nx build @agent-gateway/main
 # local-server
 cd apps/local-server
 npx vitest run \
-  src/app/services/orchestration-service.test.ts \
-  src/app/services/orchestration-step-executor.test.ts \
-  src/app/services/orchestration-artifact-service.test.ts \
-  src/app/services/orchestration-prompt-builder.test.ts \
   src/app/clients/agent-gateway-client.test.ts \
   src/app/plugins/agent-gateway-client.test.ts \
   src/app/plugins/execution-runtime.test.ts

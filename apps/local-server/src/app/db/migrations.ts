@@ -533,4 +533,20 @@ export const sqliteMigrations: SqliteMigration[] = [
         DROP COLUMN mode;
     `,
   },
+  {
+    version: '018_drop_orchestration_tables',
+    sql: `
+      DROP TABLE IF EXISTS orchestration_artifacts;
+      DROP TABLE IF EXISTS orchestration_events;
+      DROP TABLE IF EXISTS orchestration_steps;
+      DROP TABLE IF EXISTS orchestration_sessions;
+    `,
+  },
+  {
+    version: '019_cleanup_orchestration_sync_conflicts',
+    sql: `
+      DELETE FROM sync_conflicts
+      WHERE resource_type = 'orchestration-session';
+    `,
+  },
 ];

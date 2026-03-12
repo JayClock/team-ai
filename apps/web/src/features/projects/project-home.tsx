@@ -229,7 +229,6 @@ async function readJson<T>(href: string, init?: RequestInit): Promise<T> {
 }
 
 export default function ProjectHome() {
-  const navigate = useNavigate();
   const { projects, refreshProjects, selectedProject } = useProjectSelection();
   const [preferredProjectId, setPreferredProjectId] = useState<string | null>(
     null,
@@ -256,11 +255,6 @@ export default function ProjectHome() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <p>当前还没有本地项目，请先导入或创建项目。</p>
-            <div className="flex gap-2">
-              <Button onClick={() => navigate('/orchestration')}>
-                打开编排页
-              </Button>
-            </div>
           </CardContent>
         </Card>
       </div>

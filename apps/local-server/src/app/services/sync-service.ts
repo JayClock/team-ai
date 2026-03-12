@@ -1,5 +1,4 @@
 import type { Database } from 'better-sqlite3';
-import { customAlphabet } from 'nanoid';
 import { ProblemError } from '../errors/problem-error';
 import type {
   SyncConflictListPayload,
@@ -9,11 +8,6 @@ import type {
   SyncStatusPayload,
 } from '../schemas/sync';
 import { getSettings } from './settings-service';
-
-const conflictIdGenerator = customAlphabet(
-  '0123456789abcdefghijklmnopqrstuvwxyz',
-  12,
-);
 
 interface SyncStateRow {
   last_error: string | null;
@@ -35,10 +29,6 @@ interface SyncConflictRow {
   status: SyncConflictPayload['status'];
   title: string;
   updated_at: string;
-}
-
-function createConflictId() {
-  return `syncc_${conflictIdGenerator()}`;
 }
 
 function throwConflictNotFound(conflictId: string): never {
@@ -161,10 +151,7 @@ function countUpdatedSince(
 function countPendingChanges(sqlite: Database, lastSuccessfulSyncAt: string | null) {
   return (
     countUpdatedSince(sqlite, 'projects', lastSuccessfulSyncAt) +
-    countUpdatedSince(sqlite, 'project_agents', lastSuccessfulSyncAt) +
-    countUpdatedSince(sqlite, 'orchestration_sessions', lastSuccessfulSyncAt, {
-      hasSoftDelete: false,
-    })
+    countUpdatedSince(sqlite, 'project_agents', lastSuccessfulSyncAt)
   );
 }
 
@@ -264,61 +251,6 @@ function maybeSeedSyntheticConflict(sqlite: Database) {
   if (existingOpenConflicts > 0) {
     return;
   }
-
-  const candidate = sqlite
-    .prepare(
-      `
-        SELECT id, title, updated_at
-        FROM orchestration_sessions
-        WHERE title LIKE '%[conflict]%'
-        ORDER BY updated_at DESC
-        LIMIT 1
-      `,
-    )
-    .get() as { id: string; title: string; updated_at: string } | undefined;
-
-  if (!candidate) {
-    return;
-  }
-
-  sqlite
-    .prepare(
-      `
-        INSERT INTO sync_conflicts (
-          id,
-          resource_type,
-          resource_id,
-          title,
-          local_summary,
-          remote_summary,
-          status,
-          resolution,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          @id,
-          'orchestration-session',
-          @resourceId,
-          @title,
-          @localSummary,
-          @remoteSummary,
-          'open',
-          NULL,
-          @createdAt,
-          @updatedAt
-        )
-      `,
-    )
-    .run({
-      id: createConflictId(),
-      resourceId: candidate.id,
-      title: `Conflict detected for ${candidate.title}`,
-      localSummary: 'Local desktop orchestration differs from the remote snapshot.',
-      remoteSummary: 'Remote snapshot contains a newer conflicting orchestration title.',
-      createdAt: candidate.updated_at,
-      updatedAt: candidate.updated_at,
-    });
 }
 
 export async function getSyncStatus(sqlite: Database): Promise<SyncStatusPayload> {
