@@ -96,7 +96,10 @@ export function ProjectSessionWorkbench(props: {
     projectTitle,
   } = props;
   const client = useClient();
-  const meResource = useMemo(() => client.go<Root>('/api').follow('me'), [client]);
+  const meResource = useMemo(
+    () => client.go<Root>('/api').follow('me'),
+    [client],
+  );
   const { data: me } = useSuspenseResource(meResource);
   const {
     sessionsResource,
@@ -110,15 +113,16 @@ export function ProjectSessionWorkbench(props: {
     ingestEvents,
   } = useAcpSession(projectState, {
     actorUserId: me.id,
-    provider: 'codex',
+    provider: 'opencode',
     role: 'DEVELOPER',
     historyLimit: 200,
   });
 
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const provider = 'codex';
-  const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('sessions');
+  const provider = 'opencode';
+  const [activeSidebarTab, setActiveSidebarTab] =
+    useState<SidebarTab>('sessions');
   const [, setStreamStatus] = useState<StreamStatus>('idle');
   const [isCreating, setIsCreating] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -131,9 +135,9 @@ export function ProjectSessionWorkbench(props: {
   const [renameValue, setRenameValue] = useState('');
   const [deleteDialogSession, setDeleteDialogSession] =
     useState<State<AcpSessionSummary> | null>(null);
-  const [resizeMode, setResizeMode] = useState<'left' | 'right' | 'split' | null>(
-    null,
-  );
+  const [resizeMode, setResizeMode] = useState<
+    'left' | 'right' | 'split' | null
+  >(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
@@ -193,21 +197,30 @@ export function ProjectSessionWorkbench(props: {
     if (typeof window === 'undefined') {
       return;
     }
-    window.localStorage.setItem(LEFT_SIDEBAR_WIDTH_KEY, String(leftSidebarWidth));
+    window.localStorage.setItem(
+      LEFT_SIDEBAR_WIDTH_KEY,
+      String(leftSidebarWidth),
+    );
   }, [leftSidebarWidth]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
-    window.localStorage.setItem(RIGHT_SIDEBAR_WIDTH_KEY, String(rightSidebarWidth));
+    window.localStorage.setItem(
+      RIGHT_SIDEBAR_WIDTH_KEY,
+      String(rightSidebarWidth),
+    );
   }, [rightSidebarWidth]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
-    window.localStorage.setItem(LEFT_SIDEBAR_RATIO_KEY, String(leftSidebarRatio));
+    window.localStorage.setItem(
+      LEFT_SIDEBAR_RATIO_KEY,
+      String(leftSidebarRatio),
+    );
   }, [leftSidebarRatio]);
 
   useEffect(() => {
@@ -231,10 +244,14 @@ export function ProjectSessionWorkbench(props: {
       }
       allSessions.sort((left, right) => {
         const leftValue = timestamp(
-          left.data.lastActivityAt ?? left.data.startedAt ?? left.data.completedAt,
+          left.data.lastActivityAt ??
+            left.data.startedAt ??
+            left.data.completedAt,
         );
         const rightValue = timestamp(
-          right.data.lastActivityAt ?? right.data.startedAt ?? right.data.completedAt,
+          right.data.lastActivityAt ??
+            right.data.startedAt ??
+            right.data.completedAt,
         );
         return rightValue - leftValue;
       });
@@ -356,10 +373,7 @@ export function ProjectSessionWorkbench(props: {
   }, [selectedSessionId, startStream, stopStream]);
 
   const selectSessionFromList = useCallback(
-    async (
-      session: State<AcpSessionSummary>,
-      navigateToSession = true,
-    ) => {
+    async (session: State<AcpSessionSummary>, navigateToSession = true) => {
       try {
         await select({ session: session.data.id });
         if (navigateToSession) {
@@ -367,8 +381,7 @@ export function ProjectSessionWorkbench(props: {
         }
         setMobileSidebarOpen(false);
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : '选择会话失败';
+        const message = error instanceof Error ? error.message : '选择会话失败';
         toast.error(message);
       }
     },
@@ -388,8 +401,7 @@ export function ProjectSessionWorkbench(props: {
       setMobileSidebarOpen(false);
       toast.success(`已创建会话 ${created.data.id}`);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '创建会话失败';
+      const message = error instanceof Error ? error.message : '创建会话失败';
       toast.error(message);
     } finally {
       setIsCreating(false);
@@ -415,8 +427,7 @@ export function ProjectSessionWorkbench(props: {
       setRenameDialogSession(null);
       toast.success('会话已重命名');
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '重命名会话失败';
+      const message = error instanceof Error ? error.message : '重命名会话失败';
       toast.error(message);
     }
   }, [loadSessions, rename, renameDialogSession, renameValue]);
@@ -434,8 +445,7 @@ export function ProjectSessionWorkbench(props: {
       setDeleteDialogSession(null);
       toast.success('会话已删除');
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '删除会话失败';
+      const message = error instanceof Error ? error.message : '删除会话失败';
       toast.error(message);
     }
   }, [deleteDialogSession, deleteSession, loadSessions]);
@@ -451,7 +461,9 @@ export function ProjectSessionWorkbench(props: {
     if (initialSelectionAppliedRef.current === initialSessionId) {
       return;
     }
-    const target = sessions.find((session) => session.data.id === initialSessionId);
+    const target = sessions.find(
+      (session) => session.data.id === initialSessionId,
+    );
     if (!target) {
       return;
     }
@@ -474,7 +486,10 @@ export function ProjectSessionWorkbench(props: {
       if (resizeMode === 'left') {
         const delta = event.clientX - leftResizeStartRef.current.x;
         setLeftSidebarWidth(
-          Math.min(Math.max(leftResizeStartRef.current.width + delta, 260), 440),
+          Math.min(
+            Math.max(leftResizeStartRef.current.width + delta, 260),
+            440,
+          ),
         );
         return;
       }
@@ -482,7 +497,10 @@ export function ProjectSessionWorkbench(props: {
       if (resizeMode === 'right') {
         const delta = rightResizeStartRef.current.x - event.clientX;
         setRightSidebarWidth(
-          Math.min(Math.max(rightResizeStartRef.current.width + delta, 300), 520),
+          Math.min(
+            Math.max(rightResizeStartRef.current.width + delta, 300),
+            520,
+          ),
         );
         return;
       }
@@ -579,9 +597,7 @@ export function ProjectSessionWorkbench(props: {
             </div>
             <div className="mt-1 flex items-center gap-2">
               <h2 className="truncate text-sm font-semibold md:text-base">
-                {selectedSession
-                  ? sessionDisplayName(selectedSession)
-                  : '会话'}
+                {selectedSession ? sessionDisplayName(selectedSession) : '会话'}
               </h2>
             </div>
           </div>
@@ -615,7 +631,11 @@ export function ProjectSessionWorkbench(props: {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className={activeSidebarTab === 'sessions' ? 'bg-primary/10 text-primary' : undefined}
+                  className={
+                    activeSidebarTab === 'sessions'
+                      ? 'bg-primary/10 text-primary'
+                      : undefined
+                  }
                   onClick={() => {
                     setActiveSidebarTab('sessions');
                     setLeftSidebarCollapsed(false);
@@ -627,7 +647,11 @@ export function ProjectSessionWorkbench(props: {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className={activeSidebarTab === 'spec' ? 'bg-primary/10 text-primary' : undefined}
+                  className={
+                    activeSidebarTab === 'spec'
+                      ? 'bg-primary/10 text-primary'
+                      : undefined
+                  }
                   onClick={() => {
                     setActiveSidebarTab('spec');
                     setLeftSidebarCollapsed(false);
@@ -639,7 +663,11 @@ export function ProjectSessionWorkbench(props: {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className={activeSidebarTab === 'tasks' ? 'bg-primary/10 text-primary' : undefined}
+                  className={
+                    activeSidebarTab === 'tasks'
+                      ? 'bg-primary/10 text-primary'
+                      : undefined
+                  }
                   onClick={() => {
                     setActiveSidebarTab('tasks');
                     setLeftSidebarCollapsed(false);
@@ -654,7 +682,9 @@ export function ProjectSessionWorkbench(props: {
                 className="flex shrink-0 border-r bg-muted/20"
                 style={{ width: leftSidebarWidth }}
               >
-                <div className="flex min-w-0 flex-1 flex-col">{leftSidebar}</div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  {leftSidebar}
+                </div>
                 <ResizeHandle
                   onMouseDown={(event) => {
                     event.preventDefault();
@@ -718,9 +748,7 @@ export function ProjectSessionWorkbench(props: {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>重命名会话</DialogTitle>
-            <DialogDescription>
-              请让标题与当前任务保持一致。
-            </DialogDescription>
+            <DialogDescription>请让标题与当前任务保持一致。</DialogDescription>
           </DialogHeader>
           <Input
             value={renameValue}
@@ -729,7 +757,10 @@ export function ProjectSessionWorkbench(props: {
             autoFocus
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameDialogSession(null)}>
+            <Button
+              variant="outline"
+              onClick={() => setRenameDialogSession(null)}
+            >
               取消
             </Button>
             <Button onClick={() => void submitRename()}>保存</Button>

@@ -33,7 +33,12 @@ export type ProviderPromptCallbacks = {
 export interface ProviderAdapter {
   readonly name: string;
 
-  prompt(request: ProviderPromptRequest, callbacks: ProviderPromptCallbacks): void;
+  prompt(
+    request: ProviderPromptRequest,
+    callbacks: ProviderPromptCallbacks,
+  ): void;
 
   cancel(sessionId: string): boolean;
+
+  close?(): Promise<void>;
 }

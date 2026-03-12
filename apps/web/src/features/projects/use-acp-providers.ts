@@ -41,14 +41,15 @@ type InstallAcpProviderResponse = {
   success: boolean;
 };
 
-export function useAcpProviders(preferredProviderId = 'codex') {
+export function useAcpProviders(preferredProviderId = 'opencode') {
   const [providers, setProviders] = useState<AcpProvider[]>([]);
   const [registryError, setRegistryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [installingProviderId, setInstallingProviderId] = useState<string | null>(
-    null,
-  );
-  const [selectedProviderId, setSelectedProviderId] = useState(preferredProviderId);
+  const [installingProviderId, setInstallingProviderId] = useState<
+    string | null
+  >(null);
+  const [selectedProviderId, setSelectedProviderId] =
+    useState(preferredProviderId);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -79,7 +80,9 @@ export function useAcpProviders(preferredProviderId = 'codex') {
       return;
     }
 
-    const current = providers.find((provider) => provider.id === selectedProviderId);
+    const current = providers.find(
+      (provider) => provider.id === selectedProviderId,
+    );
     if (current) {
       return;
     }
@@ -105,16 +108,21 @@ export function useAcpProviders(preferredProviderId = 'codex') {
         });
 
         if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as
-            | { detail?: string; title?: string }
-            | null;
+          const payload = (await response.json().catch(() => null)) as {
+            detail?: string;
+            title?: string;
+          } | null;
           throw new Error(
-            payload?.detail || payload?.title || `Failed to install provider ${providerId}`,
+            payload?.detail ||
+              payload?.title ||
+              `Failed to install provider ${providerId}`,
           );
         }
 
         const payload = (await response.json()) as InstallAcpProviderResponse;
-        toast.success(`Prepared ${payload.providerId} via ${payload.distributionType}`);
+        toast.success(
+          `Prepared ${payload.providerId} via ${payload.distributionType}`,
+        );
         await reload();
       } catch (error) {
         const message =

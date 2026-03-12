@@ -1,7 +1,12 @@
 import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
-import { AcpSessionSummary, type AgentRole, Project, Root } from '@shared/schema';
+import {
+  AcpSessionSummary,
+  type AgentRole,
+  Project,
+  Root,
+} from '@shared/schema';
 import {
   Button,
   Card,
@@ -284,7 +289,8 @@ function ProjectHomeContent(props: {
   projects: State<LocalProject>[];
   selectedProject: State<LocalProject>;
 }) {
-  const { onProjectCloned, onProjectSelected, projects, selectedProject } = props;
+  const { onProjectCloned, onProjectSelected, projects, selectedProject } =
+    props;
   const client = useClient();
   const navigate = useNavigate();
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -304,7 +310,7 @@ function ProjectHomeContent(props: {
     selectedProvider,
     selectedProviderId,
     setSelectedProviderId,
-  } = useAcpProviders('codex');
+  } = useAcpProviders('opencode');
   const { sessionsResource, create } = useAcpSession(projectState, {
     actorUserId: me.id,
     provider: selectedProviderId,
@@ -350,16 +356,20 @@ function ProjectHomeContent(props: {
 
   const providerGroups = useMemo(() => {
     const builtinAvailable = filteredProviders.filter(
-      (provider) => provider.source !== 'registry' && provider.status === 'available',
+      (provider) =>
+        provider.source !== 'registry' && provider.status === 'available',
     );
     const registryAvailable = filteredProviders.filter(
-      (provider) => provider.source === 'registry' && provider.status === 'available',
+      (provider) =>
+        provider.source === 'registry' && provider.status === 'available',
     );
     const builtinUnavailable = filteredProviders.filter(
-      (provider) => provider.source !== 'registry' && provider.status !== 'available',
+      (provider) =>
+        provider.source !== 'registry' && provider.status !== 'available',
     );
     const registryUnavailable = filteredProviders.filter(
-      (provider) => provider.source === 'registry' && provider.status !== 'available',
+      (provider) =>
+        provider.source === 'registry' && provider.status !== 'available',
     );
 
     return [
@@ -377,16 +387,20 @@ function ProjectHomeContent(props: {
 
   const providerQuickGroups = useMemo(() => {
     const builtinAvailable = providers.filter(
-      (provider) => provider.source !== 'registry' && provider.status === 'available',
+      (provider) =>
+        provider.source !== 'registry' && provider.status === 'available',
     );
     const registryAvailable = providers.filter(
-      (provider) => provider.source === 'registry' && provider.status === 'available',
+      (provider) =>
+        provider.source === 'registry' && provider.status === 'available',
     );
     const builtinUnavailable = providers.filter(
-      (provider) => provider.source !== 'registry' && provider.status !== 'available',
+      (provider) =>
+        provider.source !== 'registry' && provider.status !== 'available',
     );
     const registryUnavailable = providers.filter(
-      (provider) => provider.source === 'registry' && provider.status !== 'available',
+      (provider) =>
+        provider.source === 'registry' && provider.status !== 'available',
     );
 
     return [
@@ -459,16 +473,21 @@ function ProjectHomeContent(props: {
         throw new Error('请输入 GitHub 仓库地址');
       }
 
-      const project = await readJson<CloneProjectResponse>('/api/projects/clone', {
-        method: 'POST',
-        body: JSON.stringify({
-          repositoryUrl: normalizedUrl,
-        }),
-      });
+      const project = await readJson<CloneProjectResponse>(
+        '/api/projects/clone',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            repositoryUrl: normalizedUrl,
+          }),
+        },
+      );
 
       await onProjectCloned(project.id);
       toast.success(
-        project.cloneStatus === 'reused' ? '已复用本地仓库副本' : '仓库已完成 clone',
+        project.cloneStatus === 'reused'
+          ? '已复用本地仓库副本'
+          : '仓库已完成 clone',
       );
     },
     [onProjectCloned],
@@ -646,7 +665,8 @@ function ProjectHomeContent(props: {
                         return;
                       }
 
-                      const rect = providerButtonRef.current?.getBoundingClientRect();
+                      const rect =
+                        providerButtonRef.current?.getBoundingClientRect();
                       if (rect) {
                         setProviderDropdownPos({
                           left: rect.left,
@@ -703,7 +723,11 @@ function ProjectHomeContent(props: {
                   {providerQuickGroups.map(([groupKey, items], index) => (
                     <div
                       key={groupKey}
-                      className={index === 0 ? 'py-1' : 'border-t border-gray-100 py-1 dark:border-gray-800'}
+                      className={
+                        index === 0
+                          ? 'py-1'
+                          : 'border-t border-gray-100 py-1 dark:border-gray-800'
+                      }
                     >
                       <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
                         {providerGroupLabel(groupKey)} ({items.length})
@@ -738,7 +762,9 @@ function ProjectHomeContent(props: {
                           >
                             <span
                               className={`size-1.5 shrink-0 rounded-full ${
-                                isAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                                isAvailable
+                                  ? 'bg-green-500'
+                                  : 'bg-gray-300 dark:bg-gray-600'
                               }`}
                             />
                             <span className="flex-1 truncate font-medium">
@@ -848,7 +874,8 @@ function ProjectHomeContent(props: {
           <DialogHeader className="border-b border-slate-100 px-6 py-5 dark:border-[#1c1f2e]">
             <DialogTitle>Agents</DialogTitle>
             <DialogDescription>
-              对齐 Routa 的 CLI 管理方式：先看可用项，再决定安装和切换当前 provider。
+              对齐 Routa 的 CLI 管理方式：先看可用项，再决定安装和切换当前
+              provider。
             </DialogDescription>
           </DialogHeader>
           <Tabs
@@ -895,17 +922,30 @@ function ProjectHomeContent(props: {
               </TabsList>
             </div>
 
-            <TabsContent value="agents" className="mt-0 flex min-h-0 flex-1 flex-col">
+            <TabsContent
+              value="agents"
+              className="mt-0 flex min-h-0 flex-1 flex-col"
+            >
               <div className="border-b border-slate-100 px-5 py-3 dark:border-[#1c1f2e]">
                 <div className="flex flex-wrap gap-2 text-[10px]">
                   <span className="rounded-full bg-emerald-50 px-2 py-1 font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
                     可用 {availableProviders.length}
                   </span>
                   <span className="rounded-full bg-amber-50 px-2 py-1 font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                    待安装 {providers.filter((provider) => provider.status !== 'available').length}
+                    待安装{' '}
+                    {
+                      providers.filter(
+                        (provider) => provider.status !== 'available',
+                      ).length
+                    }
                   </span>
                   <span className="rounded-full bg-slate-100 px-2 py-1 font-medium text-slate-600 dark:bg-[#1f2233] dark:text-slate-300">
-                    Registry {providers.filter((provider) => provider.source === 'registry').length}
+                    Registry{' '}
+                    {
+                      providers.filter(
+                        (provider) => provider.source === 'registry',
+                      ).length
+                    }
                   </span>
                 </div>
 
@@ -916,7 +956,10 @@ function ProjectHomeContent(props: {
                 ) : null}
               </div>
 
-              <Command shouldFilter={false} className="flex min-h-0 flex-1 rounded-none">
+              <Command
+                shouldFilter={false}
+                className="flex min-h-0 flex-1 rounded-none"
+              >
                 <CommandInput
                   value={providerSearch}
                   onValueChange={setProviderSearch}
@@ -931,13 +974,17 @@ function ProjectHomeContent(props: {
                         </div>
                       ) : providerGroups.length === 0 ? (
                         <CommandEmpty>
-                          {providerSearch.trim() ? '没有匹配的 provider' : '没有可用 provider'}
+                          {providerSearch.trim()
+                            ? '没有匹配的 provider'
+                            : '没有可用 provider'}
                         </CommandEmpty>
                       ) : (
                         <div className="space-y-5">
                           {providerGroups.map(([groupKey, items], index) => (
                             <div key={groupKey}>
-                              {index > 0 ? <CommandSeparator className="mb-4" /> : null}
+                              {index > 0 ? (
+                                <CommandSeparator className="mb-4" />
+                              ) : null}
                               <CommandGroup
                                 heading={`${providerGroupLabel(groupKey)} (${items.length})`}
                                 className="p-0"
@@ -946,10 +993,18 @@ function ProjectHomeContent(props: {
                                   {items.map((provider) => (
                                     <div key={provider.id} className="px-1">
                                       <ProviderCard
-                                        installing={installingProviderId === provider.id}
-                                        isSelected={provider.id === selectedProviderId}
-                                        onInstall={() => void install(provider.id)}
-                                        onSelect={() => setSelectedProviderId(provider.id)}
+                                        installing={
+                                          installingProviderId === provider.id
+                                        }
+                                        isSelected={
+                                          provider.id === selectedProviderId
+                                        }
+                                        onInstall={() =>
+                                          void install(provider.id)
+                                        }
+                                        onSelect={() =>
+                                          setSelectedProviderId(provider.id)
+                                        }
                                         provider={provider}
                                       />
                                     </div>
@@ -966,7 +1021,10 @@ function ProjectHomeContent(props: {
               </Command>
             </TabsContent>
 
-            <TabsContent value="providers" className="mt-0 flex min-h-0 flex-1 flex-col">
+            <TabsContent
+              value="providers"
+              className="mt-0 flex min-h-0 flex-1 flex-col"
+            >
               <ScrollArea className="flex-1 px-5 py-4">
                 <div className="space-y-4">
                   <Card>
@@ -993,7 +1051,8 @@ function ProjectHomeContent(props: {
                           </span>
                         </div>
                         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                          {selectedProvider?.description ?? '未找到 provider 描述'}
+                          {selectedProvider?.description ??
+                            '未找到 provider 描述'}
                         </p>
                       </div>
                     </CardContent>
@@ -1349,7 +1408,9 @@ function RepositoryPicker(props: {
 
                   <Button
                     className="w-full"
-                    disabled={cloning || normalizeRepositoryUrl(cloneUrl).length === 0}
+                    disabled={
+                      cloning || normalizeRepositoryUrl(cloneUrl).length === 0
+                    }
                     onClick={() => void handleClone()}
                     type="button"
                   >

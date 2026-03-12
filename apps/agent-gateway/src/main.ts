@@ -11,8 +11,14 @@ function main(): void {
   const logger = new Logger(config.logLevel);
   const sessionStore = new SessionStore();
   const metrics = new GatewayMetrics();
-  const providerRuntime = new ProviderRuntime(config.codexCommand);
-  const server = createGatewayServer(config, logger, sessionStore, providerRuntime, metrics);
+  const providerRuntime = new ProviderRuntime(config);
+  const server = createGatewayServer(
+    config,
+    logger,
+    sessionStore,
+    providerRuntime,
+    metrics,
+  );
 
   server.on('error', (error: Error) => {
     logger.error('agent-gateway failed', { error: error.message });
@@ -35,12 +41,16 @@ function main(): void {
 
   const shutdown = (signal: NodeJS.Signals) => {
     logger.info('agent-gateway shutting down', { signal });
-    server.close((error?: Error) => {
-      if (error) {
-        logger.error('agent-gateway shutdown failed', { error: error.message });
-        process.exitCode = 1;
-      }
-      process.exit();
+    void providerRuntime.close().finally(() => {
+      server.close((error?: Error) => {
+        if (error) {
+          logger.error('agent-gateway shutdown failed', {
+            error: error.message,
+          });
+          process.exitCode = 1;
+        }
+        process.exit();
+      });
     });
   };
 

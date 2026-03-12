@@ -34,9 +34,10 @@ Configuration priority (high to low):
 - `AGENT_GATEWAY_PORT` (default: `3321`)
 - `AGENT_GATEWAY_VERSION` (default: `0.1.0`)
 - `AGENT_GATEWAY_PROTOCOLS` (comma-separated, default: `mcp,acp,a2a`)
-- `AGENT_GATEWAY_PROVIDERS` (comma-separated, default: `codex`)
-- `AGENT_GATEWAY_DEFAULT_PROVIDER` (default: `codex`)
+- `AGENT_GATEWAY_PROVIDERS` (comma-separated, default: `opencode,codex,gemini,copilot,auggie,kimi,kiro,qoder`)
+- `AGENT_GATEWAY_DEFAULT_PROVIDER` (default: `opencode`)
 - `AGENT_GATEWAY_CODEX_COMMAND` (default: `codex exec --json -`)
+- `TEAMAI_ACP_<PROVIDER>_COMMAND` override command for ACP CLI providers such as `opencode`, `gemini`, `copilot`, `auggie`, `kimi`, `kiro`, and `qoder`
 - `AGENT_GATEWAY_TIMEOUT_MS` (default: `30000`)
 - `AGENT_GATEWAY_RETRY_ATTEMPTS` (default: `2`)
 - `AGENT_GATEWAY_MAX_CONCURRENT_SESSIONS` (default: `32`)
@@ -58,4 +59,5 @@ npx nx test @agent-gateway/main
 ```
 
 Versioned protocol contract:
+
 - `docs/contracts/agent-gateway-acp-v1.md`

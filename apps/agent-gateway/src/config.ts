@@ -24,8 +24,17 @@ const DEFAULT_CONFIG: GatewayConfig = {
   port: 3321,
   version: '0.1.0',
   protocols: ['mcp', 'acp', 'a2a'],
-  providers: ['codex'],
-  defaultProvider: 'codex',
+  providers: [
+    'opencode',
+    'codex',
+    'gemini',
+    'copilot',
+    'auggie',
+    'kimi',
+    'kiro',
+    'qoder',
+  ],
+  defaultProvider: 'opencode',
   codexCommand: 'codex exec --json -',
   timeoutMs: 30_000,
   retryAttempts: 2,
@@ -33,11 +42,16 @@ const DEFAULT_CONFIG: GatewayConfig = {
   logLevel: 'info',
 };
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): GatewayConfig {
+export function loadConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): GatewayConfig {
   const fileConfig = loadFileConfig(env.AGENT_GATEWAY_CONFIG_FILE);
   const envConfig = loadEnvConfig(env);
 
-  const merged = applyDefined(applyDefined(DEFAULT_CONFIG, fileConfig), envConfig);
+  const merged = applyDefined(
+    applyDefined(DEFAULT_CONFIG, fileConfig),
+    envConfig,
+  );
 
   return normalizeConfig(merged);
 }
@@ -66,14 +80,17 @@ function loadEnvConfig(env: NodeJS.ProcessEnv): PartialGatewayConfig {
     providers: parseCsv(env.AGENT_GATEWAY_PROVIDERS),
     defaultProvider: env.AGENT_GATEWAY_DEFAULT_PROVIDER,
     codexCommand: env.AGENT_GATEWAY_CODEX_COMMAND,
-    timeoutMs: parseInteger(env.AGENT_GATEWAY_TIMEOUT_MS, 'AGENT_GATEWAY_TIMEOUT_MS'),
+    timeoutMs: parseInteger(
+      env.AGENT_GATEWAY_TIMEOUT_MS,
+      'AGENT_GATEWAY_TIMEOUT_MS',
+    ),
     retryAttempts: parseInteger(
       env.AGENT_GATEWAY_RETRY_ATTEMPTS,
-      'AGENT_GATEWAY_RETRY_ATTEMPTS'
+      'AGENT_GATEWAY_RETRY_ATTEMPTS',
     ),
     maxConcurrentSessions: parseInteger(
       env.AGENT_GATEWAY_MAX_CONCURRENT_SESSIONS,
-      'AGENT_GATEWAY_MAX_CONCURRENT_SESSIONS'
+      'AGENT_GATEWAY_MAX_CONCURRENT_SESSIONS',
     ),
     logLevel: parseLogLevel(env.AGENT_GATEWAY_LOG_LEVEL),
   };
@@ -86,24 +103,27 @@ function normalizeConfig(config: PartialGatewayConfig): GatewayConfig {
   const providers = normalizeList(config.providers, DEFAULT_CONFIG.providers);
   const defaultProvider = nonEmptyOrDefault(
     config.defaultProvider,
-    config.providers?.[0] ?? DEFAULT_CONFIG.defaultProvider
+    config.providers?.[0] ?? DEFAULT_CONFIG.defaultProvider,
   );
-  const codexCommand = nonEmptyOrDefault(config.codexCommand, DEFAULT_CONFIG.codexCommand);
+  const codexCommand = nonEmptyOrDefault(
+    config.codexCommand,
+    DEFAULT_CONFIG.codexCommand,
+  );
   const port = positiveOrDefault(config.port, DEFAULT_CONFIG.port, 'port');
   const timeoutMs = positiveOrDefault(
     config.timeoutMs,
     DEFAULT_CONFIG.timeoutMs,
-    'timeoutMs'
+    'timeoutMs',
   );
   const retryAttempts = nonNegativeOrDefault(
     config.retryAttempts,
     DEFAULT_CONFIG.retryAttempts,
-    'retryAttempts'
+    'retryAttempts',
   );
   const maxConcurrentSessions = positiveOrDefault(
     config.maxConcurrentSessions,
     DEFAULT_CONFIG.maxConcurrentSessions,
-    'maxConcurrentSessions'
+    'maxConcurrentSessions',
   );
   const logLevel = config.logLevel ?? DEFAULT_CONFIG.logLevel;
 
@@ -122,7 +142,10 @@ function normalizeConfig(config: PartialGatewayConfig): GatewayConfig {
   };
 }
 
-function parseInteger(value: string | undefined, name: string): number | undefined {
+function parseInteger(
+  value: string | undefined,
+  name: string,
+): number | undefined {
   if (!value || value.trim().length === 0) {
     return undefined;
   }
@@ -162,7 +185,7 @@ function parseLogLevel(value: string | undefined): LogLevel | undefined {
   }
 
   throw new Error(
-    `AGENT_GATEWAY_LOG_LEVEL must be one of debug|info|warn|error, got: ${value}`
+    `AGENT_GATEWAY_LOG_LEVEL must be one of debug|info|warn|error, got: ${value}`,
   );
 }
 
@@ -176,26 +199,34 @@ function applyDefined<T extends object>(base: T, override: Partial<T>): T {
   return merged as T;
 }
 
-function nonEmptyOrDefault(value: string | undefined, fallback: string): string {
+function nonEmptyOrDefault(
+  value: string | undefined,
+  fallback: string,
+): string {
   if (!value || value.trim().length === 0) {
     return fallback;
   }
   return value;
 }
 
-function normalizeList(value: string[] | undefined, fallback: string[]): string[] {
+function normalizeList(
+  value: string[] | undefined,
+  fallback: string[],
+): string[] {
   if (!value || value.length === 0) {
     return fallback;
   }
 
-  const normalized = value.map((item) => item.trim()).filter((item) => item.length > 0);
+  const normalized = value
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
   return normalized.length > 0 ? normalized : fallback;
 }
 
 function positiveOrDefault(
   value: number | undefined,
   fallback: number,
-  field: string
+  field: string,
 ): number {
   if (value == null) {
     return fallback;
@@ -209,7 +240,7 @@ function positiveOrDefault(
 function nonNegativeOrDefault(
   value: number | undefined,
   fallback: number,
-  field: string
+  field: string,
 ): number {
   if (value == null) {
     return fallback;

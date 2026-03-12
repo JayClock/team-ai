@@ -41,8 +41,7 @@ export interface CreateAcpRuntimeSessionInput {
   provider: string;
 }
 
-export interface LoadAcpRuntimeSessionInput
-  extends CreateAcpRuntimeSessionInput {
+export interface LoadAcpRuntimeSessionInput extends CreateAcpRuntimeSessionInput {
   runtimeSessionId: string;
 }
 
@@ -69,15 +68,26 @@ export interface AcpPromptRuntimeResult {
   runtimeSessionId: string;
 }
 
+export interface ProviderLaunchCommand {
+  args: string[];
+  command: string;
+}
+
 export interface AcpRuntimeClient {
   cancelSession(input: CancelAcpRuntimeSessionInput): Promise<void>;
   close(): Promise<void>;
-  createSession(input: CreateAcpRuntimeSessionInput): Promise<AcpRuntimeSessionSnapshot>;
+  createSession(
+    input: CreateAcpRuntimeSessionInput,
+  ): Promise<AcpRuntimeSessionSnapshot>;
   deleteSession(localSessionId: string): Promise<void>;
   isConfigured(provider: string): boolean;
   isSessionActive(localSessionId: string): boolean;
-  loadSession(input: LoadAcpRuntimeSessionInput): Promise<AcpRuntimeSessionSnapshot>;
-  promptSession(input: PromptAcpRuntimeSessionInput): Promise<AcpPromptRuntimeResult>;
+  loadSession(
+    input: LoadAcpRuntimeSessionInput,
+  ): Promise<AcpRuntimeSessionSnapshot>;
+  promptSession(
+    input: PromptAcpRuntimeSessionInput,
+  ): Promise<AcpPromptRuntimeResult>;
 }
 
 interface LoggerLike {
@@ -240,7 +250,10 @@ export function createAcpRuntimeClient(
   }
 
   function isConfigured(provider: string): boolean {
-    return resolveEnvProviderCommand(provider) !== null || provider.trim() === 'codex';
+    return (
+      resolveEnvProviderCommand(provider) !== null ||
+      provider.trim() === 'codex'
+    );
   }
 
   function isSessionActive(localSessionId: string): boolean {
@@ -251,7 +264,9 @@ export function createAcpRuntimeClient(
     input: CreateAcpRuntimeSessionInput | LoadAcpRuntimeSessionInput,
   ): Promise<ActiveAcpRuntimeSession> {
     ensureAbsolutePath(input.cwd, 'ACP session cwd');
-    const providerCommand = await resolveAcpRuntimeProviderCommand(input.provider);
+    const providerCommand = await resolveAcpRuntimeProviderCommand(
+      input.provider,
+    );
 
     if (!providerCommand) {
       throw new ProblemError({
@@ -264,7 +279,13 @@ export function createAcpRuntimeClient(
       });
     }
 
-    const child = spawn(providerCommand.command, providerCommand.args, {
+    const launchCommand = buildProviderLaunchCommand(
+      input.provider,
+      providerCommand,
+      input.cwd,
+    );
+
+    const child = spawn(launchCommand.command, launchCommand.args, {
       cwd: input.cwd,
       env: process.env,
       shell: false,
@@ -313,7 +334,9 @@ export function createAcpRuntimeClient(
       localSessionId: input.localSessionId,
       provider: input.provider,
       runtimeSessionId:
-        'runtimeSessionId' in input ? input.runtimeSessionId : input.localSessionId,
+        'runtimeSessionId' in input
+          ? input.runtimeSessionId
+          : input.localSessionId,
       terminals,
     };
 
@@ -345,7 +368,9 @@ export function createAcpRuntimeClient(
     forceKill: boolean,
   ): Promise<void> {
     await Promise.all(
-      [...session.terminals.values()].map((terminal) => releaseTerminal(terminal)),
+      [...session.terminals.values()].map((terminal) =>
+        releaseTerminal(terminal),
+      ),
     );
 
     if (forceKill && session.child.exitCode == null) {
@@ -362,6 +387,27 @@ export function createAcpRuntimeClient(
     isSessionActive,
     loadSession,
     promptSession,
+  };
+}
+
+export function buildProviderLaunchCommand(
+  provider: string,
+  providerCommand: { args: string[]; command: string },
+  cwd: string,
+): ProviderLaunchCommand {
+  const args = [...providerCommand.args];
+
+  if (
+    provider.trim() === 'opencode' &&
+    !args.includes('--cwd') &&
+    cwd.trim().length > 0
+  ) {
+    args.push('--cwd', cwd);
+  }
+
+  return {
+    command: providerCommand.command,
+    args,
   };
 }
 
@@ -397,10 +443,18 @@ function createClientHandler(
     async sessionUpdate(notification: SessionNotification) {
       await input.hooks.onSessionUpdate(notification);
     },
-    async readTextFile(params: { limit?: number | null; line?: number | null; path: string }) {
+    async readTextFile(params: {
+      limit?: number | null;
+      line?: number | null;
+      path: string;
+    }) {
       ensureAbsolutePath(params.path, 'ACP file read path');
       const content = await readFile(params.path, 'utf-8');
-      const sliced = sliceFileContent(content, params.line ?? 1, params.limit ?? null);
+      const sliced = sliceFileContent(
+        content,
+        params.line ?? 1,
+        params.limit ?? null,
+      );
       return { content: sliced };
     },
     async writeTextFile(params: { content: string; path: string }) {
@@ -420,11 +474,15 @@ function createClientHandler(
       terminals.set(terminalId, terminal);
       return { terminalId };
     },
-    async terminalOutput(params: { terminalId: string }): Promise<TerminalOutputResponse> {
+    async terminalOutput(params: {
+      terminalId: string;
+    }): Promise<TerminalOutputResponse> {
       const terminal = getTerminal(terminals, params.terminalId);
       return {
         output: terminal.output,
-        truncated: Buffer.byteLength(terminal.output, 'utf-8') >= terminal.outputByteLimit,
+        truncated:
+          Buffer.byteLength(terminal.output, 'utf-8') >=
+          terminal.outputByteLimit,
         exitStatus: terminal.exitStatus,
       };
     },
@@ -692,7 +750,9 @@ async function withPromptTimeout(
       request,
       new Promise<PromptResponse>((_, reject) => {
         timeoutId = setTimeout(() => {
-          void connection.cancel({ sessionId: runtimeSessionId }).catch(() => undefined);
+          void connection
+            .cancel({ sessionId: runtimeSessionId })
+            .catch(() => undefined);
           reject(
             new ProblemError({
               type: 'https://team-ai.dev/problems/acp-prompt-timeout',

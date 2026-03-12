@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createAcpRuntimeClient } from './acp-runtime-client';
+import {
+  buildProviderLaunchCommand,
+  createAcpRuntimeClient,
+} from './acp-runtime-client';
 
 describe('acp-runtime-client provider configuration', () => {
   const originalCodexCommand = process.env.TEAMAI_ACP_CODEX_COMMAND;
@@ -28,5 +31,37 @@ describe('acp-runtime-client provider configuration', () => {
 
     expect(client.isConfigured('codex')).toBe(true);
     expect(client.isConfigured('custom-provider')).toBe(false);
+  });
+
+  it('adds --cwd when launching opencode ACP sessions', () => {
+    expect(
+      buildProviderLaunchCommand(
+        'opencode',
+        {
+          command: 'opencode',
+          args: ['acp'],
+        },
+        '/tmp/workspace',
+      ),
+    ).toEqual({
+      command: 'opencode',
+      args: ['acp', '--cwd', '/tmp/workspace'],
+    });
+  });
+
+  it('does not duplicate --cwd when opencode already declares it', () => {
+    expect(
+      buildProviderLaunchCommand(
+        'opencode',
+        {
+          command: 'opencode',
+          args: ['acp', '--cwd', '/tmp/workspace'],
+        },
+        '/tmp/workspace',
+      ),
+    ).toEqual({
+      command: 'opencode',
+      args: ['acp', '--cwd', '/tmp/workspace'],
+    });
   });
 });
