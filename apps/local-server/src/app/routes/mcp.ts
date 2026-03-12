@@ -42,6 +42,7 @@ const createAcpSessionArgsSchema = z.object({
   parentSessionId: z.string().trim().min(1).optional(),
   projectId: z.string().trim().min(1),
   provider: z.string().trim().min(1).default('codex'),
+  role: z.string().trim().min(1).optional(),
   specialistId: z.string().trim().min(1).optional(),
 });
 
@@ -112,6 +113,7 @@ const mcpTools = [
         actorUserId: { type: 'string' },
         provider: { type: 'string', default: 'codex' },
         mode: { type: 'string', default: 'CHAT' },
+        role: { type: 'string' },
         parentSessionId: { type: 'string' },
         specialistId: { type: 'string' },
         goal: { type: 'string' },

@@ -22,9 +22,15 @@ import type {
   AcpSessionState,
   AcpEventTypePayload,
 } from '../schemas/acp';
+import type { RoleValue } from '../schemas/role';
 import { createAgent } from './agent-service';
 import { getProjectById } from './project-service';
-import { getSpecialistById } from './specialist-service';
+import {
+  ensureRoleValue,
+  getDefaultSpecialistByRole,
+  getSpecialistById,
+  throwSpecialistRoleMismatch,
+} from './specialist-service';
 
 const sessionIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -76,6 +82,7 @@ interface CreateSessionInput {
   parentSessionId?: string | null;
   projectId: string;
   provider: string;
+  role?: string | null;
   specialistId?: string;
 }
 
@@ -727,9 +734,18 @@ export async function createAcpSession(
   const parentSession = input.parentSessionId
     ? getSessionRow(sqlite, input.parentSessionId)
     : null;
-  const specialist = input.specialistId
+  const role = ensureRoleValue(input.role);
+  let specialist = input.specialistId
     ? await getSpecialistById(sqlite, input.projectId, input.specialistId)
     : null;
+
+  if (specialist && role && specialist.role !== role) {
+    throwSpecialistRoleMismatch(specialist.id, role, specialist.role);
+  }
+
+  if (!specialist && role) {
+    specialist = await getDefaultSpecialistByRole(sqlite, input.projectId, role);
+  }
 
   const cwd = resolveSessionCwd(project.repoPath ?? null);
   const now = new Date().toISOString();
@@ -837,6 +853,7 @@ export async function createAcpSession(
       source: 'local-server',
       provider: input.provider,
       mode: input.mode,
+      role: (specialist?.role ?? role) as RoleValue | null,
       agentId: agent?.id ?? null,
       agentName: agent?.name ?? null,
       agentRole: agent?.role ?? null,

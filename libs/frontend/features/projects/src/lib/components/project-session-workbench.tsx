@@ -112,6 +112,7 @@ export function ProjectSessionWorkbench(props: {
     actorUserId: me.id,
     provider: 'codex',
     mode: 'CHAT',
+    role: 'DEVELOPER',
     historyLimit: 200,
   });
 
@@ -264,6 +265,7 @@ export function ProjectSessionWorkbench(props: {
           actorUserId: me.id,
           provider,
           mode,
+          role: 'DEVELOPER',
         }),
       submitPrompt: async ({ sessionId, prompt: nextPrompt }) => {
         await prompt({
@@ -383,6 +385,7 @@ export function ProjectSessionWorkbench(props: {
         actorUserId: me.id,
         provider,
         mode,
+        role: 'DEVELOPER',
       });
       await loadSessions();
       onSessionNavigate?.(created.data.id);

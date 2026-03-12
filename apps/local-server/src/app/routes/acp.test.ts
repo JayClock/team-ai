@@ -36,7 +36,7 @@ describe('acp route', () => {
     }
   });
 
-  it('creates desktop acp sessions and exposes history/resources from local-server', async () => {
+  it('creates desktop acp sessions from role defaults and exposes history/resources from local-server', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-test-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
     process.env.HOST = '127.0.0.1';
@@ -99,7 +99,7 @@ describe('acp route', () => {
           mode: 'CHAT',
           projectId: project.id,
           provider: 'codex',
-          specialistId: 'solo-developer',
+          role: 'DEVELOPER',
         },
       },
     });
@@ -279,5 +279,56 @@ describe('acp route', () => {
         }),
       ]),
     );
+  });
+
+  it('rejects session/new requests that still pass specialistId on the public ACP route', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-specialistid-test-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => false),
+      loadSession: vi.fn(),
+      promptSession: vi.fn(),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-specialist',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: 'project-1',
+          specialistId: 'solo-developer',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      jsonrpc: '2.0',
+      id: 'req-specialist',
+      result: null,
+      error: {
+        code: -32602,
+        message: 'session/new no longer accepts specialistId; pass role instead',
+      },
+    });
   });
 });

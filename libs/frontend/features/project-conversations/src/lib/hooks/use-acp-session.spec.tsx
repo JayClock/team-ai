@@ -217,12 +217,15 @@ describe('useAcpSession', () => {
     const fixture = createFixture();
     useClientMock.mockReturnValue(fixture.client);
 
-    const { result } = renderHook(() => useAcpSession(fixture.projectState));
+    const { result } = renderHook(() =>
+      useAcpSession(fixture.projectState, {
+        role: 'DEVELOPER',
+      }),
+    );
 
     await act(async () => {
       await result.current.create({
         actorUserId: 'u-1',
-        specialistId: 'routa-coordinator',
       });
     });
 
@@ -240,8 +243,8 @@ describe('useAcpSession', () => {
         actorUserId: 'u-1',
         provider: 'codex',
         mode: 'CHAT',
+        role: 'DEVELOPER',
         parentSessionId: undefined,
-        specialistId: 'routa-coordinator',
         idempotencyKey: undefined,
         goal: undefined,
       },

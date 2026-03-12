@@ -1,7 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
-import { AcpSessionSummary, Project, Root } from '@shared/schema';
+import { AcpSessionSummary, type AgentRole, Project, Root } from '@shared/schema';
 import {
   Button,
   Card,
@@ -73,7 +73,7 @@ type CloneProjectResponse = {
 };
 
 type PickerTab = 'existing' | 'clone';
-type HomeAgentType = 'routa-coordinator' | 'solo-developer';
+type HomeAgentType = Extract<AgentRole, 'ROUTA' | 'DEVELOPER'>;
 
 type DropdownPosition = {
   bottom: number;
@@ -85,16 +85,19 @@ const HOME_AGENT_OPTIONS: Array<{
   description: string;
   id: HomeAgentType;
   label: string;
+  specialistId: string;
 }> = [
   {
-    id: 'routa-coordinator',
+    id: 'ROUTA',
     label: 'Routa',
     description: '多 agent 协调与委派。',
+    specialistId: 'routa-coordinator',
   },
   {
-    id: 'solo-developer',
+    id: 'DEVELOPER',
     label: 'Developer',
     description: '单 agent 直接推进实现。',
+    specialistId: 'solo-developer',
   },
 ];
 
@@ -191,9 +194,10 @@ function sessionAgentDescription(agentType: HomeAgentType): string {
 }
 
 function sessionAgentLabel(value: string | null | undefined): string | null {
-  return (
-    HOME_AGENT_OPTIONS.find((option) => option.id === value)?.label ?? null
+  const matched = HOME_AGENT_OPTIONS.find(
+    (option) => option.id === value || option.specialistId === value,
   );
+  return matched?.label ?? null;
 }
 
 function normalizeRepositoryUrl(value: string): string {
@@ -321,7 +325,7 @@ function ProjectHomeContent(props: {
   });
 
   const [prompt, setPrompt] = useState('');
-  const [agentType, setAgentType] = useState<HomeAgentType>('routa-coordinator');
+  const [agentType, setAgentType] = useState<HomeAgentType>('ROUTA');
   const [mode, setMode] = useState<'CHAT' | 'PLAN'>('CHAT');
   const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
   const [providerDropdownPos, setProviderDropdownPos] = useState<{
@@ -511,7 +515,7 @@ function ProjectHomeContent(props: {
         const created = await create({
           actorUserId: me.id,
           provider: selectedProvider.id,
-          specialistId: agentType,
+          role: agentType,
           mode,
           goal,
         });

@@ -227,6 +227,13 @@ function mergeSpecialists(groups: SpecialistPayload[][]) {
   return [...merged.values()].sort((left, right) => left.name.localeCompare(right.name));
 }
 
+const defaultSpecialistIdByRole: Record<RoleValue, string> = {
+  ROUTA: 'routa-coordinator',
+  CRAFTER: 'crafter-implementor',
+  GATE: 'gate-reviewer',
+  DEVELOPER: 'solo-developer',
+};
+
 async function listResolvedSpecialists(projectRepoPath?: string | null) {
   const builtIn = await loadDirectorySpecialists(
     getBuiltInSpecialistsDirectory(),
@@ -274,6 +281,14 @@ export async function getSpecialistById(
   }
 
   return specialist;
+}
+
+export async function getDefaultSpecialistByRole(
+  sqlite: Database,
+  projectId: string,
+  role: RoleValue,
+) {
+  return getSpecialistById(sqlite, projectId, defaultSpecialistIdByRole[role]);
 }
 
 export function ensureRoleValue(role: string | null | undefined) {

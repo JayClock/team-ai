@@ -68,6 +68,7 @@ export default function AcpDebugPage() {
   const [actorUserId, setActorUserId] = useState('1');
   const [provider, setProvider] = useState('codex');
   const [mode, setMode] = useState('CHAT');
+  const [role, setRole] = useState('DEVELOPER');
   const [sessionId, setSessionId] = useState('');
   const [prompt, setPrompt] = useState('');
   const [timeoutMs, setTimeoutMs] = useState('30000');
@@ -130,6 +131,7 @@ export default function AcpDebugPage() {
       actorUserId,
       provider,
       mode,
+      role,
     });
     const createdId = payload?.result?.session?.id;
     if (createdId) {
@@ -281,6 +283,14 @@ export default function AcpDebugPage() {
                 id="mode"
                 value={mode}
                 onChange={(event) => setMode(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="role">Role</Label>
+              <Input
+                id="role"
+                value={role}
+                onChange={(event) => setRole(event.target.value)}
               />
             </div>
             <div className="space-y-1">
