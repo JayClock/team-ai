@@ -11,6 +11,7 @@ import { RoleCollection } from './role.js';
 import { AcpSessionCollection } from './session.js';
 import { Sidebar } from './sidebar.js';
 import { SpecialistCollection } from './specialist.js';
+import { TaskRunCollection } from './task-run.js';
 import { TaskCollection } from './task.js';
 
 export type DiagramCollection = Entity<
@@ -46,6 +47,7 @@ export type Project = Entity<
     roles: RoleCollection;
     sidebar: Sidebar;
     specialists: SpecialistCollection;
+    'task-runs': TaskRunCollection;
     tasks: TaskCollection;
     default: Project;
   }

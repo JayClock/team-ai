@@ -321,4 +321,49 @@ export const sqliteMigrations: SqliteMigration[] = [
         ON project_note_events(session_id, sequence ASC);
     `,
   },
+  {
+    version: '006_project_task_runs',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_task_runs (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        task_id TEXT NOT NULL,
+        session_id TEXT,
+        kind TEXT NOT NULL,
+        role TEXT,
+        provider TEXT,
+        specialist_id TEXT,
+        status TEXT NOT NULL,
+        summary TEXT,
+        verification_verdict TEXT,
+        verification_report TEXT,
+        retry_of_run_id TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (task_id) REFERENCES project_tasks(id),
+        FOREIGN KEY (session_id) REFERENCES project_acp_sessions(id),
+        FOREIGN KEY (retry_of_run_id) REFERENCES project_task_runs(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_task_runs_project_id
+        ON project_task_runs(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_task_runs_task_id
+        ON project_task_runs(task_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_task_runs_session_id
+        ON project_task_runs(session_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_task_runs_status
+        ON project_task_runs(status, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

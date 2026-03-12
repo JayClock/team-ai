@@ -50,6 +50,12 @@ export type {
   NoteEventType,
 } from './lib/note-event.js';
 export type {
+  TaskRun,
+  TaskRunCollection,
+  TaskRunKind,
+  TaskRunStatus,
+} from './lib/task-run.js';
+export type {
   Task,
   TaskCollection,
   TaskKind,

@@ -39,6 +39,9 @@ function createTaskLinks(task: TaskPayload) {
           },
         }
       : {}),
+    runs: {
+      href: `/api/tasks/${task.id}/runs`,
+    },
   };
 }
 

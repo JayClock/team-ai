@@ -17,6 +17,9 @@ function createProjectLinks(project: ProjectPayload) {
     'note-events': {
       href: `/api/projects/${project.id}/note-events`,
     },
+    'task-runs': {
+      href: `/api/projects/${project.id}/task-runs`,
+    },
     agents: {
       href: `/api/projects/${project.id}/agents`,
     },

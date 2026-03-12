@@ -1,5 +1,6 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
 import type { AgentRole } from './agent.js';
+import type { TaskRunCollection } from './task-run.js';
 
 export type TaskKind = 'plan' | 'implement' | 'review' | 'verify';
 
@@ -68,6 +69,7 @@ export type Task = Entity<
   {
     self: Task;
     collection: TaskCollection;
+    runs: TaskRunCollection;
   }
 >;
 
