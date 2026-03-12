@@ -15,7 +15,7 @@ describe('root route', () => {
     }
   });
 
-  it('exposes local-server discovery links with sessions as the primary entrypoint', async () => {
+  it('exposes local-server discovery links without the legacy sessions collection', async () => {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
 
@@ -36,7 +36,6 @@ describe('root route', () => {
         agents: true,
         health: true,
         mcp: true,
-        sessions: true,
         settings: true,
         syncStatus: true,
       },
@@ -46,10 +45,6 @@ describe('root route', () => {
         },
         projects: {
           href: '/api/projects',
-        },
-        sessions: {
-          href: '/api/sessions{?projectId,status,page,pageSize}',
-          templated: true,
         },
         agents: {
           href: '/api/projects/{projectId}/agents{?page,pageSize}',
@@ -68,5 +63,6 @@ describe('root route', () => {
       },
     });
     expect(response.json()._links.orchestration).toBeUndefined();
+    expect(response.json()._links.sessions).toBeUndefined();
   });
 });

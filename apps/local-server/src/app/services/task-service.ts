@@ -8,7 +8,7 @@ import type {
   UpdateTaskInput,
 } from '../schemas/task';
 import { getProjectById } from './project-service';
-import { getSessionById } from './session-service';
+import { getAcpSessionById } from './acp-service';
 import {
   ensureRoleValue,
   getSpecialistById,
@@ -238,9 +238,9 @@ async function validateTriggerSession(
     return null;
   }
 
-  const session = await getSessionById(sqlite, sessionId);
+  const session = await getAcpSessionById(sqlite, sessionId);
 
-  if (session.projectId !== projectId) {
+  if (session.project.id !== projectId) {
     throwTaskSessionProjectMismatch(projectId, sessionId);
   }
 
@@ -393,7 +393,11 @@ export async function listTasks(
   }
 
   if (sessionId) {
-    await getSessionById(sqlite, sessionId);
+    const session = await getAcpSessionById(sqlite, sessionId);
+
+    if (projectId && session.project.id !== projectId) {
+      throwTaskSessionProjectMismatch(projectId, sessionId);
+    }
   }
 
   const offset = (page - 1) * pageSize;

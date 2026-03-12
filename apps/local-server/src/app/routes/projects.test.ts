@@ -118,7 +118,7 @@ describe('projects route', () => {
     });
   });
 
-  it('exposes project links for orchestration and acp sessions', async () => {
+  it('exposes project links for tasks, agents, and acp sessions', async () => {
     const sqlite = await createTestDatabase();
     const fastify = Fastify();
     fastifyInstances.push(fastify);
@@ -153,9 +153,6 @@ describe('projects route', () => {
         collection: {
           href: '/api/projects',
         },
-        sessions: {
-          href: `/api/projects/${project.id}/sessions`,
-        },
         tasks: {
           href: `/api/projects/${project.id}/tasks`,
         },
@@ -173,6 +170,7 @@ describe('projects route', () => {
         },
       },
     });
+    expect(response.json()._links.sessions).toBeUndefined();
     expect(response.json()._links.conversations).toBeUndefined();
   });
 

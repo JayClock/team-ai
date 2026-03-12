@@ -279,36 +279,6 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '012_project_sessions',
-    sql: `
-      CREATE TABLE IF NOT EXISTS project_sessions (
-        id TEXT PRIMARY KEY,
-        project_id TEXT NOT NULL,
-        parent_session_id TEXT,
-        title TEXT NOT NULL,
-        status TEXT NOT NULL,
-        metadata_json TEXT NOT NULL DEFAULT '{}',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        deleted_at TEXT,
-        FOREIGN KEY (project_id) REFERENCES projects(id),
-        FOREIGN KEY (parent_session_id) REFERENCES project_sessions(id)
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_project_sessions_project_id
-        ON project_sessions(project_id, updated_at DESC)
-        WHERE deleted_at IS NULL;
-
-      CREATE INDEX IF NOT EXISTS idx_project_sessions_parent_session_id
-        ON project_sessions(parent_session_id, updated_at DESC)
-        WHERE deleted_at IS NULL;
-
-      CREATE INDEX IF NOT EXISTS idx_project_sessions_status
-        ON project_sessions(status, updated_at DESC)
-        WHERE deleted_at IS NULL;
-    `,
-  },
-  {
     version: '013_project_tasks',
     sql: `
       CREATE TABLE IF NOT EXISTS project_tasks (
@@ -347,7 +317,7 @@ export const sqliteMigrations: SqliteMigration[] = [
         updated_at TEXT NOT NULL,
         deleted_at TEXT,
         FOREIGN KEY (project_id) REFERENCES projects(id),
-        FOREIGN KEY (trigger_session_id) REFERENCES project_sessions(id)
+        FOREIGN KEY (trigger_session_id) REFERENCES project_acp_sessions(id)
       );
 
       CREATE INDEX IF NOT EXISTS idx_project_tasks_project_id
@@ -411,6 +381,149 @@ export const sqliteMigrations: SqliteMigration[] = [
       CREATE INDEX IF NOT EXISTS idx_project_acp_sessions_agent_id
         ON project_acp_sessions(agent_id, updated_at DESC)
         WHERE deleted_at IS NULL;
+    `,
+  },
+  {
+    version: '016_remove_project_sessions',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_tasks_next (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        trigger_session_id TEXT,
+        title TEXT NOT NULL,
+        objective TEXT NOT NULL,
+        scope TEXT,
+        status TEXT NOT NULL,
+        board_id TEXT,
+        column_id TEXT,
+        position INTEGER,
+        priority TEXT,
+        labels_json TEXT NOT NULL DEFAULT '[]',
+        assignee TEXT,
+        assigned_provider TEXT,
+        assigned_role TEXT,
+        assigned_specialist_id TEXT,
+        assigned_specialist_name TEXT,
+        dependencies_json TEXT NOT NULL DEFAULT '[]',
+        parallel_group TEXT,
+        acceptance_criteria_json TEXT NOT NULL DEFAULT '[]',
+        verification_commands_json TEXT NOT NULL DEFAULT '[]',
+        completion_summary TEXT,
+        verification_verdict TEXT,
+        verification_report TEXT,
+        github_id TEXT,
+        github_number INTEGER,
+        github_url TEXT,
+        github_repo TEXT,
+        github_state TEXT,
+        github_synced_at TEXT,
+        last_sync_error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (trigger_session_id) REFERENCES project_acp_sessions(id)
+      );
+
+      INSERT INTO project_tasks_next (
+        id,
+        project_id,
+        trigger_session_id,
+        title,
+        objective,
+        scope,
+        status,
+        board_id,
+        column_id,
+        position,
+        priority,
+        labels_json,
+        assignee,
+        assigned_provider,
+        assigned_role,
+        assigned_specialist_id,
+        assigned_specialist_name,
+        dependencies_json,
+        parallel_group,
+        acceptance_criteria_json,
+        verification_commands_json,
+        completion_summary,
+        verification_verdict,
+        verification_report,
+        github_id,
+        github_number,
+        github_url,
+        github_repo,
+        github_state,
+        github_synced_at,
+        last_sync_error,
+        created_at,
+        updated_at,
+        deleted_at
+      )
+      SELECT
+        id,
+        project_id,
+        CASE
+          WHEN trigger_session_id IS NOT NULL
+            AND EXISTS (
+              SELECT 1
+              FROM project_acp_sessions
+              WHERE project_acp_sessions.id = project_tasks.trigger_session_id
+            )
+          THEN trigger_session_id
+          ELSE NULL
+        END,
+        title,
+        objective,
+        scope,
+        status,
+        board_id,
+        column_id,
+        position,
+        priority,
+        labels_json,
+        assignee,
+        assigned_provider,
+        assigned_role,
+        assigned_specialist_id,
+        assigned_specialist_name,
+        dependencies_json,
+        parallel_group,
+        acceptance_criteria_json,
+        verification_commands_json,
+        completion_summary,
+        verification_verdict,
+        verification_report,
+        github_id,
+        github_number,
+        github_url,
+        github_repo,
+        github_state,
+        github_synced_at,
+        last_sync_error,
+        created_at,
+        updated_at,
+        deleted_at
+      FROM project_tasks;
+
+      DROP TABLE project_tasks;
+
+      ALTER TABLE project_tasks_next RENAME TO project_tasks;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_project_id
+        ON project_tasks(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_trigger_session_id
+        ON project_tasks(trigger_session_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_status
+        ON project_tasks(status, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      DROP TABLE IF EXISTS project_sessions;
     `,
   },
 ];

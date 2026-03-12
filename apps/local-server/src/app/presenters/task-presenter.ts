@@ -14,7 +14,7 @@ function createTaskLinks(task: TaskPayload) {
     ...(task.triggerSessionId
       ? {
           session: {
-            href: `/api/sessions/${task.triggerSessionId}`,
+            href: `/api/projects/${task.projectId}/acp-sessions/${task.triggerSessionId}`,
           },
         }
       : {}),
@@ -51,7 +51,9 @@ export function presentTaskList(payload: TaskListPayload) {
   }
 
   const selfHref = payload.sessionId
-    ? `/api/sessions/${payload.sessionId}/tasks?page=${payload.page}&pageSize=${payload.pageSize}${payload.status ? `&status=${encodeURIComponent(payload.status)}` : ''}`
+    ? payload.projectId
+      ? `/api/projects/${payload.projectId}/acp-sessions/${payload.sessionId}/tasks?page=${payload.page}&pageSize=${payload.pageSize}${payload.status ? `&status=${encodeURIComponent(payload.status)}` : ''}`
+      : `/api/tasks?${searchParams.toString()}`
     : payload.projectId
       ? `/api/projects/${payload.projectId}/tasks?page=${payload.page}&pageSize=${payload.pageSize}${payload.status ? `&status=${encodeURIComponent(payload.status)}` : ''}`
       : `/api/tasks?${searchParams.toString()}`;

@@ -5,7 +5,7 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createProject } from './project-service';
-import { createSession } from './session-service';
+import { insertAcpSession } from '../test-support/acp-session-fixture';
 import {
   createTask,
   deleteTask,
@@ -32,9 +32,12 @@ describe('task service', () => {
       title: 'Team AI',
       repoPath: '/Users/example/team-ai',
     });
-    const session = await createSession(sqlite, {
+    const session = { id: 'acps_roottasksvc' };
+    insertAcpSession(sqlite, {
+      cwd: '/Users/example/team-ai',
+      id: session.id,
+      name: 'Root session',
       projectId: project.id,
-      title: 'Root session',
     });
 
     const task = await createTask(sqlite, {
@@ -100,7 +103,7 @@ describe('task service', () => {
     });
   });
 
-  it('rejects task creation when session belongs to another project', async () => {
+  it('rejects task creation when ACP session belongs to another project', async () => {
     const sqlite = await createTestDatabase();
     const projectA = await createProject(sqlite, {
       title: 'Project A',
@@ -110,9 +113,12 @@ describe('task service', () => {
       title: 'Project B',
       repoPath: '/Users/example/project-b',
     });
-    const session = await createSession(sqlite, {
+    const session = { id: 'acps_foreignsvc' };
+    insertAcpSession(sqlite, {
+      cwd: '/Users/example/project-a',
+      id: session.id,
+      name: 'Foreign session',
       projectId: projectA.id,
-      title: 'Foreign session',
     });
 
     await expect(

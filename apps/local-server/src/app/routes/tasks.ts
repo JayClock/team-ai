@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { presentTask, presentTaskList } from '../presenters/task-presenter';
+import { getAcpSessionById } from '../services/acp-service';
 import {
   createTask,
   deleteTask,
@@ -8,7 +9,6 @@ import {
   listTasks,
   updateTask,
 } from '../services/task-service';
-import { getSessionById } from '../services/session-service';
 
 const listTasksQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -23,6 +23,7 @@ const projectParamsSchema = z.object({
 });
 
 const sessionParamsSchema = z.object({
+  projectId: z.string().min(1),
   sessionId: z.string().min(1),
 });
 
@@ -117,24 +118,28 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.get('/sessions/:sessionId/tasks', async (request) => {
-    const { sessionId } = sessionParamsSchema.parse(request.params);
+  fastify.get('/projects/:projectId/acp-sessions/:sessionId/tasks', async (request) => {
+    const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
     const query = listTasksQuerySchema.parse(request.query);
     return presentTaskList(
       await listTasks(fastify.sqlite, {
         ...query,
+        projectId,
         sessionId,
       }),
     );
   });
 
-  fastify.post('/sessions/:sessionId/tasks', async (request, reply) => {
-    const { sessionId } = sessionParamsSchema.parse(request.params);
-    const session = await getSessionById(fastify.sqlite, sessionId);
+  fastify.post('/projects/:projectId/acp-sessions/:sessionId/tasks', async (request, reply) => {
+    const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
+    const session = await getAcpSessionById(fastify.sqlite, sessionId);
+    if (session.project.id !== projectId) {
+      throw fastify.httpErrors.notFound();
+    }
     const body = taskBodySchema.parse(request.body);
     const task = await createTask(fastify.sqlite, {
       ...body,
-      projectId: session.projectId,
+      projectId,
       triggerSessionId: sessionId,
     });
 

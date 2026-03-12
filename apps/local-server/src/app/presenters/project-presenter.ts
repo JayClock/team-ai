@@ -11,9 +11,6 @@ function createProjectLinks(project: ProjectPayload) {
     collection: {
       href: '/api/projects',
     },
-    sessions: {
-      href: `/api/projects/${project.id}/sessions`,
-    },
     tasks: {
       href: `/api/projects/${project.id}/tasks`,
     },
