@@ -5,6 +5,7 @@ import {
   AcpSessionSummary,
   type AgentRole,
   Project,
+  Role,
   Root,
 } from '@shared/schema';
 import {
@@ -185,15 +186,21 @@ function providerGroupLabel(key: string): string {
   }
 }
 
-function sessionAgentDescription(agentType: HomeAgentType): string {
+function sessionAgentDescription(
+  agentType: HomeAgentType,
+  options = HOME_AGENT_OPTIONS,
+): string {
   return (
-    HOME_AGENT_OPTIONS.find((option) => option.id === agentType)?.description ??
+    options.find((option) => option.id === agentType)?.description ??
     '使用默认 agent。'
   );
 }
 
-function sessionAgentLabel(value: string | null | undefined): string | null {
-  const matched = HOME_AGENT_OPTIONS.find(
+function sessionAgentLabel(
+  value: string | null | undefined,
+  options = HOME_AGENT_OPTIONS,
+): string | null {
+  const matched = options.find(
     (option) => option.id === value || option.specialistId === value,
   );
   return matched?.label ?? null;
@@ -299,7 +306,12 @@ function ProjectHomeContent(props: {
     () => client.go<Root>('/api').follow('me'),
     [client],
   );
+  const rolesResource = useMemo(
+    () => projectState.follow('roles'),
+    [projectState],
+  );
   const { data: me } = useSuspenseResource(meResource);
+  const { resourceState: rolesState } = useSuspenseResource(rolesResource);
   const {
     install,
     installingProviderId,
@@ -336,6 +348,22 @@ function ProjectHomeContent(props: {
   const [startingSession, setStartingSession] = useState(false);
   const providerDropdownRef = useRef<HTMLDivElement>(null);
   const providerButtonRef = useRef<HTMLButtonElement>(null);
+
+  const homeAgentOptions = useMemo(
+    () =>
+      HOME_AGENT_OPTIONS.map((option) => {
+        const matched = rolesState.collection.find(
+          (role: State<Role>) => role.data.id === option.id,
+        );
+
+        return {
+          ...option,
+          label: matched?.data.name ?? option.label,
+          description: matched?.data.description ?? option.description,
+        };
+      }),
+    [rolesState.collection],
+  );
 
   const filteredProviders = useMemo(() => {
     const query = providerSearch.trim().toLowerCase();
@@ -629,7 +657,7 @@ function ProjectHomeContent(props: {
                   role="group"
                   aria-label="Agent type"
                 >
-                  {HOME_AGENT_OPTIONS.map((option) => (
+                  {homeAgentOptions.map((option) => (
                     <button
                       key={option.id}
                       className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
@@ -790,7 +818,7 @@ function ProjectHomeContent(props: {
             : null}
 
           <div className="mt-2 px-1 text-[10px] text-slate-400 dark:text-slate-500">
-            {sessionAgentDescription(agentType)}
+            {sessionAgentDescription(agentType, homeAgentOptions)}
           </div>
         </div>
 
@@ -843,9 +871,15 @@ function ProjectHomeContent(props: {
                           </span>
                         </div>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
-                          {sessionAgentLabel(session.data.specialistId) ? (
+                          {sessionAgentLabel(
+                            session.data.specialistId,
+                            homeAgentOptions,
+                          ) ? (
                             <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-                              {sessionAgentLabel(session.data.specialistId)}
+                              {sessionAgentLabel(
+                                session.data.specialistId,
+                                homeAgentOptions,
+                              )}
                             </span>
                           ) : null}
                           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">

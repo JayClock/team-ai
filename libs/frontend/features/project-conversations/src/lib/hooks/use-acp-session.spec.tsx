@@ -15,7 +15,11 @@ vi.mock('@hateoas-ts/resource-react', () => ({
   useClient: () => useClientMock(),
 }));
 
-type RpcMethod = 'session/new' | 'session/load' | 'session/prompt' | 'session/cancel';
+type RpcMethod =
+  | 'session/new'
+  | 'session/load'
+  | 'session/prompt'
+  | 'session/cancel';
 
 type RpcInvocation = {
   method: RpcMethod;
@@ -42,6 +46,7 @@ function createFixture() {
     agent: { id: 'agent-1' },
     actor: { id: 'u-1' },
     parentSession: null,
+    task: null,
     name: 'Session 1',
     provider: 'codex',
     specialistId: 'routa-coordinator',
@@ -123,7 +128,13 @@ function createFixture() {
   const projectState = {
     data: {
       id: 'p-1',
-      name: 'Project 1',
+      title: 'Project 1',
+      description: null,
+      repoPath: '/tmp/project',
+      sourceType: 'local',
+      sourceUrl: null,
+      createdAt: '2026-03-04T00:00:00Z',
+      updatedAt: '2026-03-04T00:00:00Z',
     },
     collection: [],
     hasLink: vi.fn(() => true),
@@ -142,7 +153,9 @@ function createFixture() {
       }
       return {
         post: vi.fn(
-          async (request: { data: { method: RpcMethod; params: Record<string, unknown> } }) => {
+          async (request: {
+            data: { method: RpcMethod; params: Record<string, unknown> };
+          }) => {
             const method = request.data.method;
             rpcInvocations.push({
               method,
@@ -243,6 +256,7 @@ describe('useAcpSession', () => {
         provider: 'codex',
         role: 'DEVELOPER',
         parentSessionId: undefined,
+        taskId: undefined,
         idempotencyKey: undefined,
         goal: undefined,
       },

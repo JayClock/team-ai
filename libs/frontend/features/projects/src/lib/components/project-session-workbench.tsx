@@ -5,7 +5,10 @@ import {
   AcpEventEnvelope,
   AcpSessionSummary,
   Project,
+  Role,
   Root,
+  Specialist,
+  Task,
 } from '@shared/schema';
 import {
   AlertDialog,
@@ -77,6 +80,66 @@ function timestamp(value: string | null): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function splitLines(value: string): string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function buildTaskPrompt(task: State<Task>): string {
+  const sections = [
+    `Task: ${task.data.title}`,
+    `Objective:\n${task.data.objective}`,
+  ];
+
+  if (task.data.scope?.trim()) {
+    sections.push(`Scope:\n${task.data.scope.trim()}`);
+  }
+
+  if (task.data.acceptanceCriteria.length > 0) {
+    sections.push(
+      `Acceptance Criteria:\n${task.data.acceptanceCriteria
+        .map((item) => `- ${item}`)
+        .join('\n')}`,
+    );
+  }
+
+  if (task.data.verificationCommands.length > 0) {
+    sections.push(
+      `Verification Commands:\n${task.data.verificationCommands
+        .map((item) => `- ${item}`)
+        .join('\n')}`,
+    );
+  }
+
+  if (task.data.kind === 'review' || task.data.assignedRole === 'GATE') {
+    sections.push(
+      'Review the delivered work against the acceptance criteria, run the verification commands when possible, and produce a clear pass/fail conclusion.',
+    );
+  } else {
+    sections.push(
+      'Implement the task within scope, explain important decisions, and leave the result ready for verification.',
+    );
+  }
+
+  return sections.join('\n\n');
+}
+
+function resolveAcpRole(
+  value: string | null | undefined,
+): 'ROUTA' | 'CRAFTER' | 'GATE' | 'DEVELOPER' {
+  switch (value) {
+    case 'ROUTA':
+    case 'CRAFTER':
+    case 'GATE':
+    case 'DEVELOPER':
+      return value;
+    default:
+      return 'DEVELOPER';
+  }
+}
+
 export function ProjectSessionWorkbench(props: {
   initialSessionId?: string;
   onBack?: () => void;
@@ -100,6 +163,18 @@ export function ProjectSessionWorkbench(props: {
     () => client.go<Root>('/api').follow('me'),
     [client],
   );
+  const tasksResource = useMemo(
+    () => projectState.follow('tasks'),
+    [projectState],
+  );
+  const rolesResource = useMemo(
+    () => projectState.follow('roles'),
+    [projectState],
+  );
+  const specialistsResource = useMemo(
+    () => projectState.follow('specialists'),
+    [projectState],
+  );
   const { data: me } = useSuspenseResource(meResource);
   const {
     sessionsResource,
@@ -114,12 +189,17 @@ export function ProjectSessionWorkbench(props: {
   } = useAcpSession(projectState, {
     actorUserId: me.id,
     provider: 'opencode',
-    role: 'DEVELOPER',
+    role: 'ROUTA',
     historyLimit: 200,
   });
 
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [tasks, setTasks] = useState<State<Task>[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [roles, setRoles] = useState<State<Role>[]>([]);
+  const [specialists, setSpecialists] = useState<State<Specialist>[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const provider = 'opencode';
   const [activeSidebarTab, setActiveSidebarTab] =
     useState<SidebarTab>('sessions');
@@ -153,10 +233,77 @@ export function ProjectSessionWorkbench(props: {
     () => history.filter((event) => event.type !== 'message'),
     [history],
   );
-  const taskItems = useMemo(() => buildTaskSnapshot(history), [history]);
+  const taskSnapshotItems = useMemo(
+    () => buildTaskSnapshot(history),
+    [history],
+  );
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
-  const quickAccessVisible = taskItems.length > 0;
-  const showInspector = taskItems.length > 0 || sideEvents.length > 0;
+  const sessionById = useMemo(
+    () => new Map(sessions.map((session) => [session.data.id, session])),
+    [sessions],
+  );
+  const taskById = useMemo(
+    () => new Map(tasks.map((task) => [task.data.id, task])),
+    [tasks],
+  );
+  const roleById = useMemo(
+    () => new Map(roles.map((role) => [role.data.id, role])),
+    [roles],
+  );
+  const specialistById = useMemo(
+    () =>
+      new Map(
+        specialists.map((specialist) => [specialist.data.id, specialist]),
+      ),
+    [specialists],
+  );
+  const sessionTask = useMemo(() => {
+    const taskId = selectedSession?.data.task?.id;
+    return taskId ? (taskById.get(taskId) ?? null) : null;
+  }, [selectedSession?.data.task?.id, taskById]);
+  const taskContextSessionId =
+    sessionTask?.data.triggerSessionId ?? selectedSession?.data.id ?? null;
+  const taskContextSession = useMemo(
+    () =>
+      taskContextSessionId
+        ? (sessionById.get(taskContextSessionId) ?? null)
+        : null,
+    [sessionById, taskContextSessionId],
+  );
+  const visibleTasks = useMemo(() => {
+    if (!taskContextSessionId) {
+      return [] as State<Task>[];
+    }
+    return tasks.filter(
+      (task) => task.data.triggerSessionId === taskContextSessionId,
+    );
+  }, [taskContextSessionId, tasks]);
+  const selectedTask = useMemo(() => {
+    if (!selectedTaskId) {
+      return sessionTask;
+    }
+    return taskById.get(selectedTaskId) ?? sessionTask;
+  }, [selectedTaskId, sessionTask, taskById]);
+  const quickAccessVisible = visibleTasks.length > 0;
+  const showInspector =
+    Boolean(selectedTask) ||
+    taskSnapshotItems.length > 0 ||
+    sideEvents.length > 0;
+
+  useEffect(() => {
+    const sessionTaskId = selectedSession?.data.task?.id;
+    if (sessionTaskId) {
+      setSelectedTaskId(sessionTaskId);
+      return;
+    }
+    if (
+      selectedTaskId &&
+      visibleTasks.some((task) => task.data.id === selectedTaskId)
+    ) {
+      return;
+    }
+    setSelectedTaskId(visibleTasks[0]?.data.id ?? null);
+  }, [selectedSession?.data.task?.id, selectedTaskId, visibleTasks]);
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;
@@ -265,9 +412,58 @@ export function ProjectSessionWorkbench(props: {
     }
   }, [sessionsResource]);
 
+  const loadTasks = useCallback(async () => {
+    setTasksLoading(true);
+    try {
+      let currentPage = await tasksResource.refresh();
+      const allTasks = [...currentPage.collection];
+      while (currentPage.hasLink('next')) {
+        currentPage = await currentPage.follow('next').get();
+        allTasks.push(...currentPage.collection);
+      }
+      allTasks.sort((left, right) => {
+        const leftValue = timestamp(left.data.updatedAt ?? left.data.createdAt);
+        const rightValue = timestamp(
+          right.data.updatedAt ?? right.data.createdAt,
+        );
+        return rightValue - leftValue;
+      });
+      setTasks(allTasks);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '加载任务列表失败';
+      toast.error(message);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [tasksResource]);
+
+  const loadPlanningMetadata = useCallback(async () => {
+    try {
+      const [nextRoles, nextSpecialists] = await Promise.all([
+        rolesResource.refresh(),
+        specialistsResource.refresh(),
+      ]);
+      setRoles(nextRoles.collection);
+      setSpecialists(nextSpecialists.collection);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '加载角色与 specialist 失败';
+      toast.error(message);
+    }
+  }, [rolesResource, specialistsResource]);
+
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
+
+  useEffect(() => {
+    void loadTasks();
+  }, [loadTasks]);
+
+  useEffect(() => {
+    void loadPlanningMetadata();
+  }, [loadPlanningMetadata]);
 
   const { chatMessages, handlePromptSubmit, hasPendingAssistantMessage } =
     useProjectSessionChat({
@@ -279,7 +475,7 @@ export function ProjectSessionWorkbench(props: {
         create({
           actorUserId: me.id,
           provider,
-          role: 'DEVELOPER',
+          role: 'ROUTA',
         }),
       submitPrompt: async ({ sessionId, prompt: nextPrompt }) => {
         await prompt({
@@ -394,7 +590,7 @@ export function ProjectSessionWorkbench(props: {
       const created = await create({
         actorUserId: me.id,
         provider,
-        role: 'DEVELOPER',
+        role: 'ROUTA',
       });
       await loadSessions();
       onSessionNavigate?.(created.data.id);
@@ -407,6 +603,118 @@ export function ProjectSessionWorkbench(props: {
       setIsCreating(false);
     }
   }, [create, loadSessions, me.id, onSessionNavigate, provider]);
+
+  const handleCreateTask = useCallback(
+    async (input: {
+      acceptanceCriteria: string;
+      assignedRole: string;
+      assignedSpecialistId: string;
+      dependencies: string;
+      kind: string;
+      objective: string;
+      parentTaskId: string;
+      scope: string;
+      title: string;
+      verificationCommands: string;
+    }) => {
+      if (!taskContextSession) {
+        toast.error('请先选择一个可拆解任务的会话');
+        return;
+      }
+
+      const title = input.title.trim();
+      const objective = input.objective.trim();
+      if (!title || !objective) {
+        toast.error('任务标题和目标不能为空');
+        return;
+      }
+
+      try {
+        const created = await taskContextSession.follow('tasks').post({
+          data: {
+            title,
+            objective,
+            scope: input.scope.trim() || null,
+            kind: input.kind.trim() || null,
+            assignedRole: input.assignedRole.trim() || null,
+            assignedSpecialistId: input.assignedSpecialistId.trim() || null,
+            parentTaskId: input.parentTaskId.trim() || null,
+            acceptanceCriteria: splitLines(input.acceptanceCriteria),
+            verificationCommands: splitLines(input.verificationCommands),
+            dependencies: splitLines(input.dependencies),
+            status: 'PENDING',
+          },
+        });
+        await loadTasks();
+        setSelectedTaskId(created.data.id);
+        setActiveSidebarTab('tasks');
+        toast.success(`已创建任务 ${created.data.title}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '创建任务失败';
+        toast.error(message);
+      }
+    },
+    [loadTasks, taskContextSession],
+  );
+
+  const handleOpenTask = useCallback(
+    async (task: State<Task>) => {
+      const existingSessionId = task.data.executionSessionId;
+
+      try {
+        if (existingSessionId) {
+          const existing = sessionById.get(existingSessionId);
+          if (existing) {
+            await selectSessionFromList(existing);
+          } else {
+            await select({ session: existingSessionId });
+            onSessionNavigate?.(existingSessionId);
+          }
+          setSelectedTaskId(task.data.id);
+          return;
+        }
+
+        const created = await create({
+          actorUserId: me.id,
+          provider,
+          role: resolveAcpRole(task.data.assignedRole),
+          parentSessionId: task.data.triggerSessionId ?? selectedSessionId,
+          taskId: task.data.id,
+          goal: task.data.title,
+        });
+
+        onSessionNavigate?.(created.data.id);
+        await prompt({
+          session: created.data.id,
+          prompt: buildTaskPrompt(task),
+        });
+        await Promise.all([loadSessions(), loadTasks()]);
+        setSelectedTaskId(task.data.id);
+        toast.success(
+          task.data.kind === 'review' || task.data.assignedRole === 'GATE'
+            ? `已启动复核任务 ${task.data.title}`
+            : `已启动执行任务 ${task.data.title}`,
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : '启动任务执行失败';
+        toast.error(message);
+      }
+    },
+    [
+      create,
+      loadSessions,
+      loadTasks,
+      me.id,
+      onSessionNavigate,
+      prompt,
+      provider,
+      select,
+      selectedSessionId,
+      selectSessionFromList,
+      sessionById,
+    ],
+  );
 
   const submitRename = useCallback(async () => {
     const session = renameDialogSession;
@@ -543,10 +851,14 @@ export function ProjectSessionWorkbench(props: {
     <ProjectSessionHistorySidebar
       activeTab={activeSidebarTab}
       leftSidebarRatio={leftSidebarRatio}
+      roles={roles}
       onCollapse={() => setLeftSidebarCollapsed(true)}
+      onCreateTask={handleCreateTask}
       onDeleteSession={(session) => setDeleteDialogSession(session)}
       onOpenRename={openRenameDialog}
+      onOpenTask={handleOpenTask}
       onSelectSession={(session) => void selectSessionFromList(session)}
+      onSelectTask={setSelectedTaskId}
       onStartSplitResize={() => {
         setResizeMode('split');
       }}
@@ -554,18 +866,26 @@ export function ProjectSessionWorkbench(props: {
       projectTitle={projectTitle}
       quickAccessVisible={quickAccessVisible}
       selectedSessionId={selectedSessionId}
+      selectedTaskId={selectedTask?.data.id}
       sessions={sessionTree}
       sessionsLoading={sessionsLoading}
       sessionsSplitRef={sessionsSplitRef}
-      taskItems={taskItems}
+      specialists={specialists}
+      taskContextSession={taskContextSession}
+      tasks={visibleTasks}
+      tasksLoading={tasksLoading}
     />
   );
 
   const inspector = (
     <ProjectSessionStatusSidebar
       events={sideEvents}
+      roleById={roleById}
       selectedSession={selectedSession}
-      taskItems={taskItems}
+      selectedTask={selectedTask}
+      specialistById={specialistById}
+      taskSnapshotItems={taskSnapshotItems}
+      onOpenTask={handleOpenTask}
     />
   );
 

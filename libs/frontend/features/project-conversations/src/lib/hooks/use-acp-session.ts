@@ -48,7 +48,7 @@ type PromptRpcResult = SessionRpcResult & {
 };
 
 type AcpSessionRef = State<AcpSessionSummary> | State<AcpSession>;
-type AcpSessionRole = Exclude<AgentRole, 'SPECIALIST'>;
+type AcpSessionRole = AgentRole;
 
 export type AcpSessionRpcFailure = JsonRpcError;
 
@@ -57,6 +57,7 @@ export type CreateAcpSessionInput = {
   provider?: string;
   role?: AcpSessionRole;
   parentSessionId?: string;
+  taskId?: string;
   idempotencyKey?: string;
   goal?: string;
   traceId?: string;
@@ -124,9 +125,8 @@ export function useAcpSession(
 ) {
   const client = useClient();
   const requestCounterRef = useRef(1);
-  const [selectedSession, setSelectedSession] = useState<State<AcpSession> | null>(
-    null,
-  );
+  const [selectedSession, setSelectedSession] =
+    useState<State<AcpSession> | null>(null);
   const [history, setHistory] = useState<AcpEventEnvelope[]>([]);
   const [lastError, setLastError] = useState<AcpSessionRpcFailure | null>(null);
 
@@ -136,26 +136,28 @@ export function useAcpSession(
   );
 
   const rpc = useCallback(
-    async <TResult,>(
+    async <TResult>(
       method: string,
       params: Record<string, unknown>,
       traceId?: string,
     ): Promise<TResult> => {
       const id = `web-${requestCounterRef.current++}`;
-      const responseState = await client.go<JsonRpcEnvelope<TResult>>(ACP_ENDPOINT).post({
-        data: {
-          jsonrpc: ACP_JSON_RPC_VERSION,
-          method,
-          params,
-          id,
-        },
-        headers:
-          traceId && traceId.trim()
-            ? {
-                'X-Trace-Id': traceId.trim(),
-              }
-            : undefined,
-      });
+      const responseState = await client
+        .go<JsonRpcEnvelope<TResult>>(ACP_ENDPOINT)
+        .post({
+          data: {
+            jsonrpc: ACP_JSON_RPC_VERSION,
+            method,
+            params,
+            id,
+          },
+          headers:
+            traceId && traceId.trim()
+              ? {
+                  'X-Trace-Id': traceId.trim(),
+                }
+              : undefined,
+        });
 
       const envelope = responseState.data;
       if (envelope.error) {
@@ -182,7 +184,9 @@ export function useAcpSession(
           return found;
         }
         if (!cursor.hasLink('next')) {
-          throw new Error(`Session ${sessionId} is not discoverable from sessions collection`);
+          throw new Error(
+            `Session ${sessionId} is not discoverable from sessions collection`,
+          );
         }
         cursor = await cursor.follow('next').get();
       }
@@ -203,7 +207,9 @@ export function useAcpSession(
   );
 
   const replayHistory = useCallback(
-    async (input: ReplayAcpSessionHistoryInput = {}): Promise<AcpEventEnvelope[]> => {
+    async (
+      input: ReplayAcpSessionHistoryInput = {},
+    ): Promise<AcpEventEnvelope[]> => {
       const target = input.session ?? selectedSession;
       if (!target) {
         throw new Error('Cannot replay history without a selected session');
@@ -235,7 +241,9 @@ export function useAcpSession(
   const select = useCallback(
     async (input: SelectAcpSessionInput): Promise<State<AcpSession>> => {
       const sessionId =
-        typeof input.session === 'string' ? input.session : input.session.data.id;
+        typeof input.session === 'string'
+          ? input.session
+          : input.session.data.id;
       if (input.load ?? true) {
         await rpc<SessionRpcResult>(
           'session/load',
@@ -255,7 +263,14 @@ export function useAcpSession(
       });
       return fullSession;
     },
-    [options.historyLimit, options.traceId, projectState.data.id, replayHistory, resolveSession, rpc],
+    [
+      options.historyLimit,
+      options.traceId,
+      projectState.data.id,
+      replayHistory,
+      resolveSession,
+      rpc,
+    ],
   );
 
   const create = useCallback(
@@ -272,6 +287,7 @@ export function useAcpSession(
           provider: input.provider ?? options.provider ?? 'codex',
           role: input.role ?? options.role,
           parentSessionId: input.parentSessionId,
+          taskId: input.taskId,
           idempotencyKey: input.idempotencyKey,
           goal: input.goal,
         },

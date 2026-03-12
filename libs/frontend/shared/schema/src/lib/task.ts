@@ -1,15 +1,24 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
+import type { AgentRole } from './agent.js';
+
+export type TaskKind = 'plan' | 'implement' | 'review' | 'verify';
 
 export type TaskStatus =
   | 'PENDING'
-  | 'IN_PROGRESS'
-  | 'REVIEW_REQUIRED'
+  | 'READY'
+  | 'RUNNING'
   | 'COMPLETED'
-  | 'NEEDS_FIX'
   | 'BLOCKED'
-  | 'CANCELLED';
+  | 'FAILED'
+  | 'CANCELLED'
+  | (string & {});
 
-export type VerificationVerdict = 'APPROVED' | 'NOT_APPROVED' | 'BLOCKED';
+export type VerificationVerdict =
+  | 'pending'
+  | 'pass'
+  | 'fail'
+  | 'blocked'
+  | (string & {});
 
 export type Task = Entity<
   {
@@ -17,25 +26,47 @@ export type Task = Entity<
     title: string;
     objective: string;
     scope: string | null;
-    acceptanceCriteria: string[] | null;
-    verificationCommands: string[] | null;
     status: TaskStatus;
-    assignedTo: { id: string } | null;
-    delegatedBy: { id: string } | null;
+    kind: TaskKind | null;
+    boardId: string | null;
+    columnId: string | null;
+    position: number | null;
+    priority: string | null;
+    labels: string[];
+    assignee: string | null;
+    assignedProvider: string | null;
+    assignedRole: AgentRole | (string & {}) | null;
+    assignedSpecialistId: string | null;
+    assignedSpecialistName: string | null;
+    dependencies: string[];
+    parallelGroup: string | null;
+    acceptanceCriteria: string[];
+    verificationCommands: string[];
     completionSummary: string | null;
     verificationVerdict: VerificationVerdict | null;
     verificationReport: string | null;
-    project: { id: string };
+    triggerSessionId: string | null;
+    parentTaskId: string | null;
+    executionSessionId: string | null;
+    resultSessionId: string | null;
+    githubId: string | null;
+    githubNumber: number | null;
+    githubUrl: string | null;
+    githubRepo: string | null;
+    githubState: string | null;
+    githubSyncedAt: string | null;
+    lastSyncError: string | null;
+    projectId: string;
+    createdAt: string;
+    updatedAt: string;
   },
   {
     self: Task;
-    collection: Collection<Task>;
+    collection: TaskCollection;
   }
 >;
 
 export type TaskCollection = Entity<
   Collection<Task>['data'],
-  Collection<Task>['links'] & {
-    'create-task': Task;
-  }
+  Collection<Task>['links']
 >;

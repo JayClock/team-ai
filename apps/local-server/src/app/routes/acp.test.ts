@@ -6,6 +6,7 @@ import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
 import { createProject } from '../services/project-service';
+import { createTask, getTaskById } from '../services/task-service';
 import acpRoute from './acp';
 import agentsRoute from './agents';
 import meRoute from './me';
@@ -48,7 +49,7 @@ describe('acp route', () => {
     const promptMock = vi.fn(async () => ({
       runtimeSessionId: 'runtime-1',
       response: {
-        stopReason: 'end_turn',
+        stopReason: 'end_turn' as const,
       },
     }));
 
@@ -172,8 +173,12 @@ describe('acp route', () => {
 
     expect(historyResponse.statusCode).toBe(200);
     expect(
-      historyResponse.json().history.map((event: { type: string }) => event.type),
-    ).toEqual(expect.arrayContaining(['session', 'message', 'status', 'complete']));
+      historyResponse
+        .json()
+        .history.map((event: { type: string }) => event.type),
+    ).toEqual(
+      expect.arrayContaining(['session', 'message', 'status', 'complete']),
+    );
 
     const rootResponse = await fastify.inject({
       method: 'GET',
@@ -181,6 +186,118 @@ describe('acp route', () => {
     });
     expect(rootResponse.json()._links.me.href).toBe('/api/me');
     expect(rootResponse.json()._links.acp.href).toBe('/api/acp');
+  });
+
+  it('creates task-bound child sessions and syncs execution state back to project_tasks', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-task-bound-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4311';
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-child',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(meRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(agentsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Task Project',
+      repoPath: '/tmp/team-ai-desktop-task-project',
+    });
+
+    const rootResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'root-session',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+          role: 'ROUTA',
+        },
+      },
+    });
+
+    const rootSessionId = rootResponse.json().result.session.id as string;
+    const task = await createTask(fastify.sqlite, {
+      objective: 'Implement the routed task',
+      projectId: project.id,
+      title: 'Implement routed task',
+      triggerSessionId: rootSessionId,
+      assignedRole: 'CRAFTER',
+      status: 'READY',
+    });
+
+    const childResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'child-session',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+          parentSessionId: rootSessionId,
+          role: 'CRAFTER',
+          taskId: task.id,
+        },
+      },
+    });
+
+    expect(childResponse.statusCode).toBe(200);
+    const childSessionId = childResponse.json().result.session.id as string;
+
+    const childSession = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/acp-sessions/${childSessionId}`,
+    });
+
+    expect(childSession.json()).toMatchObject({
+      parentSession: { id: rootSessionId },
+      specialistId: 'crafter-implementor',
+      task: { id: task.id },
+    });
+
+    const updatedTask = await getTaskById(fastify.sqlite, task.id);
+    expect(updatedTask).toMatchObject({
+      executionSessionId: childSessionId,
+      status: 'RUNNING',
+    });
   });
 
   it('lists ACP providers with merged local and registry discovery metadata', async () => {
@@ -324,7 +441,8 @@ describe('acp route', () => {
       result: null,
       error: {
         code: -32602,
-        message: 'session/new no longer accepts specialistId; pass role instead',
+        message:
+          'session/new no longer accepts specialistId; pass role instead',
       },
     });
   });

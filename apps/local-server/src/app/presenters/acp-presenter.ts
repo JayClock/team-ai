@@ -15,9 +15,19 @@ function createSessionLinks(session: AcpSessionPayload) {
     history: {
       href: `/api/projects/${session.project.id}/acp-sessions/${session.id}/history`,
     },
+    tasks: {
+      href: `/api/projects/${session.project.id}/acp-sessions/${session.id}/tasks`,
+    },
     collection: {
       href: `/api/projects/${session.project.id}/acp-sessions`,
     },
+    ...(session.task
+      ? {
+          task: {
+            href: `/api/tasks/${session.task.id}`,
+          },
+        }
+      : {}),
   };
 }
 

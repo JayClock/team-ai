@@ -52,7 +52,7 @@ function ProjectsWorkspaceContent(props: { projectState: State<Project> }) {
       {hasSessions ? (
         <ProjectSessionWorkbench
           projectState={projectState}
-          projectTitle={projectState.data.name}
+          projectTitle={projectState.data.title}
         />
       ) : (
         <MissingPanelMessage message="当前项目未暴露 ACP sessions 链接。" />
@@ -77,7 +77,9 @@ function MissingPanelMessage(props: { message: string }) {
   );
 }
 
-function ProjectsKnowledgeGraphContent(props: { projectState: State<Project> }) {
+function ProjectsKnowledgeGraphContent(props: {
+  projectState: State<Project>;
+}) {
   const { projectState } = props;
   const graphContainerRef = useRef<HTMLDivElement | null>(null);
   const graphResource = useMemo(
@@ -203,7 +205,9 @@ function ProjectsKnowledgeGraphContent(props: { projectState: State<Project> }) 
               >
                 {nodeLabelById.get(edge.sourceLogicalEntityId) ||
                   edge.sourceLogicalEntityId}{' '}
-                <span className="font-medium text-foreground">[{edge.relationType}]</span>{' '}
+                <span className="font-medium text-foreground">
+                  [{edge.relationType}]
+                </span>{' '}
                 {nodeLabelById.get(edge.targetLogicalEntityId) ||
                   edge.targetLogicalEntityId}
               </li>

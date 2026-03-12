@@ -54,6 +54,12 @@ function formatJson(value: unknown): string {
 
 export function formatStatusLabel(status: string | null | undefined): string {
   switch (status) {
+    case 'PENDING':
+    case 'pending':
+      return '待处理';
+    case 'READY':
+    case 'ready':
+      return '就绪';
     case 'COMPLETED':
     case 'completed':
       return '已完成';
@@ -62,6 +68,9 @@ export function formatStatusLabel(status: string | null | undefined): string {
       return '进行中';
     case 'in_progress':
       return '处理中';
+    case 'BLOCKED':
+    case 'blocked':
+      return '已阻塞';
     case 'FAILED':
     case 'failed':
       return '失败';
@@ -79,6 +88,21 @@ export function formatStatusLabel(status: string | null | undefined): string {
       return '错误';
     default:
       return status?.trim() || '无';
+  }
+}
+
+export function formatTaskKindLabel(kind: string | null | undefined): string {
+  switch (kind) {
+    case 'plan':
+      return '规划';
+    case 'implement':
+      return '实现';
+    case 'review':
+      return '复核';
+    case 'verify':
+      return '验证';
+    default:
+      return kind?.trim() || '未分类';
   }
 }
 
@@ -148,7 +172,9 @@ export function eventHeadline(event: AcpEventEnvelope): string {
     case 'error':
       return event.error?.message ?? event.data.message ?? '发生错误';
     case 'status':
-      return event.data.reason ?? formatStatusLabel(event.data.state) ?? '状态更新';
+      return (
+        event.data.reason ?? formatStatusLabel(event.data.state) ?? '状态更新'
+      );
     case 'message':
       return event.data.role ?? '消息';
   }
@@ -187,6 +213,11 @@ export function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
 
 export function statusTone(status: string): string {
   switch (status) {
+    case 'PENDING':
+    case 'pending':
+    case 'READY':
+    case 'ready':
+      return 'bg-sky-500';
     case 'completed':
     case 'COMPLETED':
     case 'connected':
@@ -201,6 +232,8 @@ export function statusTone(status: string): string {
     case 'error':
     case 'CANCELLED':
     case 'cancelled':
+    case 'BLOCKED':
+    case 'blocked':
       return 'bg-rose-500';
     default:
       return 'bg-slate-400';
@@ -209,6 +242,11 @@ export function statusTone(status: string): string {
 
 export function statusChipClasses(status: string): string {
   switch (status) {
+    case 'PENDING':
+    case 'pending':
+    case 'READY':
+    case 'ready':
+      return 'bg-sky-50 text-sky-700 ring-sky-200';
     case 'COMPLETED':
     case 'completed':
       return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
@@ -219,6 +257,8 @@ export function statusChipClasses(status: string): string {
     case 'FAILED':
     case 'failed':
     case 'error':
+    case 'BLOCKED':
+    case 'blocked':
       return 'bg-rose-50 text-rose-700 ring-rose-200';
     case 'CANCELLED':
     case 'cancelled':
@@ -246,14 +286,16 @@ export function renderEventDetails(event: AcpEventEnvelope) {
         : (event.data as AcpToolResultEventData);
     const primaryValue =
       event.type === 'tool_call'
-        ? (data as AcpToolCallEventData).input ?? data.rawInput
-        : (data as AcpToolResultEventData).output ?? data.rawOutput;
+        ? ((data as AcpToolCallEventData).input ?? data.rawInput)
+        : ((data as AcpToolResultEventData).output ?? data.rawOutput);
 
     return (
       <div className="mt-3 space-y-2">
         {primaryValue !== undefined ? (
           <pre className="overflow-x-auto rounded-xl border bg-muted/60 p-3 text-xs">
-            {typeof primaryValue === 'string' ? primaryValue : formatJson(primaryValue)}
+            {typeof primaryValue === 'string'
+              ? primaryValue
+              : formatJson(primaryValue)}
           </pre>
         ) : null}
         {data.locations && data.locations.length > 0 ? (
@@ -274,7 +316,9 @@ export function renderEventDetails(event: AcpEventEnvelope) {
             <summary className="cursor-pointer text-[11px] uppercase tracking-wide text-muted-foreground">
               原始载荷
             </summary>
-            <pre className="mt-2 overflow-x-auto text-xs">{formatJson(rawPayload)}</pre>
+            <pre className="mt-2 overflow-x-auto text-xs">
+              {formatJson(rawPayload)}
+            </pre>
           </details>
         ) : null}
       </div>
@@ -291,7 +335,8 @@ export function renderEventDetails(event: AcpEventEnvelope) {
           >
             <div className="text-sm font-medium">{entry.content}</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {formatPriorityLabel(entry.priority)} · {formatStatusLabel(entry.status)}
+              {formatPriorityLabel(entry.priority)} ·{' '}
+              {formatStatusLabel(entry.status)}
             </div>
           </div>
         ))}
@@ -315,7 +360,9 @@ export function renderEventDetails(event: AcpEventEnvelope) {
   return null;
 }
 
-export function buildTaskSnapshot(history: AcpEventEnvelope[]): TaskSnapshotItem[] {
+export function buildTaskSnapshot(
+  history: AcpEventEnvelope[],
+): TaskSnapshotItem[] {
   const plans = history.filter((event) => event.type === 'plan') as Array<
     AcpEventEnvelope & { type: 'plan'; data: AcpPlanEventData }
   >;
@@ -341,13 +388,16 @@ export function buildTaskSnapshot(history: AcpEventEnvelope[]): TaskSnapshotItem
       data.toolCallId ??
       `${event.type}:${data.title ?? data.toolName ?? event.eventId}`;
     const title = data.title ?? data.toolName ?? '工具';
-    const fallbackStatus = event.type === 'tool_result' ? 'completed' : 'in_progress';
+    const fallbackStatus =
+      event.type === 'tool_result' ? 'completed' : 'in_progress';
     const description =
       data.locations && data.locations.length > 0
         ? data.locations
             .slice(0, 2)
             .map((location) =>
-              location.line ? `${location.path}:${location.line}` : location.path,
+              location.line
+                ? `${location.path}:${location.line}`
+                : location.path,
             )
             .join(' · ')
         : undefined;
@@ -389,12 +439,21 @@ export function buildSessionTree(
   const sortSessions = (items: State<AcpSessionSummary>[]) =>
     [...items].sort((left, right) => {
       const leftValue = Date.parse(
-        left.data.lastActivityAt ?? left.data.startedAt ?? left.data.completedAt ?? '',
+        left.data.lastActivityAt ??
+          left.data.startedAt ??
+          left.data.completedAt ??
+          '',
       );
       const rightValue = Date.parse(
-        right.data.lastActivityAt ?? right.data.startedAt ?? right.data.completedAt ?? '',
+        right.data.lastActivityAt ??
+          right.data.startedAt ??
+          right.data.completedAt ??
+          '',
       );
-      return (Number.isNaN(rightValue) ? 0 : rightValue) - (Number.isNaN(leftValue) ? 0 : leftValue);
+      return (
+        (Number.isNaN(rightValue) ? 0 : rightValue) -
+        (Number.isNaN(leftValue) ? 0 : leftValue)
+      );
     });
 
   const hydrate = (session: State<AcpSessionSummary>): SessionTreeNode => ({
@@ -406,7 +465,10 @@ export function buildSessionTree(
 }
 
 export function countSessionTree(node: SessionTreeNode): number {
-  return 1 + node.children.reduce((count, child) => count + countSessionTree(child), 0);
+  return (
+    1 +
+    node.children.reduce((count, child) => count + countSessionTree(child), 0)
+  );
 }
 
 export const eventIcon = {

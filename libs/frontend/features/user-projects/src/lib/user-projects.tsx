@@ -49,7 +49,7 @@ export function UserProjects(props: Props) {
           size="sm"
           className="cursor-pointer transition-colors duration-200"
         >
-          {selectedProject?.data.name}
+          {selectedProject?.data.title}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
@@ -65,7 +65,7 @@ export function UserProjects(props: Props) {
                 : 'cursor-pointer'
             }
           >
-            <span className="flex-1">{project.data.name}</span>
+            <span className="flex-1">{project.data.title}</span>
             {selectedProject?.data.id === project.data.id && (
               <CheckIcon className="h-4 w-4" aria-hidden="true" />
             )}

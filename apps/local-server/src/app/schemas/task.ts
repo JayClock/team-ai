@@ -1,3 +1,5 @@
+export type TaskKind = 'plan' | 'implement' | 'review' | 'verify';
+
 export interface TaskPayload {
   acceptanceCriteria: string[];
   assignedProvider: string | null;
@@ -17,13 +19,17 @@ export interface TaskPayload {
   githubSyncedAt: string | null;
   githubUrl: string | null;
   id: string;
+  kind: TaskKind | null;
   labels: string[];
   lastSyncError: string | null;
   objective: string;
+  executionSessionId: string | null;
   parallelGroup: string | null;
+  parentTaskId: string | null;
   position: number | null;
   priority: string | null;
   projectId: string;
+  resultSessionId: string | null;
   scope: string | null;
   status: string;
   title: string;
@@ -61,13 +67,17 @@ export interface CreateTaskInput {
   githubState?: string | null;
   githubSyncedAt?: string | null;
   githubUrl?: string | null;
+  kind?: TaskKind | null;
   labels?: string[];
   lastSyncError?: string | null;
   objective: string;
+  executionSessionId?: string | null;
   parallelGroup?: string | null;
+  parentTaskId?: string | null;
   position?: number | null;
   priority?: string | null;
   projectId: string;
+  resultSessionId?: string | null;
   scope?: string | null;
   status?: string;
   title: string;
@@ -94,13 +104,17 @@ export interface UpdateTaskInput {
   githubState?: string | null;
   githubSyncedAt?: string | null;
   githubUrl?: string | null;
+  kind?: TaskKind | null;
   labels?: string[];
   lastSyncError?: string | null;
   objective?: string;
+  executionSessionId?: string | null;
   parallelGroup?: string | null;
+  parentTaskId?: string | null;
   position?: number | null;
   priority?: string | null;
   scope?: string | null;
+  resultSessionId?: string | null;
   status?: string;
   title?: string;
   triggerSessionId?: string | null;

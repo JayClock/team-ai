@@ -201,4 +201,35 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '002_task_driven_workflow',
+    sql: `
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN task_id TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_project_acp_sessions_task_id
+        ON project_acp_sessions(task_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      ALTER TABLE project_tasks
+        ADD COLUMN kind TEXT;
+
+      ALTER TABLE project_tasks
+        ADD COLUMN parent_task_id TEXT;
+
+      ALTER TABLE project_tasks
+        ADD COLUMN execution_session_id TEXT;
+
+      ALTER TABLE project_tasks
+        ADD COLUMN result_session_id TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_parent_task_id
+        ON project_tasks(parent_task_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_execution_session_id
+        ON project_tasks(execution_session_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

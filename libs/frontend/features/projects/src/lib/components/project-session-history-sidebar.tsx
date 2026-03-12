@@ -1,5 +1,5 @@
 import { State } from '@hateoas-ts/resource';
-import { AcpSessionSummary } from '@shared/schema';
+import { AcpSessionSummary, Role, Specialist, Task } from '@shared/schema';
 import {
   Button,
   DropdownMenu,
@@ -12,11 +12,13 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
+  Input,
   ScrollArea,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  Textarea,
 } from '@shared/ui';
 import {
   FolderTreeIcon,
@@ -27,59 +29,101 @@ import {
   PencilIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { type RefObject, useMemo } from 'react';
+import { type RefObject, useEffect, useMemo, useState } from 'react';
 import {
   countSessionTree,
   formatDateTime,
   formatStatusLabel,
+  formatTaskKindLabel,
   SessionTreeNode,
   sessionDisplayName,
   SidebarTab,
   statusChipClasses,
   statusTone,
-  TaskSnapshotItem,
 } from './project-session-workbench.shared';
+
+type TaskDraftInput = {
+  acceptanceCriteria: string;
+  assignedRole: string;
+  assignedSpecialistId: string;
+  dependencies: string;
+  kind: string;
+  objective: string;
+  parentTaskId: string;
+  scope: string;
+  title: string;
+  verificationCommands: string;
+};
+
+const emptyTaskDraft: TaskDraftInput = {
+  acceptanceCriteria: '',
+  assignedRole: 'CRAFTER',
+  assignedSpecialistId: '',
+  dependencies: '',
+  kind: 'implement',
+  objective: '',
+  parentTaskId: '',
+  scope: '',
+  title: '',
+  verificationCommands: '',
+};
 
 export function ProjectSessionHistorySidebar(props: {
   activeTab: SidebarTab;
   leftSidebarRatio: number;
   onCollapse: () => void;
+  onCreateTask: (input: TaskDraftInput) => void | Promise<void>;
   onDeleteSession: (session: State<AcpSessionSummary>) => void;
   onOpenRename: (session: State<AcpSessionSummary>) => void;
+  onOpenTask: (task: State<Task>) => void | Promise<void>;
   onSelectSession: (session: State<AcpSessionSummary>) => void;
+  onSelectTask: (taskId: string) => void;
   onStartSplitResize: () => void;
   onTabChange: (value: SidebarTab) => void;
   projectTitle: string;
   quickAccessVisible: boolean;
+  roles: State<Role>[];
   selectedSessionId?: string;
+  selectedTaskId?: string | null;
   sessions: SessionTreeNode[];
   sessionsLoading: boolean;
   sessionsSplitRef: RefObject<HTMLDivElement | null>;
-  taskItems: TaskSnapshotItem[];
+  specialists: State<Specialist>[];
+  taskContextSession: State<AcpSessionSummary> | null;
+  tasks: State<Task>[];
+  tasksLoading: boolean;
 }) {
   const {
     activeTab,
     leftSidebarRatio,
     onCollapse,
+    onCreateTask,
     onDeleteSession,
     onOpenRename,
+    onOpenTask,
     onSelectSession,
+    onSelectTask,
     onStartSplitResize,
     onTabChange,
     projectTitle,
     quickAccessVisible,
+    roles,
     selectedSessionId,
+    selectedTaskId,
     sessions,
     sessionsLoading,
     sessionsSplitRef,
-    taskItems,
+    specialists,
+    taskContextSession,
+    tasks,
+    tasksLoading,
   } = props;
   const totalSessions = useMemo(
     () => sessions.reduce((count, node) => count + countSessionTree(node), 0),
     [sessions],
   );
-  const runningCount = taskItems.filter((item) =>
-    ['RUNNING', 'running', 'in_progress'].includes(item.status),
+  const runningCount = tasks.filter((item) =>
+    ['RUNNING', 'running', 'in_progress'].includes(item.data.status),
   ).length;
 
   return (
@@ -87,7 +131,9 @@ export function ProjectSessionHistorySidebar(props: {
       <div className="flex items-center justify-between border-b px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <FolderTreeIcon className="size-3.5 shrink-0 text-primary" />
-          <span className="truncate text-xs text-muted-foreground">{projectTitle}</span>
+          <span className="truncate text-xs text-muted-foreground">
+            {projectTitle}
+          </span>
         </div>
         <Button variant="ghost" size="icon-sm" onClick={onCollapse}>
           <PanelLeftCloseIcon />
@@ -122,7 +168,7 @@ export function ProjectSessionHistorySidebar(props: {
             >
               <ListChecksIcon className="size-3.5" />
               任务
-              {taskItems.length > 0 ? (
+              {tasks.length > 0 ? (
                 <span
                   className={`rounded-full px-1.5 py-0.5 text-[10px] ${
                     runningCount > 0
@@ -130,32 +176,44 @@ export function ProjectSessionHistorySidebar(props: {
                       : 'bg-emerald-100 text-emerald-700'
                   }`}
                 >
-                  {taskItems.length}
+                  {tasks.length}
                 </span>
               ) : null}
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="sessions" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+        <TabsContent
+          value="sessions"
+          className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           <div className="border-b px-3 py-2.5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               会话
             </p>
-            <p className="mt-1 text-sm font-medium">共 {totalSessions} 个会话</p>
+            <p className="mt-1 text-sm font-medium">
+              共 {totalSessions} 个会话
+            </p>
           </div>
 
-          <div ref={sessionsSplitRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div
+            ref={sessionsSplitRef}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
             <div
               className="min-h-0 overflow-hidden"
               style={
-                quickAccessVisible ? { flexBasis: `${leftSidebarRatio * 100}%` } : undefined
+                quickAccessVisible
+                  ? { flexBasis: `${leftSidebarRatio * 100}%` }
+                  : undefined
               }
             >
               <ScrollArea className="h-full">
                 <div className="space-y-2 p-3">
                   {sessionsLoading ? (
-                    <p className="text-sm text-muted-foreground">正在加载会话...</p>
+                    <p className="text-sm text-muted-foreground">
+                      正在加载会话...
+                    </p>
                   ) : sessions.length === 0 ? (
                     <Empty className="border-dashed px-4 py-10">
                       <EmptyHeader>
@@ -202,7 +260,7 @@ export function ProjectSessionHistorySidebar(props: {
                   style={{ flexBasis: `${(1 - leftSidebarRatio) * 100}%` }}
                 >
                   <QuickAccessPanel
-                    taskItems={taskItems}
+                    tasks={tasks}
                     onOpenTasks={() => onTabChange('tasks')}
                   />
                 </div>
@@ -211,40 +269,303 @@ export function ProjectSessionHistorySidebar(props: {
           </div>
         </TabsContent>
 
-        <TabsContent value="spec" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <SpecSidebarContent />
+        <TabsContent
+          value="spec"
+          className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <SpecSidebarContent
+            roles={roles}
+            specialists={specialists}
+            taskContextSession={taskContextSession}
+            tasks={tasks}
+            onCreateTask={onCreateTask}
+            onOpenTasks={() => onTabChange('tasks')}
+          />
         </TabsContent>
 
-        <TabsContent value="tasks" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <TasksSidebarContent taskItems={taskItems} />
+        <TabsContent
+          value="tasks"
+          className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <TasksSidebarContent
+            selectedTaskId={selectedTaskId}
+            tasks={tasks}
+            tasksLoading={tasksLoading}
+            onOpenTask={onOpenTask}
+            onSelectTask={onSelectTask}
+          />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function SpecSidebarContent() {
+function SpecSidebarContent(props: {
+  roles: State<Role>[];
+  specialists: State<Specialist>[];
+  taskContextSession: State<AcpSessionSummary> | null;
+  tasks: State<Task>[];
+  onCreateTask: (input: TaskDraftInput) => void | Promise<void>;
+  onOpenTasks: () => void;
+}) {
+  const {
+    roles,
+    specialists,
+    taskContextSession,
+    tasks,
+    onCreateTask,
+    onOpenTasks,
+  } = props;
+  const [draft, setDraft] = useState<TaskDraftInput>(emptyTaskDraft);
+
+  useEffect(() => {
+    if (draft.kind === 'review' && draft.assignedRole !== 'GATE') {
+      setDraft((current) => ({
+        ...current,
+        assignedRole: 'GATE',
+      }));
+      return;
+    }
+
+    if (draft.kind === 'plan' && draft.assignedRole !== 'ROUTA') {
+      setDraft((current) => ({
+        ...current,
+        assignedRole: 'ROUTA',
+      }));
+      return;
+    }
+
+    if (
+      draft.kind !== 'review' &&
+      draft.kind !== 'plan' &&
+      (!draft.assignedRole ||
+        draft.assignedRole === 'GATE' ||
+        draft.assignedRole === 'ROUTA')
+    ) {
+      setDraft((current) => ({
+        ...current,
+        assignedRole: 'CRAFTER',
+      }));
+    }
+  }, [draft.assignedRole, draft.kind]);
+
+  const filteredSpecialists = useMemo(
+    () =>
+      specialists.filter(
+        (specialist) =>
+          !draft.assignedRole || specialist.data.role === draft.assignedRole,
+      ),
+    [draft.assignedRole, specialists],
+  );
+
+  const submit = async () => {
+    await onCreateTask(draft);
+    setDraft((current) => ({
+      ...emptyTaskDraft,
+      assignedRole: current.assignedRole,
+      kind: current.kind,
+    }));
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-b px-3 py-2.5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           规格
         </p>
-        <p className="mt-1 text-sm font-medium">规格内容</p>
+        <p className="mt-1 text-sm font-medium">
+          {taskContextSession ? '拆解任务并分配角色' : '请选择一个会话开始拆解'}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {taskContextSession
+            ? `当前上下文：${sessionDisplayName(taskContextSession)}`
+            : '需要先选择一个协调会话，才能把拆解结果写入持久化任务。'}
+        </p>
       </div>
-      <div className="flex min-h-0 flex-1 items-center justify-center p-4">
-        <div className="w-full rounded-2xl border border-dashed bg-muted/30 px-4 py-10 text-center">
-          <p className="text-sm font-medium">暂无规格内容</p>
+
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-4 p-3">
+          <div className="rounded-2xl border bg-background p-3">
+            <div className="space-y-3">
+              <Input
+                value={draft.title}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))
+                }
+                placeholder="任务标题"
+                disabled={!taskContextSession}
+              />
+              <Textarea
+                value={draft.objective}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    objective: event.target.value,
+                  }))
+                }
+                placeholder="任务目标"
+                disabled={!taskContextSession}
+                className="min-h-24"
+              />
+              <Textarea
+                value={draft.scope}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    scope: event.target.value,
+                  }))
+                }
+                placeholder="范围说明（可选）"
+                disabled={!taskContextSession}
+                className="min-h-20"
+              />
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <select
+                  value={draft.kind}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      kind: event.target.value,
+                    }))
+                  }
+                  disabled={!taskContextSession}
+                  className="h-10 rounded-xl border bg-background px-3 text-sm"
+                >
+                  <option value="implement">实现任务</option>
+                  <option value="review">复核任务</option>
+                  <option value="verify">验证任务</option>
+                  <option value="plan">规划任务</option>
+                </select>
+
+                <select
+                  value={draft.assignedRole}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      assignedRole: event.target.value,
+                      assignedSpecialistId: '',
+                    }))
+                  }
+                  disabled={!taskContextSession}
+                  className="h-10 rounded-xl border bg-background px-3 text-sm"
+                >
+                  {roles.map((role) => (
+                    <option key={role.data.id} value={role.data.id}>
+                      {role.data.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <select
+                value={draft.assignedSpecialistId}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    assignedSpecialistId: event.target.value,
+                  }))
+                }
+                disabled={!taskContextSession}
+                className="h-10 rounded-xl border bg-background px-3 text-sm"
+              >
+                <option value="">使用角色默认 specialist</option>
+                {filteredSpecialists.map((specialist) => (
+                  <option key={specialist.data.id} value={specialist.data.id}>
+                    {specialist.data.name}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={draft.parentTaskId}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    parentTaskId: event.target.value,
+                  }))
+                }
+                disabled={!taskContextSession}
+                className="h-10 rounded-xl border bg-background px-3 text-sm"
+              >
+                <option value="">无父任务</option>
+                {tasks.map((task) => (
+                  <option key={task.data.id} value={task.data.id}>
+                    {task.data.title}
+                  </option>
+                ))}
+              </select>
+
+              <Textarea
+                value={draft.acceptanceCriteria}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    acceptanceCriteria: event.target.value,
+                  }))
+                }
+                placeholder="验收标准，每行一条"
+                disabled={!taskContextSession}
+                className="min-h-24"
+              />
+              <Textarea
+                value={draft.verificationCommands}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    verificationCommands: event.target.value,
+                  }))
+                }
+                placeholder="验证命令，每行一条"
+                disabled={!taskContextSession}
+                className="min-h-24"
+              />
+              <Textarea
+                value={draft.dependencies}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    dependencies: event.target.value,
+                  }))
+                }
+                placeholder="依赖任务 ID，每行一条"
+                disabled={!taskContextSession}
+                className="min-h-20"
+              />
+            </div>
+
+            <div className="mt-4 flex items-center gap-2">
+              <Button
+                onClick={() => void submit()}
+                disabled={!taskContextSession}
+              >
+                写入任务
+              </Button>
+              <Button variant="outline" onClick={onOpenTasks}>
+                查看任务
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }
 
-function TasksSidebarContent(props: { taskItems: TaskSnapshotItem[] }) {
-  const { taskItems } = props;
-  const runningCount = taskItems.filter((item) =>
-    ['RUNNING', 'running', 'in_progress'].includes(item.status),
+function TasksSidebarContent(props: {
+  selectedTaskId?: string | null;
+  tasks: State<Task>[];
+  tasksLoading: boolean;
+  onOpenTask: (task: State<Task>) => void | Promise<void>;
+  onSelectTask: (taskId: string) => void;
+}) {
+  const { selectedTaskId, tasks, tasksLoading, onOpenTask, onSelectTask } =
+    props;
+  const runningCount = tasks.filter((task) =>
+    ['RUNNING', 'running', 'in_progress'].includes(task.data.status),
   ).length;
 
   return (
@@ -254,37 +575,89 @@ function TasksSidebarContent(props: { taskItems: TaskSnapshotItem[] }) {
           任务
         </p>
         <p className="mt-1 text-sm font-medium">
-          {taskItems.length > 0 ? `共 ${taskItems.length} 项，${runningCount} 项进行中` : '暂无任务'}
+          {tasks.length > 0
+            ? `共 ${tasks.length} 项，${runningCount} 项进行中`
+            : '暂无任务'}
         </p>
       </div>
 
       <ScrollArea className="h-full">
         <div className="space-y-2 p-3">
-          {taskItems.length === 0 ? (
+          {tasksLoading ? (
             <div className="rounded-2xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
-              还没有任务或计划项。
+              正在加载任务...
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="rounded-2xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+              还没有持久化任务。
             </div>
           ) : (
-            taskItems.map((item) => (
-              <div key={item.id} className="rounded-2xl border bg-background px-3 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`size-2 shrink-0 rounded-full ${statusTone(item.status)}`} />
-                      <span className="truncate text-sm font-medium">{item.title}</span>
+            tasks.map((task) => {
+              const active = selectedTaskId === task.data.id;
+              const actionLabel =
+                task.data.executionSessionId != null
+                  ? '打开'
+                  : task.data.kind === 'review' ||
+                      task.data.assignedRole === 'GATE'
+                    ? '复核'
+                    : '执行';
+
+              return (
+                <div
+                  key={task.data.id}
+                  className={`rounded-2xl border px-3 py-3 transition ${
+                    active
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'bg-background'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onSelectTask(task.data.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`size-2 shrink-0 rounded-full ${statusTone(task.data.status)}`}
+                        />
+                        <span className="truncate text-sm font-medium">
+                          {task.data.title}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                        <span>{formatTaskKindLabel(task.data.kind)}</span>
+                        <span>
+                          {task.data.assignedSpecialistName ??
+                            task.data.assignedRole ??
+                            '未分配角色'}
+                        </span>
+                        {task.data.dependencies.length > 0 ? (
+                          <span>依赖 {task.data.dependencies.length}</span>
+                        ) : null}
+                      </div>
+                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span
+                        className={`rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(task.data.status)}`}
+                      >
+                        {formatStatusLabel(task.data.status)}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-[11px]"
+                        onClick={() => {
+                          void onOpenTask(task);
+                        }}
+                      >
+                        {actionLabel}
+                      </Button>
                     </div>
-                    {item.description ? (
-                      <p className="mt-2 text-xs text-muted-foreground">{item.description}</p>
-                    ) : null}
                   </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(item.status)}`}
-                  >
-                    {formatStatusLabel(item.status)}
-                  </span>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </ScrollArea>
@@ -314,7 +687,9 @@ function SessionTreeItem(props: {
     <div className="space-y-2">
       <div
         className={`rounded-2xl border transition ${
-          active ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-background'
+          active
+            ? 'border-primary bg-primary/5 shadow-sm'
+            : 'border-border bg-background'
         }`}
         style={{ marginLeft: depth * 14 }}
       >
@@ -333,6 +708,9 @@ function SessionTreeItem(props: {
             <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
               <span>{formatStatusLabel(node.session.data.state)}</span>
               <span>{node.session.data.provider}</span>
+              {node.session.data.task?.id ? (
+                <span>任务 {node.session.data.task.id}</span>
+              ) : null}
               <span>{formatDateTime(node.session.data.lastActivityAt)}</span>
             </div>
           </button>
@@ -381,15 +759,15 @@ function SessionTreeItem(props: {
 }
 
 function QuickAccessPanel(props: {
-  taskItems: TaskSnapshotItem[];
+  tasks: State<Task>[];
   onOpenTasks: () => void;
 }) {
-  const { taskItems, onOpenTasks } = props;
-  const runningCount = taskItems.filter((item) =>
-    ['RUNNING', 'running', 'in_progress'].includes(item.status),
+  const { tasks, onOpenTasks } = props;
+  const runningCount = tasks.filter((task) =>
+    ['RUNNING', 'running', 'in_progress'].includes(task.data.status),
   ).length;
-  const completedCount = taskItems.filter((item) =>
-    ['COMPLETED', 'completed'].includes(item.status),
+  const completedCount = tasks.filter((task) =>
+    ['COMPLETED', 'completed'].includes(task.data.status),
   ).length;
 
   return (
@@ -401,10 +779,15 @@ function QuickAccessPanel(props: {
               快速访问
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {`${taskItems.length} 个任务项${runningCount > 0 ? `，${runningCount} 个进行中` : ''}`}
+              {`${tasks.length} 个持久化任务${runningCount > 0 ? `，${runningCount} 个进行中` : ''}`}
             </p>
           </div>
-          <Button variant="secondary" size="sm" className="h-7 px-2 text-[10px]" onClick={onOpenTasks}>
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-7 px-2 text-[10px]"
+            onClick={onOpenTasks}
+          >
             打开任务
           </Button>
         </div>
@@ -417,7 +800,7 @@ function QuickAccessPanel(props: {
               任务快照
             </span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-              共 {taskItems.length} 项
+              共 {tasks.length} 项
             </span>
             {runningCount > 0 ? (
               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">
@@ -433,24 +816,31 @@ function QuickAccessPanel(props: {
         </div>
 
         <ScrollArea className="h-[calc(100%-3.5rem)]">
-          <div className="space-y-2 px-3 pb-3" data-testid="session-task-snapshot">
-            {taskItems.length === 0 ? (
+          <div
+            className="space-y-2 px-3 pb-3"
+            data-testid="session-task-snapshot"
+          >
+            {tasks.length === 0 ? (
               <div className="rounded-2xl border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
-                还没有任务或计划项。
+                还没有持久化任务。
               </div>
             ) : (
-              taskItems.map((item) => (
+              tasks.map((task) => (
                 <div
-                  key={item.id}
+                  key={task.data.id}
                   data-testid="session-task-snapshot-item"
                   className="flex items-center gap-3 rounded-2xl border bg-background px-3 py-3"
                 >
-                  <span className={`size-2 shrink-0 rounded-full ${statusTone(item.status)}`} />
+                  <span
+                    className={`size-2 shrink-0 rounded-full ${statusTone(task.data.status)}`}
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{item.title}</span>
+                      <span className="truncate text-sm font-medium">
+                        {task.data.title}
+                      </span>
                       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {formatStatusLabel(item.status)}
+                        {formatStatusLabel(task.data.status)}
                       </span>
                     </div>
                   </div>

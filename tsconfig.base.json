@@ -27,12 +27,10 @@
       "@features/project-conversations/*": [
         "libs/frontend/features/project-conversations/src/*"
       ],
-      "@features/projects": [
-        "libs/frontend/features/projects/src/index.ts"
-      ],
-      "@features/projects/*": [
-        "libs/frontend/features/projects/src/*"
-      ],
+      "@features/projects": ["libs/frontend/features/projects/src/index.ts"],
+      "@features/projects/*": ["libs/frontend/features/projects/src/*"],
+      "@shared/schema": ["libs/frontend/shared/schema/src/index.ts"],
+      "@shared/schema/*": ["libs/frontend/shared/schema/src/*"],
       "@shared/ui": ["libs/frontend/shared/ui/src/index.ts"],
       "@shared/ui/*": ["libs/frontend/shared/ui/src/*"],
       "@shared/util-http": ["libs/frontend/shared/util-http/src/index.ts"],

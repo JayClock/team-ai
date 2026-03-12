@@ -58,7 +58,7 @@ interface AcpSessionRow {
   specialist_id: string | null;
   started_at: string | null;
   state: AcpSessionState;
-  task_id: string | null;
+  task_id?: string | null;
 }
 
 interface AcpEventRow {
@@ -83,6 +83,19 @@ interface CreateSessionInput {
   provider: string;
   role?: string | null;
   specialistId?: string;
+  taskId?: string | null;
+}
+
+interface TaskExecutionRow {
+  assigned_role: string | null;
+  assigned_specialist_id: string | null;
+  execution_session_id: string | null;
+  id: string;
+  kind: string | null;
+  project_id: string;
+  result_session_id: string | null;
+  status: string;
+  trigger_session_id: string | null;
 }
 
 interface PromptSessionInput {
@@ -112,6 +125,105 @@ function throwSessionNotFound(sessionId: string): never {
     status: 404,
     detail: `ACP session ${sessionId} was not found`,
   });
+}
+
+function throwTaskNotFound(taskId: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-not-found',
+    title: 'Task Not Found',
+    status: 404,
+    detail: `Task ${taskId} was not found`,
+  });
+}
+
+function throwTaskProjectMismatch(projectId: string, taskId: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-project-mismatch',
+    title: 'Task Project Mismatch',
+    status: 409,
+    detail: `Task ${taskId} does not belong to project ${projectId}`,
+  });
+}
+
+function throwTaskRoleMismatch(
+  taskId: string,
+  requestedRole: string,
+  expectedRole: string,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-role-mismatch',
+    title: 'Task Role Mismatch',
+    status: 409,
+    detail: `Task ${taskId} is assigned to role ${expectedRole}, not ${requestedRole}`,
+  });
+}
+
+function getTaskExecutionRow(
+  sqlite: Database,
+  taskId: string,
+): TaskExecutionRow {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT
+          id,
+          project_id,
+          trigger_session_id,
+          assigned_role,
+          assigned_specialist_id,
+          status,
+          kind,
+          execution_session_id,
+          result_session_id
+        FROM project_tasks
+        WHERE id = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(taskId) as TaskExecutionRow | undefined;
+
+  if (!row) {
+    throwTaskNotFound(taskId);
+  }
+
+  return row;
+}
+
+function updateTaskExecutionState(
+  sqlite: Database,
+  input: {
+    executionSessionId?: string | null;
+    resultSessionId?: string | null;
+    status?: string;
+    taskId: string;
+  },
+) {
+  const current = getTaskExecutionRow(sqlite, input.taskId);
+
+  sqlite
+    .prepare(
+      `
+        UPDATE project_tasks
+        SET
+          execution_session_id = @executionSessionId,
+          result_session_id = @resultSessionId,
+          status = @status,
+          updated_at = @updatedAt
+        WHERE id = @taskId AND deleted_at IS NULL
+      `,
+    )
+    .run({
+      executionSessionId:
+        input.executionSessionId === undefined
+          ? current.execution_session_id
+          : input.executionSessionId,
+      resultSessionId:
+        input.resultSessionId === undefined
+          ? current.result_session_id
+          : input.resultSessionId,
+      status: input.status ?? current.status,
+      taskId: input.taskId,
+      updatedAt: new Date().toISOString(),
+    });
 }
 
 function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
@@ -453,6 +565,15 @@ function createRuntimeHooks(
         failureReason: error.message,
         completedAt: new Date().toISOString(),
       });
+
+      if (current.task_id) {
+        updateTaskExecutionState(sqlite, {
+          taskId: current.task_id,
+          executionSessionId: null,
+          resultSessionId: localSessionId,
+          status: 'FAILED',
+        });
+      }
     },
   };
 }
@@ -673,6 +794,7 @@ function updateSessionFromPromptResponse(
   sessionId: string,
   response: PromptResponse,
 ) {
+  const session = getSessionRow(sqlite, sessionId);
   let state: AcpSessionState = 'COMPLETED';
   if (response.stopReason === 'cancelled') {
     state = 'CANCELLED';
@@ -697,6 +819,15 @@ function updateSessionFromPromptResponse(
     completedAt,
     lastActivityAt: completedAt,
   });
+
+  if (session.task_id) {
+    updateTaskExecutionState(sqlite, {
+      taskId: session.task_id,
+      executionSessionId: null,
+      resultSessionId: sessionId,
+      status: state,
+    });
+  }
 }
 
 async function ensureRuntimeLoaded(
@@ -748,10 +879,35 @@ export async function createAcpSession(
   const parentSession = input.parentSessionId
     ? getSessionRow(sqlite, input.parentSessionId)
     : null;
-  const role = ensureRoleValue(input.role);
+  const task = input.taskId ? getTaskExecutionRow(sqlite, input.taskId) : null;
+
+  if (task && task.project_id !== input.projectId) {
+    throwTaskProjectMismatch(input.projectId, task.id);
+  }
+
+  const requestedRole = ensureRoleValue(input.role);
+  const taskRole = ensureRoleValue(task?.assigned_role);
+
+  if (taskRole && requestedRole && taskRole !== requestedRole) {
+    throwTaskRoleMismatch(
+      input.taskId ?? 'unknown-task',
+      requestedRole,
+      taskRole,
+    );
+  }
+
+  const role = taskRole ?? requestedRole;
   let specialist = input.specialistId
     ? await getSpecialistById(sqlite, input.projectId, input.specialistId)
     : null;
+
+  if (!specialist && task?.assigned_specialist_id) {
+    specialist = await getSpecialistById(
+      sqlite,
+      input.projectId,
+      task.assigned_specialist_id,
+    );
+  }
 
   if (specialist && role && specialist.role !== role) {
     throwSpecialistRoleMismatch(specialist.id, role, specialist.role);
@@ -818,6 +974,7 @@ export async function createAcpSession(
           @cwd,
           @state,
           NULL,
+          @taskId,
           NULL,
           NULL,
           @startedAt,
@@ -840,6 +997,7 @@ export async function createAcpSession(
       provider: input.provider,
       cwd,
       state: 'PENDING',
+      taskId: task?.id ?? null,
       startedAt: now,
       lastActivityAt: now,
       createdAt: now,
@@ -861,6 +1019,14 @@ export async function createAcpSession(
     lastActivityAt: now,
   });
 
+  if (task) {
+    updateTaskExecutionState(sqlite, {
+      taskId: task.id,
+      executionSessionId: sessionId,
+      status: 'RUNNING',
+    });
+  }
+
   appendLocalEvent(sqlite, broker, {
     sessionId,
     type: 'session',
@@ -872,6 +1038,8 @@ export async function createAcpSession(
       agentName: agent?.name ?? null,
       agentRole: agent?.role ?? null,
       specialistId: specialist?.id ?? null,
+      taskId: task?.id ?? null,
+      taskKind: task?.kind ?? null,
       cwd,
       state: 'PENDING',
       reason: 'session_created',
@@ -905,6 +1073,7 @@ export async function listAcpSessionsByProject(
           cwd,
           state,
           runtime_session_id,
+          task_id,
           failure_reason,
           last_event_id,
           started_at,
@@ -1159,6 +1328,16 @@ export async function promptAcpSession(
       failureReason: message,
       completedAt: new Date().toISOString(),
     });
+
+    if (session.task_id) {
+      updateTaskExecutionState(sqlite, {
+        taskId: session.task_id,
+        executionSessionId: null,
+        resultSessionId: sessionId,
+        status: 'FAILED',
+      });
+    }
+
     throw error;
   }
 }
@@ -1201,6 +1380,15 @@ export async function cancelAcpSession(
     completedAt: new Date().toISOString(),
     failureReason: reason ?? null,
   });
+
+  if (session.task_id) {
+    updateTaskExecutionState(sqlite, {
+      taskId: session.task_id,
+      executionSessionId: null,
+      resultSessionId: sessionId,
+      status: 'CANCELLED',
+    });
+  }
 
   return await getAcpSessionById(sqlite, sessionId);
 }

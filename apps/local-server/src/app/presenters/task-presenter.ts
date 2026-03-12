@@ -18,6 +18,27 @@ function createTaskLinks(task: TaskPayload) {
           },
         }
       : {}),
+    ...(task.parentTaskId
+      ? {
+          parent: {
+            href: `/api/tasks/${task.parentTaskId}`,
+          },
+        }
+      : {}),
+    ...(task.executionSessionId
+      ? {
+          execution: {
+            href: `/api/projects/${task.projectId}/acp-sessions/${task.executionSessionId}`,
+          },
+        }
+      : {}),
+    ...(task.resultSessionId
+      ? {
+          result: {
+            href: `/api/projects/${task.projectId}/acp-sessions/${task.resultSessionId}`,
+          },
+        }
+      : {}),
   };
 }
 

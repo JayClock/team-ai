@@ -72,7 +72,10 @@ const installAcpProviderBodySchema = z.object({
   distributionType: z.enum(['npx', 'uvx', 'binary']).optional(),
 });
 
-function resultEnvelope(id: string | number | null | undefined, result: object) {
+function resultEnvelope(
+  id: string | number | null | undefined,
+  result: object,
+) {
   return {
     jsonrpc: '2.0' as const,
     id: id ?? null,
@@ -121,50 +124,72 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.get('/projects/:projectId/acp-sessions/:sessionId', async (request) => {
-    const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
-    const session = await getAcpSessionById(fastify.sqlite, sessionId);
+  fastify.get(
+    '/projects/:projectId/acp-sessions/:sessionId',
+    async (request) => {
+      const { projectId, sessionId } = sessionParamsSchema.parse(
+        request.params,
+      );
+      const session = await getAcpSessionById(fastify.sqlite, sessionId);
 
-    if (session.project.id !== projectId) {
-      throw fastify.httpErrors.notFound();
-    }
+      if (session.project.id !== projectId) {
+        throw fastify.httpErrors.notFound();
+      }
 
-    return presentAcpSession(session);
-  });
+      return presentAcpSession(session);
+    },
+  );
 
-  fastify.get('/projects/:projectId/acp-sessions/:sessionId/history', async (request) => {
-    const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
-    const query = historyQuerySchema.parse(request.query);
-    return presentAcpHistory(
-      projectId,
-      sessionId,
-      await listAcpSessionHistory(
-        fastify.sqlite,
+  fastify.get(
+    '/projects/:projectId/acp-sessions/:sessionId/history',
+    async (request) => {
+      const { projectId, sessionId } = sessionParamsSchema.parse(
+        request.params,
+      );
+      const query = historyQuerySchema.parse(request.query);
+      return presentAcpHistory(
         projectId,
         sessionId,
-        query.limit,
-        query.since ?? query.sinceEventId,
-      ),
-    );
-  });
+        await listAcpSessionHistory(
+          fastify.sqlite,
+          projectId,
+          sessionId,
+          query.limit,
+          query.since ?? query.sinceEventId,
+        ),
+      );
+    },
+  );
 
-  fastify.patch('/projects/:projectId/acp-sessions/:sessionId', async (request) => {
-    const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
-    const body = renameSessionBodySchema.parse(request.body);
-    const session = await renameAcpSession(fastify.sqlite, sessionId, body.name);
+  fastify.patch(
+    '/projects/:projectId/acp-sessions/:sessionId',
+    async (request) => {
+      const { projectId, sessionId } = sessionParamsSchema.parse(
+        request.params,
+      );
+      const body = renameSessionBodySchema.parse(request.body);
+      const session = await renameAcpSession(
+        fastify.sqlite,
+        sessionId,
+        body.name,
+      );
 
-    if (session.project.id !== projectId) {
-      throw fastify.httpErrors.notFound();
-    }
+      if (session.project.id !== projectId) {
+        throw fastify.httpErrors.notFound();
+      }
 
-    return presentAcpSession(session);
-  });
+      return presentAcpSession(session);
+    },
+  );
 
-  fastify.delete('/projects/:projectId/acp-sessions/:sessionId', async (request, reply) => {
-    const { sessionId } = sessionParamsSchema.parse(request.params);
-    await deleteAcpSession(fastify.sqlite, fastify.acpRuntime, sessionId);
-    reply.code(204).send();
-  });
+  fastify.delete(
+    '/projects/:projectId/acp-sessions/:sessionId',
+    async (request, reply) => {
+      const { sessionId } = sessionParamsSchema.parse(request.params);
+      await deleteAcpSession(fastify.sqlite, fastify.acpRuntime, sessionId);
+      reply.code(204).send();
+    },
+  );
 
   fastify.post('/acp', async (request) => {
     const rpcRequest = jsonRpcRequestSchema.parse(request.body);
@@ -201,7 +226,10 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
               'session/new no longer accepts specialistId; pass role instead',
             );
           }
-          if (typeof params.mode === 'string' && params.mode.trim().length > 0) {
+          if (
+            typeof params.mode === 'string' &&
+            params.mode.trim().length > 0
+          ) {
             return errorEnvelope(
               id,
               -32602,
@@ -215,9 +243,17 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
             {
               projectId: z.string().min(1).parse(params.projectId),
               actorUserId: z.string().min(1).parse(params.actorUserId),
-              provider: z.string().trim().min(1).optional().parse(params.provider) ?? 'codex',
+              provider:
+                z.string().trim().min(1).optional().parse(params.provider) ??
+                'codex',
               role: z.string().trim().min(1).optional().parse(params.role),
-              parentSessionId: z.string().trim().min(1).optional().parse(params.parentSessionId),
+              parentSessionId: z
+                .string()
+                .trim()
+                .min(1)
+                .optional()
+                .parse(params.parentSessionId),
+              taskId: z.string().trim().min(1).optional().parse(params.taskId),
               goal: z.string().trim().min(1).optional().parse(params.goal),
             },
           );
@@ -252,9 +288,24 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
             z.string().min(1).parse(params.sessionId),
             {
               prompt: z.string().trim().min(1).parse(params.prompt),
-              timeoutMs: z.coerce.number().int().positive().optional().parse(params.timeoutMs),
-              eventId: z.string().trim().min(1).optional().parse(params.eventId),
-              traceId: z.string().trim().min(1).optional().parse(params.traceId),
+              timeoutMs: z.coerce
+                .number()
+                .int()
+                .positive()
+                .optional()
+                .parse(params.timeoutMs),
+              eventId: z
+                .string()
+                .trim()
+                .min(1)
+                .optional()
+                .parse(params.eventId),
+              traceId: z
+                .string()
+                .trim()
+                .min(1)
+                .optional()
+                .parse(params.traceId),
             },
           );
           return resultEnvelope(id, {
@@ -322,9 +373,12 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
       reply.raw.write(`event: acp-event\ndata: ${JSON.stringify(event)}\n\n`);
     }
 
-    const unsubscribe = fastify.acpStreamBroker.subscribe(query.sessionId, (event) => {
-      reply.raw.write(`event: acp-event\ndata: ${JSON.stringify(event)}\n\n`);
-    });
+    const unsubscribe = fastify.acpStreamBroker.subscribe(
+      query.sessionId,
+      (event) => {
+        reply.raw.write(`event: acp-event\ndata: ${JSON.stringify(event)}\n\n`);
+      },
+    );
 
     const heartbeat = setInterval(() => {
       reply.raw.write(

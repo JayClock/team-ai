@@ -3,6 +3,7 @@ import { customAlphabet } from 'nanoid';
 import { ProblemError } from '../errors/problem-error';
 import type {
   CreateTaskInput,
+  TaskKind,
   TaskListPayload,
   TaskPayload,
   UpdateTaskInput,
@@ -39,13 +40,17 @@ interface TaskRow {
   github_synced_at: string | null;
   github_url: string | null;
   id: string;
+  kind: TaskKind | null;
   labels_json: string;
   last_sync_error: string | null;
   objective: string;
+  execution_session_id: string | null;
   parallel_group: string | null;
+  parent_task_id: string | null;
   position: number | null;
   priority: string | null;
   project_id: string;
+  result_session_id: string | null;
   scope: string | null;
   status: string;
   title: string;
@@ -66,6 +71,71 @@ interface ListTasksQuery {
 
 function createTaskId() {
   return `task_${taskIdGenerator()}`;
+}
+
+const taskKindValues = ['plan', 'implement', 'review', 'verify'] as const;
+
+function throwInvalidTaskKind(kind: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/invalid-task-kind',
+    title: 'Invalid Task Kind',
+    status: 400,
+    detail: `Task kind ${kind} is not supported`,
+  });
+}
+
+function throwTaskParentSelfReference(taskId: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-parent-self-reference',
+    title: 'Task Parent Self Reference',
+    status: 409,
+    detail: `Task ${taskId} cannot be its own parent`,
+  });
+}
+
+function throwTaskProjectMismatch(projectId: string, taskId: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-project-mismatch',
+    title: 'Task Project Mismatch',
+    status: 409,
+    detail: `Task ${taskId} does not belong to project ${projectId}`,
+  });
+}
+
+function isTaskKind(value: string): value is TaskKind {
+  return taskKindValues.includes(value as TaskKind);
+}
+
+function defaultTaskKindForRole(role: string | null | undefined): TaskKind {
+  switch (role) {
+    case 'ROUTA':
+      return 'plan';
+    case 'GATE':
+      return 'review';
+    case 'CRAFTER':
+    case 'DEVELOPER':
+    default:
+      return 'implement';
+  }
+}
+
+function ensureTaskKind(
+  kind: string | null | undefined,
+  role: string | null | undefined,
+): TaskKind | null {
+  if (kind === undefined) {
+    return defaultTaskKindForRole(role);
+  }
+
+  if (kind === null) {
+    return null;
+  }
+
+  if (!isTaskKind(kind)) {
+    throwInvalidTaskKind(kind);
+  }
+
+  return kind;
 }
 
 function parseStringArray(value: string): string[] {
@@ -99,13 +169,17 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     githubSyncedAt: row.github_synced_at,
     githubUrl: row.github_url,
     id: row.id,
+    kind: row.kind,
     labels: parseStringArray(row.labels_json),
     lastSyncError: row.last_sync_error,
     objective: row.objective,
+    executionSessionId: row.execution_session_id,
     parallelGroup: row.parallel_group,
+    parentTaskId: row.parent_task_id,
     position: row.position,
     priority: row.priority,
     projectId: row.project_id,
+    resultSessionId: row.result_session_id,
     scope: row.scope,
     status: row.status,
     title: row.title,
@@ -164,11 +238,7 @@ async function resolveTaskAssignment(
   );
 
   if (assignedRole && assignedRole !== specialist.role) {
-    throwSpecialistRoleMismatch(
-      specialist.id,
-      assignedRole,
-      specialist.role,
-    );
+    throwSpecialistRoleMismatch(specialist.id, assignedRole, specialist.role);
   }
 
   return {
@@ -214,6 +284,10 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
           github_state,
           github_synced_at,
           last_sync_error,
+          kind,
+          parent_task_id,
+          execution_session_id,
+          result_session_id,
           created_at,
           updated_at
         FROM project_tasks
@@ -247,6 +321,36 @@ async function validateTriggerSession(
   return sessionId;
 }
 
+async function validateTaskReference(
+  sqlite: Database,
+  projectId: string,
+  taskId?: string | null,
+) {
+  if (!taskId) {
+    return null;
+  }
+
+  const row = sqlite
+    .prepare(
+      `
+        SELECT id, project_id
+        FROM project_tasks
+        WHERE id = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(taskId) as { id: string; project_id: string } | undefined;
+
+  if (!row) {
+    throwTaskNotFound(taskId);
+  }
+
+  if (row.project_id !== projectId) {
+    throwTaskProjectMismatch(projectId, taskId);
+  }
+
+  return taskId;
+}
+
 export async function createTask(
   sqlite: Database,
   input: CreateTaskInput,
@@ -263,6 +367,22 @@ export async function createTask(
     assignedSpecialistName: input.assignedSpecialistName,
     projectId: input.projectId,
   });
+  const parentTaskId = await validateTaskReference(
+    sqlite,
+    input.projectId,
+    input.parentTaskId,
+  );
+  const executionSessionId = await validateTriggerSession(
+    sqlite,
+    input.projectId,
+    input.executionSessionId,
+  );
+  const resultSessionId = await validateTriggerSession(
+    sqlite,
+    input.projectId,
+    input.resultSessionId,
+  );
+  const kind = ensureTaskKind(input.kind, assignment.assignedRole);
   const now = new Date().toISOString();
   const taskId = createTaskId();
 
@@ -301,6 +421,10 @@ export async function createTask(
           github_state,
           github_synced_at,
           last_sync_error,
+          kind,
+          parent_task_id,
+          execution_session_id,
+          result_session_id,
           created_at,
           updated_at,
           deleted_at
@@ -337,6 +461,10 @@ export async function createTask(
           @githubState,
           @githubSyncedAt,
           @lastSyncError,
+          @kind,
+          @parentTaskId,
+          @executionSessionId,
+          @resultSessionId,
           @createdAt,
           @updatedAt,
           NULL
@@ -362,19 +490,25 @@ export async function createTask(
       githubSyncedAt: input.githubSyncedAt ?? null,
       githubUrl: input.githubUrl ?? null,
       id: taskId,
+      kind,
       labelsJson: JSON.stringify(input.labels ?? []),
       lastSyncError: input.lastSyncError ?? null,
       objective: input.objective,
+      executionSessionId,
       parallelGroup: input.parallelGroup ?? null,
+      parentTaskId,
       position: input.position ?? null,
       priority: input.priority ?? null,
       projectId: input.projectId,
+      resultSessionId,
       scope: input.scope ?? null,
       status: input.status ?? 'PENDING',
       title: input.title,
       triggerSessionId,
       updatedAt: now,
-      verificationCommandsJson: JSON.stringify(input.verificationCommands ?? []),
+      verificationCommandsJson: JSON.stringify(
+        input.verificationCommands ?? [],
+      ),
       verificationReport: input.verificationReport ?? null,
       verificationVerdict: input.verificationVerdict ?? null,
     });
@@ -459,6 +593,10 @@ export async function listTasks(
           github_state,
           github_synced_at,
           last_sync_error,
+          kind,
+          parent_task_id,
+          execution_session_id,
+          result_session_id,
           created_at,
           updated_at
         FROM project_tasks
@@ -511,21 +649,57 @@ export async function updateTask(
           current.project_id,
           input.triggerSessionId,
         );
+  const parentTaskId =
+    input.parentTaskId === undefined
+      ? current.parent_task_id
+      : await validateTaskReference(
+          sqlite,
+          current.project_id,
+          input.parentTaskId,
+        );
+  const executionSessionId =
+    input.executionSessionId === undefined
+      ? current.execution_session_id
+      : await validateTriggerSession(
+          sqlite,
+          current.project_id,
+          input.executionSessionId,
+        );
+  const resultSessionId =
+    input.resultSessionId === undefined
+      ? current.result_session_id
+      : await validateTriggerSession(
+          sqlite,
+          current.project_id,
+          input.resultSessionId,
+        );
   const assignment = await resolveTaskAssignment(sqlite, {
     assignedRole:
-      input.assignedRole === undefined ? current.assigned_role : input.assignedRole,
+      input.assignedRole === undefined
+        ? current.assigned_role
+        : input.assignedRole,
     assignedSpecialistId:
       input.assignedSpecialistId === undefined
         ? current.assigned_specialist_id
         : input.assignedSpecialistId,
     assignedSpecialistName:
-      input.assignedSpecialistId === null && input.assignedSpecialistName === undefined
+      input.assignedSpecialistId === null &&
+      input.assignedSpecialistName === undefined
         ? null
         : input.assignedSpecialistName === undefined
           ? current.assigned_specialist_name
           : input.assignedSpecialistName,
     projectId: current.project_id,
   });
+
+  if (parentTaskId === taskId) {
+    throwTaskParentSelfReference(taskId);
+  }
+
+  const kind = ensureTaskKind(
+    input.kind === undefined ? current.kind : input.kind,
+    assignment.assignedRole,
+  );
 
   const next = {
     acceptanceCriteriaJson:
@@ -552,31 +726,42 @@ export async function updateTask(
         : JSON.stringify(input.dependencies),
     githubId: input.githubId === undefined ? current.github_id : input.githubId,
     githubNumber:
-      input.githubNumber === undefined ? current.github_number : input.githubNumber,
+      input.githubNumber === undefined
+        ? current.github_number
+        : input.githubNumber,
     githubRepo:
       input.githubRepo === undefined ? current.github_repo : input.githubRepo,
     githubState:
-      input.githubState === undefined ? current.github_state : input.githubState,
+      input.githubState === undefined
+        ? current.github_state
+        : input.githubState,
     githubSyncedAt:
       input.githubSyncedAt === undefined
         ? current.github_synced_at
         : input.githubSyncedAt,
-    githubUrl: input.githubUrl === undefined ? current.github_url : input.githubUrl,
+    githubUrl:
+      input.githubUrl === undefined ? current.github_url : input.githubUrl,
     id: taskId,
+    kind,
     labelsJson:
-      input.labels === undefined ? current.labels_json : JSON.stringify(input.labels),
+      input.labels === undefined
+        ? current.labels_json
+        : JSON.stringify(input.labels),
     lastSyncError:
       input.lastSyncError === undefined
         ? current.last_sync_error
         : input.lastSyncError,
     objective: input.objective ?? current.objective,
+    executionSessionId,
     parallelGroup:
       input.parallelGroup === undefined
         ? current.parallel_group
         : input.parallelGroup,
+    parentTaskId,
     position: input.position === undefined ? current.position : input.position,
     priority: input.priority === undefined ? current.priority : input.priority,
     scope: input.scope === undefined ? current.scope : input.scope,
+    resultSessionId,
     status: input.status ?? current.status,
     title: input.title ?? current.title,
     triggerSessionId,
@@ -629,6 +814,10 @@ export async function updateTask(
           github_state = @githubState,
           github_synced_at = @githubSyncedAt,
           last_sync_error = @lastSyncError,
+          kind = @kind,
+          parent_task_id = @parentTaskId,
+          execution_session_id = @executionSessionId,
+          result_session_id = @resultSessionId,
           updated_at = @updatedAt
         WHERE id = @id AND deleted_at IS NULL
       `,
@@ -638,7 +827,10 @@ export async function updateTask(
   return getTaskById(sqlite, taskId);
 }
 
-export async function deleteTask(sqlite: Database, taskId: string): Promise<void> {
+export async function deleteTask(
+  sqlite: Database,
+  taskId: string,
+): Promise<void> {
   const result = sqlite
     .prepare(
       `

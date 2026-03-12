@@ -7,10 +7,7 @@ export type {
   SidebarItem,
   SidebarItemType,
 } from './lib/sidebar.js';
-export type {
-  Breadcrumb,
-  BreadcrumbItem,
-} from './lib/breadcrumb.js';
+export type { Breadcrumb, BreadcrumbItem } from './lib/breadcrumb.js';
 export type { Account } from './lib/account.js';
 export type { Conversation } from './lib/conversation.js';
 export type { Message } from './lib/message.js';
@@ -38,31 +35,23 @@ export type {
   AcpSessionCollection,
   AcpSession,
 } from './lib/session.js';
-export type {
-  Agent,
-  AgentCollection,
-  AgentRole,
-  AgentStatus,
-} from './lib/agent.js';
+export type { Agent, AgentCollection, AgentRole } from './lib/agent.js';
 export type {
   Task,
   TaskCollection,
+  TaskKind,
   TaskStatus,
   VerificationVerdict,
 } from './lib/task.js';
+export type { Role, RoleCollection, RoleValue } from './lib/role.js';
+export type { Specialist, SpecialistCollection } from './lib/specialist.js';
 export type {
   AgentEvent,
   AgentEventCollection,
   AgentEventType,
 } from './lib/agent-event.js';
-export type {
-  Diagram,
-  DiagramType,
-  Viewport,
-} from './lib/diagram.js';
-export type {
-  DiagramNode,
-} from './lib/node.js';
+export type { Diagram, DiagramType, Viewport } from './lib/diagram.js';
+export type { DiagramNode } from './lib/node.js';
 export type {
   DiagramEdge,
   EdgeRelationType,

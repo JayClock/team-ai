@@ -62,6 +62,9 @@ describe('sqlite initialization', () => {
     const agentColumns = sqlite
       .prepare('PRAGMA table_info(project_agents)')
       .all() as Array<{ name: string }>;
+    const taskColumns = sqlite
+      .prepare('PRAGMA table_info(project_tasks)')
+      .all() as Array<{ name: string }>;
 
     expect(tables.map(({ name }) => name)).toEqual([
       'agents',
@@ -75,7 +78,10 @@ describe('sqlite initialization', () => {
       'sync_conflicts',
       'sync_state',
     ]);
-    expect(migrations).toEqual([{ version: '001_initial_schema' }]);
+    expect(migrations).toEqual([
+      { version: '001_initial_schema' },
+      { version: '002_task_driven_workflow' },
+    ]);
     expect(projectColumns.map(({ name }) => name)).toEqual([
       'id',
       'title',
@@ -107,6 +113,7 @@ describe('sqlite initialization', () => {
       'cwd',
       'agent_id',
       'specialist_id',
+      'task_id',
     ]);
     expect(agentColumns.map(({ name }) => name)).toEqual([
       'id',
@@ -121,6 +128,46 @@ describe('sqlite initialization', () => {
       'deleted_at',
       'parent_agent_id',
       'specialist_id',
+    ]);
+    expect(taskColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'project_id',
+      'trigger_session_id',
+      'title',
+      'objective',
+      'scope',
+      'status',
+      'board_id',
+      'column_id',
+      'position',
+      'priority',
+      'labels_json',
+      'assignee',
+      'assigned_provider',
+      'assigned_role',
+      'assigned_specialist_id',
+      'assigned_specialist_name',
+      'dependencies_json',
+      'parallel_group',
+      'acceptance_criteria_json',
+      'verification_commands_json',
+      'completion_summary',
+      'verification_verdict',
+      'verification_report',
+      'github_id',
+      'github_number',
+      'github_url',
+      'github_repo',
+      'github_state',
+      'github_synced_at',
+      'last_sync_error',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+      'kind',
+      'parent_task_id',
+      'execution_session_id',
+      'result_session_id',
     ]);
 
     sqlite.close();
@@ -169,7 +216,7 @@ describe('sqlite initialization', () => {
       .prepare('SELECT COUNT(*) AS count FROM settings')
       .get() as { count: number };
 
-    expect(migrationCount).toEqual({ count: 1 });
+    expect(migrationCount).toEqual({ count: 2 });
     expect(settingsCount).toEqual({ count: 1 });
 
     second.close();

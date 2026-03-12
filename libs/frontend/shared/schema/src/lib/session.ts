@@ -1,4 +1,5 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
+import type { Task, TaskCollection } from './task.js';
 
 export type AcpRef = {
   id: string;
@@ -17,6 +18,7 @@ export type AcpSessionData = {
   agent: AcpRef | null;
   actor: AcpRef;
   parentSession: AcpRef | null;
+  task: AcpRef | null;
   name: string | null;
   provider: string;
   specialistId: string | null;
@@ -203,6 +205,8 @@ export type AcpSessionSummary = Entity<
   AcpSessionData,
   {
     self: AcpSession;
+    task?: Task;
+    tasks: TaskCollection;
   }
 >;
 
@@ -216,6 +220,8 @@ export type AcpSession = Entity<
   {
     self: AcpSession;
     history: AcpSessionHistory;
+    task?: Task;
+    tasks: TaskCollection;
     collection: AcpSessionCollection;
   }
 >;

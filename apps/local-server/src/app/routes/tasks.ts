@@ -33,6 +33,10 @@ const taskParamsSchema = z.object({
 
 const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
 const stringArraySchema = z.array(z.string().trim().min(1));
+const nullableTaskKindSchema = z.union([
+  z.enum(['plan', 'implement', 'review', 'verify']),
+  z.null(),
+]);
 
 const taskBodySchema = z.object({
   acceptanceCriteria: stringArraySchema.optional(),
@@ -51,10 +55,12 @@ const taskBodySchema = z.object({
   githubState: nullableStringSchema.optional(),
   githubSyncedAt: nullableStringSchema.optional(),
   githubUrl: nullableStringSchema.optional(),
+  kind: nullableTaskKindSchema.optional(),
   labels: stringArraySchema.optional(),
   lastSyncError: nullableStringSchema.optional(),
   objective: z.string().trim().min(1),
   parallelGroup: nullableStringSchema.optional(),
+  parentTaskId: nullableStringSchema.optional(),
   position: z.number().int().optional().nullable(),
   priority: nullableStringSchema.optional(),
   scope: nullableStringSchema.optional(),
@@ -83,10 +89,12 @@ const taskPatchSchema = z
     githubState: nullableStringSchema.optional(),
     githubSyncedAt: nullableStringSchema.optional(),
     githubUrl: nullableStringSchema.optional(),
+    kind: nullableTaskKindSchema.optional(),
     labels: stringArraySchema.optional(),
     lastSyncError: nullableStringSchema.optional(),
     objective: z.string().trim().min(1).optional(),
     parallelGroup: nullableStringSchema.optional(),
+    parentTaskId: nullableStringSchema.optional(),
     position: z.number().int().optional().nullable(),
     priority: nullableStringSchema.optional(),
     scope: nullableStringSchema.optional(),
@@ -118,34 +126,44 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.get('/projects/:projectId/acp-sessions/:sessionId/tasks', async (request) => {
-    const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
-    const query = listTasksQuerySchema.parse(request.query);
-    return presentTaskList(
-      await listTasks(fastify.sqlite, {
-        ...query,
+  fastify.get(
+    '/projects/:projectId/acp-sessions/:sessionId/tasks',
+    async (request) => {
+      const { projectId, sessionId } = sessionParamsSchema.parse(
+        request.params,
+      );
+      const query = listTasksQuerySchema.parse(request.query);
+      return presentTaskList(
+        await listTasks(fastify.sqlite, {
+          ...query,
+          projectId,
+          sessionId,
+        }),
+      );
+    },
+  );
+
+  fastify.post(
+    '/projects/:projectId/acp-sessions/:sessionId/tasks',
+    async (request, reply) => {
+      const { projectId, sessionId } = sessionParamsSchema.parse(
+        request.params,
+      );
+      const session = await getAcpSessionById(fastify.sqlite, sessionId);
+      if (session.project.id !== projectId) {
+        throw fastify.httpErrors.notFound();
+      }
+      const body = taskBodySchema.parse(request.body);
+      const task = await createTask(fastify.sqlite, {
+        ...body,
         projectId,
-        sessionId,
-      }),
-    );
-  });
+        triggerSessionId: sessionId,
+      });
 
-  fastify.post('/projects/:projectId/acp-sessions/:sessionId/tasks', async (request, reply) => {
-    const { projectId, sessionId } = sessionParamsSchema.parse(request.params);
-    const session = await getAcpSessionById(fastify.sqlite, sessionId);
-    if (session.project.id !== projectId) {
-      throw fastify.httpErrors.notFound();
-    }
-    const body = taskBodySchema.parse(request.body);
-    const task = await createTask(fastify.sqlite, {
-      ...body,
-      projectId,
-      triggerSessionId: sessionId,
-    });
-
-    reply.code(201).header('Location', `/api/tasks/${task.id}`);
-    return presentTask(task);
-  });
+      reply.code(201).header('Location', `/api/tasks/${task.id}`);
+      return presentTask(task);
+    },
+  );
 
   fastify.get('/tasks/:taskId', async (request) => {
     const { taskId } = taskParamsSchema.parse(request.params);

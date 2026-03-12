@@ -10,9 +10,13 @@ interface InsertAcpSessionInput {
   provider?: string;
   startedAt?: string | null;
   state?: string;
+  taskId?: string | null;
 }
 
-export function insertAcpSession(sqlite: Database, input: InsertAcpSessionInput) {
+export function insertAcpSession(
+  sqlite: Database,
+  input: InsertAcpSessionInput,
+) {
   const now = new Date().toISOString();
 
   sqlite
@@ -37,7 +41,8 @@ export function insertAcpSession(sqlite: Database, input: InsertAcpSessionInput)
           deleted_at,
           cwd,
           agent_id,
-          specialist_id
+          specialist_id,
+          task_id
         )
         VALUES (
           @id,
@@ -58,7 +63,8 @@ export function insertAcpSession(sqlite: Database, input: InsertAcpSessionInput)
           NULL,
           @cwd,
           NULL,
-          NULL
+          NULL,
+          @taskId
         )
       `,
     )
@@ -74,6 +80,7 @@ export function insertAcpSession(sqlite: Database, input: InsertAcpSessionInput)
       provider: input.provider ?? 'codex',
       startedAt: input.startedAt ?? now,
       state: input.state ?? 'RUNNING',
+      taskId: input.taskId ?? null,
       updatedAt: now,
     });
 }
