@@ -253,4 +253,44 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE source_type = 'acp_plan' AND deleted_at IS NULL;
     `,
   },
+  {
+    version: '004_project_notes',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_notes (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        session_id TEXT,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL DEFAULT '',
+        format TEXT NOT NULL DEFAULT 'markdown',
+        parent_note_id TEXT,
+        linked_task_id TEXT,
+        assigned_agent_ids_json TEXT NOT NULL DEFAULT '[]',
+        source TEXT NOT NULL DEFAULT 'user',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (session_id) REFERENCES project_acp_sessions(id),
+        FOREIGN KEY (linked_task_id) REFERENCES project_tasks(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_notes_project_id
+        ON project_notes(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_notes_session_id
+        ON project_notes(session_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_notes_type
+        ON project_notes(type, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_notes_parent_note_id
+        ON project_notes(parent_note_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

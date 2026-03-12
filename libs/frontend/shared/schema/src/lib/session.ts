@@ -1,4 +1,5 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
+import type { NoteCollection } from './note.js';
 import type { Task, TaskCollection } from './task.js';
 
 export type AcpRef = {
@@ -206,6 +207,7 @@ export type AcpSessionSummary = Entity<
   {
     self: AcpSession;
     task?: Task;
+    notes: NoteCollection;
     tasks: TaskCollection;
   }
 >;
@@ -221,6 +223,7 @@ export type AcpSession = Entity<
     self: AcpSession;
     history: AcpSessionHistory;
     task?: Task;
+    notes: NoteCollection;
     tasks: TaskCollection;
     collection: AcpSessionCollection;
   }

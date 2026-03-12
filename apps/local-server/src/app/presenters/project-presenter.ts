@@ -1,7 +1,4 @@
-import type {
-  ProjectListPayload,
-  ProjectPayload,
-} from '../schemas/project';
+import type { ProjectListPayload, ProjectPayload } from '../schemas/project';
 
 function createProjectLinks(project: ProjectPayload) {
   return {
@@ -13,6 +10,9 @@ function createProjectLinks(project: ProjectPayload) {
     },
     tasks: {
       href: `/api/projects/${project.id}/tasks`,
+    },
+    notes: {
+      href: `/api/projects/${project.id}/notes`,
     },
     agents: {
       href: `/api/projects/${project.id}/agents`,

@@ -18,6 +18,9 @@ function createSessionLinks(session: AcpSessionPayload) {
     tasks: {
       href: `/api/projects/${session.project.id}/acp-sessions/${session.id}/tasks`,
     },
+    notes: {
+      href: `/api/projects/${session.project.id}/acp-sessions/${session.id}/notes`,
+    },
     collection: {
       href: `/api/projects/${session.project.id}/acp-sessions`,
     },

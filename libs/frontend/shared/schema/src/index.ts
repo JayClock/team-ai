@@ -37,6 +37,13 @@ export type {
 } from './lib/session.js';
 export type { Agent, AgentCollection, AgentRole } from './lib/agent.js';
 export type {
+  Note,
+  NoteCollection,
+  NoteFormat,
+  NoteSource,
+  NoteType,
+} from './lib/note.js';
+export type {
   Task,
   TaskCollection,
   TaskKind,
