@@ -18,6 +18,10 @@ server.listen({ port, host }, (err) => {
     server.log.error(err);
     process.exit(1);
   } else {
+    process.send?.({
+      service: 'local-server',
+      type: 'sidecar-ready',
+    });
     console.log(`[ready] http://${host}:${port}`);
   }
 });

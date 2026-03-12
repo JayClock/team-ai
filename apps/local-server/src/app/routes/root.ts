@@ -6,7 +6,6 @@ const rootRoute: FastifyPluginAsync = async (fastify) => {
     capabilities: {
       acp: true,
       agents: true,
-      health: true,
       mcp: true,
       settings: true,
       syncStatus: true,
@@ -14,9 +13,6 @@ const rootRoute: FastifyPluginAsync = async (fastify) => {
     _links: {
       self: {
         href: '/api',
-      },
-      health: {
-        href: '/api/health',
       },
       settings: {
         href: '/api/settings',

@@ -183,12 +183,6 @@ function createMockAgentGatewayClient(
         },
       };
     },
-    async health() {
-      return {
-        configured: true,
-        reachable: true,
-      };
-    },
     isConfigured() {
       return true;
     },

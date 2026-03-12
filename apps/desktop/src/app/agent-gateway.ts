@@ -4,7 +4,7 @@ import {
   findAvailablePort,
   resolveChildExecPath,
   resolveSidecarEntry,
-  waitForHealthcheck,
+  waitForSidecarReady,
 } from './node-sidecar';
 
 const agentGatewayHost = '127.0.0.1';
@@ -40,7 +40,7 @@ export class AgentGatewayManager {
         AGENT_GATEWAY_PORT: String(port),
         ELECTRON_RUN_AS_NODE: '1',
       },
-      stdio: 'inherit',
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     });
 
     AgentGatewayManager.child.once('exit', () => {
@@ -49,7 +49,7 @@ export class AgentGatewayManager {
     });
 
     const baseUrl = `http://${agentGatewayHost}:${port}`;
-    await waitForHealthcheck(`${baseUrl}/health`);
+    await waitForSidecarReady(AgentGatewayManager.child, 'agent-gateway sidecar');
 
     AgentGatewayManager.runtime = {
       baseUrl,

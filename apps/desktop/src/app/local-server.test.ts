@@ -5,7 +5,7 @@ const randomUuidMock = vi.fn();
 const findAvailablePortMock = vi.fn();
 const resolveChildExecPathMock = vi.fn();
 const resolveSidecarEntryMock = vi.fn();
-const waitForHealthcheckMock = vi.fn();
+const waitForSidecarReadyMock = vi.fn();
 
 vi.mock('node:child_process', () => ({
   fork: forkMock,
@@ -19,7 +19,7 @@ vi.mock('./node-sidecar', () => ({
   findAvailablePort: findAvailablePortMock,
   resolveChildExecPath: resolveChildExecPathMock,
   resolveSidecarEntry: resolveSidecarEntryMock,
-  waitForHealthcheck: waitForHealthcheckMock,
+  waitForSidecarReady: waitForSidecarReadyMock,
 }));
 
 function createChildProcessMock() {
@@ -48,7 +48,7 @@ describe('LocalServerManager', () => {
     randomUuidMock.mockReturnValue('desktop-token-123');
     resolveSidecarEntryMock.mockReturnValue('/tmp/local-server/main.js');
     resolveChildExecPathMock.mockReturnValue('/usr/bin/node');
-    waitForHealthcheckMock.mockResolvedValue(undefined);
+    waitForSidecarReadyMock.mockResolvedValue(undefined);
   });
 
   it('starts local-server with injected gateway base url and desktop token', async () => {
@@ -77,13 +77,11 @@ describe('LocalServerManager', () => {
         PORT: '4310',
         TEAMAI_DATA_DIR: '/tmp/team-ai-user-data/local-server',
       }),
-      stdio: 'inherit',
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     });
-    expect(waitForHealthcheckMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:4310/api/health',
-      {
-        'X-Desktop-Session': 'desktop-token-123',
-      },
+    expect(waitForSidecarReadyMock).toHaveBeenCalledWith(
+      child,
+      'local-server sidecar',
     );
     expect(runtime).toEqual({
       apiBaseUrl: 'http://127.0.0.1:4310/api',

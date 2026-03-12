@@ -21,6 +21,10 @@ function main(): void {
 
   server.listen(config.port, config.host, () => {
     const address = server.address() as AddressInfo;
+    process.send?.({
+      service: 'agent-gateway',
+      type: 'sidecar-ready',
+    });
     logger.info('agent-gateway started', {
       host: address.address,
       port: address.port,

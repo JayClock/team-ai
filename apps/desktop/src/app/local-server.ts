@@ -10,7 +10,7 @@ import {
   findAvailablePort,
   resolveChildExecPath,
   resolveSidecarEntry,
-  waitForHealthcheck,
+  waitForSidecarReady,
 } from './node-sidecar';
 
 const localServerHost = '127.0.0.1';
@@ -52,7 +52,7 @@ export class LocalServerManager {
         PORT: String(port),
         TEAMAI_DATA_DIR: dataDir,
       },
-      stdio: 'inherit',
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     });
 
     LocalServerManager.child.once('exit', () => {
@@ -61,9 +61,7 @@ export class LocalServerManager {
     });
 
     const apiBaseUrl = `http://${localServerHost}:${port}/api`;
-    await waitForHealthcheck(`${apiBaseUrl}/health`, {
-      [desktopSessionHeader]: desktopSessionToken,
-    });
+    await waitForSidecarReady(LocalServerManager.child, 'local-server sidecar');
 
     LocalServerManager.runtimeConfig = {
       apiBaseUrl,

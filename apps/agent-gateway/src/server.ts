@@ -44,8 +44,6 @@ export function createGatewayServer(
   providerRuntime: ProviderRuntimePort,
   metrics: GatewayMetrics
 ): http.Server {
-  const startedAt = Date.now();
-
   return http.createServer(async (req, res) => {
     const method = req.method ?? 'GET';
     const requestUrl = req.url ?? '/';
@@ -55,15 +53,6 @@ export function createGatewayServer(
     logger.debug('incoming request', { traceId: traceIdFromHeader, method, path: url.pathname });
 
     try {
-      if (method === 'GET' && url.pathname === '/health') {
-        writeJsonWithTrace(res, 200, traceIdFromHeader, {
-          status: 'ok',
-          service: 'agent-gateway',
-          uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
-        });
-        return;
-      }
-
       if (method === 'GET' && url.pathname === '/version') {
         writeJsonWithTrace(res, 200, traceIdFromHeader, {
           name: 'agent-gateway',

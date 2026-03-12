@@ -1,10 +1,15 @@
 import { existsSync } from 'node:fs';
+import type { ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 import type { App } from 'electron';
 
-const healthcheckTimeoutMs = 15_000;
-const healthcheckIntervalMs = 250;
+const sidecarReadyTimeoutMs = 15_000;
+
+export interface SidecarReadyMessage {
+  service: string;
+  type: 'sidecar-ready';
+}
 
 export async function findAvailablePort(host: string): Promise<number> {
   return await new Promise<number>((resolve, reject) => {
@@ -68,25 +73,80 @@ export function resolveSidecarEntry(
   return entry;
 }
 
-export async function waitForHealthcheck(
-  healthUrl: string,
-  headers?: Record<string, string>,
+export async function waitForSidecarReady(
+  child: Pick<ChildProcess, 'once' | 'removeListener'>,
+  sidecarName: string,
 ): Promise<void> {
-  const deadline = Date.now() + healthcheckTimeoutMs;
+  await new Promise<void>((resolve, reject) => {
+    const readyTimeout = setTimeout(() => {
+      cleanup();
+      reject(
+        new Error(
+          `${sidecarName} did not report readiness within ${sidecarReadyTimeoutMs}ms`,
+        ),
+      );
+    }, sidecarReadyTimeoutMs);
 
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(healthUrl, {
-        headers,
-      });
+    const onError = (error: Error) => {
+      cleanup();
+      reject(
+        new Error(`${sidecarName} failed before reporting readiness: ${error.message}`),
+      );
+    };
 
-      if (response.ok) {
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+      cleanup();
+
+      const reason =
+        signal !== null
+          ? `signal ${signal}`
+          : code !== null
+            ? `exit code ${code}`
+            : 'unknown reason';
+
+      reject(
+        new Error(`${sidecarName} exited before reporting readiness (${reason})`),
+      );
+    };
+
+    const onMessage = (message: unknown) => {
+      if (!isSidecarReadyMessage(message)) {
         return;
       }
-    } catch {}
 
-    await new Promise((resolve) => setTimeout(resolve, healthcheckIntervalMs));
+      cleanup();
+      resolve();
+    };
+
+    const cleanup = () => {
+      clearTimeout(readyTimeout);
+      child.removeListener('error', onError);
+      child.removeListener('exit', onExit);
+      child.removeListener('message', onMessage);
+    };
+
+    child.once('error', onError);
+    child.once('exit', onExit);
+    child.once('message', onMessage);
+  });
+}
+
+export function sendSidecarReady(service: string): void {
+  process.send?.({
+    service,
+    type: 'sidecar-ready',
+  } satisfies SidecarReadyMessage);
+}
+
+function isSidecarReadyMessage(message: unknown): message is SidecarReadyMessage {
+  if (!message || typeof message !== 'object') {
+    return false;
   }
 
-  throw new Error(`Sidecar did not become healthy: ${healthUrl}`);
+  return (
+    'type' in message &&
+    message.type === 'sidecar-ready' &&
+    'service' in message &&
+    typeof message.service === 'string'
+  );
 }

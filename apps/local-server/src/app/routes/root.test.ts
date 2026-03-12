@@ -34,7 +34,6 @@ describe('root route', () => {
       capabilities: {
         acp: true,
         agents: true,
-        health: true,
         mcp: true,
         settings: true,
         syncStatus: true,
@@ -62,6 +61,7 @@ describe('root route', () => {
         },
       },
     });
+    expect(response.json()._links.health).toBeUndefined();
     expect(response.json()._links.orchestration).toBeUndefined();
     expect(response.json()._links.sessions).toBeUndefined();
   });

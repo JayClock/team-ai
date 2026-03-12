@@ -4,7 +4,6 @@ Minimal protocol gateway skeleton for ACP/MCP/A2A integration.
 
 ## Endpoints
 
-- `GET /health`
 - `GET /version`
 - `GET /capabilities`
 - `GET /metrics` export gateway runtime metrics (session success rate, first token latency, completion rate, error distribution)

@@ -25,14 +25,8 @@ describe('agent-gateway-client', () => {
     }
   });
 
-  it('supports health, session create, prompt, cancel, and event listing', async () => {
+  it('supports session create, prompt, cancel, and event listing', async () => {
     const server = http.createServer((request, response) => {
-      if (request.url === '/health') {
-        response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({ service: 'agent-gateway', status: 'ok' }));
-        return;
-      }
-
       if (request.url === '/sessions' && request.method === 'POST') {
         response.writeHead(201, { 'Content-Type': 'application/json' });
         response.end(
@@ -92,12 +86,6 @@ describe('agent-gateway-client', () => {
     const baseUrl = urlFor(server);
     const client = createAgentGatewayClient(baseUrl);
 
-    await expect(client.health()).resolves.toEqual({
-      configured: true,
-      detail: 'agent-gateway',
-      reachable: true,
-      status: 'ok',
-    });
     await expect(client.createSession({ provider: 'codex' })).resolves.toEqual({
       session: {
         provider: 'codex',
@@ -185,22 +173,16 @@ describe('agent-gateway-client', () => {
 
     const unavailableClient = createAgentGatewayClient('http://127.0.0.1:1');
 
-    await expect(unavailableClient.health()).rejects.toMatchObject({
+    await expect(unavailableClient.createSession()).rejects.toMatchObject({
       status: 503,
       title: 'Agent Gateway Unavailable',
       type: 'https://team-ai.dev/problems/agent-gateway-unavailable',
     });
   });
 
-  it('reports unconfigured state without throwing on health', async () => {
+  it('reports unconfigured state through isConfigured', async () => {
     const client = createAgentGatewayClient(null);
 
-    await expect(client.health()).resolves.toEqual({
-      configured: false,
-      detail: 'AGENT_GATEWAY_BASE_URL is not configured',
-      reachable: false,
-      status: 'unconfigured',
-    });
     expect(client.isConfigured()).toBe(false);
   });
 });

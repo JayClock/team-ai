@@ -12,13 +12,6 @@ interface GatewayJsonError {
   retryable?: boolean;
 }
 
-export interface AgentGatewayHealth {
-  configured: boolean;
-  detail?: string;
-  reachable: boolean;
-  status?: string;
-}
-
 export interface AgentGatewaySessionPayload {
   createdAt?: string;
   lastCursor?: string | null;
@@ -80,7 +73,6 @@ export interface AgentGatewayClient {
   ): Promise<{
     session: AgentGatewaySessionPayload;
   }>;
-  health(): Promise<AgentGatewayHealth>;
   isConfigured(): boolean;
   listEvents(
     sessionId: string,
@@ -129,33 +121,6 @@ export function createAgentGatewayClient(
         path: '/sessions',
         body: input ?? {},
       });
-    },
-
-    async health() {
-      if (!normalizedBaseUrl) {
-        return {
-          configured: false,
-          detail: 'AGENT_GATEWAY_BASE_URL is not configured',
-          reachable: false,
-          status: 'unconfigured',
-        };
-      }
-
-      const payload = await requestJson<{ status?: string; service?: string }>(
-        fetchImpl,
-        normalizedBaseUrl,
-        {
-          method: 'GET',
-          path: '/health',
-        },
-      );
-
-      return {
-        configured: true,
-        detail: payload.service,
-        reachable: payload.status === 'ok',
-        status: payload.status,
-      };
     },
 
     isConfigured() {

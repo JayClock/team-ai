@@ -4,7 +4,7 @@ const forkMock = vi.fn();
 const findAvailablePortMock = vi.fn();
 const resolveChildExecPathMock = vi.fn();
 const resolveSidecarEntryMock = vi.fn();
-const waitForHealthcheckMock = vi.fn();
+const waitForSidecarReadyMock = vi.fn();
 
 vi.mock('node:child_process', () => ({
   fork: forkMock,
@@ -14,7 +14,7 @@ vi.mock('./node-sidecar', () => ({
   findAvailablePort: findAvailablePortMock,
   resolveChildExecPath: resolveChildExecPathMock,
   resolveSidecarEntry: resolveSidecarEntryMock,
-  waitForHealthcheck: waitForHealthcheckMock,
+  waitForSidecarReady: waitForSidecarReadyMock,
 }));
 
 function createChildProcessMock() {
@@ -42,7 +42,7 @@ describe('AgentGatewayManager', () => {
     findAvailablePortMock.mockResolvedValue(3321);
     resolveSidecarEntryMock.mockReturnValue('/tmp/agent-gateway/main.js');
     resolveChildExecPathMock.mockReturnValue('/usr/bin/node');
-    waitForHealthcheckMock.mockResolvedValue(undefined);
+    waitForSidecarReadyMock.mockResolvedValue(undefined);
   });
 
   it('starts the gateway sidecar and exposes runtime config', async () => {
@@ -68,10 +68,11 @@ describe('AgentGatewayManager', () => {
         AGENT_GATEWAY_PORT: '3321',
         ELECTRON_RUN_AS_NODE: '1',
       }),
-      stdio: 'inherit',
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     });
-    expect(waitForHealthcheckMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:3321/health',
+    expect(waitForSidecarReadyMock).toHaveBeenCalledWith(
+      child,
+      'agent-gateway sidecar',
     );
     expect(runtime).toEqual({
       baseUrl: 'http://127.0.0.1:3321',

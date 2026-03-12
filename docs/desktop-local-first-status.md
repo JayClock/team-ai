@@ -57,9 +57,9 @@ The desktop runtime now consists of four cooperating parts:
 
 1. Electron main starts.
 2. Electron starts `apps/agent-gateway`.
-3. Electron waits for `GET /health` on the local gateway.
+3. Electron waits for an IPC `sidecar-ready` message from the local gateway child process.
 4. Electron starts `apps/local-server` with the local gateway base URL injected.
-5. The desktop shell waits for `GET /api/health`.
+5. The desktop shell waits for an IPC `sidecar-ready` message from the local server child process.
 6. Preload exposes:
    - local API base URL
    - desktop session header name
@@ -73,7 +73,6 @@ All routes below are currently implemented by `apps/local-server`.
 ### Core
 
 - `GET /api`
-- `GET /api/health`
 - `GET /api/settings`
 - `PATCH /api/settings`
 
@@ -209,7 +208,6 @@ npx vitest run \
   src/app/services/orchestration-prompt-builder.test.ts \
   src/app/clients/agent-gateway-client.test.ts \
   src/app/plugins/agent-gateway-client.test.ts \
-  src/app/routes/health.test.ts \
   src/app/plugins/execution-runtime.test.ts
 cd ../..
 npx nx build local-server
@@ -223,7 +221,7 @@ npx nx build desktop
 
 ## Sidecar Debugging Notes
 
-- `apps/desktop` launches `agent-gateway` first, waits for `GET /health`, then launches `local-server`.
+- `apps/desktop` launches `agent-gateway` first, waits for an IPC ready signal, then launches `local-server`.
 - Packaged desktop builds include both sidecars under Electron resources:
   - `resources/agent-gateway/main.js`
   - `resources/local-server/main.js`

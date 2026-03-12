@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const existsSyncMock = vi.fn();
@@ -43,5 +44,38 @@ describe('node-sidecar', () => {
         isPackaged: true,
       } as never),
     ).toBeUndefined();
+  });
+
+  it('resolves when the sidecar reports readiness over IPC', async () => {
+    const child = new EventEmitter();
+
+    const { waitForSidecarReady } = await import('./node-sidecar');
+
+    const readiness = waitForSidecarReady(
+      child as never,
+      'agent-gateway sidecar',
+    );
+    child.emit('message', {
+      service: 'agent-gateway',
+      type: 'sidecar-ready',
+    });
+
+    await expect(readiness).resolves.toBeUndefined();
+  });
+
+  it('fails when the sidecar exits before reporting readiness', async () => {
+    const child = new EventEmitter();
+
+    const { waitForSidecarReady } = await import('./node-sidecar');
+
+    const readiness = waitForSidecarReady(
+      child as never,
+      'local-server sidecar',
+    );
+    child.emit('exit', 1, null);
+
+    await expect(readiness).rejects.toThrow(
+      'local-server sidecar exited before reporting readiness (exit code 1)',
+    );
   });
 });
