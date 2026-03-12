@@ -31,6 +31,7 @@ import {
   getSpecialistById,
   throwSpecialistRoleMismatch,
 } from './specialist-service';
+import { syncPlanEventToTasks } from './acp-plan-task-sync-service';
 
 const sessionIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -412,6 +413,26 @@ function appendLocalEvent(
     lastActivityAt: emittedAt,
     lastEventId: event.eventId,
   });
+
+  if (event.type === 'plan') {
+    syncPlanEventToTasks(sqlite, {
+      emittedAt: event.emittedAt,
+      entries: Array.isArray((event.data as { entries?: unknown }).entries)
+        ? (
+            event.data as {
+              entries: Array<{
+                content: string;
+                priority?: 'high' | 'medium' | 'low';
+                status?: 'pending' | 'in_progress' | 'completed';
+              }>;
+            }
+          ).entries
+        : [],
+      eventId: event.eventId,
+      sessionId: event.sessionId,
+    });
+  }
+
   broker.publish(event);
   return event;
 }

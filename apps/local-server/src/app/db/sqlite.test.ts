@@ -81,6 +81,7 @@ describe('sqlite initialization', () => {
     expect(migrations).toEqual([
       { version: '001_initial_schema' },
       { version: '002_task_driven_workflow' },
+      { version: '003_task_source_tracking' },
     ]);
     expect(projectColumns.map(({ name }) => name)).toEqual([
       'id',
@@ -168,6 +169,9 @@ describe('sqlite initialization', () => {
       'parent_task_id',
       'execution_session_id',
       'result_session_id',
+      'source_type',
+      'source_event_id',
+      'source_entry_index',
     ]);
 
     sqlite.close();
@@ -216,7 +220,7 @@ describe('sqlite initialization', () => {
       .prepare('SELECT COUNT(*) AS count FROM settings')
       .get() as { count: number };
 
-    expect(migrationCount).toEqual({ count: 2 });
+    expect(migrationCount).toEqual({ count: 3 });
     expect(settingsCount).toEqual({ count: 1 });
 
     second.close();

@@ -65,6 +65,7 @@ describe('task service', () => {
 
     expect(task.triggerSessionId).toBe(session.id);
     expect(task.acceptanceCriteria).toEqual(['Expose route']);
+    expect(task.sourceType).toBe('manual');
     expect(byProject.items.map((item) => item.id)).toContain(task.id);
     expect(bySession.items.map((item) => item.id)).toContain(task.id);
   });
@@ -136,7 +137,9 @@ describe('task service', () => {
 
   it('resolves specialist assignments from workspace directories', async () => {
     const sqlite = await createTestDatabase();
-    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-task-specialist-workspace-'));
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-task-specialist-workspace-'),
+    );
     cleanupTasks.push(async () => {
       await rm(repoPath, { recursive: true, force: true });
     });
@@ -178,7 +181,9 @@ describe('task service', () => {
 
   it('rejects invalid roles and specialist-role mismatches', async () => {
     const sqlite = await createTestDatabase();
-    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-task-role-mismatch-'));
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-task-role-mismatch-'),
+    );
     cleanupTasks.push(async () => {
       await rm(repoPath, { recursive: true, force: true });
     });

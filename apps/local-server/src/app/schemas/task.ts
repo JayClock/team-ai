@@ -1,5 +1,7 @@
 export type TaskKind = 'plan' | 'implement' | 'review' | 'verify';
 
+export type TaskSourceType = 'manual' | 'acp_plan';
+
 export interface TaskPayload {
   acceptanceCriteria: string[];
   assignedProvider: string | null;
@@ -34,6 +36,9 @@ export interface TaskPayload {
   status: string;
   title: string;
   triggerSessionId: string | null;
+  sourceType: TaskSourceType;
+  sourceEventId: string | null;
+  sourceEntryIndex: number | null;
   updatedAt: string;
   verificationCommands: string[];
   verificationReport: string | null;
@@ -80,6 +85,9 @@ export interface CreateTaskInput {
   resultSessionId?: string | null;
   scope?: string | null;
   status?: string;
+  sourceEntryIndex?: number | null;
+  sourceEventId?: string | null;
+  sourceType?: TaskSourceType;
   title: string;
   triggerSessionId?: string | null;
   verificationCommands?: string[];
@@ -116,6 +124,9 @@ export interface UpdateTaskInput {
   scope?: string | null;
   resultSessionId?: string | null;
   status?: string;
+  sourceEntryIndex?: number | null;
+  sourceEventId?: string | null;
+  sourceType?: TaskSourceType;
   title?: string;
   triggerSessionId?: string | null;
   verificationCommands?: string[];

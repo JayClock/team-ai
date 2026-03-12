@@ -6,6 +6,7 @@ import type {
   TaskKind,
   TaskListPayload,
   TaskPayload,
+  TaskSourceType,
   UpdateTaskInput,
 } from '../schemas/task';
 import { getProjectById } from './project-service';
@@ -51,6 +52,9 @@ interface TaskRow {
   priority: string | null;
   project_id: string;
   result_session_id: string | null;
+  source_entry_index: number | null;
+  source_event_id: string | null;
+  source_type: TaskSourceType;
   scope: string | null;
   status: string;
   title: string;
@@ -180,6 +184,9 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     priority: row.priority,
     projectId: row.project_id,
     resultSessionId: row.result_session_id,
+    sourceEntryIndex: row.source_entry_index,
+    sourceEventId: row.source_event_id,
+    sourceType: row.source_type,
     scope: row.scope,
     status: row.status,
     title: row.title,
@@ -288,6 +295,9 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
           parent_task_id,
           execution_session_id,
           result_session_id,
+          source_type,
+          source_event_id,
+          source_entry_index,
           created_at,
           updated_at
         FROM project_tasks
@@ -385,6 +395,7 @@ export async function createTask(
   const kind = ensureTaskKind(input.kind, assignment.assignedRole);
   const now = new Date().toISOString();
   const taskId = createTaskId();
+  const sourceType = input.sourceType ?? 'manual';
 
   sqlite
     .prepare(
@@ -425,6 +436,9 @@ export async function createTask(
           parent_task_id,
           execution_session_id,
           result_session_id,
+          source_type,
+          source_event_id,
+          source_entry_index,
           created_at,
           updated_at,
           deleted_at
@@ -465,6 +479,9 @@ export async function createTask(
           @parentTaskId,
           @executionSessionId,
           @resultSessionId,
+          @sourceType,
+          @sourceEventId,
+          @sourceEntryIndex,
           @createdAt,
           @updatedAt,
           NULL
@@ -503,6 +520,9 @@ export async function createTask(
       resultSessionId,
       scope: input.scope ?? null,
       status: input.status ?? 'PENDING',
+      sourceEntryIndex: input.sourceEntryIndex ?? null,
+      sourceEventId: input.sourceEventId ?? null,
+      sourceType,
       title: input.title,
       triggerSessionId,
       updatedAt: now,
@@ -597,6 +617,9 @@ export async function listTasks(
           parent_task_id,
           execution_session_id,
           result_session_id,
+          source_type,
+          source_event_id,
+          source_entry_index,
           created_at,
           updated_at
         FROM project_tasks
@@ -763,6 +786,16 @@ export async function updateTask(
     scope: input.scope === undefined ? current.scope : input.scope,
     resultSessionId,
     status: input.status ?? current.status,
+    sourceEntryIndex:
+      input.sourceEntryIndex === undefined
+        ? current.source_entry_index
+        : input.sourceEntryIndex,
+    sourceEventId:
+      input.sourceEventId === undefined
+        ? current.source_event_id
+        : input.sourceEventId,
+    sourceType:
+      input.sourceType === undefined ? current.source_type : input.sourceType,
     title: input.title ?? current.title,
     triggerSessionId,
     updatedAt: new Date().toISOString(),
@@ -818,6 +851,9 @@ export async function updateTask(
           parent_task_id = @parentTaskId,
           execution_session_id = @executionSessionId,
           result_session_id = @resultSessionId,
+          source_type = @sourceType,
+          source_event_id = @sourceEventId,
+          source_entry_index = @sourceEntryIndex,
           updated_at = @updatedAt
         WHERE id = @id AND deleted_at IS NULL
       `,

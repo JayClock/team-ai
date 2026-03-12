@@ -232,4 +232,25 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '003_task_source_tracking',
+    sql: `
+      ALTER TABLE project_tasks
+        ADD COLUMN source_type TEXT NOT NULL DEFAULT 'manual';
+
+      ALTER TABLE project_tasks
+        ADD COLUMN source_event_id TEXT;
+
+      ALTER TABLE project_tasks
+        ADD COLUMN source_entry_index INTEGER;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_source_type
+        ON project_tasks(source_type, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_tasks_acp_plan_source
+        ON project_tasks(source_event_id, source_entry_index)
+        WHERE source_type = 'acp_plan' AND deleted_at IS NULL;
+    `,
+  },
 ];

@@ -1,6 +1,9 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
+import type {
+  AcpRuntimeClient,
+  AcpRuntimeSessionHooks,
+} from '../clients/acp-runtime-client';
 import acpStreamPlugin from '../plugins/acp-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
@@ -12,6 +15,7 @@ import agentsRoute from './agents';
 import meRoute from './me';
 import projectsRoute from './projects';
 import rootRoute from './root';
+import tasksRoute from './tasks';
 
 describe('acp route', () => {
   const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];
@@ -78,6 +82,7 @@ describe('acp route', () => {
     await fastify.register(meRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(agentsRoute, { prefix: '/api' });
+    await fastify.register(tasksRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
     await fastify.ready();
 
@@ -227,6 +232,7 @@ describe('acp route', () => {
     await fastify.register(meRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(agentsRoute, { prefix: '/api' });
+    await fastify.register(tasksRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
     await fastify.ready();
 
@@ -298,6 +304,133 @@ describe('acp route', () => {
       executionSessionId: childSessionId,
       status: 'RUNNING',
     });
+  });
+
+  it('syncs top-level ROUTA plan events into project tasks', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-plan-sync-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4312';
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    let rootSessionHooks: AcpRuntimeSessionHooks | null = null;
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => {
+        rootSessionHooks = input.hooks;
+
+        return {
+          runtimeSessionId: `runtime-${input.localSessionId}`,
+          provider: input.provider,
+        };
+      }),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-root',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(meRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(agentsRoute, { prefix: '/api' });
+    await fastify.register(tasksRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Plan Sync Project',
+      repoPath: '/tmp/team-ai-desktop-plan-sync-project',
+    });
+
+    const rootResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'plan-root-session',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+          role: 'ROUTA',
+        },
+      },
+    });
+
+    expect(rootResponse.statusCode).toBe(200);
+    const rootSessionId = rootResponse.json().result.session.id as string;
+
+    expect(rootSessionHooks).not.toBeNull();
+    if (!rootSessionHooks) {
+      throw new Error('Expected ACP runtime hooks for the root session');
+    }
+    const sessionHooks = rootSessionHooks as AcpRuntimeSessionHooks;
+
+    await sessionHooks.onSessionUpdate({
+      update: {
+        entries: [
+          {
+            content: 'Implement automatic ACP task sync',
+            priority: 'high',
+            status: 'pending',
+          },
+          {
+            content: 'Verify workbench reflects synced tasks',
+            priority: 'medium',
+            status: 'completed',
+          },
+        ],
+        sessionUpdate: 'plan',
+      },
+    } as Parameters<AcpRuntimeSessionHooks['onSessionUpdate']>[0]);
+
+    const tasksResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/tasks`,
+    });
+
+    expect(tasksResponse.statusCode).toBe(200);
+    expect(tasksResponse.json()._embedded.tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          assignedRole: 'CRAFTER',
+          kind: 'implement',
+          sourceEntryIndex: 0,
+          sourceType: 'acp_plan',
+          status: 'PENDING',
+          title: 'Implement automatic ACP task sync',
+          triggerSessionId: rootSessionId,
+        }),
+        expect.objectContaining({
+          assignedRole: 'GATE',
+          kind: 'verify',
+          sourceEntryIndex: 1,
+          sourceType: 'acp_plan',
+          status: 'COMPLETED',
+          title: 'Verify workbench reflects synced tasks',
+          triggerSessionId: rootSessionId,
+        }),
+      ]),
+    );
   });
 
   it('lists ACP providers with merged local and registry discovery metadata', async () => {
