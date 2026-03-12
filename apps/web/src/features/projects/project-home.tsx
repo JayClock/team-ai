@@ -14,30 +14,15 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandList,
-  CommandSeparator,
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   Input,
-  ScrollArea,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   Textarea,
   toast,
 } from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
 import {
   ArrowRightIcon,
-  CheckCircle2Icon,
   ChevronDownIcon,
   Clock3Icon,
   DownloadIcon,
@@ -45,8 +30,8 @@ import {
   GitBranchPlusIcon,
   LoaderCircleIcon,
   SearchIcon,
-  WrenchIcon,
 } from 'lucide-react';
+import { AgentInstallPanel } from './agent-install-panel';
 import {
   FormEvent,
   KeyboardEvent,
@@ -59,12 +44,27 @@ import {
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { storePendingProjectPrompt } from './pending-project-prompt';
-import { AcpProvider, useAcpProviders } from './use-acp-providers';
+import { useAcpProviders, type AcpProvider } from './use-acp-providers';
 import {
   LocalProject,
   projectTitle,
   useProjectSelection,
 } from './use-project-selection';
+
+function providerGroupLabel(key: string): string {
+  switch (key) {
+    case 'static-available':
+      return 'Built-in - Runnable';
+    case 'registry-available':
+      return 'ACP Registry - Runnable';
+    case 'static-unavailable':
+      return 'Built-in - Unavailable';
+    case 'registry-unavailable':
+      return 'ACP Registry - Unavailable';
+    default:
+      return key;
+  }
+}
 
 type CloneProjectResponse = {
   cloneStatus: 'cloned' | 'reused';
@@ -156,34 +156,8 @@ function sessionStateLabel(value: string | null | undefined): string {
   }
 }
 
-function providerStatusLabel(value: string): string {
-  switch (value) {
-    case 'available':
-      return '可用';
-    case 'unavailable':
-      return '不可用';
-    default:
-      return value;
-  }
-}
-
 function sessionDisplayName(session: State<AcpSessionSummary>): string {
   return session.data.name?.trim() || `会话 ${session.data.id.slice(0, 8)}`;
-}
-
-function providerGroupLabel(key: string): string {
-  switch (key) {
-    case 'static-available':
-      return 'Built-in';
-    case 'registry-available':
-      return 'ACP Registry';
-    case 'static-unavailable':
-      return 'Built-in - Not Installed';
-    case 'registry-unavailable':
-      return 'ACP Registry - Not Installed';
-    default:
-      return key;
-  }
 }
 
 function sessionAgentDescription(
@@ -336,11 +310,7 @@ function ProjectHomeContent(props: {
     bottom: number;
     left: number;
   } | null>(null);
-  const [agentsPanelTab, setAgentsPanelTab] = useState<'agents' | 'providers'>(
-    'agents',
-  );
   const [providerSheetOpen, setProviderSheetOpen] = useState(false);
-  const [providerSearch, setProviderSearch] = useState('');
   const [recentSessions, setRecentSessions] = useState<
     State<AcpSessionSummary>[]
   >([]);
@@ -365,54 +335,6 @@ function ProjectHomeContent(props: {
     [rolesState.collection],
   );
 
-  const filteredProviders = useMemo(() => {
-    const query = providerSearch.trim().toLowerCase();
-    if (!query) {
-      return providers;
-    }
-
-    return providers.filter((provider) =>
-      [
-        provider.name,
-        provider.id,
-        provider.description,
-        provider.command,
-        provider.envCommandKey,
-      ].some((part) => part?.toLowerCase().includes(query)),
-    );
-  }, [providerSearch, providers]);
-
-  const providerGroups = useMemo(() => {
-    const builtinAvailable = filteredProviders.filter(
-      (provider) =>
-        provider.source !== 'registry' && provider.status === 'available',
-    );
-    const registryAvailable = filteredProviders.filter(
-      (provider) =>
-        provider.source === 'registry' && provider.status === 'available',
-    );
-    const builtinUnavailable = filteredProviders.filter(
-      (provider) =>
-        provider.source !== 'registry' && provider.status !== 'available',
-    );
-    const registryUnavailable = filteredProviders.filter(
-      (provider) =>
-        provider.source === 'registry' && provider.status !== 'available',
-    );
-
-    return [
-      ['static-available', builtinAvailable] as const,
-      ['registry-available', registryAvailable] as const,
-      ['static-unavailable', builtinUnavailable] as const,
-      ['registry-unavailable', registryUnavailable] as const,
-    ].filter(([, items]) => items.length > 0);
-  }, [filteredProviders]);
-
-  const availableProviders = useMemo(
-    () => providers.filter((provider) => provider.status === 'available'),
-    [providers],
-  );
-
   const providerQuickGroups = useMemo(() => {
     const builtinAvailable = providers.filter(
       (provider) =>
@@ -431,12 +353,14 @@ function ProjectHomeContent(props: {
         provider.source === 'registry' && provider.status !== 'available',
     );
 
-    return [
-      ['static-available', builtinAvailable] as const,
-      ['registry-available', registryAvailable] as const,
-      ['static-unavailable', builtinUnavailable] as const,
-      ['registry-unavailable', registryUnavailable] as const,
-    ].filter(([, items]) => items.length > 0);
+    const groups: [string, AcpProvider[]][] = [
+      ['static-available', builtinAvailable],
+      ['registry-available', registryAvailable],
+      ['static-unavailable', builtinUnavailable],
+      ['registry-unavailable', registryUnavailable],
+    ];
+
+    return groups.filter(([, items]) => items.length > 0);
   }, [providers]);
 
   useEffect(() => {
@@ -531,14 +455,12 @@ function ProjectHomeContent(props: {
         return;
       }
       if (!selectedProvider) {
-        toast.error('当前没有可用的 ACP 提供方');
-        setAgentsPanelTab('agents');
+        toast.error('当前没有可启动的 ACP 提供方');
         setProviderSheetOpen(true);
         return;
       }
       if (selectedProvider.status !== 'available') {
-        toast.error(`提供方 ${selectedProvider.name} 当前尚未就绪`);
-        setAgentsPanelTab('agents');
+        toast.error(`提供方 ${selectedProvider.name} 当前不可启动`);
         setProviderSheetOpen(true);
         return;
       }
@@ -608,10 +530,7 @@ function ProjectHomeContent(props: {
             variant="outline"
             size="sm"
             className="h-9 shrink-0 rounded-xl px-3 text-xs"
-            onClick={() => {
-              setAgentsPanelTab('agents');
-              setProviderSheetOpen(true);
-            }}
+            onClick={() => setProviderSheetOpen(true)}
           >
             <DownloadIcon className="size-4" />
             Agents
@@ -777,7 +696,6 @@ function ProjectHomeContent(props: {
 
                               setSelectedProviderId(provider.id);
                               setProviderDropdownOpen(false);
-                              setAgentsPanelTab('agents');
                               setProviderSheetOpen(true);
                             }}
                             className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
@@ -904,246 +822,19 @@ function ProjectHomeContent(props: {
         </div>
       </div>
       <Dialog open={providerSheetOpen} onOpenChange={setProviderSheetOpen}>
-        <DialogContent className="flex h-[min(820px,calc(100vh-2rem))] w-[min(960px,calc(100vw-2rem))] max-w-none flex-col overflow-hidden p-0">
-          <DialogHeader className="border-b border-slate-100 px-6 py-5 dark:border-[#1c1f2e]">
-            <DialogTitle>Agents</DialogTitle>
-            <DialogDescription>
-              对齐 Routa 的 CLI 管理方式：先看可用项，再决定安装和切换当前
-              provider。
-            </DialogDescription>
-          </DialogHeader>
-          <Tabs
-            value={agentsPanelTab}
-            onValueChange={(value) =>
-              setAgentsPanelTab(value === 'providers' ? 'providers' : 'agents')
+        <DialogContent className="flex h-[min(820px,calc(100vh-2rem))] min-h-0 w-[min(960px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden p-0">
+          <AgentInstallPanel
+            installingProviderId={installingProviderId}
+            loading={providersLoading}
+            onInstall={install}
+            onReload={reloadProviders}
+            providers={providers}
+            registryError={registryError}
+            runtimeAvailability={{ npx: true, uvx: true }}
+            platform={
+              typeof navigator !== 'undefined' ? navigator.platform : null
             }
-            className="flex min-h-0 flex-1 flex-col bg-white dark:bg-[#12141c]"
-          >
-            <div className="border-b border-slate-100 px-5 py-4 dark:border-[#1c1f2e]">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                    CLI 工具下载与管理
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    选择当前 provider，或从 registry 安装缺失的 CLI。
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 rounded-lg px-2.5 text-xs"
-                  onClick={() => void reloadProviders()}
-                  disabled={providersLoading}
-                >
-                  {providersLoading ? (
-                    <LoaderCircleIcon className="size-4 animate-spin" />
-                  ) : (
-                    <WrenchIcon className="size-4" />
-                  )}
-                  刷新
-                </Button>
-              </div>
-
-              <TabsList className="mt-4 grid h-9 w-full grid-cols-2 rounded-xl bg-slate-100 dark:bg-[#1a1d2a]">
-                <TabsTrigger value="agents" className="rounded-lg text-xs">
-                  Agents
-                </TabsTrigger>
-                <TabsTrigger value="providers" className="rounded-lg text-xs">
-                  Providers
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent
-              value="agents"
-              className="mt-0 flex min-h-0 flex-1 flex-col"
-            >
-              <div className="border-b border-slate-100 px-5 py-3 dark:border-[#1c1f2e]">
-                <div className="flex flex-wrap gap-2 text-[10px]">
-                  <span className="rounded-full bg-emerald-50 px-2 py-1 font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-                    可用 {availableProviders.length}
-                  </span>
-                  <span className="rounded-full bg-amber-50 px-2 py-1 font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                    待安装{' '}
-                    {
-                      providers.filter(
-                        (provider) => provider.status !== 'available',
-                      ).length
-                    }
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2 py-1 font-medium text-slate-600 dark:bg-[#1f2233] dark:text-slate-300">
-                    Registry{' '}
-                    {
-                      providers.filter(
-                        (provider) => provider.source === 'registry',
-                      ).length
-                    }
-                  </span>
-                </div>
-
-                {registryError ? (
-                  <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-900/20 dark:text-red-300">
-                    注册表暂不可用：{registryError}
-                  </div>
-                ) : null}
-              </div>
-
-              <Command
-                shouldFilter={false}
-                className="flex min-h-0 flex-1 rounded-none"
-              >
-                <CommandInput
-                  value={providerSearch}
-                  onValueChange={setProviderSearch}
-                  placeholder="搜索 provider、命令或运行时"
-                />
-                <CommandList className="max-h-none flex-1">
-                  <ScrollArea className="h-[calc(100vh-19rem)]">
-                    <div className="px-5 py-3">
-                      {providersLoading && providers.length === 0 ? (
-                        <div className="flex h-32 items-center justify-center text-sm text-slate-400">
-                          正在加载 CLI 工具列表...
-                        </div>
-                      ) : providerGroups.length === 0 ? (
-                        <CommandEmpty>
-                          {providerSearch.trim()
-                            ? '没有匹配的 provider'
-                            : '没有可用 provider'}
-                        </CommandEmpty>
-                      ) : (
-                        <div className="space-y-5">
-                          {providerGroups.map(([groupKey, items], index) => (
-                            <div key={groupKey}>
-                              {index > 0 ? (
-                                <CommandSeparator className="mb-4" />
-                              ) : null}
-                              <CommandGroup
-                                heading={`${providerGroupLabel(groupKey)} (${items.length})`}
-                                className="p-0"
-                              >
-                                <div className="space-y-2">
-                                  {items.map((provider) => (
-                                    <div key={provider.id} className="px-1">
-                                      <ProviderCard
-                                        installing={
-                                          installingProviderId === provider.id
-                                        }
-                                        isSelected={
-                                          provider.id === selectedProviderId
-                                        }
-                                        onInstall={() =>
-                                          void install(provider.id)
-                                        }
-                                        onSelect={() =>
-                                          setSelectedProviderId(provider.id)
-                                        }
-                                        provider={provider}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              </CommandGroup>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </CommandList>
-              </Command>
-            </TabsContent>
-
-            <TabsContent
-              value="providers"
-              className="mt-0 flex min-h-0 flex-1 flex-col"
-            >
-              <ScrollArea className="flex-1 px-5 py-4">
-                <div className="space-y-4">
-                  <Card>
-                    <CardContent className="space-y-3 p-4">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          当前默认 Provider
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          会话入口会优先使用这里选中的 CLI。
-                        </p>
-                      </div>
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-[#2a2d3d] dark:bg-[#161922]">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`size-2 rounded-full ${
-                              selectedProvider?.status === 'available'
-                                ? 'bg-emerald-500'
-                                : 'bg-amber-500'
-                            }`}
-                          />
-                          <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                            {selectedProvider?.name ?? selectedProviderId}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                          {selectedProvider?.description ??
-                            '未找到 provider 描述'}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="space-y-3 p-4">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          可用 Provider
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          这里只显示已经可直接切换使用的 CLI。
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        {availableProviders.length === 0 ? (
-                          <p className="text-xs text-slate-400">
-                            当前没有可直接使用的 provider，请到 Agents 页安装。
-                          </p>
-                        ) : (
-                          availableProviders.map((provider) => (
-                            <button
-                              key={provider.id}
-                              type="button"
-                              onClick={() => setSelectedProviderId(provider.id)}
-                              className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left transition ${
-                                provider.id === selectedProviderId
-                                  ? 'border-amber-300 bg-amber-50/70 dark:border-amber-700/40 dark:bg-amber-900/10'
-                                  : 'border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-[#2a2d3d] dark:bg-[#161922] dark:hover:border-[#3a3d4d]'
-                              }`}
-                            >
-                              <div className="min-w-0">
-                                <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                                  {provider.name}
-                                </div>
-                                <div className="truncate text-[11px] text-slate-500 dark:text-slate-400">
-                                  {provider.command ?? provider.envCommandKey}
-                                </div>
-                              </div>
-                              {provider.id === selectedProviderId ? (
-                                <CheckCircle2Icon className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                              ) : null}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </ScrollArea>
-            </TabsContent>
-
-            <div className="border-t border-slate-100 px-5 py-3 text-xs text-slate-400 dark:border-[#1c1f2e] dark:text-slate-500">
-              数据来源：ACP provider 注册表与本地运行时检查
-            </div>
-          </Tabs>
+          />
         </DialogContent>
       </Dialog>
     </div>
@@ -1470,125 +1161,6 @@ function RepositoryPicker(props: {
             document.body,
           )
         : null}
-    </div>
-  );
-}
-
-function ProviderCard(props: {
-  installing: boolean;
-  isSelected: boolean;
-  onInstall: () => void;
-  onSelect: () => void;
-  provider: AcpProvider;
-}) {
-  const { installing, isSelected, onInstall, onSelect, provider } = props;
-  const canUse = provider.status === 'available';
-
-  return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-4 transition-colors hover:border-slate-300 dark:border-[#2a2d3d] dark:bg-[#161922]/70 dark:hover:border-[#3a3d4d]">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 text-sm font-semibold text-white">
-          {provider.name.charAt(0).toUpperCase()}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {provider.name}
-            </h3>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-500 dark:bg-[#1f2233] dark:text-slate-400">
-              {provider.id}
-            </span>
-            {isSelected ? (
-              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                Selected
-              </span>
-            ) : null}
-          </div>
-
-          <p className="mb-2 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
-            {provider.description}
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500">
-            <span
-              className={`rounded px-1.5 py-0.5 ${
-                provider.status === 'available'
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
-                  : 'bg-slate-100 text-slate-500 dark:bg-[#1f2233] dark:text-slate-400'
-              }`}
-            >
-              {providerStatusLabel(provider.status)}
-            </span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-[#1f2233]">
-              {provider.source}
-            </span>
-            <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono dark:bg-[#1f2233]">
-              {provider.command ?? provider.envCommandKey}
-            </span>
-            <div className="flex gap-1">
-              {provider.distributionTypes.map((distributionType) => (
-                <span
-                  key={distributionType}
-                  className={`rounded px-1 py-0.5 ${
-                    provider.installable
-                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300'
-                      : 'bg-slate-100 text-slate-400 line-through dark:bg-[#1f2233] dark:text-slate-500'
-                  }`}
-                >
-                  {distributionType}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {provider.unavailableReason ? (
-            <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
-              {provider.unavailableReason}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          {provider.installable ? (
-            <Button
-              type="button"
-              variant={provider.installed ? 'outline' : 'default'}
-              size="sm"
-              onClick={onInstall}
-              disabled={installing}
-              className="h-8 rounded-md px-3 text-xs"
-            >
-              {installing ? (
-                <LoaderCircleIcon className="size-4 animate-spin" />
-              ) : (
-                <DownloadIcon className="size-4" />
-              )}
-              {installing
-                ? 'Installing...'
-                : provider.installed
-                  ? 'Reinstall'
-                  : 'Install'}
-            </Button>
-          ) : null}
-
-          <Button
-            type="button"
-            size="sm"
-            variant={isSelected ? 'secondary' : 'outline'}
-            onClick={onSelect}
-            disabled={!canUse}
-            className="h-8 rounded-md px-3 text-xs"
-          >
-            {isSelected ? (
-              <CheckCircle2Icon className="size-4" />
-            ) : (
-              <WrenchIcon className="size-4" />
-            )}
-            {isSelected ? 'Using' : 'Use'}
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
