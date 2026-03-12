@@ -24,7 +24,11 @@
           "main": "apps/local-server/src/main.ts",
           "tsConfig": "apps/local-server/tsconfig.app.json",
           "assets": [
-            "apps/local-server/src/assets"
+            {
+              "input": "apps/local-server/src",
+              "glob": "assets/**/*",
+              "output": "./apps/local-server/src"
+            }
           ],
           "esbuildOptions": {
             "sourcemap": true,
