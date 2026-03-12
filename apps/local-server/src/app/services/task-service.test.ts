@@ -9,8 +9,11 @@ import { insertAcpSession } from '../test-support/acp-session-fixture';
 import {
   createTask,
   deleteTask,
+  getTaskDispatchability,
   getTaskById,
   listTasks,
+  listDispatchableTasks,
+  resolveDefaultTaskRole,
   updateTask,
 } from './task-service';
 
@@ -102,6 +105,94 @@ describe('task service', () => {
       verificationReport: 'All checks passed',
       verificationVerdict: 'pass',
     });
+  });
+
+  it('resolves default dispatch roles by task kind and orchestration mode', () => {
+    expect(resolveDefaultTaskRole('implement')).toBe('CRAFTER');
+    expect(
+      resolveDefaultTaskRole('implement', {
+        orchestrationMode: 'DEVELOPER',
+      }),
+    ).toBe('DEVELOPER');
+    expect(resolveDefaultTaskRole('review')).toBe('GATE');
+    expect(resolveDefaultTaskRole('verify')).toBe('GATE');
+    expect(resolveDefaultTaskRole('plan')).toBe('ROUTA');
+    expect(resolveDefaultTaskRole(null)).toBeNull();
+  });
+
+  it('evaluates task dispatchability using status, execution session, trigger session, and dependencies', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Dispatchability Project',
+      repoPath: '/Users/example/dispatchability-project',
+    });
+    const rootSessionId = 'acps_dispatch_root';
+    insertAcpSession(sqlite, {
+      cwd: '/Users/example/dispatchability-project',
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'opencode',
+    });
+
+    const dependency = await createTask(sqlite, {
+      objective: 'Finish dependency first',
+      projectId: project.id,
+      status: 'PENDING',
+      title: 'Dependency task',
+      triggerSessionId: rootSessionId,
+    });
+    const task = await createTask(sqlite, {
+      dependencies: [dependency.id],
+      objective: 'Implement the dispatch flow',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Dispatchable task',
+      triggerSessionId: rootSessionId,
+    });
+    const runningTask = await createTask(sqlite, {
+      executionSessionId: rootSessionId,
+      objective: 'Already executing somewhere else',
+      projectId: project.id,
+      status: 'RUNNING',
+      title: 'Running task',
+      triggerSessionId: rootSessionId,
+    });
+    await createTask(sqlite, {
+      objective: 'Manual task without context',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Detached task',
+    });
+
+    const blocked = await getTaskDispatchability(sqlite, task.id);
+
+    expect(blocked).toMatchObject({
+      dispatchable: false,
+      resolvedRole: 'CRAFTER',
+      unresolvedDependencyIds: [dependency.id],
+    });
+    expect(blocked.reasons).toContain('TASK_DEPENDENCIES_INCOMPLETE');
+
+    const running = await getTaskDispatchability(sqlite, runningTask.id);
+    expect(running.dispatchable).toBe(false);
+    expect(running.reasons).toContain('TASK_EXECUTION_ALREADY_ACTIVE');
+
+    await updateTask(sqlite, dependency.id, {
+      status: 'COMPLETED',
+    });
+
+    const ready = await getTaskDispatchability(sqlite, task.id);
+    const dispatchableTasks = await listDispatchableTasks(sqlite, {
+      projectId: project.id,
+    });
+
+    expect(ready).toMatchObject({
+      dispatchable: true,
+      reasons: [],
+      resolvedRole: 'CRAFTER',
+      unresolvedDependencyIds: [],
+    });
+    expect(dispatchableTasks.map((item) => item.task.id)).toEqual([task.id]);
   });
 
   it('rejects task creation when ACP session belongs to another project', async () => {
