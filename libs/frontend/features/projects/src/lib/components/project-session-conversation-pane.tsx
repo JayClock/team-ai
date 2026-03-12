@@ -29,12 +29,17 @@ export function ProjectSessionConversationPane(props: {
   onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
   selectedSession: State<AcpSession> | null;
 }) {
-  const { chatMessages, hasPendingAssistantMessage, onSubmit, selectedSession } = props;
+  const {
+    chatMessages,
+    hasPendingAssistantMessage,
+    onSubmit,
+    selectedSession,
+  } = props;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <Conversation className="min-h-0 flex-1">
+        <Conversation className="min-h-0 flex-1" resize="instant">
           <ConversationContent className="gap-4 px-4 py-5 md:px-6">
             {chatMessages.length === 0 ? (
               <ConversationEmptyState
@@ -142,7 +147,9 @@ export function ProjectSessionConversationPane(props: {
             <PromptInputBody className="rounded-2xl border border-input bg-background shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
               <PromptInputTextarea
                 placeholder={
-                  selectedSession ? '继续当前会话...' : '发送第一条消息，开始新的会话...'
+                  selectedSession
+                    ? '继续当前会话...'
+                    : '发送第一条消息，开始新的会话...'
                 }
                 className="min-h-24 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
                 disabled={hasPendingAssistantMessage}

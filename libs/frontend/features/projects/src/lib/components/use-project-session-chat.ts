@@ -137,7 +137,6 @@ function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
                 },
           );
         }
-        previous.id = event.eventId;
         previous.metadata = {
           ...previous.metadata,
           emittedAt: event.emittedAt,
@@ -146,7 +145,7 @@ function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
       }
 
       messages.push({
-        id: event.eventId,
+        id: chunkKey,
         role,
         metadata: {
           chunkKey,
@@ -190,9 +189,7 @@ function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
   return messages;
 }
 
-export function useProjectSessionChat(
-  options: UseProjectSessionChatOptions,
-) {
+export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
   const {
     history,
     selectedSession,
@@ -205,7 +202,9 @@ export function useProjectSessionChat(
   const [transientMessages, setTransientMessages] = useState<
     Array<{ message: SessionChatMessage; sessionId: string }>
   >([]);
-  const [transientSessionKey, setTransientSessionKey] = useState<string | null>(null);
+  const [transientSessionKey, setTransientSessionKey] = useState<string | null>(
+    null,
+  );
   const selectedSessionId = selectedSession?.data.id;
   const optimisticMessageCounterRef = useRef(0);
   const pendingPromptKeyRef = useRef<string | null>(null);
@@ -238,25 +237,28 @@ export function useProjectSessionChat(
     }
   }, [transientMessages, transientSessionKey]);
 
-  const appendOptimisticUserMessage = useCallback((sessionId: string, text: string) => {
-    const optimisticId = `optimistic-user-${sessionId}-${optimisticMessageCounterRef.current++}`;
-    const message: SessionChatMessage = {
-      id: optimisticId,
-      role: 'user',
-      metadata: {
-        emittedAt: new Date().toISOString(),
-        optimistic: true,
-      },
-      parts: [
-        {
-          type: 'text',
-          text,
+  const appendOptimisticUserMessage = useCallback(
+    (sessionId: string, text: string) => {
+      const optimisticId = `optimistic-user-${sessionId}-${optimisticMessageCounterRef.current++}`;
+      const message: SessionChatMessage = {
+        id: optimisticId,
+        role: 'user',
+        metadata: {
+          emittedAt: new Date().toISOString(),
+          optimistic: true,
         },
-      ],
-    };
-    setTransientMessages((current) => [...current, { message, sessionId }]);
-    return optimisticId;
-  }, []);
+        parts: [
+          {
+            type: 'text',
+            text,
+          },
+        ],
+      };
+      setTransientMessages((current) => [...current, { message, sessionId }]);
+      return optimisticId;
+    },
+    [],
+  );
 
   const appendPendingAssistantMessage = useCallback((sessionId: string) => {
     const pendingId = `pending-assistant-${sessionId}-${optimisticMessageCounterRef.current++}`;
@@ -352,8 +354,7 @@ export function useProjectSessionChat(
         removeTransientPair(optimisticId, pendingAssistantId);
       } catch (error) {
         removeTransientPair(optimisticId, pendingAssistantId);
-        const message =
-          error instanceof Error ? error.message : '发送消息失败';
+        const message = error instanceof Error ? error.message : '发送消息失败';
         toast.error(message);
       } finally {
         promptRequestInFlightRef.current = false;
@@ -384,7 +385,10 @@ export function useProjectSessionChat(
       return;
     }
     const promptKey = `${selectedSession.data.id}:${text}`;
-    if (pendingPromptKeyRef.current === promptKey || promptRequestInFlightRef.current) {
+    if (
+      pendingPromptKeyRef.current === promptKey ||
+      promptRequestInFlightRef.current
+    ) {
       return;
     }
     pendingPromptKeyRef.current = promptKey;
