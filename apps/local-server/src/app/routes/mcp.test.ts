@@ -6,6 +6,7 @@ import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
 import { createAgent } from '../services/agent-service';
+import { getNoteById } from '../services/note-service';
 import { createProject } from '../services/project-service';
 import { createTask } from '../services/task-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
@@ -130,6 +131,8 @@ describe('mcp route', () => {
         'task_get',
         'task_update',
         'task_execute',
+        'task_runs_list',
+        'notes_append',
         'acp_session_create',
         'acp_session_prompt',
         'acp_session_cancel',
@@ -347,6 +350,91 @@ describe('mcp route', () => {
       },
     });
     expect(promptMock).toHaveBeenCalledTimes(1);
+
+    const taskRunsResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-task-runs',
+        method: 'tools/call',
+        params: {
+          name: 'task_runs_list',
+          arguments: {
+            projectId: project.id,
+            taskId: task.id,
+          },
+        },
+      },
+    });
+
+    expect(taskRunsResponse.statusCode).toBe(200);
+    expect(taskRunsResponse.json().result.content[0].json).toMatchObject({
+      items: [
+        expect.objectContaining({
+          isLatest: true,
+          status: 'COMPLETED',
+          summary: 'ACP session completed',
+          taskId: task.id,
+        }),
+      ],
+      projectId: project.id,
+      taskId: task.id,
+      total: 1,
+    });
+
+    const taskRunSessionId = taskRunsResponse.json().result.content[0].json
+      .items[0].sessionId as string;
+
+    const appendNoteResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-note-append',
+        method: 'tools/call',
+        params: {
+          name: 'notes_append',
+          arguments: {
+            projectId: project.id,
+            sessionId: taskRunSessionId,
+            taskId: task.id,
+            title: 'Review Summary',
+            content: '## Verdict\n\n- pass',
+            assignedAgentIds: ['agent-reviewer'],
+          },
+        },
+      },
+    });
+
+    expect(appendNoteResponse.statusCode).toBe(200);
+    expect(appendNoteResponse.json().result.content[0].json).toMatchObject({
+      note: {
+        assignedAgentIds: ['agent-reviewer'],
+        content: '## Verdict\n\n- pass',
+        linkedTaskId: task.id,
+        projectId: project.id,
+        sessionId: taskRunSessionId,
+        source: 'agent',
+        title: 'Review Summary',
+        type: 'general',
+      },
+      scope: {
+        ownership: 'session',
+        projectId: project.id,
+        sessionId: taskRunSessionId,
+        taskId: task.id,
+      },
+    });
+
+    const createdNoteId = appendNoteResponse.json().result.content[0].json.note
+      .id as string;
+    expect(await getNoteById(fastify.sqlite, createdNoteId)).toMatchObject({
+      id: createdNoteId,
+      linkedTaskId: task.id,
+      sessionId: taskRunSessionId,
+      title: 'Review Summary',
+    });
 
     const invalidTaskExecuteResponse = await fastify.inject({
       method: 'POST',

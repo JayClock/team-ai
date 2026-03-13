@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { ProblemError } from '../errors/problem-error';
+import { recordNoteEvent } from '../services/note-event-service';
+import { createNote } from '../services/note-service';
 import {
   cancelAcpSession,
   createAcpSession,
@@ -8,6 +10,7 @@ import {
 } from '../services/acp-service';
 import { listAgents } from '../services/agent-service';
 import { listProjects } from '../services/project-service';
+import { listTaskRuns } from '../services/task-run-service';
 import {
   executeTask,
   getTaskById,
@@ -56,10 +59,19 @@ const taskGetArgsSchema = z.object({
 
 const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
 const stringArraySchema = z.array(z.string().trim().min(1));
+const noteSourceSchema = z.enum(['user', 'agent', 'system']);
+const noteTypeSchema = z.enum(['spec', 'task', 'general']);
 const mcpWritableTaskStatusSchema = z.enum([
   'PENDING',
   'READY',
   'WAITING_RETRY',
+  'CANCELLED',
+]);
+const taskRunStatusSchema = z.enum([
+  'PENDING',
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
   'CANCELLED',
 ]);
 
@@ -91,6 +103,27 @@ const taskUpdateArgsSchema = z
 const taskExecuteArgsSchema = z.object({
   projectId: z.string().trim().min(1),
   taskId: z.string().trim().min(1),
+});
+
+const taskRunsListArgsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  status: taskRunStatusSchema.optional(),
+  taskId: z.string().trim().min(1).optional(),
+});
+
+const notesAppendArgsSchema = z.object({
+  assignedAgentIds: stringArraySchema.optional(),
+  content: z.string().min(1),
+  parentNoteId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  source: noteSourceSchema.default('agent'),
+  taskId: z.string().trim().min(1).optional(),
+  title: z.string().trim().min(1),
+  type: noteTypeSchema.default('general'),
 });
 
 const createAcpSessionArgsSchema = z.object({
@@ -240,6 +273,70 @@ const mcpTools = [
     },
   },
   {
+    name: 'task_runs_list',
+    title: 'List Task Runs',
+    description:
+      'List project task runs, with optional task, session, and status filters.',
+    inputSchema: {
+      type: 'object',
+      required: ['projectId'],
+      properties: {
+        projectId: { type: 'string' },
+        taskId: { type: 'string' },
+        sessionId: { type: 'string' },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED'],
+        },
+        page: { type: 'number', minimum: 1, default: 1 },
+        pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
+      },
+    },
+  },
+  {
+    name: 'notes_append',
+    title: 'Append Note',
+    description:
+      'Append a new note to a project. sessionId scopes the note to a session, taskId links it to a task, and providing both keeps session ownership while linking the task.',
+    inputSchema: {
+      type: 'object',
+      required: ['projectId', 'title', 'content'],
+      properties: {
+        projectId: {
+          type: 'string',
+          description: 'Owning project id for the new note.',
+        },
+        title: { type: 'string' },
+        content: { type: 'string' },
+        type: {
+          type: 'string',
+          enum: ['spec', 'task', 'general'],
+          default: 'general',
+        },
+        source: {
+          type: 'string',
+          enum: ['user', 'agent', 'system'],
+          default: 'agent',
+        },
+        sessionId: {
+          type: 'string',
+          description:
+            'Optional session scope. When provided, the note is stored under the session note collection.',
+        },
+        taskId: {
+          type: 'string',
+          description:
+            'Optional task link. This associates the note with a task without changing ownership unless sessionId is also set.',
+        },
+        parentNoteId: { type: 'string' },
+        assignedAgentIds: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
     name: 'acp_session_create',
     title: 'Create ACP Session',
     description: 'Create a new local ACP session for a project.',
@@ -351,6 +448,19 @@ async function getProjectTask(
   }
 
   return task;
+}
+
+function describeNoteScope(note: {
+  linkedTaskId: string | null;
+  projectId: string;
+  sessionId: string | null;
+}) {
+  return {
+    ownership: note.sessionId ? ('session' as const) : ('project' as const),
+    projectId: note.projectId,
+    sessionId: note.sessionId,
+    taskId: note.linkedTaskId,
+  };
 }
 
 const mcpRoute: FastifyPluginAsync = async (fastify) => {
@@ -483,6 +593,39 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                     callbacks: dispatchCallbacks,
                   }),
                 ),
+              );
+            }
+            case 'task_runs_list': {
+              const args = taskRunsListArgsSchema.parse(toolCall.arguments);
+              return resultEnvelope(
+                id,
+                toolSuccess(await listTaskRuns(fastify.sqlite, args)),
+              );
+            }
+            case 'notes_append': {
+              const args = notesAppendArgsSchema.parse(toolCall.arguments);
+              const note = await createNote(fastify.sqlite, {
+                assignedAgentIds: args.assignedAgentIds,
+                content: args.content,
+                linkedTaskId: args.taskId,
+                parentNoteId: args.parentNoteId,
+                projectId: args.projectId,
+                sessionId: args.sessionId,
+                source: args.source,
+                title: args.title,
+                type: args.type,
+              });
+              await recordNoteEvent(fastify.sqlite, {
+                note,
+                type: 'created',
+              });
+
+              return resultEnvelope(
+                id,
+                toolSuccess({
+                  note,
+                  scope: describeNoteScope(note),
+                }),
               );
             }
             case 'acp_session_create': {
