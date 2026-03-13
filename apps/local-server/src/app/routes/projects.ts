@@ -1,6 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { presentProject, presentProjectList } from '../presenters/project-presenter';
+import {
+  presentProject,
+  presentProjectList,
+} from '../presenters/project-presenter';
 import {
   createProject,
   deleteProject,
@@ -9,6 +12,7 @@ import {
   updateProject,
 } from '../services/project-service';
 import { cloneProjectRepository as cloneProjectRepositoryFromGit } from '../services/project-repository-service';
+import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listProjectsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -55,8 +59,10 @@ const projectParamsSchema = z.object({
 });
 
 const projectsRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/projects', async (request) => {
+  fastify.get('/projects', async (request, reply) => {
     const query = listProjectsQuerySchema.parse(request.query);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.projects);
 
     return presentProjectList(await listProjects(fastify.sqlite, query));
   });
@@ -65,7 +71,10 @@ const projectsRoute: FastifyPluginAsync = async (fastify) => {
     const body = createProjectBodySchema.parse(request.body);
     const project = await createProject(fastify.sqlite, body);
 
-    reply.code(201).header('Location', `/api/projects/${project.id}`);
+    reply
+      .code(201)
+      .header('Location', `/api/projects/${project.id}`)
+      .type(VENDOR_MEDIA_TYPES.project);
 
     return presentProject(project);
   });
@@ -76,7 +85,8 @@ const projectsRoute: FastifyPluginAsync = async (fastify) => {
 
     reply
       .code(result.cloneStatus === 'cloned' ? 201 : 200)
-      .header('Location', `/api/projects/${result.project.id}`);
+      .header('Location', `/api/projects/${result.project.id}`)
+      .type(VENDOR_MEDIA_TYPES.project);
 
     return {
       cloneStatus: result.cloneStatus,
@@ -84,15 +94,19 @@ const projectsRoute: FastifyPluginAsync = async (fastify) => {
     };
   });
 
-  fastify.get('/projects/:projectId', async (request) => {
+  fastify.get('/projects/:projectId', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.project);
 
     return presentProject(await getProjectById(fastify.sqlite, projectId));
   });
 
-  fastify.patch('/projects/:projectId', async (request) => {
+  fastify.patch('/projects/:projectId', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const body = updateProjectBodySchema.parse(request.body);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.project);
 
     return presentProject(await updateProject(fastify.sqlite, projectId, body));
   });

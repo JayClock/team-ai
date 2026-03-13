@@ -12,6 +12,8 @@ import { syncPlanEventToTasksAndDispatch } from '../services/acp-plan-task-sync-
 import { createProject } from '../services/project-service';
 import { listTaskRuns } from '../services/task-run-service';
 import { createTask, getTaskById } from '../services/task-service';
+import { responseContentType } from '../test-support/response-content-type';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import acpRoute from './acp';
 import agentsRoute from './agents';
 import meRoute from './me';
@@ -165,6 +167,9 @@ describe('acp route', () => {
     });
 
     expect(sessionsResponse.statusCode).toBe(200);
+    expect(responseContentType(sessionsResponse)).toBe(
+      VENDOR_MEDIA_TYPES.acpSessions,
+    );
     expect(sessionsResponse.json()._embedded.sessions).toHaveLength(1);
     expect(sessionsResponse.json()._embedded.sessions[0]).toMatchObject({
       agent: {
@@ -179,6 +184,9 @@ describe('acp route', () => {
     });
 
     expect(historyResponse.statusCode).toBe(200);
+    expect(responseContentType(historyResponse)).toBe(
+      VENDOR_MEDIA_TYPES.acpHistory,
+    );
     expect(
       historyResponse
         .json()

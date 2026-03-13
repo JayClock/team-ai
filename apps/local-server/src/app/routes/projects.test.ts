@@ -6,6 +6,8 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
+import { responseContentType } from '../test-support/response-content-type';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import projectsRoute from './projects';
 
 describe('projects route', () => {
@@ -48,6 +50,7 @@ describe('projects route', () => {
     });
 
     expect(response.statusCode).toBe(201);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.project);
     expect(response.json()).toMatchObject({
       title: 'Team AI',
       repoPath: '/Users/example/team-ai',
@@ -105,6 +108,7 @@ describe('projects route', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.projects);
     expect(response.json()).toMatchObject({
       _embedded: {
         projects: [
@@ -144,6 +148,7 @@ describe('projects route', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.project);
     expect(response.json()).toMatchObject({
       id: project.id,
       _links: {

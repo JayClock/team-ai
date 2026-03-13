@@ -10,6 +10,7 @@ import {
   listNotes,
   updateNote,
 } from '../services/note-service';
+import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listNotesQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -64,12 +65,14 @@ const notePatchSchema = z
   });
 
 const notesRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/notes', async (request) => {
+  fastify.get('/notes', async (request, reply) => {
     const query = listNotesQuerySchema.parse(request.query);
 
     if (!query.projectId) {
       throw fastify.httpErrors.badRequest('projectId is required');
     }
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.notes);
 
     return presentNoteList(
       await listNotes(fastify.sqlite, {
@@ -79,9 +82,11 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.get('/projects/:projectId/notes', async (request) => {
+  fastify.get('/projects/:projectId/notes', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const query = listNotesQuerySchema.parse(request.query);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.notes);
 
     return presentNoteList(
       await listNotes(fastify.sqlite, {
@@ -103,17 +108,22 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
       type: 'created',
     });
 
-    reply.code(201).header('Location', `/api/notes/${note.id}`);
+    reply
+      .code(201)
+      .header('Location', `/api/notes/${note.id}`)
+      .type(VENDOR_MEDIA_TYPES.note);
     return presentNote(note);
   });
 
   fastify.get(
     '/projects/:projectId/acp-sessions/:sessionId/notes',
-    async (request) => {
+    async (request, reply) => {
       const { projectId, sessionId } = sessionParamsSchema.parse(
         request.params,
       );
       const query = listNotesQuerySchema.parse(request.query);
+
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.notes);
 
       return presentNoteList(
         await listNotes(fastify.sqlite, {
@@ -148,17 +158,23 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
         type: 'created',
       });
 
-      reply.code(201).header('Location', `/api/notes/${note.id}`);
+      reply
+        .code(201)
+        .header('Location', `/api/notes/${note.id}`)
+        .type(VENDOR_MEDIA_TYPES.note);
       return presentNote(note);
     },
   );
 
-  fastify.get('/notes/:noteId', async (request) => {
+  fastify.get('/notes/:noteId', async (request, reply) => {
     const { noteId } = noteParamsSchema.parse(request.params);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.note);
+
     return presentNote(await getNoteById(fastify.sqlite, noteId));
   });
 
-  fastify.patch('/notes/:noteId', async (request) => {
+  fastify.patch('/notes/:noteId', async (request, reply) => {
     const { noteId } = noteParamsSchema.parse(request.params);
     const body = notePatchSchema.parse(request.body);
     const note = await updateNote(fastify.sqlite, noteId, body);
@@ -166,6 +182,9 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
       note,
       type: 'updated',
     });
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.note);
+
     return presentNote(note);
   });
 

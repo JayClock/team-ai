@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
 import problemJsonPlugin from '../plugins/problem-json';
+import { responseContentType } from '../test-support/response-content-type';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import rootRoute from './root';
 
 describe('root route', () => {
@@ -29,6 +31,7 @@ describe('root route', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.root);
     expect(response.json()).toMatchObject({
       name: 'team-ai-local-server',
       capabilities: {

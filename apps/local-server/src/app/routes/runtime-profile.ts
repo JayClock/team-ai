@@ -5,6 +5,7 @@ import {
   getProjectRuntimeProfile,
   updateProjectRuntimeProfile,
 } from '../services/project-runtime-profile-service';
+import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const projectParamsSchema = z.object({
   projectId: z.string().min(1),
@@ -26,20 +27,32 @@ const runtimeProfilePatchSchema = z
   });
 
 const runtimeProfileRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/projects/:projectId/runtime-profile', async (request) => {
-    const { projectId } = projectParamsSchema.parse(request.params);
-    return presentProjectRuntimeProfile(
-      await getProjectRuntimeProfile(fastify.sqlite, projectId),
-    );
-  });
+  fastify.get(
+    '/projects/:projectId/runtime-profile',
+    async (request, reply) => {
+      const { projectId } = projectParamsSchema.parse(request.params);
 
-  fastify.patch('/projects/:projectId/runtime-profile', async (request) => {
-    const { projectId } = projectParamsSchema.parse(request.params);
-    const body = runtimeProfilePatchSchema.parse(request.body);
-    return presentProjectRuntimeProfile(
-      await updateProjectRuntimeProfile(fastify.sqlite, projectId, body),
-    );
-  });
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.projectRuntimeProfile);
+
+      return presentProjectRuntimeProfile(
+        await getProjectRuntimeProfile(fastify.sqlite, projectId),
+      );
+    },
+  );
+
+  fastify.patch(
+    '/projects/:projectId/runtime-profile',
+    async (request, reply) => {
+      const { projectId } = projectParamsSchema.parse(request.params);
+      const body = runtimeProfilePatchSchema.parse(request.body);
+
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.projectRuntimeProfile);
+
+      return presentProjectRuntimeProfile(
+        await updateProjectRuntimeProfile(fastify.sqlite, projectId, body),
+      );
+    },
+  );
 };
 
 export default runtimeProfileRoute;

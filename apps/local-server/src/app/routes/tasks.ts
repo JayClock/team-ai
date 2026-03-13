@@ -13,6 +13,7 @@ import {
   listTasks,
   updateTaskAndDispatch,
 } from '../services/task-service';
+import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTasksQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -114,14 +115,20 @@ const taskPatchSchema = z
   });
 
 const tasksRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/tasks', async (request) => {
+  fastify.get('/tasks', async (request, reply) => {
     const query = listTasksQuerySchema.parse(request.query);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.tasks);
+
     return presentTaskList(await listTasks(fastify.sqlite, query));
   });
 
-  fastify.get('/projects/:projectId/tasks', async (request) => {
+  fastify.get('/projects/:projectId/tasks', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const query = listTasksQuerySchema.parse(request.query);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.tasks);
+
     return presentTaskList(
       await listTasks(fastify.sqlite, {
         ...query,
@@ -132,11 +139,14 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.get(
     '/projects/:projectId/acp-sessions/:sessionId/tasks',
-    async (request) => {
+    async (request, reply) => {
       const { projectId, sessionId } = sessionParamsSchema.parse(
         request.params,
       );
       const query = listTasksQuerySchema.parse(request.query);
+
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.tasks);
+
       return presentTaskList(
         await listTasks(fastify.sqlite, {
           ...query,
@@ -164,17 +174,23 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
         triggerSessionId: sessionId,
       });
 
-      reply.code(201).header('Location', `/api/tasks/${task.id}`);
+      reply
+        .code(201)
+        .header('Location', `/api/tasks/${task.id}`)
+        .type(VENDOR_MEDIA_TYPES.task);
       return presentTask(task);
     },
   );
 
-  fastify.get('/tasks/:taskId', async (request) => {
+  fastify.get('/tasks/:taskId', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
+
     return presentTask(await getTaskById(fastify.sqlite, taskId));
   });
 
-  fastify.patch('/tasks/:taskId', async (request) => {
+  fastify.patch('/tasks/:taskId', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
     const result = await updateTaskAndDispatch(fastify.sqlite, taskId, body, {
@@ -206,6 +222,8 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
       },
       triggerSource: 'manual',
     });
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
 
     return presentTask(result.task);
   });

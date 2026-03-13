@@ -11,6 +11,7 @@ import {
   updateTaskRun,
 } from '../services/task-run-service';
 import { getTaskById } from '../services/task-service';
+import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTaskRunsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -72,9 +73,11 @@ const taskRunPatchSchema = z
   });
 
 const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/projects/:projectId/task-runs', async (request) => {
+  fastify.get('/projects/:projectId/task-runs', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const query = listTaskRunsQuerySchema.parse(request.query);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.taskRuns);
 
     return presentTaskRunList(
       await listTaskRuns(fastify.sqlite, {
@@ -84,7 +87,7 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.get('/tasks/:taskId/runs', async (request) => {
+  fastify.get('/tasks/:taskId/runs', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const query = listTaskRunsQuerySchema.parse(request.query);
     const task = await getTaskById(fastify.sqlite, taskId);
@@ -93,6 +96,8 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
       projectId: task.projectId,
       taskId,
     });
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.taskRuns);
 
     return presentTaskRunList(taskRunList);
   });
@@ -107,18 +112,27 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
       taskId,
     });
 
-    reply.code(201).header('Location', `/api/task-runs/${taskRun.id}`);
+    reply
+      .code(201)
+      .header('Location', `/api/task-runs/${taskRun.id}`)
+      .type(VENDOR_MEDIA_TYPES.taskRun);
     return presentTaskRun(taskRun);
   });
 
-  fastify.get('/task-runs/:taskRunId', async (request) => {
+  fastify.get('/task-runs/:taskRunId', async (request, reply) => {
     const { taskRunId } = taskRunParamsSchema.parse(request.params);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.taskRun);
+
     return presentTaskRun(await getTaskRunById(fastify.sqlite, taskRunId));
   });
 
-  fastify.patch('/task-runs/:taskRunId', async (request) => {
+  fastify.patch('/task-runs/:taskRunId', async (request, reply) => {
     const { taskRunId } = taskRunParamsSchema.parse(request.params);
     const body = taskRunPatchSchema.parse(request.body);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.taskRun);
+
     return presentTaskRun(await updateTaskRun(fastify.sqlite, taskRunId, body));
   });
 };

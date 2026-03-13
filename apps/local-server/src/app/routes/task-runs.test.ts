@@ -9,7 +9,9 @@ import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import { createProject } from '../services/project-service';
 import { createTask } from '../services/task-service';
+import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import taskRunsRoute from './task-runs';
 
 describe('task run routes', () => {
@@ -59,6 +61,9 @@ describe('task run routes', () => {
     });
 
     expect(createResponse.statusCode).toBe(201);
+    expect(responseContentType(createResponse)).toBe(
+      VENDOR_MEDIA_TYPES.taskRun,
+    );
     const taskRun = createResponse.json() as { id: string };
     expect(createResponse.json()).toMatchObject({
       projectId: project.id,
@@ -78,6 +83,9 @@ describe('task run routes', () => {
     });
 
     expect(detailResponse.statusCode).toBe(200);
+    expect(responseContentType(detailResponse)).toBe(
+      VENDOR_MEDIA_TYPES.taskRun,
+    );
     expect(detailResponse.json()).toMatchObject({
       id: taskRun.id,
     });
@@ -88,6 +96,9 @@ describe('task run routes', () => {
     });
 
     expect(taskRunsResponse.statusCode).toBe(200);
+    expect(responseContentType(taskRunsResponse)).toBe(
+      VENDOR_MEDIA_TYPES.taskRuns,
+    );
     expect(taskRunsResponse.json()).toMatchObject({
       total: 1,
       _embedded: {
@@ -101,6 +112,9 @@ describe('task run routes', () => {
     });
 
     expect(projectRunsResponse.statusCode).toBe(200);
+    expect(responseContentType(projectRunsResponse)).toBe(
+      VENDOR_MEDIA_TYPES.taskRuns,
+    );
     expect(projectRunsResponse.json()).toMatchObject({
       total: 1,
       _embedded: {
@@ -146,6 +160,7 @@ describe('task run routes', () => {
     });
 
     expect(patchResponse.statusCode).toBe(200);
+    expect(responseContentType(patchResponse)).toBe(VENDOR_MEDIA_TYPES.taskRun);
     expect(patchResponse.json()).toMatchObject({
       completedAt: '2026-03-12T00:10:00.000Z',
       id: taskRunId,

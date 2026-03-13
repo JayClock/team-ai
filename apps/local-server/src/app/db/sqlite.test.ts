@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
+import { sqliteMigrations } from './migrations';
 import { initializeDatabase } from './sqlite';
 
 describe('sqlite initialization', () => {
@@ -71,6 +72,10 @@ describe('sqlite initialization', () => {
       'project_acp_session_events',
       'project_acp_sessions',
       'project_agents',
+      'project_note_events',
+      'project_notes',
+      'project_runtime_profiles',
+      'project_task_runs',
       'project_tasks',
       'projects',
       'schema_migrations',
@@ -78,11 +83,9 @@ describe('sqlite initialization', () => {
       'sync_conflicts',
       'sync_state',
     ]);
-    expect(migrations).toEqual([
-      { version: '001_initial_schema' },
-      { version: '002_task_driven_workflow' },
-      { version: '003_task_source_tracking' },
-    ]);
+    expect(migrations).toEqual(
+      sqliteMigrations.map(({ version }) => ({ version })),
+    );
     expect(projectColumns.map(({ name }) => name)).toEqual([
       'id',
       'title',
@@ -220,7 +223,7 @@ describe('sqlite initialization', () => {
       .prepare('SELECT COUNT(*) AS count FROM settings')
       .get() as { count: number };
 
-    expect(migrationCount).toEqual({ count: 3 });
+    expect(migrationCount).toEqual({ count: sqliteMigrations.length });
     expect(settingsCount).toEqual({ count: 1 });
 
     second.close();

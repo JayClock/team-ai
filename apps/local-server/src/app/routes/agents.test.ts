@@ -7,6 +7,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import { createProject } from '../services/project-service';
+import { responseContentType } from '../test-support/response-content-type';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import agentsRoute from './agents';
 
 describe('agents route', () => {
@@ -56,6 +58,7 @@ describe('agents route', () => {
     });
 
     expect(createResponse.statusCode).toBe(201);
+    expect(responseContentType(createResponse)).toBe(VENDOR_MEDIA_TYPES.agent);
     expect(createResponse.json()).toMatchObject({
       projectId: project.id,
       name: 'Planner',
@@ -72,6 +75,7 @@ describe('agents route', () => {
     });
 
     expect(listResponse.statusCode).toBe(200);
+    expect(responseContentType(listResponse)).toBe(VENDOR_MEDIA_TYPES.agents);
     expect(listResponse.json()).toMatchObject({
       _embedded: {
         agents: [
@@ -125,6 +129,7 @@ describe('agents route', () => {
     });
 
     expect(patchResponse.statusCode).toBe(200);
+    expect(responseContentType(patchResponse)).toBe(VENDOR_MEDIA_TYPES.agent);
     expect(patchResponse.json()).toMatchObject({
       id: created.id,
       projectId: project.id,

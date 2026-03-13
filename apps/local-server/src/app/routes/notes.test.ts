@@ -8,7 +8,9 @@ import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import { createProject } from '../services/project-service';
+import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import notesRoute from './notes';
 
 describe('notes routes', () => {
@@ -51,6 +53,9 @@ describe('notes routes', () => {
     });
 
     expect(projectNoteResponse.statusCode).toBe(201);
+    expect(responseContentType(projectNoteResponse)).toBe(
+      VENDOR_MEDIA_TYPES.note,
+    );
     const projectNote = projectNoteResponse.json() as { id: string };
 
     const sessionNoteResponse = await fastify.inject({
@@ -65,6 +70,9 @@ describe('notes routes', () => {
     });
 
     expect(sessionNoteResponse.statusCode).toBe(201);
+    expect(responseContentType(sessionNoteResponse)).toBe(
+      VENDOR_MEDIA_TYPES.note,
+    );
     const sessionNote = sessionNoteResponse.json() as { id: string };
     expect(sessionNoteResponse.json()).toMatchObject({
       sessionId,
@@ -81,6 +89,9 @@ describe('notes routes', () => {
     });
 
     expect(projectNotesResponse.statusCode).toBe(200);
+    expect(responseContentType(projectNotesResponse)).toBe(
+      VENDOR_MEDIA_TYPES.notes,
+    );
     expect(projectNotesResponse.json()).toMatchObject({
       total: 2,
       _embedded: {
@@ -97,6 +108,9 @@ describe('notes routes', () => {
     });
 
     expect(sessionNotesResponse.statusCode).toBe(200);
+    expect(responseContentType(sessionNotesResponse)).toBe(
+      VENDOR_MEDIA_TYPES.notes,
+    );
     expect(sessionNotesResponse.json()).toMatchObject({
       total: 1,
       _embedded: {
@@ -135,6 +149,7 @@ describe('notes routes', () => {
     });
 
     expect(patchResponse.statusCode).toBe(200);
+    expect(responseContentType(patchResponse)).toBe(VENDOR_MEDIA_TYPES.note);
     expect(patchResponse.json()).toMatchObject({
       content: 'Updated note content',
       id: noteId,

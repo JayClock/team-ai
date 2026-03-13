@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import problemJsonPlugin from '../plugins/problem-json';
+import { responseContentType } from '../test-support/response-content-type';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import rolesRoute from './roles';
 
 describe('roles routes', () => {
@@ -16,6 +18,7 @@ describe('roles routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.roles);
     expect(response.json()).toMatchObject({
       _embedded: {
         roles: [
@@ -42,6 +45,7 @@ describe('roles routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.role);
     expect(response.json()).toMatchObject({
       id: 'GATE',
       name: 'Gate Reviewer',

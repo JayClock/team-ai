@@ -11,7 +11,9 @@ import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import { createProject } from '../services/project-service';
+import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import tasksRoute from './tasks';
 
 describe('tasks routes', () => {
@@ -57,6 +59,7 @@ describe('tasks routes', () => {
     });
 
     expect(createResponse.statusCode).toBe(201);
+    expect(responseContentType(createResponse)).toBe(VENDOR_MEDIA_TYPES.task);
     expect(createResponse.headers.location).toMatch(/^\/api\/tasks\/task_/);
 
     const task = createResponse.json() as { id: string };
@@ -73,6 +76,7 @@ describe('tasks routes', () => {
     });
 
     expect(detailResponse.statusCode).toBe(200);
+    expect(responseContentType(detailResponse)).toBe(VENDOR_MEDIA_TYPES.task);
     expect(detailResponse.json()).toMatchObject({
       id: task.id,
       _links: {
@@ -88,6 +92,9 @@ describe('tasks routes', () => {
     });
 
     expect(sessionTasksResponse.statusCode).toBe(200);
+    expect(responseContentType(sessionTasksResponse)).toBe(
+      VENDOR_MEDIA_TYPES.tasks,
+    );
     expect(sessionTasksResponse.json()).toMatchObject({
       total: 1,
       _embedded: {
@@ -101,6 +108,9 @@ describe('tasks routes', () => {
     });
 
     expect(projectTasksResponse.statusCode).toBe(200);
+    expect(responseContentType(projectTasksResponse)).toBe(
+      VENDOR_MEDIA_TYPES.tasks,
+    );
     expect(projectTasksResponse.json()).toMatchObject({
       total: 1,
       _embedded: {
@@ -133,6 +143,7 @@ describe('tasks routes', () => {
     });
 
     expect(patchResponse.statusCode).toBe(200);
+    expect(responseContentType(patchResponse)).toBe(VENDOR_MEDIA_TYPES.task);
     expect(patchResponse.json()).toMatchObject({
       assignedRole: 'CRAFTER',
       id: taskId,
@@ -181,6 +192,7 @@ describe('tasks routes', () => {
     });
 
     expect(patchResponse.statusCode).toBe(200);
+    expect(responseContentType(patchResponse)).toBe(VENDOR_MEDIA_TYPES.task);
     expect(patchResponse.json()).toMatchObject({
       assignedProvider: 'codex',
       assignedRole: 'CRAFTER',

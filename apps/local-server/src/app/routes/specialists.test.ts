@@ -6,6 +6,8 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
+import { responseContentType } from '../test-support/response-content-type';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import projectsRoute from './projects';
 import specialistsRoute from './specialists';
 
@@ -31,7 +33,9 @@ describe('specialists routes', () => {
 
   it('lists built-in and workspace specialists for a project', async () => {
     const sqlite = await createTestDatabase();
-    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-specialists-route-workspace-'));
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-specialists-route-workspace-'),
+    );
     cleanupTasks.push(async () => {
       await rm(repoPath, { recursive: true, force: true });
     });
@@ -61,6 +65,7 @@ describe('specialists routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.specialists);
     const specialists = response.json()._embedded.specialists as Array<{
       id: string;
       source: { scope: string };
@@ -84,7 +89,9 @@ describe('specialists routes', () => {
 
   it('returns specialist detail for a project resource', async () => {
     const sqlite = await createTestDatabase();
-    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-specialists-route-detail-'));
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-specialists-route-detail-'),
+    );
     cleanupTasks.push(async () => {
       await rm(repoPath, { recursive: true, force: true });
     });
@@ -97,6 +104,7 @@ describe('specialists routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.specialist);
     expect(response.json()).toMatchObject({
       id: 'routa-coordinator',
       role: 'ROUTA',

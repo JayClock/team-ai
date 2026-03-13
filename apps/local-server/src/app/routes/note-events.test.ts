@@ -8,6 +8,8 @@ import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import { createProject } from '../services/project-service';
+import { responseContentType } from '../test-support/response-content-type';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import noteEventsRoute from './note-events';
 import notesRoute from './notes';
 
@@ -74,6 +76,9 @@ describe('note events routes', () => {
     });
 
     expect(eventsResponse.statusCode).toBe(200);
+    expect(responseContentType(eventsResponse)).toBe(
+      VENDOR_MEDIA_TYPES.noteEvents,
+    );
     expect(eventsResponse.json()).toMatchObject({
       total: 3,
       _embedded: {

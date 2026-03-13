@@ -8,6 +8,8 @@ import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import { createProject } from '../services/project-service';
+import { responseContentType } from '../test-support/response-content-type';
+import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import runtimeProfileRoute from './runtime-profile';
 
 describe('runtime profile routes', () => {
@@ -44,6 +46,9 @@ describe('runtime profile routes', () => {
     });
 
     expect(initialResponse.statusCode).toBe(200);
+    expect(responseContentType(initialResponse)).toBe(
+      VENDOR_MEDIA_TYPES.projectRuntimeProfile,
+    );
     expect(initialResponse.json()).toMatchObject({
       defaultModel: null,
       defaultProviderId: null,
@@ -66,6 +71,9 @@ describe('runtime profile routes', () => {
     });
 
     expect(patchResponse.statusCode).toBe(200);
+    expect(responseContentType(patchResponse)).toBe(
+      VENDOR_MEDIA_TYPES.projectRuntimeProfile,
+    );
     expect(patchResponse.json()).toMatchObject({
       defaultModel: 'gpt-5.4',
       defaultProviderId: 'opencode',

@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const localUser = {
   id: 'desktop-user',
@@ -7,17 +8,21 @@ const localUser = {
 };
 
 const meRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/me', async () => ({
-    _links: {
-      self: {
-        href: '/api/me',
+  fastify.get('/me', async (_request, reply) => {
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.user);
+
+    return {
+      _links: {
+        self: {
+          href: '/api/me',
+        },
+        projects: {
+          href: '/api/projects',
+        },
       },
-      projects: {
-        href: '/api/projects',
-      },
-    },
-    ...localUser,
-  }));
+      ...localUser,
+    };
+  });
 };
 
 export default meRoute;

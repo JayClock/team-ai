@@ -25,6 +25,7 @@ import {
   promptAcpSession,
   renameAcpSession,
 } from '../services/acp-service';
+import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listSessionsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -101,8 +102,11 @@ function errorEnvelope(
 }
 
 const acpRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/acp/providers', async (request) => {
+  fastify.get('/acp/providers', async (request, reply) => {
     const query = listAcpProvidersQuerySchema.parse(request.query);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.acpProviders);
+
     return presentAcpProviders(
       await listAcpProviders({
         includeRegistry: query.registry ?? true,
@@ -110,14 +114,19 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.post('/acp/install', async (request) => {
+  fastify.post('/acp/install', async (request, reply) => {
     const body = installAcpProviderBodySchema.parse(request.body);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.installedAcpProvider);
+
     return presentInstalledAcpProvider(await installAcpProvider(body));
   });
 
-  fastify.get('/projects/:projectId/acp-sessions', async (request) => {
+  fastify.get('/projects/:projectId/acp-sessions', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const query = listSessionsQuerySchema.parse(request.query);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.acpSessions);
 
     return presentAcpSessionList(
       await listAcpSessionsByProject(fastify.sqlite, projectId, query),
@@ -126,7 +135,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.get(
     '/projects/:projectId/acp-sessions/:sessionId',
-    async (request) => {
+    async (request, reply) => {
       const { projectId, sessionId } = sessionParamsSchema.parse(
         request.params,
       );
@@ -136,17 +145,22 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
         throw fastify.httpErrors.notFound();
       }
 
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.acpSession);
+
       return presentAcpSession(session);
     },
   );
 
   fastify.get(
     '/projects/:projectId/acp-sessions/:sessionId/history',
-    async (request) => {
+    async (request, reply) => {
       const { projectId, sessionId } = sessionParamsSchema.parse(
         request.params,
       );
       const query = historyQuerySchema.parse(request.query);
+
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.acpHistory);
+
       return presentAcpHistory(
         projectId,
         sessionId,
@@ -163,7 +177,7 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.patch(
     '/projects/:projectId/acp-sessions/:sessionId',
-    async (request) => {
+    async (request, reply) => {
       const { projectId, sessionId } = sessionParamsSchema.parse(
         request.params,
       );
@@ -177,6 +191,8 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
       if (session.project.id !== projectId) {
         throw fastify.httpErrors.notFound();
       }
+
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.acpSession);
 
       return presentAcpSession(session);
     },
