@@ -1,10 +1,14 @@
+import type { State } from '@hateoas-ts/resource';
+import type { AcpSession } from '@shared/schema';
 import {
+  buildWorkbenchWalkthroughScenarios,
   buildTaskRunPanelItem,
   canRetryTask,
   formatStatusLabel,
   formatVerificationVerdictLabel,
   getTaskPrimaryAction,
   type TaskPanelItem,
+  type TaskRunPanelItem,
 } from './project-session-workbench.shared';
 
 describe('project session workbench task actions', () => {
@@ -117,6 +121,97 @@ describe('project session workbench task actions', () => {
       '失败',
     );
   });
+
+  it('keeps the walkthrough checklist pending until the flow is exercised', () => {
+    const scenarios = buildWorkbenchWalkthroughScenarios({
+      events: [],
+      selectedSession: null,
+      streamStatus: 'idle',
+      taskItems: [],
+    });
+
+    expect(mapWalkthroughStatuses(scenarios)).toEqual({
+      'project-session-start': 'ready',
+      'provider-failure-path': 'pending',
+      'review-and-verify': 'pending',
+      'run-and-retry': 'pending',
+      'task-auto-dispatch': 'pending',
+    });
+  });
+
+  it('marks the walkthrough checklist covered when key multi-agent states are present', () => {
+    const scenarios = buildWorkbenchWalkthroughScenarios({
+      events: [
+        {
+          data: {
+            message: 'provider offline',
+          },
+          emittedAt: '2026-03-13T12:07:00.000Z',
+          error: {
+            code: 'PROVIDER_TIMEOUT',
+            message: 'provider offline',
+            retryAfterMs: 1000,
+            retryable: true,
+          },
+          eventId: 'evt_error',
+          sessionId: 'acps_root',
+          type: 'error',
+        },
+      ],
+      selectedSession: createSessionState({
+        failureReason: 'provider offline',
+        id: 'acps_root',
+      }),
+      streamStatus: 'error',
+      taskItems: [
+        createTaskPanelItem({
+          executionSessionId: 'acps_impl_exec',
+          kind: 'implement',
+          resultSessionId: 'acps_impl_result',
+          status: 'WAITING_RETRY',
+          taskRuns: [
+            createTaskRunPanelItem({
+              id: 'trun_impl_latest',
+              retryOfRunId: 'trun_impl_prev',
+              sessionId: 'acps_impl_exec',
+              status: 'FAILED',
+            }),
+            createTaskRunPanelItem({
+              id: 'trun_impl_prev',
+              isLatest: false,
+              sessionId: 'acps_impl_prev',
+              status: 'FAILED',
+            }),
+          ],
+        }),
+        createTaskPanelItem({
+          executionSessionId: 'acps_review_exec',
+          kind: 'review',
+          resultSessionId: 'acps_review_result',
+          status: 'COMPLETED',
+          taskRuns: [
+            createTaskRunPanelItem({
+              id: 'trun_review_latest',
+              kind: 'review',
+              sessionId: 'acps_review_exec',
+              status: 'COMPLETED',
+              summary: 'review finished',
+              verificationReport: 'all checks passed',
+              verificationVerdict: 'pass',
+            }),
+          ],
+        }),
+      ],
+    });
+
+    expect(mapWalkthroughStatuses(scenarios)).toEqual({
+      'project-session-start': 'covered',
+      'provider-failure-path': 'covered',
+      'review-and-verify': 'covered',
+      'run-and-retry': 'covered',
+      'task-auto-dispatch': 'covered',
+    });
+  });
 });
 
 function createTaskPanelItem(overrides: Partial<TaskPanelItem>): TaskPanelItem {
@@ -128,4 +223,62 @@ function createTaskPanelItem(overrides: Partial<TaskPanelItem>): TaskPanelItem {
     taskState: {} as TaskPanelItem['taskState'],
     ...overrides,
   };
+}
+
+function createTaskRunPanelItem(
+  overrides: Partial<TaskRunPanelItem>,
+): TaskRunPanelItem {
+  return {
+    completedAt: '2026-03-13T12:05:00.000Z',
+    createdAt: '2026-03-13T12:00:00.000Z',
+    id: 'trun_123',
+    isLatest: true,
+    kind: 'implement',
+    provider: 'opencode',
+    retryOfRunId: null,
+    role: 'DEVELOPER',
+    sessionId: 'acps_123',
+    specialistId: 'crafter-implementor',
+    startedAt: '2026-03-13T12:01:00.000Z',
+    status: 'COMPLETED',
+    summary: null,
+    updatedAt: '2026-03-13T12:05:00.000Z',
+    verificationReport: null,
+    verificationVerdict: null,
+    ...overrides,
+  };
+}
+
+function createSessionState(
+  overrides: Partial<AcpSession['data']>,
+): State<AcpSession> {
+  return {
+    data: {
+      actor: { id: 'user_123' },
+      agent: null,
+      completedAt: null,
+      cwd: '/workspace',
+      failureReason: null,
+      id: 'acps_default',
+      lastActivityAt: '2026-03-13T12:00:00.000Z',
+      lastEventId: null,
+      name: '主控会话',
+      parentSession: null,
+      project: { id: 'proj_123' },
+      provider: 'opencode',
+      specialistId: 'routa-coordinator',
+      startedAt: '2026-03-13T11:55:00.000Z',
+      state: 'RUNNING',
+      task: null,
+      ...overrides,
+    },
+  } as State<AcpSession>;
+}
+
+function mapWalkthroughStatuses(
+  scenarios: ReturnType<typeof buildWorkbenchWalkthroughScenarios>,
+) {
+  return Object.fromEntries(
+    scenarios.map((scenario) => [scenario.id, scenario.status]),
+  );
 }

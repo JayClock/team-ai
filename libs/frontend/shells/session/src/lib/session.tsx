@@ -167,9 +167,9 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
-  const [inspectorTab, setInspectorTab] = useState<'activity' | 'tasks' | null>(
-    null,
-  );
+  const [inspectorTab, setInspectorTab] = useState<
+    'activity' | 'checklist' | 'tasks' | null
+  >(null);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(480);
   const [renameDialogSession, setRenameDialogSession] =
@@ -201,9 +201,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     [fallbackTaskItems, sessionTaskItems],
   );
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
-  const showDesktopInspector =
-    Boolean(selectedSession) &&
-    (tasksLoading || taskItems.length > 0 || sideEvents.length > 0);
+  const showDesktopInspector = Boolean(selectedSession);
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;

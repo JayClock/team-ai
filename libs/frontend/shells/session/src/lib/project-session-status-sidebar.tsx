@@ -13,6 +13,7 @@ import {
 import { ActivityIcon, ArrowUpRightIcon, ListChecksIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import {
+  buildWorkbenchWalkthroughScenarios,
   canRetryTask,
   describeTaskExecutionStatus,
   eventHeadline,
@@ -22,6 +23,7 @@ import {
   formatStatusLabel,
   formatTaskKindLabel,
   formatVerificationVerdictLabel,
+  formatWalkthroughStatusLabel,
   getTaskPrimaryAction,
   renderEventDetails,
   sessionDisplayName,
@@ -30,14 +32,16 @@ import {
   type TaskPanelAction,
   type TaskPanelItem,
   type TaskRunPanelItem,
+  type WorkbenchWalkthroughScenario,
   verificationVerdictChipClasses,
+  walkthroughStatusChipClasses,
 } from './project-session-workbench.shared';
 
 export function ProjectSessionStatusSidebar(props: {
-  activeTab?: 'activity' | 'tasks';
+  activeTab?: 'activity' | 'checklist' | 'tasks';
   events: AcpEventEnvelope[];
   onOpenSession: (sessionId: string) => void;
-  onTabChange?: (tab: 'activity' | 'tasks') => void;
+  onTabChange?: (tab: 'activity' | 'checklist' | 'tasks') => void;
   onTaskAction: (item: TaskPanelItem, action: TaskPanelAction) => void;
   pendingTaskAction: {
     action: TaskPanelAction;
@@ -62,7 +66,27 @@ export function ProjectSessionStatusSidebar(props: {
   } = props;
   const recentEvents = events.slice(-12).reverse();
   const defaultTab =
-    taskItems.length > 0 || tasksLoading ? 'tasks' : 'activity';
+    taskItems.length > 0 || tasksLoading
+      ? 'tasks'
+      : recentEvents.length > 0
+        ? 'activity'
+        : 'checklist';
+  const walkthroughScenarios = buildWorkbenchWalkthroughScenarios({
+    events,
+    selectedSession,
+    streamStatus,
+    taskItems,
+  });
+  const walkthroughTaskCount = taskItems.filter(
+    (item) => item.source === 'task',
+  ).length;
+  const walkthroughRunCount = taskItems.reduce(
+    (count, item) => count + (item.taskRuns?.length ?? 0),
+    0,
+  );
+  const walkthroughCoveredCount = walkthroughScenarios.filter(
+    (scenario) => scenario.status === 'covered',
+  ).length;
   const resolvedTab = activeTab ?? defaultTab;
 
   return (
@@ -98,16 +122,21 @@ export function ProjectSessionStatusSidebar(props: {
 
       <Tabs
         value={resolvedTab}
-        onValueChange={(value) => onTabChange?.(value as 'activity' | 'tasks')}
+        onValueChange={(value) =>
+          onTabChange?.(value as 'activity' | 'checklist' | 'tasks')
+        }
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="border-b border-border/60 px-3 py-2">
-          <TabsList className="grid h-9 w-full grid-cols-2 rounded-lg bg-muted/70">
+          <TabsList className="grid h-9 w-full grid-cols-3 rounded-lg bg-muted/70">
             <TabsTrigger value="tasks" className="rounded-md text-xs">
               Tasks
             </TabsTrigger>
             <TabsTrigger value="activity" className="rounded-md text-xs">
               Activity
+            </TabsTrigger>
+            <TabsTrigger value="checklist" className="rounded-md text-xs">
+              Checklist
             </TabsTrigger>
           </TabsList>
         </div>
@@ -222,7 +251,125 @@ export function ProjectSessionStatusSidebar(props: {
             </div>
           </ScrollArea>
         </TabsContent>
+
+        <TabsContent value="checklist" className="mt-0 min-h-0 flex-1">
+          <ScrollArea className="h-full">
+            <div className="space-y-3 p-4">
+              <Card className="rounded-xl border-border/70 shadow-none">
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold">
+                        端到端走查清单
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        按下面 5 个场景逐项核对，就能完整演练 workbench 的多
+                        agent 主流程。
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
+                      {walkthroughCoveredCount}/{walkthroughScenarios.length}{' '}
+                      已覆盖
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      {selectedSession
+                        ? sessionDisplayName(selectedSession)
+                        : '未选择会话'}
+                    </span>
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      {walkthroughTaskCount} 个 task
+                    </span>
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      {walkthroughRunCount} 条 run
+                    </span>
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      provider {selectedSession?.data.provider ?? 'opencode'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {walkthroughScenarios.map((scenario, index) => (
+                <ChecklistScenarioCard
+                  key={scenario.id}
+                  index={index}
+                  scenario={scenario}
+                />
+              ))}
+            </div>
+          </ScrollArea>
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function ChecklistScenarioCard(props: {
+  index: number;
+  scenario: WorkbenchWalkthroughScenario;
+}) {
+  const { index, scenario } = props;
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-none">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                场景 {index + 1}
+              </span>
+              <div className="text-sm font-semibold">{scenario.title}</div>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {scenario.summary}
+            </p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${walkthroughStatusChipClasses(scenario.status)}`}
+          >
+            {formatWalkthroughStatusLabel(scenario.status)}
+          </span>
+        </div>
+
+        <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            当前观察
+          </div>
+          <p className="mt-1 text-sm leading-6">{scenario.liveNote}</p>
+        </div>
+
+        <ChecklistStepsBlock label="走查步骤" steps={scenario.steps} />
+        <ChecklistStepsBlock
+          label="预期信号"
+          steps={scenario.expectedSignals}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChecklistStepsBlock(props: { label: string; steps: string[] }) {
+  const { label, steps } = props;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </div>
+      <ol className="mt-3 space-y-2">
+        {steps.map((step, index) => (
+          <li key={`${label}-${index}`} className="flex items-start gap-2.5">
+            <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-border/70 bg-background text-[11px] font-medium text-muted-foreground">
+              {index + 1}
+            </span>
+            <span className="text-sm leading-6">{step}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

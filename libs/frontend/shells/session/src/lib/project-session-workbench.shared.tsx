@@ -10,6 +10,7 @@ import {
   type AcpCompleteEventData,
   type AcpErrorEventData,
   type AcpPlanEventData,
+  type AcpSession,
   type AcpSessionEventData,
   type Task,
   type TaskRun,
@@ -67,6 +68,20 @@ export type TaskPrimaryAction = {
 
 const taskPrimaryActionStatuses = new Set(['PENDING', 'READY']);
 const taskRetryStatuses = new Set(['FAILED', 'CANCELLED', 'WAITING_RETRY']);
+const taskFailureStatuses = new Set(['FAILED', 'CANCELLED', 'WAITING_RETRY']);
+const taskRunFailureStatuses = new Set(['FAILED', 'CANCELLED']);
+
+export type WorkbenchWalkthroughStatus = 'pending' | 'ready' | 'covered';
+
+export type WorkbenchWalkthroughScenario = {
+  expectedSignals: string[];
+  id: string;
+  liveNote: string;
+  status: WorkbenchWalkthroughStatus;
+  steps: string[];
+  summary: string;
+  title: string;
+};
 
 export type SidebarTab = 'sessions' | 'spec' | 'tasks';
 
@@ -345,6 +360,217 @@ export function describeTaskExecutionStatus(
     default:
       return '等待执行状态更新';
   }
+}
+
+export function formatWalkthroughStatusLabel(
+  status: WorkbenchWalkthroughStatus,
+): string {
+  switch (status) {
+    case 'covered':
+      return '已覆盖';
+    case 'ready':
+      return '可走查';
+    default:
+      return '待触发';
+  }
+}
+
+export function walkthroughStatusChipClasses(
+  status: WorkbenchWalkthroughStatus,
+): string {
+  switch (status) {
+    case 'covered':
+      return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+    case 'ready':
+      return 'bg-sky-50 text-sky-700 ring-sky-200';
+    default:
+      return 'bg-slate-100 text-slate-600 ring-slate-200';
+  }
+}
+
+export function buildWorkbenchWalkthroughScenarios(input: {
+  events: AcpEventEnvelope[];
+  selectedSession: State<AcpSession> | null;
+  streamStatus: string;
+  taskItems: TaskPanelItem[];
+}): WorkbenchWalkthroughScenario[] {
+  const { events, selectedSession, streamStatus, taskItems } = input;
+  const taskSourceItems = taskItems.filter((item) => item.source === 'task');
+  const allRuns = taskSourceItems.flatMap((item) => item.taskRuns ?? []);
+  const reviewOrVerifyTasks = taskSourceItems.filter(
+    (item) => item.kind === 'review' || item.kind === 'verify',
+  );
+  const reviewOrVerifyRuns = allRuns.filter(
+    (run) => run.kind === 'review' || run.kind === 'verify',
+  );
+  const dispatchLinkedTasks = taskSourceItems.filter(
+    (item) => item.executionSessionId || item.resultSessionId,
+  );
+  const retriedRuns = allRuns.filter((run) => Boolean(run.retryOfRunId));
+  const retryReady = taskSourceItems.some((item) => canRetryTask(item));
+  const verificationEvidence = reviewOrVerifyRuns.filter(
+    (run) => run.summary || run.verificationReport || run.verificationVerdict,
+  );
+  const failureTaskCount = taskSourceItems.filter((item) =>
+    taskFailureStatuses.has(item.status),
+  ).length;
+  const failureRunCount = allRuns.filter((run) =>
+    taskRunFailureStatuses.has(run.status),
+  ).length;
+  const errorEvents = events.filter((event) => event.type === 'error');
+  const hasSessionFailure = Boolean(
+    selectedSession?.data.failureReason?.trim(),
+  );
+
+  const projectStartStatus: WorkbenchWalkthroughStatus = selectedSession
+    ? 'covered'
+    : 'ready';
+  const autoDispatchStatus: WorkbenchWalkthroughStatus =
+    dispatchLinkedTasks.length > 0
+      ? 'covered'
+      : taskSourceItems.length > 0
+        ? 'ready'
+        : 'pending';
+  const runAndRetryStatus: WorkbenchWalkthroughStatus =
+    retriedRuns.length > 0
+      ? 'covered'
+      : allRuns.length > 0 || retryReady
+        ? 'ready'
+        : 'pending';
+  const reviewAndVerifyStatus: WorkbenchWalkthroughStatus =
+    verificationEvidence.length > 0
+      ? 'covered'
+      : reviewOrVerifyTasks.length > 0 || reviewOrVerifyRuns.length > 0
+        ? 'ready'
+        : 'pending';
+  const failurePathStatus: WorkbenchWalkthroughStatus =
+    streamStatus === 'error' ||
+    hasSessionFailure ||
+    errorEvents.length > 0 ||
+    failureTaskCount > 0 ||
+    failureRunCount > 0
+      ? 'covered'
+      : selectedSession
+        ? 'ready'
+        : 'pending';
+
+  return [
+    {
+      id: 'project-session-start',
+      title: '项目创建与 Session 启动',
+      summary: '确认新项目进入 workbench 后，能创建根会话并开始第一轮对话。',
+      status: projectStartStatus,
+      liveNote: selectedSession
+        ? `当前已选中 ${sessionDisplayName(selectedSession)}，可以直接继续后续走查。`
+        : '当前还没有选中会话，请先点击右上角“新建会话”。',
+      steps: [
+        '从项目列表创建或打开一个项目，进入 workbench。',
+        '点击右上角“新建会话”，确认左侧 Session Tree 出现新的根会话。',
+        '在输入框发送第一条需求，观察顶部状态、消息流与活动记录开始刷新。',
+      ],
+      expectedSignals: [
+        'Header 显示项目名、当前 provider 与会话标题。',
+        '左侧 Session Tree 出现根会话，且状态 chip 可见。',
+        '会话开始响应后，Activity 中出现 session/message/status 事件。',
+      ],
+    },
+    {
+      id: 'task-auto-dispatch',
+      title: 'Task 自动分发显示',
+      summary:
+        '确认 ROUTA 生成 plan 后，任务卡片、执行会话与 Session Tree 映射清晰可见。',
+      status: autoDispatchStatus,
+      liveNote:
+        dispatchLinkedTasks.length > 0
+          ? `已检测到 ${dispatchLinkedTasks.length} 个任务带执行链路，可直接核对 executionSessionId / resultSessionId。`
+          : taskSourceItems.length > 0
+            ? `当前已有 ${taskSourceItems.length} 个任务，请继续观察任务是否自动挂接执行会话。`
+            : '当前还没有同步到任务，请先让 ROUTA 输出 plan 并等待 task 创建。',
+      steps: [
+        '向 coordinator 发送一个需要拆解的目标，等待 plan 与 task 自动生成。',
+        '打开 Tasks 面板，确认任务卡片出现 kind、role、provider 与当前执行状态。',
+        '对照左侧 Session Tree，确认 child session 会随着任务分发出现，并可回到任务上下文。',
+      ],
+      expectedSignals: [
+        'Task 卡片显示 executionSessionId、resultSessionId 与“打开会话”入口。',
+        'Session Tree 能区分根会话、子会话、specialist 与 taskId。',
+        '任务已分发时，“当前执行状态”会体现等待、进行中或结果回写状态。',
+      ],
+    },
+    {
+      id: 'run-and-retry',
+      title: 'Run 展示与 Retry',
+      summary:
+        '确认 task run 时间线、最新/历史执行切换，以及 retry 语义能被完整观察。',
+      status: runAndRetryStatus,
+      liveNote:
+        retriedRuns.length > 0
+          ? `已检测到 ${retriedRuns.length} 条 retry run，可检查 retryOfRunId 与历史记录展开区。`
+          : allRuns.length > 0
+            ? `当前已有 ${allRuns.length} 条 run 记录；若要覆盖 retry，可对失败或取消的任务点击“重试”。`
+            : '当前还没有 run 记录，请先执行任务或等待自动分发完成。',
+      steps: [
+        '选择一个已有执行历史的任务，展开 Task Runs 卡片。',
+        '确认最新执行展示在顶部，历史执行可在折叠区展开查看。',
+        '对失败、取消或等待重试的任务点击“重试”，确认新增 run 且旧 run 不被覆盖。',
+      ],
+      expectedSignals: [
+        'Task Runs 显示创建、开始、完成/失败/取消等生命周期时间点。',
+        '重试后出现新的 latest run，旧 run 进入历史执行，且保留 retryOfRunId。',
+        '失败或取消后的任务在按钮区显示“重试”可用。',
+      ],
+    },
+    {
+      id: 'review-and-verify',
+      title: 'Review / Verify 展示',
+      summary:
+        '确认 review、verify 任务的按钮文案、执行结果与验证结论展示完整。',
+      status: reviewAndVerifyStatus,
+      liveNote:
+        verificationEvidence.length > 0
+          ? `已检测到 ${verificationEvidence.length} 条 review/verify 结果，可核对 summary、verdict 与 report。`
+          : reviewOrVerifyTasks.length > 0
+            ? `当前已有 ${reviewOrVerifyTasks.length} 个 review/verify 任务，可通过“开始复核”或“开始验证”继续走查。`
+            : '当前还没有 review/verify 任务，请先完成实现任务并触发下游复核。',
+      steps: [
+        '等待或创建 review / verify 任务，观察按钮文案是否分别显示为“开始复核”或“开始验证”。',
+        '执行对应任务后，检查 Task Runs 中的结果摘要、验证结论与验证报告。',
+        '通过 executionSessionId / resultSessionId 跳转到会话，确认 review 输出与任务卡片保持一致。',
+      ],
+      expectedSignals: [
+        'review 与 verify 任务使用不同按钮文案，但共享一致的执行入口。',
+        'Run 卡片展示 verdict chip、summary 与 verification report。',
+        '结果会话与任务卡片中的结论字段保持同步。',
+      ],
+    },
+    {
+      id: 'provider-failure-path',
+      title: 'Provider 不可用与失败路径 UI',
+      summary:
+        '确认 provider 中断、执行失败或取消后，用户能在 workbench 中定位失败原因与补救动作。',
+      status: failurePathStatus,
+      liveNote:
+        streamStatus === 'error'
+          ? '当前流式连接已经进入错误状态，可直接检查 Activity 与任务失败展示。'
+          : hasSessionFailure
+            ? `当前会话记录了失败原因：${selectedSession?.data.failureReason}`
+            : errorEvents.length > 0 ||
+                failureTaskCount > 0 ||
+                failureRunCount > 0
+              ? `已检测到 ${errorEvents.length} 条错误事件、${failureTaskCount} 个失败任务、${failureRunCount} 条失败 run，可直接检查失败 UI。`
+              : '当前还没有失败样本；可临时停掉 provider、制造命令失败或取消会话来走查错误路径。',
+      steps: [
+        '模拟 provider 不可用、运行命令失败，或手动取消正在执行的会话。',
+        '打开 Activity 与 Tasks 面板，确认错误事件、失败 run、等待重试状态能被同时看到。',
+        '验证用户仍能通过失败摘要、错误提示与“重试”按钮继续下一步操作。',
+      ],
+      expectedSignals: [
+        '顶部流状态、Activity 错误事件与任务/运行失败状态保持一致。',
+        'Task Runs 中会显示 FAILED 或 CANCELLED，并保留摘要或报告。',
+        '失败任务会进入可恢复状态，例如“等待重试”或展示可用的 retry 按钮。',
+      ],
+    },
+  ];
 }
 
 function formatPriorityLabel(priority: string | null | undefined): string {
