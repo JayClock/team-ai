@@ -44,6 +44,42 @@ This project abandons the traditional "Anemic Model + Service Script" architectu
 - **Flexible Caching**: Multiple caching strategies adapt to different application scenarios
 - **Event-Driven**: Respond to resource state changes through event listening
 
+### Desktop Runtime Architecture
+
+For desktop-first ACP orchestration, the runtime is split into two Node services with different responsibilities:
+
+- **`apps/local-server`**: Desktop-facing local API server. It owns local persistence, project/session/task resources, desktop authentication/CORS, and the HATEOAS routes consumed by the Electron shell.
+- **`apps/agent-gateway`**: Provider execution sidecar. It owns ACP/MCP/A2A protocol adaptation, provider catalog/install authority, provider availability checks, prompt execution, cancellation, event streaming, and runtime metrics.
+
+#### Responsibility Boundary
+
+- `local-server` is the control plane for desktop mode.
+  - Stores sessions, tasks, notes, and project state in the local data directory.
+  - Exposes `/api/...` resources for the desktop UI.
+  - Delegates ACP provider catalog and install operations to `agent-gateway`.
+- `agent-gateway` is the execution plane for agent providers.
+  - Resolves which providers exist and whether they are runnable.
+  - Manages provider installation metadata and registry-backed discovery.
+  - Launches provider adapters such as Codex and ACP CLI agents.
+  - Streams normalized runtime events back to `local-server`.
+
+#### ACP Flow
+
+```text
+Electron desktop UI
+  -> local-server (/api resources, persistence, orchestration state)
+  -> agent-gateway (provider authority, protocol/runtime execution)
+  -> ACP provider / CLI adapter
+```
+
+#### Current Provider Authority
+
+After the provider runtime refactor:
+
+- `agent-gateway` is the single source of truth for ACP provider catalog and install operations.
+- `local-server` caches provider availability from `agent-gateway` for local runtime checks.
+- `local-server` still retains a minimal local ACP command resolver only for local runtime fallback paths; it no longer owns provider catalog or install management.
+
 ## Quick Start
 
 ### Requirements
@@ -230,7 +266,8 @@ team-ai/
 ├── apps/                    # Example applications
 │   ├── server/             # Backend server example (Java Spring Boot)
 │   ├── desktop/            # Electron desktop shell
-│   ├── local-server/       # Local Node server for desktop mode
+│   ├── local-server/       # Desktop control plane: local API, persistence, orchestration state
+│   ├── agent-gateway/      # Desktop execution sidecar: provider authority, protocol/runtime gateway
 │   └── web/                # Frontend application example (React)
 ├── libs/                   # Backend core libraries
 │   └── backend/            # Smart Domain DDD implementation
