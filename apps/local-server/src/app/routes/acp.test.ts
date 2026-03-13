@@ -1361,6 +1361,159 @@ describe('acp route', () => {
     );
   });
 
+  it('prefers ACP provider metadata from agent-gateway when available', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-gateway-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => false),
+      loadSession: vi.fn(),
+      promptSession: vi.fn(),
+    } satisfies AcpRuntimeClient);
+    fastify.decorate('agentGatewayClient', {
+      cancel: vi.fn(),
+      createSession: vi.fn(),
+      installProvider: vi.fn(async () => ({
+        command: 'npx -y @example/codex-acp',
+        distributionType: 'npx',
+        installedAt: '2026-03-13T00:00:00.000Z',
+        providerId: 'codex',
+        success: true,
+      })),
+      isConfigured: vi.fn(() => true),
+      listEvents: vi.fn(),
+      listProviders: vi.fn(async () => ({
+        providers: [
+          {
+            id: 'codex',
+            name: 'Codex',
+            description: 'OpenAI Codex gateway adapter',
+            command: 'codex exec -',
+            distributionTypes: [],
+            envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+            installable: false,
+            installed: false,
+            source: 'static',
+            status: 'available',
+            unavailableReason: null,
+          },
+        ],
+        registry: {
+          error: null,
+          fetchedAt: null,
+          url: 'https://example.test/registry.json',
+        },
+      })),
+      prompt: vi.fn(),
+      stream: vi.fn(),
+    });
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/api/acp/providers?registry=true',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      registry: {
+        url: 'https://example.test/registry.json',
+      },
+      _embedded: {
+        providers: [
+          expect.objectContaining({
+            id: 'codex',
+            envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+          }),
+        ],
+      },
+    });
+  });
+
+  it('falls back to local ACP provider metadata when agent-gateway is unavailable', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-fallback-${Date.now()}`;
+    process.env.TEAMAI_ACP_CODEX_COMMAND = 'node --version';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('registry unavailable');
+      }),
+    );
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => false),
+      loadSession: vi.fn(),
+      promptSession: vi.fn(),
+    } satisfies AcpRuntimeClient);
+    fastify.decorate('agentGatewayClient', {
+      cancel: vi.fn(),
+      createSession: vi.fn(),
+      installProvider: vi.fn(async () => {
+        throw new ProblemError({
+          type: 'https://team-ai.dev/problems/agent-gateway-unavailable',
+          title: 'Agent Gateway Unavailable',
+          status: 503,
+          detail: 'sidecar is down',
+        });
+      }),
+      isConfigured: vi.fn(() => true),
+      listEvents: vi.fn(),
+      listProviders: vi.fn(async () => {
+        throw new ProblemError({
+          type: 'https://team-ai.dev/problems/agent-gateway-unavailable',
+          title: 'Agent Gateway Unavailable',
+          status: 503,
+          detail: 'sidecar is down',
+        });
+      }),
+      prompt: vi.fn(),
+      stream: vi.fn(),
+    });
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/api/acp/providers?registry=true',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()._embedded.providers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'codex',
+          envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
+        }),
+      ]),
+    );
+  });
+
   it('rejects session/new requests that still pass specialistId on the public ACP route', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-specialistid-test-${Date.now()}`;
 

@@ -12,6 +12,12 @@ import {
 } from './session-store.js';
 import { mapProtocolEvent } from './protocol-event-mapper.js';
 import type {
+  AcpProviderCatalogPayload,
+  AcpProviderDistributionType,
+  InstallAcpProviderPayload,
+} from './provider-management.js';
+import { isProviderManagementError } from './provider-management.js';
+import type {
   ProviderPromptRequest,
   ProviderProtocolEvent,
 } from './providers/provider-types.js';
@@ -37,11 +43,22 @@ export type ProviderRuntimePort = {
   cancel(providerName: string, sessionId: string): boolean;
 };
 
+export type ProviderManagementPort = {
+  installProvider(input: {
+    distributionType?: AcpProviderDistributionType;
+    providerId: string;
+  }): Promise<InstallAcpProviderPayload>;
+  listProviders(options?: {
+    includeRegistry?: boolean;
+  }): Promise<AcpProviderCatalogPayload>;
+};
+
 export function createGatewayServer(
   config: GatewayConfig,
   logger: Logger,
   sessionStore: SessionStore,
   providerRuntime: ProviderRuntimePort,
+  providerManagement: ProviderManagementPort,
   metrics: GatewayMetrics
 ): http.Server {
   return http.createServer(async (req, res) => {
@@ -79,6 +96,56 @@ export function createGatewayServer(
 
       if (method === 'GET' && url.pathname === '/metrics') {
         writeJsonWithTrace(res, 200, traceIdFromHeader, metrics.snapshot());
+        return;
+      }
+
+      if (method === 'GET' && url.pathname === '/providers') {
+        const registry = parseBooleanQuery(url.searchParams.get('registry'));
+        const payload = await providerManagement.listProviders({
+          includeRegistry: registry ?? true,
+        });
+        writeJsonWithTrace(res, 200, traceIdFromHeader, payload);
+        return;
+      }
+
+      if (method === 'POST' && url.pathname === '/providers/install') {
+        const body = await readJsonBody(req);
+        const providerId = asOptionalString(body.providerId);
+        if (!providerId) {
+          writeError(
+            res,
+            400,
+            traceIdFromHeader,
+            'INVALID_PROVIDER_ID',
+            'providerId must be a non-empty string',
+            false,
+            0,
+          );
+          return;
+        }
+
+        const distributionType = asDistributionType(body.distributionType);
+        if (
+          body.distributionType !== undefined &&
+          distributionType === null
+        ) {
+          writeError(
+            res,
+            400,
+            traceIdFromHeader,
+            'INVALID_DISTRIBUTION_TYPE',
+            'distributionType must be one of npx|uvx|binary',
+            false,
+            0,
+          );
+          return;
+        }
+
+        const payload = await providerManagement.installProvider({
+          providerId,
+          ...(distributionType ? { distributionType } : {}),
+        });
+        writeJsonWithTrace(res, 200, traceIdFromHeader, payload);
         return;
       }
 
@@ -406,7 +473,7 @@ function writeSseEvent(response: http.ServerResponse, event: GatewayEventEnvelop
 function writeJson(
   response: http.ServerResponse,
   statusCode: number,
-  payload: Record<string, unknown>
+  payload: object
 ): void {
   response.statusCode = statusCode;
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -417,7 +484,7 @@ function writeJsonWithTrace(
   response: http.ServerResponse,
   statusCode: number,
   traceId: string,
-  payload: Record<string, unknown>
+  payload: object
 ): void {
   response.setHeader(TRACE_ID_HEADER, traceId);
   writeJson(response, statusCode, {
@@ -471,6 +538,20 @@ function handleError(
     return;
   }
 
+  if (isProviderManagementError(error)) {
+    metrics.recordError(error.code, 'runtime');
+    writeError(
+      response,
+      error.status,
+      traceId,
+      error.code,
+      error.message,
+      error.retryable,
+      error.retryAfterMs,
+    );
+    return;
+  }
+
   if (error instanceof Error) {
     const message = error.message.trim().length > 0 ? error.message : 'Internal server error';
     metrics.recordError('INTERNAL_ERROR', 'runtime');
@@ -485,6 +566,36 @@ function handleError(
 
   metrics.recordError('INTERNAL_ERROR', 'runtime');
   writeError(response, 500, traceId, 'INTERNAL_ERROR', 'Unknown server error', true, 1000);
+}
+
+function parseBooleanQuery(value: string | null): boolean | null {
+  if (value === null) {
+    return null;
+  }
+
+  if (value === 'true') {
+    return true;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  return null;
+}
+
+function asDistributionType(
+  value: unknown,
+): AcpProviderDistributionType | null {
+  if (
+    value === 'npx' ||
+    value === 'uvx' ||
+    value === 'binary'
+  ) {
+    return value;
+  }
+
+  return null;
 }
 
 function matchRoute(pathname: string, pattern: RegExp): { param: string } | null {

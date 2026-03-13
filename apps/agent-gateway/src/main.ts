@@ -2,6 +2,7 @@ import type { AddressInfo } from 'node:net';
 import { loadConfig } from './config.js';
 import { Logger } from './logger.js';
 import { GatewayMetrics } from './observability.js';
+import { ProviderManagement } from './provider-management.js';
 import { ProviderRuntime } from './provider-runtime.js';
 import { createGatewayServer } from './server.js';
 import { SessionStore } from './session-store.js';
@@ -12,11 +13,13 @@ function main(): void {
   const sessionStore = new SessionStore();
   const metrics = new GatewayMetrics();
   const providerRuntime = new ProviderRuntime(config);
+  const providerManagement = new ProviderManagement(config);
   const server = createGatewayServer(
     config,
     logger,
     sessionStore,
     providerRuntime,
+    providerManagement,
     metrics,
   );
 

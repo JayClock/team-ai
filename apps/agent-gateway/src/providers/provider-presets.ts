@@ -1,15 +1,17 @@
 export interface AcpCliProviderPreset {
   id: string;
   name: string;
+  description: string;
   command: string;
   args: string[];
   cwdArg?: string;
 }
 
-const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
+export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
   {
     id: 'opencode',
     name: 'OpenCode',
+    description: 'OpenCode AI coding agent',
     command: 'opencode',
     args: ['acp'],
     cwdArg: '--cwd',
@@ -17,36 +19,42 @@ const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
   {
     id: 'gemini',
     name: 'Gemini',
+    description: 'Google Gemini CLI',
     command: 'gemini',
     args: ['--experimental-acp'],
   },
   {
     id: 'copilot',
     name: 'GitHub Copilot',
+    description: 'GitHub Copilot CLI',
     command: 'copilot',
     args: ['--acp', '--allow-all-tools', '--no-ask-user'],
   },
   {
     id: 'auggie',
     name: 'Auggie',
+    description: "Augment Code's AI agent",
     command: 'auggie',
     args: ['--acp'],
   },
   {
     id: 'kimi',
     name: 'Kimi',
+    description: "Moonshot AI's Kimi CLI",
     command: 'kimi',
     args: ['acp'],
   },
   {
     id: 'kiro',
     name: 'Kiro',
+    description: 'Amazon Kiro AI coding agent',
     command: 'kiro-cli',
     args: ['acp'],
   },
   {
     id: 'qoder',
     name: 'Qoder',
+    description: 'Qoder AI coding agent',
     command: 'qodercli',
     args: ['--acp', '--yolo'],
   },

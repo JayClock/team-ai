@@ -3,11 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { GatewayConfig } from './config.js';
 import { Logger } from './logger.js';
 import { GatewayMetrics } from './observability.js';
+import type { ProviderManagementPort, ProviderRuntimePort } from './server.js';
 import type {
   ProviderPromptRequest,
   ProviderProtocolEvent,
 } from './providers/provider-types.js';
-import { createGatewayServer, type ProviderRuntimePort } from './server.js';
+import { createGatewayServer } from './server.js';
 import { SessionStore } from './session-store.js';
 
 class MockProviderRuntime implements ProviderRuntimePort {
@@ -98,6 +99,46 @@ class MockProviderRuntime implements ProviderRuntimePort {
     });
     this.active.delete(sessionId);
     return true;
+  }
+}
+
+class MockProviderManagement implements ProviderManagementPort {
+  async installProvider(input: {
+    distributionType?: 'binary' | 'npx' | 'uvx';
+    providerId: string;
+  }) {
+    return {
+      success: true,
+      providerId: input.providerId,
+      distributionType: input.distributionType ?? 'npx',
+      installedAt: '2026-03-13T00:00:00.000Z',
+      command: 'npx -y mock-provider',
+    };
+  }
+
+  async listProviders() {
+    return {
+      providers: [
+        {
+          id: 'codex',
+          name: 'Codex',
+          description: 'OpenAI Codex gateway adapter',
+          command: 'codex exec -',
+          envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+          distributionTypes: [],
+          installable: false,
+          installed: false,
+          source: 'static' as const,
+          status: 'available' as const,
+          unavailableReason: null,
+        },
+      ],
+      registry: {
+        url: 'https://example.test/registry.json',
+        error: null,
+        fetchedAt: null,
+      },
+    };
   }
 }
 
@@ -366,6 +407,58 @@ describe('gateway contract', () => {
       await gateway.close();
     }
   });
+
+  it('exposes provider catalog and install endpoints', async () => {
+    const gateway = await startGateway(new MockProviderRuntime());
+    try {
+      const providersResponse = await fetch(
+        `${gateway.baseUrl}/providers?registry=true`,
+      );
+      expect(providersResponse.status).toBe(200);
+      const providersPayload = (await providersResponse.json()) as {
+        providers: Array<{ id: string; envCommandKey: string }>;
+        registry: { url: string };
+      };
+      expect(providersPayload.providers).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: 'codex',
+            envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+          }),
+        ]),
+      );
+      expect(providersPayload.registry.url).toBe(
+        'https://example.test/registry.json',
+      );
+
+      const installResponse = await fetch(
+        `${gateway.baseUrl}/providers/install`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            providerId: 'codex',
+            distributionType: 'npx',
+          }),
+        },
+      );
+      expect(installResponse.status).toBe(200);
+      const installPayload = (await installResponse.json()) as {
+        providerId: string;
+        distributionType: string;
+        success: boolean;
+      };
+      expect(installPayload).toMatchObject({
+        providerId: 'codex',
+        distributionType: 'npx',
+        success: true,
+      });
+    } finally {
+      await gateway.close();
+    }
+  });
 });
 
 function baseConfig(): GatewayConfig {
@@ -391,7 +484,15 @@ async function startGateway(runtime: ProviderRuntimePort): Promise<{
   const sessionStore = new SessionStore();
   const logger = new Logger('error');
   const metrics = new GatewayMetrics();
-  const server = createGatewayServer(baseConfig(), logger, sessionStore, runtime, metrics);
+  const providerManagement = new MockProviderManagement();
+  const server = createGatewayServer(
+    baseConfig(),
+    logger,
+    sessionStore,
+    runtime,
+    providerManagement,
+    metrics,
+  );
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);

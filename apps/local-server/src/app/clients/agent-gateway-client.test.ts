@@ -112,6 +112,84 @@ describe('agent-gateway-client', () => {
     });
   });
 
+  it('supports provider listing and install', async () => {
+    const server = http.createServer((request, response) => {
+      if (request.url === '/providers?registry=true' && request.method === 'GET') {
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(
+          JSON.stringify({
+            providers: [
+              {
+                id: 'codex',
+                name: 'Codex',
+                description: 'OpenAI Codex gateway adapter',
+                command: 'codex exec -',
+                envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+                distributionTypes: [],
+                installable: false,
+                installed: false,
+                source: 'static',
+                status: 'available',
+                unavailableReason: null,
+              },
+            ],
+            registry: {
+              url: 'https://example.test/registry.json',
+              error: null,
+              fetchedAt: null,
+            },
+          }),
+        );
+        return;
+      }
+
+      if (request.url === '/providers/install' && request.method === 'POST') {
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(
+          JSON.stringify({
+            providerId: 'codex',
+            distributionType: 'npx',
+            installedAt: '2026-03-13T00:00:00.000Z',
+            success: true,
+            command: 'npx -y mock-provider',
+          }),
+        );
+        return;
+      }
+
+      response.writeHead(404, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: { message: 'not found' } }));
+    });
+    servers.push(server);
+    await listen(server);
+
+    const client = createAgentGatewayClient(urlFor(server));
+
+    await expect(
+      client.listProviders({ includeRegistry: true }),
+    ).resolves.toMatchObject({
+      providers: [
+        expect.objectContaining({
+          id: 'codex',
+          envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+        }),
+      ],
+      registry: {
+        url: 'https://example.test/registry.json',
+      },
+    });
+    await expect(
+      client.installProvider({
+        providerId: 'codex',
+        distributionType: 'npx',
+      }),
+    ).resolves.toMatchObject({
+      providerId: 'codex',
+      distributionType: 'npx',
+      success: true,
+    });
+  });
+
   it('parses gateway stream events', async () => {
     const server = http.createServer((request, response) => {
       if (request.url === '/sessions/session-1/stream') {

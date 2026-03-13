@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { ProblemError } from '../errors/problem-error';
 import { resolveDesktopCorsHeaders } from '../plugins/desktop-cors';
 import {
   presentAcpProviders,
@@ -107,11 +108,9 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.acpProviders);
 
-    return presentAcpProviders(
-      await listAcpProviders({
-        includeRegistry: query.registry ?? true,
-      }),
-    );
+    return presentAcpProviders(await listProvidersViaGatewayOrLocal(fastify, {
+      includeRegistry: query.registry ?? true,
+    }));
   });
 
   fastify.post('/acp/install', async (request, reply) => {
@@ -119,7 +118,9 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.installedAcpProvider);
 
-    return presentInstalledAcpProvider(await installAcpProvider(body));
+    return presentInstalledAcpProvider(
+      await installProviderViaGatewayOrLocal(fastify, body),
+    );
   });
 
   fastify.get('/projects/:projectId/acp-sessions', async (request, reply) => {
@@ -427,5 +428,70 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
     return reply.hijack();
   });
 };
+
+async function listProvidersViaGatewayOrLocal(
+  fastify: {
+    agentGatewayClient?: {
+      isConfigured(): boolean;
+      listProviders(options?: {
+        includeRegistry?: boolean;
+      }): ReturnType<typeof listAcpProviders>;
+    };
+  },
+  options: {
+    includeRegistry?: boolean;
+  },
+) {
+  if (fastify.agentGatewayClient?.isConfigured()) {
+    try {
+      return await fastify.agentGatewayClient.listProviders(options);
+    } catch (error) {
+      if (!shouldFallbackToLocalProviderService(error)) {
+        throw error;
+      }
+    }
+  }
+
+  return await listAcpProviders(options);
+}
+
+async function installProviderViaGatewayOrLocal(
+  fastify: {
+    agentGatewayClient?: {
+      isConfigured(): boolean;
+      installProvider(input: {
+        distributionType?: 'npx' | 'uvx' | 'binary';
+        providerId: string;
+      }): ReturnType<typeof installAcpProvider>;
+    };
+  },
+  input: {
+    distributionType?: 'npx' | 'uvx' | 'binary';
+    providerId: string;
+  },
+) {
+  if (fastify.agentGatewayClient?.isConfigured()) {
+    try {
+      return await fastify.agentGatewayClient.installProvider(input);
+    } catch (error) {
+      if (!shouldFallbackToLocalProviderService(error)) {
+        throw error;
+      }
+    }
+  }
+
+  return await installAcpProvider(input);
+}
+
+function shouldFallbackToLocalProviderService(error: unknown): boolean {
+  if (!(error instanceof ProblemError)) {
+    return false;
+  }
+
+  return (
+    error.type === 'https://team-ai.dev/problems/agent-gateway-unconfigured' ||
+    error.type === 'https://team-ai.dev/problems/agent-gateway-unavailable'
+  );
+}
 
 export default acpRoute;

@@ -1,4 +1,9 @@
 import { ProblemError } from '../errors/problem-error';
+import type {
+  AcpProviderCatalogPayload,
+  AcpProviderDistributionType,
+  InstallAcpProviderPayload,
+} from '../schemas/acp-provider';
 
 const defaultRequestHeaders = {
   Accept: 'application/json',
@@ -74,6 +79,13 @@ export interface AgentGatewayClient {
     session: AgentGatewaySessionPayload;
   }>;
   isConfigured(): boolean;
+  installProvider(input: {
+    distributionType?: AcpProviderDistributionType;
+    providerId: string;
+  }): Promise<InstallAcpProviderPayload>;
+  listProviders(options?: {
+    includeRegistry?: boolean;
+  }): Promise<AcpProviderCatalogPayload>;
   listEvents(
     sessionId: string,
     cursor?: string,
@@ -125,6 +137,26 @@ export function createAgentGatewayClient(
 
     isConfigured() {
       return normalizedBaseUrl !== null;
+    },
+
+    async installProvider(input) {
+      return await requestJson(fetchImpl, normalizedBaseUrl, {
+        method: 'POST',
+        path: '/providers/install',
+        body: input,
+      });
+    },
+
+    async listProviders(options) {
+      const query =
+        options?.includeRegistry === undefined
+          ? ''
+          : `?registry=${options.includeRegistry ? 'true' : 'false'}`;
+
+      return await requestJson(fetchImpl, normalizedBaseUrl, {
+        method: 'GET',
+        path: `/providers${query}`,
+      });
     },
 
     async listEvents(sessionId, cursor) {
