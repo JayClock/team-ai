@@ -2,11 +2,8 @@ import type { Database } from 'better-sqlite3';
 import { isAbsolute } from 'node:path';
 import { customAlphabet } from 'nanoid';
 import type {
-  ContentBlock,
   McpServer,
   PromptResponse,
-  SessionNotification,
-  SessionUpdate,
 } from '@agentclientprotocol/sdk';
 import type {
   AcpRuntimeClient,
@@ -29,6 +26,12 @@ import type {
 } from '../schemas/acp';
 import type { RoleValue } from '../schemas/role';
 import { normalizeAcpProviderId } from './acp-provider-service';
+import {
+  extractSessionMetadataFromNormalizedUpdate,
+  normalizeSessionNotification,
+  resolveSessionStateFromNormalizedUpdate,
+  toPersistedAcpEvent,
+} from './normalized-session-update';
 import { createAgent } from './agent-service';
 import { getProjectById } from './project-service';
 import {
@@ -137,11 +140,6 @@ export interface AcpServiceOptions {
   logger?: DiagnosticLogger;
   source?: string;
 }
-
-type NormalizedAcpUpdateEvent = {
-  type: AcpEventTypePayload;
-  payload: Record<string, unknown>;
-};
 
 type TaskExecutionRecovery = {
   errorCode: string;
@@ -972,23 +970,31 @@ function createRuntimeHooks(
 ): AcpRuntimeSessionHooks {
   return {
     async onSessionUpdate(notification) {
-      const normalized = normalizeAcpNotification(notification);
+      const current = getSessionRow(sqlite, localSessionId);
+      const normalized = normalizeSessionNotification(
+        localSessionId,
+        current.provider,
+        notification,
+      );
+      if (!normalized) {
+        return;
+      }
+      const persisted = toPersistedAcpEvent(normalized);
       const emitted = appendLocalEvent(sqlite, broker, {
         sessionId: localSessionId,
-        type: normalized.type,
-        payload: normalized.payload,
+        type: persisted.type,
+        payload: persisted.payload,
       });
 
-      const current = getSessionRow(sqlite, localSessionId);
-      const state = resolveSessionStateFromUpdate(
-        notification.update,
+      const state = resolveSessionStateFromNormalizedUpdate(
+        normalized,
         current.state,
       );
+      const metadata = extractSessionMetadataFromNormalizedUpdate(normalized);
       updateSessionRuntime(sqlite, localSessionId, {
         state,
-        lastActivityAt:
-          extractUpdatedAt(notification.update) ?? emitted.emittedAt,
-        name: extractSessionTitle(notification.update) ?? current.name,
+        lastActivityAt: metadata.updatedAt ?? emitted.emittedAt,
+        name: metadata.title ?? current.name,
         completedAt:
           state === 'COMPLETED' || state === 'CANCELLED' || state === 'FAILED'
             ? emitted.emittedAt
@@ -996,7 +1002,7 @@ function createRuntimeHooks(
         failureReason: state === 'FAILED' ? current.failure_reason : null,
       });
 
-      if (normalized.type === 'plan') {
+      if (persisted.type === 'plan') {
         const entries = Array.isArray(
           (emitted.data as { entries?: unknown }).entries,
         )
@@ -1158,187 +1164,6 @@ function createRuntimeHooks(
       );
     },
   };
-}
-
-function normalizeAcpNotification(
-  notification: SessionNotification,
-): NormalizedAcpUpdateEvent {
-  const update = notification.update;
-  switch (update.sessionUpdate) {
-    case 'user_message_chunk':
-    case 'agent_message_chunk':
-    case 'agent_thought_chunk':
-      return {
-        type: 'message',
-        payload: {
-          source: 'acp-sdk',
-          kind: update.sessionUpdate,
-          role: resolveMessageRole(update.sessionUpdate),
-          messageId: update.messageId ?? null,
-          content: flattenContentBlock(update.content),
-          contentBlock: update.content,
-        },
-      };
-    case 'tool_call':
-      return {
-        type: 'tool_call',
-        payload: {
-          source: 'acp-sdk',
-          toolCallId: update.toolCallId,
-          title: update.title,
-          status: update.status ?? null,
-          kind: update.kind ?? null,
-          rawInput: update.rawInput ?? null,
-          rawOutput: update.rawOutput ?? null,
-          locations: update.locations ?? [],
-          content: update.content ?? [],
-        },
-      };
-    case 'tool_call_update':
-      return {
-        type: update.status === 'completed' ? 'tool_result' : 'tool_call',
-        payload: {
-          source: 'acp-sdk',
-          toolCallId: update.toolCallId,
-          title: update.title ?? null,
-          status: update.status ?? null,
-          kind: update.kind ?? null,
-          rawInput: update.rawInput ?? null,
-          rawOutput: update.rawOutput ?? null,
-          locations: update.locations ?? [],
-          content: update.content ?? [],
-        },
-      };
-    case 'plan':
-      return {
-        type: 'plan',
-        payload: {
-          source: 'acp-sdk',
-          entries: update.entries,
-        },
-      };
-    case 'session_info_update':
-      return {
-        type: 'session',
-        payload: {
-          source: 'acp-sdk',
-          title: update.title ?? null,
-          updatedAt: update.updatedAt ?? null,
-        },
-      };
-    case 'current_mode_update':
-      return {
-        type: 'mode',
-        payload: {
-          source: 'acp-sdk',
-          currentModeId: update.currentModeId,
-        },
-      };
-    case 'config_option_update':
-      return {
-        type: 'config',
-        payload: {
-          source: 'acp-sdk',
-          configOptions: update.configOptions,
-        },
-      };
-    case 'usage_update':
-      return {
-        type: 'usage',
-        payload: {
-          source: 'acp-sdk',
-          size: update.size,
-          used: update.used,
-          cost: update.cost ?? null,
-        },
-      };
-    case 'available_commands_update':
-      return {
-        type: 'status',
-        payload: {
-          source: 'acp-sdk',
-          availableCommands: update.availableCommands,
-        },
-      };
-  }
-}
-
-function resolveMessageRole(
-  updateType:
-    | 'user_message_chunk'
-    | 'agent_message_chunk'
-    | 'agent_thought_chunk',
-): 'user' | 'assistant' | 'thought' {
-  if (updateType === 'user_message_chunk') {
-    return 'user';
-  }
-
-  if (updateType === 'agent_thought_chunk') {
-    return 'thought';
-  }
-
-  return 'assistant';
-}
-
-function flattenContentBlock(content: ContentBlock): string | null {
-  if (content.type === 'text') {
-    return content.text;
-  }
-
-  if (content.type === 'resource_link') {
-    return content.uri;
-  }
-
-  if (content.type === 'resource') {
-    const resource = content.resource;
-    if ('text' in resource) {
-      return resource.text;
-    }
-  }
-
-  return null;
-}
-
-function resolveSessionStateFromUpdate(
-  update: SessionUpdate,
-  fallback: AcpSessionState,
-): AcpSessionState {
-  if (update.sessionUpdate === 'agent_message_chunk') {
-    return 'RUNNING';
-  }
-
-  if (update.sessionUpdate === 'agent_thought_chunk') {
-    return 'RUNNING';
-  }
-
-  if (update.sessionUpdate === 'tool_call') {
-    return 'RUNNING';
-  }
-
-  if (update.sessionUpdate === 'tool_call_update') {
-    if (update.status === 'failed') {
-      return 'FAILED';
-    }
-    return 'RUNNING';
-  }
-
-  return fallback;
-}
-
-function extractSessionTitle(update: SessionUpdate): string | null {
-  if (update.sessionUpdate === 'session_info_update') {
-    return update.title ?? null;
-  }
-
-  return null;
-}
-
-function extractUpdatedAt(update: SessionUpdate): string | null {
-  if (update.sessionUpdate === 'session_info_update') {
-    return update.updatedAt ?? null;
-  }
-
-  return null;
 }
 
 function appendPromptRequestedEvents(
