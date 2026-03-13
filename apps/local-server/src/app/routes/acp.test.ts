@@ -334,6 +334,291 @@ describe('acp route', () => {
     ]);
   });
 
+  it('completes task runs when task-bound prompts finish successfully', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-task-run-complete-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4314';
+
+    const sessionHooks = new Map<string, AcpRuntimeSessionHooks>();
+    const assistantReply = 'Implemented the routed task successfully.';
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => {
+        sessionHooks.set(input.localSessionId, input.hooks);
+        return {
+          runtimeSessionId: `runtime-${input.localSessionId}`,
+          provider: input.provider,
+        };
+      }),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async (input) => {
+        const hooks = sessionHooks.get(input.localSessionId);
+        expect(hooks).toBeDefined();
+
+        await hooks?.onSessionUpdate({
+          update: {
+            sessionUpdate: 'agent_message_chunk',
+            messageId: 'assistant-msg-1',
+            content: {
+              type: 'text',
+              text: assistantReply,
+            },
+          },
+        } as Parameters<AcpRuntimeSessionHooks['onSessionUpdate']>[0]);
+
+        return {
+          runtimeSessionId: `runtime-${input.localSessionId}`,
+          response: {
+            stopReason: 'end_turn' as const,
+          },
+        };
+      }),
+    } satisfies AcpRuntimeClient);
+
+    const { childSessionId, project, task } =
+      await createTaskBoundSessionFixture(
+        fastify,
+        'Desktop ACP Task Run Completion Project',
+      );
+
+    const promptResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'child-prompt-success',
+        method: 'session/prompt',
+        params: {
+          projectId: project.id,
+          sessionId: childSessionId,
+          prompt: 'Finish the implementation task',
+        },
+      },
+    });
+
+    const updatedTask = await getTaskById(fastify.sqlite, task.id);
+    const taskRuns = await listTaskRuns(fastify.sqlite, {
+      page: 1,
+      pageSize: 10,
+      projectId: project.id,
+      taskId: task.id,
+    });
+
+    expect(promptResponse.statusCode).toBe(200);
+    expect(promptResponse.json()).toMatchObject({
+      result: {
+        session: {
+          id: childSessionId,
+          state: 'COMPLETED',
+        },
+      },
+    });
+    expect(updatedTask).toMatchObject({
+      completionSummary: assistantReply,
+      executionSessionId: null,
+      resultSessionId: childSessionId,
+      status: 'COMPLETED',
+      verificationReport: assistantReply,
+      verificationVerdict: 'pass',
+    });
+    expect(taskRuns.items).toEqual([
+      expect.objectContaining({
+        sessionId: childSessionId,
+        status: 'COMPLETED',
+        summary: assistantReply,
+        taskId: task.id,
+        verificationReport: assistantReply,
+        verificationVerdict: 'pass',
+      }),
+    ]);
+    expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+  });
+
+  it('fails task runs when task-bound prompts error', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-task-run-fail-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4315';
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => {
+        throw new Error('Provider request failed');
+      }),
+    } satisfies AcpRuntimeClient);
+
+    const { childSessionId, project, task } =
+      await createTaskBoundSessionFixture(
+        fastify,
+        'Desktop ACP Task Run Failure Project',
+      );
+
+    const promptResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'child-prompt-failure',
+        method: 'session/prompt',
+        params: {
+          projectId: project.id,
+          sessionId: childSessionId,
+          prompt: 'Attempt the implementation task',
+        },
+      },
+    });
+
+    const updatedTask = await getTaskById(fastify.sqlite, task.id);
+    const taskRuns = await listTaskRuns(fastify.sqlite, {
+      page: 1,
+      pageSize: 10,
+      projectId: project.id,
+      taskId: task.id,
+    });
+
+    expect(promptResponse.statusCode).toBe(200);
+    expect(promptResponse.json()).toEqual({
+      error: {
+        code: -32000,
+        message: 'Provider request failed',
+      },
+      id: 'child-prompt-failure',
+      jsonrpc: '2.0',
+      result: null,
+    });
+    expect(updatedTask).toMatchObject({
+      completionSummary: 'Provider request failed',
+      executionSessionId: null,
+      resultSessionId: childSessionId,
+      status: 'FAILED',
+      verificationReport: 'Provider request failed',
+      verificationVerdict: 'fail',
+    });
+    expect(taskRuns.items).toEqual([
+      expect.objectContaining({
+        sessionId: childSessionId,
+        status: 'FAILED',
+        summary: 'Provider request failed',
+        taskId: task.id,
+        verificationReport: 'Provider request failed',
+        verificationVerdict: 'fail',
+      }),
+    ]);
+    expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+  });
+
+  it('cancels task runs when task-bound sessions are cancelled', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-task-run-cancel-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4316';
+
+    const cancelRuntimeSession = vi.fn(async () => undefined);
+    const fastify = await createFullAcpServer({
+      cancelSession: cancelRuntimeSession,
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'unused',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const { childSessionId, project, task } =
+      await createTaskBoundSessionFixture(
+        fastify,
+        'Desktop ACP Task Run Cancel Project',
+      );
+
+    const cancelResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'child-session-cancel',
+        method: 'session/cancel',
+        params: {
+          projectId: project.id,
+          sessionId: childSessionId,
+          reason: 'User aborted execution',
+        },
+      },
+    });
+
+    const updatedTask = await getTaskById(fastify.sqlite, task.id);
+    const taskRuns = await listTaskRuns(fastify.sqlite, {
+      page: 1,
+      pageSize: 10,
+      projectId: project.id,
+      taskId: task.id,
+    });
+
+    expect(cancelResponse.statusCode).toBe(200);
+    expect(cancelRuntimeSession).toHaveBeenCalledWith({
+      localSessionId: childSessionId,
+      reason: 'User aborted execution',
+    });
+    expect(cancelResponse.json()).toMatchObject({
+      result: {
+        session: {
+          id: childSessionId,
+          state: 'CANCELLED',
+        },
+      },
+    });
+    expect(updatedTask).toMatchObject({
+      completionSummary: 'User aborted execution',
+      executionSessionId: null,
+      resultSessionId: childSessionId,
+      status: 'CANCELLED',
+      verificationReport: 'User aborted execution',
+      verificationVerdict: 'cancelled',
+    });
+    expect(taskRuns.items).toEqual([
+      expect.objectContaining({
+        sessionId: childSessionId,
+        status: 'CANCELLED',
+        summary: 'User aborted execution',
+        taskId: task.id,
+        verificationReport: 'User aborted execution',
+        verificationVerdict: 'cancelled',
+      }),
+    ]);
+    expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+  });
+
   it('syncs top-level ROUTA plan events into project tasks and child sessions', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-plan-sync-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
@@ -591,10 +876,13 @@ describe('acp route', () => {
       taskId: implementTask.id,
     });
     expect(updatedTask).toMatchObject({
+      completionSummary: 'ACP session completed',
       executionSessionId: null,
       status: 'COMPLETED',
       resultSessionId: childSession.id,
       triggerSessionId: rootSessionId,
+      verificationReport: 'ACP session completed',
+      verificationVerdict: 'pass',
     });
     expect(taskRuns.items).toEqual([
       expect.objectContaining({
@@ -603,8 +891,11 @@ describe('acp route', () => {
         role: 'CRAFTER',
         sessionId: childSession.id,
         specialistId: 'crafter-implementor',
-        status: 'RUNNING',
+        status: 'COMPLETED',
+        summary: 'ACP session completed',
         taskId: implementTask.id,
+        verificationReport: 'ACP session completed',
+        verificationVerdict: 'pass',
       }),
     ]);
     expect(sessionsResponse.statusCode).toBe(200);
@@ -838,4 +1129,91 @@ describe('acp route', () => {
       },
     });
   });
+
+  async function createFullAcpServer(runtime: AcpRuntimeClient) {
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', runtime);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(meRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(agentsRoute, { prefix: '/api' });
+    await fastify.register(tasksRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    return fastify;
+  }
+
+  async function createTaskBoundSessionFixture(
+    fastify: ReturnType<typeof Fastify>,
+    projectTitle: string,
+  ) {
+    const project = await createProject(fastify.sqlite, {
+      title: projectTitle,
+      repoPath: `/tmp/${projectTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    });
+
+    const rootResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: `${project.id}-root-session`,
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+          role: 'ROUTA',
+        },
+      },
+    });
+
+    expect(rootResponse.statusCode).toBe(200);
+    const rootSessionId = rootResponse.json().result.session.id as string;
+
+    const task = await createTask(fastify.sqlite, {
+      objective: 'Implement the routed task',
+      projectId: project.id,
+      title: 'Implement routed task',
+      triggerSessionId: rootSessionId,
+      assignedRole: 'CRAFTER',
+      status: 'READY',
+    });
+
+    const childResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: `${project.id}-child-session`,
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+          parentSessionId: rootSessionId,
+          role: 'CRAFTER',
+          taskId: task.id,
+        },
+      },
+    });
+
+    expect(childResponse.statusCode).toBe(200);
+    const childSessionId = childResponse.json().result.session.id as string;
+
+    return {
+      childSessionId,
+      project,
+      rootSessionId,
+      task,
+    };
+  }
 });

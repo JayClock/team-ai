@@ -31,7 +31,12 @@ import {
   getSpecialistById,
   throwSpecialistRoleMismatch,
 } from './specialist-service';
-import { startTaskRun } from './task-run-service';
+import {
+  cancelTaskRun,
+  completeTaskRun,
+  failTaskRun,
+  startTaskRun,
+} from './task-run-service';
 import { syncPlanEventToTasksAndDispatch } from './acp-plan-task-sync-service';
 
 const sessionIdGenerator = customAlphabet(
@@ -91,6 +96,7 @@ interface CreateSessionInput {
 interface TaskExecutionRow {
   assigned_role: string | null;
   assigned_specialist_id: string | null;
+  completion_summary: string | null;
   execution_session_id: string | null;
   id: string;
   kind: string | null;
@@ -98,6 +104,19 @@ interface TaskExecutionRow {
   result_session_id: string | null;
   status: string;
   trigger_session_id: string | null;
+  verification_report: string | null;
+  verification_verdict: string | null;
+}
+
+interface TaskExecutionRunRow {
+  id: string;
+  status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+}
+
+interface SessionHistorySummaryRow {
+  error_json: string | null;
+  payload_json: string;
+  type: AcpEventTypePayload;
 }
 
 interface PromptSessionInput {
@@ -173,10 +192,13 @@ function getTaskExecutionRow(
           trigger_session_id,
           assigned_role,
           assigned_specialist_id,
+          completion_summary,
           status,
           kind,
           execution_session_id,
-          result_session_id
+          result_session_id,
+          verification_report,
+          verification_verdict
         FROM project_tasks
         WHERE id = ? AND deleted_at IS NULL
       `,
@@ -193,10 +215,13 @@ function getTaskExecutionRow(
 function updateTaskExecutionState(
   sqlite: Database,
   input: {
+    completionSummary?: string | null;
     executionSessionId?: string | null;
     resultSessionId?: string | null;
     status?: string;
     taskId: string;
+    verificationReport?: string | null;
+    verificationVerdict?: string | null;
   },
 ) {
   const current = getTaskExecutionRow(sqlite, input.taskId);
@@ -208,6 +233,9 @@ function updateTaskExecutionState(
         SET
           execution_session_id = @executionSessionId,
           result_session_id = @resultSessionId,
+          completion_summary = @completionSummary,
+          verification_report = @verificationReport,
+          verification_verdict = @verificationVerdict,
           status = @status,
           updated_at = @updatedAt
         WHERE id = @taskId AND deleted_at IS NULL
@@ -222,9 +250,21 @@ function updateTaskExecutionState(
         input.resultSessionId === undefined
           ? current.result_session_id
           : input.resultSessionId,
+      completionSummary:
+        input.completionSummary === undefined
+          ? current.completion_summary
+          : input.completionSummary,
       status: input.status ?? current.status,
       taskId: input.taskId,
       updatedAt: new Date().toISOString(),
+      verificationReport:
+        input.verificationReport === undefined
+          ? current.verification_report
+          : input.verificationReport,
+      verificationVerdict:
+        input.verificationVerdict === undefined
+          ? current.verification_verdict
+          : input.verificationVerdict,
     });
 }
 
@@ -248,6 +288,232 @@ async function createTaskExecutionRun(
     status: 'RUNNING',
     taskId: input.taskId,
   });
+}
+
+function extractEventText(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseEventRecord(value: string | null): Record<string, unknown> {
+  if (!value) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === 'object'
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function getLatestTaskExecutionRun(
+  sqlite: Database,
+  taskId: string,
+  sessionId: string,
+): TaskExecutionRunRow | null {
+  return (
+    (sqlite
+      .prepare(
+        `
+          SELECT id, status
+          FROM project_task_runs
+          WHERE task_id = ?
+            AND session_id = ?
+            AND deleted_at IS NULL
+          ORDER BY created_at DESC, updated_at DESC
+          LIMIT 1
+        `,
+      )
+      .get(taskId, sessionId) as TaskExecutionRunRow | undefined) ?? null
+  );
+}
+
+function buildTaskExecutionOutcome(
+  sqlite: Database,
+  sessionId: string,
+  state: 'COMPLETED' | 'FAILED' | 'CANCELLED',
+  fallbackFailureReason?: string | null,
+): {
+  summary: string | null;
+  verificationReport: string | null;
+  verificationVerdict: string | null;
+} {
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT type, payload_json, error_json
+        FROM project_acp_session_events
+        WHERE session_id = ?
+        ORDER BY sequence ASC
+      `,
+    )
+    .all(sessionId) as SessionHistorySummaryRow[];
+  const assistantMessages = new Map<string, string>();
+  const assistantOrder: string[] = [];
+  const toolOutputs: string[] = [];
+  let anonymousAssistantIndex = 0;
+  let lastErrorMessage = extractEventText(fallbackFailureReason);
+  let cancelReason: string | null = null;
+
+  for (const row of rows) {
+    const payload = parseEventRecord(row.payload_json);
+    const error = parseEventRecord(row.error_json);
+
+    if (row.type === 'message' && payload.role === 'assistant') {
+      const content = extractEventText(payload.content);
+      if (!content) {
+        continue;
+      }
+
+      const messageId =
+        extractEventText(payload.messageId) ??
+        `assistant-${anonymousAssistantIndex++}`;
+      const previous = assistantMessages.get(messageId) ?? '';
+
+      if (!assistantMessages.has(messageId)) {
+        assistantOrder.push(messageId);
+      }
+
+      assistantMessages.set(messageId, `${previous}${content}`);
+      continue;
+    }
+
+    if (row.type === 'tool_result') {
+      const rawOutput = extractEventText(payload.rawOutput);
+      if (rawOutput) {
+        toolOutputs.push(rawOutput);
+      }
+      continue;
+    }
+
+    if (row.type === 'error') {
+      lastErrorMessage =
+        extractEventText(payload.message) ??
+        extractEventText(error.message) ??
+        lastErrorMessage;
+      continue;
+    }
+
+    if (row.type === 'complete') {
+      const completionReason = extractEventText(payload.reason);
+      const stopReason = extractEventText(payload.stopReason);
+      cancelReason =
+        completionReason ??
+        (stopReason && stopReason !== 'cancelled' ? stopReason : null) ??
+        cancelReason;
+    }
+  }
+
+  const transcript = assistantOrder
+    .map((messageId) =>
+      extractEventText(assistantMessages.get(messageId) ?? null),
+    )
+    .filter((message): message is string => message !== null);
+  const transcriptReport = transcript.join('\n\n');
+  const toolReport = toolOutputs.join('\n\n');
+  const latestAssistantMessage = transcript.at(-1) ?? null;
+
+  if (state === 'COMPLETED') {
+    const summary = latestAssistantMessage ?? 'ACP session completed';
+    const verificationReport = transcriptReport || toolReport || summary;
+
+    return {
+      summary,
+      verificationReport,
+      verificationVerdict: 'pass',
+    };
+  }
+
+  if (state === 'FAILED') {
+    const summary =
+      lastErrorMessage ?? latestAssistantMessage ?? 'ACP session failed';
+    const verificationReport =
+      transcriptReport || toolReport || lastErrorMessage || summary;
+
+    return {
+      summary,
+      verificationReport,
+      verificationVerdict: 'fail',
+    };
+  }
+
+  const summary = cancelReason ?? lastErrorMessage ?? 'ACP session cancelled';
+  const verificationReport =
+    transcriptReport ||
+    toolReport ||
+    cancelReason ||
+    lastErrorMessage ||
+    summary;
+
+  return {
+    summary,
+    verificationReport,
+    verificationVerdict: 'cancelled',
+  };
+}
+
+async function syncTaskExecutionOutcome(
+  sqlite: Database,
+  sessionId: string,
+  state: 'COMPLETED' | 'FAILED' | 'CANCELLED',
+  fallbackFailureReason?: string | null,
+) {
+  const session = getSessionRow(sqlite, sessionId);
+  if (!session.task_id) {
+    return;
+  }
+
+  const outcome = buildTaskExecutionOutcome(
+    sqlite,
+    sessionId,
+    state,
+    fallbackFailureReason ?? session.failure_reason,
+  );
+
+  updateTaskExecutionState(sqlite, {
+    taskId: session.task_id,
+    executionSessionId: null,
+    resultSessionId: sessionId,
+    completionSummary: outcome.summary,
+    verificationReport: outcome.verificationReport,
+    verificationVerdict: outcome.verificationVerdict,
+    status: state,
+  });
+
+  const taskRun = getLatestTaskExecutionRun(sqlite, session.task_id, sessionId);
+  if (!taskRun) {
+    return;
+  }
+
+  const runInput = {
+    completedAt: session.completed_at,
+    provider: session.provider,
+    sessionId,
+    specialistId: session.specialist_id,
+    summary: outcome.summary,
+    verificationReport: outcome.verificationReport,
+    verificationVerdict: outcome.verificationVerdict,
+  };
+
+  if (state === 'COMPLETED') {
+    await completeTaskRun(sqlite, taskRun.id, runInput);
+    return;
+  }
+
+  if (state === 'FAILED') {
+    await failTaskRun(sqlite, taskRun.id, runInput);
+    return;
+  }
+
+  await cancelTaskRun(sqlite, taskRun.id, runInput);
 }
 
 function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
@@ -686,14 +952,12 @@ function createRuntimeHooks(
         completedAt: new Date().toISOString(),
       });
 
-      if (current.task_id) {
-        updateTaskExecutionState(sqlite, {
-          taskId: current.task_id,
-          executionSessionId: null,
-          resultSessionId: localSessionId,
-          status: 'FAILED',
-        });
-      }
+      await syncTaskExecutionOutcome(
+        sqlite,
+        localSessionId,
+        'FAILED',
+        error.message,
+      );
     },
   };
 }
@@ -908,7 +1172,7 @@ function appendPromptRequestedEvents(
   });
 }
 
-function updateSessionFromPromptResponse(
+async function updateSessionFromPromptResponse(
   sqlite: Database,
   broker: AcpStreamBroker,
   sessionId: string,
@@ -941,12 +1205,7 @@ function updateSessionFromPromptResponse(
   });
 
   if (session.task_id) {
-    updateTaskExecutionState(sqlite, {
-      taskId: session.task_id,
-      executionSessionId: null,
-      resultSessionId: sessionId,
-      status: state,
-    });
+    await syncTaskExecutionOutcome(sqlite, sessionId, state);
   }
 }
 
@@ -1419,7 +1678,7 @@ export async function promptAcpSession(
       traceId: input.traceId,
     });
 
-    updateSessionFromPromptResponse(
+    await updateSessionFromPromptResponse(
       sqlite,
       broker,
       sessionId,
@@ -1458,12 +1717,7 @@ export async function promptAcpSession(
     });
 
     if (session.task_id) {
-      updateTaskExecutionState(sqlite, {
-        taskId: session.task_id,
-        executionSessionId: null,
-        resultSessionId: sessionId,
-        status: 'FAILED',
-      });
+      await syncTaskExecutionOutcome(sqlite, sessionId, 'FAILED', message);
     }
 
     throw error;
@@ -1510,12 +1764,7 @@ export async function cancelAcpSession(
   });
 
   if (session.task_id) {
-    updateTaskExecutionState(sqlite, {
-      taskId: session.task_id,
-      executionSessionId: null,
-      resultSessionId: sessionId,
-      status: 'CANCELLED',
-    });
+    await syncTaskExecutionOutcome(sqlite, sessionId, 'CANCELLED', reason);
   }
 
   return await getAcpSessionById(sqlite, sessionId);
