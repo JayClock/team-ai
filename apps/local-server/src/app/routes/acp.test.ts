@@ -319,15 +319,19 @@ describe('acp route', () => {
 
     expect(updatedTask).toMatchObject({
       executionSessionId: childSessionId,
+      resultSessionId: null,
       status: 'RUNNING',
     });
     expect(taskRuns.items).toEqual([
       expect.objectContaining({
+        completedAt: null,
+        isLatest: true,
         kind: 'implement',
         provider: 'codex',
         role: 'CRAFTER',
         sessionId: childSessionId,
         specialistId: 'crafter-implementor',
+        startedAt: expect.any(String),
         status: 'RUNNING',
         taskId: task.id,
       }),
@@ -431,6 +435,7 @@ describe('acp route', () => {
     });
     expect(taskRuns.items).toEqual([
       expect.objectContaining({
+        isLatest: true,
         sessionId: childSessionId,
         status: 'COMPLETED',
         summary: assistantReply,
@@ -516,6 +521,7 @@ describe('acp route', () => {
     });
     expect(taskRuns.items).toEqual([
       expect.objectContaining({
+        isLatest: true,
         sessionId: childSessionId,
         status: 'FAILED',
         summary: 'Provider request failed',
@@ -608,6 +614,7 @@ describe('acp route', () => {
     });
     expect(taskRuns.items).toEqual([
       expect.objectContaining({
+        isLatest: true,
         sessionId: childSessionId,
         status: 'CANCELLED',
         summary: 'User aborted execution',

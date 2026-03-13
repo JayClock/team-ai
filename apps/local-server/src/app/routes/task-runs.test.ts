@@ -10,9 +10,10 @@ import acpStreamPlugin from '../plugins/acp-stream';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
+import { getAcpSessionById } from '../services/acp-service';
 import { createProject } from '../services/project-service';
 import { failTaskRun, startTaskRun } from '../services/task-run-service';
-import { createTask, updateTask } from '../services/task-service';
+import { createTask, getTaskById, updateTask } from '../services/task-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -220,15 +221,41 @@ describe('task run routes', () => {
     expect(retryResponse.json()).toMatchObject({
       isLatest: true,
       retryOfRunId: failedRun.id,
+      sessionId: expect.stringMatching(/^acps_/),
+      status: 'COMPLETED',
+      summary: 'ACP session completed',
       taskId: task.id,
+      verificationReport: 'ACP session completed',
+      verificationVerdict: 'pass',
     });
 
-    const retriedRun = retryResponse.json() as { id: string };
+    const retriedRun = retryResponse.json() as {
+      id: string;
+      sessionId: string;
+    };
+    const updatedTask = await getTaskById(sqlite, task.id);
+    const retriedSession = await getAcpSessionById(
+      sqlite,
+      retriedRun.sessionId,
+    );
     const taskRunsResponse = await fastify.inject({
       method: 'GET',
       url: `/api/tasks/${task.id}/runs`,
     });
 
+    expect(updatedTask).toMatchObject({
+      completionSummary: 'ACP session completed',
+      executionSessionId: null,
+      resultSessionId: retriedRun.sessionId,
+      status: 'COMPLETED',
+      verificationReport: 'ACP session completed',
+      verificationVerdict: 'pass',
+    });
+    expect(retriedSession).toMatchObject({
+      id: retriedRun.sessionId,
+      state: 'COMPLETED',
+      task: { id: task.id },
+    });
     expect(taskRunsResponse.statusCode).toBe(200);
     expect(taskRunsResponse.json()).toMatchObject({
       total: 2,
@@ -238,10 +265,13 @@ describe('task run routes', () => {
             id: retriedRun.id,
             isLatest: true,
             retryOfRunId: failedRun.id,
+            sessionId: retriedRun.sessionId,
+            status: 'COMPLETED',
           }),
           expect.objectContaining({
             id: failedRun.id,
             isLatest: false,
+            sessionId,
             status: 'FAILED',
           }),
         ],
