@@ -1,7 +1,7 @@
 import { State } from '@hateoas-ts/resource';
+import { ProjectSessionWorkbench } from '@features/projects';
 import { Project } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@shared/ui';
-import { ShellsSession } from '@shells/session';
 import {
   clearPendingProjectPrompt,
   projectTitle,
@@ -72,7 +72,7 @@ export default function ProjectSessionPage() {
 
   return (
     <div className="min-w-0 h-[100dvh] overflow-hidden bg-background">
-      <ShellsSession
+      <ProjectSessionWorkbench
         projectState={projectState}
         projectTitle={projectTitle(currentProject)}
         onBack={handleBack}

@@ -47,6 +47,7 @@ export function ProjectSessionStatusSidebar(props: {
     action: TaskPanelAction;
     taskId: string;
   } | null;
+  providerFallbackLabel: string;
   selectedSession: State<AcpSession> | null;
   streamStatus: string;
   taskItems: TaskPanelItem[];
@@ -59,6 +60,7 @@ export function ProjectSessionStatusSidebar(props: {
     onTabChange,
     onTaskAction,
     pendingTaskAction,
+    providerFallbackLabel,
     selectedSession,
     streamStatus,
     taskItems,
@@ -103,7 +105,7 @@ export function ProjectSessionStatusSidebar(props: {
                 : '会话面板'}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {selectedSession?.data.provider ?? 'opencode'}
+              {selectedSession?.data.provider ?? providerFallbackLabel}
               {selectedSession?.data.lastActivityAt
                 ? ` · ${formatDateTime(selectedSession.data.lastActivityAt)}`
                 : ''}
@@ -286,7 +288,8 @@ export function ProjectSessionStatusSidebar(props: {
                       {walkthroughRunCount} 条 run
                     </span>
                     <span className="rounded-full border border-border/60 bg-background px-2 py-1">
-                      provider {selectedSession?.data.provider ?? 'opencode'}
+                      provider{' '}
+                      {selectedSession?.data.provider ?? providerFallbackLabel}
                     </span>
                   </div>
                 </CardContent>

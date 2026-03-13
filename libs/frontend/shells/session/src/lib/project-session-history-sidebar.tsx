@@ -74,7 +74,7 @@ export function ProjectSessionHistorySidebar(props: {
                 {formatStatusLabel(selectedSessionMeta.state)}
               </span>
               <span className="rounded-full border border-border/60 bg-background px-2 py-1">
-                {selectedSessionMeta.provider ?? 'opencode'}
+                {selectedSessionMeta.provider ?? '未配置 provider'}
               </span>
               {selectedSessionMeta.specialistId ? (
                 <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">

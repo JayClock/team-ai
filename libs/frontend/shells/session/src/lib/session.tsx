@@ -66,6 +66,11 @@ import {
   type TaskPanelAction,
   type TaskPanelItem,
 } from './project-session-workbench.shared';
+import {
+  resolveWorkbenchProviderLabel,
+  resolveWorkbenchSessionDefaults,
+  type WorkbenchSessionRuntimeProfile,
+} from './session-runtime-profile';
 
 const STREAM_RETRY_DELAY_MS = 1500;
 const TASK_POLL_INTERVAL_MS = 3000;
@@ -83,6 +88,7 @@ export type ShellsSessionProps = {
   projectState: State<Project>;
   projectTitle: string;
   renderPromptInput?: (props: ShellsSessionPromptInputProps) => ReactNode;
+  runtimeProfile?: WorkbenchSessionRuntimeProfile | null;
 };
 
 export type ShellsSessionPromptInputProps = {
@@ -144,6 +150,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     onSessionNavigate,
     projectTitle,
     renderPromptInput,
+    runtimeProfile,
   } = props;
   const client = useClient();
   const meResource = useMemo(
@@ -163,8 +170,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     ingestEvents,
   } = useAcpSession(projectState, {
     actorUserId: me.id,
-    provider: 'opencode',
-    role: 'ROUTA',
     historyLimit: 200,
   });
 
@@ -176,7 +181,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   } | null>(null);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const provider = 'opencode';
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
   const [isCreating, setIsCreating] = useState(false);
   const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false);
@@ -216,6 +220,22 @@ export function ShellsSession(props: ShellsSessionProps) {
   );
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
   const showDesktopInspector = Boolean(selectedSession);
+  const sessionDefaults = useMemo(
+    () =>
+      resolveWorkbenchSessionDefaults({
+        runtimeProfile,
+        selectedSessionProvider: selectedSession?.data.provider ?? null,
+        recentSessionProvider: sessions[0]?.data.provider ?? null,
+      }),
+    [runtimeProfile, selectedSession?.data.provider, sessions],
+  );
+  const sessionProviderLabel = useMemo(
+    () =>
+      resolveWorkbenchProviderLabel(
+        selectedSession?.data.provider ?? sessionDefaults.providerId,
+      ),
+    [selectedSession?.data.provider, sessionDefaults.providerId],
+  );
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;
@@ -254,6 +274,24 @@ export function ShellsSession(props: ShellsSessionProps) {
       String(rightSidebarWidth),
     );
   }, [leftSidebarWidth, rightSidebarWidth]);
+
+  const createSessionWithDefaults = useCallback(
+    async (input: { goal?: string } = {}) => {
+      if (!sessionDefaults.providerId) {
+        throw new Error(
+          '当前项目还没有可用的默认 provider，请先在 Runtime Profile 中设置默认 provider，或复用已有会话。',
+        );
+      }
+
+      return create({
+        actorUserId: me.id,
+        provider: sessionDefaults.providerId,
+        role: sessionDefaults.role,
+        goal: input.goal,
+      });
+    },
+    [create, me.id, sessionDefaults.providerId, sessionDefaults.role],
+  );
 
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
@@ -434,12 +472,7 @@ export function ShellsSession(props: ShellsSessionProps) {
       selectedSession: selectedSession ?? undefined,
       pendingPrompt,
       onPendingPromptConsumed,
-      createSession: () =>
-        create({
-          actorUserId: me.id,
-          provider,
-          role: 'ROUTA',
-        }),
+      createSession: () => createSessionWithDefaults(),
       submitPrompt: async ({ sessionId, prompt: nextPrompt }) => {
         await prompt({
           session: sessionId,
@@ -549,11 +582,7 @@ export function ShellsSession(props: ShellsSessionProps) {
   const handleCreate = useCallback(async () => {
     setIsCreating(true);
     try {
-      const created = await create({
-        actorUserId: me.id,
-        provider,
-        role: 'ROUTA',
-      });
+      const created = await createSessionWithDefaults();
       await loadSessions();
       onSessionNavigate?.(created.data.id);
       toast.success(`已创建会话 ${created.data.id}`);
@@ -563,7 +592,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     } finally {
       setIsCreating(false);
     }
-  }, [create, loadSessions, me.id, onSessionNavigate, provider]);
+  }, [createSessionWithDefaults, loadSessions, onSessionNavigate]);
 
   const submitRename = useCallback(async () => {
     const session = renameDialogSession;
@@ -797,7 +826,8 @@ export function ShellsSession(props: ShellsSessionProps) {
                   : '子会话'
                 : '根会话',
               label: sessionDisplayName(selectedSession),
-              provider: selectedSession.data.provider,
+              provider:
+                selectedSession.data.provider ?? sessionDefaults.providerId,
               specialistId: selectedSession.data.specialistId,
               state: selectedSession.data.state,
               taskId: selectedSession.data.task?.id ?? null,
@@ -817,6 +847,7 @@ export function ShellsSession(props: ShellsSessionProps) {
       onTabChange={setInspectorTab}
       onTaskAction={handleTaskAction}
       pendingTaskAction={pendingTaskAction}
+      providerFallbackLabel={sessionProviderLabel}
       selectedSession={selectedSession}
       streamStatus={streamStatus}
       taskItems={taskItems}
@@ -850,7 +881,7 @@ export function ShellsSession(props: ShellsSessionProps) {
               <FolderTreeIcon className="size-3.5" />
               <span className="truncate">{projectTitle}</span>
               <span className="rounded-full border border-border/70 bg-background px-2 py-0.5">
-                {selectedSession?.data.provider ?? 'opencode'}
+                {sessionProviderLabel}
               </span>
             </div>
             <div className="mt-1 flex items-center gap-2">
