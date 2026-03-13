@@ -1,7 +1,7 @@
 {
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist",
+    "outDir": "dist/prompt-input",
     "lib": ["es2022", "dom", "dom.iterable"],
     "types": [
       "node",
@@ -10,7 +10,7 @@
     ],
     "rootDir": "src",
     "jsx": "react-jsx",
-    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+    "tsBuildInfoFile": "dist/prompt-input/tsconfig.prompt-input.tsbuildinfo"
   },
   "exclude": [
     "out-tsc",
@@ -27,22 +27,14 @@
     "vite.config.mts",
     "vitest.config.ts",
     "vitest.config.mts",
-    "src/**/*.test.ts",
-    "src/**/*.spec.ts",
-    "src/**/*.test.tsx",
-    "src/**/*.spec.tsx",
-    "src/**/*.test.js",
-    "src/**/*.spec.js",
-    "src/**/*.test.jsx",
-    "src/**/*.spec.jsx",
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"
   ],
-  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/lib/components/project-prompt-input.tsx"],
   "references": [
     {
-      "path": "../../features/projects/tsconfig.lib.json"
+      "path": "../../shared/ui/tsconfig.lib.json"
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
+import { ProjectPromptInput } from '@features/projects/lib/components/project-prompt-input';
 import {
   AcpSessionSummary,
   type AgentRole,
@@ -17,7 +18,6 @@ import {
   Dialog,
   DialogContent,
   Input,
-  Textarea,
   toast,
 } from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
@@ -31,16 +31,7 @@ import {
   LoaderCircleIcon,
   SearchIcon,
 } from 'lucide-react';
-import {
-  FormEvent,
-  KeyboardEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { AgentInstallPanel } from './agent-install-panel';
@@ -86,17 +77,6 @@ type DropdownPosition = {
   bottom: number;
   left: number;
   width: number;
-};
-
-export type ShellsSessionsPromptInputProps = {
-  ariaLabel: string;
-  disabled?: boolean;
-  footerEnd?: ReactNode;
-  footerStart?: ReactNode;
-  onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
-  placeholder: string;
-  submitDisabled?: boolean;
-  submitPending?: boolean;
 };
 
 const HOME_AGENT_OPTIONS: Array<{
@@ -229,10 +209,7 @@ async function readJson<T>(href: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function ShellsSessions(props: {
-  renderPromptInput?: (props: ShellsSessionsPromptInputProps) => ReactNode;
-}) {
-  const { renderPromptInput } = props;
+export function ShellsSessions() {
   const { projects, refreshProjects, selectedProject } = useProjectSelection();
   const [preferredProjectId, setPreferredProjectId] = useState<string | null>(
     null,
@@ -278,7 +255,6 @@ export function ShellsSessions(props: {
       }}
       onProjectSelected={setPreferredProjectId}
       projects={projects}
-      renderPromptInput={renderPromptInput}
       selectedProject={activeProject}
     />
   );
@@ -288,19 +264,12 @@ function ShellsSessionsContent(props: {
   onProjectCloned: (projectId: string) => Promise<void>;
   onProjectSelected: (projectId: string) => void;
   projects: State<LocalProject>[];
-  renderPromptInput?: (props: ShellsSessionsPromptInputProps) => ReactNode;
   selectedProject: State<LocalProject>;
 }) {
-  const {
-    onProjectCloned,
-    onProjectSelected,
-    projects,
-    renderPromptInput,
-    selectedProject,
-  } = props;
+  const { onProjectCloned, onProjectSelected, projects, selectedProject } =
+    props;
   const client = useClient();
   const navigate = useNavigate();
-  const promptRef = useRef<HTMLTextAreaElement>(null);
   const selectedProjectId = selectedProject.data.id;
   const projectState = selectedProject as unknown as State<Project>;
   const meResource = useMemo(
@@ -330,7 +299,6 @@ function ShellsSessionsContent(props: {
     historyLimit: 50,
   });
 
-  const [prompt, setPrompt] = useState('');
   const [agentType, setAgentType] = useState<HomeAgentType>('ROUTA');
   const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
   const [providerDropdownPos, setProviderDropdownPos] = useState<{
@@ -500,7 +468,6 @@ function ShellsSessionsContent(props: {
           goal,
         });
         storePendingProjectPrompt(created.data.id, goal);
-        setPrompt('');
         await loadRecentSessions();
         navigate(`/projects/${selectedProjectId}/sessions/${created.data.id}`);
       } catch (error) {
@@ -521,38 +488,6 @@ function ShellsSessionsContent(props: {
       selectedProvider,
       selectedProjectId,
     ],
-  );
-
-  const handleHomeSubmit = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      try {
-        await submitHomePrompt({
-          files: [],
-          text: prompt,
-        });
-      } catch {
-        return;
-      }
-    },
-    [prompt, submitHomePrompt],
-  );
-
-  const handlePromptKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (event.key !== 'Enter' || event.shiftKey) {
-        return;
-      }
-
-      event.preventDefault();
-
-      if (startingSession || prompt.trim().length === 0) {
-        return;
-      }
-
-      event.currentTarget.form?.requestSubmit();
-    },
-    [prompt, startingSession],
   );
 
   const homePromptFooterStart = (
@@ -634,7 +569,7 @@ function ShellsSessionsContent(props: {
     </Button>
   );
 
-  const homePromptInputProps: ShellsSessionsPromptInputProps = {
+  const homePromptInputProps = {
     ariaLabel: '项目指令输入框',
     disabled: startingSession,
     footerEnd: homePromptFooterEnd,
@@ -678,49 +613,7 @@ function ShellsSessionsContent(props: {
             输入首条指令后，会自动创建会话并进入项目协作。
           </p>
           <div id="home-input-container">
-            {renderPromptInput ? (
-              renderPromptInput(homePromptInputProps)
-            ) : (
-              <div className="group relative">
-                <div className="pointer-events-none absolute -inset-1 rounded-[28px] bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20 opacity-0 blur-xl transition-opacity duration-500 group-focus-within:opacity-100" />
-                <form
-                  className="relative overflow-visible rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)] transition-colors group-focus-within:border-amber-300/70 dark:border-[#1c1f2e] dark:bg-[#12141c] dark:shadow-none dark:group-focus-within:border-amber-500/30"
-                  onSubmit={handleHomeSubmit}
-                >
-                  <div className="px-4 pb-2 pt-3 md:px-5 md:pt-4">
-                    <Textarea
-                      ref={promptRef}
-                      className="max-h-60 min-h-28 w-full resize-none border-0 bg-transparent px-0 py-0 text-sm leading-7 text-slate-900 shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:text-slate-100 md:text-[15px]"
-                      disabled={startingSession}
-                      onChange={(event) => setPrompt(event.currentTarget.value)}
-                      onKeyDown={handlePromptKeyDown}
-                      placeholder={homePromptInputProps.placeholder}
-                      value={prompt}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3 md:px-5 dark:border-[#1c1f2e]">
-                    {homePromptInputProps.footerStart}
-
-                    <div className="ml-auto flex items-center gap-2">
-                      {homePromptInputProps.footerEnd}
-
-                      <Button
-                        className="size-9 rounded-xl p-0"
-                        disabled={startingSession || prompt.trim().length === 0}
-                        type="submit"
-                      >
-                        {startingSession ? (
-                          <LoaderCircleIcon className="size-4 animate-spin" />
-                        ) : (
-                          <ArrowRightIcon className="size-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            )}
+            <ProjectPromptInput {...homePromptInputProps} />
           </div>
 
           {providerDropdownOpen &&

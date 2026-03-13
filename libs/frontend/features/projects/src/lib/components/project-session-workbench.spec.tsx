@@ -9,7 +9,7 @@ const shellsSessionSpy = vi.fn((props: { runtimeProfile?: unknown }) => (
   </div>
 ));
 
-vi.mock('@shells/session', () => ({
+vi.mock('../session/session', () => ({
   ShellsSession: (props: { runtimeProfile?: unknown }) =>
     shellsSessionSpy(props),
 }));

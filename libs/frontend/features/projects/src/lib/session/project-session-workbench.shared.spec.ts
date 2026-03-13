@@ -316,6 +316,9 @@ function mapWalkthroughStatuses(
   scenarios: ReturnType<typeof buildWorkbenchWalkthroughScenarios>,
 ) {
   return Object.fromEntries(
-    scenarios.map((scenario) => [scenario.id, scenario.status]),
+    scenarios.map((scenario: (typeof scenarios)[number]) => [
+      scenario.id,
+      scenario.status,
+    ]),
   );
 }

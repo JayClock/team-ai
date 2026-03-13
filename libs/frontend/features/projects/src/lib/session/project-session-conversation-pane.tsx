@@ -8,51 +8,30 @@ import {
   Message,
   MessageContent,
   MessageResponse,
-  PromptInput,
-  PromptInputBody,
-  PromptInputFooter,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputTools,
   Spinner,
 } from '@shared/ui';
 import { BotIcon, SparklesIcon } from 'lucide-react';
-import { type ReactNode } from 'react';
 import {
   formatDateTime,
   formatStatusLabel,
 } from './project-session-workbench.shared';
 import { SessionChatMessage } from './use-project-session-chat';
-
-export type ProjectSessionConversationPromptInputProps = {
-  ariaLabel: string;
-  disabled?: boolean;
-  footerEnd?: ReactNode;
-  footerStart?: ReactNode;
-  onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
-  placeholder: string;
-  submitDisabled?: boolean;
-  submitPending?: boolean;
-};
+import { ProjectPromptInput } from '../components/project-prompt-input';
 
 export function ProjectSessionConversationPane(props: {
   chatMessages: SessionChatMessage[];
   hasPendingAssistantMessage: boolean;
   onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
-  renderPromptInput?: (
-    props: ProjectSessionConversationPromptInputProps,
-  ) => ReactNode;
   selectedSession: State<AcpSession> | null;
 }) {
   const {
     chatMessages,
     hasPendingAssistantMessage,
     onSubmit,
-    renderPromptInput,
     selectedSession,
   } = props;
 
-  const promptInputProps: ProjectSessionConversationPromptInputProps = {
+  const promptInputProps = {
     ariaLabel: '会话输入框',
     disabled: hasPendingAssistantMessage,
     footerStart: (
@@ -177,30 +156,7 @@ export function ProjectSessionConversationPane(props: {
 
         <div className="shrink-0 border-t border-border/60 bg-background/95">
           <div className="mx-auto w-full max-w-3xl px-4 py-3 md:px-5">
-            {renderPromptInput ? (
-              renderPromptInput(promptInputProps)
-            ) : (
-              <PromptInput onSubmit={promptInputProps.onSubmit}>
-                <PromptInputBody className="rounded-3xl border border-input bg-background shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                  <PromptInputTextarea
-                    aria-label={promptInputProps.ariaLabel}
-                    className="min-h-24 resize-none border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0"
-                    disabled={promptInputProps.disabled}
-                    placeholder={promptInputProps.placeholder}
-                  />
-                </PromptInputBody>
-                <PromptInputFooter className="mt-2 flex items-center justify-between gap-3">
-                  <PromptInputTools>
-                    {promptInputProps.footerStart}
-                  </PromptInputTools>
-                  <PromptInputSubmit
-                    status={
-                      promptInputProps.submitPending ? 'submitted' : undefined
-                    }
-                  />
-                </PromptInputFooter>
-              </PromptInput>
-            )}
+            <ProjectPromptInput {...promptInputProps} />
           </div>
         </div>
       </div>

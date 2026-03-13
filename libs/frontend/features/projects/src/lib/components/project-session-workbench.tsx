@@ -1,7 +1,7 @@
 import { State } from '@hateoas-ts/resource';
-import { ShellsSession, type ShellsSessionProps } from '@shells/session';
 import { ProjectRuntimeProfile } from '@shared/schema';
 import { useEffect, useState } from 'react';
+import { ShellsSession, type ShellsSessionProps } from '../session/session';
 
 export type ProjectSessionWorkbenchProps = Omit<
   ShellsSessionProps,

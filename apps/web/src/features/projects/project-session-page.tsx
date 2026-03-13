@@ -10,7 +10,6 @@ import {
 } from '@shells/sessions';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ProjectPromptInput } from './project-prompt-input';
 
 export default function ProjectSessionPage() {
   const navigate = useNavigate();
@@ -80,9 +79,6 @@ export default function ProjectSessionPage() {
         pendingPrompt={pendingPrompt}
         onPendingPromptConsumed={handlePendingPromptConsumed}
         onSessionNavigate={handleSessionNavigate}
-        renderPromptInput={(props) => (
-          <ProjectPromptInput {...props} variant="session" />
-        )}
       />
     </div>
   );

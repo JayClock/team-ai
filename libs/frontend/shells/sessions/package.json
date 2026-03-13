@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@features/project-conversations": "workspace:^",
+    "@features/projects": "workspace:^",
     "@hateoas-ts/resource": "workspace:^",
     "@hateoas-ts/resource-react": "workspace:^",
     "@shared/schema": "workspace:^",

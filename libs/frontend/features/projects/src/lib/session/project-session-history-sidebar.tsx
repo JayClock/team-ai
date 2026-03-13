@@ -1,9 +1,16 @@
 import { State } from '@hateoas-ts/resource';
 import { SessionList, SessionTreeNode } from '@features/project-sessions';
 import { AcpSessionSummary } from '@shared/schema';
-import { FolderTreeIcon } from 'lucide-react';
+import { Button } from '@shared/ui';
+import {
+  ActivityIcon,
+  FolderTreeIcon,
+  ListChecksIcon,
+  SparklesIcon,
+} from 'lucide-react';
 import {
   countSessionTree,
+  formatDateTime,
   formatStatusLabel,
 } from './project-session-workbench.shared';
 
@@ -17,10 +24,18 @@ export function ProjectSessionHistorySidebar(props: {
   selectedSessionMeta: {
     hierarchyLabel?: string | null;
     label: string;
+    lastActivityAt?: string | null;
     provider: string | null;
     specialistId?: string | null;
     state: string | null;
     taskId?: string | null;
+  } | null;
+  sessionQuickActions?: {
+    activityCount: number;
+    onOpenActivity: () => void;
+    onOpenChecklist: () => void;
+    onOpenTasks: () => void;
+    taskCount: number;
   } | null;
   sessions: SessionTreeNode[];
   sessionsLoading: boolean;
@@ -33,6 +48,7 @@ export function ProjectSessionHistorySidebar(props: {
     projectTitle,
     selectedSessionId,
     selectedSessionMeta,
+    sessionQuickActions,
     sessions,
     sessionsLoading,
   } = props;
@@ -87,6 +103,57 @@ export function ProjectSessionHistorySidebar(props: {
                 </span>
               ) : null}
             </div>
+
+            {selectedSessionMeta.lastActivityAt ? (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                最近活动 {formatDateTime(selectedSessionMeta.lastActivityAt)}
+              </p>
+            ) : null}
+
+            {sessionQuickActions ? (
+              <div className="mt-3 rounded-xl border border-border/60 bg-background/80 p-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Quick Access
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {sessionQuickActions.taskCount} 个任务 ·{' '}
+                      {sessionQuickActions.activityCount} 条活动
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 rounded-lg px-2 text-[11px]"
+                      onClick={sessionQuickActions.onOpenTasks}
+                    >
+                      <ListChecksIcon className="size-3.5" />
+                      任务
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 rounded-lg px-2 text-[11px]"
+                      onClick={sessionQuickActions.onOpenActivity}
+                    >
+                      <ActivityIcon className="size-3.5" />
+                      活动
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 rounded-lg px-2 text-[11px]"
+                      onClick={sessionQuickActions.onOpenChecklist}
+                    >
+                      <SparklesIcon className="size-3.5" />
+                      验收
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

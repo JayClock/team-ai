@@ -35,6 +35,7 @@
     "src/**/*.spec.js",
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
+    "src/lib/components/project-prompt-input.tsx",
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"
@@ -43,9 +44,6 @@
   "references": [
     {
       "path": "../../shared/util-http/tsconfig.lib.json"
-    },
-    {
-      "path": "../../../../packages/resource/tsconfig.lib.json"
     },
     {
       "path": "../../shared/ui/tsconfig.lib.json"
@@ -57,13 +55,16 @@
       "path": "../../../../packages/resource-react/tsconfig.lib.json"
     },
     {
-      "path": "../project-conversations/tsconfig.lib.json"
+      "path": "../../../../packages/resource/tsconfig.lib.json"
     },
     {
       "path": "../project-sessions/tsconfig.lib.json"
     },
     {
-      "path": "../../shells/session/tsconfig.lib.json"
+      "path": "../project-conversations/tsconfig.lib.json"
+    },
+    {
+      "path": "./tsconfig.prompt-input.json"
     }
   ]
 }
