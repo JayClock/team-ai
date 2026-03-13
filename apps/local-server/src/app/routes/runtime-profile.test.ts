@@ -54,8 +54,10 @@ describe('runtime profile routes', () => {
       defaultProviderId: null,
       enabledMcpServerIds: [],
       enabledSkillIds: [],
+      mcpServerConfigs: {},
       orchestrationMode: 'ROUTA',
       projectId: project.id,
+      skillConfigs: {},
     });
 
     const patchResponse = await fastify.inject({
@@ -66,7 +68,17 @@ describe('runtime profile routes', () => {
         defaultProviderId: 'opencode',
         enabledMcpServerIds: ['team_ai_local'],
         enabledSkillIds: ['reviewer'],
+        mcpServerConfigs: {
+          team_ai_local: {
+            timeoutMs: 2000,
+          },
+        },
         orchestrationMode: 'DEVELOPER',
+        skillConfigs: {
+          reviewer: {
+            level: 'strict',
+          },
+        },
       },
     });
 
@@ -79,8 +91,18 @@ describe('runtime profile routes', () => {
       defaultProviderId: 'opencode',
       enabledMcpServerIds: ['team_ai_local'],
       enabledSkillIds: ['reviewer'],
+      mcpServerConfigs: {
+        team_ai_local: {
+          timeoutMs: 2000,
+        },
+      },
       orchestrationMode: 'DEVELOPER',
       projectId: project.id,
+      skillConfigs: {
+        reviewer: {
+          level: 'strict',
+        },
+      },
     });
 
     const secondReadResponse = await fastify.inject({
@@ -94,8 +116,18 @@ describe('runtime profile routes', () => {
       defaultProviderId: 'opencode',
       enabledMcpServerIds: ['team_ai_local'],
       enabledSkillIds: ['reviewer'],
+      mcpServerConfigs: {
+        team_ai_local: {
+          timeoutMs: 2000,
+        },
+      },
       orchestrationMode: 'DEVELOPER',
       projectId: project.id,
+      skillConfigs: {
+        reviewer: {
+          level: 'strict',
+        },
+      },
     });
   });
 

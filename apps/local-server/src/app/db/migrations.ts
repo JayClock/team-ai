@@ -388,4 +388,14 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '008_project_runtime_profile_configs',
+    sql: `
+      ALTER TABLE project_runtime_profiles
+        ADD COLUMN skill_configs_json TEXT NOT NULL DEFAULT '{}';
+
+      ALTER TABLE project_runtime_profiles
+        ADD COLUMN mcp_server_configs_json TEXT NOT NULL DEFAULT '{}';
+    `,
+  },
 ];

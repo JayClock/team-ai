@@ -57,6 +57,8 @@ export type {
 } from './lib/task-run.js';
 export type {
   ProjectRuntimeProfile,
+  ProjectRuntimeProfileConfig,
+  ProjectRuntimeProfileConfigMap,
   ProjectOrchestrationMode,
 } from './lib/runtime-profile.js';
 export type {

@@ -13,6 +13,8 @@ const projectParamsSchema = z.object({
 
 const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
 const stringArraySchema = z.array(z.string().trim().min(1));
+const configEntrySchema = z.record(z.string(), z.unknown());
+const configMapSchema = z.record(z.string(), configEntrySchema);
 
 const runtimeProfilePatchSchema = z
   .object({
@@ -20,7 +22,9 @@ const runtimeProfilePatchSchema = z
     defaultProviderId: nullableStringSchema.optional(),
     enabledMcpServerIds: stringArraySchema.optional(),
     enabledSkillIds: stringArraySchema.optional(),
+    mcpServerConfigs: configMapSchema.optional(),
     orchestrationMode: z.enum(['ROUTA', 'DEVELOPER']).optional(),
+    skillConfigs: configMapSchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field must be provided',

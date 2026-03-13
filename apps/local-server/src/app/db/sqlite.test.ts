@@ -66,6 +66,9 @@ describe('sqlite initialization', () => {
     const taskColumns = sqlite
       .prepare('PRAGMA table_info(project_tasks)')
       .all() as Array<{ name: string }>;
+    const runtimeProfileColumns = sqlite
+      .prepare('PRAGMA table_info(project_runtime_profiles)')
+      .all() as Array<{ name: string }>;
 
     expect(tables.map(({ name }) => name)).toEqual([
       'agents',
@@ -175,6 +178,20 @@ describe('sqlite initialization', () => {
       'source_type',
       'source_event_id',
       'source_entry_index',
+    ]);
+    expect(runtimeProfileColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'project_id',
+      'default_provider_id',
+      'default_model',
+      'orchestration_mode',
+      'enabled_skill_ids_json',
+      'enabled_mcp_server_ids_json',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+      'skill_configs_json',
+      'mcp_server_configs_json',
     ]);
 
     sqlite.close();
