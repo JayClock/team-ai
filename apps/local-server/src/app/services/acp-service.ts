@@ -12,6 +12,11 @@ import type {
   AcpRuntimeClient,
   AcpRuntimeSessionHooks,
 } from '../clients/acp-runtime-client';
+import {
+  getErrorDiagnostics,
+  logDiagnostic,
+  type DiagnosticLogger,
+} from '../diagnostics';
 import { ProblemError } from '../errors/problem-error';
 import type { AcpStreamBroker } from '../plugins/acp-stream';
 import type {
@@ -125,6 +130,11 @@ interface PromptSessionInput {
   prompt: string;
   timeoutMs?: number;
   traceId?: string;
+}
+
+export interface AcpServiceOptions {
+  logger?: DiagnosticLogger;
+  source?: string;
 }
 
 type NormalizedAcpUpdateEvent = {
@@ -280,17 +290,26 @@ async function createTaskExecutionRun(
     specialistId?: string | null;
     taskId: string;
   },
+  options: AcpServiceOptions = {},
 ) {
-  return await startTaskRun(sqlite, {
-    projectId: input.projectId,
-    provider: input.provider,
-    retryOfRunId: input.retryOfRunId,
-    role: input.role,
-    sessionId: input.sessionId,
-    specialistId: input.specialistId,
-    status: 'RUNNING',
-    taskId: input.taskId,
-  });
+  return await startTaskRun(
+    sqlite,
+    {
+      projectId: input.projectId,
+      provider: input.provider,
+      retryOfRunId: input.retryOfRunId,
+      role: input.role,
+      sessionId: input.sessionId,
+      specialistId: input.specialistId,
+      status: 'RUNNING',
+      taskId: input.taskId,
+    },
+    {
+      logger: options.logger,
+      reason: 'task_execution_session_created',
+      source: options.source ?? 'acp-service',
+    },
+  );
 }
 
 function extractEventText(value: unknown): string | null {
@@ -468,6 +487,7 @@ async function syncTaskExecutionOutcome(
   sessionId: string,
   state: 'COMPLETED' | 'FAILED' | 'CANCELLED',
   fallbackFailureReason?: string | null,
+  options: AcpServiceOptions = {},
 ) {
   const session = getSessionRow(sqlite, sessionId);
   if (!session.task_id) {
@@ -493,6 +513,21 @@ async function syncTaskExecutionOutcome(
 
   const taskRun = getLatestTaskExecutionRun(sqlite, session.task_id, sessionId);
   if (!taskRun) {
+    logDiagnostic(
+      options.logger,
+      'warn',
+      {
+        event: 'task.run.transition.missing',
+        projectId: session.project_id,
+        reason: 'task_execution_outcome_missing_run',
+        sessionId,
+        source: options.source ?? 'acp-service',
+        state,
+        taskId: session.task_id,
+      },
+      'Task execution outcome did not find a matching task run',
+    );
+
     return;
   }
 
@@ -507,16 +542,28 @@ async function syncTaskExecutionOutcome(
   };
 
   if (state === 'COMPLETED') {
-    await completeTaskRun(sqlite, taskRun.id, runInput);
+    await completeTaskRun(sqlite, taskRun.id, runInput, {
+      logger: options.logger,
+      reason: 'task_execution_completed',
+      source: options.source ?? 'acp-service',
+    });
     return;
   }
 
   if (state === 'FAILED') {
-    await failTaskRun(sqlite, taskRun.id, runInput);
+    await failTaskRun(sqlite, taskRun.id, runInput, {
+      logger: options.logger,
+      reason: 'task_execution_failed',
+      source: options.source ?? 'acp-service',
+    });
     return;
   }
 
-  await cancelTaskRun(sqlite, taskRun.id, runInput);
+  await cancelTaskRun(sqlite, taskRun.id, runInput, {
+    logger: options.logger,
+    reason: 'task_execution_cancelled',
+    source: options.source ?? 'acp-service',
+  });
 }
 
 function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
@@ -809,6 +856,7 @@ function createRuntimeHooks(
   broker: AcpStreamBroker,
   runtime: AcpRuntimeClient,
   localSessionId: string,
+  options: AcpServiceOptions = {},
 ): AcpRuntimeSessionHooks {
   return {
     async onSessionUpdate(notification) {
@@ -886,6 +934,9 @@ function createRuntimeHooks(
               eventId: emitted.eventId,
               sessionId: localSessionId,
             },
+            {
+              logger: options.logger,
+            },
           );
 
           appendLocalEvent(sqlite, broker, {
@@ -910,6 +961,24 @@ function createRuntimeHooks(
             error instanceof Error
               ? error.message
               : 'ACP plan sync dispatch failed';
+          const diagnostics = getErrorDiagnostics(
+            error,
+            'ACP_PLAN_SYNC_DISPATCH_FAILED',
+          );
+
+          logDiagnostic(
+            options.logger,
+            'error',
+            {
+              event: 'acp.plan_sync.dispatch.failed',
+              planEventId: emitted.eventId,
+              projectId: current.project_id,
+              sessionId: localSessionId,
+              source: options.source ?? 'acp-service',
+              ...diagnostics,
+            },
+            'ACP plan sync dispatch failed',
+          );
 
           appendLocalEvent(sqlite, broker, {
             sessionId: localSessionId,
@@ -966,6 +1035,7 @@ function createRuntimeHooks(
         localSessionId,
         'FAILED',
         error.message,
+        options,
       );
     },
   };
@@ -1186,6 +1256,7 @@ async function updateSessionFromPromptResponse(
   broker: AcpStreamBroker,
   sessionId: string,
   response: PromptResponse,
+  options: AcpServiceOptions = {},
 ) {
   const session = getSessionRow(sqlite, sessionId);
   let state: AcpSessionState = 'COMPLETED';
@@ -1214,7 +1285,13 @@ async function updateSessionFromPromptResponse(
   });
 
   if (session.task_id) {
-    await syncTaskExecutionOutcome(sqlite, sessionId, state);
+    await syncTaskExecutionOutcome(
+      sqlite,
+      sessionId,
+      state,
+      undefined,
+      options,
+    );
   }
 }
 
@@ -1223,6 +1300,7 @@ async function ensureRuntimeLoaded(
   broker: AcpStreamBroker,
   runtime: AcpRuntimeClient,
   sessionId: string,
+  options: AcpServiceOptions = {},
 ): Promise<string> {
   const session = getSessionRow(sqlite, sessionId);
   if (runtime.isSessionActive(sessionId) && session.runtime_session_id) {
@@ -1244,7 +1322,7 @@ async function ensureRuntimeLoaded(
     provider: session.provider,
     cwd: session.cwd ?? '',
     mcpServers: resolveLocalMcpServers(),
-    hooks: createRuntimeHooks(sqlite, broker, runtime, session.id),
+    hooks: createRuntimeHooks(sqlite, broker, runtime, session.id, options),
   });
 
   if (loaded.runtimeSessionId !== session.runtime_session_id) {
@@ -1262,6 +1340,7 @@ export async function createAcpSession(
   broker: AcpStreamBroker,
   runtime: AcpRuntimeClient,
   input: CreateSessionInput,
+  options: AcpServiceOptions = {},
 ): Promise<AcpSessionPayload> {
   const project = await getProjectById(sqlite, input.projectId);
   const parentSession = input.parentSessionId
@@ -1397,7 +1476,7 @@ export async function createAcpSession(
     provider: input.provider,
     cwd,
     mcpServers: resolveLocalMcpServers(),
-    hooks: createRuntimeHooks(sqlite, broker, runtime, sessionId),
+    hooks: createRuntimeHooks(sqlite, broker, runtime, sessionId, options),
   });
 
   updateSessionRuntime(sqlite, sessionId, {
@@ -1408,15 +1487,19 @@ export async function createAcpSession(
   });
 
   if (task) {
-    await createTaskExecutionRun(sqlite, {
-      projectId: input.projectId,
-      provider: input.provider,
-      retryOfRunId: input.retryOfRunId,
-      role,
-      sessionId,
-      specialistId: specialist?.id ?? null,
-      taskId: task.id,
-    });
+    await createTaskExecutionRun(
+      sqlite,
+      {
+        projectId: input.projectId,
+        provider: input.provider,
+        retryOfRunId: input.retryOfRunId,
+        role,
+        sessionId,
+        specialistId: specialist?.id ?? null,
+        taskId: task.id,
+      },
+      options,
+    );
     updateTaskExecutionState(sqlite, {
       taskId: task.id,
       executionSessionId: sessionId,
@@ -1618,6 +1701,7 @@ export async function loadAcpSession(
   runtime: AcpRuntimeClient,
   projectId: string,
   sessionId: string,
+  options: AcpServiceOptions = {},
 ): Promise<AcpSessionPayload> {
   const session = getSessionRow(sqlite, sessionId);
   if (session.project_id !== projectId) {
@@ -1631,7 +1715,7 @@ export async function loadAcpSession(
       provider: session.provider,
       cwd: session.cwd ?? '',
       mcpServers: resolveLocalMcpServers(),
-      hooks: createRuntimeHooks(sqlite, broker, runtime, session.id),
+      hooks: createRuntimeHooks(sqlite, broker, runtime, session.id, options),
     });
 
     if (loaded.runtimeSessionId !== session.runtime_session_id) {
@@ -1651,6 +1735,7 @@ export async function promptAcpSession(
   projectId: string,
   sessionId: string,
   input: PromptSessionInput,
+  options: AcpServiceOptions = {},
 ) {
   const session = getSessionRow(sqlite, sessionId);
   if (session.project_id !== projectId) {
@@ -1664,7 +1749,7 @@ export async function promptAcpSession(
     ? buildBootstrapPrompt(bootstrapPrompt, input.prompt)
     : input.prompt;
 
-  await ensureRuntimeLoaded(sqlite, broker, runtime, sessionId);
+  await ensureRuntimeLoaded(sqlite, broker, runtime, sessionId, options);
   appendPromptRequestedEvents(
     sqlite,
     broker,
@@ -1693,6 +1778,7 @@ export async function promptAcpSession(
       broker,
       sessionId,
       runtimeResult.response,
+      options,
     );
 
     return {
@@ -1727,7 +1813,13 @@ export async function promptAcpSession(
     });
 
     if (session.task_id) {
-      await syncTaskExecutionOutcome(sqlite, sessionId, 'FAILED', message);
+      await syncTaskExecutionOutcome(
+        sqlite,
+        sessionId,
+        'FAILED',
+        message,
+        options,
+      );
     }
 
     throw error;
@@ -1741,6 +1833,7 @@ export async function cancelAcpSession(
   projectId: string,
   sessionId: string,
   reason?: string,
+  options: AcpServiceOptions = {},
 ) {
   const session = getSessionRow(sqlite, sessionId);
   if (session.project_id !== projectId) {
@@ -1748,7 +1841,7 @@ export async function cancelAcpSession(
   }
 
   if (session.runtime_session_id && !runtime.isSessionActive(sessionId)) {
-    await ensureRuntimeLoaded(sqlite, broker, runtime, sessionId);
+    await ensureRuntimeLoaded(sqlite, broker, runtime, sessionId, options);
   }
 
   if (session.runtime_session_id && runtime.isSessionActive(sessionId)) {
@@ -1774,7 +1867,13 @@ export async function cancelAcpSession(
   });
 
   if (session.task_id) {
-    await syncTaskExecutionOutcome(sqlite, sessionId, 'CANCELLED', reason);
+    await syncTaskExecutionOutcome(
+      sqlite,
+      sessionId,
+      'CANCELLED',
+      reason,
+      options,
+    );
   }
 
   return await getAcpSessionById(sqlite, sessionId);

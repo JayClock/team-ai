@@ -133,6 +133,10 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
         fastify.acpStreamBroker,
         fastify.acpRuntime,
         input,
+        {
+          logger: fastify.log,
+          source: 'tasks-route',
+        },
       );
 
       return {
@@ -152,6 +156,10 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
         input.sessionId,
         {
           prompt: input.prompt,
+        },
+        {
+          logger: fastify.log,
+          source: 'tasks-route',
         },
       );
     },
@@ -237,6 +245,7 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const body = taskPatchSchema.parse(request.body);
     const result = await updateTaskAndDispatch(fastify.sqlite, taskId, body, {
       callbacks: dispatchCallbacks,
+      logger: request.log,
       triggerSource: 'manual',
     });
 
@@ -249,6 +258,7 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const result = await executeTask(fastify.sqlite, taskId, {
       callbacks: dispatchCallbacks,
+      logger: request.log,
     });
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);

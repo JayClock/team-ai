@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { Database } from 'better-sqlite3';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { createProject } from './project-service';
@@ -242,6 +242,84 @@ describe('task run service', () => {
       summary: 'Execution was cancelled before work started',
     });
     expect(cancelledRun.completedAt).toEqual(expect.any(String));
+  });
+
+  it('logs task run status transitions with structured context', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Task Run Diagnostics',
+      repoPath: '/tmp/team-ai-task-run-diagnostics',
+    });
+    const sessionId = createAcpSession(
+      sqlite,
+      project.id,
+      'Diagnostics session',
+    );
+    const task = await createTask(sqlite, {
+      objective: 'Capture task run transition diagnostics',
+      projectId: project.id,
+      title: 'Task run diagnostics task',
+      triggerSessionId: sessionId,
+    });
+    const logger = {
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+
+    const runningRun = await startTaskRun(
+      sqlite,
+      {
+        projectId: project.id,
+        sessionId,
+        taskId: task.id,
+      },
+      {
+        logger,
+        source: 'task-runs-route',
+      },
+    );
+
+    await failTaskRun(
+      sqlite,
+      runningRun.id,
+      {
+        summary: 'Provider execution failed',
+        verificationVerdict: 'fail',
+      },
+      {
+        logger,
+        reason: 'task_execution_failed',
+        source: 'acp-service',
+      },
+    );
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'task.run.transition',
+        nextStatus: 'RUNNING',
+        previousStatus: null,
+        projectId: project.id,
+        reason: 'started',
+        source: 'task-runs-route',
+        taskId: task.id,
+        taskRunId: runningRun.id,
+      }),
+      'Task run state changed',
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'task.run.transition',
+        nextStatus: 'FAILED',
+        previousStatus: 'RUNNING',
+        projectId: project.id,
+        reason: 'task_execution_failed',
+        source: 'acp-service',
+        taskId: task.id,
+        taskRunId: runningRun.id,
+        verificationVerdict: 'fail',
+      }),
+      'Task run state changed',
+    );
   });
 
   async function createTestDatabase(): Promise<Database> {

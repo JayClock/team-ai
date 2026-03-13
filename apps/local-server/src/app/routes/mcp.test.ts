@@ -47,6 +47,21 @@ describe('mcp route', () => {
     });
   }
 
+  function createLogger() {
+    const logger = {
+      child: vi.fn(),
+      debug: vi.fn(),
+      error: vi.fn(),
+      fatal: vi.fn(),
+      info: vi.fn(),
+      trace: vi.fn(),
+      warn: vi.fn(),
+    };
+
+    logger.child.mockReturnValue(logger);
+    return logger;
+  }
+
   it('lists and executes built-in local mcp tools', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-test-${Date.now()}`;
 
@@ -649,6 +664,115 @@ describe('mcp route', () => {
       },
       result: null,
     });
+  });
+
+  it('adds write diagnostics logs and problem context for MCP write failures', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-diagnostics-${Date.now()}`;
+
+    const logger = createLogger();
+    const fastify = Fastify({ loggerInstance: logger as never });
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.provider}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-diagnostics',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'MCP Diagnostics Project',
+      repoPath: '/tmp/team-ai-mcp-diagnostics-project',
+    });
+    const task = await createTask(fastify.sqlite, {
+      projectId: project.id,
+      title: 'MCP diagnostics task',
+      objective: 'Exercise MCP write failure diagnostics',
+      status: 'PENDING',
+      kind: 'implement',
+    });
+
+    const response = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-write-diagnostics',
+        method: 'tools/call',
+        params: {
+          name: 'task_update',
+          arguments: {
+            projectId: project.id,
+            taskId: task.id,
+            status: 'WAITING_RETRY',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: -32000,
+        data: {
+          problem: {
+            code: 'TASK_STATUS_TRANSITION_NOT_ALLOWED',
+            context: {
+              currentStatus: 'PENDING',
+              mutationKeys: ['status'],
+              nextStatus: 'WAITING_RETRY',
+              taskId: task.id,
+              toolName: 'task_update',
+            },
+            status: 409,
+            title: 'Task Status Transition Not Allowed',
+          },
+        },
+      },
+      result: null,
+    });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'mcp.tool.audit',
+        mutationKeys: ['status'],
+        phase: 'failure',
+        problem: expect.objectContaining({
+          code: 'TASK_STATUS_TRANSITION_NOT_ALLOWED',
+          context: expect.objectContaining({
+            currentStatus: 'PENDING',
+            nextStatus: 'WAITING_RETRY',
+            taskId: task.id,
+            toolName: 'task_update',
+          }),
+        }),
+        taskId: task.id,
+        toolAccess: 'write',
+        toolName: 'task_update',
+      }),
+      'MCP tool audit failure',
+    );
   });
 
   it('rejects cross-project task, run, and note scope arguments', async () => {

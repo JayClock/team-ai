@@ -272,6 +272,10 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
               taskId: z.string().trim().min(1).optional().parse(params.taskId),
               goal: z.string().trim().min(1).optional().parse(params.goal),
             },
+            {
+              logger: request.log,
+              source: 'acp-route',
+            },
           );
           return resultEnvelope(id, {
             session: {
@@ -287,6 +291,10 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
             fastify.acpRuntime,
             z.string().min(1).parse(params.projectId),
             z.string().min(1).parse(params.sessionId),
+            {
+              logger: request.log,
+              source: 'acp-route',
+            },
           );
           return resultEnvelope(id, {
             session: {
@@ -323,6 +331,10 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
                 .optional()
                 .parse(params.traceId),
             },
+            {
+              logger: request.log,
+              source: 'acp-route',
+            },
           );
           return resultEnvelope(id, {
             session: {
@@ -340,6 +352,10 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
             z.string().min(1).parse(params.projectId),
             z.string().min(1).parse(params.sessionId),
             z.string().trim().min(1).optional().parse(params.reason),
+            {
+              logger: request.log,
+              source: 'acp-route',
+            },
           );
           return resultEnvelope(id, {
             session: {

@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import type { DiagnosticLogger } from '../diagnostics';
 import type { RoleValue } from '../schemas/role';
 import type { TaskKind } from '../schemas/task';
 
@@ -93,6 +94,10 @@ export interface SyncPlanEventAutoDispatchResult {
 
 export interface SyncPlanEventToTasksAndDispatchResult extends SyncPlanEventToTasksResult {
   autoDispatch: SyncPlanEventAutoDispatchResult;
+}
+
+export interface SyncPlanEventToTasksAndDispatchOptions {
+  logger?: DiagnosticLogger;
 }
 
 function createTaskId() {
@@ -377,6 +382,7 @@ export async function syncPlanEventToTasksAndDispatch(
   sqlite: Database,
   callbacks: PlanTaskDispatchCallbacks,
   input: SyncPlanEventToTasksInput,
+  options: SyncPlanEventToTasksAndDispatchOptions = {},
 ): Promise<SyncPlanEventToTasksAndDispatchResult> {
   const transaction = sqlite.transaction(syncPlanEventToTasksInTransaction);
   const syncResult = transaction(sqlite, input);
@@ -432,9 +438,19 @@ export async function syncPlanEventToTasksAndDispatch(
 
   for (const taskId of syncResult.createdTaskIds) {
     try {
-      const dispatchResult = await dispatchTask(sqlite, callbacks, {
-        taskId,
-      });
+      const dispatchResult = await dispatchTask(
+        sqlite,
+        callbacks,
+        {
+          taskId,
+        },
+        {
+          logger: options.logger,
+          source: 'plan_sync_auto_dispatch',
+          triggerReason: 'PLAN_SYNC',
+          triggerSource: 'automatic',
+        },
+      );
 
       results.push({
         dispatched: dispatchResult.dispatched,

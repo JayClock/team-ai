@@ -1,4 +1,9 @@
 import type { Database } from 'better-sqlite3';
+import {
+  getErrorDiagnostics,
+  logDiagnostic,
+  type DiagnosticLogger,
+} from '../diagnostics';
 import { ProblemError } from '../errors/problem-error';
 import type { RoleValue } from '../schemas/role';
 import type { SpecialistPayload } from '../schemas/specialist';
@@ -70,6 +75,13 @@ export interface DispatchTasksResult {
   results: DispatchTaskResult[];
 }
 
+export interface DispatchTaskOptions {
+  logger?: DiagnosticLogger;
+  source?: string;
+  triggerReason?: string | null;
+  triggerSource?: string | null;
+}
+
 const activeDispatchClaims = new Set<string>();
 
 function tryClaimTaskDispatch(taskId: string) {
@@ -105,6 +117,9 @@ function getTriggerSessionRow(
       title: 'Task Dispatch Trigger Session Missing',
       status: 409,
       detail: `Task dispatch trigger session ${sessionId} is not available`,
+      context: {
+        sessionId,
+      },
     });
   }
 
@@ -202,14 +217,52 @@ async function hydrateTaskAssignment(
   return updateTask(sqlite, task.id, patch);
 }
 
+function buildDispatchLogContext(
+  task: Pick<
+    TaskPayload,
+    | 'executionSessionId'
+    | 'id'
+    | 'kind'
+    | 'projectId'
+    | 'status'
+    | 'triggerSessionId'
+  >,
+  options: DispatchTaskOptions,
+) {
+  return {
+    source: options.source ?? 'task-dispatch-service',
+    taskExecutionSessionId: task.executionSessionId,
+    taskId: task.id,
+    taskKind: task.kind,
+    taskStatus: task.status,
+    triggerReason: options.triggerReason ?? null,
+    triggerSessionId: task.triggerSessionId,
+    triggerSource: options.triggerSource ?? null,
+    projectId: task.projectId,
+  };
+}
+
 export async function dispatchTask(
   sqlite: Database,
   callbacks: DispatchTaskCallbacks,
   input: DispatchTaskInput,
+  options: DispatchTaskOptions = {},
 ): Promise<DispatchTaskResult> {
   const initialTask = await getTaskById(sqlite, input.taskId);
 
   if (!tryClaimTaskDispatch(initialTask.id)) {
+    logDiagnostic(
+      options.logger,
+      'warn',
+      {
+        event: 'task.dispatch.blocked',
+        reason: 'TASK_ALREADY_DISPATCHING',
+        retryOfRunId: input.retryOfRunId ?? null,
+        ...buildDispatchLogContext(initialTask, options),
+      },
+      'Task dispatch skipped because another attempt is active',
+    );
+
     return {
       dispatchability: await getTaskDispatchability(sqlite, initialTask.id),
       dispatched: false,
@@ -237,6 +290,21 @@ export async function dispatchTask(
     );
 
     if (!dispatchability.dispatchable || !dispatchability.resolvedRole) {
+      logDiagnostic(
+        options.logger,
+        'info',
+        {
+          event: 'task.dispatch.blocked',
+          reason: 'TASK_NOT_DISPATCHABLE',
+          resolvedRole: dispatchability.resolvedRole,
+          retryOfRunId: input.retryOfRunId ?? null,
+          unresolvedDependencyIds: dispatchability.unresolvedDependencyIds,
+          blockReasons: dispatchability.reasons,
+          ...buildDispatchLogContext(dispatchability.task, options),
+        },
+        'Task dispatch blocked by current task state',
+      );
+
       return {
         dispatchability,
         dispatched: false,
@@ -272,6 +340,21 @@ export async function dispatchTask(
       provider,
     );
     const prompt = buildTaskDispatchPrompt(hydratedTask);
+
+    logDiagnostic(
+      options.logger,
+      'info',
+      {
+        event: 'task.dispatch.attempt',
+        provider,
+        resolvedRole: dispatchability.resolvedRole,
+        retryOfRunId: input.retryOfRunId ?? null,
+        specialistId: specialist.id,
+        ...buildDispatchLogContext(hydratedTask, options),
+      },
+      'Dispatching task to a child ACP session',
+    );
+
     const createdSession = await callbacks.createSession({
       actorUserId: triggerSession.actor_id,
       goal: hydratedTask.title,
@@ -290,6 +373,21 @@ export async function dispatchTask(
       sessionId: createdSession.id,
     });
 
+    logDiagnostic(
+      options.logger,
+      'info',
+      {
+        event: 'task.dispatch.succeeded',
+        provider,
+        resolvedRole: dispatchability.resolvedRole,
+        retryOfRunId: input.retryOfRunId ?? null,
+        sessionId: createdSession.id,
+        specialistId: specialist.id,
+        ...buildDispatchLogContext(hydratedTask, options),
+      },
+      'Task dispatch completed successfully',
+    );
+
     return {
       dispatchability: {
         ...dispatchability,
@@ -304,6 +402,22 @@ export async function dispatchTask(
       specialistId: specialist.id,
       task: hydratedTask,
     };
+  } catch (error) {
+    const diagnostics = getErrorDiagnostics(error, 'TASK_DISPATCH_FAILED');
+
+    logDiagnostic(
+      options.logger,
+      'error',
+      {
+        event: 'task.dispatch.failed',
+        retryOfRunId: input.retryOfRunId ?? null,
+        ...diagnostics,
+        ...buildDispatchLogContext(initialTask, options),
+      },
+      'Task dispatch failed',
+    );
+
+    throw error;
   } finally {
     releaseTaskDispatchClaim(initialTask.id);
   }
@@ -313,6 +427,7 @@ export async function dispatchTasks(
   sqlite: Database,
   callbacks: DispatchTaskCallbacks,
   input: DispatchTasksInput,
+  options: DispatchTaskOptions = {},
 ): Promise<DispatchTasksResult> {
   const runtimeProfile = await getProjectRuntimeProfile(
     sqlite,
@@ -333,9 +448,14 @@ export async function dispatchTasks(
 
   for (const candidate of candidates.slice(0, limit)) {
     results.push(
-      await dispatchTask(sqlite, callbacks, {
-        taskId: candidate.task.id,
-      }),
+      await dispatchTask(
+        sqlite,
+        callbacks,
+        {
+          taskId: candidate.task.id,
+        },
+        options,
+      ),
     );
   }
 

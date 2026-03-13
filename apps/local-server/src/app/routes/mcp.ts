@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { ZodError, z } from 'zod';
+import { getErrorDiagnostics } from '../diagnostics';
 import type { ProblemDetails } from '../errors/problem-error';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError, problemTypeToCode } from '../errors/problem-error';
 import { recordNoteEvent } from '../services/note-event-service';
 import { createNote, getNoteById } from '../services/note-service';
 import {
@@ -42,6 +43,8 @@ interface McpToolDefinition {
 
 interface McpAuditContext {
   accessMode: McpAccessMode;
+  argumentKeys: string[];
+  mutationKeys: string[];
   parentNoteId: string | null;
   parentSessionId: string | null;
   projectId: string | null;
@@ -539,7 +542,53 @@ function toolSuccess(result: unknown) {
 }
 
 function buildProblem(input: ProblemDetails): ProblemDetails {
-  return input;
+  return {
+    ...input,
+    code:
+      input.code ??
+      problemTypeToCode(
+        input.type,
+        input.status >= 500 ? 'INTERNAL_SERVER_ERROR' : 'REQUEST_ERROR',
+      ),
+  };
+}
+
+function buildAuditProblemContext(
+  context: McpAuditContext | null,
+): Record<string, unknown> | undefined {
+  if (!context) {
+    return undefined;
+  }
+
+  return {
+    accessMode: context.accessMode,
+    argumentKeys: context.argumentKeys,
+    mutationKeys: context.mutationKeys,
+    parentNoteId: context.parentNoteId,
+    parentSessionId: context.parentSessionId,
+    projectId: context.projectId,
+    sessionId: context.sessionId,
+    taskId: context.taskId,
+    toolAccess: context.toolAccess,
+    toolName: context.toolName,
+  };
+}
+
+function mergeProblemContext(
+  problem: ProblemDetails,
+  context: Record<string, unknown> | undefined,
+): ProblemDetails {
+  if (!context) {
+    return problem;
+  }
+
+  return {
+    ...problem,
+    context: {
+      ...(problem.context ?? {}),
+      ...context,
+    },
+  };
 }
 
 function buildZodProblem(error: ZodError, instance: string): ProblemDetails {
@@ -551,12 +600,16 @@ function buildZodProblem(error: ZodError, instance: string): ProblemDetails {
       .map(({ message, path }) => `${path.join('.') || 'request'}: ${message}`)
       .join('; '),
     instance,
+    context: {
+      issueCount: error.issues.length,
+    },
   });
 }
 
 function buildProblemFromError(
   error: unknown,
   instance: string,
+  context?: Record<string, unknown>,
 ): {
   code: number;
   problem: ProblemDetails;
@@ -564,20 +617,25 @@ function buildProblemFromError(
   if (error instanceof ZodError) {
     return {
       code: -32602,
-      problem: buildZodProblem(error, instance),
+      problem: mergeProblemContext(buildZodProblem(error, instance), context),
     };
   }
 
   if (error instanceof ProblemError) {
     return {
       code: -32000,
-      problem: buildProblem({
-        type: error.type,
-        title: error.title,
-        status: error.status,
-        detail: error.message,
-        instance,
-      }),
+      problem: mergeProblemContext(
+        buildProblem({
+          code: error.code,
+          context: error.context,
+          type: error.type,
+          title: error.title,
+          status: error.status,
+          detail: error.message,
+          instance,
+        }),
+        context,
+      ),
     };
   }
 
@@ -586,16 +644,25 @@ function buildProblemFromError(
     (error as { statusCode: number }).statusCode >= 400
       ? (error as { statusCode: number }).statusCode
       : 500;
+  const diagnostics = getErrorDiagnostics(
+    error,
+    statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : 'REQUEST_ERROR',
+  );
 
   return {
     code: -32000,
-    problem: buildProblem({
-      type: 'about:blank',
-      title: statusCode >= 500 ? 'Internal Server Error' : 'Request Error',
-      status: statusCode,
-      detail: error instanceof Error ? error.message : 'MCP request failed',
-      instance,
-    }),
+    problem: mergeProblemContext(
+      buildProblem({
+        code: diagnostics.errorCode,
+        context: diagnostics.errorContext,
+        type: 'about:blank',
+        title: statusCode >= 500 ? 'Internal Server Error' : 'Request Error',
+        status: statusCode,
+        detail: error instanceof Error ? error.message : 'MCP request failed',
+        instance,
+      }),
+      context,
+    ),
   };
 }
 
@@ -619,6 +686,9 @@ function buildUnknownToolProblem(
     status: 404,
     detail: `Unknown tool: ${name}`,
     instance,
+    context: {
+      toolName: name,
+    },
   });
 }
 
@@ -632,6 +702,9 @@ function buildMethodNotFoundProblem(
     status: 404,
     detail: `Method not found: ${method}`,
     instance,
+    context: {
+      method,
+    },
   });
 }
 
@@ -650,6 +723,11 @@ function buildAuditContext(
 ): McpAuditContext {
   return {
     accessMode,
+    argumentKeys: Object.keys(argumentsRecord).sort(),
+    mutationKeys: extractMutationKeys(
+      toolDefinition.tool.name,
+      argumentsRecord,
+    ),
     parentNoteId: buildStringArgument(argumentsRecord, 'parentNoteId'),
     parentSessionId: buildStringArgument(argumentsRecord, 'parentSessionId'),
     projectId: buildStringArgument(argumentsRecord, 'projectId'),
@@ -660,6 +738,28 @@ function buildAuditContext(
   };
 }
 
+function extractMutationKeys(
+  toolName: string,
+  argumentsRecord: Record<string, unknown>,
+) {
+  if (toolName === 'task_execute') {
+    return ['execute'];
+  }
+
+  const ignoredKeys = new Set([
+    'actorUserId',
+    'parentNoteId',
+    'parentSessionId',
+    'projectId',
+    'sessionId',
+    'taskId',
+  ]);
+
+  return Object.keys(argumentsRecord)
+    .filter((key) => !ignoredKeys.has(key))
+    .sort();
+}
+
 function logToolAudit(
   request: FastifyRequest,
   phase: 'attempt' | 'success' | 'failure',
@@ -668,12 +768,16 @@ function logToolAudit(
 ) {
   const payload = {
     accessMode: context.accessMode,
+    argumentKeys: context.argumentKeys,
     event: 'mcp.tool.audit',
+    mutationKeys: context.mutationKeys,
     parentNoteId: context.parentNoteId,
     parentSessionId: context.parentSessionId,
     phase,
     problem: problem
       ? {
+          code: problem.code,
+          context: problem.context,
           detail: problem.detail,
           status: problem.status,
           title: problem.title,
@@ -764,6 +868,11 @@ function throwProjectBoundaryViolation(
     title: 'MCP Project Boundary Violation',
     status: 409,
     detail: `MCP tool cannot access ${resourceType} ${resourceId} outside project ${projectId}`,
+    context: {
+      projectId,
+      resourceId,
+      resourceType,
+    },
   });
 }
 
@@ -841,6 +950,10 @@ async function getProjectTask(
       title: 'Task Project Mismatch',
       status: 409,
       detail: `Task ${taskId} does not belong to project ${projectId}`,
+      context: {
+        projectId,
+        taskId,
+      },
     });
   }
 
@@ -878,6 +991,10 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
         fastify.acpStreamBroker,
         fastify.acpRuntime,
         input,
+        {
+          logger: fastify.log,
+          source: 'mcp-route-callback',
+        },
       );
 
       return {
@@ -897,6 +1014,10 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
         input.sessionId,
         {
           prompt: input.prompt,
+        },
+        {
+          logger: fastify.log,
+          source: 'mcp-route-callback',
         },
       );
     },
@@ -1035,6 +1156,7 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 id,
                 await executeTask(fastify.sqlite, args.taskId, {
                   callbacks: dispatchCallbacks,
+                  logger: request.log,
                 }),
                 auditContext,
               );
@@ -1135,6 +1257,10 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                     fastify.acpStreamBroker,
                     fastify.acpRuntime,
                     args,
+                    {
+                      logger: request.log,
+                      source: 'mcp-route',
+                    },
                   ),
                 },
                 auditContext,
@@ -1164,6 +1290,10 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                     eventId: args.eventId,
                     traceId: args.traceId,
                   },
+                  {
+                    logger: request.log,
+                    source: 'mcp-route',
+                  },
                 ),
                 auditContext,
               );
@@ -1188,6 +1318,10 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                     args.projectId,
                     args.sessionId,
                     args.reason,
+                    {
+                      logger: request.log,
+                      source: 'mcp-route',
+                    },
                   ),
                 },
                 auditContext,
@@ -1209,7 +1343,11 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
           );
       }
     } catch (error) {
-      const { code, problem } = buildProblemFromError(error, request.url);
+      const { code, problem } = buildProblemFromError(
+        error,
+        request.url,
+        buildAuditProblemContext(auditContext),
+      );
       if (auditContext) {
         logToolAudit(request, 'failure', auditContext, problem);
       }

@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { logDiagnostic, type DiagnosticLogger } from '../diagnostics';
 import { ProblemError } from '../errors/problem-error';
 import type {
   CancelTaskRunInput,
@@ -62,6 +63,12 @@ interface ListTaskRunsQuery {
   taskId?: string;
 }
 
+export interface TaskRunMutationOptions {
+  logger?: DiagnosticLogger;
+  reason?: string | null;
+  source?: string;
+}
+
 const taskRunKindValues = ['implement', 'review', 'verify'] as const;
 const taskRunStatusValues = [
   'PENDING',
@@ -114,6 +121,9 @@ function throwTaskRunNotFound(taskRunId: string): never {
     title: 'Task Run Not Found',
     status: 404,
     detail: `Task run ${taskRunId} was not found`,
+    context: {
+      taskRunId,
+    },
   });
 }
 
@@ -126,6 +136,10 @@ function throwTaskRunProjectMismatch(
     title: 'Task Run Project Mismatch',
     status: 409,
     detail: `Task run ${taskRunId} does not belong to project ${projectId}`,
+    context: {
+      projectId,
+      taskRunId,
+    },
   });
 }
 
@@ -138,6 +152,10 @@ function throwTaskRunSessionProjectMismatch(
     title: 'Task Run Session Project Mismatch',
     status: 409,
     detail: `Task run project ${projectId} does not match session ${sessionId}`,
+    context: {
+      projectId,
+      sessionId,
+    },
   });
 }
 
@@ -150,6 +168,10 @@ function throwTaskRunRetryProjectMismatch(
     title: 'Task Run Retry Project Mismatch',
     status: 409,
     detail: `Task run project ${projectId} does not match retry run ${taskRunId}`,
+    context: {
+      projectId,
+      taskRunId,
+    },
   });
 }
 
@@ -162,6 +184,10 @@ function throwTaskRunRetryTaskMismatch(
     title: 'Task Run Retry Task Mismatch',
     status: 409,
     detail: `Task run ${taskRunId} does not belong to task ${taskId}`,
+    context: {
+      taskId,
+      taskRunId,
+    },
   });
 }
 
@@ -171,6 +197,9 @@ function throwTaskRunRetrySelfReference(taskRunId: string): never {
     title: 'Task Run Retry Self Reference',
     status: 409,
     detail: `Task run ${taskRunId} cannot retry itself`,
+    context: {
+      taskRunId,
+    },
   });
 }
 
@@ -183,6 +212,10 @@ function throwTaskRunNotRetryable(
     title: 'Task Run Not Retryable',
     status: 409,
     detail: `Task run ${taskRunId} cannot be retried from status ${status}`,
+    context: {
+      status,
+      taskRunId,
+    },
   });
 }
 
@@ -192,6 +225,9 @@ function throwTaskRunRetrySourceNotLatest(taskRunId: string): never {
     title: 'Task Run Retry Source Not Latest',
     status: 409,
     detail: `Task run ${taskRunId} is no longer the latest run for its task`,
+    context: {
+      taskRunId,
+    },
   });
 }
 
@@ -228,6 +264,9 @@ function throwTaskRunSessionNotFound(sessionId: string): never {
     title: 'ACP Session Not Found',
     status: 404,
     detail: `ACP session ${sessionId} was not found`,
+    context: {
+      sessionId,
+    },
   });
 }
 
@@ -557,6 +596,59 @@ function buildResolvedTaskRunInput(
   };
 }
 
+function resolveTaskRunTransitionLogLevel(
+  nextStatus: TaskRunStatus | null,
+): 'info' | 'warn' {
+  return nextStatus === 'FAILED' ? 'warn' : 'info';
+}
+
+function logTaskRunTransition(
+  logger: DiagnosticLogger | undefined,
+  input: {
+    nextStatus: TaskRunStatus | null;
+    previousStatus: TaskRunStatus | null;
+    reason?: string | null;
+    source?: string;
+    taskRun: Pick<
+      TaskRunPayload,
+      | 'id'
+      | 'kind'
+      | 'projectId'
+      | 'provider'
+      | 'retryOfRunId'
+      | 'role'
+      | 'sessionId'
+      | 'specialistId'
+      | 'status'
+      | 'taskId'
+      | 'verificationVerdict'
+    >;
+  },
+) {
+  logDiagnostic(
+    logger,
+    resolveTaskRunTransitionLogLevel(input.nextStatus),
+    {
+      event: 'task.run.transition',
+      kind: input.taskRun.kind,
+      nextStatus: input.nextStatus,
+      previousStatus: input.previousStatus,
+      projectId: input.taskRun.projectId,
+      provider: input.taskRun.provider,
+      reason: input.reason ?? null,
+      retryOfRunId: input.taskRun.retryOfRunId,
+      role: input.taskRun.role,
+      sessionId: input.taskRun.sessionId,
+      source: input.source ?? 'task-run-service',
+      specialistId: input.taskRun.specialistId,
+      taskId: input.taskRun.taskId,
+      taskRunId: input.taskRun.id,
+      verificationVerdict: input.taskRun.verificationVerdict,
+    },
+    'Task run state changed',
+  );
+}
+
 export async function listTaskRuns(
   sqlite: Database,
   query: ListTaskRunsQuery,
@@ -708,6 +800,7 @@ export async function resolveLatestRetrySourceRunId(
 export async function createTaskRun(
   sqlite: Database,
   input: CreateTaskRunInput,
+  options: TaskRunMutationOptions = {},
 ): Promise<TaskRunPayload> {
   await getProjectById(sqlite, input.projectId);
   const task = await ensureTaskProjectMatch(
@@ -793,26 +886,44 @@ export async function createTaskRun(
     )
     .run(taskRun);
 
-  return getTaskRunById(sqlite, taskRun.id);
+  const createdTaskRun = await getTaskRunById(sqlite, taskRun.id);
+  logTaskRunTransition(options.logger, {
+    nextStatus: createdTaskRun.status,
+    previousStatus: null,
+    reason: options.reason ?? 'created',
+    source: options.source,
+    taskRun: createdTaskRun,
+  });
+
+  return createdTaskRun;
 }
 
 export async function startTaskRun(
   sqlite: Database,
   input: StartTaskRunInput,
+  options: TaskRunMutationOptions = {},
 ): Promise<TaskRunPayload> {
   const status = ensureTaskRunStartStatus(input.status, 'RUNNING');
 
-  return createTaskRun(sqlite, {
-    ...input,
-    startedAt: resolveTaskRunStartStartedAt(status, input.startedAt),
-    status,
-  });
+  return createTaskRun(
+    sqlite,
+    {
+      ...input,
+      startedAt: resolveTaskRunStartStartedAt(status, input.startedAt),
+      status,
+    },
+    {
+      ...options,
+      reason: options.reason ?? 'started',
+    },
+  );
 }
 
 export async function updateTaskRun(
   sqlite: Database,
   taskRunId: string,
   input: UpdateTaskRunInput,
+  options: TaskRunMutationOptions = {},
 ): Promise<TaskRunPayload> {
   const current = getTaskRunRow(sqlite, taskRunId);
   const sessionId =
@@ -887,13 +998,26 @@ export async function updateTaskRun(
     )
     .run(updated);
 
-  return getTaskRunById(sqlite, taskRunId);
+  const updatedTaskRun = await getTaskRunById(sqlite, taskRunId);
+
+  if (current.status !== updatedTaskRun.status) {
+    logTaskRunTransition(options.logger, {
+      nextStatus: updatedTaskRun.status,
+      previousStatus: current.status,
+      reason: options.reason ?? 'updated',
+      source: options.source,
+      taskRun: updatedTaskRun,
+    });
+  }
+
+  return updatedTaskRun;
 }
 
 export async function completeTaskRun(
   sqlite: Database,
   taskRunId: string,
   input: CompleteTaskRunInput = {},
+  options: TaskRunMutationOptions = {},
 ): Promise<TaskRunPayload> {
   const current = getTaskRunRow(sqlite, taskRunId);
 
@@ -901,6 +1025,10 @@ export async function completeTaskRun(
     sqlite,
     taskRunId,
     buildResolvedTaskRunInput(current, 'COMPLETED', input),
+    {
+      ...options,
+      reason: options.reason ?? 'completed',
+    },
   );
 }
 
@@ -908,6 +1036,7 @@ export async function failTaskRun(
   sqlite: Database,
   taskRunId: string,
   input: FailTaskRunInput = {},
+  options: TaskRunMutationOptions = {},
 ): Promise<TaskRunPayload> {
   const current = getTaskRunRow(sqlite, taskRunId);
 
@@ -915,6 +1044,10 @@ export async function failTaskRun(
     sqlite,
     taskRunId,
     buildResolvedTaskRunInput(current, 'FAILED', input),
+    {
+      ...options,
+      reason: options.reason ?? 'failed',
+    },
   );
 }
 
@@ -922,6 +1055,7 @@ export async function cancelTaskRun(
   sqlite: Database,
   taskRunId: string,
   input: CancelTaskRunInput = {},
+  options: TaskRunMutationOptions = {},
 ): Promise<TaskRunPayload> {
   const current = getTaskRunRow(sqlite, taskRunId);
 
@@ -929,5 +1063,9 @@ export async function cancelTaskRun(
     sqlite,
     taskRunId,
     buildResolvedTaskRunInput(current, 'CANCELLED', input),
+    {
+      ...options,
+      reason: options.reason ?? 'cancelled',
+    },
   );
 }

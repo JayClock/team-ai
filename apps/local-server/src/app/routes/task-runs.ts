@@ -94,6 +94,10 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
         fastify.acpStreamBroker,
         fastify.acpRuntime,
         input,
+        {
+          logger: fastify.log,
+          source: 'task-runs-route',
+        },
       );
 
       return {
@@ -113,6 +117,10 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
         input.sessionId,
         {
           prompt: input.prompt,
+        },
+        {
+          logger: fastify.log,
+          source: 'task-runs-route',
         },
       );
     },
@@ -151,11 +159,18 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskRunBodySchema.parse(request.body);
     const task = await getTaskById(fastify.sqlite, taskId);
-    const taskRun = await createTaskRun(fastify.sqlite, {
-      ...body,
-      projectId: task.projectId,
-      taskId,
-    });
+    const taskRun = await createTaskRun(
+      fastify.sqlite,
+      {
+        ...body,
+        projectId: task.projectId,
+        taskId,
+      },
+      {
+        logger: request.log,
+        source: 'task-runs-route',
+      },
+    );
 
     reply
       .code(201)
@@ -178,7 +193,12 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.taskRun);
 
-    return presentTaskRun(await updateTaskRun(fastify.sqlite, taskRunId, body));
+    return presentTaskRun(
+      await updateTaskRun(fastify.sqlite, taskRunId, body, {
+        logger: request.log,
+        source: 'task-runs-route',
+      }),
+    );
   });
 
   fastify.post('/task-runs/:taskRunId/retry', async (request, reply) => {
@@ -192,6 +212,7 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
       },
       {
         callbacks: dispatchCallbacks,
+        logger: request.log,
         retryOfRunId: sourceRun.id,
         triggerSource: 'manual',
       },

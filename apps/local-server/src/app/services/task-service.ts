@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import type { DiagnosticLogger } from '../diagnostics';
 import { ProblemError } from '../errors/problem-error';
 import type {
   CreateTaskInput,
@@ -124,6 +125,7 @@ export type TaskUpdateDispatchTriggerReason = 'MANUAL_RETRY' | 'STATUS_READY';
 
 export interface UpdateTaskAndDispatchOptions {
   callbacks: DispatchTaskCallbacks;
+  logger?: DiagnosticLogger;
   retryOfRunId?: string | null;
   triggerSource: TaskDispatchTriggerSource;
 }
@@ -149,6 +151,7 @@ export interface ExecuteTaskDispatchAttempt {
 
 export interface ExecuteTaskOptions {
   callbacks: DispatchTaskCallbacks;
+  logger?: DiagnosticLogger;
 }
 
 export interface ExecuteTaskResult {
@@ -238,6 +241,10 @@ function throwTaskProjectMismatch(projectId: string, taskId: string): never {
     title: 'Task Project Mismatch',
     status: 409,
     detail: `Task ${taskId} does not belong to project ${projectId}`,
+    context: {
+      projectId,
+      taskId,
+    },
   });
 }
 
@@ -250,6 +257,10 @@ function throwTaskStatusNotWritableViaMcp(
     title: 'Task Status Not MCP Writable',
     status: 409,
     detail: `Task ${taskId} status ${status} cannot be written via MCP`,
+    context: {
+      status,
+      taskId,
+    },
   });
 }
 
@@ -263,6 +274,11 @@ function throwTaskStatusTransitionNotAllowed(
     title: 'Task Status Transition Not Allowed',
     status: 409,
     detail: `Task ${taskId} cannot transition from ${currentStatus} to ${nextStatus}`,
+    context: {
+      currentStatus,
+      nextStatus,
+      taskId,
+    },
   });
 }
 
@@ -275,6 +291,10 @@ function throwTaskExecutionNotAllowed(
     title: 'Task Execution Not Allowed',
     status: 409,
     detail: `Task ${taskId} cannot be executed from status ${status}`,
+    context: {
+      status,
+      taskId,
+    },
   });
 }
 
@@ -287,6 +307,10 @@ function throwTaskExecutionAlreadyActive(
     title: 'Task Execution Already Active',
     status: 409,
     detail: `Task ${taskId} is already executing in session ${sessionId}`,
+    context: {
+      sessionId,
+      taskId,
+    },
   });
 }
 
@@ -511,6 +535,10 @@ function throwTaskSessionProjectMismatch(
     title: 'Task Session Project Mismatch',
     status: 409,
     detail: `Task project ${projectId} does not match session ${sessionId}`,
+    context: {
+      projectId,
+      sessionId,
+    },
   });
 }
 
@@ -1419,10 +1447,20 @@ export async function updateTaskAndDispatch(
             ).resolveLatestRetrySourceRunId(sqlite, taskId)
           : null;
     const { dispatchTask } = await import('./task-dispatch-service.js');
-    const result = await dispatchTask(sqlite, options.callbacks, {
-      retryOfRunId,
-      taskId,
-    });
+    const result = await dispatchTask(
+      sqlite,
+      options.callbacks,
+      {
+        retryOfRunId,
+        taskId,
+      },
+      {
+        logger: options.logger,
+        source: 'task_update_dispatch',
+        triggerReason,
+        triggerSource: options.triggerSource,
+      },
+    );
 
     return {
       dispatch: {
@@ -1490,9 +1528,18 @@ export async function executeTask(
 
   try {
     const { dispatchTask } = await import('./task-dispatch-service.js');
-    const result = await dispatchTask(sqlite, options.callbacks, {
-      taskId,
-    });
+    const result = await dispatchTask(
+      sqlite,
+      options.callbacks,
+      {
+        taskId,
+      },
+      {
+        logger: options.logger,
+        source: 'task_execute',
+        triggerSource: 'manual',
+      },
+    );
 
     return {
       dispatch: {

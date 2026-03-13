@@ -262,6 +262,116 @@ describe('task dispatch service', () => {
     expect(promptSession).not.toHaveBeenCalled();
   });
 
+  it('emits structured diagnostics for dispatch success and blocked outcomes', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Dispatch Diagnostics Project',
+      repoPath: '/Users/example/dispatch-diagnostics',
+    });
+
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/dispatch-diagnostics',
+      id: 'acps_dispatch_diagnostics_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const readyTask = await createTask(sqlite, {
+      objective: 'Emit success diagnostics for dispatch',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Dispatch diagnostics success',
+      triggerSessionId: 'acps_dispatch_diagnostics_parent',
+    });
+    const completedTask = await createTask(sqlite, {
+      objective: 'Emit blocked diagnostics for dispatch',
+      projectId: project.id,
+      status: 'COMPLETED',
+      title: 'Dispatch diagnostics blocked',
+      triggerSessionId: 'acps_dispatch_diagnostics_parent',
+    });
+
+    const logger = {
+      error: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+    };
+
+    await dispatchTask(
+      sqlite,
+      {
+        createSession: vi.fn(async () => ({
+          id: 'acps_dispatch_diagnostics_child',
+        })),
+        promptSession: vi.fn(async () => undefined),
+      },
+      {
+        taskId: readyTask.id,
+      },
+      {
+        logger,
+        source: 'task_execute',
+        triggerSource: 'manual',
+      },
+    );
+
+    await dispatchTask(
+      sqlite,
+      {
+        createSession: vi.fn(async () => ({
+          id: 'acps_dispatch_diagnostics_child_blocked',
+        })),
+        promptSession: vi.fn(async () => undefined),
+      },
+      {
+        taskId: completedTask.id,
+      },
+      {
+        logger,
+        source: 'task_execute',
+        triggerSource: 'manual',
+      },
+    );
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'task.dispatch.attempt',
+        projectId: project.id,
+        source: 'task_execute',
+        taskId: readyTask.id,
+        taskKind: 'implement',
+        taskStatus: 'READY',
+        triggerSource: 'manual',
+      }),
+      'Dispatching task to a child ACP session',
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'task.dispatch.succeeded',
+        projectId: project.id,
+        sessionId: 'acps_dispatch_diagnostics_child',
+        source: 'task_execute',
+        taskId: readyTask.id,
+      }),
+      'Task dispatch completed successfully',
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        blockReasons: ['TASK_STATUS_NOT_DISPATCHABLE'],
+        event: 'task.dispatch.blocked',
+        projectId: project.id,
+        reason: 'TASK_NOT_DISPATCHABLE',
+        source: 'task_execute',
+        taskId: completedTask.id,
+        taskStatus: 'COMPLETED',
+      }),
+      'Task dispatch blocked by current task state',
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(
       join(tmpdir(), 'team-ai-task-dispatch-service-'),
