@@ -2,14 +2,18 @@ import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
 import { ProblemError } from '../errors/problem-error';
 import type {
+  CancelTaskRunInput,
+  CompleteTaskRunInput,
   CreateTaskRunInput,
+  FailTaskRunInput,
+  StartTaskRunInput,
   TaskRunKind,
   TaskRunListPayload,
   TaskRunPayload,
+  TaskRunStartStatus,
   TaskRunStatus,
   UpdateTaskRunInput,
 } from '../schemas/task-run';
-import { getAcpSessionById } from './acp-service';
 import { getProjectById } from './project-service';
 import { getTaskById } from './task-service';
 
@@ -38,6 +42,11 @@ interface TaskRunRow {
   verification_verdict: string | null;
 }
 
+interface TaskRunSessionRow {
+  id: string;
+  project_id: string;
+}
+
 interface ListTaskRunsQuery {
   page: number;
   pageSize: number;
@@ -55,6 +64,7 @@ const taskRunStatusValues = [
   'FAILED',
   'CANCELLED',
 ] as const;
+const taskRunStartStatusValues = ['PENDING', 'RUNNING'] as const;
 
 function createTaskRunId() {
   return `trun_${taskRunIdGenerator()}`;
@@ -127,6 +137,27 @@ function throwTaskRunRetryProjectMismatch(
   });
 }
 
+function throwTaskRunRetryTaskMismatch(
+  taskId: string,
+  taskRunId: string,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-run-retry-task-mismatch',
+    title: 'Task Run Retry Task Mismatch',
+    status: 409,
+    detail: `Task run ${taskRunId} does not belong to task ${taskId}`,
+  });
+}
+
+function throwTaskRunRetrySelfReference(taskRunId: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-run-retry-self-reference',
+    title: 'Task Run Retry Self Reference',
+    status: 409,
+    detail: `Task run ${taskRunId} cannot retry itself`,
+  });
+}
+
 function throwInvalidTaskRunKind(kind: string): never {
   throw new ProblemError({
     type: 'https://team-ai.dev/problems/invalid-task-run-kind',
@@ -145,12 +176,34 @@ function throwInvalidTaskRunStatus(status: string): never {
   });
 }
 
+function throwInvalidTaskRunStartStatus(status: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/invalid-task-run-start-status',
+    title: 'Invalid Task Run Start Status',
+    status: 400,
+    detail: `Task run start status ${status} must be PENDING or RUNNING`,
+  });
+}
+
+function throwTaskRunSessionNotFound(sessionId: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/acp-session-not-found',
+    title: 'ACP Session Not Found',
+    status: 404,
+    detail: `ACP session ${sessionId} was not found`,
+  });
+}
+
 function isTaskRunKind(value: string): value is TaskRunKind {
   return taskRunKindValues.includes(value as TaskRunKind);
 }
 
 function isTaskRunStatus(value: string): value is TaskRunStatus {
   return taskRunStatusValues.includes(value as TaskRunStatus);
+}
+
+function isTaskRunStartStatus(value: string): value is TaskRunStartStatus {
+  return taskRunStartStatusValues.includes(value as TaskRunStartStatus);
 }
 
 function ensureTaskRunKind(
@@ -178,6 +231,21 @@ function ensureTaskRunStatus(
 
   if (!isTaskRunStatus(status)) {
     throwInvalidTaskRunStatus(status);
+  }
+
+  return status;
+}
+
+function ensureTaskRunStartStatus(
+  status: string | null | undefined,
+  fallback: TaskRunStartStatus,
+): TaskRunStartStatus {
+  if (!status) {
+    return fallback;
+  }
+
+  if (!isTaskRunStartStatus(status)) {
+    throwInvalidTaskRunStartStatus(status);
   }
 
   return status;
@@ -231,6 +299,27 @@ function getTaskRunRow(sqlite: Database, taskRunId: string): TaskRunRow {
   return row;
 }
 
+function getTaskRunSessionRow(
+  sqlite: Database,
+  sessionId: string,
+): TaskRunSessionRow {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT id, project_id
+        FROM project_acp_sessions
+        WHERE id = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(sessionId) as TaskRunSessionRow | undefined;
+
+  if (!row) {
+    throwTaskRunSessionNotFound(sessionId);
+  }
+
+  return row;
+}
+
 async function ensureTaskProjectMatch(
   sqlite: Database,
   projectId: string,
@@ -254,31 +343,85 @@ async function ensureSessionProjectMatch(
     return null;
   }
 
-  const session = await getAcpSessionById(sqlite, sessionId);
+  const session = getTaskRunSessionRow(sqlite, sessionId);
 
-  if (session.project.id !== projectId) {
+  if (session.project_id !== projectId) {
     throwTaskRunSessionProjectMismatch(projectId, sessionId);
   }
 
   return session.id;
 }
 
-function ensureRetryProjectMatch(
+function ensureRetryTaskRunMatch(
   sqlite: Database,
-  projectId: string,
-  retryOfRunId: string | null | undefined,
+  input: {
+    projectId: string;
+    retryOfRunId: string | null | undefined;
+    taskId: string;
+    taskRunId?: string;
+  },
 ) {
-  if (!retryOfRunId) {
+  if (!input.retryOfRunId) {
     return null;
   }
 
-  const taskRun = getTaskRunRow(sqlite, retryOfRunId);
+  if (input.taskRunId && input.retryOfRunId === input.taskRunId) {
+    throwTaskRunRetrySelfReference(input.taskRunId);
+  }
 
-  if (taskRun.project_id !== projectId) {
-    throwTaskRunRetryProjectMismatch(projectId, retryOfRunId);
+  const taskRun = getTaskRunRow(sqlite, input.retryOfRunId);
+
+  if (taskRun.project_id !== input.projectId) {
+    throwTaskRunRetryProjectMismatch(input.projectId, input.retryOfRunId);
+  }
+
+  if (taskRun.task_id !== input.taskId) {
+    throwTaskRunRetryTaskMismatch(input.taskId, input.retryOfRunId);
   }
 
   return taskRun.id;
+}
+
+function resolveTaskRunStartStartedAt(
+  status: TaskRunStartStatus,
+  startedAt: string | null | undefined,
+): string | null {
+  if (startedAt !== undefined) {
+    return startedAt;
+  }
+
+  if (status === 'PENDING') {
+    return null;
+  }
+
+  return new Date().toISOString();
+}
+
+function buildResolvedTaskRunInput(
+  current: TaskRunRow,
+  status: 'COMPLETED' | 'FAILED' | 'CANCELLED',
+  input: CompleteTaskRunInput | FailTaskRunInput | CancelTaskRunInput,
+): UpdateTaskRunInput {
+  return {
+    completedAt:
+      input.completedAt === undefined
+        ? new Date().toISOString()
+        : input.completedAt,
+    provider: input.provider,
+    role: input.role,
+    sessionId: input.sessionId,
+    specialistId: input.specialistId,
+    startedAt:
+      input.startedAt === undefined
+        ? status === 'CANCELLED'
+          ? current.started_at
+          : (current.started_at ?? current.created_at)
+        : input.startedAt,
+    status,
+    summary: input.summary,
+    verificationReport: input.verificationReport,
+    verificationVerdict: input.verificationVerdict,
+  };
 }
 
 export async function listTaskRuns(
@@ -391,11 +534,11 @@ export async function createTaskRun(
     input.projectId,
     input.sessionId,
   );
-  const retryOfRunId = ensureRetryProjectMatch(
-    sqlite,
-    input.projectId,
-    input.retryOfRunId,
-  );
+  const retryOfRunId = ensureRetryTaskRunMatch(sqlite, {
+    projectId: input.projectId,
+    retryOfRunId: input.retryOfRunId,
+    taskId: task.id,
+  });
   const now = new Date().toISOString();
   const taskRun: TaskRunPayload = {
     completedAt: null,
@@ -467,6 +610,19 @@ export async function createTaskRun(
   return taskRun;
 }
 
+export async function startTaskRun(
+  sqlite: Database,
+  input: StartTaskRunInput,
+): Promise<TaskRunPayload> {
+  const status = ensureTaskRunStartStatus(input.status, 'RUNNING');
+
+  return createTaskRun(sqlite, {
+    ...input,
+    startedAt: resolveTaskRunStartStartedAt(status, input.startedAt),
+    status,
+  });
+}
+
 export async function updateTaskRun(
   sqlite: Database,
   taskRunId: string,
@@ -484,7 +640,12 @@ export async function updateTaskRun(
   const retryOfRunId =
     input.retryOfRunId === undefined
       ? current.retry_of_run_id
-      : ensureRetryProjectMatch(sqlite, current.project_id, input.retryOfRunId);
+      : ensureRetryTaskRunMatch(sqlite, {
+          projectId: current.project_id,
+          retryOfRunId: input.retryOfRunId,
+          taskId: current.task_id,
+          taskRunId: current.id,
+        });
   const updated: TaskRunPayload = {
     completedAt:
       input.completedAt === undefined
@@ -541,4 +702,46 @@ export async function updateTaskRun(
     .run(updated);
 
   return updated;
+}
+
+export async function completeTaskRun(
+  sqlite: Database,
+  taskRunId: string,
+  input: CompleteTaskRunInput = {},
+): Promise<TaskRunPayload> {
+  const current = getTaskRunRow(sqlite, taskRunId);
+
+  return updateTaskRun(
+    sqlite,
+    taskRunId,
+    buildResolvedTaskRunInput(current, 'COMPLETED', input),
+  );
+}
+
+export async function failTaskRun(
+  sqlite: Database,
+  taskRunId: string,
+  input: FailTaskRunInput = {},
+): Promise<TaskRunPayload> {
+  const current = getTaskRunRow(sqlite, taskRunId);
+
+  return updateTaskRun(
+    sqlite,
+    taskRunId,
+    buildResolvedTaskRunInput(current, 'FAILED', input),
+  );
+}
+
+export async function cancelTaskRun(
+  sqlite: Database,
+  taskRunId: string,
+  input: CancelTaskRunInput = {},
+): Promise<TaskRunPayload> {
+  const current = getTaskRunRow(sqlite, taskRunId);
+
+  return updateTaskRun(
+    sqlite,
+    taskRunId,
+    buildResolvedTaskRunInput(current, 'CANCELLED', input),
+  );
 }

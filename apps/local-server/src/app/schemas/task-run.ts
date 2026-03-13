@@ -7,6 +7,8 @@ export type TaskRunStatus =
   | 'FAILED'
   | 'CANCELLED';
 
+export type TaskRunStartStatus = 'PENDING' | 'RUNNING';
+
 export interface TaskRunPayload {
   completedAt: string | null;
   createdAt: string;
@@ -53,6 +55,28 @@ export interface CreateTaskRunInput {
   verificationReport?: string | null;
   verificationVerdict?: string | null;
 }
+
+export interface StartTaskRunInput extends Omit<CreateTaskRunInput, 'status'> {
+  status?: TaskRunStartStatus;
+}
+
+export interface ResolveTaskRunInput {
+  completedAt?: string | null;
+  provider?: string | null;
+  role?: string | null;
+  sessionId?: string | null;
+  specialistId?: string | null;
+  startedAt?: string | null;
+  summary?: string | null;
+  verificationReport?: string | null;
+  verificationVerdict?: string | null;
+}
+
+export type CompleteTaskRunInput = ResolveTaskRunInput
+
+export type FailTaskRunInput = ResolveTaskRunInput
+
+export type CancelTaskRunInput = ResolveTaskRunInput
 
 export interface UpdateTaskRunInput {
   completedAt?: string | null;
