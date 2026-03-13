@@ -28,17 +28,22 @@ export function useProjectSelection() {
     () => rootState.follow('projects') as Resource<Entity>,
     [rootState],
   );
-  const { resourceState: projectsState } = useSuspenseResource(projectsResource);
+  const { resourceState: projectsState } =
+    useSuspenseResource(projectsResource);
   const projects = projectsState.collection as State<LocalProject>[];
 
   const selectedProject = useMemo(() => {
     if (projects.length === 0) {
       return undefined;
     }
+
     if (!projectId) {
       return projects[0];
     }
-    return projects.find((project) => project.data.id === projectId) ?? projects[0];
+
+    return (
+      projects.find((project) => project.data.id === projectId) ?? projects[0]
+    );
   }, [projectId, projects]);
 
   return {

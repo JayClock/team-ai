@@ -437,6 +437,9 @@ importers:
       '@shells/session':
         specifier: workspace:*
         version: link:../../libs/frontend/shells/session
+      '@shells/sessions':
+        specifier: workspace:^
+        version: link:../../libs/frontend/shells/sessions
 
   libs/frontend/features/conversation-messages: {}
 
@@ -556,6 +559,27 @@ importers:
         version: link:../../shared/ui
       '@shared/util-http':
         specifier: workspace:*
+        version: link:../../shared/util-http
+
+  libs/frontend/shells/sessions:
+    dependencies:
+      '@features/project-conversations':
+        specifier: workspace:^
+        version: link:../../features/project-conversations
+      '@hateoas-ts/resource':
+        specifier: workspace:^
+        version: link:../../../../packages/resource
+      '@hateoas-ts/resource-react':
+        specifier: workspace:^
+        version: link:../../../../packages/resource-react
+      '@shared/schema':
+        specifier: workspace:^
+        version: link:../../shared/schema
+      '@shared/ui':
+        specifier: workspace:^
+        version: link:../../shared/ui
+      '@shared/util-http':
+        specifier: workspace:^
         version: link:../../shared/util-http
 
   packages/resource:

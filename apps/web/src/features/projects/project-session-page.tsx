@@ -2,13 +2,14 @@ import { State } from '@hateoas-ts/resource';
 import { Project } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@shared/ui';
 import { ShellsSession } from '@shells/session';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import {
   clearPendingProjectPrompt,
+  projectTitle,
   readPendingProjectPrompt,
-} from './pending-project-prompt';
-import { projectTitle, useProjectSelection } from './use-project-selection';
+  useProjectSelection,
+} from '@shells/sessions';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function ProjectSessionPage() {
   const navigate = useNavigate();

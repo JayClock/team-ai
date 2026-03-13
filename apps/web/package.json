@@ -7,10 +7,11 @@
     "@features/conversation-messages": "workspace:*",
     "@features/project-conversations": "workspace:*",
     "@features/projects": "workspace:*",
-    "@shared/util-http": "workspace:*",
     "@features/user-projects": "workspace:*",
+    "@shared/util-http": "workspace:*",
     "@shells/layout": "workspace:*",
-    "@shells/session": "workspace:*"
+    "@shells/session": "workspace:*",
+    "@shells/sessions": "workspace:^"
   },
   "nx": {
     "projectType": "application",

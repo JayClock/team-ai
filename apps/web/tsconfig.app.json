@@ -50,6 +50,9 @@
       "path": "../../libs/frontend/shells/session/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/frontend/shells/sessions/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/frontend/shells/layout/tsconfig.lib.json"
     },
     {

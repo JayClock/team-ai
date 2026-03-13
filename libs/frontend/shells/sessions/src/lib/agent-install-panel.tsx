@@ -1,12 +1,3 @@
-/**
- * AgentInstallPanel - ACP Agent Installation UI (aligned with Routa)
- *
- * Displays a list of agents from the ACP Registry with:
- * - Search/filter functionality
- * - Install/Update/Uninstall buttons
- * - Version and distribution type info
- * - Runtime availability indicators (npx, uvx)
- */
 import { Button, Card, Input, ScrollArea } from '@shared/ui';
 import {
   DownloadIcon,
@@ -21,7 +12,7 @@ import type { AcpProvider } from './use-acp-providers';
 function runtimeBadge(type: string, available: boolean) {
   return (
     <span
-      className={`px-1.5 py-0.5 rounded text-[10px] ${
+      className={`rounded px-1.5 py-0.5 text-[10px] ${
         available
           ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
           : 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
@@ -59,10 +50,10 @@ type AgentInstallPanelProps = {
   loading: boolean;
   onInstall: (providerId: string) => Promise<void> | void;
   onReload: () => Promise<void> | void;
+  platform: string | null;
   providers: AcpProvider[];
   registryError: string | null;
   runtimeAvailability: { npx: boolean; uvx: boolean };
-  platform: string | null;
 };
 
 export function AgentInstallPanel({
@@ -70,46 +61,50 @@ export function AgentInstallPanel({
   loading,
   onInstall,
   onReload,
+  platform,
   providers,
   registryError,
   runtimeAvailability,
-  platform,
 }: AgentInstallPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(registryError);
 
   const filteredAgents = useMemo(() => {
-    if (!searchQuery.trim()) return providers;
-    const q = searchQuery.toLowerCase();
+    if (!searchQuery.trim()) {
+      return providers;
+    }
+
+    const query = searchQuery.toLowerCase();
     return providers.filter(
       (provider) =>
-        provider.name.toLowerCase().includes(q) ||
-        provider.id.toLowerCase().includes(q) ||
-        provider.description.toLowerCase().includes(q),
+        provider.name.toLowerCase().includes(query) ||
+        provider.id.toLowerCase().includes(query) ||
+        provider.description.toLowerCase().includes(query),
     );
   }, [providers, searchQuery]);
 
   const runnableCount = providers.filter(
-    (p) => p.status === 'available',
+    (provider) => provider.status === 'available',
   ).length;
   const unavailableCount = providers.length - runnableCount;
-  const registryCount = providers.filter((p) => p.source === 'registry').length;
+  const registryCount = providers.filter(
+    (provider) => provider.source === 'registry',
+  ).length;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white dark:bg-[#0f1117]">
-      {/* Header */}
       <div className="shrink-0 border-b border-gray-100 px-5 py-4 dark:border-gray-800">
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <TerminalIcon className="w-5 h-5 text-indigo-500" />
+            <TerminalIcon className="h-5 w-5 text-indigo-500" />
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
               ACP Agents
             </h2>
-            {providers.length > 0 && (
-              <span className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 rounded-full">
+            {providers.length > 0 ? (
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800">
                 {providers.length}
               </span>
-            )}
+            ) : null}
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
@@ -124,20 +119,19 @@ export function AgentInstallPanel({
                 void onReload();
               }}
               disabled={loading}
-              className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
+              className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:hover:text-gray-300"
             >
               {loading ? (
-                <LoaderCircleIcon className="w-4 h-4 animate-spin" />
+                <LoaderCircleIcon className="h-4 w-4 animate-spin" />
               ) : (
-                <WrenchIcon className="w-4 h-4" />
+                <WrenchIcon className="h-4 w-4" />
               )}
               {loading ? 'Loading...' : 'Refresh'}
             </Button>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="flex flex-wrap gap-2 mb-3 text-[10px]">
+        <div className="mb-3 flex flex-wrap gap-2 text-[10px]">
           <span className="rounded-full bg-emerald-50 px-2 py-1 font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
             可启动 {runnableCount}
           </span>
@@ -149,21 +143,19 @@ export function AgentInstallPanel({
           </span>
         </div>
 
-        {/* Search */}
         <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.currentTarget.value)}
             placeholder="Search agents..."
-            className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
+            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-4 text-sm text-gray-900 outline-none placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-100"
           />
         </div>
       </div>
 
-      {/* Error */}
-      {error && (
+      {error ? (
         <div className="mx-5 mt-3 shrink-0 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-400">
           {error}
           <button
@@ -174,17 +166,16 @@ export function AgentInstallPanel({
             Dismiss
           </button>
         </div>
-      )}
+      ) : null}
 
-      {/* Agent List */}
       <ScrollArea className="min-h-0 flex-1">
         <div className="px-5 py-3">
           {loading && providers.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+            <div className="flex h-32 items-center justify-center text-sm text-gray-400">
               Loading agents from registry...
             </div>
           ) : filteredAgents.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+            <div className="flex h-32 items-center justify-center text-sm text-gray-400">
               {searchQuery
                 ? 'No agents match your search'
                 : 'No agents available'}
@@ -198,7 +189,7 @@ export function AgentInstallPanel({
                 return (
                   <Card
                     key={provider.id}
-                    className="p-4 border border-gray-200 bg-gray-50/60 transition-colors hover:border-gray-300 dark:border-[#2a2d3d] dark:bg-[#161922]/80 dark:hover:border-[#3a3d4d]"
+                    className="border border-gray-200 bg-gray-50/60 p-4 transition-colors hover:border-gray-300 dark:border-[#2a2d3d] dark:bg-[#161922]/80 dark:hover:border-[#3a3d4d]"
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 text-sm font-semibold text-white">
@@ -236,18 +227,20 @@ export function AgentInstallPanel({
                             <>
                               <span>•</span>
                               <div className="flex gap-1">
-                                {provider.distributionTypes.map((dt) => (
-                                  <span
-                                    key={dt}
-                                    className={`rounded px-1 py-0.5 ${
-                                      provider.installable
-                                        ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300'
-                                        : 'bg-gray-100 text-gray-400 line-through dark:bg-[#1f2233] dark:text-gray-500'
-                                    }`}
-                                  >
-                                    {dt}
-                                  </span>
-                                ))}
+                                {provider.distributionTypes.map(
+                                  (distributionType) => (
+                                    <span
+                                      key={distributionType}
+                                      className={`rounded px-1 py-0.5 ${
+                                        provider.installable
+                                          ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300'
+                                          : 'bg-gray-100 text-gray-400 line-through dark:bg-[#1f2233] dark:text-gray-500'
+                                      }`}
+                                    >
+                                      {distributionType}
+                                    </span>
+                                  ),
+                                )}
                               </div>
                             </>
                           ) : null}
@@ -292,7 +285,6 @@ export function AgentInstallPanel({
         </div>
       </ScrollArea>
 
-      {/* Footer */}
       <div className="shrink-0 border-t border-gray-100 px-5 py-3 text-xs text-gray-400 dark:border-gray-800">
         Platform: {platform ?? 'unknown'} • Registry:
         cdn.agentclientprotocol.com

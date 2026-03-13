@@ -58,6 +58,7 @@ export function useAcpProviders(preferredProviderId = 'opencode') {
       if (!response.ok) {
         throw new Error(`Failed to load ACP providers: ${response.status}`);
       }
+
       const payload = (await response.json()) as AcpProviderCatalogResponse;
       setProviders(payload._embedded.providers);
       setRegistryError(payload.registry.error);
