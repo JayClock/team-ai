@@ -30,6 +30,23 @@ describe('mcp route', () => {
     }
   });
 
+  async function callMcp(
+    fastify: ReturnType<typeof Fastify>,
+    payload: Record<string, unknown>,
+    accessMode?: 'read-only' | 'read-write',
+  ) {
+    return fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      headers: accessMode
+        ? {
+            'x-teamai-mcp-access-mode': accessMode,
+          }
+        : undefined,
+      payload,
+    });
+  }
+
   it('lists and executes built-in local mcp tools', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-test-${Date.now()}`;
 
@@ -107,23 +124,23 @@ describe('mcp route', () => {
       triggerSessionId: rootSessionId,
     });
 
-    const listToolsResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const listToolsResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-1',
         method: 'tools/list',
         params: {},
       },
-    });
+      'read-write',
+    );
 
     expect(listToolsResponse.statusCode).toBe(200);
-    expect(
-      listToolsResponse
-        .json()
-        .result.tools.map((tool: { name: string }) => tool.name),
-    ).toEqual(
+    const listedTools = listToolsResponse.json().result.tools as Array<{
+      annotations?: { readOnlyHint?: boolean };
+      name: string;
+    }>;
+    expect(listedTools.map((tool) => tool.name)).toEqual(
       expect.arrayContaining([
         'projects_list',
         'agents_list',
@@ -138,11 +155,22 @@ describe('mcp route', () => {
         'acp_session_cancel',
       ]),
     );
+    expect(listedTools.find((tool) => tool.name === 'task_get')).toMatchObject({
+      annotations: {
+        readOnlyHint: true,
+      },
+    });
+    expect(
+      listedTools.find((tool) => tool.name === 'task_update'),
+    ).toMatchObject({
+      annotations: {
+        readOnlyHint: false,
+      },
+    });
 
-    const listProjectsResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const listProjectsResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-2',
         method: 'tools/call',
@@ -151,17 +179,17 @@ describe('mcp route', () => {
           arguments: {},
         },
       },
-    });
+      'read-write',
+    );
 
     expect(listProjectsResponse.statusCode).toBe(200);
     expect(listProjectsResponse.json().result.content[0].json.items[0].id).toBe(
       project.id,
     );
 
-    const listAgentsResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const listAgentsResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-agents',
         method: 'tools/call',
@@ -172,7 +200,8 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(listAgentsResponse.statusCode).toBe(200);
     expect(
@@ -182,10 +211,9 @@ describe('mcp route', () => {
       name: 'Planner',
     });
 
-    const listTasksResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const listTasksResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-tasks',
         method: 'tools/call',
@@ -197,7 +225,8 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(listTasksResponse.statusCode).toBe(200);
     expect(
@@ -209,10 +238,9 @@ describe('mcp route', () => {
       title: 'Implement MCP task tools',
     });
 
-    const getTaskResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const getTaskResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-task',
         method: 'tools/call',
@@ -224,7 +252,8 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(getTaskResponse.statusCode).toBe(200);
     expect(getTaskResponse.json().result.content[0].json).toMatchObject({
@@ -236,10 +265,9 @@ describe('mcp route', () => {
       },
     });
 
-    const invalidTaskGetResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const invalidTaskGetResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-task-invalid',
         method: 'tools/call',
@@ -250,21 +278,28 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(invalidTaskGetResponse.statusCode).toBe(200);
     expect(invalidTaskGetResponse.json()).toMatchObject({
       error: {
-        code: -32000,
+        code: -32602,
+        data: {
+          problem: {
+            status: 400,
+            title: 'Invalid Request',
+            type: 'https://team-ai.dev/problems/invalid-request',
+          },
+        },
         message: expect.stringContaining('projectId'),
       },
       result: null,
     });
 
-    const taskUpdateResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const taskUpdateResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-task-update',
         method: 'tools/call',
@@ -278,7 +313,8 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(taskUpdateResponse.statusCode).toBe(200);
     expect(taskUpdateResponse.json().result.content[0].json).toMatchObject({
@@ -289,10 +325,9 @@ describe('mcp route', () => {
       },
     });
 
-    const invalidTaskUpdateResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const invalidTaskUpdateResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-task-update-invalid',
         method: 'tools/call',
@@ -305,21 +340,21 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(invalidTaskUpdateResponse.statusCode).toBe(200);
     expect(invalidTaskUpdateResponse.json()).toMatchObject({
       error: {
-        code: -32000,
+        code: -32602,
         message: expect.stringContaining('WAITING_RETRY'),
       },
       result: null,
     });
 
-    const taskExecuteResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const taskExecuteResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-task-execute',
         method: 'tools/call',
@@ -331,7 +366,8 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(taskExecuteResponse.statusCode).toBe(200);
     expect(taskExecuteResponse.json().result.content[0].json).toMatchObject({
@@ -351,10 +387,9 @@ describe('mcp route', () => {
     });
     expect(promptMock).toHaveBeenCalledTimes(1);
 
-    const taskRunsResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const taskRunsResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-task-runs',
         method: 'tools/call',
@@ -366,7 +401,8 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(taskRunsResponse.statusCode).toBe(200);
     expect(taskRunsResponse.json().result.content[0].json).toMatchObject({
@@ -386,10 +422,9 @@ describe('mcp route', () => {
     const taskRunSessionId = taskRunsResponse.json().result.content[0].json
       .items[0].sessionId as string;
 
-    const appendNoteResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const appendNoteResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-note-append',
         method: 'tools/call',
@@ -405,7 +440,8 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(appendNoteResponse.statusCode).toBe(200);
     expect(appendNoteResponse.json().result.content[0].json).toMatchObject({
@@ -436,10 +472,9 @@ describe('mcp route', () => {
       title: 'Review Summary',
     });
 
-    const invalidTaskExecuteResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const invalidTaskExecuteResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-task-execute-invalid',
         method: 'tools/call',
@@ -451,7 +486,8 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(invalidTaskExecuteResponse.statusCode).toBe(200);
     expect(invalidTaskExecuteResponse.json()).toMatchObject({
@@ -462,10 +498,9 @@ describe('mcp route', () => {
       result: null,
     });
 
-    const createAcpResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const createAcpResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-3',
         method: 'tools/call',
@@ -478,17 +513,17 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(createAcpResponse.statusCode).toBe(200);
     const acpSessionId = createAcpResponse.json().result.content[0].json.session
       .id as string;
     expect(acpSessionId).toMatch(/^acps_/);
 
-    const promptAcpResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/mcp',
-      payload: {
+    const promptAcpResponse = await callMcp(
+      fastify,
+      {
         jsonrpc: '2.0',
         id: 'mcp-4',
         method: 'tools/call',
@@ -501,9 +536,214 @@ describe('mcp route', () => {
           },
         },
       },
-    });
+      'read-write',
+    );
 
     expect(promptAcpResponse.statusCode).toBe(200);
     expect(promptMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('defaults MCP access to read-only and returns problem details for denied writes', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-readonly-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: 'runtime-readonly',
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-readonly',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Read Only MCP Project',
+      repoPath: '/tmp/team-ai-mcp-readonly-project',
+    });
+    const task = await createTask(fastify.sqlite, {
+      projectId: project.id,
+      title: 'Read only tool test',
+      objective: 'Verify write tools require elevated MCP access',
+      status: 'PENDING',
+      kind: 'implement',
+    });
+
+    const listToolsResponse = await callMcp(fastify, {
+      jsonrpc: '2.0',
+      id: 'mcp-readonly-tools',
+      method: 'tools/list',
+      params: {},
+    });
+
+    expect(listToolsResponse.statusCode).toBe(200);
+    const toolNames = listToolsResponse
+      .json()
+      .result.tools.map((tool: { name: string }) => tool.name);
+    expect(toolNames).toEqual(
+      expect.arrayContaining([
+        'projects_list',
+        'agents_list',
+        'tasks_list',
+        'task_get',
+        'task_runs_list',
+      ]),
+    );
+    expect(toolNames).not.toContain('task_update');
+    expect(toolNames).not.toContain('task_execute');
+    expect(toolNames).not.toContain('notes_append');
+    expect(toolNames).not.toContain('acp_session_create');
+    expect(toolNames).not.toContain('acp_session_prompt');
+    expect(toolNames).not.toContain('acp_session_cancel');
+
+    const deniedWriteResponse = await callMcp(fastify, {
+      jsonrpc: '2.0',
+      id: 'mcp-readonly-write',
+      method: 'tools/call',
+      params: {
+        name: 'task_update',
+        arguments: {
+          projectId: project.id,
+          taskId: task.id,
+          status: 'READY',
+        },
+      },
+    });
+
+    expect(deniedWriteResponse.statusCode).toBe(200);
+    expect(deniedWriteResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        data: {
+          problem: {
+            status: 403,
+            title: 'MCP Write Access Required',
+            type: 'https://team-ai.dev/problems/mcp-write-access-required',
+          },
+        },
+        message: expect.stringContaining('x-teamai-mcp-access-mode'),
+      },
+      result: null,
+    });
+  });
+
+  it('rejects ACP parent sessions from another project', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-boundary-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.provider}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-boundary',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const ownerProject = await createProject(fastify.sqlite, {
+      title: 'Owner Project',
+      repoPath: '/tmp/team-ai-mcp-owner-project',
+    });
+    const foreignProject = await createProject(fastify.sqlite, {
+      title: 'Foreign Project',
+      repoPath: '/tmp/team-ai-mcp-foreign-project',
+    });
+
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-owner-project',
+      id: 'acps_owner_root',
+      projectId: ownerProject.id,
+      provider: 'codex',
+    });
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-foreign-project',
+      id: 'acps_foreign_root',
+      projectId: foreignProject.id,
+      provider: 'codex',
+    });
+
+    const crossProjectResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-cross-project-parent',
+        method: 'tools/call',
+        params: {
+          name: 'acp_session_create',
+          arguments: {
+            projectId: ownerProject.id,
+            actorUserId: 'desktop-user',
+            parentSessionId: 'acps_foreign_root',
+            provider: 'codex',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(crossProjectResponse.statusCode).toBe(200);
+    expect(crossProjectResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        data: {
+          problem: {
+            status: 409,
+            title: 'MCP Project Boundary Violation',
+            type: 'https://team-ai.dev/problems/mcp-project-boundary-violation',
+          },
+        },
+        message: expect.stringContaining('acps_foreign_root'),
+      },
+      result: null,
+    });
   });
 });

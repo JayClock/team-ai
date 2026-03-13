@@ -779,14 +779,20 @@ function resolveLocalMcpServers(): McpServer[] {
     return [];
   }
 
-  const headers = process.env.DESKTOP_SESSION_TOKEN?.trim()
-    ? [
-        {
-          name: 'Authorization',
-          value: `Bearer ${process.env.DESKTOP_SESSION_TOKEN.trim()}`,
-        },
-      ]
-    : [];
+  const headers = [
+    {
+      name: 'X-TeamAI-MCP-Access-Mode',
+      value: 'read-write',
+    },
+    ...(process.env.DESKTOP_SESSION_TOKEN?.trim()
+      ? [
+          {
+            name: 'Authorization',
+            value: `Bearer ${process.env.DESKTOP_SESSION_TOKEN.trim()}`,
+          },
+        ]
+      : []),
+  ];
 
   return [
     {

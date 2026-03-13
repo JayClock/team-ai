@@ -1,22 +1,55 @@
-import type { FastifyPluginAsync } from 'fastify';
-import { z } from 'zod';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import { ZodError, z } from 'zod';
+import type { ProblemDetails } from '../errors/problem-error';
 import { ProblemError } from '../errors/problem-error';
 import { recordNoteEvent } from '../services/note-event-service';
-import { createNote } from '../services/note-service';
+import { createNote, getNoteById } from '../services/note-service';
 import {
   cancelAcpSession,
   createAcpSession,
+  getAcpSessionById,
   promptAcpSession,
 } from '../services/acp-service';
 import { listAgents } from '../services/agent-service';
-import { listProjects } from '../services/project-service';
+import { getProjectById, listProjects } from '../services/project-service';
 import { listTaskRuns } from '../services/task-run-service';
 import {
   executeTask,
   getTaskById,
   listTasks,
+  taskStatusValues,
   updateTaskFromMcp,
 } from '../services/task-service';
+
+const mcpAccessModeHeader = 'x-teamai-mcp-access-mode';
+
+type McpAccessMode = 'read-only' | 'read-write';
+type McpToolAccess = 'read' | 'write';
+
+interface McpToolDefinition {
+  access: McpToolAccess;
+  tool: {
+    annotations: {
+      idempotentHint?: boolean;
+      readOnlyHint: boolean;
+    };
+    description: string;
+    inputSchema: Record<string, unknown>;
+    name: string;
+    title: string;
+  };
+}
+
+interface McpAuditContext {
+  accessMode: McpAccessMode;
+  parentNoteId: string | null;
+  parentSessionId: string | null;
+  projectId: string | null;
+  sessionId: string | null;
+  taskId: string | null;
+  toolAccess: McpToolAccess;
+  toolName: string;
+}
 
 const mcpJsonRpcRequestSchema = z.object({
   jsonrpc: z.literal('2.0'),
@@ -44,12 +77,14 @@ const agentsListArgsSchema = z.object({
   projectId: z.string().trim().min(1),
 });
 
+const taskStatusSchema = z.enum(taskStatusValues);
+
 const tasksListArgsSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   projectId: z.string().trim().min(1),
   sessionId: z.string().trim().min(1).optional(),
-  status: z.string().trim().min(1).optional(),
+  status: taskStatusSchema.optional(),
 });
 
 const taskGetArgsSchema = z.object({
@@ -151,237 +186,308 @@ const cancelAcpSessionArgsSchema = z.object({
   sessionId: z.string().trim().min(1),
 });
 
-const mcpTools = [
+const mcpToolDefinitions: readonly McpToolDefinition[] = [
   {
-    name: 'projects_list',
-    title: 'List Projects',
-    description:
-      'List local desktop projects available in the current workspace.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        page: { type: 'number', minimum: 1, default: 1 },
-        pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
-        q: { type: 'string' },
-        repoPath: { type: 'string' },
-        sourceUrl: { type: 'string' },
+    access: 'read',
+    tool: {
+      annotations: {
+        idempotentHint: true,
+        readOnlyHint: true,
       },
-    },
-  },
-  {
-    name: 'agents_list',
-    title: 'List Agents',
-    description:
-      'List local agent profiles available for a project in the desktop runtime.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId'],
-      properties: {
-        projectId: { type: 'string' },
-        page: { type: 'number', minimum: 1, default: 1 },
-        pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
-      },
-    },
-  },
-  {
-    name: 'tasks_list',
-    title: 'List Tasks',
-    description: 'List project tasks available in the local desktop runtime.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId'],
-      properties: {
-        projectId: { type: 'string' },
-        sessionId: { type: 'string' },
-        status: { type: 'string' },
-        page: { type: 'number', minimum: 1, default: 1 },
-        pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
-      },
-    },
-  },
-  {
-    name: 'task_get',
-    title: 'Get Task',
-    description:
-      'Get a single project task by id from the local desktop runtime.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'taskId'],
-      properties: {
-        projectId: { type: 'string' },
-        taskId: { type: 'string' },
-      },
-    },
-  },
-  {
-    name: 'task_update',
-    title: 'Update Task',
-    description:
-      'Update safe task fields and controlled task statuses in the local desktop runtime.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'taskId'],
-      properties: {
-        projectId: { type: 'string' },
-        taskId: { type: 'string' },
-        title: { type: 'string' },
-        objective: { type: 'string' },
-        scope: { type: ['string', 'null'] },
-        priority: { type: ['string', 'null'] },
-        assignedProvider: { type: ['string', 'null'] },
-        assignedRole: { type: ['string', 'null'] },
-        assignedSpecialistId: { type: ['string', 'null'] },
-        assignedSpecialistName: { type: ['string', 'null'] },
-        acceptanceCriteria: {
-          type: 'array',
-          items: { type: 'string' },
-        },
-        dependencies: {
-          type: 'array',
-          items: { type: 'string' },
-        },
-        labels: {
-          type: 'array',
-          items: { type: 'string' },
-        },
-        verificationCommands: {
-          type: 'array',
-          items: { type: 'string' },
-        },
-        completionSummary: { type: ['string', 'null'] },
-        verificationReport: { type: ['string', 'null'] },
-        verificationVerdict: { type: ['string', 'null'] },
-        status: {
-          type: 'string',
-          enum: ['PENDING', 'READY', 'WAITING_RETRY', 'CANCELLED'],
+      name: 'projects_list',
+      title: 'List Projects',
+      description:
+        'List local desktop projects available in the current workspace.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          page: { type: 'number', minimum: 1, default: 1 },
+          pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
+          q: { type: 'string' },
+          repoPath: { type: 'string' },
+          sourceUrl: { type: 'string' },
         },
       },
     },
   },
   {
-    name: 'task_execute',
-    title: 'Execute Task',
-    description:
-      'Move a task into execution and trigger dispatch in the local desktop runtime.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'taskId'],
-      properties: {
-        projectId: { type: 'string' },
-        taskId: { type: 'string' },
+    access: 'read',
+    tool: {
+      annotations: {
+        idempotentHint: true,
+        readOnlyHint: true,
       },
-    },
-  },
-  {
-    name: 'task_runs_list',
-    title: 'List Task Runs',
-    description:
-      'List project task runs, with optional task, session, and status filters.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId'],
-      properties: {
-        projectId: { type: 'string' },
-        taskId: { type: 'string' },
-        sessionId: { type: 'string' },
-        status: {
-          type: 'string',
-          enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED'],
-        },
-        page: { type: 'number', minimum: 1, default: 1 },
-        pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
-      },
-    },
-  },
-  {
-    name: 'notes_append',
-    title: 'Append Note',
-    description:
-      'Append a new note to a project. sessionId scopes the note to a session, taskId links it to a task, and providing both keeps session ownership while linking the task.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'title', 'content'],
-      properties: {
-        projectId: {
-          type: 'string',
-          description: 'Owning project id for the new note.',
-        },
-        title: { type: 'string' },
-        content: { type: 'string' },
-        type: {
-          type: 'string',
-          enum: ['spec', 'task', 'general'],
-          default: 'general',
-        },
-        source: {
-          type: 'string',
-          enum: ['user', 'agent', 'system'],
-          default: 'agent',
-        },
-        sessionId: {
-          type: 'string',
-          description:
-            'Optional session scope. When provided, the note is stored under the session note collection.',
-        },
-        taskId: {
-          type: 'string',
-          description:
-            'Optional task link. This associates the note with a task without changing ownership unless sessionId is also set.',
-        },
-        parentNoteId: { type: 'string' },
-        assignedAgentIds: {
-          type: 'array',
-          items: { type: 'string' },
+      name: 'agents_list',
+      title: 'List Agents',
+      description:
+        'List local agent profiles available for a project in the desktop runtime.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId'],
+        properties: {
+          projectId: { type: 'string' },
+          page: { type: 'number', minimum: 1, default: 1 },
+          pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
         },
       },
     },
   },
   {
-    name: 'acp_session_create',
-    title: 'Create ACP Session',
-    description: 'Create a new local ACP session for a project.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'actorUserId'],
-      properties: {
-        projectId: { type: 'string' },
-        actorUserId: { type: 'string' },
-        provider: { type: 'string', default: 'codex' },
-        role: { type: 'string' },
-        parentSessionId: { type: 'string' },
-        specialistId: { type: 'string' },
-        goal: { type: 'string' },
+    access: 'read',
+    tool: {
+      annotations: {
+        idempotentHint: true,
+        readOnlyHint: true,
+      },
+      name: 'tasks_list',
+      title: 'List Tasks',
+      description: 'List project tasks available in the local desktop runtime.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId'],
+        properties: {
+          projectId: { type: 'string' },
+          sessionId: { type: 'string' },
+          status: { type: 'string', enum: taskStatusValues },
+          page: { type: 'number', minimum: 1, default: 1 },
+          pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
+        },
       },
     },
   },
   {
-    name: 'acp_session_prompt',
-    title: 'Prompt ACP Session',
-    description: 'Send a prompt to an existing local ACP session.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'sessionId', 'prompt'],
-      properties: {
-        projectId: { type: 'string' },
-        sessionId: { type: 'string' },
-        prompt: { type: 'string' },
-        timeoutMs: { type: 'number', minimum: 1 },
-        eventId: { type: 'string' },
-        traceId: { type: 'string' },
+    access: 'read',
+    tool: {
+      annotations: {
+        idempotentHint: true,
+        readOnlyHint: true,
+      },
+      name: 'task_get',
+      title: 'Get Task',
+      description:
+        'Get a single project task by id from the local desktop runtime.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'taskId'],
+        properties: {
+          projectId: { type: 'string' },
+          taskId: { type: 'string' },
+        },
       },
     },
   },
   {
-    name: 'acp_session_cancel',
-    title: 'Cancel ACP Session',
-    description: 'Cancel an active local ACP session.',
-    inputSchema: {
-      type: 'object',
-      required: ['projectId', 'sessionId'],
-      properties: {
-        projectId: { type: 'string' },
-        sessionId: { type: 'string' },
-        reason: { type: 'string' },
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'task_update',
+      title: 'Update Task',
+      description:
+        'Update safe task fields and controlled task statuses in the local desktop runtime.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'taskId'],
+        properties: {
+          projectId: { type: 'string' },
+          taskId: { type: 'string' },
+          title: { type: 'string' },
+          objective: { type: 'string' },
+          scope: { type: ['string', 'null'] },
+          priority: { type: ['string', 'null'] },
+          assignedProvider: { type: ['string', 'null'] },
+          assignedRole: { type: ['string', 'null'] },
+          assignedSpecialistId: { type: ['string', 'null'] },
+          assignedSpecialistName: { type: ['string', 'null'] },
+          acceptanceCriteria: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          dependencies: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          labels: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          verificationCommands: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          completionSummary: { type: ['string', 'null'] },
+          verificationReport: { type: ['string', 'null'] },
+          verificationVerdict: { type: ['string', 'null'] },
+          status: {
+            type: 'string',
+            enum: ['PENDING', 'READY', 'WAITING_RETRY', 'CANCELLED'],
+          },
+        },
+      },
+    },
+  },
+  {
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'task_execute',
+      title: 'Execute Task',
+      description:
+        'Move a task into execution and trigger dispatch in the local desktop runtime.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'taskId'],
+        properties: {
+          projectId: { type: 'string' },
+          taskId: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    access: 'read',
+    tool: {
+      annotations: {
+        idempotentHint: true,
+        readOnlyHint: true,
+      },
+      name: 'task_runs_list',
+      title: 'List Task Runs',
+      description:
+        'List project task runs, with optional task, session, and status filters.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId'],
+        properties: {
+          projectId: { type: 'string' },
+          taskId: { type: 'string' },
+          sessionId: { type: 'string' },
+          status: {
+            type: 'string',
+            enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED'],
+          },
+          page: { type: 'number', minimum: 1, default: 1 },
+          pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
+        },
+      },
+    },
+  },
+  {
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'notes_append',
+      title: 'Append Note',
+      description:
+        'Append a new note to a project. sessionId scopes the note to a session, taskId links it to a task, and providing both keeps session ownership while linking the task.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'title', 'content'],
+        properties: {
+          projectId: {
+            type: 'string',
+            description: 'Owning project id for the new note.',
+          },
+          title: { type: 'string' },
+          content: { type: 'string' },
+          type: {
+            type: 'string',
+            enum: ['spec', 'task', 'general'],
+            default: 'general',
+          },
+          source: {
+            type: 'string',
+            enum: ['user', 'agent', 'system'],
+            default: 'agent',
+          },
+          sessionId: {
+            type: 'string',
+            description:
+              'Optional session scope. When provided, the note is stored under the session note collection.',
+          },
+          taskId: {
+            type: 'string',
+            description:
+              'Optional task link. This associates the note with a task without changing ownership unless sessionId is also set.',
+          },
+          parentNoteId: { type: 'string' },
+          assignedAgentIds: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+        },
+      },
+    },
+  },
+  {
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'acp_session_create',
+      title: 'Create ACP Session',
+      description: 'Create a new local ACP session for a project.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'actorUserId'],
+        properties: {
+          projectId: { type: 'string' },
+          actorUserId: { type: 'string' },
+          provider: { type: 'string', default: 'codex' },
+          role: { type: 'string' },
+          parentSessionId: { type: 'string' },
+          specialistId: { type: 'string' },
+          goal: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'acp_session_prompt',
+      title: 'Prompt ACP Session',
+      description: 'Send a prompt to an existing local ACP session.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'sessionId', 'prompt'],
+        properties: {
+          projectId: { type: 'string' },
+          sessionId: { type: 'string' },
+          prompt: { type: 'string' },
+          timeoutMs: { type: 'number', minimum: 1 },
+          eventId: { type: 'string' },
+          traceId: { type: 'string' },
+        },
+      },
+    },
+  },
+  {
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'acp_session_cancel',
+      title: 'Cancel ACP Session',
+      description: 'Cancel an active local ACP session.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'sessionId'],
+        properties: {
+          projectId: { type: 'string' },
+          sessionId: { type: 'string' },
+          reason: { type: 'string' },
+        },
       },
     },
   },
@@ -403,6 +509,7 @@ function errorEnvelope(
   id: string | number | null | undefined,
   code: number,
   message: string,
+  data?: Record<string, unknown>,
 ) {
   return {
     jsonrpc: '2.0' as const,
@@ -410,6 +517,7 @@ function errorEnvelope(
     result: null,
     error: {
       code,
+      ...(data ? { data } : {}),
       message,
     },
   };
@@ -427,8 +535,294 @@ function toolSuccess(result: unknown) {
   };
 }
 
+function buildProblem(input: ProblemDetails): ProblemDetails {
+  return input;
+}
+
+function buildZodProblem(error: ZodError, instance: string): ProblemDetails {
+  return buildProblem({
+    type: 'https://team-ai.dev/problems/invalid-request',
+    title: 'Invalid Request',
+    status: 400,
+    detail: error.issues
+      .map(({ message, path }) => `${path.join('.') || 'request'}: ${message}`)
+      .join('; '),
+    instance,
+  });
+}
+
+function buildProblemFromError(
+  error: unknown,
+  instance: string,
+): {
+  code: number;
+  problem: ProblemDetails;
+} {
+  if (error instanceof ZodError) {
+    return {
+      code: -32602,
+      problem: buildZodProblem(error, instance),
+    };
+  }
+
+  if (error instanceof ProblemError) {
+    return {
+      code: -32000,
+      problem: buildProblem({
+        type: error.type,
+        title: error.title,
+        status: error.status,
+        detail: error.message,
+        instance,
+      }),
+    };
+  }
+
+  const statusCode =
+    typeof (error as { statusCode?: unknown })?.statusCode === 'number' &&
+    (error as { statusCode: number }).statusCode >= 400
+      ? (error as { statusCode: number }).statusCode
+      : 500;
+
+  return {
+    code: -32000,
+    problem: buildProblem({
+      type: 'about:blank',
+      title: statusCode >= 500 ? 'Internal Server Error' : 'Request Error',
+      status: statusCode,
+      detail: error instanceof Error ? error.message : 'MCP request failed',
+      instance,
+    }),
+  };
+}
+
+function problemErrorEnvelope(
+  id: string | number | null | undefined,
+  code: number,
+  problem: ProblemDetails,
+) {
+  return errorEnvelope(id, code, problem.detail, {
+    problem,
+  });
+}
+
+function buildUnknownToolProblem(
+  name: string,
+  instance: string,
+): ProblemDetails {
+  return buildProblem({
+    type: 'https://team-ai.dev/problems/mcp-tool-not-found',
+    title: 'MCP Tool Not Found',
+    status: 404,
+    detail: `Unknown tool: ${name}`,
+    instance,
+  });
+}
+
+function buildMethodNotFoundProblem(
+  method: string,
+  instance: string,
+): ProblemDetails {
+  return buildProblem({
+    type: 'https://team-ai.dev/problems/mcp-method-not-found',
+    title: 'MCP Method Not Found',
+    status: 404,
+    detail: `Method not found: ${method}`,
+    instance,
+  });
+}
+
+function buildStringArgument(
+  argumentsRecord: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = argumentsRecord[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function buildAuditContext(
+  toolDefinition: McpToolDefinition,
+  argumentsRecord: Record<string, unknown>,
+  accessMode: McpAccessMode,
+): McpAuditContext {
+  return {
+    accessMode,
+    parentNoteId: buildStringArgument(argumentsRecord, 'parentNoteId'),
+    parentSessionId: buildStringArgument(argumentsRecord, 'parentSessionId'),
+    projectId: buildStringArgument(argumentsRecord, 'projectId'),
+    sessionId: buildStringArgument(argumentsRecord, 'sessionId'),
+    taskId: buildStringArgument(argumentsRecord, 'taskId'),
+    toolAccess: toolDefinition.access,
+    toolName: toolDefinition.tool.name,
+  };
+}
+
+function logToolAudit(
+  request: FastifyRequest,
+  phase: 'attempt' | 'success' | 'failure',
+  context: McpAuditContext,
+  problem?: ProblemDetails,
+) {
+  const payload = {
+    accessMode: context.accessMode,
+    event: 'mcp.tool.audit',
+    parentNoteId: context.parentNoteId,
+    parentSessionId: context.parentSessionId,
+    phase,
+    problem: problem
+      ? {
+          detail: problem.detail,
+          status: problem.status,
+          title: problem.title,
+          type: problem.type,
+        }
+      : undefined,
+    projectId: context.projectId,
+    sessionId: context.sessionId,
+    taskId: context.taskId,
+    toolAccess: context.toolAccess,
+    toolName: context.toolName,
+  };
+
+  if (phase === 'failure') {
+    request.log.warn(payload, 'MCP tool audit failure');
+    return;
+  }
+
+  if (context.toolAccess === 'write') {
+    request.log.info(payload, 'MCP tool audit');
+  }
+}
+
+function getVisibleTools(accessMode: McpAccessMode) {
+  return mcpToolDefinitions
+    .filter((toolDefinition) => {
+      return accessMode === 'read-write' || toolDefinition.access === 'read';
+    })
+    .map((toolDefinition) => toolDefinition.tool);
+}
+
 function findTool(name: string) {
-  return mcpTools.find((tool) => tool.name === name);
+  return mcpToolDefinitions.find((tool) => tool.tool.name === name);
+}
+
+function resolveAccessMode(request: FastifyRequest): McpAccessMode {
+  const headerValue = request.headers[mcpAccessModeHeader];
+
+  if (headerValue === undefined) {
+    return 'read-only';
+  }
+
+  if (typeof headerValue !== 'string') {
+    throw new ProblemError({
+      type: 'https://team-ai.dev/problems/mcp-access-mode-invalid',
+      title: 'MCP Access Mode Invalid',
+      status: 400,
+      detail: `${mcpAccessModeHeader} must be read-only or read-write`,
+    });
+  }
+
+  const normalized = headerValue.trim().toLowerCase();
+  if (normalized === 'read-only' || normalized === 'read-write') {
+    return normalized;
+  }
+
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/mcp-access-mode-invalid',
+    title: 'MCP Access Mode Invalid',
+    status: 400,
+    detail: `${mcpAccessModeHeader} must be read-only or read-write`,
+  });
+}
+
+function ensureToolAccess(
+  toolDefinition: McpToolDefinition,
+  accessMode: McpAccessMode,
+) {
+  if (toolDefinition.access === 'read' || accessMode === 'read-write') {
+    return;
+  }
+
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/mcp-write-access-required',
+    title: 'MCP Write Access Required',
+    status: 403,
+    detail: `Tool ${toolDefinition.tool.name} requires ${mcpAccessModeHeader}: read-write`,
+  });
+}
+
+function throwProjectBoundaryViolation(
+  projectId: string,
+  resourceType: 'note' | 'session',
+  resourceId: string,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/mcp-project-boundary-violation',
+    title: 'MCP Project Boundary Violation',
+    status: 409,
+    detail: `MCP tool cannot access ${resourceType} ${resourceId} outside project ${projectId}`,
+  });
+}
+
+async function getProjectSession(
+  sqlite: Parameters<typeof getAcpSessionById>[0],
+  projectId: string,
+  sessionId: string,
+) {
+  const session = await getAcpSessionById(sqlite, sessionId);
+
+  if (session.project.id !== projectId) {
+    throwProjectBoundaryViolation(projectId, 'session', sessionId);
+  }
+
+  return session;
+}
+
+async function getProjectNote(
+  sqlite: Parameters<typeof getNoteById>[0],
+  projectId: string,
+  noteId: string,
+) {
+  const note = await getNoteById(sqlite, noteId);
+
+  if (note.projectId !== projectId) {
+    throwProjectBoundaryViolation(projectId, 'note', noteId);
+  }
+
+  return note;
+}
+
+async function ensureDependencyTasksBelongToProject(
+  sqlite: Parameters<typeof getTaskById>[0],
+  projectId: string,
+  dependencyIds: string[] | undefined,
+) {
+  const uniqueDependencyIds = [
+    ...new Set(
+      (dependencyIds ?? [])
+        .map((dependencyId) => dependencyId.trim())
+        .filter((dependencyId) => dependencyId.length > 0),
+    ),
+  ];
+
+  await Promise.all(
+    uniqueDependencyIds.map((dependencyId) =>
+      getProjectTask(sqlite, projectId, dependencyId),
+    ),
+  );
+}
+
+function toolResult(
+  request: FastifyRequest,
+  id: string | number | null | undefined,
+  result: unknown,
+  auditContext: McpAuditContext | null,
+) {
+  if (auditContext) {
+    logToolAudit(request, 'success', auditContext);
+  }
+
+  return resultEnvelope(id, toolSuccess(result));
 }
 
 async function getProjectTask(
@@ -506,10 +900,14 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
   };
 
   fastify.post('/mcp', async (request) => {
-    const rpcRequest = mcpJsonRpcRequestSchema.parse(request.body);
-    const { id, method, params } = rpcRequest;
+    let rpcRequest: z.infer<typeof mcpJsonRpcRequestSchema> | null = null;
+    let auditContext: McpAuditContext | null = null;
 
     try {
+      const accessMode = resolveAccessMode(request);
+      rpcRequest = mcpJsonRpcRequestSchema.parse(request.body);
+      const { id, method, params } = rpcRequest;
+
       switch (method) {
         case 'initialize':
           return resultEnvelope(id, {
@@ -526,84 +924,167 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
           });
         case 'tools/list':
           return resultEnvelope(id, {
-            tools: mcpTools,
+            tools: getVisibleTools(accessMode),
           });
         case 'tools/call': {
           const toolCall = toolCallParamsSchema.parse(params);
-          const tool = findTool(toolCall.name);
-          if (!tool) {
-            return errorEnvelope(id, -32602, `Unknown tool: ${toolCall.name}`);
+          const toolDefinition = findTool(toolCall.name);
+          if (!toolDefinition) {
+            return problemErrorEnvelope(
+              id,
+              -32602,
+              buildUnknownToolProblem(toolCall.name, request.url),
+            );
           }
 
-          switch (tool.name) {
+          auditContext = buildAuditContext(
+            toolDefinition,
+            toolCall.arguments,
+            accessMode,
+          );
+          ensureToolAccess(toolDefinition, accessMode);
+          logToolAudit(request, 'attempt', auditContext);
+
+          switch (toolDefinition.tool.name) {
             case 'projects_list': {
               const args = projectsListArgsSchema.parse(toolCall.arguments);
-              return resultEnvelope(
+              return toolResult(
+                request,
                 id,
-                toolSuccess(await listProjects(fastify.sqlite, args)),
+                await listProjects(fastify.sqlite, args),
+                auditContext,
               );
             }
             case 'agents_list': {
               const args = agentsListArgsSchema.parse(toolCall.arguments);
-              return resultEnvelope(
+              await getProjectById(fastify.sqlite, args.projectId);
+
+              return toolResult(
+                request,
                 id,
-                toolSuccess(await listAgents(fastify.sqlite, args)),
+                await listAgents(fastify.sqlite, args),
+                auditContext,
               );
             }
             case 'tasks_list': {
               const args = tasksListArgsSchema.parse(toolCall.arguments);
-              return resultEnvelope(
+              await getProjectById(fastify.sqlite, args.projectId);
+              if (args.sessionId) {
+                await getProjectSession(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.sessionId,
+                );
+              }
+
+              return toolResult(
+                request,
                 id,
-                toolSuccess(await listTasks(fastify.sqlite, args)),
+                await listTasks(fastify.sqlite, args),
+                auditContext,
               );
             }
             case 'task_get': {
               const args = taskGetArgsSchema.parse(toolCall.arguments);
-              return resultEnvelope(
+              await getProjectById(fastify.sqlite, args.projectId);
+
+              return toolResult(
+                request,
                 id,
-                toolSuccess({
+                {
                   task: await getProjectTask(
                     fastify.sqlite,
                     args.projectId,
                     args.taskId,
                   ),
-                }),
+                },
+                auditContext,
               );
             }
             case 'task_update': {
               const args = taskUpdateArgsSchema.parse(toolCall.arguments);
+              await getProjectById(fastify.sqlite, args.projectId);
               await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
+              await ensureDependencyTasksBelongToProject(
+                fastify.sqlite,
+                args.projectId,
+                args.dependencies,
+              );
               const { projectId: _projectId, taskId, ...patch } = args;
 
-              return resultEnvelope(
+              return toolResult(
+                request,
                 id,
-                toolSuccess({
+                {
                   task: await updateTaskFromMcp(fastify.sqlite, taskId, patch),
-                }),
+                },
+                auditContext,
               );
             }
             case 'task_execute': {
               const args = taskExecuteArgsSchema.parse(toolCall.arguments);
+              await getProjectById(fastify.sqlite, args.projectId);
               await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
 
-              return resultEnvelope(
+              return toolResult(
+                request,
                 id,
-                toolSuccess(
-                  await executeTask(fastify.sqlite, args.taskId, {
-                    callbacks: dispatchCallbacks,
-                  }),
-                ),
+                await executeTask(fastify.sqlite, args.taskId, {
+                  callbacks: dispatchCallbacks,
+                }),
+                auditContext,
               );
             }
             case 'task_runs_list': {
               const args = taskRunsListArgsSchema.parse(toolCall.arguments);
-              return resultEnvelope(
+              await getProjectById(fastify.sqlite, args.projectId);
+              if (args.taskId) {
+                await getProjectTask(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.taskId,
+                );
+              }
+              if (args.sessionId) {
+                await getProjectSession(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.sessionId,
+                );
+              }
+
+              return toolResult(
+                request,
                 id,
-                toolSuccess(await listTaskRuns(fastify.sqlite, args)),
+                await listTaskRuns(fastify.sqlite, args),
+                auditContext,
               );
             }
             case 'notes_append': {
               const args = notesAppendArgsSchema.parse(toolCall.arguments);
+              await getProjectById(fastify.sqlite, args.projectId);
+              if (args.taskId) {
+                await getProjectTask(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.taskId,
+                );
+              }
+              if (args.sessionId) {
+                await getProjectSession(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.sessionId,
+                );
+              }
+              if (args.parentNoteId) {
+                await getProjectNote(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.parentNoteId,
+                );
+              }
+
               const note = await createNote(fastify.sqlite, {
                 assignedAgentIds: args.assignedAgentIds,
                 content: args.content,
@@ -620,54 +1101,82 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 type: 'created',
               });
 
-              return resultEnvelope(
+              return toolResult(
+                request,
                 id,
-                toolSuccess({
+                {
                   note,
                   scope: describeNoteScope(note),
-                }),
+                },
+                auditContext,
               );
             }
             case 'acp_session_create': {
               const args = createAcpSessionArgsSchema.parse(toolCall.arguments);
-              return resultEnvelope(
+              await getProjectById(fastify.sqlite, args.projectId);
+              if (args.parentSessionId) {
+                await getProjectSession(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.parentSessionId,
+                );
+              }
+
+              return toolResult(
+                request,
                 id,
-                toolSuccess({
+                {
                   session: await createAcpSession(
                     fastify.sqlite,
                     fastify.acpStreamBroker,
                     fastify.acpRuntime,
                     args,
                   ),
-                }),
+                },
+                auditContext,
               );
             }
             case 'acp_session_prompt': {
               const args = promptAcpSessionArgsSchema.parse(toolCall.arguments);
-              return resultEnvelope(
+              await getProjectById(fastify.sqlite, args.projectId);
+              await getProjectSession(
+                fastify.sqlite,
+                args.projectId,
+                args.sessionId,
+              );
+
+              return toolResult(
+                request,
                 id,
-                toolSuccess(
-                  await promptAcpSession(
-                    fastify.sqlite,
-                    fastify.acpStreamBroker,
-                    fastify.acpRuntime,
-                    args.projectId,
-                    args.sessionId,
-                    {
-                      prompt: args.prompt,
-                      timeoutMs: args.timeoutMs,
-                      eventId: args.eventId,
-                      traceId: args.traceId,
-                    },
-                  ),
+                await promptAcpSession(
+                  fastify.sqlite,
+                  fastify.acpStreamBroker,
+                  fastify.acpRuntime,
+                  args.projectId,
+                  args.sessionId,
+                  {
+                    prompt: args.prompt,
+                    timeoutMs: args.timeoutMs,
+                    eventId: args.eventId,
+                    traceId: args.traceId,
+                  },
                 ),
+                auditContext,
               );
             }
             case 'acp_session_cancel': {
               const args = cancelAcpSessionArgsSchema.parse(toolCall.arguments);
-              return resultEnvelope(
+              await getProjectById(fastify.sqlite, args.projectId);
+              await getProjectSession(
+                fastify.sqlite,
+                args.projectId,
+                args.sessionId,
+              );
+
+              return toolResult(
+                request,
                 id,
-                toolSuccess({
+                {
                   session: await cancelAcpSession(
                     fastify.sqlite,
                     fastify.acpStreamBroker,
@@ -676,26 +1185,32 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                     args.sessionId,
                     args.reason,
                   ),
-                }),
+                },
+                auditContext,
               );
             }
             default:
-              return errorEnvelope(
+              return problemErrorEnvelope(
                 id,
                 -32601,
-                `Unhandled tool: ${toolCall.name}`,
+                buildMethodNotFoundProblem(toolCall.name, request.url),
               );
           }
         }
         default:
-          return errorEnvelope(id, -32601, `Method not found: ${method}`);
+          return problemErrorEnvelope(
+            id,
+            -32601,
+            buildMethodNotFoundProblem(method, request.url),
+          );
       }
     } catch (error) {
-      return errorEnvelope(
-        id,
-        -32000,
-        error instanceof Error ? error.message : 'MCP request failed',
-      );
+      const { code, problem } = buildProblemFromError(error, request.url);
+      if (auditContext) {
+        logToolAudit(request, 'failure', auditContext, problem);
+      }
+
+      return problemErrorEnvelope(rpcRequest?.id, code, problem);
     }
   });
 };
