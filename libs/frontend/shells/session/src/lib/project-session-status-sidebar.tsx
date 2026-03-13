@@ -21,6 +21,7 @@ import {
   formatDateTime,
   formatStatusLabel,
   formatTaskKindLabel,
+  formatVerificationVerdictLabel,
   getTaskPrimaryAction,
   renderEventDetails,
   sessionDisplayName,
@@ -28,6 +29,8 @@ import {
   statusTone,
   type TaskPanelAction,
   type TaskPanelItem,
+  type TaskRunPanelItem,
+  verificationVerdictChipClasses,
 } from './project-session-workbench.shared';
 
 export function ProjectSessionStatusSidebar(props: {
@@ -262,6 +265,12 @@ function TaskExecutionDetails(props: {
         <TaskMetaBlock label="当前执行状态" value={executionStatus} />
       ) : null}
 
+      <TaskRunTimelineCard
+        currentSessionId={currentSessionId}
+        onOpenSession={onOpenSession}
+        runs={item.taskRuns ?? []}
+      />
+
       <TaskSessionLinkCard
         actionLabel="打开执行会话"
         currentSessionId={currentSessionId}
@@ -283,6 +292,307 @@ function TaskExecutionDetails(props: {
       />
     </div>
   );
+}
+
+function TaskRunTimelineCard(props: {
+  currentSessionId?: string;
+  onOpenSession: (sessionId: string) => void;
+  runs: TaskRunPanelItem[];
+}) {
+  const { currentSessionId, onOpenSession, runs } = props;
+
+  if (runs.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Task Runs
+            </div>
+            <div className="mt-1 text-sm font-medium">暂无执行记录</div>
+          </div>
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 text-[11px] text-muted-foreground">
+            0 次执行
+          </span>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">
+          task
+          首次被自动分发或手动执行后，这里会展示执行时间线、结果摘要与验证结论。
+        </p>
+      </div>
+    );
+  }
+
+  const latestRun = runs.find((run) => run.isLatest) ?? runs[0];
+  const historicalRuns = runs.filter((run) => run.id !== latestRun.id);
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Task Runs
+          </div>
+          <div className="mt-1 text-sm font-medium">执行时间线与结果</div>
+        </div>
+        <span className="rounded-full border border-border/60 bg-background px-2 py-1 text-[11px] text-muted-foreground">
+          {runs.length} 次执行
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-3">
+        <TaskRunTimelineItem
+          currentSessionId={currentSessionId}
+          onOpenSession={onOpenSession}
+          run={latestRun}
+          showConnector={historicalRuns.length > 0}
+          title="最新执行"
+        />
+
+        {historicalRuns.length > 0 ? (
+          <details className="rounded-xl border border-border/60 bg-background/80 p-3">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">历史执行</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  共 {historicalRuns.length} 次历史记录
+                </div>
+              </div>
+              <span className="text-xs text-muted-foreground">展开查看</span>
+            </summary>
+            <div className="mt-3 space-y-3">
+              {historicalRuns.map((run, index) => (
+                <TaskRunTimelineItem
+                  key={run.id}
+                  currentSessionId={currentSessionId}
+                  onOpenSession={onOpenSession}
+                  run={run}
+                  showConnector={index < historicalRuns.length - 1}
+                  title={`历史执行 ${historicalRuns.length - index}`}
+                />
+              ))}
+            </div>
+          </details>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TaskRunTimelineItem(props: {
+  currentSessionId?: string;
+  onOpenSession: (sessionId: string) => void;
+  run: TaskRunPanelItem;
+  showConnector: boolean;
+  title: string;
+}) {
+  const { currentSessionId, onOpenSession, run, showConnector, title } = props;
+  const lifecycle = buildTaskRunLifecycle(run);
+  const runSessionId = run.sessionId;
+  const isCurrentSession = Boolean(
+    runSessionId && runSessionId === currentSessionId,
+  );
+
+  return (
+    <div className="relative pl-5">
+      {showConnector ? (
+        <span className="absolute bottom-[-12px] left-[5px] top-3 w-px bg-border/70" />
+      ) : null}
+      <span
+        className={`absolute left-0 top-2.5 size-2.5 rounded-full ${statusTone(run.status)}`}
+      />
+
+      <div className="rounded-xl border border-border/60 bg-background p-3 shadow-none">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="text-sm font-semibold">{title}</div>
+              {run.isLatest ? (
+                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200">
+                  最新
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+              {run.id}
+            </div>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(run.status)}`}
+          >
+            {formatStatusLabel(run.status)}
+          </span>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+          <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1">
+            {formatTaskKindLabel(run.kind)}
+          </span>
+          {run.role ? (
+            <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 font-mono">
+              {run.role}
+            </span>
+          ) : null}
+          {run.provider ? (
+            <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 font-mono">
+              {run.provider}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-3 grid gap-2">
+          {lifecycle.map((entry) => (
+            <div
+              key={`${run.id}-${entry.label}`}
+              className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
+            >
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                {entry.label}
+              </div>
+              <div className="mt-1 text-xs text-foreground">
+                {formatDateTime(entry.value)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 space-y-3">
+          <TaskRunTextBlock
+            label="结果摘要"
+            value={run.summary}
+            emptyLabel="暂无摘要"
+          />
+          <TaskRunVerdictBlock verdict={run.verificationVerdict} />
+          <TaskRunTextBlock
+            label="验证报告"
+            value={run.verificationReport}
+            emptyLabel="暂无验证报告"
+            preserveWhitespace
+          />
+        </div>
+
+        {run.retryOfRunId || run.sessionId ? (
+          <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div className="space-y-2">
+              {run.retryOfRunId ? (
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    retryOfRunId
+                  </div>
+                  <div className="mt-1 break-all font-mono text-xs text-foreground">
+                    {run.retryOfRunId}
+                  </div>
+                </div>
+              ) : null}
+
+              {runSessionId ? (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      sessionId
+                    </div>
+                    <div className="mt-1 break-all font-mono text-xs text-foreground">
+                      {runSessionId}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+                    disabled={isCurrentSession}
+                    onClick={() => onOpenSession(runSessionId)}
+                  >
+                    {isCurrentSession ? '当前会话' : '打开本次会话'}
+                    {isCurrentSession ? null : (
+                      <ArrowUpRightIcon className="size-3.5" />
+                    )}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TaskRunTextBlock(props: {
+  emptyLabel: string;
+  label: string;
+  preserveWhitespace?: boolean;
+  value: string | null;
+}) {
+  const { emptyLabel, label, preserveWhitespace = false, value } = props;
+  const isEmpty = !value;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={`mt-1 text-sm leading-6 ${
+          preserveWhitespace ? 'whitespace-pre-wrap break-words' : ''
+        } ${isEmpty ? 'text-muted-foreground' : 'text-foreground'}`}
+      >
+        {value ?? emptyLabel}
+      </div>
+    </div>
+  );
+}
+
+function TaskRunVerdictBlock(props: { verdict: string | null }) {
+  const { verdict } = props;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        验证结论
+      </div>
+      <div className="mt-2">
+        <span
+          className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${verificationVerdictChipClasses(verdict)}`}
+        >
+          {formatVerificationVerdictLabel(verdict)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function buildTaskRunLifecycle(run: TaskRunPanelItem) {
+  const entries = [{ label: '创建', value: run.createdAt }];
+
+  if (run.startedAt) {
+    entries.push({ label: '开始', value: run.startedAt });
+  }
+
+  const completionLabel = formatTaskRunCompletionLabel(run);
+  if (completionLabel) {
+    entries.push({
+      label: completionLabel,
+      value: run.completedAt ?? run.updatedAt,
+    });
+  }
+
+  return entries;
+}
+
+function formatTaskRunCompletionLabel(run: TaskRunPanelItem): string | null {
+  switch (run.status) {
+    case 'COMPLETED':
+      return '完成';
+    case 'FAILED':
+      return '失败';
+    case 'CANCELLED':
+      return '取消';
+    case 'RUNNING':
+      return '最近更新';
+    default:
+      return run.completedAt ? '状态更新' : null;
+  }
 }
 
 function TaskActionCard(props: {

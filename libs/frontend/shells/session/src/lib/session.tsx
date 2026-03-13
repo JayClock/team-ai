@@ -7,6 +7,7 @@ import {
   AcpSessionSummary,
   Project,
   Root,
+  type Task,
 } from '@shared/schema';
 import {
   AlertDialog,
@@ -53,6 +54,7 @@ import { ProjectSessionHistorySidebar } from './project-session-history-sidebar'
 import { ProjectSessionStatusSidebar } from './project-session-status-sidebar';
 import { useProjectSessionChat } from './use-project-session-chat';
 import {
+  buildTaskRunPanelItem,
   buildTaskPanelItem,
   buildSessionTree,
   buildTaskSnapshot,
@@ -277,6 +279,7 @@ export function ShellsSession(props: ShellsSessionProps) {
   const loadTaskItems = useCallback(
     async (session: State<AcpSession>): Promise<TaskPanelItem[]> => {
       const itemsById = new Map<string, TaskPanelItem>();
+      const taskStatesById = new Map<string, State<Task>>();
       const [linkedTask, firstPage] = await Promise.all([
         session.hasLink('task')
           ? session
@@ -292,6 +295,7 @@ export function ShellsSession(props: ShellsSessionProps) {
         | null;
 
       if (linkedTaskItem) {
+        taskStatesById.set(linkedTaskItem.data.id, linkedTaskItem);
         itemsById.set(
           linkedTaskItem.data.id,
           buildTaskPanelItem(linkedTaskItem),
@@ -300,6 +304,7 @@ export function ShellsSession(props: ShellsSessionProps) {
 
       const appendPage = (page: typeof firstPage) => {
         for (const taskState of page.collection) {
+          taskStatesById.set(taskState.data.id, taskState);
           itemsById.set(taskState.data.id, buildTaskPanelItem(taskState));
         }
       };
@@ -310,6 +315,54 @@ export function ShellsSession(props: ShellsSessionProps) {
       while (currentPage.hasLink('next')) {
         currentPage = await currentPage.follow('next').get();
         appendPage(currentPage);
+      }
+
+      const taskRunsByTaskId = await Promise.all(
+        Array.from(taskStatesById.values()).map(async (taskState) => {
+          let taskRunsPage = await taskState
+            .follow('runs', { page: 1, pageSize: 50 })
+            .refresh();
+          const taskRuns = [...taskRunsPage.collection];
+
+          while (taskRunsPage.hasLink('next')) {
+            taskRunsPage = await taskRunsPage.follow('next').get();
+            taskRuns.push(...taskRunsPage.collection);
+          }
+
+          const runItems = taskRuns
+            .map((taskRun) => buildTaskRunPanelItem(taskRun))
+            .sort((left, right) => {
+              if (left.isLatest !== right.isLatest) {
+                return left.isLatest ? -1 : 1;
+              }
+
+              const timeDelta =
+                timestamp(
+                  right.startedAt ?? right.createdAt ?? right.updatedAt,
+                ) -
+                timestamp(left.startedAt ?? left.createdAt ?? left.updatedAt);
+
+              if (timeDelta !== 0) {
+                return timeDelta;
+              }
+
+              return timestamp(right.updatedAt) - timestamp(left.updatedAt);
+            });
+
+          return [taskState.data.id, runItems] as const;
+        }),
+      );
+
+      for (const [taskId, taskRuns] of taskRunsByTaskId) {
+        const item = itemsById.get(taskId);
+        if (!item) {
+          continue;
+        }
+
+        itemsById.set(taskId, {
+          ...item,
+          taskRuns,
+        });
       }
 
       return Array.from(itemsById.values());

@@ -12,6 +12,7 @@ import {
   type AcpPlanEventData,
   type AcpSessionEventData,
   type Task,
+  type TaskRun,
   type AcpToolCallEventData,
   type AcpToolResultEventData,
 } from '@shared/schema';
@@ -32,7 +33,27 @@ export type TaskPanelItem = {
   status: string;
   taskState?: State<Task>;
   taskId?: string;
+  taskRuns?: TaskRunPanelItem[];
   title: string;
+};
+
+export type TaskRunPanelItem = {
+  completedAt: string | null;
+  createdAt: string;
+  id: string;
+  isLatest: boolean;
+  kind: TaskRun['data']['kind'];
+  provider: string | null;
+  retryOfRunId: string | null;
+  role: string | null;
+  sessionId: string | null;
+  specialistId: string | null;
+  startedAt: string | null;
+  status: TaskRun['data']['status'];
+  summary: string | null;
+  updatedAt: string;
+  verificationReport: string | null;
+  verificationVerdict: string | null;
 };
 
 export type TaskPanelAction = 'execute' | 'review' | 'retry';
@@ -163,6 +184,63 @@ export function buildTaskPanelItem(task: State<Task>): TaskPanelItem {
     resultSessionId: task.data.resultSessionId,
     taskState: task,
   };
+}
+
+export function buildTaskRunPanelItem(run: State<TaskRun>): TaskRunPanelItem {
+  return {
+    completedAt: run.data.completedAt,
+    createdAt: run.data.createdAt,
+    id: run.data.id,
+    isLatest: run.data.isLatest,
+    kind: run.data.kind,
+    provider: run.data.provider,
+    retryOfRunId: run.data.retryOfRunId,
+    role: run.data.role,
+    sessionId: run.data.sessionId,
+    specialistId: run.data.specialistId,
+    startedAt: run.data.startedAt,
+    status: run.data.status,
+    summary: normalizeOptionalText(run.data.summary) ?? null,
+    updatedAt: run.data.updatedAt,
+    verificationReport:
+      normalizeOptionalText(run.data.verificationReport) ?? null,
+    verificationVerdict:
+      normalizeOptionalText(run.data.verificationVerdict) ?? null,
+  };
+}
+
+export function formatVerificationVerdictLabel(
+  verdict: string | null | undefined,
+): string {
+  switch (verdict?.toLowerCase()) {
+    case 'pass':
+      return '通过';
+    case 'fail':
+      return '失败';
+    case 'blocked':
+      return '阻塞';
+    case 'pending':
+      return '待验证';
+    default:
+      return verdict?.trim() || '未产出';
+  }
+}
+
+export function verificationVerdictChipClasses(
+  verdict: string | null | undefined,
+): string {
+  switch (verdict?.toLowerCase()) {
+    case 'pass':
+      return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+    case 'fail':
+      return 'bg-rose-50 text-rose-700 ring-rose-200';
+    case 'blocked':
+      return 'bg-amber-50 text-amber-700 ring-amber-200';
+    case 'pending':
+      return 'bg-sky-50 text-sky-700 ring-sky-200';
+    default:
+      return 'bg-slate-100 text-slate-600 ring-slate-200';
+  }
 }
 
 function isDispatchableTaskKind(

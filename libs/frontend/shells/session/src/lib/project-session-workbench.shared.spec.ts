@@ -1,6 +1,8 @@
 import {
+  buildTaskRunPanelItem,
   canRetryTask,
   formatStatusLabel,
+  formatVerificationVerdictLabel,
   getTaskPrimaryAction,
   type TaskPanelItem,
 } from './project-session-workbench.shared';
@@ -73,6 +75,47 @@ describe('project session workbench task actions', () => {
       enabled: false,
     });
     expect(canRetryTask(item)).toBe(false);
+  });
+
+  it('maps task run resources into timeline items', () => {
+    const runItem = buildTaskRunPanelItem({
+      data: {
+        completedAt: '2026-03-13T12:05:00.000Z',
+        createdAt: '2026-03-13T12:00:00.000Z',
+        id: 'trun_latest',
+        isLatest: true,
+        kind: 'review',
+        projectId: 'proj_123',
+        provider: 'opencode',
+        retryOfRunId: 'trun_prev',
+        role: 'REVIEWER',
+        sessionId: 'acps_123',
+        specialistId: 'gate-reviewer',
+        startedAt: '2026-03-13T12:01:00.000Z',
+        status: 'FAILED',
+        summary: '  review failed on regression  ',
+        taskId: 'task_123',
+        updatedAt: '2026-03-13T12:05:00.000Z',
+        verificationReport: '  tests did not pass  ',
+        verificationVerdict: 'fail',
+      },
+    } as Parameters<typeof buildTaskRunPanelItem>[0]);
+
+    expect(runItem).toMatchObject({
+      id: 'trun_latest',
+      isLatest: true,
+      retryOfRunId: 'trun_prev',
+      role: 'REVIEWER',
+      sessionId: 'acps_123',
+      specialistId: 'gate-reviewer',
+      status: 'FAILED',
+      summary: 'review failed on regression',
+      verificationReport: 'tests did not pass',
+      verificationVerdict: 'fail',
+    });
+    expect(formatVerificationVerdictLabel(runItem.verificationVerdict)).toBe(
+      '失败',
+    );
   });
 });
 
