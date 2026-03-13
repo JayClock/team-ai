@@ -20,6 +20,7 @@ import {
   eventIcon,
   eventLabel,
   formatDateTime,
+  formatOrchestrationModeLabel,
   formatStatusLabel,
   formatTaskKindLabel,
   formatVerificationVerdictLabel,
@@ -36,6 +37,7 @@ import {
   verificationVerdictChipClasses,
   walkthroughStatusChipClasses,
 } from './project-session-workbench.shared';
+import type { WorkbenchSessionRuntimeProfile } from './session-runtime-profile';
 
 export function ProjectSessionStatusSidebar(props: {
   activeTab?: 'activity' | 'checklist' | 'tasks';
@@ -48,6 +50,7 @@ export function ProjectSessionStatusSidebar(props: {
     taskId: string;
   } | null;
   providerFallbackLabel: string;
+  runtimeProfile?: WorkbenchSessionRuntimeProfile | null;
   selectedSession: State<AcpSession> | null;
   streamStatus: string;
   taskItems: TaskPanelItem[];
@@ -61,6 +64,7 @@ export function ProjectSessionStatusSidebar(props: {
     onTaskAction,
     pendingTaskAction,
     providerFallbackLabel,
+    runtimeProfile,
     selectedSession,
     streamStatus,
     taskItems,
@@ -75,6 +79,7 @@ export function ProjectSessionStatusSidebar(props: {
         : 'checklist';
   const walkthroughScenarios = buildWorkbenchWalkthroughScenarios({
     events,
+    runtimeProfile,
     selectedSession,
     streamStatus,
     taskItems,
@@ -89,6 +94,11 @@ export function ProjectSessionStatusSidebar(props: {
   const walkthroughCoveredCount = walkthroughScenarios.filter(
     (scenario) => scenario.status === 'covered',
   ).length;
+  const runtimeModeLabel = runtimeProfile
+    ? formatOrchestrationModeLabel(runtimeProfile.orchestrationMode)
+    : '未加载模式';
+  const defaultProviderLabel =
+    runtimeProfile?.defaultProviderId?.trim() || '未配置默认 provider';
   const resolvedTab = activeTab ?? defaultTab;
 
   return (
@@ -262,11 +272,11 @@ export function ProjectSessionStatusSidebar(props: {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold">
-                        端到端走查清单
+                        演示脚本与验收场景
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        按下面 5 个场景逐项核对，就能完整演练 workbench 的多
-                        agent 主流程。
+                        按下面 4 个场景逐项演示，就能稳定讲清桌面多 agent
+                        编排、失败恢复、单人模式与 provider 切换。
                       </p>
                     </div>
                     <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
@@ -290,6 +300,12 @@ export function ProjectSessionStatusSidebar(props: {
                     <span className="rounded-full border border-border/60 bg-background px-2 py-1">
                       provider{' '}
                       {selectedSession?.data.provider ?? providerFallbackLabel}
+                    </span>
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      模式 {runtimeModeLabel}
+                    </span>
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      默认 provider {defaultProviderLabel}
                     </span>
                   </div>
                 </CardContent>

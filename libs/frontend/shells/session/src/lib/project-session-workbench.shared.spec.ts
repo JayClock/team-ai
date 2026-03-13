@@ -125,21 +125,21 @@ describe('project session workbench task actions', () => {
   it('keeps the walkthrough checklist pending until the flow is exercised', () => {
     const scenarios = buildWorkbenchWalkthroughScenarios({
       events: [],
+      runtimeProfile: createRuntimeProfile(),
       selectedSession: null,
       streamStatus: 'idle',
       taskItems: [],
     });
 
     expect(mapWalkthroughStatuses(scenarios)).toEqual({
-      'project-session-start': 'ready',
-      'provider-failure-path': 'pending',
-      'review-and-verify': 'pending',
-      'run-and-retry': 'pending',
-      'task-auto-dispatch': 'pending',
+      'developer-single-mode': 'ready',
+      'failure-retry': 'pending',
+      'goal-plan-review': 'ready',
+      'provider-switch': 'ready',
     });
   });
 
-  it('marks the walkthrough checklist covered when key multi-agent states are present', () => {
+  it('marks the multi-agent demo and retry scenarios covered when dispatch evidence is present', () => {
     const scenarios = buildWorkbenchWalkthroughScenarios({
       events: [
         {
@@ -158,6 +158,7 @@ describe('project session workbench task actions', () => {
           type: 'error',
         },
       ],
+      runtimeProfile: createRuntimeProfile(),
       selectedSession: createSessionState({
         failureReason: 'provider offline',
         id: 'acps_root',
@@ -205,11 +206,34 @@ describe('project session workbench task actions', () => {
     });
 
     expect(mapWalkthroughStatuses(scenarios)).toEqual({
-      'project-session-start': 'covered',
-      'provider-failure-path': 'covered',
-      'review-and-verify': 'covered',
-      'run-and-retry': 'covered',
-      'task-auto-dispatch': 'covered',
+      'developer-single-mode': 'ready',
+      'failure-retry': 'covered',
+      'goal-plan-review': 'covered',
+      'provider-switch': 'ready',
+    });
+  });
+
+  it('marks developer mode and provider switch covered when a solo developer session uses a new provider', () => {
+    const scenarios = buildWorkbenchWalkthroughScenarios({
+      events: [],
+      runtimeProfile: createRuntimeProfile({
+        defaultProviderId: 'anthropic',
+        orchestrationMode: 'DEVELOPER',
+      }),
+      selectedSession: createSessionState({
+        id: 'acps_solo',
+        provider: 'opencode',
+        specialistId: 'solo-developer',
+      }),
+      streamStatus: 'connected',
+      taskItems: [],
+    });
+
+    expect(mapWalkthroughStatuses(scenarios)).toEqual({
+      'developer-single-mode': 'covered',
+      'failure-retry': 'ready',
+      'goal-plan-review': 'ready',
+      'provider-switch': 'covered',
     });
   });
 });
@@ -273,6 +297,19 @@ function createSessionState(
       ...overrides,
     },
   } as State<AcpSession>;
+}
+
+function createRuntimeProfile(
+  overrides: Partial<{
+    defaultProviderId: string | null;
+    orchestrationMode: 'ROUTA' | 'DEVELOPER';
+  }> = {},
+) {
+  return {
+    defaultProviderId: 'opencode',
+    orchestrationMode: 'ROUTA' as const,
+    ...overrides,
+  };
 }
 
 function mapWalkthroughStatuses(

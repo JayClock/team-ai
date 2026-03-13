@@ -848,6 +848,7 @@ export function ShellsSession(props: ShellsSessionProps) {
       onTaskAction={handleTaskAction}
       pendingTaskAction={pendingTaskAction}
       providerFallbackLabel={sessionProviderLabel}
+      runtimeProfile={runtimeProfile}
       selectedSession={selectedSession}
       streamStatus={streamStatus}
       taskItems={taskItems}
