@@ -1266,102 +1266,7 @@ describe('acp route', () => {
     expect(promptRuntimeSession).toHaveBeenCalledTimes(1);
   });
 
-  it('lists ACP providers with merged local and registry discovery metadata', async () => {
-    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-test-${Date.now()}`;
-    process.env.TEAMAI_ACP_CODEX_COMMAND = 'node --version';
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({
-          version: 'test',
-          agents: [
-            {
-              id: 'codex-acp',
-              name: 'Codex Registry',
-              description: 'Registry provider',
-              distribution: {
-                npx: {
-                  package: '@example/codex-acp',
-                },
-              },
-            },
-            {
-              id: 'custom-registry',
-              name: 'Custom Registry',
-              description: 'Registry only provider',
-              distribution: {
-                npx: {
-                  package: '@example/custom-acp',
-                },
-              },
-            },
-          ],
-        }),
-      })),
-    );
-
-    const fastify = Fastify();
-    fastifyInstances.push(fastify);
-
-    fastify.decorate('acpRuntime', {
-      cancelSession: vi.fn(async () => undefined),
-      close: vi.fn(async () => undefined),
-      createSession: vi.fn(),
-      deleteSession: vi.fn(async () => undefined),
-      isConfigured: vi.fn(() => true),
-      isSessionActive: vi.fn(() => false),
-      loadSession: vi.fn(),
-      promptSession: vi.fn(),
-    } satisfies AcpRuntimeClient);
-
-    await fastify.register(problemJsonPlugin);
-    await fastify.register(sensiblePlugin);
-    await fastify.register(sqlitePlugin);
-    await fastify.register(acpStreamPlugin);
-    await fastify.register(acpRoute, { prefix: '/api' });
-    await fastify.ready();
-
-    const response = await fastify.inject({
-      method: 'GET',
-      url: '/api/acp/providers?registry=true',
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      _links: {
-        self: {
-          href: '/api/acp/providers{?registry}',
-          templated: true,
-        },
-        install: {
-          href: '/api/acp/install',
-        },
-      },
-      registry: {
-        error: null,
-      },
-    });
-
-    expect(response.json()._embedded.providers).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'codex',
-          status: 'available',
-          source: 'hybrid',
-          envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
-        }),
-        expect.objectContaining({
-          id: 'custom-registry',
-          source: 'registry',
-          installable: true,
-        }),
-      ]),
-    );
-  });
-
-  it('prefers ACP provider metadata from agent-gateway when available', async () => {
+  it('lists ACP providers from agent-gateway', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-gateway-${Date.now()}`;
 
     const fastify = Fastify();
@@ -1388,6 +1293,7 @@ describe('acp route', () => {
         success: true,
       })),
       isConfigured: vi.fn(() => true),
+      isProviderConfigured: vi.fn(() => true),
       listEvents: vi.fn(),
       listProviders: vi.fn(async () => ({
         providers: [
@@ -1412,6 +1318,7 @@ describe('acp route', () => {
         },
       })),
       prompt: vi.fn(),
+      refreshProviderCatalog: vi.fn(),
       stream: vi.fn(),
     });
 
@@ -1429,6 +1336,15 @@ describe('acp route', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
+      _links: {
+        self: {
+          href: '/api/acp/providers{?registry}',
+          templated: true,
+        },
+        install: {
+          href: '/api/acp/install',
+        },
+      },
       registry: {
         url: 'https://example.test/registry.json',
       },
@@ -1443,16 +1359,8 @@ describe('acp route', () => {
     });
   });
 
-  it('falls back to local ACP provider metadata when agent-gateway is unavailable', async () => {
-    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-fallback-${Date.now()}`;
-    process.env.TEAMAI_ACP_CODEX_COMMAND = 'node --version';
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw new Error('registry unavailable');
-      }),
-    );
-
+  it('returns an error when agent-gateway provider metadata is unavailable', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-unavailable-${Date.now()}`;
     const fastify = Fastify();
     fastifyInstances.push(fastify);
 
@@ -1478,6 +1386,7 @@ describe('acp route', () => {
         });
       }),
       isConfigured: vi.fn(() => true),
+      isProviderConfigured: vi.fn(() => false),
       listEvents: vi.fn(),
       listProviders: vi.fn(async () => {
         throw new ProblemError({
@@ -1488,6 +1397,7 @@ describe('acp route', () => {
         });
       }),
       prompt: vi.fn(),
+      refreshProviderCatalog: vi.fn(),
       stream: vi.fn(),
     });
 
@@ -1503,15 +1413,11 @@ describe('acp route', () => {
       url: '/api/acp/providers?registry=true',
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()._embedded.providers).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'codex',
-          envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
-        }),
-      ]),
-    );
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      title: 'Agent Gateway Unavailable',
+      detail: 'sidecar is down',
+    });
   });
 
   it('rejects session/new requests that still pass specialistId on the public ACP route', async () => {
