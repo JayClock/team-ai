@@ -131,7 +131,10 @@ const taskUpdateArgsSchema = z
     verificationReport: nullableStringSchema.optional(),
     verificationVerdict: nullableStringSchema.optional(),
   })
-  .refine(({ projectId: _projectId, taskId: _taskId, ...patch }) => {
+  .refine((input) => {
+    const { projectId, taskId, ...patch } = input;
+    void projectId;
+    void taskId;
     return Object.keys(patch).length > 0;
   }, 'At least one task field must be provided');
 
@@ -1010,7 +1013,8 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 args.projectId,
                 args.dependencies,
               );
-              const { projectId: _projectId, taskId, ...patch } = args;
+              const { projectId, taskId, ...patch } = args;
+              void projectId;
 
               return toolResult(
                 request,
