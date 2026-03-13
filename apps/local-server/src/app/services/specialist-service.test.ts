@@ -143,6 +143,26 @@ describe('specialist service', () => {
     expect(specialist.systemPrompt).toContain('overall progress summary');
   });
 
+  it('keeps the built-in implementor prompt scoped and report-oriented', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-specialist-crafter-project',
+      title: 'Crafter Prompt',
+    });
+
+    const specialist = await getSpecialistById(
+      sqlite,
+      project.id,
+      'crafter-implementor',
+    );
+
+    expect(specialist.systemPrompt).toContain('single assigned task');
+    expect(specialist.systemPrompt).toContain('Change scope:');
+    expect(specialist.systemPrompt).toContain('Verification:');
+    expect(specialist.systemPrompt).toContain('Blocker:');
+    expect(specialist.systemPrompt).toContain('Summary:');
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(
       join(tmpdir(), 'team-ai-specialist-service-'),
