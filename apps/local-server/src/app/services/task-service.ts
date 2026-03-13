@@ -111,6 +111,7 @@ export type TaskUpdateDispatchTriggerReason = 'MANUAL_RETRY' | 'STATUS_READY';
 
 export interface UpdateTaskAndDispatchOptions {
   callbacks: DispatchTaskCallbacks;
+  retryOfRunId?: string | null;
   triggerSource: TaskDispatchTriggerSource;
 }
 
@@ -1212,8 +1213,17 @@ export async function updateTaskAndDispatch(
   }
 
   try {
+    const retryOfRunId =
+      options.retryOfRunId !== undefined
+        ? options.retryOfRunId
+        : triggerReason === 'MANUAL_RETRY'
+          ? await (
+              await import('./task-run-service.js')
+            ).resolveLatestRetrySourceRunId(sqlite, taskId)
+          : null;
     const { dispatchTask } = await import('./task-dispatch-service.js');
     const result = await dispatchTask(sqlite, options.callbacks, {
+      retryOfRunId,
       taskId,
     });
 

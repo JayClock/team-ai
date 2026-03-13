@@ -1,16 +1,20 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { ProblemError } from '../errors/problem-error';
 import {
   presentTaskRun,
   presentTaskRunList,
 } from '../presenters/task-run-presenter';
+import { createAcpSession, promptAcpSession } from '../services/acp-service';
 import {
   createTaskRun,
+  getLatestTaskRunByTaskId,
+  getRetryableTaskRunById,
   getTaskRunById,
   listTaskRuns,
   updateTaskRun,
 } from '../services/task-run-service';
-import { getTaskById } from '../services/task-service';
+import { getTaskById, updateTaskAndDispatch } from '../services/task-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTaskRunsQuerySchema = z.object({
@@ -73,6 +77,47 @@ const taskRunPatchSchema = z
   });
 
 const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
+  const dispatchCallbacks = {
+    async createSession(input: {
+      actorUserId: string;
+      goal?: string;
+      parentSessionId?: string | null;
+      projectId: string;
+      provider: string;
+      retryOfRunId?: string | null;
+      role?: string | null;
+      specialistId?: string;
+      taskId?: string | null;
+    }) {
+      const session = await createAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        input,
+      );
+
+      return {
+        id: session.id,
+      };
+    },
+    async promptSession(input: {
+      projectId: string;
+      prompt: string;
+      sessionId: string;
+    }) {
+      return await promptAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        input.projectId,
+        input.sessionId,
+        {
+          prompt: input.prompt,
+        },
+      );
+    },
+  };
+
   fastify.get('/projects/:projectId/task-runs', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const query = listTaskRunsQuerySchema.parse(request.query);
@@ -134,6 +179,62 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.taskRun);
 
     return presentTaskRun(await updateTaskRun(fastify.sqlite, taskRunId, body));
+  });
+
+  fastify.post('/task-runs/:taskRunId/retry', async (request, reply) => {
+    const { taskRunId } = taskRunParamsSchema.parse(request.params);
+    const sourceRun = await getRetryableTaskRunById(fastify.sqlite, taskRunId);
+    const result = await updateTaskAndDispatch(
+      fastify.sqlite,
+      sourceRun.taskId,
+      {
+        status: 'READY',
+      },
+      {
+        callbacks: dispatchCallbacks,
+        retryOfRunId: sourceRun.id,
+        triggerSource: 'manual',
+      },
+    );
+
+    if (!result.dispatch.attempted || !result.dispatch.result?.dispatched) {
+      const dispatchabilityReasons =
+        result.dispatch.result?.dispatchability.reasons.join(', ') ?? null;
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/task-run-retry-dispatch-blocked',
+        title: 'Task Run Retry Dispatch Blocked',
+        status: 409,
+        detail:
+          result.dispatch.errorMessage ??
+          (dispatchabilityReasons
+            ? `Task run ${taskRunId} could not be retried because ${dispatchabilityReasons}`
+            : `Task run ${taskRunId} could not be retried`),
+      });
+    }
+
+    const retriedRun = await getLatestTaskRunByTaskId(
+      fastify.sqlite,
+      sourceRun.taskId,
+    );
+
+    if (
+      !retriedRun ||
+      retriedRun.id === sourceRun.id ||
+      retriedRun.retryOfRunId !== sourceRun.id
+    ) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/task-run-retry-not-created',
+        title: 'Task Run Retry Not Created',
+        status: 500,
+        detail: `Task run ${taskRunId} was retried but no retry run was recorded`,
+      });
+    }
+
+    reply
+      .code(201)
+      .header('Location', `/api/task-runs/${retriedRun.id}`)
+      .type(VENDOR_MEDIA_TYPES.taskRun);
+    return presentTaskRun(retriedRun);
   });
 };
 

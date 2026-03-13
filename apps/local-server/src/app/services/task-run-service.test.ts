@@ -10,6 +10,9 @@ import {
   cancelTaskRun,
   completeTaskRun,
   failTaskRun,
+  getLatestTaskRunByTaskId,
+  getRetryableTaskRunById,
+  getTaskRunById,
   startTaskRun,
 } from './task-run-service';
 import { createTask } from './task-service';
@@ -55,6 +58,7 @@ describe('task run service', () => {
 
     expect(taskRun).toMatchObject({
       kind: 'implement',
+      isLatest: true,
       projectId: project.id,
       provider: 'opencode',
       retryOfRunId: null,
@@ -93,6 +97,10 @@ describe('task run service', () => {
       sessionId,
       taskId: retryTask.id,
     });
+    await failTaskRun(sqlite, firstRun.id, {
+      summary: 'Initial attempt failed',
+      verificationVerdict: 'fail',
+    });
     const retryRun = await startTaskRun(sqlite, {
       projectId: project.id,
       retryOfRunId: firstRun.id,
@@ -100,13 +108,32 @@ describe('task run service', () => {
       status: 'PENDING',
       taskId: retryTask.id,
     });
+    const firstAttempt = await getTaskRunById(sqlite, firstRun.id);
+    const latestTaskRun = await getLatestTaskRunByTaskId(sqlite, retryTask.id);
 
     expect(retryRun).toMatchObject({
+      isLatest: true,
       retryOfRunId: firstRun.id,
       status: 'PENDING',
       taskId: retryTask.id,
     });
     expect(retryRun.startedAt).toBeNull();
+    expect(firstAttempt).toMatchObject({
+      id: firstRun.id,
+      isLatest: false,
+      status: 'FAILED',
+    });
+    expect(latestTaskRun).toMatchObject({
+      id: retryRun.id,
+      isLatest: true,
+      retryOfRunId: firstRun.id,
+    });
+    await expect(
+      getRetryableTaskRunById(sqlite, firstRun.id),
+    ).rejects.toMatchObject({
+      status: 409,
+      type: 'https://team-ai.dev/problems/task-run-retry-source-not-latest',
+    });
 
     await expect(
       startTaskRun(sqlite, {

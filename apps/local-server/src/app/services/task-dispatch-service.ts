@@ -30,6 +30,7 @@ export interface DispatchTaskCallbacks {
     parentSessionId?: string | null;
     projectId: string;
     provider: string;
+    retryOfRunId?: string | null;
     role?: string | null;
     specialistId?: string;
     taskId?: string | null;
@@ -42,6 +43,7 @@ export interface DispatchTaskCallbacks {
 }
 
 export interface DispatchTaskInput {
+  retryOfRunId?: string | null;
   taskId: string;
 }
 
@@ -276,6 +278,7 @@ export async function dispatchTask(
       parentSessionId: triggerSession.id,
       projectId: hydratedTask.projectId,
       provider,
+      retryOfRunId: input.retryOfRunId,
       role: dispatchability.resolvedRole,
       specialistId: specialist.id,
       taskId: hydratedTask.id,

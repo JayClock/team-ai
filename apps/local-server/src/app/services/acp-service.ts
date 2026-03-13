@@ -88,6 +88,7 @@ interface CreateSessionInput {
   parentSessionId?: string | null;
   projectId: string;
   provider: string;
+  retryOfRunId?: string | null;
   role?: string | null;
   specialistId?: string;
   taskId?: string | null;
@@ -273,6 +274,7 @@ async function createTaskExecutionRun(
   input: {
     projectId: string;
     provider: string;
+    retryOfRunId?: string | null;
     role?: string | null;
     sessionId: string;
     specialistId?: string | null;
@@ -282,6 +284,7 @@ async function createTaskExecutionRun(
   return await startTaskRun(sqlite, {
     projectId: input.projectId,
     provider: input.provider,
+    retryOfRunId: input.retryOfRunId,
     role: input.role,
     sessionId: input.sessionId,
     specialistId: input.specialistId,
@@ -1402,6 +1405,7 @@ export async function createAcpSession(
     await createTaskExecutionRun(sqlite, {
       projectId: input.projectId,
       provider: input.provider,
+      retryOfRunId: input.retryOfRunId,
       role,
       sessionId,
       specialistId: specialist?.id ?? null,

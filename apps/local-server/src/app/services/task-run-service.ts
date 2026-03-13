@@ -29,6 +29,7 @@ interface TaskRunRow {
   kind: TaskRunKind;
   project_id: string;
   provider: string | null;
+  row_id: number;
   retry_of_run_id: string | null;
   role: string | null;
   session_id: string | null;
@@ -45,6 +46,11 @@ interface TaskRunRow {
 interface TaskRunSessionRow {
   id: string;
   project_id: string;
+}
+
+interface LatestTaskRunRow {
+  id: string;
+  task_id: string;
 }
 
 interface ListTaskRunsQuery {
@@ -65,16 +71,26 @@ const taskRunStatusValues = [
   'CANCELLED',
 ] as const;
 const taskRunStartStatusValues = ['PENDING', 'RUNNING'] as const;
+const retryableTaskRunStatuses = new Set<TaskRunStatus>([
+  'FAILED',
+  'CANCELLED',
+]);
 
 function createTaskRunId() {
   return `trun_${taskRunIdGenerator()}`;
 }
 
-function mapTaskRunRow(row: TaskRunRow): TaskRunPayload {
+function mapTaskRunRow(
+  row: TaskRunRow,
+  options: {
+    isLatest: boolean;
+  },
+): TaskRunPayload {
   return {
     completedAt: row.completed_at,
     createdAt: row.created_at,
     id: row.id,
+    isLatest: options.isLatest,
     kind: row.kind,
     projectId: row.project_id,
     provider: row.provider,
@@ -155,6 +171,27 @@ function throwTaskRunRetrySelfReference(taskRunId: string): never {
     title: 'Task Run Retry Self Reference',
     status: 409,
     detail: `Task run ${taskRunId} cannot retry itself`,
+  });
+}
+
+function throwTaskRunNotRetryable(
+  taskRunId: string,
+  status: TaskRunStatus,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-run-not-retryable',
+    title: 'Task Run Not Retryable',
+    status: 409,
+    detail: `Task run ${taskRunId} cannot be retried from status ${status}`,
+  });
+}
+
+function throwTaskRunRetrySourceNotLatest(taskRunId: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-run-retry-source-not-latest',
+    title: 'Task Run Retry Source Not Latest',
+    status: 409,
+    detail: `Task run ${taskRunId} is no longer the latest run for its task`,
   });
 }
 
@@ -269,6 +306,7 @@ function getTaskRunRow(sqlite: Database, taskRunId: string): TaskRunRow {
     .prepare(
       `
         SELECT
+          rowid AS row_id,
           id,
           project_id,
           task_id,
@@ -297,6 +335,101 @@ function getTaskRunRow(sqlite: Database, taskRunId: string): TaskRunRow {
   }
 
   return row;
+}
+
+function getLatestTaskRunRowForTask(
+  sqlite: Database,
+  taskId: string,
+): TaskRunRow | null {
+  return (
+    (sqlite
+      .prepare(
+        `
+          SELECT
+            rowid AS row_id,
+            id,
+            project_id,
+            task_id,
+            session_id,
+            kind,
+            role,
+            provider,
+            specialist_id,
+            status,
+            summary,
+            verification_verdict,
+            verification_report,
+            retry_of_run_id,
+            started_at,
+            completed_at,
+            created_at,
+            updated_at
+          FROM project_task_runs
+          WHERE task_id = ? AND deleted_at IS NULL
+          ORDER BY created_at DESC, row_id DESC
+          LIMIT 1
+        `,
+      )
+      .get(taskId) as TaskRunRow | undefined) ?? null
+  );
+}
+
+function listLatestTaskRunIdsForTaskIds(
+  sqlite: Database,
+  taskIds: string[],
+): Map<string, string> {
+  const normalizedTaskIds = [
+    ...new Set(taskIds.filter((taskId) => taskId.length > 0)),
+  ];
+
+  if (normalizedTaskIds.length === 0) {
+    return new Map();
+  }
+
+  const placeholders = normalizedTaskIds.map(() => '?').join(', ');
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT latest.task_id, latest.id
+        FROM project_task_runs AS latest
+        WHERE latest.deleted_at IS NULL
+          AND latest.task_id IN (${placeholders})
+          AND NOT EXISTS (
+            SELECT 1
+            FROM project_task_runs AS newer
+            WHERE newer.task_id = latest.task_id
+              AND newer.deleted_at IS NULL
+              AND (
+                newer.created_at > latest.created_at
+                OR (
+                  newer.created_at = latest.created_at
+                  AND newer.rowid > latest.rowid
+                )
+              )
+          )
+      `,
+    )
+    .all(...normalizedTaskIds) as LatestTaskRunRow[];
+
+  return new Map(rows.map((row) => [row.task_id, row.id]));
+}
+
+function getTaskRunRetrySourceRow(
+  sqlite: Database,
+  taskRunId: string,
+): TaskRunRow {
+  const taskRun = getTaskRunRow(sqlite, taskRunId);
+  const latestTaskRun = getLatestTaskRunRowForTask(sqlite, taskRun.task_id);
+
+  if (!latestTaskRun || latestTaskRun.id !== taskRun.id) {
+    throwTaskRunRetrySourceNotLatest(taskRun.id);
+  }
+
+  if (!retryableTaskRunStatuses.has(taskRun.status)) {
+    throwTaskRunNotRetryable(taskRun.id, taskRun.status);
+  }
+
+  return taskRun;
 }
 
 function getTaskRunSessionRow(
@@ -465,6 +598,7 @@ export async function listTaskRuns(
     .prepare(
       `
         SELECT
+          rowid AS row_id,
           id,
           project_id,
           task_id,
@@ -499,9 +633,17 @@ export async function listTaskRuns(
       `,
     )
     .get(parameters) as { count: number };
+  const latestTaskRunIdByTaskId = listLatestTaskRunIdsForTaskIds(
+    sqlite,
+    items.map((item) => item.task_id),
+  );
 
   return {
-    items: items.map(mapTaskRunRow),
+    items: items.map((item) =>
+      mapTaskRunRow(item, {
+        isLatest: latestTaskRunIdByTaskId.get(item.task_id) === item.id,
+      }),
+    ),
     page,
     pageSize,
     projectId,
@@ -516,7 +658,51 @@ export async function getTaskRunById(
   sqlite: Database,
   taskRunId: string,
 ): Promise<TaskRunPayload> {
-  return mapTaskRunRow(getTaskRunRow(sqlite, taskRunId));
+  const taskRun = getTaskRunRow(sqlite, taskRunId);
+  const latestTaskRun = getLatestTaskRunRowForTask(sqlite, taskRun.task_id);
+
+  return mapTaskRunRow(taskRun, {
+    isLatest: latestTaskRun?.id === taskRun.id,
+  });
+}
+
+export async function getLatestTaskRunByTaskId(
+  sqlite: Database,
+  taskId: string,
+): Promise<TaskRunPayload | null> {
+  const taskRun = getLatestTaskRunRowForTask(sqlite, taskId);
+
+  if (!taskRun) {
+    return null;
+  }
+
+  return mapTaskRunRow(taskRun, {
+    isLatest: true,
+  });
+}
+
+export async function getRetryableTaskRunById(
+  sqlite: Database,
+  taskRunId: string,
+): Promise<TaskRunPayload> {
+  const taskRun = getTaskRunRetrySourceRow(sqlite, taskRunId);
+
+  return mapTaskRunRow(taskRun, {
+    isLatest: true,
+  });
+}
+
+export async function resolveLatestRetrySourceRunId(
+  sqlite: Database,
+  taskId: string,
+): Promise<string | null> {
+  const taskRun = getLatestTaskRunRowForTask(sqlite, taskId);
+
+  if (!taskRun || !retryableTaskRunStatuses.has(taskRun.status)) {
+    return null;
+  }
+
+  return taskRun.id;
 }
 
 export async function createTaskRun(
@@ -540,7 +726,7 @@ export async function createTaskRun(
     taskId: task.id,
   });
   const now = new Date().toISOString();
-  const taskRun: TaskRunPayload = {
+  const taskRun = {
     completedAt: null,
     createdAt: now,
     id: createTaskRunId(),
@@ -607,7 +793,7 @@ export async function createTaskRun(
     )
     .run(taskRun);
 
-  return taskRun;
+  return getTaskRunById(sqlite, taskRun.id);
 }
 
 export async function startTaskRun(
@@ -646,7 +832,7 @@ export async function updateTaskRun(
           taskId: current.task_id,
           taskRunId: current.id,
         });
-  const updated: TaskRunPayload = {
+  const updated = {
     completedAt:
       input.completedAt === undefined
         ? current.completed_at
@@ -701,7 +887,7 @@ export async function updateTaskRun(
     )
     .run(updated);
 
-  return updated;
+  return getTaskRunById(sqlite, taskRunId);
 }
 
 export async function completeTaskRun(

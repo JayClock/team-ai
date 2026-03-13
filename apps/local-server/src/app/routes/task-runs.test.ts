@@ -3,12 +3,16 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Fastify from 'fastify';
 import type { Database } from 'better-sqlite3';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
+import '../plugins/acp-runtime';
+import acpStreamPlugin from '../plugins/acp-stream';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import { createProject } from '../services/project-service';
-import { createTask } from '../services/task-service';
+import { failTaskRun, startTaskRun } from '../services/task-run-service';
+import { createTask, updateTask } from '../services/task-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -164,10 +168,96 @@ describe('task run routes', () => {
     expect(patchResponse.json()).toMatchObject({
       completedAt: '2026-03-12T00:10:00.000Z',
       id: taskRunId,
+      isLatest: true,
       status: 'COMPLETED',
       summary: 'Execution finished',
       verificationReport: 'Checks passed',
       verificationVerdict: 'pass',
+    });
+  });
+
+  it('retries the latest failed task run without overwriting history', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Task Run Retry Route',
+      repoPath: '/tmp/team-ai-task-run-retry-route',
+    });
+    const sessionId = createAcpSession(
+      sqlite,
+      project.id,
+      'Retry source session',
+    );
+    const task = await createTask(sqlite, {
+      objective: 'Retry a failed run through the dedicated route',
+      projectId: project.id,
+      title: 'Retryable run task',
+      triggerSessionId: sessionId,
+    });
+    const failedRun = await startTaskRun(sqlite, {
+      projectId: project.id,
+      sessionId,
+      taskId: task.id,
+    });
+
+    await failTaskRun(sqlite, failedRun.id, {
+      summary: 'Initial execution failed',
+      verificationVerdict: 'fail',
+    });
+    await updateTask(sqlite, task.id, {
+      resultSessionId: sessionId,
+      status: 'FAILED',
+      verificationVerdict: 'fail',
+    });
+
+    const retryResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/task-runs/${failedRun.id}/retry`,
+    });
+
+    expect(retryResponse.statusCode).toBe(201);
+    expect(responseContentType(retryResponse)).toBe(VENDOR_MEDIA_TYPES.taskRun);
+    expect(retryResponse.json()).toMatchObject({
+      isLatest: true,
+      retryOfRunId: failedRun.id,
+      taskId: task.id,
+    });
+
+    const retriedRun = retryResponse.json() as { id: string };
+    const taskRunsResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/tasks/${task.id}/runs`,
+    });
+
+    expect(taskRunsResponse.statusCode).toBe(200);
+    expect(taskRunsResponse.json()).toMatchObject({
+      total: 2,
+      _embedded: {
+        taskRuns: [
+          expect.objectContaining({
+            id: retriedRun.id,
+            isLatest: true,
+            retryOfRunId: failedRun.id,
+          }),
+          expect.objectContaining({
+            id: failedRun.id,
+            isLatest: false,
+            status: 'FAILED',
+          }),
+        ],
+      },
+    });
+    expect(fastify.acpRuntime.createSession).toHaveBeenCalledTimes(1);
+
+    const historicalRetryResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/task-runs/${failedRun.id}/retry`,
+    });
+
+    expect(historicalRetryResponse.statusCode).toBe(409);
+    expect(historicalRetryResponse.json()).toMatchObject({
+      title: 'Task Run Retry Source Not Latest',
+      type: 'https://team-ai.dev/problems/task-run-retry-source-not-latest',
     });
   });
 
@@ -195,9 +285,31 @@ describe('task run routes', () => {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
     fastify.decorate('sqlite', sqlite);
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        provider: input.provider,
+        runtimeSessionId: 'runtime-1',
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        provider: input.provider,
+        runtimeSessionId: input.runtimeSessionId,
+      })),
+      promptSession: vi.fn(async () => ({
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+        runtimeSessionId: 'runtime-1',
+      })),
+    } satisfies AcpRuntimeClient);
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
+    await fastify.register(acpStreamPlugin);
     await fastify.register(taskRunsRoute, { prefix: '/api' });
     await fastify.ready();
 

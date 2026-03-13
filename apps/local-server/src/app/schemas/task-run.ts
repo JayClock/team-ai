@@ -13,6 +13,7 @@ export interface TaskRunPayload {
   completedAt: string | null;
   createdAt: string;
   id: string;
+  isLatest: boolean;
   kind: TaskRunKind;
   projectId: string;
   provider: string | null;
@@ -72,11 +73,11 @@ export interface ResolveTaskRunInput {
   verificationVerdict?: string | null;
 }
 
-export type CompleteTaskRunInput = ResolveTaskRunInput
+export type CompleteTaskRunInput = ResolveTaskRunInput;
 
-export type FailTaskRunInput = ResolveTaskRunInput
+export type FailTaskRunInput = ResolveTaskRunInput;
 
-export type CancelTaskRunInput = ResolveTaskRunInput
+export type CancelTaskRunInput = ResolveTaskRunInput;
 
 export interface UpdateTaskRunInput {
   completedAt?: string | null;

@@ -14,6 +14,7 @@ export type TaskRun = Entity<
     id: string;
     projectId: string;
     taskId: string;
+    isLatest: boolean;
     sessionId: string | null;
     kind: TaskRunKind;
     role: string | null;
