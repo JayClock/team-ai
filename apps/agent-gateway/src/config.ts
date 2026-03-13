@@ -10,7 +10,6 @@ export type GatewayConfig = {
   protocols: string[];
   providers: string[];
   defaultProvider: string;
-  codexCommand: string;
   timeoutMs: number;
   retryAttempts: number;
   maxConcurrentSessions: number;
@@ -35,7 +34,6 @@ const DEFAULT_CONFIG: GatewayConfig = {
     'qoder',
   ],
   defaultProvider: 'opencode',
-  codexCommand: 'codex exec --json -',
   timeoutMs: 30_000,
   retryAttempts: 2,
   maxConcurrentSessions: 32,
@@ -79,7 +77,6 @@ function loadEnvConfig(env: NodeJS.ProcessEnv): PartialGatewayConfig {
     protocols: parseCsv(env.AGENT_GATEWAY_PROTOCOLS),
     providers: parseCsv(env.AGENT_GATEWAY_PROVIDERS),
     defaultProvider: env.AGENT_GATEWAY_DEFAULT_PROVIDER,
-    codexCommand: env.AGENT_GATEWAY_CODEX_COMMAND,
     timeoutMs: parseInteger(
       env.AGENT_GATEWAY_TIMEOUT_MS,
       'AGENT_GATEWAY_TIMEOUT_MS',
@@ -104,10 +101,6 @@ function normalizeConfig(config: PartialGatewayConfig): GatewayConfig {
   const defaultProvider = nonEmptyOrDefault(
     config.defaultProvider,
     config.providers?.[0] ?? DEFAULT_CONFIG.defaultProvider,
-  );
-  const codexCommand = nonEmptyOrDefault(
-    config.codexCommand,
-    DEFAULT_CONFIG.codexCommand,
   );
   const port = positiveOrDefault(config.port, DEFAULT_CONFIG.port, 'port');
   const timeoutMs = positiveOrDefault(
@@ -134,7 +127,6 @@ function normalizeConfig(config: PartialGatewayConfig): GatewayConfig {
     protocols,
     providers,
     defaultProvider,
-    codexCommand,
     timeoutMs,
     retryAttempts,
     maxConcurrentSessions,

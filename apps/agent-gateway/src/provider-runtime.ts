@@ -1,7 +1,6 @@
 import type { GatewayEventError } from './session-store.js';
 import type { GatewayConfig } from './config.js';
 import { AcpCliProviderAdapter } from './providers/acp-cli-provider.js';
-import { CodexProviderAdapter } from './providers/codex-provider.js';
 import {
   normalizeProviderId,
   resolveAcpCliCommand,
@@ -16,9 +15,7 @@ import type {
 export class ProviderRuntime {
   private readonly adapters = new Map<string, ProviderAdapter>();
 
-  constructor(private readonly config: GatewayConfig) {
-    this.adapters.set('codex', new CodexProviderAdapter(config.codexCommand));
-
+  constructor(config: GatewayConfig) {
     for (const providerName of config.providers) {
       if (this.adapters.has(providerName)) {
         continue;
@@ -92,10 +89,6 @@ export class ProviderRuntime {
 
   private createAdapter(providerName: string): ProviderAdapter | null {
     const canonicalProviderName = normalizeProviderId(providerName);
-
-    if (canonicalProviderName === 'codex') {
-      return new CodexProviderAdapter(this.config.codexCommand);
-    }
 
     const preset = resolveAcpCliProviderPreset(canonicalProviderName);
     if (!preset) {

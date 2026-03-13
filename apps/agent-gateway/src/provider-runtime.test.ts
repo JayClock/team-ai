@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const codexPrompt = vi.fn(
+const acpPrompt = vi.fn(
   (
     _request: unknown,
     callbacks: {
@@ -11,23 +11,9 @@ const codexPrompt = vi.fn(
   },
 );
 
-vi.mock('./providers/codex-provider.js', () => ({
-  CodexProviderAdapter: class {
-    prompt = codexPrompt;
-    cancel() {
-      return false;
-    }
-    close() {
-      return Promise.resolve();
-    }
-  },
-}));
-
 vi.mock('./providers/acp-cli-provider.js', () => ({
   AcpCliProviderAdapter: class {
-    prompt() {
-      throw new Error('unexpected acp cli adapter call');
-    }
+    prompt = acpPrompt;
     cancel() {
       return false;
     }
@@ -48,7 +34,6 @@ describe('ProviderRuntime', () => {
       protocols: ['acp'],
       providers: ['codex'],
       defaultProvider: 'codex',
-      codexCommand: 'codex exec --json -',
       timeoutMs: 30_000,
       retryAttempts: 2,
       maxConcurrentSessions: 32,
@@ -73,7 +58,7 @@ describe('ProviderRuntime', () => {
       },
     );
 
-    expect(codexPrompt).toHaveBeenCalledTimes(1);
+    expect(acpPrompt).toHaveBeenCalledTimes(1);
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalledWith(
       expect.objectContaining({

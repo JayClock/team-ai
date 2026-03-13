@@ -170,7 +170,11 @@ export class ProviderManagement {
 
     const providers = await Promise.all(
       [...providerIds].map(async (providerId) =>
-        await buildProviderPayload(providerId, manifest, registryAgents.get(providerId) ?? null, this.config),
+        await buildProviderPayload(
+          providerId,
+          manifest,
+          registryAgents.get(providerId) ?? null,
+        ),
       ),
     );
 
@@ -292,32 +296,14 @@ function parseProviderCommand(rawCommand: string): ProviderCommand | null {
   };
 }
 
-function resolveCodexEnvCommand(): ProviderCommand | null {
-  const rawCommand = process.env.AGENT_GATEWAY_CODEX_COMMAND?.trim();
-  if (!rawCommand) {
-    return null;
-  }
-  return parseProviderCommand(rawCommand);
-}
-
 async function buildProviderPayload(
   providerId: string,
   manifest: InstalledProviderManifest,
   registryAgent: RegistryAgent | null,
-  config: GatewayConfig,
 ): Promise<AcpProviderPayload> {
   const preset =
     ACP_CLI_PROVIDER_PRESETS.find((candidate) => candidate.id === providerId) ??
     null;
-
-  if (providerId === 'codex') {
-    return buildCodexProviderPayload(
-      providerId,
-      manifest,
-      registryAgent,
-      config,
-    );
-  }
 
   const envCommand = resolveEnvProviderCommand(providerId);
   const installedEntry = getInstalledManifestEntry(manifest, providerId);
@@ -361,42 +347,6 @@ async function buildProviderPayload(
       : registryAgent
         ? 'Available in ACP registry but not installed on this machine yet.'
         : `Command ${preset?.command ?? providerId} was not found in PATH.`,
-  };
-}
-
-function buildCodexProviderPayload(
-  providerId: string,
-  manifest: InstalledProviderManifest,
-  registryAgent: RegistryAgent | null,
-  config: GatewayConfig,
-): AcpProviderPayload {
-  const envCommand = resolveCodexEnvCommand();
-  const installedEntry = getInstalledManifestEntry(manifest, providerId);
-  const installedCommand = installedEntry
-    ? {
-        command: installedEntry.command,
-        args: installedEntry.args,
-      }
-    : null;
-  const chosenCommand =
-    envCommand ??
-    installedCommand ?? {
-      command: config.codexCommand,
-      args: [],
-    };
-
-  return {
-    id: providerId,
-    name: 'Codex',
-    description: 'OpenAI Codex gateway adapter',
-    command: formatCommand(chosenCommand),
-    envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
-    source: resolveProviderSource(true, registryAgent),
-    status: 'available',
-    installable: false,
-    distributionTypes: [],
-    installed: installedEntry !== null,
-    unavailableReason: null,
   };
 }
 

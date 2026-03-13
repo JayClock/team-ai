@@ -14,7 +14,6 @@
     "qoder"
   ],
   "defaultProvider": "opencode",
-  "codexCommand": "codex exec -",
   "timeoutMs": 30000,
   "retryAttempts": 2,
   "maxConcurrentSessions": 32,

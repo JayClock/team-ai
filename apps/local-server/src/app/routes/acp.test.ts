@@ -1300,10 +1300,10 @@ describe('acp route', () => {
           {
             id: 'codex',
             name: 'Codex',
-            description: 'OpenAI Codex gateway adapter',
-            command: 'codex exec -',
+            description: 'OpenAI Codex CLI (via codex-acp wrapper)',
+            command: 'codex-acp',
             distributionTypes: [],
-            envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+            envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
             installable: false,
             installed: false,
             source: 'static',
@@ -1352,7 +1352,7 @@ describe('acp route', () => {
         providers: [
           expect.objectContaining({
             id: 'codex',
-            envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+            envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
           }),
         ],
       },

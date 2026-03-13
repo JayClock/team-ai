@@ -9,6 +9,13 @@ export interface AcpCliProviderPreset {
 
 export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
   {
+    id: 'codex',
+    name: 'Codex',
+    description: 'OpenAI Codex CLI (via codex-acp wrapper)',
+    command: 'codex-acp',
+    args: [],
+  },
+  {
     id: 'opencode',
     name: 'OpenCode',
     description: 'OpenCode AI coding agent',

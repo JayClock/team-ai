@@ -1935,9 +1935,10 @@ export async function promptAcpSession(
     throwSessionNotFound(sessionId);
   }
 
+  const systemPrompt = getSessionAgentPrompt(sqlite, session);
   const bootstrapPrompt = sessionHasPromptHistory(sqlite, sessionId)
     ? null
-    : getSessionAgentPrompt(sqlite, session);
+    : systemPrompt;
   const effectivePrompt = bootstrapPrompt
     ? buildBootstrapPrompt(bootstrapPrompt, input.prompt)
     : input.prompt;

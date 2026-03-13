@@ -122,9 +122,9 @@ describe('agent-gateway-client', () => {
               {
                 id: 'codex',
                 name: 'Codex',
-                description: 'OpenAI Codex gateway adapter',
-                command: 'codex exec -',
-                envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+                description: 'OpenAI Codex CLI (via codex-acp wrapper)',
+                command: 'codex-acp',
+                envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
                 distributionTypes: [],
                 installable: false,
                 installed: false,
@@ -173,7 +173,7 @@ describe('agent-gateway-client', () => {
       providers: [
         expect.objectContaining({
           id: 'codex',
-          envCommandKey: 'AGENT_GATEWAY_CODEX_COMMAND',
+          envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
         }),
       ],
       registry: {
