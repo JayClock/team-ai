@@ -214,6 +214,77 @@ describe('acp route', () => {
     expect(rootResponse.json()._links.acp.href).toBe('/api/acp');
   });
 
+  it('normalizes codex-acp to codex when creating desktop acp sessions', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-alias-test-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: 'runtime-alias',
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(meRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(agentsRoute, { prefix: '/api' });
+    await fastify.register(tasksRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Alias Project',
+      repoPath: '/tmp/team-ai-desktop-alias-project',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-alias',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex-acp',
+          role: 'DEVELOPER',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    expect(fastify.acpRuntime.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'codex',
+      }),
+    );
+
+    const sessionId = createResponse.json().result.session.id as string;
+    const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
+    expect(storedSession.provider).toBe('codex');
+  });
+
   it('creates task-bound child sessions and syncs execution state back to project_tasks', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-task-bound-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
@@ -1207,7 +1278,7 @@ describe('acp route', () => {
           version: 'test',
           agents: [
             {
-              id: 'codex',
+              id: 'codex-acp',
               name: 'Codex Registry',
               description: 'Registry provider',
               distribution: {

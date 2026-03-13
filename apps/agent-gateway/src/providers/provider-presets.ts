@@ -108,9 +108,15 @@ export function getProviderEnvCommandKey(providerName: string): string {
 }
 
 export function normalizeProviderId(providerName: string): string {
-  return providerName.endsWith('-registry')
+  const normalized = providerName.endsWith('-registry')
     ? providerName.slice(0, -'-registry'.length)
     : providerName;
+
+  if (normalized === 'codex-acp') {
+    return 'codex';
+  }
+
+  return normalized;
 }
 
 function normalizeEnvProviderName(providerName: string): string {

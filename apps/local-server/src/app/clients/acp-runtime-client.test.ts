@@ -24,6 +24,14 @@ describe('acp-runtime-client provider configuration', () => {
     expect(client.isConfigured('codex')).toBe(true);
   });
 
+  it('treats codex-acp as a codex alias for configuration checks', () => {
+    vi.stubEnv('TEAMAI_ACP_CODEX_COMMAND', '');
+
+    const client = createAcpRuntimeClient();
+
+    expect(client.isConfigured('codex-acp')).toBe(true);
+  });
+
   it('lets explicit env override the default command', () => {
     vi.stubEnv('TEAMAI_ACP_CODEX_COMMAND', 'custom-codex --acp');
 

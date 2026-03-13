@@ -168,6 +168,33 @@ const STATIC_PROVIDER_PRESETS: StaticProviderPreset[] = [
   },
 ];
 
+const ACP_PROVIDER_ALIASES: Record<string, string> = {
+  'codex-acp': 'codex',
+};
+
+export function normalizeAcpProviderId(provider: string): string {
+  const normalized = provider.trim();
+  return ACP_PROVIDER_ALIASES[normalized] ?? normalized;
+}
+
+function providerIdVariants(provider: string): string[] {
+  const canonical = normalizeAcpProviderId(provider);
+  return canonical === provider ? [canonical] : [canonical, provider];
+}
+
+function getInstalledManifestEntry(
+  manifest: InstalledProviderManifest,
+  provider: string,
+): InstalledProviderManifestEntry | null {
+  for (const candidate of providerIdVariants(provider)) {
+    const entry = manifest[candidate];
+    if (entry) {
+      return entry;
+    }
+  }
+  return null;
+}
+
 const registryCache: RegistryCacheEntry = {
   registry: null,
   fetchedAt: 0,
@@ -185,7 +212,13 @@ export async function listAcpProviders(
     : { registry: null, error: null, fetchedAt: null as number | null };
 
   const registryAgents = new Map(
-    (registryResult.registry?.agents ?? []).map((agent) => [agent.id, agent]),
+    (registryResult.registry?.agents ?? []).map((agent) => [
+      normalizeAcpProviderId(agent.id),
+      {
+        ...agent,
+        id: normalizeAcpProviderId(agent.id),
+      },
+    ]),
   );
   const providerIds = new Set<string>([
     ...STATIC_PROVIDER_PRESETS.map((provider) => provider.id),
@@ -221,9 +254,10 @@ export async function installAcpProvider(
   input: InstallAcpProviderInput,
   deps: CommandResolverDeps = {},
 ): Promise<InstallAcpProviderPayload> {
+  const providerId = normalizeAcpProviderId(input.providerId);
   const registryResult = await fetchRegistryWithCache(deps.fetchImpl, true);
   const registryAgent = registryResult.registry?.agents.find(
-    (agent) => agent.id === input.providerId,
+    (agent) => normalizeAcpProviderId(agent.id) === providerId,
   );
 
   if (!registryAgent) {
@@ -232,7 +266,7 @@ export async function installAcpProvider(
       title: 'ACP Provider Install Not Supported',
       status: 400,
       detail:
-        `Provider ${input.providerId} does not expose an automated ACP registry installation.`,
+        `Provider ${providerId} does not expose an automated ACP registry installation.`,
     });
   }
 
@@ -247,7 +281,7 @@ export async function installAcpProvider(
       title: 'ACP Provider Install Unavailable',
       status: 409,
       detail:
-        `Provider ${input.providerId} does not have a compatible installation ` +
+        `Provider ${providerId} does not have a compatible installation ` +
         'distribution on this machine.',
     });
   }
@@ -261,7 +295,7 @@ export async function installAcpProvider(
     deps.fetchImpl,
   );
 
-  manifest[input.providerId] = {
+  manifest[providerId] = {
     command: command.command,
     args: command.args,
     distributionType,
@@ -271,7 +305,7 @@ export async function installAcpProvider(
 
   return {
     success: true,
-    providerId: input.providerId,
+    providerId,
     distributionType,
     installedAt,
     command: formatCommand(command),
@@ -282,13 +316,14 @@ export async function resolveAcpRuntimeProviderCommand(
   provider: string,
   deps: CommandResolverDeps = {},
 ): Promise<ProviderCommand | null> {
-  const envCommand = resolveEnvProviderCommand(provider);
+  const providerId = normalizeAcpProviderId(provider);
+  const envCommand = resolveEnvProviderCommand(providerId);
   if (envCommand) {
     return envCommand;
   }
 
   const manifest = await readInstalledProviderManifest();
-  const installed = manifest[provider];
+  const installed = getInstalledManifestEntry(manifest, providerId);
   if (installed) {
     return {
       command: installed.command,
@@ -296,7 +331,9 @@ export async function resolveAcpRuntimeProviderCommand(
     };
   }
 
-  const preset = STATIC_PROVIDER_PRESETS.find((candidate) => candidate.id === provider);
+  const preset = STATIC_PROVIDER_PRESETS.find(
+    (candidate) => candidate.id === providerId,
+  );
   if (preset && (await commandExists(preset.command))) {
     return {
       command: preset.command,
@@ -306,13 +343,19 @@ export async function resolveAcpRuntimeProviderCommand(
 
   const registryResult = await fetchRegistryWithCache(deps.fetchImpl);
   const registryAgent = registryResult.registry?.agents.find(
-    (candidate) => candidate.id === provider,
+    (candidate) => normalizeAcpProviderId(candidate.id) === providerId,
   );
   if (!registryAgent) {
     return null;
   }
 
-  return await resolveRegistryRuntimeCommand(registryAgent, manifest);
+  return await resolveRegistryRuntimeCommand(
+    {
+      ...registryAgent,
+      id: providerId,
+    },
+    manifest,
+  );
 }
 
 export function resolveEnvProviderCommand(provider: string): ProviderCommand | null {
@@ -327,7 +370,7 @@ export function resolveEnvProviderCommand(provider: string): ProviderCommand | n
 }
 
 export function getProviderEnvCommandKey(provider: string): string {
-  return `TEAMAI_ACP_${normalizeEnvProviderName(provider)}_COMMAND`;
+  return `TEAMAI_ACP_${normalizeEnvProviderName(normalizeAcpProviderId(provider))}_COMMAND`;
 }
 
 function normalizeEnvProviderName(provider: string): string {
@@ -363,12 +406,15 @@ async function buildProviderPayload(
   manifest: InstalledProviderManifest,
   registryAgent: RegistryAgent | null,
 ): Promise<AcpProviderPayload> {
-  const preset = STATIC_PROVIDER_PRESETS.find((candidate) => candidate.id === providerId) ?? null;
+  const preset =
+    STATIC_PROVIDER_PRESETS.find((candidate) => candidate.id === providerId) ??
+    null;
   const envCommand = resolveEnvProviderCommand(providerId);
-  const installedCommand = manifest[providerId]
+  const installedEntry = getInstalledManifestEntry(manifest, providerId);
+  const installedCommand = installedEntry
     ? {
-        command: manifest[providerId].command,
-        args: manifest[providerId].args,
+        command: installedEntry.command,
+        args: installedEntry.args,
       }
     : null;
   const staticCommand =
@@ -384,7 +430,10 @@ async function buildProviderPayload(
   const chosenCommand = envCommand ?? installedCommand ?? staticCommand ?? registryCommand;
 
   const source = resolveProviderSource(preset, registryAgent);
-  const distributionTypes = resolveDistributionTypes(registryAgent, manifest[providerId] ?? null);
+  const distributionTypes = resolveDistributionTypes(
+    registryAgent,
+    installedEntry,
+  );
 
   return {
     id: providerId,
@@ -396,7 +445,7 @@ async function buildProviderPayload(
     status: chosenCommand ? 'available' : 'unavailable',
     installable: distributionTypes.length > 0,
     distributionTypes,
-    installed: Boolean(manifest[providerId]),
+    installed: installedEntry !== null,
     unavailableReason: chosenCommand
       ? null
       : registryAgent
@@ -442,7 +491,7 @@ async function resolveRegistryRuntimeCommand(
   agent: RegistryAgent,
   manifest: InstalledProviderManifest,
 ): Promise<ProviderCommand | null> {
-  const installed = manifest[agent.id];
+  const installed = getInstalledManifestEntry(manifest, agent.id);
   if (installed) {
     return {
       command: installed.command,

@@ -450,13 +450,7 @@ function ShellsSessionsContent(props: {
       }
       if (!selectedProvider) {
         toast.error('当前没有可启动的 ACP 提供方');
-        setProviderSheetOpen(true);
         throw new Error('当前没有可启动的 ACP 提供方');
-      }
-      if (selectedProvider.status !== 'available') {
-        toast.error(`提供方 ${selectedProvider.name} 当前不可启动`);
-        setProviderSheetOpen(true);
-        throw new Error(`提供方 ${selectedProvider.name} 当前不可启动`);
       }
 
       setStartingSession(true);
@@ -649,15 +643,8 @@ function ShellsSessionsContent(props: {
                             key={provider.id}
                             type="button"
                             onClick={() => {
-                              if (isAvailable) {
-                                setSelectedProviderId(provider.id);
-                                setProviderDropdownOpen(false);
-                                return;
-                              }
-
                               setSelectedProviderId(provider.id);
                               setProviderDropdownOpen(false);
-                              setProviderSheetOpen(true);
                             }}
                             className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
                               isSelected

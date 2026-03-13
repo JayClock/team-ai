@@ -3,6 +3,7 @@ import type { GatewayConfig } from './config.js';
 import { AcpCliProviderAdapter } from './providers/acp-cli-provider.js';
 import { CodexProviderAdapter } from './providers/codex-provider.js';
 import {
+  normalizeProviderId,
   resolveAcpCliCommand,
   resolveAcpCliProviderPreset,
 } from './providers/provider-presets.js';
@@ -90,11 +91,13 @@ export class ProviderRuntime {
   }
 
   private createAdapter(providerName: string): ProviderAdapter | null {
-    if (providerName === 'codex') {
+    const canonicalProviderName = normalizeProviderId(providerName);
+
+    if (canonicalProviderName === 'codex') {
       return new CodexProviderAdapter(this.config.codexCommand);
     }
 
-    const preset = resolveAcpCliProviderPreset(providerName);
+    const preset = resolveAcpCliProviderPreset(canonicalProviderName);
     if (!preset) {
       return null;
     }

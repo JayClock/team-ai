@@ -28,6 +28,7 @@ import type {
   AcpEventTypePayload,
 } from '../schemas/acp';
 import type { RoleValue } from '../schemas/role';
+import { normalizeAcpProviderId } from './acp-provider-service';
 import { createAgent } from './agent-service';
 import { getProjectById } from './project-service';
 import {
@@ -1460,6 +1461,7 @@ export async function createAcpSession(
   input: CreateSessionInput,
   options: AcpServiceOptions = {},
 ): Promise<AcpSessionPayload> {
+  const provider = normalizeAcpProviderId(input.provider);
   const project = await getProjectById(sqlite, input.projectId);
   const parentSession = input.parentSessionId
     ? getSessionRow(sqlite, input.parentSessionId)
@@ -1514,7 +1516,7 @@ export async function createAcpSession(
         projectId: input.projectId,
         name: specialist.name,
         role: specialist.role,
-        provider: input.provider,
+        provider,
         model: specialist.modelTier ?? 'default',
         systemPrompt: specialist.systemPrompt,
         specialistId: specialist.id,
@@ -1579,7 +1581,7 @@ export async function createAcpSession(
       parentSessionId: input.parentSessionId ?? null,
       specialistId: specialist?.id ?? null,
       name: input.goal?.trim() || null,
-      provider: input.provider,
+      provider,
       cwd,
       state: 'PENDING',
       taskId: task?.id ?? null,
@@ -1592,7 +1594,7 @@ export async function createAcpSession(
   try {
     const runtimeSession = await runtime.createSession({
       localSessionId: sessionId,
-      provider: input.provider,
+      provider,
       cwd,
       mcpServers: resolveLocalMcpServers(),
       hooks: createRuntimeHooks(sqlite, broker, runtime, sessionId, options),
@@ -1610,7 +1612,7 @@ export async function createAcpSession(
         sqlite,
         {
           projectId: input.projectId,
-          provider: input.provider,
+          provider,
           retryOfRunId: input.retryOfRunId,
           role,
           sessionId,
@@ -1674,7 +1676,7 @@ export async function createAcpSession(
           completedAt: now,
           message,
           projectId: input.projectId,
-          provider: input.provider,
+          provider,
           retryOfRunId: input.retryOfRunId,
           role,
           sessionId,
@@ -1699,12 +1701,12 @@ export async function createAcpSession(
   }
 
   appendLocalEvent(sqlite, broker, {
-    sessionId,
-    type: 'session',
-    payload: {
-      source: 'local-server',
-      provider: input.provider,
-      role: (specialist?.role ?? role) as RoleValue | null,
+      sessionId,
+      type: 'session',
+      payload: {
+        source: 'local-server',
+        provider,
+        role: (specialist?.role ?? role) as RoleValue | null,
       agentId: agent?.id ?? null,
       agentName: agent?.name ?? null,
       agentRole: agent?.role ?? null,

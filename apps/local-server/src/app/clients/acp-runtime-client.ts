@@ -19,6 +19,8 @@ import {
 } from '@agentclientprotocol/sdk';
 import { ProblemError } from '../errors/problem-error';
 import {
+  getProviderEnvCommandKey,
+  normalizeAcpProviderId,
   resolveAcpRuntimeProviderCommand,
   resolveEnvProviderCommand,
 } from '../services/acp-provider-service';
@@ -252,7 +254,7 @@ export function createAcpRuntimeClient(
   function isConfigured(provider: string): boolean {
     return (
       resolveEnvProviderCommand(provider) !== null ||
-      provider.trim() === 'codex'
+      normalizeAcpProviderId(provider) === 'codex'
     );
   }
 
@@ -275,7 +277,7 @@ export function createAcpRuntimeClient(
         status: 503,
         detail:
           `ACP provider ${input.provider} is not configured. ` +
-          `Set TEAMAI_ACP_${normalizeEnvProviderName(input.provider)}_COMMAND.`,
+          `Set ${getProviderEnvCommandKey(input.provider)}.`,
       });
     }
 
@@ -593,13 +595,6 @@ async function releaseTerminal(terminal: LocalTerminal): Promise<void> {
     terminal.command.kill('SIGTERM');
     await terminal.waitForExit.catch(() => undefined);
   }
-}
-
-function normalizeEnvProviderName(provider: string): string {
-  return provider
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_');
 }
 
 async function initializeAcpConnection(
