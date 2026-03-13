@@ -90,6 +90,7 @@ interface TaskDependencyStatusRow {
 }
 
 export type TaskDispatchBlockReason =
+  | 'TASK_DEVELOPER_MODE_STAYS_IN_SESSION'
   | 'TASK_DEPENDENCIES_INCOMPLETE'
   | 'TASK_EXECUTION_ALREADY_ACTIVE'
   | 'TASK_KIND_NOT_DISPATCHABLE'
@@ -411,6 +412,18 @@ export function resolveDefaultTaskRole(
   kind: TaskKind | null,
   options: TaskDispatchabilityOptions = {},
 ): RoleValue | null {
+  if (options.orchestrationMode === 'DEVELOPER') {
+    switch (kind) {
+      case 'plan':
+      case 'implement':
+      case 'review':
+      case 'verify':
+        return 'DEVELOPER';
+      default:
+        return null;
+    }
+  }
+
   switch (kind) {
     case 'plan':
       return 'ROUTA';
@@ -418,9 +431,7 @@ export function resolveDefaultTaskRole(
     case 'verify':
       return 'GATE';
     case 'implement':
-      return options.orchestrationMode === 'DEVELOPER'
-        ? 'DEVELOPER'
-        : 'CRAFTER';
+      return 'CRAFTER';
     default:
       return null;
   }
@@ -725,6 +736,14 @@ async function getTaskDispatchabilityForTask(
     resolveDefaultTaskRole(task.kind, {
       orchestrationMode: options.orchestrationMode,
     });
+
+  if (
+    options.orchestrationMode === 'DEVELOPER' &&
+    isTaskKindDispatchable(task.kind) &&
+    resolvedRole === 'DEVELOPER'
+  ) {
+    reasons.push('TASK_DEVELOPER_MODE_STAYS_IN_SESSION');
+  }
 
   if (!resolvedRole && isTaskKindDispatchable(task.kind)) {
     reasons.push('TASK_ROLE_NOT_RESOLVED');

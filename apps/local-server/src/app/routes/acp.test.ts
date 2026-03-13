@@ -149,17 +149,26 @@ describe('acp route', () => {
 
     expect(promptResponse.statusCode).toBe(200);
     expect(promptMock).toHaveBeenCalledTimes(1);
-    expect(promptMock).toHaveBeenCalledWith({
-      localSessionId: sessionId,
-      prompt:
-        'System:\nHandle planning, implementation, and verification in one pass when the workflow\n' +
-        'does not need multi-agent decomposition.\n\nStay in the current ACP session and complete the task directly unless the user\n' +
-        'explicitly asks for decomposition or a downstream specialist is strictly\n' +
-        'required.\n\nUser:\nhello desktop acp',
-      timeoutMs: undefined,
-      eventId: undefined,
-      traceId: undefined,
-    });
+    expect(promptMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localSessionId: sessionId,
+        timeoutMs: undefined,
+        eventId: undefined,
+        traceId: undefined,
+      }),
+    );
+    const promptCalls = promptMock.mock.calls as unknown as Array<
+      [{ prompt: string }]
+    >;
+    const promptInput = promptCalls[0]?.[0];
+    expect(promptInput?.prompt).toContain(
+      'Operate as the single worker for DEVELOPER orchestration mode.',
+    );
+    expect(promptInput?.prompt).toContain('Unlike ROUTA');
+    expect(promptInput?.prompt).toContain(
+      'Child-session dispatch is off by default in solo mode.',
+    );
+    expect(promptInput?.prompt).toContain('User:\nhello desktop acp');
 
     const sessionsResponse = await fastify.inject({
       method: 'GET',

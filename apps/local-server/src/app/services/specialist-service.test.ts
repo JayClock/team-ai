@@ -190,6 +190,32 @@ describe('specialist service', () => {
     expect(specialist.systemPrompt).toContain('Verification summary:');
   });
 
+  it('keeps the built-in solo developer prompt in single-agent mode', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-specialist-solo-project',
+      title: 'Solo Prompt',
+    });
+
+    const specialist = await getSpecialistById(
+      sqlite,
+      project.id,
+      'solo-developer',
+    );
+
+    expect(specialist.systemPrompt).toContain(
+      'Operate as the single worker for DEVELOPER orchestration mode',
+    );
+    expect(specialist.systemPrompt).toContain('Unlike ROUTA');
+    expect(specialist.systemPrompt).toContain(
+      'Child-session dispatch is off by default in solo mode',
+    );
+    expect(specialist.systemPrompt).toContain('`acp_session_create` MCP tool');
+    expect(specialist.systemPrompt).toContain(
+      'Do not assume the system will auto-dispatch them',
+    );
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(
       join(tmpdir(), 'team-ai-specialist-service-'),

@@ -183,10 +183,84 @@ describe('task service', () => {
         orchestrationMode: 'DEVELOPER',
       }),
     ).toBe('DEVELOPER');
+    expect(
+      resolveDefaultTaskRole('review', {
+        orchestrationMode: 'DEVELOPER',
+      }),
+    ).toBe('DEVELOPER');
+    expect(
+      resolveDefaultTaskRole('verify', {
+        orchestrationMode: 'DEVELOPER',
+      }),
+    ).toBe('DEVELOPER');
+    expect(
+      resolveDefaultTaskRole('plan', {
+        orchestrationMode: 'DEVELOPER',
+      }),
+    ).toBe('DEVELOPER');
     expect(resolveDefaultTaskRole('review')).toBe('GATE');
     expect(resolveDefaultTaskRole('verify')).toBe('GATE');
     expect(resolveDefaultTaskRole('plan')).toBe('ROUTA');
     expect(resolveDefaultTaskRole(null)).toBeNull();
+  });
+
+  it('keeps default developer-mode tasks in the current session unless a downstream role is explicit', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Developer Mode Dispatchability',
+      repoPath: '/Users/example/developer-mode-dispatchability',
+    });
+    const rootSessionId = 'acps_devmode_root';
+
+    insertAcpSession(sqlite, {
+      cwd: '/Users/example/developer-mode-dispatchability',
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const defaultTask = await createTask(sqlite, {
+      objective: 'Handle this in the current solo session',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Solo implement task',
+      triggerSessionId: rootSessionId,
+    });
+    const delegatedTask = await createTask(sqlite, {
+      assignedRole: 'CRAFTER',
+      objective: 'Delegate this to a downstream specialist',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Delegated implement task',
+      triggerSessionId: rootSessionId,
+    });
+
+    const defaultDispatchability = await getTaskDispatchability(
+      sqlite,
+      defaultTask.id,
+      {
+        orchestrationMode: 'DEVELOPER',
+      },
+    );
+    const delegatedDispatchability = await getTaskDispatchability(
+      sqlite,
+      delegatedTask.id,
+      {
+        orchestrationMode: 'DEVELOPER',
+      },
+    );
+
+    expect(defaultDispatchability).toMatchObject({
+      dispatchable: false,
+      resolvedRole: 'DEVELOPER',
+    });
+    expect(defaultDispatchability.reasons).toContain(
+      'TASK_DEVELOPER_MODE_STAYS_IN_SESSION',
+    );
+    expect(delegatedDispatchability).toMatchObject({
+      dispatchable: true,
+      resolvedRole: 'CRAFTER',
+    });
   });
 
   it('evaluates task dispatchability using status, execution session, trigger session, and dependencies', async () => {

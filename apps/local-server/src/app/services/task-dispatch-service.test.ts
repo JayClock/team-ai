@@ -5,6 +5,7 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createProject } from './project-service';
+import { updateProjectRuntimeProfile } from './project-runtime-profile-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { createTask, getTaskById } from './task-service';
 import {
@@ -203,6 +204,62 @@ describe('task dispatch service', () => {
     });
     expect(createSession).toHaveBeenCalledTimes(1);
     expect(promptSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps solo developer mode tasks in the current session by default', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Developer Dispatch Project',
+      repoPath: '/Users/example/developer-dispatch',
+    });
+
+    await updateProjectRuntimeProfile(sqlite, project.id, {
+      orchestrationMode: 'DEVELOPER',
+    });
+
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/developer-dispatch',
+      id: 'acps_developer_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const task = await createTask(sqlite, {
+      objective: 'Stay inside the current solo session',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Solo mode task',
+      triggerSessionId: 'acps_developer_parent',
+    });
+    const createSession = vi.fn(async () => ({
+      id: 'acps_should_not_exist',
+    }));
+    const promptSession = vi.fn(async () => undefined);
+
+    const result = await dispatchTask(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        taskId: task.id,
+      },
+    );
+
+    expect(result).toMatchObject({
+      dispatched: false,
+      reason: 'TASK_NOT_DISPATCHABLE',
+      role: 'DEVELOPER',
+      sessionId: null,
+      specialistId: null,
+    });
+    expect(result.dispatchability.reasons).toContain(
+      'TASK_DEVELOPER_MODE_STAYS_IN_SESSION',
+    );
+    expect(createSession).not.toHaveBeenCalled();
+    expect(promptSession).not.toHaveBeenCalled();
   });
 
   async function createTestDatabase(): Promise<Database> {
