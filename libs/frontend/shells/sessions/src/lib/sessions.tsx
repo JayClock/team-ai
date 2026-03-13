@@ -34,6 +34,7 @@ import {
 import {
   FormEvent,
   KeyboardEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -85,6 +86,17 @@ type DropdownPosition = {
   bottom: number;
   left: number;
   width: number;
+};
+
+export type ShellsSessionsPromptInputProps = {
+  ariaLabel: string;
+  disabled?: boolean;
+  footerEnd?: ReactNode;
+  footerStart?: ReactNode;
+  onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
+  placeholder: string;
+  submitDisabled?: boolean;
+  submitPending?: boolean;
 };
 
 const HOME_AGENT_OPTIONS: Array<{
@@ -217,7 +229,10 @@ async function readJson<T>(href: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function ShellsSessions() {
+export function ShellsSessions(props: {
+  renderPromptInput?: (props: ShellsSessionsPromptInputProps) => ReactNode;
+}) {
+  const { renderPromptInput } = props;
   const { projects, refreshProjects, selectedProject } = useProjectSelection();
   const [preferredProjectId, setPreferredProjectId] = useState<string | null>(
     null,
@@ -263,6 +278,7 @@ export function ShellsSessions() {
       }}
       onProjectSelected={setPreferredProjectId}
       projects={projects}
+      renderPromptInput={renderPromptInput}
       selectedProject={activeProject}
     />
   );
@@ -272,10 +288,16 @@ function ShellsSessionsContent(props: {
   onProjectCloned: (projectId: string) => Promise<void>;
   onProjectSelected: (projectId: string) => void;
   projects: State<LocalProject>[];
+  renderPromptInput?: (props: ShellsSessionsPromptInputProps) => ReactNode;
   selectedProject: State<LocalProject>;
 }) {
-  const { onProjectCloned, onProjectSelected, projects, selectedProject } =
-    props;
+  const {
+    onProjectCloned,
+    onProjectSelected,
+    projects,
+    renderPromptInput,
+    selectedProject,
+  } = props;
   const client = useClient();
   const navigate = useNavigate();
   const promptRef = useRef<HTMLTextAreaElement>(null);
@@ -450,24 +472,23 @@ function ShellsSessionsContent(props: {
     [onProjectCloned],
   );
 
-  const handleHomeSubmit = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      const goal = prompt.trim();
+  const submitHomePrompt = useCallback(
+    async (input: { files: unknown[]; text: string }) => {
+      const goal = input.text.trim();
 
       if (!goal) {
         toast.error('输入内容不能为空');
-        return;
+        throw new Error('输入内容不能为空');
       }
       if (!selectedProvider) {
         toast.error('当前没有可启动的 ACP 提供方');
         setProviderSheetOpen(true);
-        return;
+        throw new Error('当前没有可启动的 ACP 提供方');
       }
       if (selectedProvider.status !== 'available') {
         toast.error(`提供方 ${selectedProvider.name} 当前不可启动`);
         setProviderSheetOpen(true);
-        return;
+        throw new Error(`提供方 ${selectedProvider.name} 当前不可启动`);
       }
 
       setStartingSession(true);
@@ -486,6 +507,7 @@ function ShellsSessionsContent(props: {
         const message =
           error instanceof Error ? error.message : '创建 ACP 会话失败';
         toast.error(message);
+        throw error;
       } finally {
         setStartingSession(false);
       }
@@ -496,10 +518,24 @@ function ShellsSessionsContent(props: {
       loadRecentSessions,
       me.id,
       navigate,
-      prompt,
       selectedProvider,
       selectedProjectId,
     ],
+  );
+
+  const handleHomeSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      try {
+        await submitHomePrompt({
+          files: [],
+          text: prompt,
+        });
+      } catch {
+        return;
+      }
+    },
+    [prompt, submitHomePrompt],
   );
 
   const handlePromptKeyDown = useCallback(
@@ -518,6 +554,96 @@ function ShellsSessionsContent(props: {
     },
     [prompt, startingSession],
   );
+
+  const homePromptFooterStart = (
+    <>
+      <RepositoryPicker
+        onClone={handleCloneRepository}
+        onSelect={onProjectSelected}
+        projects={projects}
+        value={selectedProject}
+      />
+
+      <div
+        className="flex items-center rounded-lg bg-slate-100 p-0.5 dark:bg-[#1a1d2a]"
+        role="group"
+        aria-label="Agent type"
+      >
+        {homeAgentOptions.map((option) => (
+          <button
+            key={option.id}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
+              agentType === option.id
+                ? 'bg-white text-slate-900 shadow-sm dark:bg-[#1f2233] dark:text-slate-100'
+                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
+            }`}
+            onClick={() => setAgentType(option.id)}
+            type="button"
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="hidden items-center text-[11px] text-slate-400 md:flex dark:text-slate-500">
+        Enter 发送
+        <span className="mx-2 text-slate-300 dark:text-slate-700">
+          &middot;
+        </span>
+        Shift + Enter 换行
+      </div>
+    </>
+  );
+
+  const homePromptFooterEnd = (
+    <Button
+      ref={providerButtonRef}
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={() => {
+        if (providerDropdownOpen) {
+          setProviderDropdownOpen(false);
+          return;
+        }
+
+        const rect = providerButtonRef.current?.getBoundingClientRect();
+        if (rect) {
+          setProviderDropdownPos({
+            left: rect.left,
+            bottom: window.innerHeight - rect.top + 4,
+          });
+        }
+        setProviderDropdownOpen(true);
+      }}
+      className="h-8 rounded-lg px-2.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+    >
+      <span
+        className={`size-2 rounded-full ${
+          selectedProvider?.status === 'available'
+            ? 'bg-emerald-500'
+            : 'bg-amber-500'
+        }`}
+      />
+      {selectedProvider?.name ?? selectedProviderId}
+      <ChevronDownIcon
+        className={`size-3 text-slate-400 transition-transform ${
+          providerDropdownOpen ? 'rotate-180' : ''
+        }`}
+      />
+    </Button>
+  );
+
+  const homePromptInputProps: ShellsSessionsPromptInputProps = {
+    ariaLabel: '项目指令输入框',
+    disabled: startingSession,
+    footerEnd: homePromptFooterEnd,
+    footerStart: homePromptFooterStart,
+    onSubmit: submitHomePrompt,
+    placeholder: '你想在这个项目里完成什么？可以直接描述需求、约束和期望结果。',
+    submitDisabled: startingSession,
+    submitPending: startingSession,
+  };
 
   return (
     <div className="min-w-0 bg-[#fafafa] p-4 md:p-6 dark:bg-[#0a0c12]">
@@ -551,114 +677,50 @@ function ShellsSessionsContent(props: {
           <p className="mx-auto mb-4 max-w-xl text-center text-sm leading-6 text-gray-500 dark:text-gray-400">
             输入首条指令后，会自动创建会话并进入项目协作。
           </p>
-          <div className="group relative" id="home-input-container">
-            <div className="pointer-events-none absolute -inset-1 rounded-[28px] bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20 opacity-0 blur-xl transition-opacity duration-500 group-focus-within:opacity-100" />
-            <form
-              className="relative overflow-visible rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)] transition-colors group-focus-within:border-amber-300/70 dark:border-[#1c1f2e] dark:bg-[#12141c] dark:shadow-none dark:group-focus-within:border-amber-500/30"
-              onSubmit={handleHomeSubmit}
-            >
-              <div className="px-4 pb-2 pt-3 md:px-5 md:pt-4">
-                <Textarea
-                  ref={promptRef}
-                  className="max-h-60 min-h-28 w-full resize-none border-0 bg-transparent px-0 py-0 text-sm leading-7 text-slate-900 shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:text-slate-100 md:text-[15px]"
-                  disabled={startingSession}
-                  onChange={(event) => setPrompt(event.currentTarget.value)}
-                  onKeyDown={handlePromptKeyDown}
-                  placeholder="你想在这个项目里完成什么？可以直接描述需求、约束和期望结果。"
-                  value={prompt}
-                />
-              </div>
-
-              <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3 md:px-5 dark:border-[#1c1f2e]">
-                <RepositoryPicker
-                  onClone={handleCloneRepository}
-                  onSelect={onProjectSelected}
-                  projects={projects}
-                  value={selectedProject}
-                />
-
-                <div
-                  className="flex items-center rounded-lg bg-slate-100 p-0.5 dark:bg-[#1a1d2a]"
-                  role="group"
-                  aria-label="Agent type"
+          <div id="home-input-container">
+            {renderPromptInput ? (
+              renderPromptInput(homePromptInputProps)
+            ) : (
+              <div className="group relative">
+                <div className="pointer-events-none absolute -inset-1 rounded-[28px] bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20 opacity-0 blur-xl transition-opacity duration-500 group-focus-within:opacity-100" />
+                <form
+                  className="relative overflow-visible rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_60px_-28px_rgba(15,23,42,0.35)] transition-colors group-focus-within:border-amber-300/70 dark:border-[#1c1f2e] dark:bg-[#12141c] dark:shadow-none dark:group-focus-within:border-amber-500/30"
+                  onSubmit={handleHomeSubmit}
                 >
-                  {homeAgentOptions.map((option) => (
-                    <button
-                      key={option.id}
-                      className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                        agentType === option.id
-                          ? 'bg-white text-slate-900 shadow-sm dark:bg-[#1f2233] dark:text-slate-100'
-                          : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300'
-                      }`}
-                      onClick={() => setAgentType(option.id)}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="hidden items-center text-[11px] text-slate-400 md:flex dark:text-slate-500">
-                  Enter 发送
-                  <span className="mx-2 text-slate-300 dark:text-slate-700">
-                    &middot;
-                  </span>
-                  Shift + Enter 换行
-                </div>
-
-                <div className="ml-auto flex items-center gap-2">
-                  <Button
-                    ref={providerButtonRef}
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (providerDropdownOpen) {
-                        setProviderDropdownOpen(false);
-                        return;
-                      }
-
-                      const rect =
-                        providerButtonRef.current?.getBoundingClientRect();
-                      if (rect) {
-                        setProviderDropdownPos({
-                          left: rect.left,
-                          bottom: window.innerHeight - rect.top + 4,
-                        });
-                      }
-                      setProviderDropdownOpen(true);
-                    }}
-                    className="h-8 rounded-lg px-2.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
-                  >
-                    <span
-                      className={`size-2 rounded-full ${
-                        selectedProvider?.status === 'available'
-                          ? 'bg-emerald-500'
-                          : 'bg-amber-500'
-                      }`}
+                  <div className="px-4 pb-2 pt-3 md:px-5 md:pt-4">
+                    <Textarea
+                      ref={promptRef}
+                      className="max-h-60 min-h-28 w-full resize-none border-0 bg-transparent px-0 py-0 text-sm leading-7 text-slate-900 shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:text-slate-100 md:text-[15px]"
+                      disabled={startingSession}
+                      onChange={(event) => setPrompt(event.currentTarget.value)}
+                      onKeyDown={handlePromptKeyDown}
+                      placeholder={homePromptInputProps.placeholder}
+                      value={prompt}
                     />
-                    {selectedProvider?.name ?? selectedProviderId}
-                    <ChevronDownIcon
-                      className={`size-3 text-slate-400 transition-transform ${
-                        providerDropdownOpen ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </Button>
+                  </div>
 
-                  <Button
-                    className="size-9 rounded-xl p-0"
-                    disabled={startingSession || prompt.trim().length === 0}
-                    type="submit"
-                  >
-                    {startingSession ? (
-                      <LoaderCircleIcon className="size-4 animate-spin" />
-                    ) : (
-                      <ArrowRightIcon className="size-4" />
-                    )}
-                  </Button>
-                </div>
+                  <div className="flex items-center gap-2 border-t border-slate-100 px-4 py-3 md:px-5 dark:border-[#1c1f2e]">
+                    {homePromptInputProps.footerStart}
+
+                    <div className="ml-auto flex items-center gap-2">
+                      {homePromptInputProps.footerEnd}
+
+                      <Button
+                        className="size-9 rounded-xl p-0"
+                        disabled={startingSession || prompt.trim().length === 0}
+                        type="submit"
+                      >
+                        {startingSession ? (
+                          <LoaderCircleIcon className="size-4 animate-spin" />
+                        ) : (
+                          <ArrowRightIcon className="size-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </form>
               </div>
-            </form>
+            )}
           </div>
 
           {providerDropdownOpen &&

@@ -17,24 +17,57 @@ import {
   Spinner,
 } from '@shared/ui';
 import { BotIcon, SparklesIcon } from 'lucide-react';
+import { type ReactNode } from 'react';
 import {
   formatDateTime,
   formatStatusLabel,
 } from './project-session-workbench.shared';
 import { SessionChatMessage } from './use-project-session-chat';
 
+export type ProjectSessionConversationPromptInputProps = {
+  ariaLabel: string;
+  disabled?: boolean;
+  footerEnd?: ReactNode;
+  footerStart?: ReactNode;
+  onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
+  placeholder: string;
+  submitDisabled?: boolean;
+  submitPending?: boolean;
+};
+
 export function ProjectSessionConversationPane(props: {
   chatMessages: SessionChatMessage[];
   hasPendingAssistantMessage: boolean;
   onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
+  renderPromptInput?: (
+    props: ProjectSessionConversationPromptInputProps,
+  ) => ReactNode;
   selectedSession: State<AcpSession> | null;
 }) {
   const {
     chatMessages,
     hasPendingAssistantMessage,
     onSubmit,
+    renderPromptInput,
     selectedSession,
   } = props;
+
+  const promptInputProps: ProjectSessionConversationPromptInputProps = {
+    ariaLabel: '会话输入框',
+    disabled: hasPendingAssistantMessage,
+    footerStart: (
+      <div className="text-xs text-muted-foreground">
+        {selectedSession
+          ? formatStatusLabel(selectedSession.data.state)
+          : '发送后将创建新会话'}
+      </div>
+    ),
+    onSubmit,
+    placeholder: selectedSession
+      ? '继续当前会话...'
+      : '发送第一条消息，开始新的会话...',
+    submitPending: hasPendingAssistantMessage,
+  };
 
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-muted/10">
@@ -144,32 +177,30 @@ export function ProjectSessionConversationPane(props: {
 
         <div className="shrink-0 border-t border-border/60 bg-background/95">
           <div className="mx-auto w-full max-w-3xl px-4 py-3 md:px-5">
-            <PromptInput onSubmit={onSubmit}>
-              <PromptInputBody className="rounded-3xl border border-input bg-background shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-                <PromptInputTextarea
-                  placeholder={
-                    selectedSession
-                      ? '继续当前会话...'
-                      : '发送第一条消息，开始新的会话...'
-                  }
-                  className="min-h-24 resize-none border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  disabled={hasPendingAssistantMessage}
-                  aria-label="会话输入框"
-                />
-              </PromptInputBody>
-              <PromptInputFooter className="mt-2 flex items-center justify-between gap-3">
-                <PromptInputTools>
-                  <div className="text-xs text-muted-foreground">
-                    {selectedSession
-                      ? formatStatusLabel(selectedSession.data.state)
-                      : '发送后将创建新会话'}
-                  </div>
-                </PromptInputTools>
-                <PromptInputSubmit
-                  status={hasPendingAssistantMessage ? 'submitted' : undefined}
-                />
-              </PromptInputFooter>
-            </PromptInput>
+            {renderPromptInput ? (
+              renderPromptInput(promptInputProps)
+            ) : (
+              <PromptInput onSubmit={promptInputProps.onSubmit}>
+                <PromptInputBody className="rounded-3xl border border-input bg-background shadow-sm transition-all duration-200 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
+                  <PromptInputTextarea
+                    aria-label={promptInputProps.ariaLabel}
+                    className="min-h-24 resize-none border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    disabled={promptInputProps.disabled}
+                    placeholder={promptInputProps.placeholder}
+                  />
+                </PromptInputBody>
+                <PromptInputFooter className="mt-2 flex items-center justify-between gap-3">
+                  <PromptInputTools>
+                    {promptInputProps.footerStart}
+                  </PromptInputTools>
+                  <PromptInputSubmit
+                    status={
+                      promptInputProps.submitPending ? 'submitted' : undefined
+                    }
+                  />
+                </PromptInputFooter>
+              </PromptInput>
+            )}
           </div>
         </div>
       </div>

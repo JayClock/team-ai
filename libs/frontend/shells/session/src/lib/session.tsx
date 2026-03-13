@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import {
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -81,6 +82,18 @@ export type ShellsSessionProps = {
   pendingPrompt?: string | null;
   projectState: State<Project>;
   projectTitle: string;
+  renderPromptInput?: (props: ShellsSessionPromptInputProps) => ReactNode;
+};
+
+export type ShellsSessionPromptInputProps = {
+  ariaLabel: string;
+  disabled?: boolean;
+  footerEnd?: ReactNode;
+  footerStart?: ReactNode;
+  onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
+  placeholder: string;
+  submitDisabled?: boolean;
+  submitPending?: boolean;
 };
 
 function timestamp(value: string | null): number {
@@ -130,6 +143,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     onPendingPromptConsumed,
     onSessionNavigate,
     projectTitle,
+    renderPromptInput,
   } = props;
   const client = useClient();
   const meResource = useMemo(
@@ -904,6 +918,7 @@ export function ShellsSession(props: ShellsSessionProps) {
               chatMessages={chatMessages}
               hasPendingAssistantMessage={hasPendingAssistantMessage}
               onSubmit={handlePromptSubmit}
+              renderPromptInput={renderPromptInput}
               selectedSession={selectedSession}
             />
           </main>
