@@ -6,7 +6,7 @@ import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
 import { createAgent } from '../services/agent-service';
-import { getNoteById } from '../services/note-service';
+import { createNote, getNoteById } from '../services/note-service';
 import { createProject } from '../services/project-service';
 import { createTask } from '../services/task-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
@@ -648,6 +648,197 @@ describe('mcp route', () => {
         message: expect.stringContaining('x-teamai-mcp-access-mode'),
       },
       result: null,
+    });
+  });
+
+  it('rejects cross-project task, run, and note scope arguments', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-scope-boundary-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.provider}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-scope-boundary',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const ownerProject = await createProject(fastify.sqlite, {
+      title: 'Scope Owner Project',
+      repoPath: '/tmp/team-ai-mcp-scope-owner-project',
+    });
+    const foreignProject = await createProject(fastify.sqlite, {
+      title: 'Scope Foreign Project',
+      repoPath: '/tmp/team-ai-mcp-scope-foreign-project',
+    });
+    const ownerTask = await createTask(fastify.sqlite, {
+      projectId: ownerProject.id,
+      title: 'Owner task',
+      objective: 'Stay inside the owner project scope',
+      status: 'PENDING',
+      kind: 'implement',
+    });
+    const foreignTask = await createTask(fastify.sqlite, {
+      projectId: foreignProject.id,
+      title: 'Foreign task',
+      objective: 'Should not leak into another project scope',
+      status: 'PENDING',
+      kind: 'implement',
+    });
+
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-scope-owner-project',
+      id: 'acps_scope_owner_root',
+      projectId: ownerProject.id,
+      provider: 'codex',
+    });
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-scope-foreign-project',
+      id: 'acps_scope_foreign_root',
+      projectId: foreignProject.id,
+      provider: 'codex',
+    });
+
+    const foreignNote = await createNote(fastify.sqlite, {
+      projectId: foreignProject.id,
+      title: 'Foreign note',
+      content: 'This note belongs to the foreign project.',
+      source: 'agent',
+      type: 'general',
+    });
+
+    const crossProjectTaskResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-cross-project-task',
+        method: 'tools/call',
+        params: {
+          name: 'task_get',
+          arguments: {
+            projectId: ownerProject.id,
+            taskId: foreignTask.id,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(crossProjectTaskResponse.statusCode).toBe(200);
+    expect(crossProjectTaskResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        data: {
+          problem: {
+            status: 409,
+            title: 'Task Project Mismatch',
+            type: 'https://team-ai.dev/problems/task-project-mismatch',
+          },
+        },
+        message: expect.stringContaining(foreignTask.id),
+      },
+      result: null,
+    });
+
+    const crossProjectRunsResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-cross-project-runs',
+        method: 'tools/call',
+        params: {
+          name: 'task_runs_list',
+          arguments: {
+            projectId: ownerProject.id,
+            sessionId: 'acps_scope_foreign_root',
+            taskId: ownerTask.id,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(crossProjectRunsResponse.statusCode).toBe(200);
+    expect(crossProjectRunsResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        data: {
+          problem: {
+            status: 409,
+            title: 'MCP Project Boundary Violation',
+            type: 'https://team-ai.dev/problems/mcp-project-boundary-violation',
+          },
+        },
+        message: expect.stringContaining('acps_scope_foreign_root'),
+      },
+      result: null,
+    });
+
+    const crossProjectNoteResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-cross-project-note',
+        method: 'tools/call',
+        params: {
+          name: 'notes_append',
+          arguments: {
+            projectId: ownerProject.id,
+            title: 'Owner note',
+            content: 'This should fail before writing any note.',
+            parentNoteId: foreignNote.id,
+            taskId: ownerTask.id,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(crossProjectNoteResponse.statusCode).toBe(200);
+    expect(crossProjectNoteResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        data: {
+          problem: {
+            status: 409,
+            title: 'MCP Project Boundary Violation',
+            type: 'https://team-ai.dev/problems/mcp-project-boundary-violation',
+          },
+        },
+        message: expect.stringContaining(foreignNote.id),
+      },
+      result: null,
+    });
+    expect(await getNoteById(fastify.sqlite, foreignNote.id)).toMatchObject({
+      id: foreignNote.id,
+      projectId: foreignProject.id,
+      title: 'Foreign note',
     });
   });
 
