@@ -206,6 +206,172 @@ describe('task dispatch service', () => {
     expect(promptSession).toHaveBeenCalledTimes(1);
   });
 
+  it('falls back to the next available provider when the preferred provider is unavailable', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Dispatch Provider Fallback Project',
+      repoPath: '/Users/example/dispatch-provider-fallback',
+    });
+
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/dispatch-provider-fallback',
+      id: 'acps_provider_fallback_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const task = await createTask(sqlite, {
+      assignedProvider: 'opencode',
+      objective:
+        'Use the next available provider when the preferred one is down',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Fallback provider task',
+      triggerSessionId: 'acps_provider_fallback_parent',
+    });
+
+    const createSession = vi.fn(async () => ({
+      id: 'acps_provider_fallback_child',
+    }));
+    const promptSession = vi.fn(async () => undefined);
+
+    const result = await dispatchTask(
+      sqlite,
+      {
+        createSession,
+        isProviderAvailable: vi.fn(
+          async (provider: string) => provider === 'codex',
+        ),
+        promptSession,
+      },
+      {
+        taskId: task.id,
+      },
+    );
+
+    const updatedTask = await getTaskById(sqlite, task.id);
+
+    expect(result).toMatchObject({
+      dispatched: true,
+      provider: 'codex',
+      sessionId: 'acps_provider_fallback_child',
+    });
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'codex',
+      }),
+    );
+    expect(updatedTask.assignedProvider).toBe('codex');
+  });
+
+  it('moves tasks to waiting retry when no configured provider is available', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Dispatch Provider Exhausted Project',
+      repoPath: '/Users/example/dispatch-provider-exhausted',
+    });
+
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/dispatch-provider-exhausted',
+      id: 'acps_provider_exhausted_parent',
+      projectId: project.id,
+      provider: 'opencode',
+    });
+
+    const task = await createTask(sqlite, {
+      assignedProvider: 'opencode',
+      objective: 'Pause execution until a provider becomes available again',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Unavailable provider task',
+      triggerSessionId: 'acps_provider_exhausted_parent',
+    });
+
+    await expect(
+      dispatchTask(
+        sqlite,
+        {
+          createSession: vi.fn(async () => ({
+            id: 'acps_unreachable_child',
+          })),
+          isProviderAvailable: vi.fn(async () => false),
+          promptSession: vi.fn(async () => undefined),
+        },
+        {
+          taskId: task.id,
+        },
+      ),
+    ).rejects.toMatchObject({
+      status: 503,
+      type: 'https://team-ai.dev/problems/task-dispatch-provider-unavailable',
+    });
+
+    const updatedTask = await getTaskById(sqlite, task.id);
+
+    expect(updatedTask).toMatchObject({
+      completionSummary: expect.stringContaining(
+        'no configured ACP provider is available',
+      ),
+      executionSessionId: null,
+      resultSessionId: null,
+      status: 'WAITING_RETRY',
+      verificationReport: expect.stringContaining('Tried: opencode, codex'),
+      verificationVerdict: 'fail',
+    });
+  });
+
+  it('moves tasks to waiting retry when child session creation fails', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Dispatch Child Session Failure Project',
+      repoPath: '/Users/example/dispatch-child-session-failure',
+    });
+
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/dispatch-child-session-failure',
+      id: 'acps_child_failure_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const task = await createTask(sqlite, {
+      objective: 'Recover cleanly from child session creation failures',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Child session failure task',
+      triggerSessionId: 'acps_child_failure_parent',
+    });
+
+    await expect(
+      dispatchTask(
+        sqlite,
+        {
+          createSession: vi.fn(async () => {
+            throw new Error('Child session bootstrap failed');
+          }),
+          promptSession: vi.fn(async () => undefined),
+        },
+        {
+          taskId: task.id,
+        },
+      ),
+    ).rejects.toThrow('Child session bootstrap failed');
+
+    const updatedTask = await getTaskById(sqlite, task.id);
+
+    expect(updatedTask).toMatchObject({
+      completionSummary: 'Child session bootstrap failed',
+      executionSessionId: null,
+      resultSessionId: null,
+      status: 'WAITING_RETRY',
+      verificationReport: 'Child session bootstrap failed',
+      verificationVerdict: 'fail',
+    });
+  });
+
   it('keeps solo developer mode tasks in the current session by default', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {

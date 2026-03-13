@@ -40,6 +40,7 @@ export interface DispatchTaskCallbacks {
     specialistId?: string;
     taskId?: string | null;
   }): Promise<{ id: string }>;
+  isProviderAvailable?(provider: string): Promise<boolean> | boolean;
   promptSession(input: {
     projectId: string;
     prompt: string;
@@ -131,12 +132,35 @@ function resolveDispatchProvider(
   triggerSession: Pick<TaskTriggerSessionRow, 'provider'>,
   defaultProviderId: string | null,
 ) {
-  return (
-    task.assignedProvider ??
-    triggerSession.provider ??
-    defaultProviderId ??
-    'codex'
-  );
+  return [
+    task.assignedProvider,
+    triggerSession.provider,
+    defaultProviderId,
+    'codex',
+  ].filter((provider, index, providers): provider is string => {
+    return (
+      typeof provider === 'string' &&
+      provider.trim().length > 0 &&
+      providers.indexOf(provider) === index
+    );
+  });
+}
+
+async function resolveAvailableDispatchProvider(
+  callbacks: DispatchTaskCallbacks,
+  providers: string[],
+): Promise<string | null> {
+  for (const provider of providers) {
+    if (!callbacks.isProviderAvailable) {
+      return provider;
+    }
+
+    if (await callbacks.isProviderAvailable(provider)) {
+      return provider;
+    }
+  }
+
+  return null;
 }
 
 function buildTaskDispatchPrompt(task: TaskPayload) {
@@ -217,6 +241,21 @@ async function hydrateTaskAssignment(
   return updateTask(sqlite, task.id, patch);
 }
 
+async function recoverTaskForRetry(
+  sqlite: Database,
+  taskId: string,
+  message: string,
+) {
+  return updateTask(sqlite, taskId, {
+    completionSummary: message,
+    executionSessionId: null,
+    resultSessionId: null,
+    status: 'WAITING_RETRY',
+    verificationReport: message,
+    verificationVerdict: 'fail',
+  });
+}
+
 function buildDispatchLogContext(
   task: Pick<
     TaskPayload,
@@ -249,6 +288,8 @@ export async function dispatchTask(
   options: DispatchTaskOptions = {},
 ): Promise<DispatchTaskResult> {
   const initialTask = await getTaskById(sqlite, input.taskId);
+  let dispatchPhase: 'prepare' | 'create_session' | 'prompt_session' =
+    'prepare';
 
   if (!tryClaimTaskDispatch(initialTask.id)) {
     logDiagnostic(
@@ -322,11 +363,52 @@ export async function dispatchTask(
       sqlite,
       dispatchability.task.triggerSessionId as string,
     );
-    const provider = resolveDispatchProvider(
+    const providerCandidates = resolveDispatchProvider(
       dispatchability.task,
       triggerSession,
       runtimeProfile.defaultProviderId,
     );
+    const preferredProvider = providerCandidates[0] ?? null;
+    const provider = await resolveAvailableDispatchProvider(
+      callbacks,
+      providerCandidates,
+    );
+
+    if (!provider) {
+      const message =
+        'Task dispatch could not start because no configured ACP provider is available ' +
+        `for task ${dispatchability.task.id}. Tried: ${providerCandidates.join(', ')}`;
+
+      await recoverTaskForRetry(sqlite, dispatchability.task.id, message);
+
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/task-dispatch-provider-unavailable',
+        title: 'Task Dispatch Provider Unavailable',
+        status: 503,
+        detail: message,
+        context: {
+          providerCandidates,
+          taskId: dispatchability.task.id,
+        },
+      });
+    }
+
+    if (preferredProvider && provider !== preferredProvider) {
+      logDiagnostic(
+        options.logger,
+        'info',
+        {
+          event: 'task.dispatch.provider_fallback',
+          fromProvider: preferredProvider,
+          provider,
+          retryOfRunId: input.retryOfRunId ?? null,
+          triedProviders: providerCandidates,
+          ...buildDispatchLogContext(dispatchability.task, options),
+        },
+        'Task dispatch degraded to an available ACP provider',
+      );
+    }
+
     const specialist = await resolveDispatchSpecialist(
       sqlite,
       dispatchability.task,
@@ -355,6 +437,7 @@ export async function dispatchTask(
       'Dispatching task to a child ACP session',
     );
 
+    dispatchPhase = 'create_session';
     const createdSession = await callbacks.createSession({
       actorUserId: triggerSession.actor_id,
       goal: hydratedTask.title,
@@ -367,6 +450,7 @@ export async function dispatchTask(
       taskId: hydratedTask.id,
     });
 
+    dispatchPhase = 'prompt_session';
     await callbacks.promptSession({
       projectId: hydratedTask.projectId,
       prompt,
@@ -416,6 +500,25 @@ export async function dispatchTask(
       },
       'Task dispatch failed',
     );
+
+    if (dispatchPhase === 'create_session') {
+      const latestTask = await getTaskById(sqlite, initialTask.id).catch(
+        () => initialTask,
+      );
+
+      if (
+        latestTask.executionSessionId === null &&
+        latestTask.status !== 'WAITING_RETRY' &&
+        latestTask.status !== 'FAILED' &&
+        latestTask.status !== 'CANCELLED'
+      ) {
+        await recoverTaskForRetry(
+          sqlite,
+          initialTask.id,
+          diagnostics.errorMessage,
+        );
+      }
+    }
 
     throw error;
   } finally {

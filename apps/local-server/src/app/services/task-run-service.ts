@@ -83,6 +83,8 @@ const retryableTaskRunStatuses = new Set<TaskRunStatus>([
   'CANCELLED',
 ]);
 
+export const MAX_TASK_RUN_RETRY_COUNT = 3;
+
 function createTaskRunId() {
   return `trun_${taskRunIdGenerator()}`;
 }
@@ -227,6 +229,22 @@ function throwTaskRunRetrySourceNotLatest(taskRunId: string): never {
     detail: `Task run ${taskRunId} is no longer the latest run for its task`,
     context: {
       taskRunId,
+    },
+  });
+}
+
+function throwTaskRunRetryLimitExceeded(
+  taskId: string,
+  maxRetryCount: number,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-run-retry-limit-exceeded',
+    title: 'Task Run Retry Limit Exceeded',
+    status: 409,
+    detail: `Task ${taskId} reached the maximum retry limit of ${maxRetryCount}`,
+    context: {
+      maxRetryCount,
+      taskId,
     },
   });
 }
@@ -490,6 +508,22 @@ function getTaskRunSessionRow(
   }
 
   return row;
+}
+
+function countRetryRunsForTask(sqlite: Database, taskId: string): number {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT COUNT(*) AS count
+        FROM project_task_runs
+        WHERE task_id = ?
+          AND retry_of_run_id IS NOT NULL
+          AND deleted_at IS NULL
+      `,
+    )
+    .get(taskId) as { count: number };
+
+  return row.count;
 }
 
 async function ensureTaskProjectMatch(
@@ -795,6 +829,40 @@ export async function resolveLatestRetrySourceRunId(
   }
 
   return taskRun.id;
+}
+
+export async function resolveRetryDispatchRunId(
+  sqlite: Database,
+  input: {
+    maxRetryCount?: number;
+    retryOfRunId?: string | null;
+    taskId: string;
+  },
+): Promise<string | null> {
+  const sourceRun = input.retryOfRunId
+    ? getTaskRunRetrySourceRow(sqlite, input.retryOfRunId)
+    : getLatestTaskRunRowForTask(sqlite, input.taskId);
+
+  if (!sourceRun) {
+    return null;
+  }
+
+  if (sourceRun.task_id !== input.taskId) {
+    throwTaskRunRetryTaskMismatch(input.taskId, sourceRun.id);
+  }
+
+  if (!retryableTaskRunStatuses.has(sourceRun.status)) {
+    return null;
+  }
+
+  const maxRetryCount = input.maxRetryCount ?? MAX_TASK_RUN_RETRY_COUNT;
+  const retryCount = countRetryRunsForTask(sqlite, input.taskId);
+
+  if (retryCount >= maxRetryCount) {
+    throwTaskRunRetryLimitExceeded(input.taskId, maxRetryCount);
+  }
+
+  return sourceRun.id;
 }
 
 export async function createTaskRun(

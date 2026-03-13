@@ -142,6 +142,21 @@ type NormalizedAcpUpdateEvent = {
   payload: Record<string, unknown>;
 };
 
+type TaskExecutionRecovery = {
+  errorCode: string;
+  retryAfterMs: number;
+  retryable: boolean;
+  taskStatus: 'FAILED' | 'WAITING_RETRY';
+};
+
+const retryablePromptProblemTypes = new Set<string>([
+  'https://team-ai.dev/problems/acp-prompt-timeout',
+  'https://team-ai.dev/problems/acp-provider-initialize-timeout',
+  'https://team-ai.dev/problems/acp-provider-exited-during-initialize',
+  'https://team-ai.dev/problems/acp-provider-launch-failed',
+  'https://team-ai.dev/problems/agent-gateway-unavailable',
+]);
+
 function createSessionId() {
   return `acps_${sessionIdGenerator()}`;
 }
@@ -308,6 +323,101 @@ async function createTaskExecutionRun(
       logger: options.logger,
       reason: 'task_execution_session_created',
       source: options.source ?? 'acp-service',
+    },
+  );
+}
+
+function resolveFailureMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function classifyTaskExecutionFailure(
+  error: unknown,
+  phase: 'prompt' | 'session_create',
+): TaskExecutionRecovery {
+  if (phase === 'session_create') {
+    return {
+      errorCode:
+        error instanceof ProblemError
+          ? error.code
+          : 'TASK_EXECUTION_SESSION_CREATE_FAILED',
+      retryAfterMs: 1000,
+      retryable: true,
+      taskStatus: 'WAITING_RETRY',
+    };
+  }
+
+  if (
+    error instanceof ProblemError &&
+    retryablePromptProblemTypes.has(error.type)
+  ) {
+    return {
+      errorCode: error.code,
+      retryAfterMs: 1000,
+      retryable: true,
+      taskStatus: 'WAITING_RETRY',
+    };
+  }
+
+  return {
+    errorCode: error instanceof ProblemError ? error.code : 'ACP_PROMPT_FAILED',
+    retryAfterMs: 0,
+    retryable: false,
+    taskStatus: 'FAILED',
+  };
+}
+
+async function recordTaskExecutionCreationFailure(
+  sqlite: Database,
+  input: {
+    completedAt: string;
+    message: string;
+    projectId: string;
+    provider: string;
+    retryOfRunId?: string | null;
+    role?: string | null;
+    sessionId: string;
+    source?: string;
+    specialistId?: string | null;
+    taskId: string;
+  },
+  options: AcpServiceOptions = {},
+) {
+  const createdRun = await startTaskRun(
+    sqlite,
+    {
+      projectId: input.projectId,
+      provider: input.provider,
+      retryOfRunId: input.retryOfRunId,
+      role: input.role,
+      sessionId: input.sessionId,
+      specialistId: input.specialistId,
+      status: 'PENDING',
+      taskId: input.taskId,
+    },
+    {
+      logger: options.logger,
+      reason: 'task_execution_session_create_pending',
+      source: input.source ?? options.source ?? 'acp-service',
+    },
+  );
+
+  await failTaskRun(
+    sqlite,
+    createdRun.id,
+    {
+      completedAt: input.completedAt,
+      provider: input.provider,
+      sessionId: input.sessionId,
+      specialistId: input.specialistId,
+      summary: input.message,
+      verificationReport: input.message,
+      verificationVerdict: 'fail',
+    },
+    {
+      logger: options.logger,
+      reason: 'task_execution_session_create_failed',
+      source: input.source ?? options.source ?? 'acp-service',
     },
   );
 }
@@ -488,6 +598,7 @@ async function syncTaskExecutionOutcome(
   state: 'COMPLETED' | 'FAILED' | 'CANCELLED',
   fallbackFailureReason?: string | null,
   options: AcpServiceOptions = {},
+  taskStatusOverride?: string,
 ) {
   const session = getSessionRow(sqlite, sessionId);
   if (!session.task_id) {
@@ -508,7 +619,7 @@ async function syncTaskExecutionOutcome(
     completionSummary: outcome.summary,
     verificationReport: outcome.verificationReport,
     verificationVerdict: outcome.verificationVerdict,
-    status: state,
+    status: taskStatusOverride ?? state,
   });
 
   const taskRun = getLatestTaskExecutionRun(sqlite, session.task_id, sessionId);
@@ -915,6 +1026,9 @@ function createRuntimeHooks(
                   id: session.id,
                 };
               },
+              async isProviderAvailable(provider) {
+                return runtime.isConfigured(provider);
+              },
               async promptSession(input) {
                 return await promptAcpSession(
                   sqlite,
@@ -1005,7 +1119,11 @@ function createRuntimeHooks(
         return;
       }
 
-      if (current.state === 'CANCELLED' || current.state === 'COMPLETED') {
+      if (
+        current.state === 'CANCELLED' ||
+        current.state === 'COMPLETED' ||
+        current.state === 'FAILED'
+      ) {
         return;
       }
 
@@ -1471,40 +1589,113 @@ export async function createAcpSession(
       updatedAt: now,
     });
 
-  const runtimeSession = await runtime.createSession({
-    localSessionId: sessionId,
-    provider: input.provider,
-    cwd,
-    mcpServers: resolveLocalMcpServers(),
-    hooks: createRuntimeHooks(sqlite, broker, runtime, sessionId, options),
-  });
-
-  updateSessionRuntime(sqlite, sessionId, {
-    runtimeSessionId: runtimeSession.runtimeSessionId,
-    state: 'PENDING',
-    startedAt: now,
-    lastActivityAt: now,
-  });
-
-  if (task) {
-    await createTaskExecutionRun(
-      sqlite,
-      {
-        projectId: input.projectId,
-        provider: input.provider,
-        retryOfRunId: input.retryOfRunId,
-        role,
-        sessionId,
-        specialistId: specialist?.id ?? null,
-        taskId: task.id,
-      },
-      options,
-    );
-    updateTaskExecutionState(sqlite, {
-      taskId: task.id,
-      executionSessionId: sessionId,
-      status: 'RUNNING',
+  try {
+    const runtimeSession = await runtime.createSession({
+      localSessionId: sessionId,
+      provider: input.provider,
+      cwd,
+      mcpServers: resolveLocalMcpServers(),
+      hooks: createRuntimeHooks(sqlite, broker, runtime, sessionId, options),
     });
+
+    updateSessionRuntime(sqlite, sessionId, {
+      runtimeSessionId: runtimeSession.runtimeSessionId,
+      state: 'PENDING',
+      startedAt: now,
+      lastActivityAt: now,
+    });
+
+    if (task) {
+      await createTaskExecutionRun(
+        sqlite,
+        {
+          projectId: input.projectId,
+          provider: input.provider,
+          retryOfRunId: input.retryOfRunId,
+          role,
+          sessionId,
+          specialistId: specialist?.id ?? null,
+          taskId: task.id,
+        },
+        options,
+      );
+      updateTaskExecutionState(sqlite, {
+        taskId: task.id,
+        executionSessionId: sessionId,
+        status: 'RUNNING',
+      });
+    }
+  } catch (error) {
+    const message = resolveFailureMessage(error, 'ACP session creation failed');
+    const recovery = classifyTaskExecutionFailure(error, 'session_create');
+    const diagnostics = getErrorDiagnostics(error, 'ACP_SESSION_CREATE_FAILED');
+
+    logDiagnostic(
+      options.logger,
+      'error',
+      {
+        event: 'acp.session.create.failed',
+        localSessionId: sessionId,
+        projectId: input.projectId,
+        retryOfRunId: input.retryOfRunId ?? null,
+        source: options.source ?? 'acp-service',
+        taskId: task?.id ?? null,
+        ...diagnostics,
+      },
+      'ACP session creation failed',
+    );
+
+    appendLocalEvent(sqlite, broker, {
+      sessionId,
+      type: 'error',
+      payload: {
+        source: 'local-server',
+        message,
+        reason: 'session_create_failed',
+      },
+      error: {
+        code: recovery.errorCode,
+        message,
+        retryable: recovery.retryable,
+        retryAfterMs: recovery.retryAfterMs,
+      },
+    });
+    updateSessionRuntime(sqlite, sessionId, {
+      state: 'FAILED',
+      failureReason: message,
+      completedAt: now,
+      lastActivityAt: now,
+    });
+
+    if (task) {
+      await recordTaskExecutionCreationFailure(
+        sqlite,
+        {
+          completedAt: now,
+          message,
+          projectId: input.projectId,
+          provider: input.provider,
+          retryOfRunId: input.retryOfRunId,
+          role,
+          sessionId,
+          source: options.source,
+          specialistId: specialist?.id ?? null,
+          taskId: task.id,
+        },
+        options,
+      );
+      updateTaskExecutionState(sqlite, {
+        taskId: task.id,
+        executionSessionId: null,
+        resultSessionId: sessionId,
+        completionSummary: message,
+        verificationReport: message,
+        verificationVerdict: 'fail',
+        status: recovery.taskStatus,
+      });
+    }
+
+    throw error;
   }
 
   appendLocalEvent(sqlite, broker, {
@@ -1790,8 +1981,8 @@ export async function promptAcpSession(
       },
     };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'ACP prompt execution failed';
+    const message = resolveFailureMessage(error, 'ACP prompt execution failed');
+    const recovery = classifyTaskExecutionFailure(error, 'prompt');
     appendLocalEvent(sqlite, broker, {
       sessionId,
       type: 'error',
@@ -1800,10 +1991,10 @@ export async function promptAcpSession(
         message,
       },
       error: {
-        code: 'ACP_PROMPT_FAILED',
+        code: recovery.errorCode,
         message,
-        retryable: true,
-        retryAfterMs: 1000,
+        retryable: recovery.retryable,
+        retryAfterMs: recovery.retryAfterMs,
       },
     });
     updateSessionRuntime(sqlite, sessionId, {
@@ -1819,6 +2010,7 @@ export async function promptAcpSession(
         'FAILED',
         message,
         options,
+        recovery.taskStatus,
       );
     }
 

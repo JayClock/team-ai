@@ -1417,12 +1417,24 @@ export async function updateTaskAndDispatch(
   options: UpdateTaskAndDispatchOptions,
 ): Promise<UpdateTaskAndDispatchResult> {
   const current = getTaskRow(sqlite, taskId);
-  const task = await updateTask(sqlite, taskId, input);
+  const currentStatus = ensureTaskStatus(current.status, 'PENDING');
+  const nextStatus = ensureTaskStatus(input.status, currentStatus);
   const triggerReason = resolveTaskDispatchTriggerReason(
     current.status,
-    task.status,
+    nextStatus,
     options.triggerSource,
   );
+
+  const retryOfRunId =
+    triggerReason === 'MANUAL_RETRY'
+      ? await (
+          await import('./task-run-service.js')
+        ).resolveRetryDispatchRunId(sqlite, {
+          retryOfRunId: options.retryOfRunId,
+          taskId,
+        })
+      : null;
+  const task = await updateTask(sqlite, taskId, input);
 
   if (!triggerReason) {
     return {
@@ -1438,14 +1450,6 @@ export async function updateTaskAndDispatch(
   }
 
   try {
-    const retryOfRunId =
-      options.retryOfRunId !== undefined
-        ? options.retryOfRunId
-        : triggerReason === 'MANUAL_RETRY'
-          ? await (
-              await import('./task-run-service.js')
-            ).resolveLatestRetrySourceRunId(sqlite, taskId)
-          : null;
     const { dispatchTask } = await import('./task-dispatch-service.js');
     const result = await dispatchTask(
       sqlite,
@@ -1512,6 +1516,7 @@ export async function executeTask(
       },
       {
         callbacks: options.callbacks,
+        logger: options.logger,
         triggerSource: 'manual',
       },
     );
@@ -1527,11 +1532,17 @@ export async function executeTask(
   }
 
   try {
+    const retryOfRunId = await (
+      await import('./task-run-service.js')
+    ).resolveRetryDispatchRunId(sqlite, {
+      taskId,
+    });
     const { dispatchTask } = await import('./task-dispatch-service.js');
     const result = await dispatchTask(
       sqlite,
       options.callbacks,
       {
+        retryOfRunId,
         taskId,
       },
       {

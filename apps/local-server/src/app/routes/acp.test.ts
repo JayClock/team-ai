@@ -4,11 +4,13 @@ import type {
   AcpRuntimeClient,
   AcpRuntimeSessionHooks,
 } from '../clients/acp-runtime-client';
+import { ProblemError } from '../errors/problem-error';
 import acpStreamPlugin from '../plugins/acp-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
 import { syncPlanEventToTasksAndDispatch } from '../services/acp-plan-task-sync-service';
+import { getAcpSessionById } from '../services/acp-service';
 import { createProject } from '../services/project-service';
 import { listTaskRuns } from '../services/task-run-service';
 import { createTask, getTaskById } from '../services/task-service';
@@ -347,6 +349,159 @@ describe('acp route', () => {
     ]);
   });
 
+  it('moves task-bound child session creation failures into waiting retry with a failed run', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-task-run-create-fail-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4313';
+
+    let createCount = 0;
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => {
+        createCount += 1;
+
+        if (createCount === 1) {
+          return {
+            runtimeSessionId: `runtime-${input.localSessionId}`,
+            provider: input.provider,
+          };
+        }
+
+        throw new ProblemError({
+          type: 'https://team-ai.dev/problems/acp-provider-not-configured',
+          title: 'ACP Provider Not Configured',
+          status: 503,
+          detail: 'Provider codex is unavailable',
+        });
+      }),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'unused',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Task Run Create Failure Project',
+      repoPath: '/tmp/team-ai-desktop-task-run-create-failure-project',
+    });
+
+    const rootResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'root-session-create-failure',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+          role: 'ROUTA',
+        },
+      },
+    });
+
+    expect(rootResponse.statusCode).toBe(200);
+    const rootSessionId = rootResponse.json().result.session.id as string;
+    const task = await createTask(fastify.sqlite, {
+      objective: 'Record child session creation failures cleanly',
+      projectId: project.id,
+      title: 'Child session creation failure task',
+      triggerSessionId: rootSessionId,
+      assignedRole: 'CRAFTER',
+      status: 'READY',
+    });
+
+    const childResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'child-session-create-failure',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+          parentSessionId: rootSessionId,
+          role: 'CRAFTER',
+          taskId: task.id,
+        },
+      },
+    });
+
+    const failedTask = await getTaskById(fastify.sqlite, task.id);
+    const taskRuns = await listTaskRuns(fastify.sqlite, {
+      page: 1,
+      pageSize: 10,
+      projectId: project.id,
+      taskId: task.id,
+    });
+    const failedChildSessionId = fastify.sqlite
+      .prepare(
+        `
+          SELECT id
+          FROM project_acp_sessions
+          WHERE task_id = ? AND deleted_at IS NULL
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+      )
+      .get(task.id) as { id: string };
+    const failedChildSession = await getAcpSessionById(
+      fastify.sqlite,
+      failedChildSessionId.id,
+    );
+
+    expect(childResponse.statusCode).toBe(200);
+    expect(childResponse.json()).toEqual({
+      error: {
+        code: -32000,
+        message: 'Provider codex is unavailable',
+      },
+      id: 'child-session-create-failure',
+      jsonrpc: '2.0',
+      result: null,
+    });
+    expect(failedChildSession).toMatchObject({
+      id: failedChildSessionId.id,
+      failureReason: 'Provider codex is unavailable',
+      state: 'FAILED',
+      task: { id: task.id },
+    });
+    expect(failedTask).toMatchObject({
+      completionSummary: 'Provider codex is unavailable',
+      executionSessionId: null,
+      resultSessionId: failedChildSessionId.id,
+      status: 'WAITING_RETRY',
+      verificationReport: 'Provider codex is unavailable',
+      verificationVerdict: 'fail',
+    });
+    expect(taskRuns.items).toEqual([
+      expect.objectContaining({
+        isLatest: true,
+        sessionId: failedChildSessionId.id,
+        status: 'FAILED',
+        summary: 'Provider codex is unavailable',
+        taskId: task.id,
+        verificationReport: 'Provider codex is unavailable',
+        verificationVerdict: 'fail',
+      }),
+    ]);
+    expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+  });
+
   it('completes task runs when task-bound prompts finish successfully', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-task-run-complete-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
@@ -536,6 +691,98 @@ describe('acp route', () => {
         summary: 'Provider request failed',
         taskId: task.id,
         verificationReport: 'Provider request failed',
+        verificationVerdict: 'fail',
+      }),
+    ]);
+    expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+  });
+
+  it('moves timed out task-bound prompts into waiting retry while keeping the run failed', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-task-run-timeout-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4317';
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => {
+        throw new ProblemError({
+          type: 'https://team-ai.dev/problems/acp-prompt-timeout',
+          title: 'ACP Prompt Timed Out',
+          status: 504,
+          detail: 'ACP prompt exceeded timeout of 1000ms',
+        });
+      }),
+    } satisfies AcpRuntimeClient);
+
+    const { childSessionId, project, task } =
+      await createTaskBoundSessionFixture(
+        fastify,
+        'Desktop ACP Task Run Timeout Project',
+      );
+
+    const promptResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'child-prompt-timeout',
+        method: 'session/prompt',
+        params: {
+          projectId: project.id,
+          sessionId: childSessionId,
+          prompt: 'Attempt the implementation task within the timeout budget',
+          timeoutMs: 1000,
+        },
+      },
+    });
+
+    const updatedTask = await getTaskById(fastify.sqlite, task.id);
+    const taskRuns = await listTaskRuns(fastify.sqlite, {
+      page: 1,
+      pageSize: 10,
+      projectId: project.id,
+      taskId: task.id,
+    });
+
+    expect(promptResponse.statusCode).toBe(200);
+    expect(promptResponse.json()).toEqual({
+      error: {
+        code: -32000,
+        message: 'ACP prompt exceeded timeout of 1000ms',
+      },
+      id: 'child-prompt-timeout',
+      jsonrpc: '2.0',
+      result: null,
+    });
+    expect(updatedTask).toMatchObject({
+      completionSummary: 'ACP prompt exceeded timeout of 1000ms',
+      executionSessionId: null,
+      resultSessionId: childSessionId,
+      status: 'WAITING_RETRY',
+      verificationReport: 'ACP prompt exceeded timeout of 1000ms',
+      verificationVerdict: 'fail',
+    });
+    expect(taskRuns.items).toEqual([
+      expect.objectContaining({
+        isLatest: true,
+        sessionId: childSessionId,
+        status: 'FAILED',
+        summary: 'ACP prompt exceeded timeout of 1000ms',
+        taskId: task.id,
+        verificationReport: 'ACP prompt exceeded timeout of 1000ms',
         verificationVerdict: 'fail',
       }),
     ]);

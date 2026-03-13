@@ -5,6 +5,11 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createProject } from './project-service';
+import {
+  failTaskRun,
+  MAX_TASK_RUN_RETRY_COUNT,
+  startTaskRun,
+} from './task-run-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import {
   createTask,
@@ -541,6 +546,77 @@ describe('task service', () => {
       status: 409,
       type: 'https://team-ai.dev/problems/task-execution-not-allowed',
     });
+  });
+
+  it('blocks explicit retries after the maximum retry boundary', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Task Execute Retry Limit Project',
+      repoPath: '/Users/example/task-execute-retry-limit',
+    });
+    const rootSessionId = 'acps_execute_retry_limit_root';
+    insertAcpSession(sqlite, {
+      cwd: '/Users/example/task-execute-retry-limit',
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const task = await createTask(sqlite, {
+      objective: 'Stop retrying once the retry budget is exhausted',
+      projectId: project.id,
+      status: 'FAILED',
+      title: 'Retry limit task',
+      triggerSessionId: rootSessionId,
+    });
+
+    let latestRun = await startTaskRun(sqlite, {
+      projectId: project.id,
+      sessionId: rootSessionId,
+      taskId: task.id,
+    });
+    latestRun = await failTaskRun(sqlite, latestRun.id, {
+      summary: 'Initial execution failed',
+      verificationVerdict: 'fail',
+    });
+
+    for (let attempt = 0; attempt < MAX_TASK_RUN_RETRY_COUNT; attempt += 1) {
+      const retryRun = await startTaskRun(sqlite, {
+        projectId: project.id,
+        retryOfRunId: latestRun.id,
+        sessionId: rootSessionId,
+        taskId: task.id,
+      });
+      latestRun = await failTaskRun(sqlite, retryRun.id, {
+        summary: `Retry ${attempt + 1} failed`,
+        verificationVerdict: 'fail',
+      });
+    }
+
+    await updateTask(sqlite, task.id, {
+      resultSessionId: rootSessionId,
+      status: 'FAILED',
+      verificationVerdict: 'fail',
+    });
+
+    const createSession = vi.fn(async () => ({
+      id: 'acps_should_not_retry',
+    }));
+    const promptSession = vi.fn(async () => undefined);
+
+    await expect(
+      executeTask(sqlite, task.id, {
+        callbacks: {
+          createSession,
+          promptSession,
+        },
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      type: 'https://team-ai.dev/problems/task-run-retry-limit-exceeded',
+    });
+    expect(createSession).not.toHaveBeenCalled();
+    expect(promptSession).not.toHaveBeenCalled();
   });
 
   it('rejects task creation when ACP session belongs to another project', async () => {

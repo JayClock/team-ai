@@ -32,6 +32,7 @@ interface PlanTaskDispatchCallbacks {
     specialistId?: string;
     taskId?: string | null;
   }): Promise<{ id: string }>;
+  isProviderAvailable?(provider: string): Promise<boolean> | boolean;
   promptSession(input: {
     projectId: string;
     prompt: string;

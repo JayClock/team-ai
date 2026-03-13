@@ -104,6 +104,9 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
         id: session.id,
       };
     },
+    async isProviderAvailable(provider: string) {
+      return fastify.acpRuntime.isConfigured(provider);
+    },
     async promptSession(input: {
       projectId: string;
       prompt: string;
