@@ -160,8 +160,8 @@ export function createAgentGatewayRuntimeClient(
     sessions.clear();
   }
 
-  function isConfigured(_provider: string): boolean {
-    return agentGatewayClient.isConfigured();
+  function isConfigured(provider: string): boolean {
+    return agentGatewayClient.isProviderConfigured(provider);
   }
 
   function isSessionActive(localSessionId: string): boolean {

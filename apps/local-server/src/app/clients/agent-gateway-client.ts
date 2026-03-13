@@ -79,11 +79,15 @@ export interface AgentGatewayClient {
     session: AgentGatewaySessionPayload;
   }>;
   isConfigured(): boolean;
+  isProviderConfigured(providerId: string): boolean;
   installProvider(input: {
     distributionType?: AcpProviderDistributionType;
     providerId: string;
   }): Promise<InstallAcpProviderPayload>;
   listProviders(options?: {
+    includeRegistry?: boolean;
+  }): Promise<AcpProviderCatalogPayload>;
+  refreshProviderCatalog(options?: {
     includeRegistry?: boolean;
   }): Promise<AcpProviderCatalogPayload>;
   listEvents(
@@ -117,6 +121,36 @@ export function createAgentGatewayClient(
   fetchImpl: typeof fetch = fetch,
 ): AgentGatewayClient {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
+  let providerAvailability: Map<string, boolean> | null = null;
+
+  const updateProviderAvailability = (payload: AcpProviderCatalogPayload) => {
+    providerAvailability = new Map(
+      payload.providers.map((provider) => [
+        normalizeProviderId(provider.id),
+        provider.status === 'available',
+      ]),
+    );
+  };
+
+  const loadProviderCatalog = async (options?: {
+    includeRegistry?: boolean;
+  }) => {
+    const query =
+      options?.includeRegistry === undefined
+        ? ''
+        : `?registry=${options.includeRegistry ? 'true' : 'false'}`;
+
+    const payload = await requestJson<AcpProviderCatalogPayload>(
+      fetchImpl,
+      normalizedBaseUrl,
+      {
+        method: 'GET',
+        path: `/providers${query}`,
+      },
+    );
+    updateProviderAvailability(payload);
+    return payload;
+  };
 
   return {
     async cancel(sessionId, input) {
@@ -139,24 +173,37 @@ export function createAgentGatewayClient(
       return normalizedBaseUrl !== null;
     },
 
+    isProviderConfigured(providerId) {
+      if (!normalizedBaseUrl) {
+        return false;
+      }
+
+      if (providerAvailability === null) {
+        return true;
+      }
+
+      return providerAvailability.get(normalizeProviderId(providerId)) ?? false;
+    },
+
     async installProvider(input) {
-      return await requestJson(fetchImpl, normalizedBaseUrl, {
+      const payload = await requestJson<InstallAcpProviderPayload>(
+        fetchImpl,
+        normalizedBaseUrl,
+        {
         method: 'POST',
         path: '/providers/install',
         body: input,
       });
+      await loadProviderCatalog({ includeRegistry: true }).catch(() => undefined);
+      return payload;
     },
 
     async listProviders(options) {
-      const query =
-        options?.includeRegistry === undefined
-          ? ''
-          : `?registry=${options.includeRegistry ? 'true' : 'false'}`;
+      return await loadProviderCatalog(options);
+    },
 
-      return await requestJson(fetchImpl, normalizedBaseUrl, {
-        method: 'GET',
-        path: `/providers${query}`,
-      });
+    async refreshProviderCatalog(options) {
+      return await loadProviderCatalog(options);
     },
 
     async listEvents(sessionId, cursor) {
@@ -194,6 +241,18 @@ export function createAgentGatewayClient(
       await consumeEventStream(response, options.onEvent);
     },
   };
+}
+
+function normalizeProviderId(providerName: string): string {
+  const normalized = providerName.endsWith('-registry')
+    ? providerName.slice(0, -'-registry'.length)
+    : providerName;
+
+  if (normalized === 'codex-acp') {
+    return 'codex';
+  }
+
+  return normalized;
 }
 
 function normalizeBaseUrl(baseUrl: string | null | undefined): string | null {

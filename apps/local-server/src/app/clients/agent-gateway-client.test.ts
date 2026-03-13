@@ -165,6 +165,8 @@ describe('agent-gateway-client', () => {
 
     const client = createAgentGatewayClient(urlFor(server));
 
+    expect(client.isProviderConfigured('codex')).toBe(true);
+
     await expect(
       client.listProviders({ includeRegistry: true }),
     ).resolves.toMatchObject({
@@ -178,6 +180,8 @@ describe('agent-gateway-client', () => {
         url: 'https://example.test/registry.json',
       },
     });
+    expect(client.isProviderConfigured('codex')).toBe(true);
+    expect(client.isProviderConfigured('custom-provider')).toBe(false);
     await expect(
       client.installProvider({
         providerId: 'codex',
@@ -262,6 +266,7 @@ describe('agent-gateway-client', () => {
     const client = createAgentGatewayClient(null);
 
     expect(client.isConfigured()).toBe(false);
+    expect(client.isProviderConfigured('codex')).toBe(false);
   });
 });
 

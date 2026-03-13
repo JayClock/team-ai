@@ -20,13 +20,20 @@ const agentGatewayClientPlugin: FastifyPluginAsync<AgentGatewayClientOptions> = 
   fastify,
   options,
 ) => {
-  fastify.decorate(
-    'agentGatewayClient',
-    createAgentGatewayClient(
-      options.agentGatewayBaseUrl ?? fastify.agentGatewayBaseUrl,
-      options.fetchImpl,
-    ),
+  const client = createAgentGatewayClient(
+    options.agentGatewayBaseUrl ?? fastify.agentGatewayBaseUrl,
+    options.fetchImpl,
   );
+
+  fastify.decorate('agentGatewayClient', client);
+
+  if (client.isConfigured()) {
+    await client.refreshProviderCatalog({ includeRegistry: true }).catch(() => {
+      fastify.log.debug(
+        'agent-gateway provider catalog warmup failed; continuing with lazy cache population',
+      );
+    });
+  }
 };
 
 export default fp(agentGatewayClientPlugin, {

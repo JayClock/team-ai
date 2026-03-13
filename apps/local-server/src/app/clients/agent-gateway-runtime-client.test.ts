@@ -68,8 +68,11 @@ describe('agent-gateway-runtime-client', () => {
         session: gatewaySession('gw-1', 'PENDING', 'gw-1:1'),
       })),
       isConfigured: vi.fn(() => true),
+      isProviderConfigured: vi.fn((providerId: string) => providerId === 'opencode'),
       listEvents,
+      listProviders: vi.fn(),
       prompt,
+      refreshProviderCatalog: vi.fn(),
       stream: vi.fn(async () => undefined),
     } satisfies AgentGatewayClient);
 
@@ -160,6 +163,7 @@ describe('agent-gateway-runtime-client', () => {
         session: gatewaySession('gw-new', 'PENDING', 'gw-new:1'),
       })),
       isConfigured: vi.fn(() => true),
+      isProviderConfigured: vi.fn((providerId: string) => providerId === 'opencode'),
       listEvents: vi.fn(async () => {
         throw new ProblemError({
           type: 'https://team-ai.dev/problems/agent-gateway-request-failed',
@@ -168,10 +172,12 @@ describe('agent-gateway-runtime-client', () => {
           detail: 'session not found',
         });
       }),
+      listProviders: vi.fn(),
       prompt: vi.fn(async () => ({
         accepted: true,
         session: gatewaySession('gw-new', 'RUNNING', 'gw-new:1'),
       })),
+      refreshProviderCatalog: vi.fn(),
       stream: vi.fn(async () => undefined),
     } satisfies AgentGatewayClient);
 
@@ -191,6 +197,24 @@ describe('agent-gateway-runtime-client', () => {
       provider: 'opencode',
       runtimeSessionId: 'gw-new',
     });
+  });
+
+  it('checks provider availability against the gateway catalog cache', () => {
+    const client = createAgentGatewayRuntimeClient({
+      cancel: vi.fn(),
+      createSession: vi.fn(),
+      isConfigured: vi.fn(() => true),
+      isProviderConfigured: vi.fn((providerId: string) => providerId === 'opencode'),
+      installProvider: vi.fn(),
+      listEvents: vi.fn(),
+      listProviders: vi.fn(),
+      prompt: vi.fn(),
+      refreshProviderCatalog: vi.fn(),
+      stream: vi.fn(),
+    } satisfies AgentGatewayClient);
+
+    expect(client.isConfigured('opencode')).toBe(true);
+    expect(client.isConfigured('custom-provider')).toBe(false);
   });
 });
 
