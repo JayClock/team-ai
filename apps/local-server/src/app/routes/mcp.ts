@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { ProblemError } from '../errors/problem-error';
 import {
   cancelAcpSession,
   createAcpSession,
@@ -7,6 +8,7 @@ import {
 } from '../services/acp-service';
 import { listAgents } from '../services/agent-service';
 import { listProjects } from '../services/project-service';
+import { getTaskById, listTasks } from '../services/task-service';
 
 const mcpJsonRpcRequestSchema = z.object({
   jsonrpc: z.literal('2.0'),
@@ -32,6 +34,19 @@ const agentsListArgsSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),
   projectId: z.string().trim().min(1),
+});
+
+const tasksListArgsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  status: z.string().trim().min(1).optional(),
+});
+
+const taskGetArgsSchema = z.object({
+  projectId: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
 });
 
 const createAcpSessionArgsSchema = z.object({
@@ -63,7 +78,8 @@ const mcpTools = [
   {
     name: 'projects_list',
     title: 'List Projects',
-    description: 'List local desktop projects available in the current workspace.',
+    description:
+      'List local desktop projects available in the current workspace.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -78,7 +94,8 @@ const mcpTools = [
   {
     name: 'agents_list',
     title: 'List Agents',
-    description: 'List local agent profiles available for a project in the desktop runtime.',
+    description:
+      'List local agent profiles available for a project in the desktop runtime.',
     inputSchema: {
       type: 'object',
       required: ['projectId'],
@@ -86,6 +103,36 @@ const mcpTools = [
         projectId: { type: 'string' },
         page: { type: 'number', minimum: 1, default: 1 },
         pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
+      },
+    },
+  },
+  {
+    name: 'tasks_list',
+    title: 'List Tasks',
+    description: 'List project tasks available in the local desktop runtime.',
+    inputSchema: {
+      type: 'object',
+      required: ['projectId'],
+      properties: {
+        projectId: { type: 'string' },
+        sessionId: { type: 'string' },
+        status: { type: 'string' },
+        page: { type: 'number', minimum: 1, default: 1 },
+        pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
+      },
+    },
+  },
+  {
+    name: 'task_get',
+    title: 'Get Task',
+    description:
+      'Get a single project task by id from the local desktop runtime.',
+    inputSchema: {
+      type: 'object',
+      required: ['projectId', 'taskId'],
+      properties: {
+        projectId: { type: 'string' },
+        taskId: { type: 'string' },
       },
     },
   },
@@ -140,7 +187,10 @@ const mcpTools = [
   },
 ] as const;
 
-function resultEnvelope(id: string | number | null | undefined, result: object) {
+function resultEnvelope(
+  id: string | number | null | undefined,
+  result: object,
+) {
   return {
     jsonrpc: '2.0' as const,
     id: id ?? null,
@@ -179,6 +229,25 @@ function toolSuccess(result: unknown) {
 
 function findTool(name: string) {
   return mcpTools.find((tool) => tool.name === name);
+}
+
+async function getProjectTask(
+  sqlite: Parameters<typeof getTaskById>[0],
+  projectId: string,
+  taskId: string,
+) {
+  const task = await getTaskById(sqlite, taskId);
+
+  if (task.projectId !== projectId) {
+    throw new ProblemError({
+      type: 'https://team-ai.dev/problems/task-project-mismatch',
+      title: 'Task Project Mismatch',
+      status: 409,
+      detail: `Task ${taskId} does not belong to project ${projectId}`,
+    });
+  }
+
+  return task;
 }
 
 const mcpRoute: FastifyPluginAsync = async (fastify) => {
@@ -225,6 +294,26 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
               return resultEnvelope(
                 id,
                 toolSuccess(await listAgents(fastify.sqlite, args)),
+              );
+            }
+            case 'tasks_list': {
+              const args = tasksListArgsSchema.parse(toolCall.arguments);
+              return resultEnvelope(
+                id,
+                toolSuccess(await listTasks(fastify.sqlite, args)),
+              );
+            }
+            case 'task_get': {
+              const args = taskGetArgsSchema.parse(toolCall.arguments);
+              return resultEnvelope(
+                id,
+                toolSuccess({
+                  task: await getProjectTask(
+                    fastify.sqlite,
+                    args.projectId,
+                    args.taskId,
+                  ),
+                }),
               );
             }
             case 'acp_session_create': {
@@ -279,7 +368,11 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
               );
             }
             default:
-              return errorEnvelope(id, -32601, `Unhandled tool: ${toolCall.name}`);
+              return errorEnvelope(
+                id,
+                -32601,
+                `Unhandled tool: ${toolCall.name}`,
+              );
           }
         }
         default:

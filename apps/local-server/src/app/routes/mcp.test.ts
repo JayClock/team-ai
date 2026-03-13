@@ -7,6 +7,7 @@ import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
 import { createAgent } from '../services/agent-service';
 import { createProject } from '../services/project-service';
+import { createTask } from '../services/task-service';
 import acpRoute from './acp';
 import mcpRoute from './mcp';
 import projectsRoute from './projects';
@@ -36,7 +37,7 @@ describe('mcp route', () => {
     const promptMock = vi.fn(async () => ({
       runtimeSessionId: 'runtime-1',
       response: {
-        stopReason: 'end_turn',
+        stopReason: 'end_turn' as const,
       },
     }));
 
@@ -79,6 +80,14 @@ describe('mcp route', () => {
       model: 'gpt-5',
       systemPrompt: 'Plan tasks',
     });
+    const task = await createTask(fastify.sqlite, {
+      projectId: project.id,
+      title: 'Implement MCP task tools',
+      objective: 'Allow agents to read task lists and task details',
+      status: 'READY',
+      kind: 'implement',
+      labels: ['mcp'],
+    });
 
     const listToolsResponse = await fastify.inject({
       method: 'POST',
@@ -93,11 +102,15 @@ describe('mcp route', () => {
 
     expect(listToolsResponse.statusCode).toBe(200);
     expect(
-      listToolsResponse.json().result.tools.map((tool: { name: string }) => tool.name),
+      listToolsResponse
+        .json()
+        .result.tools.map((tool: { name: string }) => tool.name),
     ).toEqual(
       expect.arrayContaining([
         'projects_list',
         'agents_list',
+        'tasks_list',
+        'task_get',
         'acp_session_create',
         'acp_session_prompt',
         'acp_session_cancel',
@@ -119,9 +132,9 @@ describe('mcp route', () => {
     });
 
     expect(listProjectsResponse.statusCode).toBe(200);
-    expect(
-      listProjectsResponse.json().result.content[0].json.items[0].id,
-    ).toBe(project.id);
+    expect(listProjectsResponse.json().result.content[0].json.items[0].id).toBe(
+      project.id,
+    );
 
     const listAgentsResponse = await fastify.inject({
       method: 'POST',
@@ -147,6 +160,85 @@ describe('mcp route', () => {
       name: 'Planner',
     });
 
+    const listTasksResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-tasks',
+        method: 'tools/call',
+        params: {
+          name: 'tasks_list',
+          arguments: {
+            projectId: project.id,
+            status: 'READY',
+          },
+        },
+      },
+    });
+
+    expect(listTasksResponse.statusCode).toBe(200);
+    expect(
+      listTasksResponse.json().result.content[0].json.items[0],
+    ).toMatchObject({
+      id: task.id,
+      projectId: project.id,
+      status: 'READY',
+      title: 'Implement MCP task tools',
+    });
+
+    const getTaskResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-task',
+        method: 'tools/call',
+        params: {
+          name: 'task_get',
+          arguments: {
+            projectId: project.id,
+            taskId: task.id,
+          },
+        },
+      },
+    });
+
+    expect(getTaskResponse.statusCode).toBe(200);
+    expect(getTaskResponse.json().result.content[0].json).toMatchObject({
+      task: {
+        id: task.id,
+        kind: 'implement',
+        labels: ['mcp'],
+        projectId: project.id,
+      },
+    });
+
+    const invalidTaskGetResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-task-invalid',
+        method: 'tools/call',
+        params: {
+          name: 'task_get',
+          arguments: {
+            taskId: task.id,
+          },
+        },
+      },
+    });
+
+    expect(invalidTaskGetResponse.statusCode).toBe(200);
+    expect(invalidTaskGetResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        message: expect.stringContaining('projectId'),
+      },
+      result: null,
+    });
+
     const createAcpResponse = await fastify.inject({
       method: 'POST',
       url: '/api/mcp',
@@ -166,7 +258,8 @@ describe('mcp route', () => {
     });
 
     expect(createAcpResponse.statusCode).toBe(200);
-    const acpSessionId = createAcpResponse.json().result.content[0].json.session.id as string;
+    const acpSessionId = createAcpResponse.json().result.content[0].json.session
+      .id as string;
     expect(acpSessionId).toMatch(/^acps_/);
 
     const promptAcpResponse = await fastify.inject({
