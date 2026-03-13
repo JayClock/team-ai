@@ -68,3 +68,25 @@ export function countSessionTree(node: SessionTreeNode): number {
     node.children.reduce((count, child) => count + countSessionTree(child), 0)
   );
 }
+
+export function findSessionPathIds(
+  nodes: SessionTreeNode[],
+  sessionId?: string,
+): string[] {
+  if (!sessionId) {
+    return [];
+  }
+
+  for (const node of nodes) {
+    if (node.session.data.id === sessionId) {
+      return [node.session.data.id];
+    }
+
+    const childPath = findSessionPathIds(node.children, sessionId);
+    if (childPath.length > 0) {
+      return [node.session.data.id, ...childPath];
+    }
+  }
+
+  return [];
+}

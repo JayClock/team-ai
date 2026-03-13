@@ -34,8 +34,10 @@ import {
 } from './project-session-workbench.shared';
 
 export function ProjectSessionStatusSidebar(props: {
+  activeTab?: 'activity' | 'tasks';
   events: AcpEventEnvelope[];
   onOpenSession: (sessionId: string) => void;
+  onTabChange?: (tab: 'activity' | 'tasks') => void;
   onTaskAction: (item: TaskPanelItem, action: TaskPanelAction) => void;
   pendingTaskAction: {
     action: TaskPanelAction;
@@ -47,8 +49,10 @@ export function ProjectSessionStatusSidebar(props: {
   tasksLoading: boolean;
 }) {
   const {
+    activeTab,
     events,
     onOpenSession,
+    onTabChange,
     onTaskAction,
     pendingTaskAction,
     selectedSession,
@@ -59,6 +63,7 @@ export function ProjectSessionStatusSidebar(props: {
   const recentEvents = events.slice(-12).reverse();
   const defaultTab =
     taskItems.length > 0 || tasksLoading ? 'tasks' : 'activity';
+  const resolvedTab = activeTab ?? defaultTab;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -92,8 +97,8 @@ export function ProjectSessionStatusSidebar(props: {
       </div>
 
       <Tabs
-        key={defaultTab}
-        defaultValue={defaultTab}
+        value={resolvedTab}
+        onValueChange={(value) => onTabChange?.(value as 'activity' | 'tasks')}
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="border-b border-border/60 px-3 py-2">

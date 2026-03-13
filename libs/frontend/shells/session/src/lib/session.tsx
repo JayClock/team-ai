@@ -167,6 +167,9 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<'activity' | 'tasks' | null>(
+    null,
+  );
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(480);
   const [renameDialogSession, setRenameDialogSession] =
@@ -679,9 +682,20 @@ export function ShellsSession(props: ShellsSessionProps) {
     [selectSessionFromList],
   );
 
+  const handleOpenTaskContext = useCallback(
+    (session: State<AcpSessionSummary>) => {
+      setInspectorTab('tasks');
+      setMobileSessionsOpen(false);
+      setMobileInspectorOpen(true);
+      void selectSessionFromList(session);
+    },
+    [selectSessionFromList],
+  );
+
   const handleOpenLinkedSession = useCallback(
     async (sessionId: string) => {
       try {
+        setInspectorTab('tasks');
         await select({ session: sessionId });
         await loadSessions();
         setMobileInspectorOpen(false);
@@ -758,15 +772,23 @@ export function ShellsSession(props: ShellsSessionProps) {
     <ProjectSessionHistorySidebar
       onDeleteSession={(session) => setDeleteDialogSession(session)}
       onOpenRename={openRenameDialog}
+      onOpenTaskContext={handleOpenTaskContext}
       onSelectSession={handleSidebarSessionSelect}
       projectTitle={projectTitle}
       selectedSessionId={selectedSessionId}
       selectedSessionMeta={
         selectedSession
           ? {
+              hierarchyLabel: selectedSession.data.parentSession
+                ? selectedSession.data.task?.id
+                  ? '任务子会话'
+                  : '子会话'
+                : '根会话',
               label: sessionDisplayName(selectedSession),
               provider: selectedSession.data.provider,
+              specialistId: selectedSession.data.specialistId,
               state: selectedSession.data.state,
+              taskId: selectedSession.data.task?.id ?? null,
             }
           : null
       }
@@ -777,8 +799,10 @@ export function ShellsSession(props: ShellsSessionProps) {
 
   const inspector = (
     <ProjectSessionStatusSidebar
+      activeTab={inspectorTab ?? undefined}
       events={sideEvents}
       onOpenSession={handleOpenLinkedSession}
+      onTabChange={setInspectorTab}
       onTaskAction={handleTaskAction}
       pendingTaskAction={pendingTaskAction}
       selectedSession={selectedSession}

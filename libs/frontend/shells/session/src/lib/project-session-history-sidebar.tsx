@@ -10,13 +10,17 @@ import {
 export function ProjectSessionHistorySidebar(props: {
   onDeleteSession: (session: State<AcpSessionSummary>) => void;
   onOpenRename: (session: State<AcpSessionSummary>) => void;
+  onOpenTaskContext?: (session: State<AcpSessionSummary>) => void;
   onSelectSession: (session: State<AcpSessionSummary>) => void;
   projectTitle: string;
   selectedSessionId?: string;
   selectedSessionMeta: {
+    hierarchyLabel?: string | null;
     label: string;
     provider: string | null;
+    specialistId?: string | null;
     state: string | null;
+    taskId?: string | null;
   } | null;
   sessions: SessionTreeNode[];
   sessionsLoading: boolean;
@@ -24,6 +28,7 @@ export function ProjectSessionHistorySidebar(props: {
   const {
     onDeleteSession,
     onOpenRename,
+    onOpenTaskContext,
     onSelectSession,
     projectTitle,
     selectedSessionId,
@@ -60,12 +65,27 @@ export function ProjectSessionHistorySidebar(props: {
               {selectedSessionMeta.label}
             </p>
             <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+              {selectedSessionMeta.hierarchyLabel ? (
+                <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                  {selectedSessionMeta.hierarchyLabel}
+                </span>
+              ) : null}
               <span className="rounded-full border border-border/60 bg-background px-2 py-1">
                 {formatStatusLabel(selectedSessionMeta.state)}
               </span>
               <span className="rounded-full border border-border/60 bg-background px-2 py-1">
                 {selectedSessionMeta.provider ?? 'opencode'}
               </span>
+              {selectedSessionMeta.specialistId ? (
+                <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+                  {selectedSessionMeta.specialistId}
+                </span>
+              ) : null}
+              {selectedSessionMeta.taskId ? (
+                <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+                  {selectedSessionMeta.taskId}
+                </span>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -78,6 +98,7 @@ export function ProjectSessionHistorySidebar(props: {
           selectedSessionId={selectedSessionId}
           onDelete={onDeleteSession}
           onOpenRename={onOpenRename}
+          onOpenTaskContext={onOpenTaskContext}
           onSelect={onSelectSession}
         />
       </div>
