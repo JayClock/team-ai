@@ -18,11 +18,17 @@ import { SparklesIcon, WrenchIcon } from 'lucide-react';
 export type { SessionTreeNode };
 export { buildSessionTree, countSessionTree, sessionDisplayName };
 
-export type TaskSnapshotItem = {
+export type TaskPanelItem = {
+  assignedProvider?: string | null;
+  assignedRole?: string | null;
   description?: string;
+  executionSessionId?: string | null;
   id: string;
-  source: 'plan' | 'tool';
+  kind?: string | null;
+  resultSessionId?: string | null;
+  source: 'plan' | 'task' | 'tool';
   status: string;
+  taskId?: string;
   title: string;
 };
 
@@ -111,6 +117,89 @@ export function formatTaskKindLabel(kind: string | null | undefined): string {
       return '验证';
     default:
       return kind?.trim() || '未分类';
+  }
+}
+
+function normalizeOptionalText(
+  value: string | null | undefined,
+): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+export function buildTaskPanelItem(task: {
+  data: {
+    assignedProvider: string | null;
+    assignedRole: string | null;
+    executionSessionId: string | null;
+    id: string;
+    kind: string | null;
+    objective: string;
+    resultSessionId: string | null;
+    scope: string | null;
+    status: string;
+    title: string;
+  };
+}): TaskPanelItem {
+  const description =
+    normalizeOptionalText(task.data.objective) ??
+    normalizeOptionalText(task.data.scope);
+
+  return {
+    id: task.data.id,
+    taskId: task.data.id,
+    title: task.data.title,
+    status: task.data.status,
+    description,
+    source: 'task',
+    kind: task.data.kind,
+    assignedRole: task.data.assignedRole,
+    assignedProvider: task.data.assignedProvider,
+    executionSessionId: task.data.executionSessionId,
+    resultSessionId: task.data.resultSessionId,
+  };
+}
+
+export function describeTaskExecutionStatus(
+  item: TaskPanelItem,
+  currentSessionId?: string,
+): string | null {
+  if (item.source !== 'task') {
+    return null;
+  }
+
+  if (item.executionSessionId && item.executionSessionId === currentSessionId) {
+    return '当前会话正在执行该任务';
+  }
+
+  if (item.resultSessionId) {
+    switch (item.status) {
+      case 'COMPLETED':
+        return '执行结果已回写';
+      case 'FAILED':
+        return '已回写失败结果';
+      case 'CANCELLED':
+        return '已回写取消结果';
+      default:
+        return '结果会话已关联';
+    }
+  }
+
+  if (item.executionSessionId) {
+    return item.status === 'RUNNING' ? '执行会话进行中' : '已分发执行会话';
+  }
+
+  switch (item.status) {
+    case 'READY':
+      return '等待自动分发';
+    case 'PENDING':
+      return '尚未进入执行';
+    case 'BLOCKED':
+      return '等待依赖解锁';
+    case 'RUNNING':
+      return '执行状态已启动';
+    default:
+      return '等待执行状态更新';
   }
 }
 
@@ -370,7 +459,7 @@ export function renderEventDetails(event: AcpEventEnvelope) {
 
 export function buildTaskSnapshot(
   history: AcpEventEnvelope[],
-): TaskSnapshotItem[] {
+): TaskPanelItem[] {
   const plans = history.filter((event) => event.type === 'plan') as Array<
     AcpEventEnvelope & { type: 'plan'; data: AcpPlanEventData }
   >;
@@ -382,7 +471,7 @@ export function buildTaskSnapshot(
     source: 'plan' as const,
   }));
 
-  const toolMap = new Map<string, TaskSnapshotItem>();
+  const toolMap = new Map<string, TaskPanelItem>();
   for (const event of history) {
     if (event.type !== 'tool_call' && event.type !== 'tool_result') {
       continue;

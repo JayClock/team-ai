@@ -3,6 +3,7 @@ import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
 import {
   AcpEventEnvelope,
+  AcpSession,
   AcpSessionSummary,
   Project,
   Root,
@@ -52,15 +53,18 @@ import { ProjectSessionHistorySidebar } from './project-session-history-sidebar'
 import { ProjectSessionStatusSidebar } from './project-session-status-sidebar';
 import { useProjectSessionChat } from './use-project-session-chat';
 import {
+  buildTaskPanelItem,
   buildSessionTree,
   buildTaskSnapshot,
   formatStatusLabel,
   sessionDisplayName,
   statusChipClasses,
   statusTone,
+  type TaskPanelItem,
 } from './project-session-workbench.shared';
 
 const STREAM_RETRY_DELAY_MS = 1500;
+const TASK_POLL_INTERVAL_MS = 3000;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
 const RIGHT_SIDEBAR_WIDTH_KEY = 'team-ai.session.right-sidebar-width';
 
@@ -118,6 +122,8 @@ export function ShellsSession(props: ShellsSessionProps) {
   });
 
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
+  const [sessionTaskItems, setSessionTaskItems] = useState<TaskPanelItem[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const provider = 'opencode';
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
@@ -146,13 +152,18 @@ export function ShellsSession(props: ShellsSessionProps) {
     () => history.filter((event) => event.type !== 'message'),
     [history],
   );
-  const taskSnapshotItems = useMemo(
+  const fallbackTaskItems = useMemo(
     () => buildTaskSnapshot(history),
     [history],
   );
+  const taskItems = useMemo(
+    () => (sessionTaskItems.length > 0 ? sessionTaskItems : fallbackTaskItems),
+    [fallbackTaskItems, sessionTaskItems],
+  );
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
   const showDesktopInspector =
-    taskSnapshotItems.length > 0 || sideEvents.length > 0;
+    Boolean(selectedSession) &&
+    (tasksLoading || taskItems.length > 0 || sideEvents.length > 0);
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;
@@ -227,6 +238,92 @@ export function ShellsSession(props: ShellsSessionProps) {
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
+
+  const loadTaskItems = useCallback(
+    async (session: State<AcpSession>): Promise<TaskPanelItem[]> => {
+      const itemsById = new Map<string, TaskPanelItem>();
+      const [linkedTask, firstPage] = await Promise.all([
+        session.hasLink('task')
+          ? session
+              .follow('task')
+              .get()
+              .catch(() => null)
+          : Promise.resolve(null),
+        session.follow('tasks').refresh(),
+      ]);
+
+      const linkedTaskItem = linkedTask as
+        | Parameters<typeof buildTaskPanelItem>[0]
+        | null;
+
+      if (linkedTaskItem) {
+        itemsById.set(
+          linkedTaskItem.data.id,
+          buildTaskPanelItem(linkedTaskItem),
+        );
+      }
+
+      const appendPage = (page: typeof firstPage) => {
+        for (const taskState of page.collection) {
+          itemsById.set(taskState.data.id, buildTaskPanelItem(taskState));
+        }
+      };
+
+      appendPage(firstPage);
+
+      let currentPage = firstPage;
+      while (currentPage.hasLink('next')) {
+        currentPage = await currentPage.follow('next').get();
+        appendPage(currentPage);
+      }
+
+      return Array.from(itemsById.values());
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!selectedSession) {
+      setSessionTaskItems([]);
+      setTasksLoading(false);
+      return;
+    }
+
+    let active = true;
+
+    const syncTaskItems = async (notifyOnError: boolean) => {
+      if (notifyOnError) {
+        setTasksLoading(true);
+      }
+
+      try {
+        const nextItems = await loadTaskItems(selectedSession);
+        if (active) {
+          setSessionTaskItems(nextItems);
+        }
+      } catch (error) {
+        if (!notifyOnError || !active) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : '加载任务失败';
+        toast.error(message);
+      } finally {
+        if (notifyOnError && active) {
+          setTasksLoading(false);
+        }
+      }
+    };
+
+    void syncTaskItems(true);
+    const intervalId = window.setInterval(() => {
+      void syncTaskItems(false);
+    }, TASK_POLL_INTERVAL_MS);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [loadTaskItems, selectedSession]);
 
   const { chatMessages, handlePromptSubmit, hasPendingAssistantMessage } =
     useProjectSessionChat({
@@ -494,6 +591,21 @@ export function ShellsSession(props: ShellsSessionProps) {
     [selectSessionFromList],
   );
 
+  const handleOpenLinkedSession = useCallback(
+    async (sessionId: string) => {
+      try {
+        await select({ session: sessionId });
+        await loadSessions();
+        setMobileInspectorOpen(false);
+        onSessionNavigate?.(sessionId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '打开会话失败';
+        toast.error(message);
+      }
+    },
+    [loadSessions, onSessionNavigate, select],
+  );
+
   const leftSidebar = (
     <ProjectSessionHistorySidebar
       onDeleteSession={(session) => setDeleteDialogSession(session)}
@@ -518,9 +630,11 @@ export function ShellsSession(props: ShellsSessionProps) {
   const inspector = (
     <ProjectSessionStatusSidebar
       events={sideEvents}
+      onOpenSession={handleOpenLinkedSession}
       selectedSession={selectedSession}
       streamStatus={streamStatus}
-      taskSnapshotItems={taskSnapshotItems}
+      taskItems={taskItems}
+      tasksLoading={tasksLoading}
     />
   );
 

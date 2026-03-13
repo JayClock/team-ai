@@ -1,6 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { AcpEventEnvelope, AcpSession } from '@shared/schema';
 import {
+  Button,
   Card,
   CardContent,
   ScrollArea,
@@ -9,30 +10,42 @@ import {
   TabsList,
   TabsTrigger,
 } from '@shared/ui';
-import { ActivityIcon, ListChecksIcon } from 'lucide-react';
+import { ActivityIcon, ArrowUpRightIcon, ListChecksIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import {
+  describeTaskExecutionStatus,
   eventHeadline,
   eventIcon,
   eventLabel,
   formatDateTime,
   formatStatusLabel,
+  formatTaskKindLabel,
   renderEventDetails,
   sessionDisplayName,
   statusChipClasses,
   statusTone,
-  TaskSnapshotItem,
+  type TaskPanelItem,
 } from './project-session-workbench.shared';
 
 export function ProjectSessionStatusSidebar(props: {
   events: AcpEventEnvelope[];
+  onOpenSession: (sessionId: string) => void;
   selectedSession: State<AcpSession> | null;
   streamStatus: string;
-  taskSnapshotItems: TaskSnapshotItem[];
+  taskItems: TaskPanelItem[];
+  tasksLoading: boolean;
 }) {
-  const { events, selectedSession, streamStatus, taskSnapshotItems } = props;
+  const {
+    events,
+    onOpenSession,
+    selectedSession,
+    streamStatus,
+    taskItems,
+    tasksLoading,
+  } = props;
   const recentEvents = events.slice(-12).reverse();
-  const defaultTab = taskSnapshotItems.length > 0 ? 'tasks' : 'activity';
+  const defaultTab =
+    taskItems.length > 0 || tasksLoading ? 'tasks' : 'activity';
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -84,16 +97,24 @@ export function ProjectSessionStatusSidebar(props: {
         <TabsContent value="tasks" className="mt-0 min-h-0 flex-1">
           <ScrollArea className="h-full">
             <div className="space-y-3 p-4">
-              {taskSnapshotItems.length === 0 ? (
+              {tasksLoading && taskItems.length === 0 ? (
+                <EmptyPanel
+                  icon={
+                    <ListChecksIcon className="size-4 text-muted-foreground" />
+                  }
+                  title="正在同步任务"
+                  description="正在拉取当前会话的任务与执行会话关系。"
+                />
+              ) : taskItems.length === 0 ? (
                 <EmptyPanel
                   icon={
                     <ListChecksIcon className="size-4 text-muted-foreground" />
                   }
                   title="还没有任务快照"
-                  description="当会话产生 plan 或 tool 调用时，这里会显示与 Routa 一致的任务概览。"
+                  description="当会话产生 plan、任务或工具调用时，这里会显示任务概览与执行链路。"
                 />
               ) : (
-                taskSnapshotItems.map((item) => (
+                taskItems.map((item) => (
                   <Card
                     key={item.id}
                     className="rounded-xl border-border/70 shadow-none"
@@ -113,6 +134,13 @@ export function ProjectSessionStatusSidebar(props: {
                             <p className="mt-2 text-sm text-muted-foreground">
                               {item.description}
                             </p>
+                          ) : null}
+                          {item.source === 'task' ? (
+                            <TaskExecutionDetails
+                              currentSessionId={selectedSession?.data.id}
+                              item={item}
+                              onOpenSession={onOpenSession}
+                            />
                           ) : null}
                         </div>
                         <span
@@ -175,6 +203,109 @@ export function ProjectSessionStatusSidebar(props: {
           </ScrollArea>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function TaskExecutionDetails(props: {
+  currentSessionId?: string;
+  item: TaskPanelItem;
+  onOpenSession: (sessionId: string) => void;
+}) {
+  const { currentSessionId, item, onOpenSession } = props;
+  const executionStatus = describeTaskExecutionStatus(item, currentSessionId);
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+        {item.kind ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+            {formatTaskKindLabel(item.kind)}
+          </span>
+        ) : null}
+        {item.assignedRole ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            {item.assignedRole}
+          </span>
+        ) : null}
+        {item.assignedProvider ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            {item.assignedProvider}
+          </span>
+        ) : null}
+      </div>
+
+      {executionStatus ? (
+        <TaskMetaBlock label="当前执行状态" value={executionStatus} />
+      ) : null}
+
+      <TaskSessionLinkCard
+        actionLabel="打开执行会话"
+        currentSessionId={currentSessionId}
+        label="executionSessionId"
+        onOpenSession={onOpenSession}
+        sessionId={item.executionSessionId ?? null}
+      />
+      <TaskSessionLinkCard
+        actionLabel="打开结果会话"
+        currentSessionId={currentSessionId}
+        label="resultSessionId"
+        onOpenSession={onOpenSession}
+        sessionId={item.resultSessionId ?? null}
+      />
+    </div>
+  );
+}
+
+function TaskMetaBlock(props: { label: string; value: string }) {
+  const { label, value } = props;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-medium">{value}</div>
+    </div>
+  );
+}
+
+function TaskSessionLinkCard(props: {
+  actionLabel: string;
+  currentSessionId?: string;
+  label: string;
+  onOpenSession: (sessionId: string) => void;
+  sessionId: string | null;
+}) {
+  const { actionLabel, currentSessionId, label, onOpenSession, sessionId } =
+    props;
+  const isCurrent = Boolean(sessionId && sessionId === currentSessionId);
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            {label}
+          </div>
+          <div className="mt-1 break-all font-mono text-xs text-foreground">
+            {sessionId ?? '未关联'}
+          </div>
+        </div>
+        {sessionId ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+            disabled={isCurrent}
+            onClick={() => onOpenSession(sessionId)}
+          >
+            {isCurrent ? '当前会话' : actionLabel}
+            {isCurrent ? null : <ArrowUpRightIcon className="size-3.5" />}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
