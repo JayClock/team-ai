@@ -8,6 +8,7 @@ import sqlitePlugin from '../plugins/sqlite';
 import { createAgent } from '../services/agent-service';
 import { createProject } from '../services/project-service';
 import { createTask } from '../services/task-service';
+import { insertAcpSession } from '../test-support/acp-session-fixture';
 import acpRoute from './acp';
 import mcpRoute from './mcp';
 import projectsRoute from './projects';
@@ -80,13 +81,29 @@ describe('mcp route', () => {
       model: 'gpt-5',
       systemPrompt: 'Plan tasks',
     });
+    const rootSessionId = 'acps_mcp_root';
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-local-mcp-project',
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
     const task = await createTask(fastify.sqlite, {
       projectId: project.id,
       title: 'Implement MCP task tools',
       objective: 'Allow agents to read task lists and task details',
-      status: 'READY',
+      status: 'PENDING',
       kind: 'implement',
       labels: ['mcp'],
+      triggerSessionId: rootSessionId,
+    });
+    const completedTask = await createTask(fastify.sqlite, {
+      projectId: project.id,
+      title: 'Do not execute completed tasks',
+      objective: 'Ensure MCP execution rejects terminal tasks',
+      status: 'COMPLETED',
+      kind: 'implement',
+      triggerSessionId: rootSessionId,
     });
 
     const listToolsResponse = await fastify.inject({
@@ -111,6 +128,8 @@ describe('mcp route', () => {
         'agents_list',
         'tasks_list',
         'task_get',
+        'task_update',
+        'task_execute',
         'acp_session_create',
         'acp_session_prompt',
         'acp_session_cancel',
@@ -171,7 +190,7 @@ describe('mcp route', () => {
           name: 'tasks_list',
           arguments: {
             projectId: project.id,
-            status: 'READY',
+            status: 'PENDING',
           },
         },
       },
@@ -183,7 +202,7 @@ describe('mcp route', () => {
     ).toMatchObject({
       id: task.id,
       projectId: project.id,
-      status: 'READY',
+      status: 'PENDING',
       title: 'Implement MCP task tools',
     });
 
@@ -239,6 +258,122 @@ describe('mcp route', () => {
       result: null,
     });
 
+    const taskUpdateResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-task-update',
+        method: 'tools/call',
+        params: {
+          name: 'task_update',
+          arguments: {
+            projectId: project.id,
+            taskId: task.id,
+            status: 'READY',
+            completionSummary: 'Ready for local execution',
+          },
+        },
+      },
+    });
+
+    expect(taskUpdateResponse.statusCode).toBe(200);
+    expect(taskUpdateResponse.json().result.content[0].json).toMatchObject({
+      task: {
+        id: task.id,
+        status: 'READY',
+        completionSummary: 'Ready for local execution',
+      },
+    });
+
+    const invalidTaskUpdateResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-task-update-invalid',
+        method: 'tools/call',
+        params: {
+          name: 'task_update',
+          arguments: {
+            projectId: project.id,
+            taskId: task.id,
+            status: 'RUNNING',
+          },
+        },
+      },
+    });
+
+    expect(invalidTaskUpdateResponse.statusCode).toBe(200);
+    expect(invalidTaskUpdateResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        message: expect.stringContaining('WAITING_RETRY'),
+      },
+      result: null,
+    });
+
+    const taskExecuteResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-task-execute',
+        method: 'tools/call',
+        params: {
+          name: 'task_execute',
+          arguments: {
+            projectId: project.id,
+            taskId: task.id,
+          },
+        },
+      },
+    });
+
+    expect(taskExecuteResponse.statusCode).toBe(200);
+    expect(taskExecuteResponse.json().result.content[0].json).toMatchObject({
+      dispatch: {
+        attempted: true,
+        errorMessage: null,
+        result: {
+          dispatched: true,
+          reason: null,
+          role: 'CRAFTER',
+        },
+      },
+      task: {
+        id: task.id,
+        status: 'COMPLETED',
+      },
+    });
+    expect(promptMock).toHaveBeenCalledTimes(1);
+
+    const invalidTaskExecuteResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'mcp-task-execute-invalid',
+        method: 'tools/call',
+        params: {
+          name: 'task_execute',
+          arguments: {
+            projectId: project.id,
+            taskId: completedTask.id,
+          },
+        },
+      },
+    });
+
+    expect(invalidTaskExecuteResponse.statusCode).toBe(200);
+    expect(invalidTaskExecuteResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        message: expect.stringContaining('COMPLETED'),
+      },
+      result: null,
+    });
+
     const createAcpResponse = await fastify.inject({
       method: 'POST',
       url: '/api/mcp',
@@ -281,6 +416,6 @@ describe('mcp route', () => {
     });
 
     expect(promptAcpResponse.statusCode).toBe(200);
-    expect(promptMock).toHaveBeenCalledTimes(1);
+    expect(promptMock).toHaveBeenCalledTimes(2);
   });
 });

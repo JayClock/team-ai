@@ -8,7 +8,12 @@ import {
 } from '../services/acp-service';
 import { listAgents } from '../services/agent-service';
 import { listProjects } from '../services/project-service';
-import { getTaskById, listTasks } from '../services/task-service';
+import {
+  executeTask,
+  getTaskById,
+  listTasks,
+  updateTaskFromMcp,
+} from '../services/task-service';
 
 const mcpJsonRpcRequestSchema = z.object({
   jsonrpc: z.literal('2.0'),
@@ -45,6 +50,45 @@ const tasksListArgsSchema = z.object({
 });
 
 const taskGetArgsSchema = z.object({
+  projectId: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+});
+
+const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
+const stringArraySchema = z.array(z.string().trim().min(1));
+const mcpWritableTaskStatusSchema = z.enum([
+  'PENDING',
+  'READY',
+  'WAITING_RETRY',
+  'CANCELLED',
+]);
+
+const taskUpdateArgsSchema = z
+  .object({
+    acceptanceCriteria: stringArraySchema.optional(),
+    assignedProvider: nullableStringSchema.optional(),
+    assignedRole: nullableStringSchema.optional(),
+    assignedSpecialistId: nullableStringSchema.optional(),
+    assignedSpecialistName: nullableStringSchema.optional(),
+    completionSummary: nullableStringSchema.optional(),
+    dependencies: stringArraySchema.optional(),
+    labels: stringArraySchema.optional(),
+    objective: z.string().trim().min(1).optional(),
+    priority: nullableStringSchema.optional(),
+    projectId: z.string().trim().min(1),
+    scope: nullableStringSchema.optional(),
+    status: mcpWritableTaskStatusSchema.optional(),
+    taskId: z.string().trim().min(1),
+    title: z.string().trim().min(1).optional(),
+    verificationCommands: stringArraySchema.optional(),
+    verificationReport: nullableStringSchema.optional(),
+    verificationVerdict: nullableStringSchema.optional(),
+  })
+  .refine(({ projectId: _projectId, taskId: _taskId, ...patch }) => {
+    return Object.keys(patch).length > 0;
+  }, 'At least one task field must be provided');
+
+const taskExecuteArgsSchema = z.object({
   projectId: z.string().trim().min(1),
   taskId: z.string().trim().min(1),
 });
@@ -127,6 +171,65 @@ const mcpTools = [
     title: 'Get Task',
     description:
       'Get a single project task by id from the local desktop runtime.',
+    inputSchema: {
+      type: 'object',
+      required: ['projectId', 'taskId'],
+      properties: {
+        projectId: { type: 'string' },
+        taskId: { type: 'string' },
+      },
+    },
+  },
+  {
+    name: 'task_update',
+    title: 'Update Task',
+    description:
+      'Update safe task fields and controlled task statuses in the local desktop runtime.',
+    inputSchema: {
+      type: 'object',
+      required: ['projectId', 'taskId'],
+      properties: {
+        projectId: { type: 'string' },
+        taskId: { type: 'string' },
+        title: { type: 'string' },
+        objective: { type: 'string' },
+        scope: { type: ['string', 'null'] },
+        priority: { type: ['string', 'null'] },
+        assignedProvider: { type: ['string', 'null'] },
+        assignedRole: { type: ['string', 'null'] },
+        assignedSpecialistId: { type: ['string', 'null'] },
+        assignedSpecialistName: { type: ['string', 'null'] },
+        acceptanceCriteria: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        dependencies: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        labels: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        verificationCommands: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        completionSummary: { type: ['string', 'null'] },
+        verificationReport: { type: ['string', 'null'] },
+        verificationVerdict: { type: ['string', 'null'] },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'READY', 'WAITING_RETRY', 'CANCELLED'],
+        },
+      },
+    },
+  },
+  {
+    name: 'task_execute',
+    title: 'Execute Task',
+    description:
+      'Move a task into execution and trigger dispatch in the local desktop runtime.',
     inputSchema: {
       type: 'object',
       required: ['projectId', 'taskId'],
@@ -251,6 +354,47 @@ async function getProjectTask(
 }
 
 const mcpRoute: FastifyPluginAsync = async (fastify) => {
+  const dispatchCallbacks = {
+    async createSession(input: {
+      actorUserId: string;
+      goal?: string;
+      parentSessionId?: string | null;
+      projectId: string;
+      provider: string;
+      retryOfRunId?: string | null;
+      role?: string | null;
+      specialistId?: string;
+      taskId?: string | null;
+    }) {
+      const session = await createAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        input,
+      );
+
+      return {
+        id: session.id,
+      };
+    },
+    async promptSession(input: {
+      projectId: string;
+      prompt: string;
+      sessionId: string;
+    }) {
+      return await promptAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        input.projectId,
+        input.sessionId,
+        {
+          prompt: input.prompt,
+        },
+      );
+    },
+  };
+
   fastify.post('/mcp', async (request) => {
     const rpcRequest = mcpJsonRpcRequestSchema.parse(request.body);
     const { id, method, params } = rpcRequest;
@@ -314,6 +458,31 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                     args.taskId,
                   ),
                 }),
+              );
+            }
+            case 'task_update': {
+              const args = taskUpdateArgsSchema.parse(toolCall.arguments);
+              await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
+              const { projectId: _projectId, taskId, ...patch } = args;
+
+              return resultEnvelope(
+                id,
+                toolSuccess({
+                  task: await updateTaskFromMcp(fastify.sqlite, taskId, patch),
+                }),
+              );
+            }
+            case 'task_execute': {
+              const args = taskExecuteArgsSchema.parse(toolCall.arguments);
+              await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
+
+              return resultEnvelope(
+                id,
+                toolSuccess(
+                  await executeTask(fastify.sqlite, args.taskId, {
+                    callbacks: dispatchCallbacks,
+                  }),
+                ),
               );
             }
             case 'acp_session_create': {

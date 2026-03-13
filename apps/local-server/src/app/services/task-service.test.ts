@@ -9,6 +9,7 @@ import { insertAcpSession } from '../test-support/acp-session-fixture';
 import {
   createTask,
   deleteTask,
+  executeTask,
   getTaskDispatchability,
   getTaskById,
   listTasks,
@@ -16,6 +17,7 @@ import {
   resolveDefaultTaskRole,
   updateTask,
   updateTaskAndDispatch,
+  updateTaskFromMcp,
 } from './task-service';
 
 describe('task service', () => {
@@ -105,6 +107,72 @@ describe('task service', () => {
       status: 'COMPLETED',
       verificationReport: 'All checks passed',
       verificationVerdict: 'pass',
+    });
+  });
+
+  it('validates task statuses and blocks unsafe MCP status transitions', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Task Status Guards',
+      repoPath: '/Users/example/task-status-guards',
+    });
+
+    await expect(
+      createTask(sqlite, {
+        objective: 'Reject unknown status values',
+        projectId: project.id,
+        status: 'PAUSED',
+        title: 'Invalid status task',
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      type: 'https://team-ai.dev/problems/invalid-task-status',
+    });
+
+    const task = await createTask(sqlite, {
+      objective: 'Guard manual task status writes',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Writable status task',
+    });
+    const completedTask = await createTask(sqlite, {
+      objective: 'Do not reopen completed work',
+      projectId: project.id,
+      status: 'COMPLETED',
+      title: 'Completed task',
+    });
+
+    await expect(
+      updateTask(sqlite, task.id, {
+        status: 'PAUSED',
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      type: 'https://team-ai.dev/problems/invalid-task-status',
+    });
+
+    const waitingRetry = await updateTaskFromMcp(sqlite, task.id, {
+      status: 'WAITING_RETRY',
+    });
+
+    expect(waitingRetry.status).toBe('WAITING_RETRY');
+
+    await expect(
+      updateTaskFromMcp(sqlite, waitingRetry.id, {
+        status: 'RUNNING',
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      type: 'https://team-ai.dev/problems/task-status-not-mcp-writable',
+    });
+
+    await expect(
+      updateTaskFromMcp(sqlite, completedTask.id, {
+        status: 'READY',
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      type: 'https://team-ai.dev/problems/task-status-transition-not-allowed',
     });
   });
 
@@ -311,6 +379,94 @@ describe('task service', () => {
     });
     expect(createSession).toHaveBeenCalledTimes(2);
     expect(promptSession).toHaveBeenCalledTimes(2);
+  });
+
+  it('executes ready and retryable tasks through explicit task execution', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Task Execute Project',
+      repoPath: '/Users/example/task-execute-project',
+    });
+    const rootSessionId = 'acps_execute_root';
+    insertAcpSession(sqlite, {
+      cwd: '/Users/example/task-execute-project',
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const readyTask = await createTask(sqlite, {
+      objective: 'Execute a ready task directly',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Ready task',
+      triggerSessionId: rootSessionId,
+    });
+    const failedTask = await createTask(sqlite, {
+      objective: 'Retry a failed task explicitly',
+      projectId: project.id,
+      status: 'FAILED',
+      title: 'Failed task',
+      triggerSessionId: rootSessionId,
+    });
+    const completedTask = await createTask(sqlite, {
+      objective: 'Reject already completed tasks',
+      projectId: project.id,
+      status: 'COMPLETED',
+      title: 'Completed task',
+      triggerSessionId: rootSessionId,
+    });
+
+    let sessionCount = 0;
+    const createSession = vi.fn(async () => ({
+      id: `acps_execute_${++sessionCount}`,
+    }));
+    const promptSession = vi.fn(async () => undefined);
+    const callbacks = {
+      createSession,
+      promptSession,
+    };
+
+    const readyResult = await executeTask(sqlite, readyTask.id, {
+      callbacks,
+    });
+
+    expect(readyResult.dispatch).toMatchObject({
+      attempted: true,
+      errorMessage: null,
+    });
+    expect(readyResult.dispatch.result).toMatchObject({
+      dispatched: true,
+      reason: null,
+      role: 'CRAFTER',
+    });
+
+    const failedResult = await executeTask(sqlite, failedTask.id, {
+      callbacks,
+    });
+
+    expect(failedResult.task.status).toBe('READY');
+    expect(failedResult.dispatch).toMatchObject({
+      attempted: true,
+      errorMessage: null,
+    });
+    expect(failedResult.dispatch.result).toMatchObject({
+      dispatched: true,
+      reason: null,
+      role: 'CRAFTER',
+    });
+
+    expect(createSession).toHaveBeenCalledTimes(2);
+    expect(promptSession).toHaveBeenCalledTimes(2);
+
+    await expect(
+      executeTask(sqlite, completedTask.id, {
+        callbacks,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      type: 'https://team-ai.dev/problems/task-execution-not-allowed',
+    });
   });
 
   it('rejects task creation when ACP session belongs to another project', async () => {

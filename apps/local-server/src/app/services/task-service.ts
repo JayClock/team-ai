@@ -97,6 +97,18 @@ export type TaskDispatchBlockReason =
   | 'TASK_STATUS_NOT_DISPATCHABLE'
   | 'TASK_TRIGGER_SESSION_MISSING';
 
+export const taskStatusValues = [
+  'PENDING',
+  'READY',
+  'RUNNING',
+  'WAITING_RETRY',
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+] as const;
+
+export type TaskStatus = (typeof taskStatusValues)[number];
+
 export interface TaskDispatchability {
   dispatchable: boolean;
   reasons: TaskDispatchBlockReason[];
@@ -128,6 +140,21 @@ export interface UpdateTaskAndDispatchResult {
   task: TaskPayload;
 }
 
+export interface ExecuteTaskDispatchAttempt {
+  attempted: boolean;
+  errorMessage: string | null;
+  result: DispatchTaskResult | null;
+}
+
+export interface ExecuteTaskOptions {
+  callbacks: DispatchTaskCallbacks;
+}
+
+export interface ExecuteTaskResult {
+  dispatch: ExecuteTaskDispatchAttempt;
+  task: TaskPayload;
+}
+
 interface TaskDispatchabilityOptions {
   orchestrationMode?: ProjectOrchestrationMode;
 }
@@ -137,23 +164,45 @@ function createTaskId() {
 }
 
 const taskKindValues = ['plan', 'implement', 'review', 'verify'] as const;
-const dispatchableTaskStatuses = new Set([
+const dispatchableTaskStatuses = new Set<TaskStatus>([
   'PENDING',
   'READY',
   'RUNNING',
   'WAITING_RETRY',
 ]);
-const dispatchTriggerTaskStatuses = new Set([
+const dispatchTriggerTaskStatuses = new Set<TaskStatus>([
   'PENDING',
   'READY',
   'WAITING_RETRY',
 ]);
-const manualRetrySourceTaskStatuses = new Set([
+const manualRetrySourceTaskStatuses = new Set<TaskStatus>([
   'CANCELLED',
   'FAILED',
   'WAITING_RETRY',
 ]);
-const terminalTaskStatuses = new Set(['CANCELLED', 'COMPLETED']);
+const terminalTaskStatuses = new Set<TaskStatus>(['CANCELLED', 'COMPLETED']);
+const mcpWritableTaskStatuses = new Set<TaskStatus>([
+  'PENDING',
+  'READY',
+  'WAITING_RETRY',
+  'CANCELLED',
+]);
+const executableTaskStatuses = new Set<TaskStatus>([
+  'PENDING',
+  'READY',
+  'WAITING_RETRY',
+  'FAILED',
+  'CANCELLED',
+]);
+const mcpTaskStatusTransitions: Record<TaskStatus, readonly TaskStatus[]> = {
+  PENDING: ['READY', 'CANCELLED'],
+  READY: ['PENDING', 'WAITING_RETRY', 'CANCELLED'],
+  RUNNING: ['WAITING_RETRY', 'CANCELLED'],
+  WAITING_RETRY: ['READY', 'CANCELLED'],
+  COMPLETED: [],
+  FAILED: ['WAITING_RETRY', 'CANCELLED'],
+  CANCELLED: ['PENDING', 'READY'],
+};
 
 function throwInvalidTaskKind(kind: string): never {
   throw new ProblemError({
@@ -161,6 +210,15 @@ function throwInvalidTaskKind(kind: string): never {
     title: 'Invalid Task Kind',
     status: 400,
     detail: `Task kind ${kind} is not supported`,
+  });
+}
+
+function throwInvalidTaskStatus(status: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/invalid-task-status',
+    title: 'Invalid Task Status',
+    status: 400,
+    detail: `Task status ${status} is not supported`,
   });
 }
 
@@ -182,8 +240,76 @@ function throwTaskProjectMismatch(projectId: string, taskId: string): never {
   });
 }
 
+function throwTaskStatusNotWritableViaMcp(
+  taskId: string,
+  status: TaskStatus,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-status-not-mcp-writable',
+    title: 'Task Status Not MCP Writable',
+    status: 409,
+    detail: `Task ${taskId} status ${status} cannot be written via MCP`,
+  });
+}
+
+function throwTaskStatusTransitionNotAllowed(
+  taskId: string,
+  currentStatus: TaskStatus,
+  nextStatus: TaskStatus,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-status-transition-not-allowed',
+    title: 'Task Status Transition Not Allowed',
+    status: 409,
+    detail: `Task ${taskId} cannot transition from ${currentStatus} to ${nextStatus}`,
+  });
+}
+
+function throwTaskExecutionNotAllowed(
+  taskId: string,
+  status: TaskStatus,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-execution-not-allowed',
+    title: 'Task Execution Not Allowed',
+    status: 409,
+    detail: `Task ${taskId} cannot be executed from status ${status}`,
+  });
+}
+
+function throwTaskExecutionAlreadyActive(
+  taskId: string,
+  sessionId: string,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-execution-already-active',
+    title: 'Task Execution Already Active',
+    status: 409,
+    detail: `Task ${taskId} is already executing in session ${sessionId}`,
+  });
+}
+
 function isTaskKind(value: string): value is TaskKind {
   return taskKindValues.includes(value as TaskKind);
+}
+
+function isTaskStatus(value: string): value is TaskStatus {
+  return taskStatusValues.includes(value as TaskStatus);
+}
+
+function ensureTaskStatus(
+  status: string | null | undefined,
+  fallback: TaskStatus,
+): TaskStatus {
+  if (status === null || status === undefined) {
+    return fallback;
+  }
+
+  if (!isTaskStatus(status)) {
+    throwInvalidTaskStatus(status);
+  }
+
+  return status;
 }
 
 function defaultTaskKindForRole(role: string | null | undefined): TaskKind {
@@ -223,7 +349,25 @@ function isTaskKindDispatchable(kind: TaskKind | null): boolean {
 }
 
 function isTaskStatusDispatchable(status: string): boolean {
-  return dispatchableTaskStatuses.has(status);
+  return isTaskStatus(status) ? dispatchableTaskStatuses.has(status) : false;
+}
+
+function ensureTaskStatusWritableViaMcp(
+  taskId: string,
+  currentStatus: TaskStatus,
+  nextStatus: TaskStatus,
+) {
+  if (!mcpWritableTaskStatuses.has(nextStatus)) {
+    throwTaskStatusNotWritableViaMcp(taskId, nextStatus);
+  }
+
+  if (currentStatus === nextStatus) {
+    return;
+  }
+
+  if (!mcpTaskStatusTransitions[currentStatus].includes(nextStatus)) {
+    throwTaskStatusTransitionNotAllowed(taskId, currentStatus, nextStatus);
+  }
 }
 
 function resolveTaskDispatchTriggerReason(
@@ -231,19 +375,32 @@ function resolveTaskDispatchTriggerReason(
   nextStatus: string,
   source: TaskDispatchTriggerSource,
 ): TaskUpdateDispatchTriggerReason | null {
+  const resolvedCurrentStatus = isTaskStatus(currentStatus)
+    ? currentStatus
+    : null;
+  const resolvedNextStatus = isTaskStatus(nextStatus) ? nextStatus : null;
+
   if (currentStatus === nextStatus) {
     return null;
   }
 
-  if (terminalTaskStatuses.has(nextStatus)) {
+  if (!resolvedNextStatus) {
     return null;
   }
 
-  if (!dispatchTriggerTaskStatuses.has(nextStatus)) {
+  if (terminalTaskStatuses.has(resolvedNextStatus)) {
     return null;
   }
 
-  if (source === 'manual' && manualRetrySourceTaskStatuses.has(currentStatus)) {
+  if (!dispatchTriggerTaskStatuses.has(resolvedNextStatus)) {
+    return null;
+  }
+
+  if (
+    source === 'manual' &&
+    resolvedCurrentStatus !== null &&
+    manualRetrySourceTaskStatuses.has(resolvedCurrentStatus)
+  ) {
     return 'MANUAL_RETRY';
   }
 
@@ -715,6 +872,7 @@ export async function createTask(
     input.resultSessionId,
   );
   const kind = ensureTaskKind(input.kind, assignment.assignedRole);
+  const status = ensureTaskStatus(input.status, 'PENDING');
   const now = new Date().toISOString();
   const taskId = createTaskId();
   const sourceType = input.sourceType ?? 'manual';
@@ -841,7 +999,7 @@ export async function createTask(
       projectId: input.projectId,
       resultSessionId,
       scope: input.scope ?? null,
-      status: input.status ?? 'PENDING',
+      status,
       sourceEntryIndex: input.sourceEntryIndex ?? null,
       sourceEventId: input.sourceEventId ?? null,
       sourceType,
@@ -986,6 +1144,7 @@ export async function updateTask(
   input: UpdateTaskInput,
 ): Promise<TaskPayload> {
   const current = getTaskRow(sqlite, taskId);
+  const currentStatus = ensureTaskStatus(current.status, 'PENDING');
   const triggerSessionId =
     input.triggerSessionId === undefined
       ? current.trigger_session_id
@@ -1107,7 +1266,7 @@ export async function updateTask(
     priority: input.priority === undefined ? current.priority : input.priority,
     scope: input.scope === undefined ? current.scope : input.scope,
     resultSessionId,
-    status: input.status ?? current.status,
+    status: ensureTaskStatus(input.status, currentStatus),
     sourceEntryIndex:
       input.sourceEntryIndex === undefined
         ? current.source_entry_index
@@ -1185,6 +1344,25 @@ export async function updateTask(
   return getTaskById(sqlite, taskId);
 }
 
+export async function updateTaskFromMcp(
+  sqlite: Database,
+  taskId: string,
+  input: UpdateTaskInput,
+): Promise<TaskPayload> {
+  const current = getTaskRow(sqlite, taskId);
+  const currentStatus = ensureTaskStatus(current.status, 'PENDING');
+
+  if (input.status !== undefined) {
+    ensureTaskStatusWritableViaMcp(
+      taskId,
+      currentStatus,
+      ensureTaskStatus(input.status, currentStatus),
+    );
+  }
+
+  return updateTask(sqlite, taskId, input);
+}
+
 export async function updateTaskAndDispatch(
   sqlite: Database,
   taskId: string,
@@ -1246,6 +1424,72 @@ export async function updateTaskAndDispatch(
         result: null,
         source: options.triggerSource,
         triggerReason,
+      },
+      task: await getTaskById(sqlite, taskId),
+    };
+  }
+}
+
+export async function executeTask(
+  sqlite: Database,
+  taskId: string,
+  options: ExecuteTaskOptions,
+): Promise<ExecuteTaskResult> {
+  const task = await getTaskById(sqlite, taskId);
+  const currentStatus = ensureTaskStatus(task.status, 'PENDING');
+
+  if (task.executionSessionId) {
+    throwTaskExecutionAlreadyActive(taskId, task.executionSessionId);
+  }
+
+  if (!executableTaskStatuses.has(currentStatus)) {
+    throwTaskExecutionNotAllowed(taskId, currentStatus);
+  }
+
+  if (currentStatus !== 'READY') {
+    const result = await updateTaskAndDispatch(
+      sqlite,
+      taskId,
+      {
+        status: 'READY',
+      },
+      {
+        callbacks: options.callbacks,
+        triggerSource: 'manual',
+      },
+    );
+
+    return {
+      dispatch: {
+        attempted: result.dispatch.attempted,
+        errorMessage: result.dispatch.errorMessage,
+        result: result.dispatch.result,
+      },
+      task: result.task,
+    };
+  }
+
+  try {
+    const { dispatchTask } = await import('./task-dispatch-service.js');
+    const result = await dispatchTask(sqlite, options.callbacks, {
+      taskId,
+    });
+
+    return {
+      dispatch: {
+        attempted: true,
+        errorMessage: null,
+        result,
+      },
+      task: await getTaskById(sqlite, taskId),
+    };
+  } catch (error) {
+    return {
+      dispatch: {
+        attempted: true,
+        errorMessage:
+          error instanceof Error ? error.message : 'Task dispatch failed',
+        result: null,
       },
       task: await getTaskById(sqlite, taskId),
     };
