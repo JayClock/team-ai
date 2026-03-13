@@ -275,6 +275,7 @@ function ProjectHomeContent(props: {
   const client = useClient();
   const navigate = useNavigate();
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  const selectedProjectId = selectedProject.data.id;
   const projectState = selectedProject as unknown as State<Project>;
   const meResource = useMemo(
     () => client.go<Root>('/api').follow('me'),
@@ -476,7 +477,7 @@ function ProjectHomeContent(props: {
         storePendingProjectPrompt(created.data.id, goal);
         setPrompt('');
         await loadRecentSessions();
-        navigate(`/sessions/${created.data.id}`);
+        navigate(`/projects/${selectedProjectId}/sessions/${created.data.id}`);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : '创建 ACP 会话失败';
@@ -493,6 +494,7 @@ function ProjectHomeContent(props: {
       navigate,
       prompt,
       selectedProvider,
+      selectedProjectId,
     ],
   );
 
@@ -777,7 +779,11 @@ function ProjectHomeContent(props: {
                   <button
                     key={session.data.id}
                     type="button"
-                    onClick={() => navigate(`/sessions/${session.data.id}`)}
+                    onClick={() =>
+                      navigate(
+                        `/projects/${selectedProjectId}/sessions/${session.data.id}`,
+                      )
+                    }
                     className="group rounded-xl border border-gray-100 bg-[#fcfcfc] px-3.5 py-3 text-left transition-all hover:border-amber-200 hover:bg-amber-50/60 hover:shadow-sm dark:border-[#1c1f2e] dark:bg-[#0f1118] dark:hover:border-amber-700/40 dark:hover:bg-amber-900/5"
                   >
                     <div className="flex items-start justify-between gap-3">

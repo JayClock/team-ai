@@ -38,7 +38,7 @@ export default function ProjectSessionPage() {
       if (!projectState) {
         return;
       }
-      navigate(`/sessions/${nextSessionId}`);
+      navigate(`/projects/${projectState.data.id}/sessions/${nextSessionId}`);
     },
     [navigate, projectState],
   );

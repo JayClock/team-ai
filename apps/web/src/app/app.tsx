@@ -29,11 +29,6 @@ function createAppRouter() {
       loader: protectedRouteLoader,
       element: <ProjectHome />,
     },
-    {
-      path: '/sessions/:sessionId',
-      loader: protectedRouteLoader,
-      element: <ProjectSessionPage />,
-    },
     ...protectedLayoutRoutes,
     {
       path: '/projects',
