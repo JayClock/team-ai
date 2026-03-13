@@ -1,6 +1,7 @@
 import {
   resolveWorkbenchProviderLabel,
   resolveWorkbenchSessionDefaults,
+  type WorkbenchSessionRuntimeProfile,
 } from './session-runtime-profile';
 
 describe('resolveWorkbenchSessionDefaults', () => {
@@ -40,6 +41,20 @@ describe('resolveWorkbenchSessionDefaults', () => {
     expect(
       resolveWorkbenchSessionDefaults({
         recentSessionProvider: 'opencode',
+      }),
+    ).toEqual({
+      providerId: 'opencode',
+      role: 'ROUTA',
+    });
+  });
+
+  it('falls back safely when a legacy runtime profile omits newer fields', () => {
+    expect(
+      resolveWorkbenchSessionDefaults({
+        recentSessionProvider: 'opencode',
+        runtimeProfile: {
+          defaultProviderId: null,
+        } as unknown as WorkbenchSessionRuntimeProfile,
       }),
     ).toEqual({
       providerId: 'opencode',

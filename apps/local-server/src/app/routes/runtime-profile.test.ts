@@ -131,6 +131,132 @@ describe('runtime profile routes', () => {
     });
   });
 
+  it('reads legacy runtime profiles that predate config columns with safe defaults', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Legacy Runtime Profile Project',
+      repoPath: '/tmp/team-ai-runtime-profile-legacy',
+    });
+    const now = new Date().toISOString();
+
+    sqlite
+      .prepare(
+        `
+          INSERT INTO project_runtime_profiles (
+            id,
+            project_id,
+            default_provider_id,
+            default_model,
+            orchestration_mode,
+            enabled_skill_ids_json,
+            enabled_mcp_server_ids_json,
+            created_at,
+            updated_at,
+            deleted_at
+          )
+          VALUES (
+            @id,
+            @projectId,
+            @defaultProviderId,
+            @defaultModel,
+            @orchestrationMode,
+            @enabledSkillIdsJson,
+            @enabledMcpServerIdsJson,
+            @createdAt,
+            @updatedAt,
+            NULL
+          )
+        `,
+      )
+      .run({
+        id: 'rprof_legacycompat01',
+        projectId: project.id,
+        defaultProviderId: 'codex',
+        defaultModel: 'gpt-4.1-mini',
+        orchestrationMode: 'DEVELOPER',
+        enabledSkillIdsJson: JSON.stringify(['reviewer']),
+        enabledMcpServerIdsJson: JSON.stringify(['team_ai_local']),
+        createdAt: now,
+        updatedAt: now,
+      });
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/runtime-profile`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      defaultModel: 'gpt-4.1-mini',
+      defaultProviderId: 'codex',
+      enabledMcpServerIds: ['team_ai_local'],
+      enabledSkillIds: ['reviewer'],
+      mcpServerConfigs: {},
+      orchestrationMode: 'DEVELOPER',
+      projectId: project.id,
+      skillConfigs: {},
+    });
+  });
+
+  it('preserves existing runtime profile fields when only provider and mode change', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Runtime Profile Partial Update Project',
+      repoPath: '/tmp/team-ai-runtime-profile-partial',
+    });
+
+    await fastify.inject({
+      method: 'PATCH',
+      url: `/api/projects/${project.id}/runtime-profile`,
+      payload: {
+        defaultModel: 'gpt-5.4',
+        enabledMcpServerIds: ['team_ai_local'],
+        enabledSkillIds: ['reviewer'],
+        mcpServerConfigs: {
+          team_ai_local: {
+            timeoutMs: 2000,
+          },
+        },
+        skillConfigs: {
+          reviewer: {
+            level: 'strict',
+          },
+        },
+      },
+    });
+
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/projects/${project.id}/runtime-profile`,
+      payload: {
+        defaultProviderId: 'opencode',
+        orchestrationMode: 'DEVELOPER',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      defaultModel: 'gpt-5.4',
+      defaultProviderId: 'opencode',
+      enabledMcpServerIds: ['team_ai_local'],
+      enabledSkillIds: ['reviewer'],
+      mcpServerConfigs: {
+        team_ai_local: {
+          timeoutMs: 2000,
+        },
+      },
+      orchestrationMode: 'DEVELOPER',
+      projectId: project.id,
+      skillConfigs: {
+        reviewer: {
+          level: 'strict',
+        },
+      },
+    });
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(
       join(tmpdir(), 'team-ai-runtime-profile-route-'),
