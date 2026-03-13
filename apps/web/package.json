@@ -9,7 +9,8 @@
     "@features/projects": "workspace:*",
     "@shared/util-http": "workspace:*",
     "@features/user-projects": "workspace:*",
-    "@shells/layout": "workspace:*"
+    "@shells/layout": "workspace:*",
+    "@shells/session": "workspace:*"
   },
   "nx": {
     "projectType": "application",

@@ -59,6 +59,9 @@
     },
     {
       "path": "./libs/frontend/features/project-sessions"
+    },
+    {
+      "path": "./libs/frontend/shells/session"
     }
   ]
 }

@@ -1,9 +1,9 @@
 import { State } from '@hateoas-ts/resource';
 import { Project } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardTitle } from '@shared/ui';
+import { ShellsSession } from '@shells/session';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ProjectSessionWorkbench } from '@features/projects';
 import {
   clearPendingProjectPrompt,
   readPendingProjectPrompt,
@@ -70,7 +70,7 @@ export default function ProjectSessionPage() {
 
   return (
     <div className="min-w-0 h-[100dvh] overflow-hidden bg-background">
-      <ProjectSessionWorkbench
+      <ShellsSession
         projectState={projectState}
         projectTitle={projectTitle(currentProject)}
         onBack={handleBack}

@@ -1,5 +1,5 @@
 {
-  "name": "@features/projects",
+  "name": "@shells/session",
   "version": "0.0.1",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -14,10 +14,10 @@
   "dependencies": {
     "@features/project-conversations": "workspace:*",
     "@features/project-sessions": "workspace:*",
+    "@hateoas-ts/resource": "workspace:*",
     "@hateoas-ts/resource-react": "workspace:*",
-    "@shells/session": "workspace:*",
     "@shared/schema": "workspace:*",
     "@shared/ui": "workspace:*",
-    "@shared/util-http": "workspace:^"
+    "@shared/util-http": "workspace:*"
   }
 }
