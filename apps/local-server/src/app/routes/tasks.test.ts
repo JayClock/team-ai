@@ -80,6 +80,9 @@ describe('tasks routes', () => {
     expect(detailResponse.json()).toMatchObject({
       id: task.id,
       _links: {
+        execute: {
+          href: `/api/tasks/${task.id}/execute`,
+        },
         session: {
           href: `/api/projects/${project.id}/acp-sessions/${sessionId}`,
         },
@@ -207,6 +210,43 @@ describe('tasks routes', () => {
       expect.objectContaining({
         localSessionId: expect.any(String),
         prompt: expect.stringContaining('Task: Retry-ready task'),
+      }),
+    );
+  });
+
+  it('executes a task through the explicit task action route', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Task Execute Route',
+      repoPath: '/tmp/team-ai-task-execute-route',
+    });
+    const sessionId = createAcpSession(sqlite, project.id, 'Execute session');
+    const taskId = await createTask(fastify, project.id, sessionId, {
+      objective: 'Kick off execution from the task card',
+      title: 'Actionable task',
+    });
+
+    const executeResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/execute`,
+    });
+
+    expect(executeResponse.statusCode).toBe(200);
+    expect(responseContentType(executeResponse)).toBe(VENDOR_MEDIA_TYPES.task);
+    expect(executeResponse.json()).toMatchObject({
+      assignedProvider: 'codex',
+      assignedRole: 'CRAFTER',
+      assignedSpecialistId: 'crafter-implementor',
+      id: taskId,
+      resultSessionId: expect.stringMatching(/^acps_/),
+      status: 'COMPLETED',
+    });
+    expect(fastify.acpRuntime.createSession).toHaveBeenCalledTimes(1);
+    expect(fastify.acpRuntime.promptSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localSessionId: expect.any(String),
+        prompt: expect.stringContaining('Task: Actionable task'),
       }),
     );
   });

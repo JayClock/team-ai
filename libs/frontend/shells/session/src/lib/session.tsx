@@ -60,6 +60,7 @@ import {
   sessionDisplayName,
   statusChipClasses,
   statusTone,
+  type TaskPanelAction,
   type TaskPanelItem,
 } from './project-session-workbench.shared';
 
@@ -86,6 +87,36 @@ function timestamp(value: string | null): number {
   }
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function formatTaskActionSuccessMessage(
+  item: TaskPanelItem,
+  action: TaskPanelAction,
+): string {
+  if (action === 'retry') {
+    return '已提交任务重试';
+  }
+
+  if (item.kind === 'verify') {
+    return '已开始验证任务';
+  }
+
+  if (item.kind === 'review') {
+    return '已开始复核任务';
+  }
+
+  return '已开始执行任务';
+}
+
+function formatTaskActionErrorMessage(action: TaskPanelAction): string {
+  switch (action) {
+    case 'retry':
+      return '重试任务失败';
+    case 'review':
+      return '启动复核失败';
+    case 'execute':
+      return '启动任务失败';
+  }
 }
 
 export function ShellsSession(props: ShellsSessionProps) {
@@ -123,6 +154,10 @@ export function ShellsSession(props: ShellsSessionProps) {
 
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [sessionTaskItems, setSessionTaskItems] = useState<TaskPanelItem[]>([]);
+  const [pendingTaskAction, setPendingTaskAction] = useState<{
+    action: TaskPanelAction;
+    taskId: string;
+  } | null>(null);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const provider = 'opencode';
@@ -606,6 +641,66 @@ export function ShellsSession(props: ShellsSessionProps) {
     [loadSessions, onSessionNavigate, select],
   );
 
+  const handleTaskAction = useCallback(
+    async (item: TaskPanelItem, action: TaskPanelAction) => {
+      if (!item.taskState) {
+        toast.error('当前任务还未同步完成，稍后再试');
+        return;
+      }
+
+      setPendingTaskAction({ action, taskId: item.id });
+      setTasksLoading(true);
+
+      try {
+        if (action === 'retry') {
+          const latestRuns = await item.taskState
+            .follow('runs', { page: 1, pageSize: 1 })
+            .refresh();
+          const latestRun = latestRuns.collection[0];
+
+          if (!latestRun?.hasLink('retry-action')) {
+            throw new Error('当前任务还没有可重试的最新执行记录');
+          }
+
+          await latestRun.follow('retry-action').post({});
+        } else {
+          if (!item.taskState.hasLink('execute')) {
+            throw new Error('当前任务状态不支持直接启动');
+          }
+
+          await item.taskState.follow('execute').post({});
+        }
+
+        toast.success(formatTaskActionSuccessMessage(item, action));
+
+        try {
+          await loadSessions();
+        } catch {
+          // let polling reconcile session updates
+        }
+
+        if (selectedSession) {
+          try {
+            const nextItems = await loadTaskItems(selectedSession);
+            setSessionTaskItems(nextItems);
+          } catch {
+            // let polling reconcile task updates
+          }
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : formatTaskActionErrorMessage(action);
+        toast.error(message);
+      } finally {
+        setPendingTaskAction(null);
+        setTasksLoading(false);
+      }
+    },
+    [loadSessions, loadTaskItems, selectedSession],
+  );
+
   const leftSidebar = (
     <ProjectSessionHistorySidebar
       onDeleteSession={(session) => setDeleteDialogSession(session)}
@@ -631,6 +726,8 @@ export function ShellsSession(props: ShellsSessionProps) {
     <ProjectSessionStatusSidebar
       events={sideEvents}
       onOpenSession={handleOpenLinkedSession}
+      onTaskAction={handleTaskAction}
+      pendingTaskAction={pendingTaskAction}
       selectedSession={selectedSession}
       streamStatus={streamStatus}
       taskItems={taskItems}

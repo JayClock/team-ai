@@ -13,6 +13,7 @@ import {
 import { ActivityIcon, ArrowUpRightIcon, ListChecksIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import {
+  canRetryTask,
   describeTaskExecutionStatus,
   eventHeadline,
   eventIcon,
@@ -20,16 +21,23 @@ import {
   formatDateTime,
   formatStatusLabel,
   formatTaskKindLabel,
+  getTaskPrimaryAction,
   renderEventDetails,
   sessionDisplayName,
   statusChipClasses,
   statusTone,
+  type TaskPanelAction,
   type TaskPanelItem,
 } from './project-session-workbench.shared';
 
 export function ProjectSessionStatusSidebar(props: {
   events: AcpEventEnvelope[];
   onOpenSession: (sessionId: string) => void;
+  onTaskAction: (item: TaskPanelItem, action: TaskPanelAction) => void;
+  pendingTaskAction: {
+    action: TaskPanelAction;
+    taskId: string;
+  } | null;
   selectedSession: State<AcpSession> | null;
   streamStatus: string;
   taskItems: TaskPanelItem[];
@@ -38,6 +46,8 @@ export function ProjectSessionStatusSidebar(props: {
   const {
     events,
     onOpenSession,
+    onTaskAction,
+    pendingTaskAction,
     selectedSession,
     streamStatus,
     taskItems,
@@ -140,6 +150,8 @@ export function ProjectSessionStatusSidebar(props: {
                               currentSessionId={selectedSession?.data.id}
                               item={item}
                               onOpenSession={onOpenSession}
+                              onTaskAction={onTaskAction}
+                              pendingTaskAction={pendingTaskAction}
                             />
                           ) : null}
                         </div>
@@ -211,8 +223,19 @@ function TaskExecutionDetails(props: {
   currentSessionId?: string;
   item: TaskPanelItem;
   onOpenSession: (sessionId: string) => void;
+  onTaskAction: (item: TaskPanelItem, action: TaskPanelAction) => void;
+  pendingTaskAction: {
+    action: TaskPanelAction;
+    taskId: string;
+  } | null;
 }) {
-  const { currentSessionId, item, onOpenSession } = props;
+  const {
+    currentSessionId,
+    item,
+    onOpenSession,
+    onTaskAction,
+    pendingTaskAction,
+  } = props;
   const executionStatus = describeTaskExecutionStatus(item, currentSessionId);
 
   return (
@@ -253,6 +276,63 @@ function TaskExecutionDetails(props: {
         onOpenSession={onOpenSession}
         sessionId={item.resultSessionId ?? null}
       />
+      <TaskActionCard
+        item={item}
+        onTaskAction={onTaskAction}
+        pendingTaskAction={pendingTaskAction}
+      />
+    </div>
+  );
+}
+
+function TaskActionCard(props: {
+  item: TaskPanelItem;
+  onTaskAction: (item: TaskPanelItem, action: TaskPanelAction) => void;
+  pendingTaskAction: {
+    action: TaskPanelAction;
+    taskId: string;
+  } | null;
+}) {
+  const { item, onTaskAction, pendingTaskAction } = props;
+  const primaryAction = getTaskPrimaryAction(item);
+
+  if (!primaryAction) {
+    return null;
+  }
+
+  const isBusy = pendingTaskAction?.taskId === item.id;
+  const retryEnabled = canRetryTask(item);
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        任务操作
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          className="h-8 text-xs"
+          disabled={isBusy || !primaryAction.enabled}
+          onClick={() => onTaskAction(item, primaryAction.action)}
+        >
+          {isBusy && pendingTaskAction?.action === primaryAction.action
+            ? primaryAction.pendingLabel
+            : primaryAction.label}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          disabled={isBusy || !retryEnabled}
+          onClick={() => onTaskAction(item, 'retry')}
+        >
+          {isBusy && pendingTaskAction?.action === 'retry'
+            ? '重试中...'
+            : '重试'}
+        </Button>
+      </div>
     </div>
   );
 }

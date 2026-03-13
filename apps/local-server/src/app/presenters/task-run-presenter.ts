@@ -1,5 +1,7 @@
 import type { TaskRunListPayload, TaskRunPayload } from '../schemas/task-run';
 
+const retryableTaskRunStatuses = new Set(['FAILED', 'CANCELLED']);
+
 function createCollectionHref(taskRun: TaskRunPayload) {
   return `/api/tasks/${taskRun.taskId}/runs`;
 }
@@ -29,6 +31,13 @@ function createTaskRunLinks(taskRun: TaskRunPayload) {
       ? {
           retry: {
             href: `/api/task-runs/${taskRun.retryOfRunId}`,
+          },
+        }
+      : {}),
+    ...(taskRun.isLatest && retryableTaskRunStatuses.has(taskRun.status)
+      ? {
+          'retry-action': {
+            href: `/api/task-runs/${taskRun.id}/retry`,
           },
         }
       : {}),

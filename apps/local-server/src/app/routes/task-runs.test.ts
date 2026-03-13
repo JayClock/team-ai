@@ -211,6 +211,22 @@ describe('task run routes', () => {
       verificationVerdict: 'fail',
     });
 
+    const failedRunDetailResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/task-runs/${failedRun.id}`,
+    });
+
+    expect(failedRunDetailResponse.statusCode).toBe(200);
+    expect(failedRunDetailResponse.json()).toMatchObject({
+      id: failedRun.id,
+      isLatest: true,
+      _links: {
+        'retry-action': {
+          href: `/api/task-runs/${failedRun.id}/retry`,
+        },
+      },
+    });
+
     const retryResponse = await fastify.inject({
       method: 'POST',
       url: `/api/task-runs/${failedRun.id}/retry`,

@@ -35,6 +35,7 @@ export type TaskRun = Entity<
     collection: TaskRunCollection;
     project: never;
     retry: never;
+    'retry-action'?: TaskRun;
     session: never;
     task: never;
   }

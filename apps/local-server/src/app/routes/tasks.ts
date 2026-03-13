@@ -9,6 +9,7 @@ import {
 import {
   createTask,
   deleteTask,
+  executeTask,
   getTaskById,
   listTasks,
   updateTaskAndDispatch,
@@ -115,6 +116,47 @@ const taskPatchSchema = z
   });
 
 const tasksRoute: FastifyPluginAsync = async (fastify) => {
+  const dispatchCallbacks = {
+    async createSession(input: {
+      actorUserId: string;
+      goal?: string;
+      parentSessionId?: string | null;
+      projectId: string;
+      provider: string;
+      retryOfRunId?: string | null;
+      role?: string | null;
+      specialistId?: string;
+      taskId?: string | null;
+    }) {
+      const session = await createAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        input,
+      );
+
+      return {
+        id: session.id,
+      };
+    },
+    async promptSession(input: {
+      projectId: string;
+      prompt: string;
+      sessionId: string;
+    }) {
+      return await promptAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        input.projectId,
+        input.sessionId,
+        {
+          prompt: input.prompt,
+        },
+      );
+    },
+  };
+
   fastify.get('/tasks', async (request, reply) => {
     const query = listTasksQuerySchema.parse(request.query);
 
@@ -194,33 +236,19 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
     const result = await updateTaskAndDispatch(fastify.sqlite, taskId, body, {
-      callbacks: {
-        async createSession(input) {
-          const session = await createAcpSession(
-            fastify.sqlite,
-            fastify.acpStreamBroker,
-            fastify.acpRuntime,
-            input,
-          );
-
-          return {
-            id: session.id,
-          };
-        },
-        async promptSession(input) {
-          return await promptAcpSession(
-            fastify.sqlite,
-            fastify.acpStreamBroker,
-            fastify.acpRuntime,
-            input.projectId,
-            input.sessionId,
-            {
-              prompt: input.prompt,
-            },
-          );
-        },
-      },
+      callbacks: dispatchCallbacks,
       triggerSource: 'manual',
+    });
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
+
+    return presentTask(result.task);
+  });
+
+  fastify.post('/tasks/:taskId/execute', async (request, reply) => {
+    const { taskId } = taskParamsSchema.parse(request.params);
+    const result = await executeTask(fastify.sqlite, taskId, {
+      callbacks: dispatchCallbacks,
     });
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);

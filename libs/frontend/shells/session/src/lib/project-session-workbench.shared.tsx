@@ -1,3 +1,4 @@
+import type { State } from '@hateoas-ts/resource';
 import { SessionTreeNode } from '@features/project-sessions';
 import {
   buildSessionTree,
@@ -10,6 +11,7 @@ import {
   type AcpErrorEventData,
   type AcpPlanEventData,
   type AcpSessionEventData,
+  type Task,
   type AcpToolCallEventData,
   type AcpToolResultEventData,
 } from '@shared/schema';
@@ -28,9 +30,22 @@ export type TaskPanelItem = {
   resultSessionId?: string | null;
   source: 'plan' | 'task' | 'tool';
   status: string;
+  taskState?: State<Task>;
   taskId?: string;
   title: string;
 };
+
+export type TaskPanelAction = 'execute' | 'review' | 'retry';
+
+export type TaskPrimaryAction = {
+  action: Exclude<TaskPanelAction, 'retry'>;
+  enabled: boolean;
+  label: string;
+  pendingLabel: string;
+};
+
+const taskPrimaryActionStatuses = new Set(['PENDING', 'READY']);
+const taskRetryStatuses = new Set(['FAILED', 'CANCELLED', 'WAITING_RETRY']);
 
 export type SidebarTab = 'sessions' | 'spec' | 'tasks';
 
@@ -80,6 +95,8 @@ export function formatStatusLabel(status: string | null | undefined): string {
     case 'RUNNING':
     case 'running':
       return '进行中';
+    case 'WAITING_RETRY':
+      return '等待重试';
     case 'in_progress':
       return '处理中';
     case 'BLOCKED':
@@ -127,20 +144,7 @@ function normalizeOptionalText(
   return trimmed ? trimmed : undefined;
 }
 
-export function buildTaskPanelItem(task: {
-  data: {
-    assignedProvider: string | null;
-    assignedRole: string | null;
-    executionSessionId: string | null;
-    id: string;
-    kind: string | null;
-    objective: string;
-    resultSessionId: string | null;
-    scope: string | null;
-    status: string;
-    title: string;
-  };
-}): TaskPanelItem {
+export function buildTaskPanelItem(task: State<Task>): TaskPanelItem {
   const description =
     normalizeOptionalText(task.data.objective) ??
     normalizeOptionalText(task.data.scope);
@@ -157,7 +161,67 @@ export function buildTaskPanelItem(task: {
     assignedProvider: task.data.assignedProvider,
     executionSessionId: task.data.executionSessionId,
     resultSessionId: task.data.resultSessionId,
+    taskState: task,
   };
+}
+
+function isDispatchableTaskKind(
+  kind: TaskPanelItem['kind'],
+): kind is 'implement' | 'review' | 'verify' {
+  return kind === 'implement' || kind === 'review' || kind === 'verify';
+}
+
+function canRunPrimaryTaskAction(item: TaskPanelItem): boolean {
+  return (
+    item.source === 'task' &&
+    Boolean(item.taskState) &&
+    !item.executionSessionId &&
+    taskPrimaryActionStatuses.has(item.status)
+  );
+}
+
+export function getTaskPrimaryAction(
+  item: TaskPanelItem,
+): TaskPrimaryAction | null {
+  if (!isDispatchableTaskKind(item.kind)) {
+    return null;
+  }
+
+  const enabled = canRunPrimaryTaskAction(item);
+
+  switch (item.kind) {
+    case 'implement':
+      return {
+        action: 'execute',
+        enabled,
+        label: '开始执行',
+        pendingLabel: '启动中...',
+      };
+    case 'review':
+      return {
+        action: 'review',
+        enabled,
+        label: '开始复核',
+        pendingLabel: '复核中...',
+      };
+    case 'verify':
+      return {
+        action: 'review',
+        enabled,
+        label: '开始验证',
+        pendingLabel: '验证中...',
+      };
+  }
+}
+
+export function canRetryTask(item: TaskPanelItem): boolean {
+  return (
+    item.source === 'task' &&
+    Boolean(item.taskState) &&
+    isDispatchableTaskKind(item.kind) &&
+    !item.executionSessionId &&
+    taskRetryStatuses.has(item.status)
+  );
 }
 
 export function describeTaskExecutionStatus(
@@ -196,6 +260,8 @@ export function describeTaskExecutionStatus(
       return '尚未进入执行';
     case 'BLOCKED':
       return '等待依赖解锁';
+    case 'WAITING_RETRY':
+      return '等待手动重试';
     case 'RUNNING':
       return '执行状态已启动';
     default:
@@ -322,6 +388,7 @@ export function statusTone(status: string): string {
     case 'running':
     case 'RUNNING':
     case 'in_progress':
+    case 'WAITING_RETRY':
     case 'connecting':
       return 'bg-amber-500';
     case 'FAILED':
@@ -350,6 +417,7 @@ export function statusChipClasses(status: string): string {
     case 'RUNNING':
     case 'running':
     case 'in_progress':
+    case 'WAITING_RETRY':
       return 'bg-amber-50 text-amber-700 ring-amber-200';
     case 'FAILED':
     case 'failed':

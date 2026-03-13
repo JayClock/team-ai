@@ -69,6 +69,7 @@ export type Task = Entity<
   {
     self: Task;
     collection: TaskCollection;
+    execute?: Task;
     runs: TaskRunCollection;
   }
 >;
