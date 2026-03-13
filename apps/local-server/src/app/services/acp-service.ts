@@ -31,6 +31,7 @@ import {
   getSpecialistById,
   throwSpecialistRoleMismatch,
 } from './specialist-service';
+import { startTaskRun } from './task-run-service';
 import { syncPlanEventToTasksAndDispatch } from './acp-plan-task-sync-service';
 
 const sessionIdGenerator = customAlphabet(
@@ -225,6 +226,28 @@ function updateTaskExecutionState(
       taskId: input.taskId,
       updatedAt: new Date().toISOString(),
     });
+}
+
+async function createTaskExecutionRun(
+  sqlite: Database,
+  input: {
+    projectId: string;
+    provider: string;
+    role?: string | null;
+    sessionId: string;
+    specialistId?: string | null;
+    taskId: string;
+  },
+) {
+  return await startTaskRun(sqlite, {
+    projectId: input.projectId,
+    provider: input.provider,
+    role: input.role,
+    sessionId: input.sessionId,
+    specialistId: input.specialistId,
+    status: 'RUNNING',
+    taskId: input.taskId,
+  });
 }
 
 function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
@@ -1117,6 +1140,14 @@ export async function createAcpSession(
   });
 
   if (task) {
+    await createTaskExecutionRun(sqlite, {
+      projectId: input.projectId,
+      provider: input.provider,
+      role,
+      sessionId,
+      specialistId: specialist?.id ?? null,
+      taskId: task.id,
+    });
     updateTaskExecutionState(sqlite, {
       taskId: task.id,
       executionSessionId: sessionId,

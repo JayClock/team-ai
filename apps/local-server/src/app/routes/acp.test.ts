@@ -10,6 +10,7 @@ import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
 import { syncPlanEventToTasksAndDispatch } from '../services/acp-plan-task-sync-service';
 import { createProject } from '../services/project-service';
+import { listTaskRuns } from '../services/task-run-service';
 import { createTask, getTaskById } from '../services/task-service';
 import acpRoute from './acp';
 import agentsRoute from './agents';
@@ -301,10 +302,28 @@ describe('acp route', () => {
     });
 
     const updatedTask = await getTaskById(fastify.sqlite, task.id);
+    const taskRuns = await listTaskRuns(fastify.sqlite, {
+      page: 1,
+      pageSize: 10,
+      projectId: project.id,
+      taskId: task.id,
+    });
+
     expect(updatedTask).toMatchObject({
       executionSessionId: childSessionId,
       status: 'RUNNING',
     });
+    expect(taskRuns.items).toEqual([
+      expect.objectContaining({
+        kind: 'implement',
+        provider: 'codex',
+        role: 'CRAFTER',
+        sessionId: childSessionId,
+        specialistId: 'crafter-implementor',
+        status: 'RUNNING',
+        taskId: task.id,
+      }),
+    ]);
   });
 
   it('syncs top-level ROUTA plan events into project tasks and child sessions', async () => {
@@ -475,6 +494,12 @@ describe('acp route', () => {
     }
 
     const updatedTask = await getTaskById(fastify.sqlite, implementTask.id);
+    const taskRuns = await listTaskRuns(fastify.sqlite, {
+      page: 1,
+      pageSize: 10,
+      projectId: project.id,
+      taskId: implementTask.id,
+    });
 
     const sessionsResponse = await fastify.inject({
       method: 'GET',
@@ -563,6 +588,17 @@ describe('acp route', () => {
       resultSessionId: childSession.id,
       triggerSessionId: rootSessionId,
     });
+    expect(taskRuns.items).toEqual([
+      expect.objectContaining({
+        kind: 'implement',
+        provider: 'codex',
+        role: 'CRAFTER',
+        sessionId: childSession.id,
+        specialistId: 'crafter-implementor',
+        status: 'RUNNING',
+        taskId: implementTask.id,
+      }),
+    ]);
     expect(sessionsResponse.statusCode).toBe(200);
     expect(sessions).toHaveLength(2);
     expect(childSession).toMatchObject({
