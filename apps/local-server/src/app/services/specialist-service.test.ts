@@ -163,6 +163,33 @@ describe('specialist service', () => {
     expect(specialist.systemPrompt).toContain('Summary:');
   });
 
+  it('keeps the built-in reviewer prompt focused on acceptance verification', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-specialist-gate-project',
+      title: 'Gate Prompt',
+    });
+
+    const specialist = await getSpecialistById(
+      sqlite,
+      project.id,
+      'gate-reviewer',
+    );
+
+    expect(specialist.systemPrompt).toContain(
+      'primary responsibility is review and verification',
+    );
+    expect(specialist.systemPrompt).toContain(
+      'Acceptance criteria are the approval contract',
+    );
+    expect(specialist.systemPrompt).toContain(
+      'Do not directly replace the implementor',
+    );
+    expect(specialist.systemPrompt).toContain('Verdict:');
+    expect(specialist.systemPrompt).toContain('Failure reason:');
+    expect(specialist.systemPrompt).toContain('Verification summary:');
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(
       join(tmpdir(), 'team-ai-specialist-service-'),
