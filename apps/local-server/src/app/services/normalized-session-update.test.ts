@@ -25,6 +25,7 @@ describe('normalized-session-update', () => {
       'codex',
       notification,
       '2026-03-14T00:00:00.000Z',
+      'trace-1',
     );
 
     expect(normalized).toMatchObject({
@@ -32,10 +33,12 @@ describe('normalized-session-update', () => {
       provider: 'codex',
       eventType: 'agent_message',
       timestamp: '2026-03-14T00:00:00.000Z',
+      traceId: 'trace-1',
       message: {
         role: 'assistant',
         messageId: 'msg-1',
         content: 'hello world',
+        isChunk: true,
       },
     });
     expect(
@@ -80,6 +83,7 @@ describe('normalized-session-update', () => {
         toolCallId: 'tool-1',
         kind: 'read_file',
         status: 'completed',
+        inputFinalized: true,
         input: {
           path: 'README.md',
         },
@@ -95,6 +99,81 @@ describe('normalized-session-update', () => {
         toolCallId: 'tool-1',
         provider: 'opencode',
         rawOutput: 'file contents',
+      },
+    });
+  });
+
+  it('keeps deferred tool input marked as unfinished on tool_call', () => {
+    const notification = {
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'tool-2',
+        kind: 'grep_search',
+        title: 'Search code',
+        status: 'running',
+        rawInput: {},
+        rawOutput: null,
+        locations: [],
+        content: [],
+      },
+    } satisfies SessionNotification;
+
+    const normalized = normalizeSessionNotification(
+      'session-2b',
+      'opencode',
+      notification,
+    );
+
+    expect(normalized).toMatchObject({
+      eventType: 'tool_call',
+      toolCall: {
+        toolCallId: 'tool-2',
+        kind: 'grep_search',
+        inputFinalized: false,
+      },
+    });
+  });
+
+  it('normalizes plan entries to description while preserving legacy persisted content', () => {
+    const notification = {
+      update: {
+        sessionUpdate: 'plan',
+        entries: [
+          {
+            content: 'Implement ACP normalization',
+            priority: 'high',
+            status: 'in_progress',
+          },
+        ],
+      },
+    } satisfies SessionNotification;
+
+    const normalized = normalizeSessionNotification(
+      'session-plan',
+      'codex',
+      notification,
+    );
+
+    expect(normalized).toMatchObject({
+      eventType: 'plan_update',
+      planItems: [
+        {
+          description: 'Implement ACP normalization',
+          priority: 'high',
+          status: 'in_progress',
+        },
+      ],
+    });
+    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
+      type: 'plan',
+      payload: {
+        entries: [
+          {
+            content: 'Implement ACP normalization',
+            priority: 'high',
+            status: 'in_progress',
+          },
+        ],
       },
     });
   });

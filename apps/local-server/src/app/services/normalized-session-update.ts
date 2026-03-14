@@ -19,11 +19,13 @@ export type NormalizedSessionUpdateEventType =
   | 'current_mode_update'
   | 'config_option_update'
   | 'usage_update'
-  | 'available_commands_update';
+  | 'available_commands_update'
+  | 'error';
 
 export interface NormalizedToolCall {
   content: unknown[];
   input?: unknown;
+  inputFinalized: boolean;
   kind?: string | null;
   locations: unknown[];
   output?: unknown;
@@ -38,11 +40,17 @@ export interface NormalizedSessionUpdate {
   rawNotification: SessionNotification;
   sessionId: string;
   timestamp: string;
+  traceId?: string;
   availableCommands?: unknown[];
   configOptions?: unknown;
+  error?: {
+    code: string;
+    message: string;
+  };
   message?: {
     content: string | null;
     contentBlock: ContentBlock;
+    isChunk: boolean;
     messageId?: string | null;
     role: 'assistant' | 'thought' | 'user';
   };
@@ -50,7 +58,7 @@ export interface NormalizedSessionUpdate {
     currentModeId?: string;
   };
   planItems?: Array<{
-    content: string;
+    description: string;
     priority?: 'high' | 'low' | 'medium';
     status?: 'completed' | 'in_progress' | 'pending';
   }>;
@@ -82,6 +90,7 @@ export function normalizeSessionNotification(
   provider: string,
   notification: SessionNotification,
   emittedAt = new Date().toISOString(),
+  traceId?: string,
 ): NormalizedSessionUpdate | null {
   const update = notification.update;
   const rawSessionUpdate = (update as { sessionUpdate?: string }).sessionUpdate;
@@ -99,6 +108,7 @@ export function normalizeSessionNotification(
       sessionId,
       provider,
       timestamp: emittedAt,
+      traceId,
       rawNotification: notification,
       eventType: 'turn_complete',
       turnComplete: {
@@ -118,6 +128,7 @@ export function normalizeSessionNotification(
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: resolveMessageEventType(update.sessionUpdate),
         message: {
@@ -125,6 +136,7 @@ export function normalizeSessionNotification(
           messageId: update.messageId ?? null,
           content: flattenContentBlock(update.content),
           contentBlock: update.content,
+          isChunk: true,
         },
       };
     case 'tool_call':
@@ -132,6 +144,7 @@ export function normalizeSessionNotification(
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: 'tool_call',
         toolCall: {
@@ -140,6 +153,7 @@ export function normalizeSessionNotification(
           status: normalizeToolCallStatus(update.status),
           kind: update.kind ?? null,
           input: update.rawInput ?? null,
+          inputFinalized: hasStructuredValue(update.rawInput),
           output: update.rawOutput ?? null,
           locations: update.locations ?? [],
           content: update.content ?? [],
@@ -150,6 +164,7 @@ export function normalizeSessionNotification(
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: 'tool_call_update',
         toolCall: {
@@ -158,6 +173,10 @@ export function normalizeSessionNotification(
           status: normalizeToolCallStatus(update.status),
           kind: update.kind ?? null,
           input: update.rawInput ?? null,
+          inputFinalized:
+            hasStructuredValue(update.rawInput) ||
+            update.status === 'completed' ||
+            update.status === 'failed',
           output: update.rawOutput ?? null,
           locations: update.locations ?? [],
           content: update.content ?? [],
@@ -168,15 +187,21 @@ export function normalizeSessionNotification(
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: 'plan_update',
-        planItems: update.entries,
+        planItems: update.entries.map((entry) => ({
+          description: entry.content,
+          priority: entry.priority,
+          status: entry.status,
+        })),
       };
     case 'session_info_update':
       return {
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: 'session_info_update',
         sessionInfo: {
@@ -189,6 +214,7 @@ export function normalizeSessionNotification(
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: 'current_mode_update',
         mode: {
@@ -200,6 +226,7 @@ export function normalizeSessionNotification(
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: 'config_option_update',
         configOptions: update.configOptions,
@@ -209,6 +236,7 @@ export function normalizeSessionNotification(
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: 'usage_update',
         usage: {
@@ -222,6 +250,7 @@ export function normalizeSessionNotification(
         sessionId,
         provider,
         timestamp: emittedAt,
+        traceId,
         rawNotification: notification,
         eventType: 'available_commands_update',
         availableCommands: update.availableCommands,
@@ -285,7 +314,11 @@ export function toPersistedAcpEvent(
         type: 'plan',
         payload: {
           source: 'acp-sdk',
-          entries: update.planItems ?? [],
+          entries: (update.planItems ?? []).map((item) => ({
+            content: item.description,
+            ...(item.priority ? { priority: item.priority } : {}),
+            ...(item.status ? { status: item.status } : {}),
+          })),
           provider: update.provider,
         },
       };
@@ -337,6 +370,15 @@ export function toPersistedAcpEvent(
           provider: update.provider,
         },
       };
+    case 'error':
+      return {
+        type: 'status',
+        payload: {
+          source: 'acp-sdk',
+          error: update.error ?? null,
+          provider: update.provider,
+        },
+      };
     case 'turn_complete':
       return {
         type: 'complete',
@@ -352,6 +394,8 @@ export function toPersistedAcpEvent(
         },
       };
   }
+
+  throw new Error(`Unsupported normalized ACP event type: ${update.eventType}`);
 }
 
 export function resolveSessionStateFromNormalizedUpdate(
@@ -456,6 +500,18 @@ function normalizeToolCallStatus(
   }
 
   return 'pending';
+}
+
+function hasStructuredValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.keys(value).length > 0;
+  }
+
+  return value !== null && value !== undefined;
 }
 
 function normalizeTurnCompleteState(
