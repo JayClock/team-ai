@@ -138,22 +138,7 @@ function sessionAgentLabel(
 
 export function ShellsSessions() {
   const { projects, refreshProjects, selectedProject } = useProjectSelection();
-  const [preferredProjectId, setPreferredProjectId] = useState<string | null>(
-    null,
-  );
-
-  const activeProject = useMemo(() => {
-    if (preferredProjectId) {
-      const preferred = projects.find(
-        (project) => project.data.id === preferredProjectId,
-      );
-      if (preferred) {
-        return preferred;
-      }
-    }
-
-    return selectedProject;
-  }, [preferredProjectId, projects, selectedProject]);
+  const activeProject = selectedProject;
 
   if (projects.length === 0) {
     return (
@@ -176,11 +161,9 @@ export function ShellsSessions() {
 
   return (
     <ShellsSessionsContent
-      onProjectCloned={async (projectId) => {
+      onProjectCloned={async () => {
         await refreshProjects();
-        setPreferredProjectId(projectId);
       }}
-      onProjectSelected={setPreferredProjectId}
       projects={projects}
       selectedProject={activeProject}
     />
@@ -189,12 +172,10 @@ export function ShellsSessions() {
 
 function ShellsSessionsContent(props: {
   onProjectCloned: (projectId: string) => Promise<void>;
-  onProjectSelected: (projectId: string | null) => void;
   projects: State<LocalProject>[];
   selectedProject: State<LocalProject>;
 }) {
-  const { onProjectCloned, onProjectSelected, projects, selectedProject } =
-    props;
+  const { onProjectCloned, projects, selectedProject } = props;
   const client = useClient();
   const navigate = useNavigate();
   const selectedProjectId = selectedProject.data.id;
@@ -232,7 +213,25 @@ function ShellsSessionsContent(props: {
     State<AcpSessionSummary>[]
   >([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [selectedRepositoryId, setSelectedRepositoryId] = useState<
+    string | null
+  >(selectedProject.data.id);
   const [startingSession, setStartingSession] = useState(false);
+
+  useEffect(() => {
+    if (projects.some((project) => project.data.id === selectedRepositoryId)) {
+      return;
+    }
+
+    setSelectedRepositoryId(selectedProject.data.id);
+  }, [projects, selectedProject.data.id, selectedRepositoryId]);
+
+  const selectedRepository = useMemo(
+    () =>
+      projects.find((project) => project.data.id === selectedRepositoryId) ??
+      selectedProject,
+    [projects, selectedProject, selectedRepositoryId],
+  );
 
   const homeAgentOptions = useMemo(
     () =>
@@ -287,8 +286,15 @@ function ShellsSessionsContent(props: {
   }, [loadRecentSessions]);
 
   const submitHomePrompt = useCallback(
-    async (input: { files: unknown[]; provider?: string; text: string }) => {
+    async (input: {
+      cwd?: string;
+      files: unknown[];
+      provider?: string;
+      text: string;
+    }) => {
       const goal = input.text.trim();
+      const cwd =
+        input.cwd?.trim() || selectedRepository.data.repoPath || undefined;
       const providerId = input.provider?.trim() || selectedProvider?.id;
 
       if (!goal) {
@@ -304,6 +310,7 @@ function ShellsSessionsContent(props: {
       try {
         const created = await create({
           actorUserId: me.id,
+          cwd,
           provider: providerId,
           role: agentType,
           goal,
@@ -326,6 +333,7 @@ function ShellsSessionsContent(props: {
       loadRecentSessions,
       me.id,
       navigate,
+      selectedRepository.data.repoPath,
       selectedProvider,
       selectedProjectId,
     ],
@@ -333,9 +341,12 @@ function ShellsSessionsContent(props: {
 
   const projectPicker = useMemo(
     () => ({
-      onProjectCloned,
+      onProjectCloned: async (projectId: string) => {
+        await onProjectCloned(projectId);
+        setSelectedRepositoryId(projectId);
+      },
       onValueChange: (project: ProjectRepositoryOption | null) =>
-        onProjectSelected(project?.id ?? null),
+        setSelectedRepositoryId(project?.id ?? selectedProject.data.id),
       projects: projects.map<ProjectRepositoryOption>((project) => ({
         id: project.data.id,
         repoPath: project.data.repoPath,
@@ -343,13 +354,13 @@ function ShellsSessionsContent(props: {
         title: projectTitle(project),
       })),
       value: {
-        id: selectedProject.data.id,
-        repoPath: selectedProject.data.repoPath,
-        sourceUrl: selectedProject.data.sourceUrl,
-        title: projectTitle(selectedProject),
+        id: selectedRepository.data.id,
+        repoPath: selectedRepository.data.repoPath,
+        sourceUrl: selectedRepository.data.sourceUrl,
+        title: projectTitle(selectedRepository),
       },
     }),
-    [onProjectCloned, onProjectSelected, projects, selectedProject],
+    [onProjectCloned, projects, selectedProject.data.id, selectedRepository],
   );
 
   const homePromptFooterStart = (

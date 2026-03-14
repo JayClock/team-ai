@@ -119,7 +119,9 @@ export function ShellsSession(props: ShellsSessionProps) {
     () => client.go<Root>('/api').follow('me'),
     [client],
   );
-  const { data: me } = useSuspenseResource(meResource);
+  const { data: me, resourceState: meState } = useSuspenseResource(meResource);
+  const projectsResource = useMemo(() => meState.follow('projects'), [meState]);
+  const { resourceState: projectsState } = useSuspenseResource(projectsResource);
   const {
     sessionsResource,
     selectedSession,
@@ -143,6 +145,9 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
+  const [selectedRepositoryId, setSelectedRepositoryId] = useState<
+    string | null
+  >(projectState.data.id);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<
     'activity' | 'checklist' | 'tasks' | null
@@ -175,6 +180,38 @@ export function ShellsSession(props: ShellsSessionProps) {
     [fallbackTaskItems, sessionTaskItems],
   );
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
+  const repositoryOptions = useMemo(
+    () =>
+      projectsState.collection.map<ProjectRepositoryOption>((project) => ({
+        id: project.data.id,
+        repoPath: project.data.repoPath,
+        sourceUrl: project.data.sourceUrl,
+        title: project.data.title?.trim() || project.data.id,
+      })),
+    [projectsState.collection],
+  );
+  const selectedRepository = useMemo(
+    () =>
+      repositoryOptions.find(
+        (repository) => repository.id === selectedRepositoryId,
+      ) ??
+      repositoryOptions.find(
+        (repository) => repository.id === projectState.data.id,
+      ) ?? {
+        id: projectState.data.id,
+        repoPath: projectState.data.repoPath,
+        sourceUrl: projectState.data.sourceUrl,
+        title: projectTitle,
+      },
+    [
+      projectState.data.id,
+      projectState.data.repoPath,
+      projectState.data.sourceUrl,
+      projectTitle,
+      repositoryOptions,
+      selectedRepositoryId,
+    ],
+  );
   const showDesktopInspector = Boolean(selectedSession);
   const sessionDefaults = useMemo(
     () =>
@@ -199,6 +236,29 @@ export function ShellsSession(props: ShellsSessionProps) {
     selectedProviderId,
     setSelectedProviderId,
   } = useAcpProviders(sessionDefaults.providerId ?? 'opencode');
+
+  useEffect(() => {
+    if (
+      repositoryOptions.some((repository) => repository.id === selectedRepositoryId)
+    ) {
+      return;
+    }
+
+    setSelectedRepositoryId(projectState.data.id);
+  }, [projectState.data.id, repositoryOptions, selectedRepositoryId]);
+
+  useEffect(() => {
+    if (!selectedSession?.data.cwd) {
+      return;
+    }
+
+    const matched = repositoryOptions.find(
+      (repository) => repository.repoPath === selectedSession.data.cwd,
+    );
+    if (matched) {
+      setSelectedRepositoryId(matched.id);
+    }
+  }, [repositoryOptions, selectedSession?.data.cwd]);
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;
@@ -262,7 +322,7 @@ export function ShellsSession(props: ShellsSessionProps) {
   const creationRole = preferredRole ?? sessionDefaults.role;
 
   const createSessionWithDefaults = useCallback(
-    async (input: { goal?: string; provider?: string } = {}) => {
+    async (input: { cwd?: string; goal?: string; provider?: string } = {}) => {
       const providerId =
         input.provider?.trim() || sessionDefaults.providerId?.trim();
 
@@ -274,6 +334,7 @@ export function ShellsSession(props: ShellsSessionProps) {
 
       return create({
         actorUserId: me.id,
+        cwd: input.cwd?.trim() || undefined,
         provider: providerId,
         role: creationRole,
         goal: input.goal,
@@ -488,28 +549,40 @@ export function ShellsSession(props: ShellsSessionProps) {
         value: selectedProviderId || selectedProvider?.id,
       };
   const sessionPromptProjectPicker = useMemo(
-    () => ({
-      disabled: true,
-      projects: [
-        {
-          id: projectState.data.id,
-          repoPath: projectState.data.repoPath,
-          sourceUrl: projectState.data.sourceUrl,
-          title: projectTitle,
+    () => {
+      const sessionRepository =
+        selectedSession?.data.cwd
+          ? repositoryOptions.find(
+              (repository) => repository.repoPath === selectedSession.data.cwd,
+            ) ?? {
+              id: selectedSession.data.cwd,
+              repoPath: selectedSession.data.cwd,
+              sourceUrl: null,
+              title:
+                selectedSession.data.cwd.split('/').at(-1) ??
+                selectedSession.data.cwd,
+            }
+          : selectedRepository;
+
+      return {
+        disabled: selectedSession !== null,
+        onProjectCloned: async (projectId: string) => {
+          await projectsResource.refresh();
+          setSelectedRepositoryId(projectId);
         },
-      ] satisfies ProjectRepositoryOption[],
-      value: {
-        id: projectState.data.id,
-        repoPath: projectState.data.repoPath,
-        sourceUrl: projectState.data.sourceUrl,
-        title: projectTitle,
-      },
-    }),
+        onValueChange: (repository: ProjectRepositoryOption | null) =>
+          setSelectedRepositoryId(repository?.id ?? projectState.data.id),
+        projects:
+          repositoryOptions.length > 0 ? repositoryOptions : [selectedRepository],
+        value: sessionRepository,
+      };
+    },
     [
       projectState.data.id,
-      projectState.data.repoPath,
-      projectState.data.sourceUrl,
-      projectTitle,
+      projectsResource,
+      repositoryOptions,
+      selectedRepository,
+      selectedSession,
     ],
   );
 

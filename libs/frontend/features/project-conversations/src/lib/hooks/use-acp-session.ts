@@ -54,6 +54,7 @@ export type AcpSessionRpcFailure = JsonRpcError;
 
 export type CreateAcpSessionInput = {
   actorUserId?: string;
+  cwd?: string;
   provider?: string;
   role?: AcpSessionRole;
   parentSessionId?: string;
@@ -284,6 +285,7 @@ export function useAcpSession(
         {
           projectId: projectState.data.id,
           actorUserId,
+          cwd: input.cwd,
           provider: input.provider ?? options.provider ?? 'codex',
           role: input.role ?? options.role,
           parentSessionId: input.parentSessionId,
@@ -302,6 +304,7 @@ export function useAcpSession(
     [
       options.actorUserId,
       options.provider,
+      options.role,
       options.traceId,
       projectState.data.id,
       rpc,

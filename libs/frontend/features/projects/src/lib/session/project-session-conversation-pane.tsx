@@ -26,6 +26,7 @@ export function ProjectSessionConversationPane(props: {
   chatMessages: SessionChatMessage[];
   hasPendingAssistantMessage: boolean;
   onSubmit: (input: {
+    cwd?: string;
     files: unknown[];
     provider?: string;
     text: string;

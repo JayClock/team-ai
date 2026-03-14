@@ -253,8 +253,38 @@ describe('useAcpSession', () => {
       params: {
         projectId: 'p-1',
         actorUserId: 'u-1',
+        cwd: undefined,
         provider: 'codex',
         role: 'DEVELOPER',
+        parentSessionId: undefined,
+        taskId: undefined,
+        idempotencyKey: undefined,
+        goal: undefined,
+      },
+    });
+  });
+
+  it('passes cwd override when creating a session', async () => {
+    const fixture = createFixture();
+    useClientMock.mockReturnValue(fixture.client);
+
+    const { result } = renderHook(() => useAcpSession(fixture.projectState));
+
+    await act(async () => {
+      await result.current.create({
+        actorUserId: 'u-1',
+        cwd: '/tmp/alternate-repo',
+      });
+    });
+
+    expect(fixture.rpcInvocations[0]).toEqual({
+      method: 'session/new',
+      params: {
+        projectId: 'p-1',
+        actorUserId: 'u-1',
+        cwd: '/tmp/alternate-repo',
+        provider: 'codex',
+        role: undefined,
         parentSessionId: undefined,
         taskId: undefined,
         idempotencyKey: undefined,

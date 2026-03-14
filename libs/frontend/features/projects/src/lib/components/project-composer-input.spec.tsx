@@ -128,9 +128,53 @@ describe('ProjectComposerInput', () => {
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({
+        cwd: undefined,
         files: [],
         provider: 'opencode',
         text: '实现 provider 选择',
+      }),
+    );
+  });
+
+  it('submits the selected repository path as cwd', async () => {
+    const onSubmit = vi.fn();
+
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        onSubmit={onSubmit}
+        placeholder="输入内容"
+        projectPicker={{
+          onValueChange: () => undefined,
+          projects: [
+            {
+              id: 'project-1',
+              repoPath: '/tmp/project-1',
+              sourceUrl: 'https://github.com/acme/project-1',
+              title: 'Project One',
+            },
+          ],
+          value: {
+            id: 'project-1',
+            repoPath: '/tmp/project-1',
+            sourceUrl: 'https://github.com/acme/project-1',
+            title: 'Project One',
+          },
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: '项目指令输入框' }), {
+      target: { value: '实现 repo context 选择' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '发起会话' }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        cwd: '/tmp/project-1',
+        files: [],
+        provider: undefined,
+        text: '实现 repo context 选择',
       }),
     );
   });

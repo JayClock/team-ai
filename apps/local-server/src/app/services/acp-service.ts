@@ -93,6 +93,7 @@ interface ListSessionsQuery {
 
 interface CreateSessionInput {
   actorUserId: string;
+  cwd?: string | null;
   goal?: string;
   parentSessionId?: string | null;
   projectId: string;
@@ -1333,7 +1334,7 @@ export async function createAcpSession(
     );
   }
 
-  const cwd = resolveSessionCwd(project.repoPath ?? null);
+  const cwd = resolveSessionCwd(input.cwd ?? project.repoPath ?? null);
   const now = new Date().toISOString();
   const sessionId = createSessionId();
   const agent = specialist

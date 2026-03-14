@@ -29,6 +29,7 @@ export type {
 } from './project-repository-picker';
 
 export type ProjectComposerSubmitInput = {
+  cwd?: string;
   files: unknown[];
   provider?: string;
   text: string;
@@ -86,6 +87,7 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
         multiple
         onSubmit={(message) =>
           onSubmit({
+            cwd: projectPicker?.value?.repoPath ?? undefined,
             files: message.files,
             provider: providerPicker?.value ?? undefined,
             text: message.text,

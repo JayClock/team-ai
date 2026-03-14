@@ -18,6 +18,7 @@ export type SessionChatMessage = UIMessage<{
 }>;
 
 type PromptSubmitInput = {
+  cwd?: string;
   files: unknown[];
   provider?: string;
   text: string;
@@ -25,6 +26,7 @@ type PromptSubmitInput = {
 
 type UseProjectSessionChatOptions = {
   createSession: (input?: {
+    cwd?: string;
     provider?: string;
   }) => Promise<State<AcpSession>>;
   history: AcpEventEnvelope[];
@@ -321,7 +323,7 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
   );
 
   const runPrompt = useCallback(
-    async (text: string, provider?: string) => {
+    async (text: string, provider?: string, cwd?: string) => {
       const trimmed = text.trim();
       if (!trimmed) {
         toast.error('输入内容不能为空');
@@ -346,7 +348,7 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
         pendingAssistantId = appendPendingAssistantMessage(targetSessionKey);
 
         const targetSession =
-          selectedSession ?? (await createSession({ provider }));
+          selectedSession ?? (await createSession({ cwd, provider }));
         rebindTransientMessages(targetSessionKey, targetSession.data.id);
         targetSessionKey = targetSession.data.id;
 
@@ -377,8 +379,8 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
   );
 
   const handlePromptSubmit = useCallback(
-    async ({ provider, text }: PromptSubmitInput) => {
-      await runPrompt(text, provider);
+    async ({ cwd, provider, text }: PromptSubmitInput) => {
+      await runPrompt(text, provider, cwd);
     },
     [runPrompt],
   );
