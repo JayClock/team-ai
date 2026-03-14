@@ -1,4 +1,18 @@
-import { Button, toast } from '@shared/ui';
+import {
+  Button,
+  Card,
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+  Input,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  toast,
+} from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
 import {
   CheckIcon,
@@ -57,10 +71,6 @@ function isRepositoryInput(value: string): boolean {
     /^github\.com\//iu.test(trimmed) ||
     /^[a-zA-Z0-9\-_]+\/[a-zA-Z0-9\-_.]+$/u.test(trimmed)
   );
-}
-
-function selectedProjectLabel(project: ProjectRepositoryOption | null): string {
-  return project?.title?.trim() || '选择或 clone 仓库';
 }
 
 export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
@@ -234,42 +244,47 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
 
   return (
     <div className="relative">
-      <button
-        ref={triggerRef}
-        className="flex max-w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-[#1c1f2e] dark:hover:text-slate-100"
-        onClick={() => {
-          if (showDropdown) {
-            setShowDropdown(false);
-            return;
-          }
-
-          openDropdown();
-        }}
-        type="button"
-      >
-        <FolderGit2Icon className="size-3.5 shrink-0" />
-        <span className="max-w-44 truncate">
-          {selectedProjectLabel(selectedProject)}
-        </span>
-        <ChevronDownIcon className="size-3.5 shrink-0 text-slate-400" />
-      </button>
-
       {selectedProject ? (
-        <button
+        <SelectedProjectPill
+          project={selectedProject}
+          showDropdown={showDropdown}
+          triggerRef={triggerRef}
+          onClear={() => handleProjectSelect(null)}
+          onToggleDropdown={() => {
+            if (showDropdown) {
+              setShowDropdown(false);
+              return;
+            }
+
+            openDropdown();
+          }}
+        />
+      ) : (
+        <Button
+          ref={triggerRef}
+          className="h-8 max-w-full gap-1.5 px-2.5 text-xs text-slate-600 dark:text-slate-400"
+          onClick={() => {
+            if (showDropdown) {
+              setShowDropdown(false);
+              return;
+            }
+
+            openDropdown();
+          }}
           type="button"
-          onClick={() => handleProjectSelect(null)}
-          className="ml-1 inline-flex size-6 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-[#1c1f2e] dark:hover:text-slate-200"
-          title="清空仓库选择"
+          variant="ghost"
         >
-          <XIcon className="size-3.5" />
-        </button>
-      ) : null}
+          <FolderGit2Icon className="size-3.5 shrink-0" />
+          <span className="max-w-44 truncate">选择或 clone 仓库</span>
+          <ChevronDownIcon className="size-3.5 shrink-0 text-slate-400" />
+        </Button>
+      )}
 
       {showDropdown && dropdownPosition
         ? createPortal(
-            <div
+            <Card
               ref={containerRef}
-              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_70px_-24px_rgba(15,23,42,0.45)] dark:border-[#1c1f2e] dark:bg-[#181b26]"
+              className="gap-0 overflow-hidden rounded-2xl border-slate-200 bg-white py-0 shadow-[0_24px_70px_-24px_rgba(15,23,42,0.45)] dark:border-[#1c1f2e] dark:bg-[#181b26]"
               style={{
                 bottom: dropdownPosition.bottom,
                 left: dropdownPosition.left,
@@ -278,41 +293,37 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
                 zIndex: 9999,
               }}
             >
-              <div className="flex border-b border-slate-100 dark:border-[#1c1f2e]">
-                <button
-                  className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-xs font-medium transition ${
-                    activeTab === 'existing'
-                      ? 'bg-slate-50 text-slate-900 dark:bg-[#1f2233] dark:text-slate-100'
-                      : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-[#1f2233]'
-                  }`}
-                  onClick={() => setActiveTab('existing')}
-                  type="button"
-                >
-                  <FolderGit2Icon className="size-3.5" />
-                  已有仓库
-                </button>
-                <button
-                  className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-xs font-medium transition ${
-                    activeTab === 'clone'
-                      ? 'bg-slate-50 text-slate-900 dark:bg-[#1f2233] dark:text-slate-100'
-                      : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-[#1f2233]'
-                  }`}
-                  onClick={() => setActiveTab('clone')}
-                  type="button"
-                >
-                  <GitBranchPlusIcon className="size-3.5" />
-                  Clone 仓库
-                </button>
-              </div>
+              <Tabs
+                className="w-full"
+                onValueChange={(value) => setActiveTab(value as PickerTab)}
+                value={activeTab}
+              >
+                <div className="border-b border-slate-100 px-3 py-3 dark:border-[#1c1f2e]">
+                  <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl bg-slate-100/80 p-1 dark:bg-[#1f2233]">
+                    <TabsTrigger
+                      className="gap-2 rounded-lg px-3 py-2 text-xs"
+                      value="existing"
+                    >
+                      <FolderGit2Icon className="size-3.5" />
+                      已有仓库
+                    </TabsTrigger>
+                    <TabsTrigger
+                      className="gap-2 rounded-lg px-3 py-2 text-xs"
+                      value="clone"
+                    >
+                      <GitBranchPlusIcon className="size-3.5" />
+                      Clone 仓库
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
-              {activeTab === 'existing' ? (
-                <>
+                <TabsContent className="mt-0" value="existing">
                   <div className="border-b border-slate-100 p-3 dark:border-[#1c1f2e]">
-                    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-[#2a2d3d] dark:bg-[#161922]">
-                      <SearchIcon className="size-3.5 text-slate-400" />
-                      <input
+                    <div className="relative">
+                      <SearchIcon className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                      <Input
                         ref={searchInputRef}
-                        className="h-9 w-full bg-transparent px-0 text-xs text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
+                        className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-9 text-xs dark:border-[#2a2d3d] dark:bg-[#161922]"
                         onChange={(event) =>
                           setSearchQuery(event.currentTarget.value)
                         }
@@ -322,117 +333,174 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
                     </div>
                   </div>
 
-                  <div className="max-h-72 overflow-y-auto p-2">
-                    {filteredProjects.length > 0 ? (
-                      filteredProjects.map((project) => {
-                        const selected = selectedProjectId === project.id;
+                  <Command className="bg-transparent">
+                    <CommandList className="max-h-72 p-2">
+                      {filteredProjects.length > 0 ? (
+                        <CommandGroup heading="受管仓库">
+                          {filteredProjects.map((project) => {
+                            const selected = selectedProjectId === project.id;
 
-                        return (
-                          <button
-                            key={project.id}
-                            className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${
-                              selected
-                                ? 'bg-sky-50 text-sky-950 dark:bg-sky-900/20 dark:text-sky-100'
-                                : 'hover:bg-slate-50 dark:hover:bg-[#1f2233]'
-                            }`}
-                            onClick={() => handleProjectSelect(project.id)}
-                            type="button"
-                          >
-                            <div className="rounded-lg bg-slate-100 p-2 text-slate-500 dark:bg-[#1f2233] dark:text-slate-400">
-                              <FolderGit2Icon className="size-4" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="flex items-center gap-2 truncate text-sm font-medium">
-                                <span className="truncate">{project.title}</span>
-                                {selected ? <CheckIcon className="size-3.5 shrink-0" /> : null}
-                              </p>
-                              <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                                {project.sourceUrl ?? '未记录来源地址'}
-                              </p>
-                              <p className="mt-1 truncate text-[11px] text-slate-400 dark:text-slate-500">
-                                {project.repoPath ?? '未记录本地目录'}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="px-3 py-6 text-xs text-slate-500 dark:text-slate-400">
-                        {projects.length === 0
-                          ? '还没有已托管仓库，切换到“Clone 仓库”开始。'
-                          : '没有匹配的仓库。'}
+                            return (
+                              <CommandItem
+                                key={project.id}
+                                className="items-start rounded-xl px-3 py-3 aria-selected:bg-sky-50 aria-selected:text-sky-950 dark:aria-selected:bg-sky-900/20 dark:aria-selected:text-sky-100"
+                                onSelect={() => handleProjectSelect(project.id)}
+                                value={project.id}
+                              >
+                                <div className="rounded-lg bg-slate-100 p-2 text-slate-500 dark:bg-[#1f2233] dark:text-slate-400">
+                                  <FolderGit2Icon className="size-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="flex items-center gap-2 truncate text-sm font-medium">
+                                    <span className="truncate">{project.title}</span>
+                                    {selected ? (
+                                      <CheckIcon className="size-3.5 shrink-0" />
+                                    ) : null}
+                                  </p>
+                                  <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                                    {project.sourceUrl ?? '未记录来源地址'}
+                                  </p>
+                                  <p className="mt-1 truncate text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                                    {project.repoPath ?? '未记录本地目录'}
+                                  </p>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      ) : (
+                        <CommandEmpty className="px-3 py-6 text-xs text-slate-500 dark:text-slate-400">
+                          {projects.length === 0
+                            ? '还没有已托管仓库，切换到“Clone 仓库”开始。'
+                            : '没有匹配的仓库。'}
+                        </CommandEmpty>
+                      )}
+                    </CommandList>
+                  </Command>
+                </TabsContent>
+
+                <TabsContent className="mt-0 px-3 py-3" value="clone">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                        仓库地址
+                      </label>
+                      <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-[#2a2d3d] dark:bg-[#161922]">
+                        <span className="shrink-0 text-[11px] font-mono text-slate-400">
+                          github.com/
+                        </span>
+                        <Input
+                          ref={cloneInputRef}
+                          className="border-0 bg-transparent px-1.5 py-0 text-xs font-mono shadow-none focus-visible:ring-0 dark:bg-transparent"
+                          onChange={(event) => {
+                            setCloneError(null);
+                            setCloneUrl(event.currentTarget.value);
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              void handleClone();
+                            }
+                          }}
+                          placeholder="owner/repo"
+                          value={cloneUrl.replace(
+                            /^(https?:\/\/)?(www\.)?github\.com\//iu,
+                            '',
+                          )}
+                        />
                       </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-3 p-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      仓库地址
-                    </label>
-                    <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-[#2a2d3d] dark:bg-[#161922]">
-                      <span className="shrink-0 text-[11px] font-mono text-slate-400">
-                        github.com/
-                      </span>
-                      <input
-                        ref={cloneInputRef}
-                        className="w-full bg-transparent px-1.5 py-2 text-xs font-mono text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
-                        onChange={(event) => {
-                          setCloneError(null);
-                          setCloneUrl(event.currentTarget.value);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            void handleClone();
-                          }
-                        }}
-                        placeholder="owner/repo"
-                        value={cloneUrl.replace(
-                          /^(https?:\/\/)?(www\.)?github\.com\//iu,
-                          '',
-                        )}
-                      />
                     </div>
+
+                    {cloneError ? (
+                      <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-900/10 dark:text-red-300">
+                        {cloneError}
+                      </div>
+                    ) : null}
+
+                    <Button
+                      className="w-full"
+                      disabled={
+                        cloning || normalizeRepositoryUrl(cloneUrl).length === 0
+                      }
+                      onClick={() => void handleClone()}
+                      type="button"
+                    >
+                      {cloning ? (
+                        <>
+                          <LoaderCircleIcon className="size-4 animate-spin" />
+                          准备仓库中...
+                        </>
+                      ) : (
+                        <>
+                          Clone 仓库
+                          <GitBranchPlusIcon className="size-4" />
+                        </>
+                      )}
+                    </Button>
+
+                    <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                      仓库会被 clone 到本地受管目录，并作为后续执行的工作目录。
+                    </p>
                   </div>
-
-                  {cloneError ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-900/10 dark:text-red-300">
-                      {cloneError}
-                    </div>
-                  ) : null}
-
-                  <Button
-                    className="w-full"
-                    disabled={
-                      cloning || normalizeRepositoryUrl(cloneUrl).length === 0
-                    }
-                    onClick={() => void handleClone()}
-                    type="button"
-                  >
-                    {cloning ? (
-                      <>
-                        <LoaderCircleIcon className="size-4 animate-spin" />
-                        准备仓库中...
-                      </>
-                    ) : (
-                      <>
-                        Clone 仓库
-                        <GitBranchPlusIcon className="size-4" />
-                      </>
-                    )}
-                  </Button>
-
-                  <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-400">
-                    仓库会被 clone 到本地受管目录，并作为后续执行的工作目录。
-                  </p>
-                </div>
-              )}
-            </div>,
+                </TabsContent>
+              </Tabs>
+            </Card>,
             document.body,
           )
         : null}
+    </div>
+  );
+}
+
+type SelectedProjectPillProps = {
+  onClear: () => void;
+  onToggleDropdown: () => void;
+  project: ProjectRepositoryOption;
+  showDropdown: boolean;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+};
+
+function SelectedProjectPill(props: SelectedProjectPillProps) {
+  const { onClear, onToggleDropdown, project, showDropdown, triggerRef } = props;
+
+  return (
+    <div className="flex max-w-full items-center gap-1.5">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-[#1f2233] dark:text-slate-400">
+        <FolderGit2Icon className="size-3.5" />
+      </div>
+
+      <Button
+        ref={triggerRef}
+        aria-expanded={showDropdown}
+        className="h-8 min-w-0 max-w-[220px] gap-1.5 px-2.5 text-xs font-medium text-slate-700 dark:text-slate-200"
+        onClick={onToggleDropdown}
+        title={project.title}
+        type="button"
+        variant="ghost"
+      >
+        <span className="truncate">{project.title}</span>
+        <ChevronDownIcon className="size-3.5 shrink-0 text-slate-400" />
+      </Button>
+
+      {project.repoPath ? (
+        <span
+          className="max-w-[220px] truncate text-[10px] font-mono text-slate-500 dark:text-slate-400"
+          title={project.repoPath}
+        >
+          {project.repoPath}
+        </span>
+      ) : null}
+
+      <Button
+        aria-label="清空仓库选择"
+        className="size-8 shrink-0 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200"
+        onClick={onClear}
+        title="清空仓库选择"
+        type="button"
+        variant="ghost"
+      >
+        <XIcon className="size-3.5" />
+      </Button>
     </div>
   );
 }

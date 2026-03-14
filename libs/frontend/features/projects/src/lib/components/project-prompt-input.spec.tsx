@@ -1,6 +1,30 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ProjectPromptInput } from './project-prompt-input';
 
+class ResizeObserverMock {
+  disconnect() {
+    return undefined;
+  }
+
+  observe() {
+    return undefined;
+  }
+
+  unobserve() {
+    return undefined;
+  }
+}
+
+Object.defineProperty(globalThis, 'ResizeObserver', {
+  configurable: true,
+  value: ResizeObserverMock,
+});
+
+Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+  configurable: true,
+  value: () => undefined,
+});
+
 describe('ProjectPromptInput', () => {
   it('renders the repository picker when configured', () => {
     render(
@@ -28,5 +52,31 @@ describe('ProjectPromptInput', () => {
     expect(screen.getByText('已有仓库')).toBeTruthy();
     expect(screen.getByText('Clone 仓库')).toBeTruthy();
     expect(screen.getByText('Project One')).toBeTruthy();
+  });
+
+  it('renders the selected repository pill inline', () => {
+    render(
+      <ProjectPromptInput
+        ariaLabel="项目指令输入框"
+        onSubmit={() => undefined}
+        placeholder="输入内容"
+        projectPicker={{
+          onProjectSelect: () => undefined,
+          projects: [
+            {
+              id: 'project-1',
+              repoPath: '/tmp/project-1',
+              sourceUrl: 'https://github.com/acme/project-1',
+              title: 'Project One',
+            },
+          ],
+          selectedProjectId: 'project-1',
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Project One' })).toBeTruthy();
+    expect(screen.getByText('/tmp/project-1')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '清空仓库选择' })).toBeTruthy();
   });
 });
