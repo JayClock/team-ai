@@ -1,13 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { SessionList, SessionTreeNode } from '@features/project-sessions';
 import { AcpSessionSummary } from '@shared/schema';
-import { Button } from '@shared/ui';
-import {
-  ActivityIcon,
-  FolderTreeIcon,
-  ListChecksIcon,
-  SparklesIcon,
-} from 'lucide-react';
+import { FolderTreeIcon } from 'lucide-react';
 import {
   countSessionTree,
   formatDateTime,
@@ -30,9 +24,9 @@ export function ProjectSessionHistorySidebar(props: {
   } | null;
   sessionQuickActions?: {
     activityCount: number;
-    onOpenActivity: () => void;
-    onOpenChecklist: () => void;
-    onOpenTasks: () => void;
+    completedCount: number;
+    failedCount: number;
+    runningCount: number;
     taskCount: number;
   } | null;
   sessions: SessionTreeNode[];
@@ -111,41 +105,23 @@ export function ProjectSessionHistorySidebar(props: {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      Quick Access
+                      Session Snapshot
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {sessionQuickActions.taskCount} 个任务 ·{' '}
                       {sessionQuickActions.activityCount} 条活动
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1 rounded-lg px-2 text-[11px]"
-                      onClick={sessionQuickActions.onOpenTasks}
-                    >
-                      <ListChecksIcon className="size-3.5" />
-                      任务
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1 rounded-lg px-2 text-[11px]"
-                      onClick={sessionQuickActions.onOpenActivity}
-                    >
-                      <ActivityIcon className="size-3.5" />
-                      活动
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1 rounded-lg px-2 text-[11px]"
-                      onClick={sessionQuickActions.onOpenChecklist}
-                    >
-                      <SparklesIcon className="size-3.5" />
-                      验收
-                    </Button>
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      {sessionQuickActions.completedCount} 完成
+                    </span>
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      {sessionQuickActions.runningCount} 进行中
+                    </span>
+                    <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+                      {sessionQuickActions.failedCount} 失败
+                    </span>
                   </div>
                 </div>
               </div>

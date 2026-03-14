@@ -14,7 +14,9 @@ import { BotIcon, SparklesIcon } from 'lucide-react';
 import {
   formatDateTime,
   formatStatusLabel,
+  type TaskPanelItem,
 } from './project-session-workbench.shared';
+import { ProjectSessionTaskStrip } from './project-session-task-strip';
 import { SessionChatMessage } from './use-project-session-chat';
 import {
   ProjectComposerInput,
@@ -23,6 +25,7 @@ import {
 } from '../components/project-composer-input';
 
 export function ProjectSessionConversationPane(props: {
+  activityCount: number;
   chatMessages: SessionChatMessage[];
   hasPendingAssistantMessage: boolean;
   onSubmit: (input: {
@@ -34,14 +37,21 @@ export function ProjectSessionConversationPane(props: {
   providerPicker?: ProjectProviderPickerProps;
   projectPicker?: ProjectRepositoryPickerProps;
   selectedSession: State<AcpSession> | null;
+  streamStatus: string;
+  taskItems: TaskPanelItem[];
+  tasksLoading: boolean;
 }) {
   const {
+    activityCount,
     chatMessages,
     hasPendingAssistantMessage,
     onSubmit,
     providerPicker,
     projectPicker,
     selectedSession,
+    streamStatus,
+    taskItems,
+    tasksLoading,
   } = props;
 
   const promptInputProps = {
@@ -171,6 +181,13 @@ export function ProjectSessionConversationPane(props: {
 
         <div className="shrink-0 border-t border-border/60 bg-background/95">
           <div className="mx-auto w-full max-w-3xl px-4 py-3 md:px-5">
+            <ProjectSessionTaskStrip
+              activityCount={activityCount}
+              selectedSession={selectedSession}
+              streamStatus={streamStatus}
+              taskItems={taskItems}
+              tasksLoading={tasksLoading}
+            />
             <ProjectComposerInput {...promptInputProps} />
           </div>
         </div>

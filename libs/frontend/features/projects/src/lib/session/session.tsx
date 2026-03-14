@@ -10,11 +10,7 @@ import {
   Root,
   type Task,
 } from '@shared/schema';
-import {
-  Sheet,
-  SheetContent,
-  toast,
-} from '@shared/ui';
+import { toast } from '@shared/ui';
 import {
   getCurrentDesktopRuntimeConfig,
   resolveRuntimeApiUrl,
@@ -29,7 +25,6 @@ import {
 } from 'react';
 import { ProjectSessionConversationPane } from './project-session-conversation-pane';
 import { ProjectSessionHistorySidebar } from './project-session-history-sidebar';
-import { ProjectSessionStatusSidebar } from './project-session-status-sidebar';
 import { useProjectSessionChat } from './use-project-session-chat';
 import {
   buildTaskRunPanelItem,
@@ -37,11 +32,9 @@ import {
   buildSessionTree,
   buildTaskSnapshot,
   sessionDisplayName,
-  type TaskPanelAction,
   type TaskPanelItem,
 } from './project-session-workbench.shared';
 import {
-  resolveWorkbenchProviderLabel,
   resolveWorkbenchSessionDefaults,
   type WorkbenchSessionRole,
   type WorkbenchSessionRuntimeProfile,
@@ -52,7 +45,6 @@ import { type ProjectRepositoryOption } from '../components/project-composer-inp
 const STREAM_RETRY_DELAY_MS = 1500;
 const TASK_POLL_INTERVAL_MS = 3000;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
-const RIGHT_SIDEBAR_WIDTH_KEY = 'team-ai.session.right-sidebar-width';
 const LEFT_SIDEBAR_COLLAPSED_KEY = 'team-ai.session.left-sidebar-collapsed';
 
 type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error';
@@ -73,36 +65,6 @@ function timestamp(value: string | null): number {
   }
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
-}
-
-function formatTaskActionSuccessMessage(
-  item: TaskPanelItem,
-  action: TaskPanelAction,
-): string {
-  if (action === 'retry') {
-    return '已提交任务重试';
-  }
-
-  if (item.kind === 'verify') {
-    return '已开始验证任务';
-  }
-
-  if (item.kind === 'review') {
-    return '已开始复核任务';
-  }
-
-  return '已开始执行任务';
-}
-
-function formatTaskActionErrorMessage(action: TaskPanelAction): string {
-  switch (action) {
-    case 'retry':
-      return '重试任务失败';
-    case 'review':
-      return '启动复核失败';
-    case 'execute':
-      return '启动任务失败';
-  }
 }
 
 export function ShellsSession(props: ShellsSessionProps) {
@@ -142,24 +104,15 @@ export function ShellsSession(props: ShellsSessionProps) {
 
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [sessionTaskItems, setSessionTaskItems] = useState<TaskPanelItem[]>([]);
-  const [pendingTaskAction, setPendingTaskAction] = useState<{
-    action: TaskPanelAction;
-    taskId: string;
-  } | null>(null);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
-  const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
   >(null);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
-  const [inspectorTab, setInspectorTab] = useState<
-    'activity' | 'checklist' | 'tasks' | null
-  >(null);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
-  const [rightSidebarWidth, setRightSidebarWidth] = useState(480);
-  const [resizeMode, setResizeMode] = useState<'left' | 'right' | null>(null);
+  const [resizeMode, setResizeMode] = useState<'left' | null>(null);
   const [preferredRole, setPreferredRole] =
     useState<WorkbenchSessionRole | null>(null);
 
@@ -169,7 +122,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const latestEventIdRef = useRef<string | undefined>(undefined);
   const initialSelectionAppliedRef = useRef<string | null>(null);
   const leftResizeStartRef = useRef({ width: 320, x: 0 });
-  const rightResizeStartRef = useRef({ width: 360, x: 0 });
 
   const selectedSessionId = selectedSession?.data.id;
   const sideEvents = useMemo(
@@ -183,6 +135,46 @@ export function ShellsSession(props: ShellsSessionProps) {
   const taskItems = useMemo(
     () => (sessionTaskItems.length > 0 ? sessionTaskItems : fallbackTaskItems),
     [fallbackTaskItems, sessionTaskItems],
+  );
+  const taskSummary = useMemo(
+    () =>
+      taskItems.reduce(
+        (summary, item) => {
+          switch (item.status) {
+            case 'COMPLETED':
+            case 'completed':
+            case 'connected':
+              summary.completed += 1;
+              break;
+            case 'RUNNING':
+            case 'running':
+            case 'in_progress':
+            case 'connecting':
+              summary.running += 1;
+              break;
+            case 'FAILED':
+            case 'failed':
+            case 'CANCELLED':
+            case 'cancelled':
+            case 'BLOCKED':
+            case 'blocked':
+            case 'WAITING_RETRY':
+            case 'error':
+            case 'error-stream':
+              summary.failed += 1;
+              break;
+            default:
+              break;
+          }
+          return summary;
+        },
+        {
+          completed: 0,
+          failed: 0,
+          running: 0,
+        },
+      ),
+    [taskItems],
   );
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
   const repositoryOptions = useMemo(
@@ -218,7 +210,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       selectedRepositoryId,
     ],
   );
-  const showDesktopInspector = Boolean(selectedSession);
   const sessionDefaults = useMemo(
     () =>
       resolveWorkbenchSessionDefaults({
@@ -227,13 +218,6 @@ export function ShellsSession(props: ShellsSessionProps) {
         recentSessionProvider: sessions[0]?.data.provider ?? null,
       }),
     [runtimeProfile, selectedSession?.data.provider, sessions],
-  );
-  const sessionProviderLabel = useMemo(
-    () =>
-      resolveWorkbenchProviderLabel(
-        selectedSession?.data.provider ?? sessionDefaults.providerId,
-      ),
-    [selectedSession?.data.provider, sessionDefaults.providerId],
   );
   const {
     loading: providersLoading,
@@ -287,13 +271,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       setLeftSidebarWidth(Math.min(Math.max(storedLeftWidth, 260), 420));
     }
 
-    const storedRightWidth = Number.parseFloat(
-      window.localStorage.getItem(RIGHT_SIDEBAR_WIDTH_KEY) ?? '',
-    );
-    if (Number.isFinite(storedRightWidth)) {
-      setRightSidebarWidth(Math.min(Math.max(storedRightWidth, 280), 960));
-    }
-
     setIsLeftSidebarCollapsed(
       window.localStorage.getItem(LEFT_SIDEBAR_COLLAPSED_KEY) === 'true',
     );
@@ -308,14 +285,10 @@ export function ShellsSession(props: ShellsSessionProps) {
       String(leftSidebarWidth),
     );
     window.localStorage.setItem(
-      RIGHT_SIDEBAR_WIDTH_KEY,
-      String(rightSidebarWidth),
-    );
-    window.localStorage.setItem(
       LEFT_SIDEBAR_COLLAPSED_KEY,
       String(isLeftSidebarCollapsed),
     );
-  }, [isLeftSidebarCollapsed, leftSidebarWidth, rightSidebarWidth]);
+  }, [isLeftSidebarCollapsed, leftSidebarWidth]);
 
   useEffect(() => {
     if (selectedSession) {
@@ -728,26 +701,10 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
 
     const handleMouseMove = (event: MouseEvent) => {
-      if (resizeMode === 'left') {
-        const delta = event.clientX - leftResizeStartRef.current.x;
-        setLeftSidebarWidth(
-          Math.min(
-            Math.max(leftResizeStartRef.current.width + delta, 260),
-            420,
-          ),
-        );
-        return;
-      }
-
-      if (resizeMode === 'right') {
-        const delta = rightResizeStartRef.current.x - event.clientX;
-        setRightSidebarWidth(
-          Math.min(
-            Math.max(rightResizeStartRef.current.width + delta, 280),
-            960,
-          ),
-        );
-      }
+      const delta = event.clientX - leftResizeStartRef.current.x;
+      setLeftSidebarWidth(
+        Math.min(Math.max(leftResizeStartRef.current.width + delta, 260), 420),
+      );
     };
 
     const handleMouseUp = () => {
@@ -776,106 +733,8 @@ export function ShellsSession(props: ShellsSessionProps) {
     [selectSessionFromList],
   );
 
-  const openInspectorTab = useCallback(
-    (tab: 'activity' | 'checklist' | 'tasks') => {
-      setInspectorTab(tab);
-      if (
-        typeof window !== 'undefined' &&
-        window.matchMedia('(max-width: 1023px)').matches
-      ) {
-        setMobileInspectorOpen(true);
-      }
-    },
-    [],
-  );
-
-  const handleOpenTaskContext = useCallback(
-    (session: State<AcpSessionSummary>) => {
-      openInspectorTab('tasks');
-      void selectSessionFromList(session);
-    },
-    [openInspectorTab, selectSessionFromList],
-  );
-
-  const handleOpenLinkedSession = useCallback(
-    async (sessionId: string) => {
-      try {
-        setInspectorTab('tasks');
-        await select({ session: sessionId });
-        await loadSessions();
-        setMobileInspectorOpen(false);
-        onSessionNavigate?.(sessionId);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '打开会话失败';
-        toast.error(message);
-      }
-    },
-    [loadSessions, onSessionNavigate, select],
-  );
-
-  const handleTaskAction = useCallback(
-    async (item: TaskPanelItem, action: TaskPanelAction) => {
-      if (!item.taskState) {
-        toast.error('当前任务还未同步完成，稍后再试');
-        return;
-      }
-
-      setPendingTaskAction({ action, taskId: item.id });
-      setTasksLoading(true);
-
-      try {
-        if (action === 'retry') {
-          const latestRuns = await item.taskState
-            .follow('runs', { page: 1, pageSize: 1 })
-            .refresh();
-          const latestRun = latestRuns.collection[0];
-
-          if (!latestRun?.hasLink('retry-action')) {
-            throw new Error('当前任务还没有可重试的最新执行记录');
-          }
-
-          await latestRun.follow('retry-action').post({});
-        } else {
-          if (!item.taskState.hasLink('execute')) {
-            throw new Error('当前任务状态不支持直接启动');
-          }
-
-          await item.taskState.follow('execute').post({});
-        }
-
-        toast.success(formatTaskActionSuccessMessage(item, action));
-
-        try {
-          await loadSessions();
-        } catch {
-          // let polling reconcile session updates
-        }
-
-        if (selectedSession) {
-          try {
-            const nextItems = await loadTaskItems(selectedSession);
-            setSessionTaskItems(nextItems);
-          } catch {
-            // let polling reconcile task updates
-          }
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : formatTaskActionErrorMessage(action);
-        toast.error(message);
-      } finally {
-        setPendingTaskAction(null);
-        setTasksLoading(false);
-      }
-    },
-    [loadSessions, loadTaskItems, selectedSession],
-  );
-
   const leftSidebar = (
     <ProjectSessionHistorySidebar
-      onOpenTaskContext={handleOpenTaskContext}
       onSelectSession={handleSidebarSessionSelect}
       projectTitle={projectTitle}
       selectedSessionId={selectedSessionId}
@@ -904,32 +763,15 @@ export function ShellsSession(props: ShellsSessionProps) {
         selectedSession
           ? {
               activityCount: sideEvents.length,
-              onOpenActivity: () => openInspectorTab('activity'),
-              onOpenChecklist: () => openInspectorTab('checklist'),
-              onOpenTasks: () => openInspectorTab('tasks'),
+              completedCount: taskSummary.completed,
+              failedCount: taskSummary.failed,
+              runningCount: taskSummary.running,
               taskCount: taskItems.length,
             }
           : null
       }
       sessions={sessionTree}
       sessionsLoading={sessionsLoading}
-    />
-  );
-
-  const inspector = (
-    <ProjectSessionStatusSidebar
-      activeTab={inspectorTab ?? undefined}
-      events={sideEvents}
-      onOpenSession={handleOpenLinkedSession}
-      onTabChange={setInspectorTab}
-      onTaskAction={handleTaskAction}
-      pendingTaskAction={pendingTaskAction}
-      providerFallbackLabel={sessionProviderLabel}
-      runtimeProfile={runtimeProfile}
-      selectedSession={selectedSession}
-      streamStatus={streamStatus}
-      taskItems={taskItems}
-      tasksLoading={tasksLoading}
     />
   );
 
@@ -961,43 +803,20 @@ export function ShellsSession(props: ShellsSessionProps) {
 
           <main className="min-w-0 flex-1 bg-background">
             <ProjectSessionConversationPane
+              activityCount={sideEvents.length}
               chatMessages={chatMessages}
               hasPendingAssistantMessage={hasPendingAssistantMessage}
               onSubmit={handlePromptSubmit}
               providerPicker={sessionPromptProviderPicker}
               projectPicker={sessionPromptProjectPicker}
               selectedSession={selectedSession}
+              streamStatus={streamStatus}
+              taskItems={taskItems}
+              tasksLoading={tasksLoading}
             />
           </main>
-
-          {showDesktopInspector ? (
-            <div className="hidden lg:flex">
-              <ResizeHandle
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  rightResizeStartRef.current = {
-                    width: rightSidebarWidth,
-                    x: event.clientX,
-                  };
-                  setResizeMode('right');
-                }}
-              />
-              <aside
-                className="flex shrink-0 border-l border-border/60 bg-background"
-                style={{ width: rightSidebarWidth }}
-              >
-                {inspector}
-              </aside>
-            </div>
-          ) : null}
         </div>
       </div>
-
-      <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
-        <SheetContent side="right" className="w-[420px] p-0 sm:max-w-[420px]">
-          {inspector}
-        </SheetContent>
-      </Sheet>
 
       {resizeMode ? (
         <div className="fixed inset-0 z-40 cursor-col-resize" />
