@@ -56,7 +56,7 @@ describe('task dispatch service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Implement dispatch service',
-      triggerSessionId: 'acps_dispatch_parent',
+      sessionId: 'acps_dispatch_parent',
       verificationCommands: ['pnpm vitest task-dispatch-service'],
     });
     await createTask(sqlite, {
@@ -64,7 +64,7 @@ describe('task dispatch service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Other session task',
-      triggerSessionId: 'acps_other_parent',
+      sessionId: 'acps_other_parent',
     });
 
     const createSession = vi.fn(async () => ({
@@ -143,7 +143,7 @@ describe('task dispatch service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Single dispatch task',
-      triggerSessionId: 'acps_duplicate_parent',
+      sessionId: 'acps_duplicate_parent',
     });
 
     let releaseCreateSession: ((value: { id: string }) => void) | undefined;
@@ -230,7 +230,7 @@ describe('task dispatch service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Fallback provider task',
-      triggerSessionId: 'acps_provider_fallback_parent',
+      sessionId: 'acps_provider_fallback_parent',
     });
 
     const createSession = vi.fn(async () => ({
@@ -289,7 +289,7 @@ describe('task dispatch service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Unavailable provider task',
-      triggerSessionId: 'acps_provider_exhausted_parent',
+      sessionId: 'acps_provider_exhausted_parent',
     });
 
     await expect(
@@ -346,7 +346,7 @@ describe('task dispatch service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Child session failure task',
-      triggerSessionId: 'acps_child_failure_parent',
+      sessionId: 'acps_child_failure_parent',
     });
 
     await expect(
@@ -401,7 +401,7 @@ describe('task dispatch service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Solo mode task',
-      triggerSessionId: 'acps_developer_parent',
+      sessionId: 'acps_developer_parent',
     });
     const createSession = vi.fn(async () => ({
       id: 'acps_should_not_exist',
@@ -454,14 +454,14 @@ describe('task dispatch service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Dispatch diagnostics success',
-      triggerSessionId: 'acps_dispatch_diagnostics_parent',
+      sessionId: 'acps_dispatch_diagnostics_parent',
     });
     const completedTask = await createTask(sqlite, {
       objective: 'Emit blocked diagnostics for dispatch',
       projectId: project.id,
       status: 'COMPLETED',
       title: 'Dispatch diagnostics blocked',
-      triggerSessionId: 'acps_dispatch_diagnostics_parent',
+      sessionId: 'acps_dispatch_diagnostics_parent',
     });
 
     const logger = {

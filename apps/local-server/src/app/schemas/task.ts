@@ -30,9 +30,11 @@ export interface TaskPayload {
   priority: string | null;
   projectId: string;
   resultSessionId: string | null;
+  sessionId: string | null;
   scope: string | null;
   status: string;
   title: string;
+  triggerSessionId: string | null;
   updatedAt: string;
   verificationCommands: string[];
   verificationReport: string | null;
@@ -77,10 +79,10 @@ export interface CreateTaskInput {
   priority?: string | null;
   projectId: string;
   resultSessionId?: string | null;
+  sessionId?: string | null;
   scope?: string | null;
   status?: string;
   title: string;
-  triggerSessionId?: string | null;
   verificationCommands?: string[];
   verificationReport?: string | null;
   verificationVerdict?: string | null;
@@ -114,9 +116,9 @@ export interface UpdateTaskInput {
   priority?: string | null;
   scope?: string | null;
   resultSessionId?: string | null;
+  sessionId?: string | null;
   status?: string;
   title?: string;
-  triggerSessionId?: string | null;
   verificationCommands?: string[];
   verificationReport?: string | null;
   verificationVerdict?: string | null;

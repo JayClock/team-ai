@@ -128,7 +128,7 @@ describe('mcp route', () => {
       status: 'PENDING',
       kind: 'implement',
       labels: ['mcp'],
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     const completedTask = await createTask(fastify.sqlite, {
       projectId: project.id,
@@ -136,7 +136,7 @@ describe('mcp route', () => {
       objective: 'Ensure MCP execution rejects terminal tasks',
       status: 'COMPLETED',
       kind: 'implement',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
 
     const listToolsResponse = await callMcp(

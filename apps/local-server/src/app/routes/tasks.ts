@@ -197,7 +197,7 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
       const task = await createTask(fastify.sqlite, {
         ...taskInput,
         projectId,
-        triggerSessionId: sessionId,
+        sessionId,
       });
 
       reply

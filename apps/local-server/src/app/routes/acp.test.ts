@@ -353,7 +353,7 @@ describe('acp route', () => {
       objective: 'Implement the routed task',
       projectId: project.id,
       title: 'Implement routed task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
       assignedRole: 'CRAFTER',
       status: 'READY',
     });
@@ -485,7 +485,7 @@ describe('acp route', () => {
       objective: 'Record child session creation failures cleanly',
       projectId: project.id,
       title: 'Child session creation failure task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
       assignedRole: 'CRAFTER',
       status: 'READY',
     });
@@ -1452,7 +1452,7 @@ describe('acp route', () => {
       objective: 'Implement the routed task',
       projectId: project.id,
       title: 'Implement routed task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
       assignedRole: 'CRAFTER',
       status: 'READY',
     });

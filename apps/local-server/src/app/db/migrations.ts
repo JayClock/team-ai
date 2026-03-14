@@ -490,4 +490,19 @@ export const sqliteMigrations: SqliteMigration[] = [
         END;
     `,
   },
+  {
+    version: '011_project_task_session_split',
+    sql: `
+      ALTER TABLE project_tasks
+        ADD COLUMN session_id TEXT;
+
+      UPDATE project_tasks
+      SET session_id = trigger_session_id
+      WHERE session_id IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_session_id
+        ON project_tasks(session_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

@@ -181,6 +181,7 @@ describe('sqlite initialization', () => {
       'source_type',
       'source_event_id',
       'source_entry_index',
+      'session_id',
     ]);
     expect(runtimeProfileColumns.map(({ name }) => name)).toEqual([
       'id',

@@ -43,7 +43,7 @@ describe('task run service', () => {
       objective: 'Track the initial execution attempt',
       projectId: project.id,
       title: 'Implement lifecycle helper',
-      triggerSessionId: sessionId,
+      sessionId,
     });
 
     const taskRun = await startTaskRun(sqlite, {
@@ -83,13 +83,13 @@ describe('task run service', () => {
       objective: 'Retry a failed implementation',
       projectId: project.id,
       title: 'Retry task',
-      triggerSessionId: sessionId,
+      sessionId,
     });
     const otherTask = await createTask(sqlite, {
       objective: 'Stay isolated from retry metadata',
       projectId: project.id,
       title: 'Other task',
-      triggerSessionId: sessionId,
+      sessionId,
     });
 
     const firstRun = await startTaskRun(sqlite, {
@@ -164,7 +164,7 @@ describe('task run service', () => {
       objective: 'Capture a successful execution summary',
       projectId: project.id,
       title: 'Completion task',
-      triggerSessionId: sessionId,
+      sessionId,
     });
     const taskRun = await startTaskRun(sqlite, {
       projectId: project.id,
@@ -205,7 +205,7 @@ describe('task run service', () => {
       objective: 'Exercise failed and cancelled outcomes',
       projectId: project.id,
       title: 'Terminal states task',
-      triggerSessionId: sessionId,
+      sessionId,
     });
     const failedRun = await startTaskRun(sqlite, {
       projectId: project.id,
@@ -259,7 +259,7 @@ describe('task run service', () => {
       objective: 'Capture task run transition diagnostics',
       projectId: project.id,
       title: 'Task run diagnostics task',
-      triggerSessionId: sessionId,
+      sessionId,
     });
     const logger = {
       info: vi.fn(),

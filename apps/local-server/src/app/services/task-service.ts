@@ -58,13 +58,13 @@ interface TaskRow {
   priority: string | null;
   project_id: string;
   result_session_id: string | null;
+  session_id: string | null;
   scope: string | null;
   source_entry_index: number | null;
   source_event_id: string | null;
   source_type: string;
   status: string;
   title: string;
-  trigger_session_id: string | null;
   updated_at: string;
   verification_commands_json: string;
   verification_report: string | null;
@@ -431,9 +431,11 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     priority: row.priority,
     projectId: row.project_id,
     resultSessionId: row.result_session_id,
+    sessionId: row.session_id,
     scope: row.scope,
     status: row.status,
     title: row.title,
+    triggerSessionId: row.execution_session_id ?? row.result_session_id,
     updatedAt: row.updated_at,
     verificationCommands: parseStringArray(row.verification_commands_json),
     verificationReport: row.verification_report,
@@ -509,7 +511,6 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
         SELECT
           id,
           project_id,
-          trigger_session_id,
           title,
           objective,
           scope,
@@ -542,6 +543,7 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
           parent_task_id,
           execution_session_id,
           result_session_id,
+          session_id,
           created_at,
           updated_at
         FROM project_tasks
@@ -719,7 +721,7 @@ export async function listDispatchableTasks(
   };
 
   if (query.sessionId) {
-    filters.push('trigger_session_id = @sessionId');
+    filters.push('session_id = @sessionId');
     parameters.sessionId = query.sessionId;
   }
 
@@ -729,7 +731,6 @@ export async function listDispatchableTasks(
         SELECT
           id,
           project_id,
-          trigger_session_id,
           title,
           objective,
           scope,
@@ -762,6 +763,7 @@ export async function listDispatchableTasks(
           parent_task_id,
           execution_session_id,
           result_session_id,
+          session_id,
           created_at,
           updated_at
         FROM project_tasks
@@ -793,10 +795,10 @@ export async function createTask(
   input: CreateTaskInput,
 ): Promise<TaskPayload> {
   await getProjectById(sqlite, input.projectId);
-  const triggerSessionId = await validateTriggerSession(
+  const sessionId = await validateTriggerSession(
     sqlite,
     input.projectId,
-    input.triggerSessionId,
+    input.sessionId,
   );
   const assignment = await resolveTaskAssignment(sqlite, {
     assignedRole: input.assignedRole,
@@ -830,6 +832,7 @@ export async function createTask(
         INSERT INTO project_tasks (
           id,
           project_id,
+          session_id,
           trigger_session_id,
           title,
           objective,
@@ -873,6 +876,7 @@ export async function createTask(
         VALUES (
           @id,
           @projectId,
+          @sessionId,
           @triggerSessionId,
           @title,
           @objective,
@@ -945,13 +949,14 @@ export async function createTask(
       priority: input.priority ?? null,
       projectId: input.projectId,
       resultSessionId,
+      sessionId,
       scope: input.scope ?? null,
       status,
       sourceEntryIndex: null,
       sourceEventId: null,
       sourceType: 'manual',
       title: input.title,
-      triggerSessionId,
+      triggerSessionId: null,
       updatedAt: now,
       verificationCommandsJson: JSON.stringify(
         input.verificationCommands ?? [],
@@ -994,7 +999,7 @@ export async function listTasks(
   }
 
   if (sessionId) {
-    filters.push('trigger_session_id = @sessionId');
+    filters.push('session_id = @sessionId');
     parameters.sessionId = sessionId;
   }
 
@@ -1011,7 +1016,6 @@ export async function listTasks(
         SELECT
           id,
           project_id,
-          trigger_session_id,
           title,
           objective,
           scope,
@@ -1044,6 +1048,7 @@ export async function listTasks(
           parent_task_id,
           execution_session_id,
           result_session_id,
+          session_id,
           created_at,
           updated_at
         FROM project_tasks
@@ -1089,13 +1094,13 @@ export async function updateTask(
 ): Promise<TaskPayload> {
   const current = getTaskRow(sqlite, taskId);
   const currentStatus = ensureTaskStatus(current.status, 'PENDING');
-  const triggerSessionId =
-    input.triggerSessionId === undefined
-      ? current.trigger_session_id
+  const sessionId =
+    input.sessionId === undefined
+      ? current.session_id
       : await validateTriggerSession(
           sqlite,
           current.project_id,
-          input.triggerSessionId,
+          input.sessionId,
         );
   const parentTaskId =
     input.parentTaskId === undefined
@@ -1210,9 +1215,9 @@ export async function updateTask(
     priority: input.priority === undefined ? current.priority : input.priority,
     scope: input.scope === undefined ? current.scope : input.scope,
     resultSessionId,
+    sessionId,
     status: ensureTaskStatus(input.status, currentStatus),
     title: input.title ?? current.title,
-    triggerSessionId,
     updatedAt: new Date().toISOString(),
     verificationCommandsJson:
       input.verificationCommands === undefined
@@ -1233,7 +1238,7 @@ export async function updateTask(
       `
         UPDATE project_tasks
         SET
-          trigger_session_id = @triggerSessionId,
+          session_id = @sessionId,
           title = @title,
           objective = @objective,
           scope = @scope,

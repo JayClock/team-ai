@@ -51,7 +51,7 @@ describe('task run routes', () => {
       objective: 'Track execution attempts',
       projectId: project.id,
       title: 'Task with runs',
-      triggerSessionId: sessionId,
+      sessionId,
     });
 
     const createResponse = await fastify.inject({
@@ -195,7 +195,7 @@ describe('task run routes', () => {
       objective: 'Retry a failed run through the dedicated route',
       projectId: project.id,
       title: 'Retryable run task',
-      triggerSessionId: sessionId,
+      sessionId,
     });
     const failedRun = await startTaskRun(sqlite, {
       projectId: project.id,

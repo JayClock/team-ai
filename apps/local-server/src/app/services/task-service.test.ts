@@ -58,7 +58,7 @@ describe('task service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Implement tasks',
-      triggerSessionId: session.id,
+      sessionId: session.id,
       verificationCommands: ['npx nx test local-server'],
     });
 
@@ -74,6 +74,10 @@ describe('task service', () => {
     });
 
     expect(task.acceptanceCriteria).toEqual(['Expose route']);
+    expect(task).toMatchObject({
+      sessionId: session.id,
+      triggerSessionId: null,
+    });
     expect(byProject.items.map((item) => item.id)).toContain(task.id);
     expect(bySession.items.map((item) => item.id)).toContain(task.id);
   });
@@ -226,7 +230,7 @@ describe('task service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Solo implement task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     const delegatedTask = await createTask(sqlite, {
       assignedRole: 'CRAFTER',
@@ -234,7 +238,7 @@ describe('task service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Delegated implement task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
 
     const defaultDispatchability = await getTaskDispatchability(
@@ -284,7 +288,7 @@ describe('task service', () => {
       projectId: project.id,
       status: 'PENDING',
       title: 'Dependency task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     const task = await createTask(sqlite, {
       dependencies: [dependency.id],
@@ -292,7 +296,7 @@ describe('task service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Dispatchable task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     const runningTask = await createTask(sqlite, {
       executionSessionId: rootSessionId,
@@ -300,7 +304,7 @@ describe('task service', () => {
       projectId: project.id,
       status: 'RUNNING',
       title: 'Running task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     await createTask(sqlite, {
       objective: 'Manual task without context',
@@ -362,21 +366,21 @@ describe('task service', () => {
       projectId: project.id,
       status: 'PENDING',
       title: 'Queued task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     const retryTask = await createTask(sqlite, {
       objective: 'Retry after a failed attempt',
       projectId: project.id,
       status: 'FAILED',
       title: 'Retry task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     const completedTask = await createTask(sqlite, {
       objective: 'Finish without dispatch',
       projectId: project.id,
       status: 'PENDING',
       title: 'Completed task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
 
     const automaticReady = await updateTask(sqlite, queuedTask.id, {
@@ -417,21 +421,21 @@ describe('task service', () => {
       projectId: project.id,
       status: 'READY',
       title: 'Ready task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     const failedTask = await createTask(sqlite, {
       objective: 'Retry a failed task explicitly',
       projectId: project.id,
       status: 'FAILED',
       title: 'Failed task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
     const completedTask = await createTask(sqlite, {
       objective: 'Reject already completed tasks',
       projectId: project.id,
       status: 'COMPLETED',
       title: 'Completed task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
 
     let sessionCount = 0;
@@ -457,6 +461,7 @@ describe('task service', () => {
       dispatched: true,
       reason: null,
       role: 'CRAFTER',
+      sessionId: 'acps_execute_1',
     });
 
     const failedResult = await executeTask(sqlite, failedTask.id, {
@@ -508,7 +513,7 @@ describe('task service', () => {
       projectId: project.id,
       status: 'FAILED',
       title: 'Retry limit task',
-      triggerSessionId: rootSessionId,
+      sessionId: rootSessionId,
     });
 
     let latestRun = await startTaskRun(sqlite, {
@@ -584,7 +589,7 @@ describe('task service', () => {
         objective: 'Invalid linkage',
         projectId: projectB.id,
         title: 'Cross project task',
-        triggerSessionId: session.id,
+        sessionId: session.id,
       }),
     ).rejects.toMatchObject({
       status: 409,
