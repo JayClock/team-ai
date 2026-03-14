@@ -398,4 +398,74 @@ export const sqliteMigrations: SqliteMigration[] = [
         ADD COLUMN mcp_server_configs_json TEXT NOT NULL DEFAULT '{}';
     `,
   },
+  {
+    version: '009_project_codebases',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_codebases (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        repo_path TEXT,
+        source_type TEXT,
+        source_url TEXT,
+        branch TEXT,
+        is_default INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_codebases_project_id
+        ON project_codebases(project_id, is_default DESC, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_codebases_repo_path_active
+        ON project_codebases(repo_path)
+        WHERE repo_path IS NOT NULL AND deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_codebases_source_url_active
+        ON project_codebases(source_url)
+        WHERE source_url IS NOT NULL AND deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_codebases_default_active
+        ON project_codebases(project_id)
+        WHERE is_default = 1 AND deleted_at IS NULL;
+
+      INSERT INTO project_codebases (
+        id,
+        project_id,
+        title,
+        repo_path,
+        source_type,
+        source_url,
+        branch,
+        is_default,
+        created_at,
+        updated_at,
+        deleted_at
+      )
+      SELECT
+        'cdb_' || lower(hex(randomblob(6))),
+        projects.id,
+        projects.title,
+        projects.workspace_root,
+        projects.source_type,
+        projects.source_url,
+        NULL,
+        1,
+        projects.created_at,
+        projects.updated_at,
+        NULL
+      FROM projects
+      WHERE projects.deleted_at IS NULL
+        AND (projects.workspace_root IS NOT NULL OR projects.source_url IS NOT NULL)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM project_codebases
+          WHERE project_codebases.project_id = projects.id
+            AND project_codebases.deleted_at IS NULL
+        );
+    `,
+  },
 ];

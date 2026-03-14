@@ -5,6 +5,7 @@ import {
   AcpEventEnvelope,
   AcpSession,
   AcpSessionSummary,
+  Codebase,
   Project,
   Root,
   type Task,
@@ -119,9 +120,13 @@ export function ShellsSession(props: ShellsSessionProps) {
     () => client.go<Root>('/api').follow('me'),
     [client],
   );
-  const { data: me, resourceState: meState } = useSuspenseResource(meResource);
-  const projectsResource = useMemo(() => meState.follow('projects'), [meState]);
-  const { resourceState: projectsState } = useSuspenseResource(projectsResource);
+  const { data: me } = useSuspenseResource(meResource);
+  const codebasesResource = useMemo(
+    () => projectState.follow('codebases'),
+    [projectState],
+  );
+  const { resourceState: codebasesState } =
+    useSuspenseResource(codebasesResource);
   const {
     sessionsResource,
     selectedSession,
@@ -147,7 +152,7 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
-  >(projectState.data.id);
+  >(null);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<
     'activity' | 'checklist' | 'tasks' | null
@@ -182,22 +187,23 @@ export function ShellsSession(props: ShellsSessionProps) {
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
   const repositoryOptions = useMemo(
     () =>
-      projectsState.collection.map<ProjectRepositoryOption>((project) => ({
-        id: project.data.id,
-        repoPath: project.data.repoPath,
-        sourceUrl: project.data.sourceUrl,
-        title: project.data.title?.trim() || project.data.id,
-      })),
-    [projectsState.collection],
+      codebasesState.collection.map<ProjectRepositoryOption>(
+        (codebase: State<Codebase>) => ({
+          id: codebase.data.id,
+          isDefault: codebase.data.isDefault,
+          repoPath: codebase.data.repoPath,
+          sourceUrl: codebase.data.sourceUrl,
+          title: codebase.data.title?.trim() || codebase.data.id,
+        }),
+      ),
+    [codebasesState.collection],
   );
   const selectedRepository = useMemo(
     () =>
       repositoryOptions.find(
         (repository) => repository.id === selectedRepositoryId,
       ) ??
-      repositoryOptions.find(
-        (repository) => repository.id === projectState.data.id,
-      ) ?? {
+      repositoryOptions.find((repository) => repository.isDefault) ?? {
         id: projectState.data.id,
         repoPath: projectState.data.repoPath,
         sourceUrl: projectState.data.sourceUrl,
@@ -239,13 +245,18 @@ export function ShellsSession(props: ShellsSessionProps) {
 
   useEffect(() => {
     if (
+      selectedRepositoryId &&
       repositoryOptions.some((repository) => repository.id === selectedRepositoryId)
     ) {
       return;
     }
 
-    setSelectedRepositoryId(projectState.data.id);
-  }, [projectState.data.id, repositoryOptions, selectedRepositoryId]);
+    const fallbackRepository =
+      repositoryOptions.find((repository) => repository.isDefault) ??
+      repositoryOptions[0];
+
+    setSelectedRepositoryId(fallbackRepository?.id ?? null);
+  }, [repositoryOptions, selectedRepositoryId]);
 
   useEffect(() => {
     if (!selectedSession?.data.cwd) {
@@ -565,13 +576,14 @@ export function ShellsSession(props: ShellsSessionProps) {
           : selectedRepository;
 
       return {
+        cloneEndpoint: `/api/projects/${projectState.data.id}/codebases/clone`,
         disabled: selectedSession !== null,
         onProjectCloned: async (projectId: string) => {
-          await projectsResource.refresh();
+          await codebasesResource.refresh();
           setSelectedRepositoryId(projectId);
         },
         onValueChange: (repository: ProjectRepositoryOption | null) =>
-          setSelectedRepositoryId(repository?.id ?? projectState.data.id),
+          setSelectedRepositoryId(repository?.id ?? null),
         projects:
           repositoryOptions.length > 0 ? repositoryOptions : [selectedRepository],
         value: sessionRepository,
@@ -579,7 +591,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     },
     [
       projectState.data.id,
-      projectsResource,
+      codebasesResource,
       repositoryOptions,
       selectedRepository,
       selectedSession,

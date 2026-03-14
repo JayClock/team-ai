@@ -9,6 +9,7 @@ import {
 import {
   AcpSessionSummary,
   type AgentRole,
+  Codebase,
   Project,
   Role,
   Root,
@@ -137,7 +138,7 @@ function sessionAgentLabel(
 }
 
 export function ShellsSessions() {
-  const { projects, refreshProjects, selectedProject } = useProjectSelection();
+  const { projects, selectedProject } = useProjectSelection();
   const activeProject = selectedProject;
 
   if (projects.length === 0) {
@@ -161,21 +162,15 @@ export function ShellsSessions() {
 
   return (
     <ShellsSessionsContent
-      onProjectCloned={async () => {
-        await refreshProjects();
-      }}
-      projects={projects}
       selectedProject={activeProject}
     />
   );
 }
 
 function ShellsSessionsContent(props: {
-  onProjectCloned: (projectId: string) => Promise<void>;
-  projects: State<LocalProject>[];
   selectedProject: State<LocalProject>;
 }) {
-  const { onProjectCloned, projects, selectedProject } = props;
+  const { selectedProject } = props;
   const client = useClient();
   const navigate = useNavigate();
   const selectedProjectId = selectedProject.data.id;
@@ -188,8 +183,14 @@ function ShellsSessionsContent(props: {
     () => projectState.follow('roles'),
     [projectState],
   );
+  const codebasesResource = useMemo(
+    () => projectState.follow('codebases'),
+    [projectState],
+  );
   const { data: me } = useSuspenseResource(meResource);
   const { resourceState: rolesState } = useSuspenseResource(rolesResource);
+  const { resourceState: codebasesState } =
+    useSuspenseResource(codebasesResource);
   const {
     install,
     installingProviderId,
@@ -215,22 +216,52 @@ function ShellsSessionsContent(props: {
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
-  >(selectedProject.data.id);
+  >(null);
   const [startingSession, setStartingSession] = useState(false);
 
   useEffect(() => {
-    if (projects.some((project) => project.data.id === selectedRepositoryId)) {
+    if (
+      selectedRepositoryId &&
+      codebasesState.collection.some(
+        (codebase: State<Codebase>) => codebase.data.id === selectedRepositoryId,
+      )
+    ) {
       return;
     }
 
-    setSelectedRepositoryId(selectedProject.data.id);
-  }, [projects, selectedProject.data.id, selectedRepositoryId]);
+    const fallbackCodebase =
+      codebasesState.collection.find(
+        (codebase: State<Codebase>) => codebase.data.isDefault,
+      ) ?? codebasesState.collection[0];
+
+    setSelectedRepositoryId(fallbackCodebase?.data.id ?? null);
+  }, [codebasesState.collection, selectedRepositoryId]);
+
+  const repositoryOptions = useMemo(
+    () =>
+      codebasesState.collection.map<ProjectRepositoryOption>(
+        (codebase: State<Codebase>) => ({
+          id: codebase.data.id,
+          isDefault: codebase.data.isDefault,
+          repoPath: codebase.data.repoPath,
+          sourceUrl: codebase.data.sourceUrl,
+          title: codebase.data.title?.trim() || codebase.data.id,
+        }),
+      ),
+    [codebasesState.collection],
+  );
 
   const selectedRepository = useMemo(
     () =>
-      projects.find((project) => project.data.id === selectedRepositoryId) ??
-      selectedProject,
-    [projects, selectedProject, selectedRepositoryId],
+      repositoryOptions.find(
+        (repository) => repository.id === selectedRepositoryId,
+      ) ?? {
+        id: selectedProject.data.id,
+        repoPath: selectedProject.data.repoPath,
+        sourceUrl: selectedProject.data.sourceUrl,
+        title: projectTitle(selectedProject),
+      },
+    [repositoryOptions, selectedProject, selectedRepositoryId],
   );
 
   const homeAgentOptions = useMemo(
@@ -293,8 +324,7 @@ function ShellsSessionsContent(props: {
       text: string;
     }) => {
       const goal = input.text.trim();
-      const cwd =
-        input.cwd?.trim() || selectedRepository.data.repoPath || undefined;
+      const cwd = input.cwd?.trim() || selectedRepository.repoPath || undefined;
       const providerId = input.provider?.trim() || selectedProvider?.id;
 
       if (!goal) {
@@ -333,7 +363,7 @@ function ShellsSessionsContent(props: {
       loadRecentSessions,
       me.id,
       navigate,
-      selectedRepository.data.repoPath,
+      selectedRepository.repoPath,
       selectedProvider,
       selectedProjectId,
     ],
@@ -341,26 +371,34 @@ function ShellsSessionsContent(props: {
 
   const projectPicker = useMemo(
     () => ({
+      cloneEndpoint: `/api/projects/${selectedProjectId}/codebases/clone`,
       onProjectCloned: async (projectId: string) => {
-        await onProjectCloned(projectId);
+        await codebasesResource.refresh();
         setSelectedRepositoryId(projectId);
       },
       onValueChange: (project: ProjectRepositoryOption | null) =>
-        setSelectedRepositoryId(project?.id ?? selectedProject.data.id),
-      projects: projects.map<ProjectRepositoryOption>((project) => ({
-        id: project.data.id,
-        repoPath: project.data.repoPath,
-        sourceUrl: project.data.sourceUrl,
-        title: projectTitle(project),
-      })),
+        setSelectedRepositoryId(project?.id ?? null),
+      projects:
+        repositoryOptions.length > 0
+          ? repositoryOptions
+          : [
+              {
+                id: selectedRepository.id,
+                isDefault: true,
+                repoPath: selectedRepository.repoPath,
+                sourceUrl: selectedRepository.sourceUrl,
+                title: selectedRepository.title,
+              },
+            ],
       value: {
-        id: selectedRepository.data.id,
-        repoPath: selectedRepository.data.repoPath,
-        sourceUrl: selectedRepository.data.sourceUrl,
-        title: projectTitle(selectedRepository),
+        id: selectedRepository.id,
+        isDefault: selectedRepository.isDefault,
+        repoPath: selectedRepository.repoPath,
+        sourceUrl: selectedRepository.sourceUrl,
+        title: selectedRepository.title,
       },
     }),
-    [onProjectCloned, projects, selectedProject.data.id, selectedRepository],
+    [codebasesResource, repositoryOptions, selectedProjectId, selectedRepository],
   );
 
   const homePromptFooterStart = (

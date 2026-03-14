@@ -27,12 +27,14 @@ import { createPortal } from 'react-dom';
 
 export type ProjectRepositoryOption = {
   id: string;
+  isDefault?: boolean;
   repoPath: string | null;
   sourceUrl: string | null;
   title: string;
 };
 
 export type ProjectRepositoryPickerProps = {
+  cloneEndpoint?: string;
   disabled?: boolean;
   onProjectCloned?: (projectId: string) => Promise<void> | void;
   onValueChange?: (project: ProjectRepositoryOption | null) => void;
@@ -44,7 +46,13 @@ type PickerTab = 'existing' | 'clone';
 
 type CloneProjectResponse = {
   cloneStatus: 'cloned' | 'reused';
-  project: ProjectRepositoryOption;
+  codebase?: ProjectRepositoryOption;
+  id?: string;
+  isDefault?: boolean;
+  project?: ProjectRepositoryOption;
+  repoPath?: string | null;
+  sourceUrl?: string | null;
+  title?: string;
 };
 
 type CloneProjectErrorResponse = {
@@ -74,7 +82,14 @@ function isRepositoryInput(value: string): boolean {
 }
 
 export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
-  const { disabled, onProjectCloned, onValueChange, projects, value } = props;
+  const {
+    cloneEndpoint = '/api/projects/clone',
+    disabled,
+    onProjectCloned,
+    onValueChange,
+    projects,
+    value,
+  } = props;
   const [activeTab, setActiveTab] = useState<PickerTab>('existing');
   const [cloneError, setCloneError] = useState<string | null>(null);
   const [cloneUrl, setCloneUrl] = useState('');
@@ -201,7 +216,7 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
     setCloneError(null);
 
     try {
-      const response = await runtimeFetch('/api/projects/clone', {
+      const response = await runtimeFetch(cloneEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -221,7 +236,15 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
       }
 
       const success = payload as CloneProjectResponse;
-      const project = success.project;
+      const project =
+        success.codebase ??
+        success.project ?? {
+          id: success.id ?? '',
+          isDefault: success.isDefault,
+          repoPath: success.repoPath ?? null,
+          sourceUrl: success.sourceUrl ?? null,
+          title: success.title ?? '未命名仓库',
+        };
       if (onProjectCloned) {
         await onProjectCloned(project.id);
       } else {
@@ -242,7 +265,7 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
     } finally {
       setCloning(false);
     }
-  }, [cloneUrl, cloning, onProjectCloned, onValueChange]);
+  }, [cloneEndpoint, cloneUrl, cloning, onProjectCloned, onValueChange]);
 
   return (
     <div className="relative">

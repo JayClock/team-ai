@@ -23,6 +23,9 @@ function createProjectLinks(project: ProjectPayload) {
     'runtime-profile': {
       href: `/api/projects/${project.id}/runtime-profile`,
     },
+    codebases: {
+      href: `/api/projects/${project.id}/codebases`,
+    },
     agents: {
       href: `/api/projects/${project.id}/agents`,
     },

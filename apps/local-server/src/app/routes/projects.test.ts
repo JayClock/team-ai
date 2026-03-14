@@ -173,6 +173,9 @@ describe('projects route', () => {
         'acp-sessions': {
           href: `/api/projects/${project.id}/acp-sessions`,
         },
+        codebases: {
+          href: `/api/projects/${project.id}/codebases`,
+        },
       },
     });
     expect(response.json()._links.sessions).toBeUndefined();

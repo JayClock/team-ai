@@ -1,6 +1,7 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
 import { AgentCollection } from './agent.js';
 import { AgentEventCollection } from './agent-event.js';
+import { CodebaseCollection } from './codebase.js';
 import { Conversation } from './conversation.js';
 import { Diagram } from './diagram.js';
 import { KnowledgeGraph } from './knowledge-graph.js';
@@ -37,6 +38,7 @@ export type Project = Entity<
     self: Project;
     agents: AgentCollection;
     'acp-sessions': AcpSessionCollection;
+    codebases: CodebaseCollection;
     conversations: Collection<Conversation>;
     diagrams: DiagramCollection;
     events: AgentEventCollection;

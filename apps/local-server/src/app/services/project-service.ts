@@ -7,6 +7,10 @@ import type {
   ProjectPayload,
   UpdateProjectInput,
 } from '../schemas/project';
+import {
+  deleteProjectCodebases,
+  syncProjectDefaultCodebase,
+} from './project-codebase-service';
 
 const projectIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -265,6 +269,8 @@ export async function createProject(
     throw error;
   }
 
+  await syncProjectDefaultCodebase(sqlite, project);
+
   return project;
 }
 
@@ -367,6 +373,8 @@ export async function updateProject(
     throw error;
   }
 
+  await syncProjectDefaultCodebase(sqlite, next);
+
   return next;
 }
 
@@ -393,4 +401,6 @@ export async function deleteProject(
   if (result.changes === 0) {
     throwProjectNotFound(projectId);
   }
+
+  await deleteProjectCodebases(sqlite, projectId);
 }

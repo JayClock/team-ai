@@ -13,6 +13,8 @@ export const VENDOR_MEDIA_TYPES = {
   acpSessions: vendorMediaType('acp-sessions'),
   agent: vendorMediaType('agent'),
   agents: vendorMediaType('agents'),
+  codebase: vendorMediaType('codebase'),
+  codebases: vendorMediaType('codebases'),
   installedAcpProvider: vendorMediaType('installed-acp-provider'),
   note: vendorMediaType('note'),
   noteEvents: vendorMediaType('note-events'),

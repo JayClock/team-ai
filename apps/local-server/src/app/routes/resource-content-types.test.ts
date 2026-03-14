@@ -171,6 +171,11 @@ describe('resource content types', () => {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
     fastify.decorate('sqlite', sqlite);
+    fastify.decorate('agentGatewayClient', {
+      listProviders: async () => ({
+        items: [],
+      }),
+    });
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);

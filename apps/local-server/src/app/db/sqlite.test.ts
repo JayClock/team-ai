@@ -75,6 +75,7 @@ describe('sqlite initialization', () => {
       'project_acp_session_events',
       'project_acp_sessions',
       'project_agents',
+      'project_codebases',
       'project_note_events',
       'project_notes',
       'project_runtime_profiles',

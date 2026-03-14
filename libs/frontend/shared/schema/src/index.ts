@@ -1,6 +1,7 @@
 export type { Root } from './lib/root.js';
 export type { User } from './lib/user.js';
 export type { Project, DiagramCollection } from './lib/project.js';
+export type { Codebase, CodebaseCollection } from './lib/codebase.js';
 export type {
   Sidebar,
   SidebarSection,
