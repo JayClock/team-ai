@@ -71,7 +71,7 @@ describe('ProviderRuntime', () => {
       protocols: ['acp'],
       providers: ['codex'],
       defaultProvider: 'codex',
-      timeoutMs: 30_000,
+      timeoutMs: 300_000,
       retryAttempts: 2,
       maxConcurrentSessions: 32,
       logLevel: 'info',

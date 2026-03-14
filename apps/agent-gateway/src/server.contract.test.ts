@@ -469,7 +469,7 @@ function baseConfig(): GatewayConfig {
     protocols: ['mcp', 'acp', 'a2a'],
     providers: ['codex'],
     defaultProvider: 'codex',
-    timeoutMs: 30_000,
+    timeoutMs: 300_000,
     retryAttempts: 2,
     maxConcurrentSessions: 32,
     logLevel: 'error',

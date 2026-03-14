@@ -37,7 +37,7 @@ Configuration priority (high to low):
 - `AGENT_GATEWAY_PROVIDERS` (comma-separated, default: `opencode,codex,gemini,copilot,auggie,kimi,kiro,qoder`)
 - `AGENT_GATEWAY_DEFAULT_PROVIDER` (default: `opencode`)
 - `TEAMAI_ACP_<PROVIDER>_COMMAND` override command for ACP CLI providers such as `codex`, `opencode`, `gemini`, `copilot`, `auggie`, `kimi`, `kiro`, and `qoder`
-- `AGENT_GATEWAY_TIMEOUT_MS` (default: `30000`)
+- `AGENT_GATEWAY_TIMEOUT_MS` (default: `300000`)
 - `AGENT_GATEWAY_RETRY_ATTEMPTS` (default: `2`)
 - `AGENT_GATEWAY_MAX_CONCURRENT_SESSIONS` (default: `32`)
 - `AGENT_GATEWAY_LOG_LEVEL` (`debug|info|warn|error`, default: `info`)

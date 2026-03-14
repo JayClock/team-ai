@@ -34,7 +34,7 @@ const DEFAULT_CONFIG: GatewayConfig = {
     'qoder',
   ],
   defaultProvider: 'opencode',
-  timeoutMs: 30_000,
+  timeoutMs: 300_000,
   retryAttempts: 2,
   maxConcurrentSessions: 32,
   logLevel: 'info',

@@ -14,7 +14,7 @@
     "qoder"
   ],
   "defaultProvider": "opencode",
-  "timeoutMs": 30000,
+  "timeoutMs": 300000,
   "retryAttempts": 2,
   "maxConcurrentSessions": 32,
   "logLevel": "info"
