@@ -60,7 +60,7 @@ export interface NormalizedSessionUpdate {
   };
   toolCall?: NormalizedToolCall;
   turnComplete?: {
-    state: AcpSessionState;
+    state?: Extract<AcpSessionState, 'FAILED' | 'CANCELLED'>;
     stopReason: string;
     usage: unknown;
     userMessageId: string | null;
@@ -84,6 +84,31 @@ export function normalizeSessionNotification(
   emittedAt = new Date().toISOString(),
 ): NormalizedSessionUpdate | null {
   const update = notification.update;
+  const rawSessionUpdate = (update as { sessionUpdate?: string }).sessionUpdate;
+
+  if (rawSessionUpdate === 'turn_complete') {
+    const turnCompleteUpdate = update as {
+      sessionUpdate?: string;
+      state?: string | null;
+      stopReason?: string | null;
+      usage?: unknown;
+      userMessageId?: string | null;
+    };
+
+    return {
+      sessionId,
+      provider,
+      timestamp: emittedAt,
+      rawNotification: notification,
+      eventType: 'turn_complete',
+      turnComplete: {
+        state: normalizeTurnCompleteState(turnCompleteUpdate.state),
+        stopReason: turnCompleteUpdate.stopReason ?? 'end_turn',
+        usage: turnCompleteUpdate.usage ?? null,
+        userMessageId: turnCompleteUpdate.userMessageId ?? null,
+      },
+    };
+  }
 
   switch (update.sessionUpdate) {
     case 'user_message_chunk':
@@ -320,7 +345,9 @@ export function toPersistedAcpEvent(
           stopReason: update.turnComplete?.stopReason ?? 'end_turn',
           userMessageId: update.turnComplete?.userMessageId ?? null,
           usage: update.turnComplete?.usage ?? null,
-          state: update.turnComplete?.state ?? 'COMPLETED',
+          ...(update.turnComplete?.state
+            ? { state: update.turnComplete.state }
+            : {}),
           provider: update.provider,
         },
       };
@@ -339,7 +366,7 @@ export function resolveSessionStateFromNormalizedUpdate(
     case 'tool_call_update':
       return update.toolCall?.status === 'failed' ? 'FAILED' : 'RUNNING';
     case 'turn_complete':
-      return update.turnComplete?.state ?? 'COMPLETED';
+      return update.turnComplete?.state ?? fallback;
     default:
       return fallback;
   }
@@ -429,4 +456,14 @@ function normalizeToolCallStatus(
   }
 
   return 'pending';
+}
+
+function normalizeTurnCompleteState(
+  state: string | null | undefined,
+): Extract<AcpSessionState, 'FAILED' | 'CANCELLED'> | undefined {
+  if (state === 'FAILED' || state === 'CANCELLED') {
+    return state;
+  }
+
+  return undefined;
 }

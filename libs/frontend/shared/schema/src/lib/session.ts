@@ -9,7 +9,6 @@ export type AcpRef = {
 export type AcpSessionState =
   | 'PENDING'
   | 'RUNNING'
-  | 'COMPLETED'
   | 'FAILED'
   | 'CANCELLED';
 

@@ -126,4 +126,35 @@ describe('normalized-session-update', () => {
       },
     });
   });
+
+  it('keeps the session running after turn_complete updates', () => {
+    const normalized = {
+      eventType: 'turn_complete',
+      provider: 'codex',
+      rawNotification: {
+        update: {
+          sessionUpdate: 'turn_complete',
+          stopReason: 'end_turn',
+        },
+      } satisfies SessionNotification,
+      sessionId: 'session-4',
+      timestamp: '2026-03-14T12:00:00.000Z',
+      turnComplete: {
+        stopReason: 'end_turn',
+        usage: null,
+        userMessageId: null,
+      },
+    } as const;
+
+    expect(
+      resolveSessionStateFromNormalizedUpdate(normalized, 'RUNNING'),
+    ).toBe('RUNNING');
+    expect(toPersistedAcpEvent(normalized)).toMatchObject({
+      type: 'complete',
+      payload: {
+        provider: 'codex',
+        stopReason: 'end_turn',
+      },
+    });
+  });
 });

@@ -23,7 +23,7 @@ import type {
 } from './providers/provider-types.js';
 
 const TRACE_ID_HEADER = 'X-Trace-Id';
-const TERMINAL_SESSION_STATES = new Set(['COMPLETED', 'FAILED', 'CANCELLED']);
+const TERMINAL_SESSION_STATES = new Set(['FAILED', 'CANCELLED']);
 
 class BadRequestError extends Error {
   readonly code = 'INVALID_REQUEST_BODY';
@@ -265,7 +265,6 @@ export function createGatewayServer(
                 provider: session.provider,
                 reason: 'prompt-finished',
               },
-              nextState: 'COMPLETED',
             });
           },
           onError: (error) => {

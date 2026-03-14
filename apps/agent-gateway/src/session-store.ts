@@ -4,7 +4,6 @@ import { randomUUID } from 'node:crypto';
 export type GatewaySessionState =
   | 'PENDING'
   | 'RUNNING'
-  | 'COMPLETED'
   | 'FAILED'
   | 'CANCELLED';
 
@@ -53,12 +52,11 @@ type SessionRecord = GatewaySession & {
   events: GatewayEventEnvelope[];
 };
 
-const TERMINAL_STATES = new Set<GatewaySessionState>(['COMPLETED', 'FAILED', 'CANCELLED']);
+const TERMINAL_STATES = new Set<GatewaySessionState>(['FAILED', 'CANCELLED']);
 
 const TRANSITIONS: Record<GatewaySessionState, GatewaySessionState[]> = {
   PENDING: ['RUNNING', 'FAILED', 'CANCELLED'],
-  RUNNING: ['COMPLETED', 'FAILED', 'CANCELLED'],
-  COMPLETED: [],
+  RUNNING: ['FAILED', 'CANCELLED'],
   FAILED: [],
   CANCELLED: [],
 };

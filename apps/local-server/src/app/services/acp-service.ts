@@ -643,7 +643,7 @@ async function syncTaskExecutionOutcome(
   }
 
   const runInput = {
-    completedAt: session.completed_at,
+    completedAt: session.completed_at ?? new Date().toISOString(),
     provider: session.provider,
     sessionId,
     specialistId: session.specialist_id,
@@ -997,7 +997,7 @@ function createRuntimeHooks(
         lastActivityAt: metadata.updatedAt ?? emitted.emittedAt,
         name: metadata.title ?? current.name,
         completedAt:
-          state === 'COMPLETED' || state === 'CANCELLED' || state === 'FAILED'
+          state === 'CANCELLED' || state === 'FAILED'
             ? emitted.emittedAt
             : null,
         failureReason: state === 'FAILED' ? current.failure_reason : null,
@@ -1129,7 +1129,6 @@ function createRuntimeHooks(
 
       if (
         current.state === 'CANCELLED' ||
-        current.state === 'COMPLETED' ||
         current.state === 'FAILED'
       ) {
         return;
@@ -1204,7 +1203,7 @@ async function updateSessionFromPromptResponse(
   options: AcpServiceOptions = {},
 ) {
   const session = getSessionRow(sqlite, sessionId);
-  let state: AcpSessionState = 'COMPLETED';
+  let state: AcpSessionState = 'RUNNING';
   if (response.stopReason === 'cancelled') {
     state = 'CANCELLED';
   }
@@ -1218,14 +1217,14 @@ async function updateSessionFromPromptResponse(
       stopReason: response.stopReason,
       userMessageId: response.userMessageId ?? null,
       usage: response.usage ?? null,
-      state,
+      ...(state === 'CANCELLED' ? { state } : {}),
     },
   });
 
   updateSessionRuntime(sqlite, sessionId, {
     state,
     failureReason: null,
-    completedAt,
+    completedAt: state === 'CANCELLED' ? completedAt : null,
     lastActivityAt: completedAt,
   });
 
@@ -1233,7 +1232,7 @@ async function updateSessionFromPromptResponse(
     await syncTaskExecutionOutcome(
       sqlite,
       sessionId,
-      state,
+      state === 'CANCELLED' ? 'CANCELLED' : 'COMPLETED',
       undefined,
       options,
     );

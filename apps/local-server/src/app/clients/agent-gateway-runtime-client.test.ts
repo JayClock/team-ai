@@ -48,7 +48,7 @@ describe('agent-gateway-runtime-client', () => {
           }),
         ],
         nextCursor: 'gw-1:4',
-        session: gatewaySession('gw-1', 'COMPLETED', 'gw-1:4'),
+        session: gatewaySession('gw-1', 'RUNNING', 'gw-1:4'),
       });
 
     const prompt = vi.fn<AgentGatewayClient['prompt']>(async () => ({

@@ -656,7 +656,7 @@ describe('acp route', () => {
       result: {
         session: {
           id: childSessionId,
-          state: 'COMPLETED',
+          state: 'RUNNING',
         },
       },
     });
@@ -1238,7 +1238,7 @@ describe('acp route', () => {
       id: dispatchedChildSessionId,
       parentSession: { id: rootSessionId },
       specialistId: 'crafter-implementor',
-      state: 'COMPLETED',
+      state: 'RUNNING',
       task: { id: implementTask.id },
     });
     expect(historyResponse.statusCode).toBe(200);

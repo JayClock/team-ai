@@ -48,4 +48,27 @@ describe('mapProtocolEvent', () => {
       },
     });
   });
+
+  it('maps complete payloads without transitioning the gateway session state', () => {
+    expect(
+      mapProtocolEvent({
+        protocol: 'acp',
+        traceId: 'trace-complete',
+        payload: {
+          type: 'complete',
+          reason: 'prompt-finished',
+        },
+      })
+    ).toMatchObject({
+      type: 'complete',
+      traceId: 'trace-complete',
+      data: {
+        protocol: 'acp',
+        payload: {
+          type: 'complete',
+          reason: 'prompt-finished',
+        },
+      },
+    });
+  });
 });

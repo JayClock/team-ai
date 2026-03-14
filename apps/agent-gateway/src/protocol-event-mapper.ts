@@ -56,7 +56,7 @@ function mapMcpEvent(payload: Record<string, unknown>, traceId?: string): Sessio
   }
 
   if (payload.type === 'complete') {
-    return completeEvent(payload, traceId, 'COMPLETED', 'mcp');
+    return completeEvent(payload, traceId, 'mcp');
   }
 
   return deltaEvent(payload, traceId, 'mcp');
@@ -70,7 +70,7 @@ function mapAcpEvent(payload: Record<string, unknown>, traceId?: string): Sessio
 
   const sessionUpdate = asText(payload.sessionUpdate);
   if (sessionUpdate === 'terminal_exited') {
-    return completeEvent(payload, traceId, 'COMPLETED', 'acp');
+    return completeEvent(payload, traceId, 'acp');
   }
   if (sessionUpdate === 'terminal_created') {
     return statusEvent(payload, traceId, 'RUNNING', 'acp');
@@ -87,7 +87,7 @@ function mapAcpEvent(payload: Record<string, unknown>, traceId?: string): Sessio
     return toolEvent(payload, traceId, 'acp');
   }
   if (eventType === 'complete') {
-    return completeEvent(payload, traceId, 'COMPLETED', 'acp');
+    return completeEvent(payload, traceId, 'acp');
   }
   if (payload.error) {
     return {
@@ -122,7 +122,7 @@ function mapA2aEvent(payload: Record<string, unknown>, traceId?: string): Sessio
     };
   }
   if (messageType?.includes('COMPLETE') || messageType === 'TASK_COMPLETED') {
-    return completeEvent(payload, traceId, 'COMPLETED', 'a2a');
+    return completeEvent(payload, traceId, 'a2a');
   }
 
   return deltaEvent(payload, traceId, 'a2a');
@@ -149,7 +149,6 @@ function statusEvent(
 function completeEvent(
   payload: Record<string, unknown>,
   traceId: string | undefined,
-  state: GatewaySessionState,
   protocol: ProtocolName
 ): SessionEventInput {
   return {
@@ -159,7 +158,6 @@ function completeEvent(
       protocol,
       payload,
     },
-    nextState: state,
   };
 }
 
@@ -206,7 +204,6 @@ function extractState(payload: Record<string, unknown>): GatewaySessionState | n
   if (
     normalized === 'PENDING' ||
     normalized === 'RUNNING' ||
-    normalized === 'COMPLETED' ||
     normalized === 'FAILED' ||
     normalized === 'CANCELLED'
   ) {

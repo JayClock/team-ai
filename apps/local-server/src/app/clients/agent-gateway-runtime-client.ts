@@ -295,12 +295,6 @@ async function flushGatewayEvents(
     };
   }
 
-  if (response.session.state === 'COMPLETED') {
-    return {
-      stopReason: 'end_turn',
-    };
-  }
-
   return null;
 }
 
