@@ -13,6 +13,12 @@ import {
 } from '@shared/ui';
 import { ArrowRightIcon, LoaderCircleIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
+import {
+  ProjectRepositoryPicker,
+  type ProjectRepositoryOption,
+} from './project-repository-picker';
+
+export type { ProjectRepositoryOption } from './project-repository-picker';
 
 type ProjectPromptSubmitInput = {
   files: unknown[];
@@ -26,6 +32,12 @@ export type ProjectPromptInputProps = {
   footerStart?: ReactNode;
   onSubmit: (input: ProjectPromptSubmitInput) => Promise<void> | void;
   placeholder: string;
+  projectPicker?: {
+    onProjectCloned?: (projectId: string) => Promise<void> | void;
+    onProjectSelect?: (projectId: string | null) => void;
+    projects: ProjectRepositoryOption[];
+    selectedProjectId?: string | null;
+  };
   submitDisabled?: boolean;
   submitPending?: boolean;
 };
@@ -46,6 +58,7 @@ function ProjectPromptInputContent(props: ProjectPromptInputProps) {
     footerStart,
     onSubmit,
     placeholder,
+    projectPicker,
     submitDisabled,
     submitPending,
   } = props;
@@ -91,6 +104,7 @@ function ProjectPromptInputContent(props: ProjectPromptInputProps) {
 
         <PromptInputFooter className="w-full items-center gap-2 border-t border-slate-100 px-4 py-3 md:px-5 dark:border-[#1c1f2e]">
           <PromptInputTools className="min-w-0 flex-1 flex-wrap items-center gap-2">
+            {projectPicker ? <ProjectRepositoryPicker {...projectPicker} /> : null}
             {footerStart}
           </PromptInputTools>
 

@@ -1,7 +1,10 @@
 import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
-import { ProjectPromptInput } from '@features/projects/lib/components/project-prompt-input';
+import {
+  ProjectPromptInput,
+  type ProjectRepositoryOption,
+} from '@features/projects';
 import {
   AcpSessionSummary,
   type AgentRole,
@@ -17,19 +20,13 @@ import {
   CardTitle,
   Dialog,
   DialogContent,
-  Input,
   toast,
 } from '@shared/ui';
-import { runtimeFetch } from '@shared/util-http';
 import {
   ArrowRightIcon,
   ChevronDownIcon,
   Clock3Icon,
   DownloadIcon,
-  FolderGit2Icon,
-  GitBranchPlusIcon,
-  LoaderCircleIcon,
-  SearchIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -58,26 +55,7 @@ function providerGroupLabel(key: string): string {
   }
 }
 
-type CloneProjectResponse = {
-  cloneStatus: 'cloned' | 'reused';
-  createdAt: string;
-  description: string | null;
-  id: string;
-  repoPath: string | null;
-  sourceType: 'github' | 'local' | null;
-  sourceUrl: string | null;
-  title: string;
-  updatedAt: string;
-};
-
-type PickerTab = 'existing' | 'clone';
 type HomeAgentType = Extract<AgentRole, 'ROUTA' | 'DEVELOPER'>;
-
-type DropdownPosition = {
-  bottom: number;
-  left: number;
-  width: number;
-};
 
 const HOME_AGENT_OPTIONS: Array<{
   description: string;
@@ -175,40 +153,6 @@ function sessionAgentLabel(
   return matched?.label ?? null;
 }
 
-function normalizeRepositoryUrl(value: string): string {
-  return value.trim();
-}
-
-function isRepositoryInput(value: string): boolean {
-  const trimmed = value.trim();
-  return (
-    /^https?:\/\/github\.com\//iu.test(trimmed) ||
-    /^git@github\.com:/iu.test(trimmed) ||
-    /^github\.com\//iu.test(trimmed) ||
-    /^[a-zA-Z0-9\-_]+\/[a-zA-Z0-9\-_.]+$/u.test(trimmed)
-  );
-}
-
-async function readJson<T>(href: string, init?: RequestInit): Promise<T> {
-  const response = await runtimeFetch(href, {
-    ...init,
-    headers: {
-      Accept: 'application/hal+json, application/json',
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    const error = new Error(errorText || `请求失败：${response.status}`);
-    Object.assign(error, { status: response.status });
-    throw error;
-  }
-
-  return (await response.json()) as T;
-}
-
 export function ShellsSessions() {
   const { projects, refreshProjects, selectedProject } = useProjectSelection();
   const [preferredProjectId, setPreferredProjectId] = useState<string | null>(
@@ -262,7 +206,7 @@ export function ShellsSessions() {
 
 function ShellsSessionsContent(props: {
   onProjectCloned: (projectId: string) => Promise<void>;
-  onProjectSelected: (projectId: string) => void;
+  onProjectSelected: (projectId: string | null) => void;
   projects: State<LocalProject>[];
   selectedProject: State<LocalProject>;
 }) {
@@ -413,33 +357,6 @@ function ShellsSessionsContent(props: {
     void loadRecentSessions();
   }, [loadRecentSessions]);
 
-  const handleCloneRepository = useCallback(
-    async (repositoryUrl: string) => {
-      const normalizedUrl = normalizeRepositoryUrl(repositoryUrl);
-      if (!normalizedUrl) {
-        throw new Error('请输入 GitHub 仓库地址');
-      }
-
-      const project = await readJson<CloneProjectResponse>(
-        '/api/projects/clone',
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            repositoryUrl: normalizedUrl,
-          }),
-        },
-      );
-
-      await onProjectCloned(project.id);
-      toast.success(
-        project.cloneStatus === 'reused'
-          ? '已复用本地仓库副本'
-          : '仓库已完成 clone',
-      );
-    },
-    [onProjectCloned],
-  );
-
   const submitHomePrompt = useCallback(
     async (input: { files: unknown[]; text: string }) => {
       const goal = input.text.trim();
@@ -484,15 +401,23 @@ function ShellsSessionsContent(props: {
     ],
   );
 
+  const projectPicker = useMemo(
+    () => ({
+      onProjectCloned,
+      onProjectSelect: onProjectSelected,
+      projects: projects.map<ProjectRepositoryOption>((project) => ({
+        id: project.data.id,
+        repoPath: project.data.repoPath,
+        sourceUrl: project.data.sourceUrl,
+        title: projectTitle(project),
+      })),
+      selectedProjectId: selectedProject.data.id,
+    }),
+    [onProjectCloned, onProjectSelected, projects, selectedProject],
+  );
+
   const homePromptFooterStart = (
     <>
-      <RepositoryPicker
-        onClone={handleCloneRepository}
-        onSelect={onProjectSelected}
-        projects={projects}
-        value={selectedProject}
-      />
-
       <div
         className="flex items-center rounded-lg bg-slate-100 p-0.5 dark:bg-[#1a1d2a]"
         role="group"
@@ -570,6 +495,7 @@ function ShellsSessionsContent(props: {
     footerStart: homePromptFooterStart,
     onSubmit: submitHomePrompt,
     placeholder: '你想在这个项目里完成什么？可以直接描述需求、约束和期望结果。',
+    projectPicker,
     submitDisabled: startingSession,
     submitPending: startingSession,
   };
@@ -790,332 +716,6 @@ function ShellsSessionsContent(props: {
           />
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function RepositoryPicker(props: {
-  onClone: (repositoryUrl: string) => Promise<void>;
-  onSelect: (projectId: string) => void;
-  projects: State<LocalProject>[];
-  value: State<LocalProject> | null;
-}) {
-  const { onClone, onSelect, projects, value } = props;
-  const [activeTab, setActiveTab] = useState<PickerTab>('existing');
-  const [cloneError, setCloneError] = useState<string | null>(null);
-  const [cloneUrl, setCloneUrl] = useState('');
-  const [cloning, setCloning] = useState(false);
-  const [dropdownPosition, setDropdownPosition] =
-    useState<DropdownPosition | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const cloneInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  const filteredProjects = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return projects;
-    }
-
-    return projects.filter((project) =>
-      [
-        projectTitle(project),
-        project.data.sourceUrl,
-        project.data.repoPath,
-      ].some((valuePart) => valuePart?.toLowerCase().includes(normalizedQuery)),
-    );
-  }, [projects, searchQuery]);
-
-  useEffect(() => {
-    if (!searchQuery || !isRepositoryInput(searchQuery)) {
-      return;
-    }
-
-    setActiveTab('clone');
-    setCloneUrl(searchQuery);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (!showDropdown) {
-      return;
-    }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const insideDropdown = containerRef.current?.contains(target);
-      const insideTrigger = triggerRef.current?.contains(target);
-
-      if (!insideDropdown && !insideTrigger) {
-        setShowDropdown(false);
-      }
-    };
-
-    const handleWindowChange = () => {
-      if (!triggerRef.current) {
-        return;
-      }
-
-      const rect = triggerRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        bottom: window.innerHeight - rect.top + 8,
-        left: rect.left,
-        width: Math.max(rect.width, 420),
-      });
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('resize', handleWindowChange);
-    window.addEventListener('scroll', handleWindowChange, true);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('resize', handleWindowChange);
-      window.removeEventListener('scroll', handleWindowChange, true);
-    };
-  }, [showDropdown]);
-
-  useEffect(() => {
-    if (!showDropdown) {
-      return;
-    }
-
-    const focusTarget =
-      activeTab === 'clone' ? cloneInputRef.current : searchInputRef.current;
-    focusTarget?.focus();
-  }, [activeTab, showDropdown]);
-
-  const openDropdown = useCallback(() => {
-    if (!triggerRef.current) {
-      return;
-    }
-
-    const rect = triggerRef.current.getBoundingClientRect();
-    setDropdownPosition({
-      bottom: window.innerHeight - rect.top + 8,
-      left: rect.left,
-      width: Math.max(rect.width, 420),
-    });
-    setShowDropdown(true);
-  }, []);
-
-  const handleClone = useCallback(async () => {
-    const repositoryUrl = normalizeRepositoryUrl(cloneUrl);
-    if (!repositoryUrl || cloning) {
-      return;
-    }
-
-    setCloning(true);
-    setCloneError(null);
-
-    try {
-      await onClone(repositoryUrl);
-      setShowDropdown(false);
-      setCloneUrl('');
-      setSearchQuery('');
-    } catch (error) {
-      setCloneError(error instanceof Error ? error.message : '仓库准备失败');
-    } finally {
-      setCloning(false);
-    }
-  }, [cloneUrl, cloning, onClone]);
-
-  return (
-    <div className="relative">
-      <button
-        ref={triggerRef}
-        className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-[#1c1f2e] dark:hover:text-slate-100"
-        onClick={() => {
-          if (showDropdown) {
-            setShowDropdown(false);
-            return;
-          }
-
-          openDropdown();
-        }}
-        type="button"
-      >
-        <FolderGit2Icon className="size-3.5 shrink-0" />
-        <span className="max-w-44 truncate">
-          {value ? projectTitle(value) : '选择或 clone 仓库'}
-        </span>
-        <ChevronDownIcon className="size-3.5 shrink-0 text-slate-400" />
-      </button>
-
-      {showDropdown && dropdownPosition
-        ? createPortal(
-            <div
-              ref={containerRef}
-              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_70px_-24px_rgba(15,23,42,0.45)] dark:border-[#1c1f2e] dark:bg-[#181b26]"
-              style={{
-                bottom: dropdownPosition.bottom,
-                left: dropdownPosition.left,
-                position: 'fixed',
-                width: dropdownPosition.width,
-                zIndex: 9999,
-              }}
-            >
-              <div className="flex border-b border-slate-100 dark:border-[#1c1f2e]">
-                <button
-                  className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-xs font-medium transition ${
-                    activeTab === 'existing'
-                      ? 'bg-slate-50 text-slate-900 dark:bg-[#1f2233] dark:text-slate-100'
-                      : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-[#1f2233]'
-                  }`}
-                  onClick={() => setActiveTab('existing')}
-                  type="button"
-                >
-                  <FolderGit2Icon className="size-3.5" />
-                  已有仓库
-                </button>
-                <button
-                  className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-xs font-medium transition ${
-                    activeTab === 'clone'
-                      ? 'bg-slate-50 text-slate-900 dark:bg-[#1f2233] dark:text-slate-100'
-                      : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-[#1f2233]'
-                  }`}
-                  onClick={() => setActiveTab('clone')}
-                  type="button"
-                >
-                  <GitBranchPlusIcon className="size-3.5" />
-                  Clone 仓库
-                </button>
-              </div>
-
-              {activeTab === 'existing' ? (
-                <>
-                  <div className="border-b border-slate-100 p-3 dark:border-[#1c1f2e]">
-                    <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-[#2a2d3d] dark:bg-[#161922]">
-                      <SearchIcon className="size-3.5 text-slate-400" />
-                      <Input
-                        ref={searchInputRef}
-                        className="h-9 border-0 bg-transparent px-0 text-xs text-slate-900 shadow-none focus-visible:ring-0 dark:text-slate-100"
-                        onChange={(event) =>
-                          setSearchQuery(event.currentTarget.value)
-                        }
-                        placeholder="搜索仓库，或直接粘贴 GitHub 地址"
-                        value={searchQuery}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="max-h-72 overflow-y-auto p-2">
-                    {filteredProjects.length > 0 ? (
-                      filteredProjects.map((project) => {
-                        const selected = value?.data.id === project.data.id;
-
-                        return (
-                          <button
-                            key={project.data.id}
-                            className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition ${
-                              selected
-                                ? 'bg-sky-50 text-sky-950 dark:bg-sky-900/20 dark:text-sky-100'
-                                : 'hover:bg-slate-50 dark:hover:bg-[#1f2233]'
-                            }`}
-                            onClick={() => {
-                              onSelect(project.data.id);
-                              setShowDropdown(false);
-                            }}
-                            type="button"
-                          >
-                            <div className="rounded-lg bg-slate-100 p-2 text-slate-500 dark:bg-[#1f2233] dark:text-slate-400">
-                              <FolderGit2Icon className="size-4" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium">
-                                {projectTitle(project)}
-                              </p>
-                              <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                                {project.data.sourceUrl ?? '未记录来源地址'}
-                              </p>
-                              <p className="mt-1 truncate text-[11px] text-slate-400 dark:text-slate-500">
-                                {project.data.repoPath ?? '未记录本地目录'}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <div className="px-3 py-6 text-xs text-slate-500 dark:text-slate-400">
-                        {projects.length === 0
-                          ? '还没有已托管仓库，切换到“Clone 仓库”开始。'
-                          : '没有匹配的仓库。'}
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-3 p-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                      仓库地址
-                    </label>
-                    <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 dark:border-[#2a2d3d] dark:bg-[#161922]">
-                      <span className="shrink-0 text-[11px] font-mono text-slate-400">
-                        github.com/
-                      </span>
-                      <Input
-                        ref={cloneInputRef}
-                        className="border-0 bg-transparent px-1.5 text-xs font-mono shadow-none focus-visible:ring-0"
-                        onChange={(event) => {
-                          setCloneError(null);
-                          setCloneUrl(event.currentTarget.value);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            void handleClone();
-                          }
-                        }}
-                        placeholder="owner/repo"
-                        value={cloneUrl.replace(
-                          /^(https?:\/\/)?(www\.)?github\.com\//iu,
-                          '',
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  {cloneError ? (
-                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/50 dark:bg-red-900/10 dark:text-red-300">
-                      {cloneError}
-                    </div>
-                  ) : null}
-
-                  <Button
-                    className="w-full"
-                    disabled={
-                      cloning || normalizeRepositoryUrl(cloneUrl).length === 0
-                    }
-                    onClick={() => void handleClone()}
-                    type="button"
-                  >
-                    {cloning ? (
-                      <>
-                        <LoaderCircleIcon className="size-4 animate-spin" />
-                        准备仓库中...
-                      </>
-                    ) : (
-                      <>
-                        Clone 仓库
-                        <ArrowRightIcon className="size-4" />
-                      </>
-                    )}
-                  </Button>
-
-                  <p className="text-[11px] leading-5 text-slate-500 dark:text-slate-400">
-                    仓库会被 clone 到本地受管目录，并作为后续执行的工作目录。
-                  </p>
-                </div>
-              )}
-            </div>,
-            document.body,
-          )
-        : null}
     </div>
   );
 }

@@ -31,10 +31,16 @@
     "eslint.config.cjs",
     "eslint.config.mjs"
   ],
-  "include": ["src/lib/components/project-prompt-input.tsx"],
+  "include": [
+    "src/lib/components/project-prompt-input.tsx",
+    "src/lib/components/project-repository-picker.tsx"
+  ],
   "references": [
     {
       "path": "../../shared/ui/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared/util-http/tsconfig.lib.json"
     }
   ]
 }
