@@ -46,7 +46,6 @@ export type Task = Entity<
     completionSummary: string | null;
     verificationVerdict: VerificationVerdict | null;
     verificationReport: string | null;
-    triggerSessionId: string | null;
     parentTaskId: string | null;
     executionSessionId: string | null;
     resultSessionId: string | null;

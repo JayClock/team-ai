@@ -33,7 +33,6 @@ export interface TaskPayload {
   scope: string | null;
   status: string;
   title: string;
-  triggerSessionId: string | null;
   updatedAt: string;
   verificationCommands: string[];
   verificationReport: string | null;

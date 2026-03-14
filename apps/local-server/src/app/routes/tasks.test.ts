@@ -36,7 +36,7 @@ describe('tasks routes', () => {
     }
   });
 
-  it('creates tasks from an ACP session and exposes detail plus session/project listings', async () => {
+  it('creates tasks through the project task collection and filters listings by sessionId', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -47,12 +47,13 @@ describe('tasks routes', () => {
 
     const createResponse = await fastify.inject({
       method: 'POST',
-      url: `/api/projects/${project.id}/acp-sessions/${sessionId}/tasks`,
+      url: `/api/projects/${project.id}/tasks`,
       payload: {
         acceptanceCriteria: ['Task list available'],
         labels: ['backend'],
         objective: 'Add task listing',
         priority: 'high',
+        sessionId,
         status: 'READY',
         title: 'Implement task routes',
       },
@@ -67,7 +68,6 @@ describe('tasks routes', () => {
       objective: 'Add task listing',
       projectId: project.id,
       title: 'Implement task routes',
-      triggerSessionId: sessionId,
     });
 
     const detailResponse = await fastify.inject({
@@ -83,15 +83,15 @@ describe('tasks routes', () => {
         execute: {
           href: `/api/tasks/${task.id}/execute`,
         },
-        session: {
-          href: `/api/projects/${project.id}/acp-sessions/${sessionId}`,
+        collection: {
+          href: `/api/projects/${project.id}/tasks`,
         },
       },
     });
 
     const sessionTasksResponse = await fastify.inject({
       method: 'GET',
-      url: `/api/projects/${project.id}/acp-sessions/${sessionId}/tasks`,
+      url: `/api/projects/${project.id}/tasks?sessionId=${sessionId}`,
     });
 
     expect(sessionTasksResponse.statusCode).toBe(200);
@@ -244,7 +244,7 @@ describe('tasks routes', () => {
     );
   });
 
-  it('rejects empty task patches and missing sessions', async () => {
+  it('rejects empty task patches, missing trigger sessions, and removed session-scoped task routes', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -271,9 +271,10 @@ describe('tasks routes', () => {
 
     const missingSessionResponse = await fastify.inject({
       method: 'POST',
-      url: `/api/projects/${project.id}/acp-sessions/acps_missing/tasks`,
+      url: `/api/projects/${project.id}/tasks`,
       payload: {
         objective: 'Should fail',
+        sessionId: 'acps_missing',
         title: 'Missing session task',
       },
     });
@@ -283,6 +284,13 @@ describe('tasks routes', () => {
       title: 'ACP Session Not Found',
       type: 'https://team-ai.dev/problems/acp-session-not-found',
     });
+
+    const removedSessionRouteResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/acp-sessions/${sessionId}/tasks`,
+    });
+
+    expect(removedSessionRouteResponse.statusCode).toBe(404);
   });
 
   it('resolves assigned specialists from workspace directories', async () => {
@@ -322,10 +330,11 @@ describe('tasks routes', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: `/api/projects/${project.id}/acp-sessions/${sessionId}/tasks`,
+      url: `/api/projects/${project.id}/tasks`,
       payload: {
         assignedSpecialistId: 'frontend-crafter',
         objective: 'Use specialist',
+        sessionId,
         title: 'Specialist-backed task',
       },
     });
@@ -353,10 +362,11 @@ describe('tasks routes', () => {
 
     const response = await fastify.inject({
       method: 'POST',
-      url: `/api/projects/${project.id}/acp-sessions/${sessionId}/tasks`,
+      url: `/api/projects/${project.id}/tasks`,
       payload: {
         assignedRole: 'planner',
         objective: 'Reject invalid role',
+        sessionId,
         title: 'Invalid role task',
       },
     });
@@ -449,8 +459,11 @@ describe('tasks routes', () => {
   ) {
     const response = await fastify.inject({
       method: 'POST',
-      payload,
-      url: `/api/projects/${projectId}/acp-sessions/${sessionId}/tasks`,
+      payload: {
+        ...payload,
+        sessionId,
+      },
+      url: `/api/projects/${projectId}/tasks`,
     });
 
     expect(response.statusCode).toBe(201);

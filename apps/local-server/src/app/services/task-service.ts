@@ -434,7 +434,6 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     scope: row.scope,
     status: row.status,
     title: row.title,
-    triggerSessionId: row.trigger_session_id,
     updatedAt: row.updated_at,
     verificationCommands: parseStringArray(row.verification_commands_json),
     verificationReport: row.verification_report,

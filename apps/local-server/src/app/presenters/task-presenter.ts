@@ -24,18 +24,11 @@ function createTaskLinks(task: TaskPayload) {
       href: `/api/tasks/${task.id}`,
     },
     collection: {
-      href: '/api/tasks',
+      href: `/api/projects/${task.projectId}/tasks`,
     },
     project: {
       href: `/api/projects/${task.projectId}`,
     },
-    ...(task.triggerSessionId
-      ? {
-          session: {
-            href: `/api/projects/${task.projectId}/acp-sessions/${task.triggerSessionId}`,
-          },
-        }
-      : {}),
     ...(task.parentTaskId
       ? {
           parent: {
@@ -87,10 +80,6 @@ export function presentTaskList(payload: TaskListPayload) {
     pageSize: String(payload.pageSize),
   });
 
-  if (payload.projectId) {
-    searchParams.set('projectId', payload.projectId);
-  }
-
   if (payload.sessionId) {
     searchParams.set('sessionId', payload.sessionId);
   }
@@ -99,13 +88,14 @@ export function presentTaskList(payload: TaskListPayload) {
     searchParams.set('status', payload.status);
   }
 
-  const selfHref = payload.sessionId
-    ? payload.projectId
-      ? `/api/projects/${payload.projectId}/acp-sessions/${payload.sessionId}/tasks?page=${payload.page}&pageSize=${payload.pageSize}${payload.status ? `&status=${encodeURIComponent(payload.status)}` : ''}`
-      : `/api/tasks?${searchParams.toString()}`
-    : payload.projectId
-      ? `/api/projects/${payload.projectId}/tasks?page=${payload.page}&pageSize=${payload.pageSize}${payload.status ? `&status=${encodeURIComponent(payload.status)}` : ''}`
-      : `/api/tasks?${searchParams.toString()}`;
+  const selfHref = payload.projectId
+    ? `/api/projects/${payload.projectId}/tasks?${searchParams.toString()}`
+    : (() => {
+        if (payload.projectId) {
+          searchParams.set('projectId', payload.projectId);
+        }
+        return `/api/tasks?${searchParams.toString()}`;
+      })();
 
   return {
     _links: {

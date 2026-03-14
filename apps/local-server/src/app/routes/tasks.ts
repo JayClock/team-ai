@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { presentTask, presentTaskList } from '../presenters/task-presenter';
 import {
   createAcpSession,
-  getAcpSessionById,
   promptAcpSession,
 } from '../services/acp-service';
 import {
@@ -26,11 +25,6 @@ const listTasksQuerySchema = z.object({
 
 const projectParamsSchema = z.object({
   projectId: z.string().min(1),
-});
-
-const sessionParamsSchema = z.object({
-  projectId: z.string().min(1),
-  sessionId: z.string().min(1),
 });
 
 const taskParamsSchema = z.object({
@@ -76,6 +70,7 @@ const taskBodySchema = z.object({
   scope: nullableStringSchema.optional(),
   status: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
+  sessionId: z.union([z.string().trim().min(1), z.null()]).optional(),
   verificationCommands: stringArraySchema.optional(),
   verificationReport: nullableStringSchema.optional(),
   verificationVerdict: nullableStringSchema.optional(),
@@ -110,7 +105,6 @@ const taskPatchSchema = z
     scope: nullableStringSchema.optional(),
     status: z.string().trim().min(1).optional(),
     title: z.string().trim().min(1).optional(),
-    triggerSessionId: z.union([z.string().trim().min(1), z.null()]).optional(),
     verificationCommands: stringArraySchema.optional(),
     verificationReport: nullableStringSchema.optional(),
     verificationVerdict: nullableStringSchema.optional(),
@@ -194,39 +188,14 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     );
   });
 
-  fastify.get(
-    '/projects/:projectId/acp-sessions/:sessionId/tasks',
-    async (request, reply) => {
-      const { projectId, sessionId } = sessionParamsSchema.parse(
-        request.params,
-      );
-      const query = listTasksQuerySchema.parse(request.query);
-
-      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.tasks);
-
-      return presentTaskList(
-        await listTasks(fastify.sqlite, {
-          ...query,
-          projectId,
-          sessionId,
-        }),
-      );
-    },
-  );
-
   fastify.post(
-    '/projects/:projectId/acp-sessions/:sessionId/tasks',
+    '/projects/:projectId/tasks',
     async (request, reply) => {
-      const { projectId, sessionId } = sessionParamsSchema.parse(
-        request.params,
-      );
-      const session = await getAcpSessionById(fastify.sqlite, sessionId);
-      if (session.project.id !== projectId) {
-        throw fastify.httpErrors.notFound();
-      }
+      const { projectId } = projectParamsSchema.parse(request.params);
       const body = taskBodySchema.parse(request.body);
+      const { sessionId, ...taskInput } = body;
       const task = await createTask(fastify.sqlite, {
-        ...body,
+        ...taskInput,
         projectId,
         triggerSessionId: sessionId,
       });

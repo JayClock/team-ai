@@ -36,7 +36,7 @@ describe('task service', () => {
     }
   });
 
-  it('creates tasks with session linkage and lists them by project and session', async () => {
+  it('creates tasks and still filters them by session context', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Team AI',
@@ -73,7 +73,6 @@ describe('task service', () => {
       sessionId: session.id,
     });
 
-    expect(task.triggerSessionId).toBe(session.id);
     expect(task.acceptanceCriteria).toEqual(['Expose route']);
     expect(byProject.items.map((item) => item.id)).toContain(task.id);
     expect(bySession.items.map((item) => item.id)).toContain(task.id);
