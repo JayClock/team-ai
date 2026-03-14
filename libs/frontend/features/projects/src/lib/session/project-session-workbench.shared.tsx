@@ -509,12 +509,12 @@ export function buildWorkbenchWalkthroughScenarios(input: {
       liveNote: goalToReviewCovered
         ? `已观察到 ${dispatchLinkedTasks.length} 个带执行链路的任务、${allRuns.length} 条 run，以及 ${reviewOrVerifyTasks.length + reviewOrVerifyRuns.length} 个 review/verify 节点，可直接按闭环演示。`
         : selectedSession
-          ? '当前已有根会话，可发送一个需要拆解的目标并等待 ROUTA 自动生成 plan 与 task。'
-          : '当前还没有会话，请先点击右上角“新建会话”，再输入一个需要拆解的目标。',
+          ? '当前已有根会话；请显式创建 task，再通过执行或委派演示 ROUTA 编排链路。'
+          : '当前还没有会话，请先点击右上角“新建会话”，再配合显式 task 创建演示编排流程。',
       steps: [
-        '创建或打开一个项目，点击“新建会话”，输入一个需要拆解的交付目标。',
-        '等待 coordinator 输出 plan，并在 Tasks 面板确认 task 被自动创建。',
-        '核对 child session 自动出现，task 卡片挂接 executionSessionId / resultSessionId。',
+        '创建或打开一个项目，点击“新建会话”，输入交付目标以建立上下文。',
+        '在 Tasks 面板显式创建 task，并补充角色、范围或验收要求。',
+        '执行或委派 task，确认 child session 与 task 卡片挂接 executionSessionId / resultSessionId。',
         '展开 Task Runs，确认 run 时间线、结果摘要，以及 review/verify 的结论展示。',
       ],
       expectedSignals: [

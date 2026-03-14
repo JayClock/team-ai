@@ -47,7 +47,6 @@ import {
   failTaskRun,
   startTaskRun,
 } from './task-run-service';
-import { syncPlanEventToTasksAndDispatch } from './acp-plan-task-sync-service';
 
 const sessionIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -1021,121 +1020,17 @@ function createRuntimeHooks(
       });
 
       if (persisted.type === 'plan') {
-        const entries = Array.isArray(
-          (emitted.data as { entries?: unknown }).entries,
-        )
-          ? (
-              emitted.data as {
-                entries: Array<{
-                  content: string;
-                  priority?: 'high' | 'medium' | 'low';
-                  status?: 'pending' | 'in_progress' | 'completed';
-                }>;
-              }
-            ).entries
-          : [];
-
-        try {
-          const syncResult = await syncPlanEventToTasksAndDispatch(
-            sqlite,
-            {
-              async createSession(input) {
-                const session = await createAcpSession(
-                  sqlite,
-                  broker,
-                  runtime,
-                  input,
-                );
-
-                return {
-                  id: session.id,
-                };
-              },
-              async isProviderAvailable(provider) {
-                return runtime.isConfigured(provider);
-              },
-              async promptSession(input) {
-                return await promptAcpSession(
-                  sqlite,
-                  broker,
-                  runtime,
-                  input.projectId,
-                  input.sessionId,
-                  {
-                    prompt: input.prompt,
-                  },
-                );
-              },
-            },
-            {
-              emittedAt: emitted.emittedAt,
-              entries,
-              eventId: emitted.eventId,
-              sessionId: localSessionId,
-            },
-            {
-              logger: options.logger,
-            },
-          );
-
-          appendLocalEvent(sqlite, broker, {
-            sessionId: localSessionId,
-            type: 'status',
-            payload: {
-              source: 'local-server',
-              reason: 'plan_sync_dispatch',
-              planEventId: emitted.eventId,
-              createdTaskCount: syncResult.createdCount,
-              skippedPlanSync: syncResult.skipped,
-              autoDispatchEligible: syncResult.autoDispatch.eligible,
-              autoDispatchAttempted: syncResult.autoDispatch.attempted,
-              autoDispatchDispatchedCount:
-                syncResult.autoDispatch.dispatchedCount,
-              autoDispatchSkippedReason: syncResult.autoDispatch.skippedReason,
-              autoDispatchResults: syncResult.autoDispatch.results,
-            },
-          });
-        } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : 'ACP plan sync dispatch failed';
-          const diagnostics = getErrorDiagnostics(
-            error,
-            'ACP_PLAN_SYNC_DISPATCH_FAILED',
-          );
-
-          logDiagnostic(
-            options.logger,
-            'error',
-            {
-              event: 'acp.plan_sync.dispatch.failed',
-              planEventId: emitted.eventId,
-              projectId: current.project_id,
-              sessionId: localSessionId,
-              source: options.source ?? 'acp-service',
-              ...diagnostics,
-            },
-            'ACP plan sync dispatch failed',
-          );
-
-          appendLocalEvent(sqlite, broker, {
-            sessionId: localSessionId,
-            type: 'error',
-            payload: {
-              source: 'local-server',
-              reason: 'plan_sync_dispatch_failed',
-              planEventId: emitted.eventId,
-              message,
-            },
-            error: {
-              code: 'ACP_PLAN_SYNC_DISPATCH_FAILED',
-              message,
-              retryable: true,
-              retryAfterMs: 1000,
-            },
-          });
-        }
+        appendLocalEvent(sqlite, broker, {
+          sessionId: localSessionId,
+          type: 'status',
+          payload: {
+            source: 'local-server',
+            reason: 'plan_sync_disabled',
+            planEventId: emitted.eventId,
+            message:
+              'ACP plan events no longer create or dispatch project tasks automatically.',
+          },
+        });
       }
     },
     async onClosed(error) {

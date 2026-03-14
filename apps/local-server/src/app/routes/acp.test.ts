@@ -9,7 +9,6 @@ import acpStreamPlugin from '../plugins/acp-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
-import { syncPlanEventToTasksAndDispatch } from '../services/acp-plan-task-sync-service';
 import { getAcpSessionById } from '../services/acp-service';
 import { createProject } from '../services/project-service';
 import { listTaskRuns } from '../services/task-run-service';
@@ -953,7 +952,7 @@ describe('acp route', () => {
     expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
   });
 
-  it('syncs top-level ROUTA plan events into project tasks and child sessions', async () => {
+  it('records ROUTA plan events without auto-creating project tasks or child sessions', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-plan-sync-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
     process.env.HOST = '127.0.0.1';
@@ -963,12 +962,6 @@ describe('acp route', () => {
     fastifyInstances.push(fastify);
 
     const sessionHooks = new Map<string, AcpRuntimeSessionHooks>();
-    let dispatchedChildSessionId: string | null = null;
-    let executionStateDuringDispatch: {
-      executionSessionId: string | null;
-      status: string;
-      taskId: string;
-    } | null = null;
 
     const createRuntimeSession = vi.fn(async (input) => {
       sessionHooks.set(input.localSessionId, input.hooks);
@@ -979,31 +972,6 @@ describe('acp route', () => {
       };
     });
     const promptRuntimeSession = vi.fn(async (input) => {
-      const taskRow = fastify.sqlite
-        .prepare(
-          `
-            SELECT id, execution_session_id, status
-            FROM project_tasks
-            WHERE execution_session_id = ? AND deleted_at IS NULL
-          `,
-        )
-        .get(input.localSessionId) as
-        | {
-            id: string;
-            execution_session_id: string | null;
-            status: string;
-          }
-        | undefined;
-
-      if (taskRow) {
-        dispatchedChildSessionId = input.localSessionId;
-        executionStateDuringDispatch = {
-          taskId: taskRow.id,
-          executionSessionId: taskRow.execution_session_id,
-          status: taskRow.status,
-        };
-      }
-
       return {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         response: {
@@ -1097,36 +1065,8 @@ describe('acp route', () => {
       url: `/api/projects/${project.id}/tasks`,
     });
     const syncedTasks = tasksResponse.json()._embedded.tasks as Array<{
-      assignedRole: string;
-      executionSessionId: string | null;
-      id: string;
-      kind: string | null;
-      resultSessionId: string | null;
-      status: string;
       title: string;
-      triggerSessionId: string | null;
     }>;
-    const implementTask = syncedTasks.find(
-      (task) => task.title === 'Implement automatic ACP task sync',
-    );
-    const verifyTask = syncedTasks.find(
-      (task) => task.title === 'Verify workbench reflects synced tasks',
-    );
-
-    if (!implementTask) {
-      throw new Error('Expected the synced implement task to exist');
-    }
-    if (!verifyTask) {
-      throw new Error('Expected the synced verify task to exist');
-    }
-
-    const updatedTask = await getTaskById(fastify.sqlite, implementTask.id);
-    const taskRuns = await listTaskRuns(fastify.sqlite, {
-      page: 1,
-      pageSize: 10,
-      projectId: project.id,
-      taskId: implementTask.id,
-    });
 
     const sessionsResponse = await fastify.inject({
       method: 'GET',
@@ -1136,16 +1076,8 @@ describe('acp route', () => {
       id: string;
       parentSession: { id: string } | null;
       specialistId: string | null;
-      state: string;
       task: { id: string } | null;
     }>;
-    const childSession = sessions.find(
-      (session) => session.task?.id === implementTask.id,
-    );
-
-    if (!childSession) {
-      throw new Error('Expected the auto-dispatched child session to exist');
-    }
 
     const historyResponse = await fastify.inject({
       method: 'GET',
@@ -1162,108 +1094,16 @@ describe('acp route', () => {
       throw new Error('Expected the root session plan event to be recorded');
     }
 
-    const replayCreateSession = vi.fn(async () => ({
-      id: 'acps_should_not_exist',
-    }));
-    const replayPromptSession = vi.fn(async () => undefined);
-
-    const replayResult = await syncPlanEventToTasksAndDispatch(
-      fastify.sqlite,
-      {
-        createSession: replayCreateSession,
-        promptSession: replayPromptSession,
-      },
-      {
-        emittedAt: planEvent.emittedAt,
-        entries: planEntries,
-        eventId: planEvent.eventId,
-        sessionId: rootSessionId,
-      },
-    );
-
-    const sessionsAfterReplayResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/projects/${project.id}/acp-sessions`,
-    });
-
     expect(tasksResponse.statusCode).toBe(200);
-    expect(implementTask).toMatchObject({
-      assignedRole: 'CRAFTER',
-      kind: 'implement',
-      resultSessionId: childSession.id,
-      status: 'COMPLETED',
-      title: 'Implement automatic ACP task sync',
-      triggerSessionId: rootSessionId,
-    });
-    expect(verifyTask).toMatchObject({
-      assignedRole: 'GATE',
-      executionSessionId: null,
-      kind: 'verify',
-      resultSessionId: null,
-      status: 'COMPLETED',
-      title: 'Verify workbench reflects synced tasks',
-      triggerSessionId: rootSessionId,
-    });
-    expect(executionStateDuringDispatch).toEqual({
-      executionSessionId: childSession.id,
-      status: 'RUNNING',
-      taskId: implementTask.id,
-    });
-    expect(updatedTask).toMatchObject({
-      completionSummary: 'ACP session completed',
-      executionSessionId: null,
-      status: 'COMPLETED',
-      resultSessionId: childSession.id,
-      triggerSessionId: rootSessionId,
-      verificationReport: 'ACP session completed',
-      verificationVerdict: 'pass',
-    });
-    expect(taskRuns.items).toEqual([
-      expect.objectContaining({
-        kind: 'implement',
-        provider: 'codex',
-        role: 'CRAFTER',
-        sessionId: childSession.id,
-        specialistId: 'crafter-implementor',
-        status: 'COMPLETED',
-        summary: 'ACP session completed',
-        taskId: implementTask.id,
-        verificationReport: 'ACP session completed',
-        verificationVerdict: 'pass',
-      }),
-    ]);
+    expect(syncedTasks).toEqual([]);
     expect(sessionsResponse.statusCode).toBe(200);
-    expect(sessions).toHaveLength(2);
-    expect(childSession).toMatchObject({
-      acpStatus: 'ready',
-      id: dispatchedChildSessionId,
-      parentSession: { id: rootSessionId },
-      specialistId: 'crafter-implementor',
-      task: { id: implementTask.id },
-    });
+    expect(sessions).toHaveLength(1);
     expect(historyResponse.statusCode).toBe(200);
     expect(history.map((event) => event.type)).toEqual(
       expect.arrayContaining(['plan', 'status']),
     );
-    expect(replayResult).toEqual({
-      createdCount: 0,
-      skipped: false,
-      autoDispatch: {
-        attempted: false,
-        dispatchedCount: 0,
-        eligible: true,
-        results: [],
-        skippedReason: 'NO_NEW_TASKS',
-      },
-    });
-    expect(replayCreateSession).not.toHaveBeenCalled();
-    expect(replayPromptSession).not.toHaveBeenCalled();
-    expect(sessionsAfterReplayResponse.statusCode).toBe(200);
-    expect(sessionsAfterReplayResponse.json()._embedded.sessions).toHaveLength(
-      2,
-    );
-    expect(createRuntimeSession).toHaveBeenCalledTimes(2);
-    expect(promptRuntimeSession).toHaveBeenCalledTimes(1);
+    expect(createRuntimeSession).toHaveBeenCalledTimes(1);
+    expect(promptRuntimeSession).not.toHaveBeenCalled();
   });
 
   it('lists ACP providers from agent-gateway', async () => {

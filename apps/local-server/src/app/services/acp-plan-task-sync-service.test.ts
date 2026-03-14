@@ -5,7 +5,6 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createProject } from './project-service';
-import { createAgent } from './agent-service';
 import { listTasks } from './task-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import {
@@ -25,7 +24,7 @@ describe('acp plan task sync service', () => {
     }
   });
 
-  it('creates one task per plan entry and stays idempotent for the same event', async () => {
+  it('no longer creates tasks from ACP plan events', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Plan Sync Project',
@@ -79,38 +78,12 @@ describe('acp plan task sync service', () => {
       projectId: project.id,
     });
 
-    expect(first).toEqual({ createdCount: 2, skipped: false });
-    expect(second).toEqual({ createdCount: 0, skipped: false });
-    expect(tasks.total).toBe(2);
-    expect(tasks.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          assignedRole: 'CRAFTER',
-          kind: 'implement',
-          priority: 'high',
-          sourceEntryIndex: 0,
-          sourceEventId: 'acpe_plan_sync_01',
-          sourceType: 'acp_plan',
-          status: 'PENDING',
-          title: 'Implement ACP plan sync to project tasks',
-          triggerSessionId: 'acps_planroot01',
-        }),
-        expect.objectContaining({
-          assignedRole: 'GATE',
-          kind: 'verify',
-          priority: 'medium',
-          sourceEntryIndex: 1,
-          sourceEventId: 'acpe_plan_sync_01',
-          sourceType: 'acp_plan',
-          status: 'RUNNING',
-          title: 'Verify synced tasks appear in the workbench',
-          triggerSessionId: 'acps_planroot01',
-        }),
-      ]),
-    );
+    expect(first).toEqual({ createdCount: 0, skipped: true });
+    expect(second).toEqual({ createdCount: 0, skipped: true });
+    expect(tasks.total).toBe(0);
   });
 
-  it('skips plan sync for task-bound child sessions', async () => {
+  it('keeps plan sync disabled for task-bound child sessions', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Child Plan Sync Project',
@@ -153,22 +126,14 @@ describe('acp plan task sync service', () => {
     expect(tasks.total).toBe(0);
   });
 
-  it('auto-dispatches only new tasks from top-level ROUTA plan sync events', async () => {
+  it('does not auto-dispatch ACP plan events for top-level ROUTA sessions', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Plan Sync Dispatch Project',
       repoPath: '/Users/example/plan-sync-dispatch',
     });
-    const routaAgent = await createAgent(sqlite, {
-      model: 'default',
-      name: 'Routa Coordinator',
-      projectId: project.id,
-      provider: 'codex',
-      role: 'ROUTA',
-    });
 
     insertAcpSession(sqlite, {
-      agentId: routaAgent.id,
       id: 'acps_routa_root',
       name: 'Root ROUTA session',
       projectId: project.id,
@@ -180,31 +145,7 @@ describe('acp plan task sync service', () => {
     }));
     const promptSession = vi.fn(async () => undefined);
 
-    const first = await syncPlanEventToTasksAndDispatch(
-      sqlite,
-      {
-        createSession,
-        promptSession,
-      },
-      {
-        emittedAt: '2026-03-12T11:00:00.000Z',
-        entries: [
-          {
-            content: 'Implement automatic plan dispatch',
-            priority: 'high',
-            status: 'pending',
-          },
-          {
-            content: 'Verify dispatch diagnostics are recorded',
-            priority: 'medium',
-            status: 'completed',
-          },
-        ],
-        eventId: 'acpe_plan_dispatch_01',
-        sessionId: 'acps_routa_root',
-      },
-    );
-    const second = await syncPlanEventToTasksAndDispatch(
+    const result = await syncPlanEventToTasksAndDispatch(
       sqlite,
       {
         createSession,
@@ -229,58 +170,26 @@ describe('acp plan task sync service', () => {
       },
     );
 
-    expect(first.createdCount).toBe(2);
-    expect(first.skipped).toBe(false);
-    expect(first.autoDispatch).toMatchObject({
-      attempted: true,
-      dispatchedCount: 1,
-      eligible: true,
-      skippedReason: null,
-    });
-    expect(first.autoDispatch.results).toHaveLength(2);
-    expect(first.autoDispatch.results).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          dispatched: true,
-          reason: null,
-          sessionId: 'acps_routa_child',
-        }),
-        expect.objectContaining({
-          dispatched: false,
-          reason: 'TASK_NOT_DISPATCHABLE',
-          sessionId: null,
-        }),
-      ]),
-    );
-    expect(createSession).toHaveBeenCalledTimes(1);
-    expect(promptSession).toHaveBeenCalledTimes(1);
-    expect(second).toEqual({
+    expect(result).toEqual({
       createdCount: 0,
-      skipped: false,
+      skipped: true,
       autoDispatch: {
         attempted: false,
         dispatchedCount: 0,
-        eligible: true,
+        eligible: false,
         results: [],
-        skippedReason: 'NO_NEW_TASKS',
+        skippedReason: 'PLAN_SYNC_SKIPPED',
       },
     });
-    expect(createSession).toHaveBeenCalledTimes(1);
-    expect(promptSession).toHaveBeenCalledTimes(1);
+    expect(createSession).not.toHaveBeenCalled();
+    expect(promptSession).not.toHaveBeenCalled();
   });
 
-  it('does not auto-dispatch plan sync results for child ROUTA sessions', async () => {
+  it('keeps nested ROUTA plan events disabled', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Child ROUTA Dispatch Guard Project',
       repoPath: '/Users/example/child-routa-dispatch-guard',
-    });
-    const routaAgent = await createAgent(sqlite, {
-      model: 'default',
-      name: 'Nested Routa Coordinator',
-      projectId: project.id,
-      provider: 'codex',
-      role: 'ROUTA',
     });
 
     insertAcpSession(sqlite, {
@@ -290,7 +199,6 @@ describe('acp plan task sync service', () => {
       provider: 'codex',
     });
     insertAcpSession(sqlite, {
-      agentId: routaAgent.id,
       id: 'acps_child_routa',
       name: 'Child ROUTA session',
       parentSessionId: 'acps_parent_root',
@@ -324,14 +232,14 @@ describe('acp plan task sync service', () => {
     );
 
     expect(result).toEqual({
-      createdCount: 1,
-      skipped: false,
+      createdCount: 0,
+      skipped: true,
       autoDispatch: {
         attempted: false,
         dispatchedCount: 0,
         eligible: false,
         results: [],
-        skippedReason: 'SESSION_NOT_TOP_LEVEL_ROUTA',
+        skippedReason: 'PLAN_SYNC_SKIPPED',
       },
     });
     expect(createSession).not.toHaveBeenCalled();
