@@ -1,6 +1,6 @@
 import type { GatewayEventError } from './session-store.js';
 import type { GatewayConfig } from './config.js';
-import { AcpCliProviderAdapter } from './providers/acp-cli-provider.js';
+import { createProviderAdapter } from './providers/provider-adapter-registry.js';
 import {
   normalizeProviderId,
   resolveAcpCliCommand,
@@ -17,12 +17,13 @@ export class ProviderRuntime {
 
   constructor(config: GatewayConfig) {
     for (const providerName of config.providers) {
-      if (this.adapters.has(providerName)) {
+      const canonicalProviderName = normalizeProviderId(providerName);
+      if (this.adapters.has(canonicalProviderName)) {
         continue;
       }
-      const adapter = this.createAdapter(providerName);
+      const adapter = this.createAdapter(canonicalProviderName);
       if (adapter) {
-        this.adapters.set(providerName, adapter);
+        this.adapters.set(canonicalProviderName, adapter);
       }
     }
   }
@@ -73,17 +74,18 @@ export class ProviderRuntime {
   }
 
   private getAdapter(providerName: string): ProviderAdapter | null {
-    const cached = this.adapters.get(providerName);
+    const canonicalProviderName = normalizeProviderId(providerName);
+    const cached = this.adapters.get(canonicalProviderName);
     if (cached) {
       return cached;
     }
 
-    const adapter = this.createAdapter(providerName);
+    const adapter = this.createAdapter(canonicalProviderName);
     if (!adapter) {
       return null;
     }
 
-    this.adapters.set(providerName, adapter);
+    this.adapters.set(canonicalProviderName, adapter);
     return adapter;
   }
 
@@ -95,6 +97,9 @@ export class ProviderRuntime {
       return null;
     }
 
-    return new AcpCliProviderAdapter(preset, resolveAcpCliCommand(preset));
+    return createProviderAdapter({
+      preset,
+      launchCommand: resolveAcpCliCommand(preset),
+    });
   }
 }

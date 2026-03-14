@@ -1300,8 +1300,8 @@ describe('acp route', () => {
           {
             id: 'codex',
             name: 'Codex',
-            description: 'OpenAI Codex CLI (via codex-acp wrapper)',
-            command: 'codex-acp',
+            description: 'OpenAI Codex CLI (via codex app-server)',
+            command: 'codex',
             distributionTypes: [],
             envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
             installable: false,

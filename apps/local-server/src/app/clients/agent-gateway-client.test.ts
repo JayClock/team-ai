@@ -122,8 +122,8 @@ describe('agent-gateway-client', () => {
               {
                 id: 'codex',
                 name: 'Codex',
-                description: 'OpenAI Codex CLI (via codex-acp wrapper)',
-                command: 'codex-acp',
+                description: 'OpenAI Codex CLI (via codex app-server)',
+                command: 'codex',
                 envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
                 distributionTypes: [],
                 installable: false,

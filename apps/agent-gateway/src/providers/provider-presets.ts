@@ -1,9 +1,16 @@
+import {
+  PROVIDER_ADAPTER_KINDS,
+  type ProviderAdapterKind,
+  type ProviderLaunchCommand,
+} from './provider-types.js';
+
 export interface AcpCliProviderPreset {
   id: string;
   name: string;
   description: string;
   command: string;
   args: string[];
+  adapterKind: ProviderAdapterKind;
   cwdArg?: string;
 }
 
@@ -11,9 +18,10 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
   {
     id: 'codex',
     name: 'Codex',
-    description: 'OpenAI Codex CLI (via codex-acp wrapper)',
-    command: 'codex-acp',
-    args: [],
+    description: 'OpenAI Codex CLI (via codex app-server)',
+    command: 'codex',
+    args: ['app-server'],
+    adapterKind: PROVIDER_ADAPTER_KINDS.codexAppServer,
   },
   {
     id: 'opencode',
@@ -21,6 +29,7 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     description: 'OpenCode AI coding agent',
     command: 'opencode',
     args: ['acp'],
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
     cwdArg: '--cwd',
   },
   {
@@ -29,6 +38,7 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     description: 'Google Gemini CLI',
     command: 'gemini',
     args: ['--experimental-acp'],
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
   },
   {
     id: 'copilot',
@@ -36,6 +46,7 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     description: 'GitHub Copilot CLI',
     command: 'copilot',
     args: ['--acp', '--allow-all-tools', '--no-ask-user'],
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
   },
   {
     id: 'auggie',
@@ -43,6 +54,7 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     description: "Augment Code's AI agent",
     command: 'auggie',
     args: ['--acp'],
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
   },
   {
     id: 'kimi',
@@ -50,6 +62,7 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     description: "Moonshot AI's Kimi CLI",
     command: 'kimi',
     args: ['acp'],
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
   },
   {
     id: 'kiro',
@@ -57,6 +70,7 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     description: 'Amazon Kiro AI coding agent',
     command: 'kiro-cli',
     args: ['acp'],
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
   },
   {
     id: 'qoder',
@@ -64,6 +78,7 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     description: 'Qoder AI coding agent',
     command: 'qodercli',
     args: ['--acp', '--yolo'],
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
   },
 ] as const;
 
@@ -92,10 +107,7 @@ export function resolveAcpCliProviderPreset(
 export function resolveAcpCliCommand(
   preset: ResolvedAcpCliProviderPreset,
   env: NodeJS.ProcessEnv = process.env,
-): {
-  args: string[];
-  command: string;
-} {
+): ProviderLaunchCommand {
   const override = env[getProviderEnvCommandKey(preset.providerId)]?.trim();
   if (!override) {
     return {

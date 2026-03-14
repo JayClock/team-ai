@@ -1,5 +1,17 @@
 import type { ProtocolName } from '../session-store.js';
 
+export const PROVIDER_ADAPTER_KINDS = {
+  acpCli: 'acp-cli',
+  codexAppServer: 'codex-app-server',
+} as const;
+
+export type ProviderAdapterKind = string;
+
+export type ProviderLaunchCommand = {
+  args: string[];
+  command: string;
+};
+
 export type ProviderPromptRequest = {
   sessionId: string;
   input: string;

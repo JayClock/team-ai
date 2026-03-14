@@ -1,8 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const acpConstructed = vi.fn();
+const codexConstructed = vi.fn();
+
 const acpPrompt = vi.fn(
-  (
-    _request: unknown,
+  (_request: unknown,
+    callbacks: {
+      onComplete: () => void;
+    },
+  ) => {
+    callbacks.onComplete();
+  },
+);
+
+const codexPrompt = vi.fn(
+  (_request: unknown,
     callbacks: {
       onComplete: () => void;
     },
@@ -13,7 +25,27 @@ const acpPrompt = vi.fn(
 
 vi.mock('./providers/acp-cli-provider.js', () => ({
   AcpCliProviderAdapter: class {
+    constructor() {
+      acpConstructed();
+    }
+
     prompt = acpPrompt;
+    cancel() {
+      return false;
+    }
+    close() {
+      return Promise.resolve();
+    }
+  },
+}));
+
+vi.mock('./providers/codex-app-server-provider.js', () => ({
+  CodexAppServerAdapter: class {
+    constructor() {
+      codexConstructed();
+    }
+
+    prompt = codexPrompt;
     cancel() {
       return false;
     }
@@ -27,6 +59,11 @@ import { ProviderRuntime } from './provider-runtime.js';
 
 describe('ProviderRuntime', () => {
   it('accepts codex-acp as a codex alias', () => {
+    acpConstructed.mockClear();
+    codexConstructed.mockClear();
+    acpPrompt.mockClear();
+    codexPrompt.mockClear();
+
     const runtime = new ProviderRuntime({
       host: '127.0.0.1',
       port: 3321,
@@ -58,7 +95,24 @@ describe('ProviderRuntime', () => {
       },
     );
 
-    expect(acpPrompt).toHaveBeenCalledTimes(1);
+    runtime.prompt(
+      'codex',
+      {
+        sessionId: 'session-2',
+        input: 'hello again',
+        timeoutMs: 1_000,
+      },
+      {
+        onChunk: vi.fn(),
+        onEvent: vi.fn(),
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+      },
+    );
+
+    expect(codexConstructed).toHaveBeenCalledTimes(1);
+    expect(acpConstructed).not.toHaveBeenCalled();
+    expect(codexPrompt).toHaveBeenCalledTimes(2);
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalledWith(
       expect.objectContaining({
