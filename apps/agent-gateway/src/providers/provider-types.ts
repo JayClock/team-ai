@@ -29,11 +29,90 @@ export type ProviderError = {
   retryAfterMs: number;
 };
 
-export type ProviderProtocolEvent = {
-  protocol: ProtocolName;
-  payload: unknown;
+export type NormalizedAcpEventType =
+  | 'tool_call'
+  | 'tool_call_update'
+  | 'agent_message'
+  | 'agent_thought'
+  | 'user_message'
+  | 'plan_update'
+  | 'turn_complete'
+  | 'session_info_update'
+  | 'current_mode_update'
+  | 'config_option_update'
+  | 'usage_update'
+  | 'available_commands_update'
+  | 'error';
+
+export interface NormalizedAcpToolCall {
+  content: unknown[];
+  input?: unknown;
+  inputFinalized: boolean;
+  kind?: string | null;
+  locations: unknown[];
+  output?: unknown;
+  status: 'completed' | 'failed' | 'pending' | 'running';
+  title?: string | null;
+  toolCallId?: string;
+}
+
+export interface NormalizedAcpUpdate {
+  eventType: NormalizedAcpEventType;
+  provider: string;
+  rawNotification: unknown;
+  sessionId: string;
+  timestamp: string;
   traceId?: string;
-};
+  availableCommands?: unknown[];
+  configOptions?: unknown;
+  error?: {
+    code: string;
+    message: string;
+  };
+  message?: {
+    content: string | null;
+    contentBlock?: unknown;
+    isChunk: boolean;
+    messageId?: string | null;
+    role: 'assistant' | 'thought' | 'user';
+  };
+  mode?: {
+    currentModeId?: string;
+  };
+  planItems?: Array<{
+    description: string;
+    priority?: 'high' | 'low' | 'medium';
+    status?: 'completed' | 'in_progress' | 'pending';
+  }>;
+  sessionInfo?: {
+    title?: string | null;
+    updatedAt?: string | null;
+  };
+  toolCall?: NormalizedAcpToolCall;
+  turnComplete?: {
+    state?: 'FAILED' | 'CANCELLED';
+    stopReason: string;
+    usage: unknown;
+    userMessageId: string | null;
+  };
+  usage?: {
+    cost: unknown;
+    size: number;
+    used: number;
+  };
+}
+
+export type ProviderProtocolEvent =
+  | {
+      protocol: 'acp';
+      update: NormalizedAcpUpdate;
+      traceId?: string;
+    }
+  | {
+      protocol: Exclude<ProtocolName, 'acp'>;
+      payload: unknown;
+      traceId?: string;
+    };
 
 export type ProviderPromptCallbacks = {
   onChunk: (chunk: string) => void;

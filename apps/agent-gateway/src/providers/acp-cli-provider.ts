@@ -3,6 +3,8 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute } from 'node:path';
 import type {
+  NormalizedAcpToolCall,
+  NormalizedAcpUpdate,
   ProviderAdapter,
   ProviderError,
   ProviderPromptCallbacks,
@@ -353,10 +355,20 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
       if (!session.run?.settled) {
         session.run?.callbacks.onEvent({
           protocol: 'acp',
-          payload: {
-            type: 'agent_message_chunk',
-            content: line,
-          },
+          update: createAcpUpdate(
+            session.sessionId,
+            this.preset.providerId,
+            'agent_message',
+            {
+              traceId: session.run?.traceId,
+              rawNotification: line,
+              message: {
+                role: 'assistant',
+                content: line,
+                isChunk: true,
+              },
+            },
+          ),
           traceId: session.run?.traceId,
         });
       }
@@ -404,11 +416,14 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
     }
 
     const payload = normalizeSessionUpdate(
+      session.sessionId,
+      this.preset.providerId,
       asRecord(params).update ?? params ?? {},
+      session.run.traceId,
     );
     session.run.callbacks.onEvent({
       protocol: 'acp',
-      payload,
+      update: payload,
       traceId: session.run.traceId,
     });
   }
@@ -745,72 +760,89 @@ function buildLaunchArgs(
   return launchArgs;
 }
 
-function normalizeSessionUpdate(updateInput: unknown): Record<string, unknown> {
+function normalizeSessionUpdate(
+  sessionId: string,
+  provider: string,
+  updateInput: unknown,
+  traceId?: string,
+): NormalizedAcpUpdate {
   const update = asRecord(updateInput);
   const sessionUpdate = asString(update.sessionUpdate) ?? asString(update.type);
 
   if (!sessionUpdate) {
-    return update;
+    return createAcpUpdate(sessionId, provider, 'agent_message', {
+      traceId,
+      rawNotification: updateInput,
+      message: {
+        role: 'assistant',
+        content: asString(updateInput) ?? '',
+        isChunk: true,
+      },
+    });
   }
 
   switch (sessionUpdate) {
     case 'user_message_chunk':
     case 'agent_message_chunk':
     case 'agent_thought_chunk':
-      return {
-        type: sessionUpdate,
-        sessionUpdate,
-        content: flattenContentBlock(update.content),
-        messageId: asString(update.messageId),
-      };
+      return createAcpUpdate(
+        sessionId,
+        provider,
+        resolveMessageEventType(sessionUpdate),
+        {
+          traceId,
+          rawNotification: updateInput,
+          message: {
+            role: resolveMessageRole(sessionUpdate),
+            content: flattenContentBlock(update.content),
+            contentBlock: update.content,
+            isChunk: true,
+            messageId: asString(update.messageId),
+          },
+        },
+      );
 
     case 'tool_call':
-      return {
-        type: 'tool_call',
-        sessionUpdate,
-        toolCallId: asString(update.toolCallId),
-        title: asString(update.title),
-        kind: asString(update.kind),
-        status: asString(update.status),
-        rawInput: update.rawInput ?? null,
-        rawOutput: update.rawOutput ?? null,
-        locations: Array.isArray(update.locations) ? update.locations : [],
-      };
+      return createAcpUpdate(sessionId, provider, 'tool_call', {
+        traceId,
+        rawNotification: updateInput,
+        toolCall: createToolCall(update, false),
+      });
 
     case 'tool_call_update':
-      return {
-        type:
-          asString(update.status) === 'completed' ? 'tool_result' : 'tool_call',
-        sessionUpdate,
-        toolCallId: asString(update.toolCallId),
-        title: asString(update.title),
-        kind: asString(update.kind),
-        status: asString(update.status),
-        rawInput: update.rawInput ?? null,
-        rawOutput: update.rawOutput ?? null,
-        locations: Array.isArray(update.locations) ? update.locations : [],
-      };
+      return createAcpUpdate(sessionId, provider, 'tool_call_update', {
+        traceId,
+        rawNotification: updateInput,
+        toolCall: createToolCall(update, true),
+      });
 
     case 'plan': {
       const entries = Array.isArray(update.entries) ? update.entries : [];
-      return {
-        type: 'plan_update',
-        sessionUpdate,
-        items: entries.map((entry) => ({
+      return createAcpUpdate(sessionId, provider, 'plan_update', {
+        traceId,
+        rawNotification: updateInput,
+        planItems: entries.map((entry) => ({
           description:
             asString(asRecord(entry).content) ??
             asString(asRecord(entry).description) ??
             '',
-          status: asString(asRecord(entry).status) ?? 'pending',
+          status: normalizePlanStatus(asString(asRecord(entry).status)),
         })),
-      };
+      });
     }
 
     default:
-      return {
-        ...update,
-        sessionUpdate,
-      };
+      return createAcpUpdate(sessionId, provider, 'agent_message', {
+        traceId,
+        rawNotification: updateInput,
+        message: {
+          role: 'assistant',
+          content: flattenContentBlock(update.content ?? update.text ?? ''),
+          contentBlock: update.content,
+          isChunk: true,
+          messageId: asString(update.messageId),
+        },
+      });
   }
 }
 
@@ -831,6 +863,125 @@ function flattenContentBlock(contentInput: unknown): string | null {
   }
 
   return asString(contentInput);
+}
+
+function createAcpUpdate(
+  sessionId: string,
+  provider: string,
+  eventType: NormalizedAcpUpdate['eventType'],
+  extras: Omit<
+    Partial<NormalizedAcpUpdate>,
+    'eventType' | 'provider' | 'sessionId' | 'timestamp'
+  > = {},
+): NormalizedAcpUpdate {
+  return {
+    sessionId,
+    provider,
+    eventType,
+    timestamp: new Date().toISOString(),
+    rawNotification: extras.rawNotification ?? null,
+    ...extras,
+  };
+}
+
+function createToolCall(
+  update: Record<string, unknown>,
+  allowCompletion: boolean,
+): NormalizedAcpToolCall {
+  const input = update.rawInput ?? null;
+  const output = update.rawOutput ?? null;
+  const completed =
+    allowCompletion &&
+    (asString(update.status) === 'completed' ||
+      asString(update.status) === 'failed' ||
+      output !== null);
+
+  return {
+    ...(asString(update.toolCallId)
+      ? { toolCallId: asString(update.toolCallId) ?? undefined }
+      : {}),
+    ...(asString(update.title) ? { title: asString(update.title) } : {}),
+    ...(asString(update.kind) ? { kind: asString(update.kind) } : {}),
+    status: normalizeToolCallStatus(asString(update.status), completed),
+    input,
+    inputFinalized: hasStructuredValue(input) || completed,
+    output,
+    locations: Array.isArray(update.locations) ? update.locations : [],
+    content: Array.isArray(update.content) ? update.content : [],
+  };
+}
+
+function resolveMessageEventType(
+  updateType: string,
+): 'agent_message' | 'agent_thought' | 'user_message' {
+  if (updateType === 'user_message_chunk') {
+    return 'user_message';
+  }
+
+  if (updateType === 'agent_thought_chunk') {
+    return 'agent_thought';
+  }
+
+  return 'agent_message';
+}
+
+function resolveMessageRole(
+  updateType: string,
+): 'assistant' | 'thought' | 'user' {
+  if (updateType === 'user_message_chunk') {
+    return 'user';
+  }
+
+  if (updateType === 'agent_thought_chunk') {
+    return 'thought';
+  }
+
+  return 'assistant';
+}
+
+function normalizeToolCallStatus(
+  status: string | null,
+  completed: boolean,
+): 'completed' | 'failed' | 'pending' | 'running' {
+  if (status === 'completed' || status === 'failed') {
+    return status;
+  }
+
+  if (completed) {
+    return 'completed';
+  }
+
+  if (status === 'in_progress' || status === 'running') {
+    return 'running';
+  }
+
+  return 'pending';
+}
+
+function normalizePlanStatus(
+  status: string | null,
+): 'completed' | 'in_progress' | 'pending' {
+  if (status === 'completed') {
+    return 'completed';
+  }
+
+  if (status === 'in_progress' || status === 'inProgress') {
+    return 'in_progress';
+  }
+
+  return 'pending';
+}
+
+function hasStructuredValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>).length > 0;
+  }
+
+  return value !== null && value !== undefined;
 }
 
 function resolveMcpServers(

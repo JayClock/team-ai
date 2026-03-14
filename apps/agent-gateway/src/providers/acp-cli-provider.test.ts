@@ -162,16 +162,24 @@ describe('AcpCliProviderAdapter', () => {
     await flush();
 
     expect(onChunk).not.toHaveBeenCalled();
-    expect(onEvent).toHaveBeenCalledWith({
-      protocol: 'acp',
-      payload: {
-        type: 'agent_message_chunk',
-        sessionUpdate: 'agent_message_chunk',
-        content: 'hello from opencode',
-        messageId: null,
-      },
-      traceId: 'trace-opencode',
-    });
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protocol: 'acp',
+        update: expect.objectContaining({
+          eventType: 'agent_message',
+          provider: 'opencode',
+          sessionId: 'session-1',
+          traceId: 'trace-opencode',
+          message: expect.objectContaining({
+            role: 'assistant',
+            content: 'hello from opencode',
+            isChunk: true,
+            messageId: null,
+          }),
+        }),
+        traceId: 'trace-opencode',
+      }),
+    );
     expect(onComplete).toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
   });

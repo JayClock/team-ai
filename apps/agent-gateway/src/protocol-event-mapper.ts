@@ -5,32 +5,34 @@ import type {
   ProtocolName,
   SessionEventInput,
 } from './session-store.js';
+import type {
+  NormalizedAcpUpdate,
+  ProviderProtocolEvent,
+} from './providers/provider-types.js';
 
-export type ProtocolEnvelope = {
-  protocol: ProtocolName;
-  payload: unknown;
-  traceId?: string;
-};
+export type ProtocolEnvelope =
+  | Extract<ProviderProtocolEvent, { protocol: 'acp' }>
+  | {
+      protocol: 'acp';
+      payload: unknown;
+      traceId?: string;
+    }
+  | {
+      protocol: Exclude<ProtocolName, 'acp'>;
+      payload: unknown;
+      traceId?: string;
+    };
 
 export function mapProtocolEvent(envelope: ProtocolEnvelope): SessionEventInput {
-  const payload = asRecord(envelope.payload);
-
   switch (envelope.protocol) {
     case 'mcp':
-      return mapMcpEvent(payload, envelope.traceId);
+      return mapMcpEvent(asRecord(envelope.payload), envelope.traceId);
     case 'acp':
-      return mapAcpEvent(payload, envelope.traceId);
+      return 'update' in envelope
+        ? mapAcpEvent(envelope.update, envelope.traceId)
+        : mapAcpLegacyEvent(asRecord(envelope.payload), envelope.traceId);
     case 'a2a':
-      return mapA2aEvent(payload, envelope.traceId);
-    default:
-      return {
-        type: 'delta',
-        traceId: envelope.traceId,
-        data: {
-          protocol: envelope.protocol,
-          payload,
-        },
-      };
+      return mapA2aEvent(asRecord(envelope.payload), envelope.traceId);
   }
 }
 
@@ -62,7 +64,63 @@ function mapMcpEvent(payload: Record<string, unknown>, traceId?: string): Sessio
   return deltaEvent(payload, traceId, 'mcp');
 }
 
-function mapAcpEvent(payload: Record<string, unknown>, traceId?: string): SessionEventInput {
+function mapAcpEvent(update: NormalizedAcpUpdate, traceId?: string): SessionEventInput {
+  const effectiveTraceId = traceId ?? update.traceId;
+
+  switch (update.eventType) {
+    case 'tool_call':
+    case 'tool_call_update':
+      return {
+        type: 'tool',
+        traceId: effectiveTraceId,
+        data: {
+          protocol: 'acp',
+          update,
+        },
+        nextState:
+          update.eventType === 'tool_call_update' &&
+          update.toolCall?.status === 'failed'
+            ? 'FAILED'
+            : 'RUNNING',
+      };
+    case 'turn_complete':
+      return {
+        type: 'complete',
+        traceId: effectiveTraceId,
+        data: {
+          protocol: 'acp',
+          update,
+        },
+        ...(update.turnComplete?.state
+          ? { nextState: update.turnComplete.state }
+          : {}),
+      };
+    case 'error':
+      return {
+        type: 'error',
+        traceId: effectiveTraceId,
+        data: { protocol: 'acp', update },
+        error: normalizeError(update.error),
+        nextState: 'FAILED',
+      };
+    default:
+      return {
+        type: 'delta',
+        traceId: effectiveTraceId,
+        data: {
+          protocol: 'acp',
+          text: update.message?.content ?? null,
+          update,
+        },
+        nextState: 'RUNNING',
+      };
+  }
+}
+
+function mapAcpLegacyEvent(
+  payload: Record<string, unknown>,
+  traceId?: string,
+): SessionEventInput {
   const explicitState = extractState(payload);
   if (explicitState) {
     return statusEvent(payload, traceId, explicitState, 'acp');

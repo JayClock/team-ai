@@ -212,11 +212,19 @@ export function createGatewayServer(
 
         providerRuntime.prompt(session.provider, request, {
           onEvent: (event) => {
-            const normalizedEvent = mapProtocolEvent({
-              protocol: event.protocol,
-              payload: event.payload,
-              traceId: event.traceId ?? traceId,
-            });
+            const normalizedEvent = mapProtocolEvent(
+              event.protocol === 'acp'
+                ? {
+                    protocol: 'acp',
+                    update: event.update,
+                    traceId: event.traceId ?? traceId,
+                  }
+                : {
+                    protocol: event.protocol,
+                    payload: event.payload,
+                    traceId: event.traceId ?? traceId,
+                  },
+            );
 
             if (
               normalizedEvent.nextState &&
@@ -360,11 +368,19 @@ export function createGatewayServer(
           return;
         }
 
-        const normalizedEvent = mapProtocolEvent({
-          protocol,
-          payload: body.payload,
-          traceId,
-        });
+        const normalizedEvent = mapProtocolEvent(
+          protocol === 'acp'
+            ? {
+                protocol: 'acp',
+                payload: body.payload,
+                traceId,
+              }
+            : {
+                protocol,
+                payload: body.payload,
+                traceId,
+              },
+        );
         if (normalizedEvent.error) {
           metrics.recordError(normalizedEvent.error.code);
           normalizedEvent.data = {

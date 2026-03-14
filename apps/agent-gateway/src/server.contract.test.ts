@@ -58,20 +58,43 @@ class MockProviderRuntime implements ProviderRuntimePort {
       if (request.input.startsWith('structured')) {
         callbacks.onEvent({
           protocol: 'acp',
-          payload: {
-            type: 'tool_call',
-            toolName: 'read_file',
-            arguments: {
-              path: 'README.md',
+          update: {
+            eventType: 'tool_call',
+            provider: providerName,
+            sessionId: request.sessionId,
+            timestamp: '2026-03-14T00:00:00.000Z',
+            traceId: request.traceId,
+            rawNotification: {},
+            toolCall: {
+              toolCallId: 'tool-1',
+              title: 'read_file',
+              kind: 'read_file',
+              status: 'running',
+              input: {
+                path: 'README.md',
+              },
+              inputFinalized: true,
+              output: null,
+              locations: [],
+              content: [],
             },
           },
           traceId: request.traceId,
         });
         callbacks.onEvent({
           protocol: 'acp',
-          payload: {
-            type: 'agent_message_chunk',
-            content: 'structured:hello',
+          update: {
+            eventType: 'agent_message',
+            provider: providerName,
+            sessionId: request.sessionId,
+            timestamp: '2026-03-14T00:00:00.000Z',
+            traceId: request.traceId,
+            rawNotification: {},
+            message: {
+              role: 'assistant',
+              content: 'structured:hello',
+              isChunk: true,
+            },
           },
           traceId: request.traceId,
         });

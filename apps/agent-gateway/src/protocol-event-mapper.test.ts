@@ -2,15 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { mapProtocolEvent } from './protocol-event-mapper.js';
 
 describe('mapProtocolEvent', () => {
-  it('maps acp tool_result payloads to tool events', () => {
+  it('maps canonical acp tool updates to tool events', () => {
     expect(
       mapProtocolEvent({
         protocol: 'acp',
         traceId: 'trace-tool-result',
-        payload: {
-          type: 'tool_result',
-          toolName: 'read_file',
-          output: 'README',
+        update: {
+          eventType: 'tool_call_update',
+          provider: 'codex',
+          sessionId: 'session-1',
+          timestamp: '2026-03-14T00:00:00.000Z',
+          rawNotification: {},
+          toolCall: {
+            toolCallId: 'tool-1',
+            title: 'read_file',
+            status: 'completed',
+            inputFinalized: true,
+            output: 'README',
+            locations: [],
+            content: [],
+          },
         },
       })
     ).toMatchObject({
@@ -19,23 +30,32 @@ describe('mapProtocolEvent', () => {
       nextState: 'RUNNING',
       data: {
         protocol: 'acp',
-        payload: {
-          type: 'tool_result',
-          toolName: 'read_file',
-          output: 'README',
+        update: {
+          eventType: 'tool_call_update',
+          toolCall: {
+            output: 'README',
+          },
         },
       },
     });
   });
 
-  it('maps acp agent message chunks to delta events with running state', () => {
+  it('maps canonical acp agent messages to delta events with running state', () => {
     expect(
       mapProtocolEvent({
         protocol: 'acp',
         traceId: 'trace-chunk',
-        payload: {
-          type: 'agent_message_chunk',
-          content: 'hello',
+        update: {
+          eventType: 'agent_message',
+          provider: 'codex',
+          sessionId: 'session-1',
+          timestamp: '2026-03-14T00:00:00.000Z',
+          rawNotification: {},
+          message: {
+            role: 'assistant',
+            content: 'hello',
+            isChunk: true,
+          },
         },
       })
     ).toMatchObject({
@@ -49,14 +69,22 @@ describe('mapProtocolEvent', () => {
     });
   });
 
-  it('maps complete payloads without transitioning the gateway session state', () => {
+  it('maps canonical turn completion updates to complete events', () => {
     expect(
       mapProtocolEvent({
         protocol: 'acp',
         traceId: 'trace-complete',
-        payload: {
-          type: 'complete',
-          reason: 'prompt-finished',
+        update: {
+          eventType: 'turn_complete',
+          provider: 'codex',
+          sessionId: 'session-1',
+          timestamp: '2026-03-14T00:00:00.000Z',
+          rawNotification: {},
+          turnComplete: {
+            stopReason: 'prompt-finished',
+            usage: null,
+            userMessageId: null,
+          },
         },
       })
     ).toMatchObject({
@@ -64,9 +92,11 @@ describe('mapProtocolEvent', () => {
       traceId: 'trace-complete',
       data: {
         protocol: 'acp',
-        payload: {
-          type: 'complete',
-          reason: 'prompt-finished',
+        update: {
+          eventType: 'turn_complete',
+          turnComplete: {
+            stopReason: 'prompt-finished',
+          },
         },
       },
     });

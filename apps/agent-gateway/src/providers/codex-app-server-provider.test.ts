@@ -157,16 +157,24 @@ describe('CodexAppServerAdapter', () => {
     });
 
     await vi.waitFor(() => {
-      expect(onEvent).toHaveBeenCalledWith({
-        protocol: 'acp',
-        payload: {
-          type: 'agent_message_chunk',
-          sessionUpdate: 'agent_message_chunk',
-          content: 'hello from codex',
-          messageId: 'msg-1',
-        },
-        traceId: 'trace-codex',
-      });
+      expect(onEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          protocol: 'acp',
+          update: expect.objectContaining({
+            eventType: 'agent_message',
+            provider: 'codex',
+            sessionId: 'session-1',
+            traceId: 'trace-codex',
+            message: expect.objectContaining({
+              role: 'assistant',
+              content: 'hello from codex',
+              isChunk: true,
+              messageId: 'msg-1',
+            }),
+          }),
+          traceId: 'trace-codex',
+        }),
+      );
     });
     await vi.waitFor(() => {
       expect(onComplete).toHaveBeenCalledTimes(1);

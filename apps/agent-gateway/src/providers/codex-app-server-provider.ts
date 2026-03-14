@@ -1,5 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import type {
+  NormalizedAcpToolCall,
+  NormalizedAcpUpdate,
   ProviderAdapter,
   ProviderError,
   ProviderPromptCallbacks,
@@ -448,12 +450,17 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          payload: {
-            type: 'agent_message_chunk',
-            sessionUpdate: 'agent_message_chunk',
-            content: delta,
-            messageId: itemId ?? null,
-          },
+          update: createAcpUpdate(session.sessionId, this.preset.providerId, 'agent_message', {
+            traceId: run.traceId,
+            rawNotification: params,
+            message: {
+              role: 'assistant',
+              content: delta,
+              contentBlock: { type: 'text', text: delta },
+              isChunk: true,
+              messageId: itemId ?? null,
+            },
+          }),
           traceId: run.traceId,
         });
         return;
@@ -468,12 +475,17 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          payload: {
-            type: 'agent_thought_chunk',
-            sessionUpdate: 'agent_thought_chunk',
-            content: delta,
-            messageId: asString(params.itemId) ?? null,
-          },
+          update: createAcpUpdate(session.sessionId, this.preset.providerId, 'agent_thought', {
+            traceId: run.traceId,
+            rawNotification: params,
+            message: {
+              role: 'thought',
+              content: delta,
+              contentBlock: { type: 'text', text: delta },
+              isChunk: true,
+              messageId: asString(params.itemId) ?? null,
+            },
+          }),
           traceId: run.traceId,
         });
         return;
@@ -488,14 +500,14 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          payload: {
-            type: 'plan_update',
-            sessionUpdate: 'plan',
-            items: run.planItems.map((item) => ({
+          update: createAcpUpdate(session.sessionId, this.preset.providerId, 'plan_update', {
+            traceId: run.traceId,
+            rawNotification: params,
+            planItems: run.planItems.map((item) => ({
               description: item.content,
               status: item.status,
             })),
-          },
+          }),
           traceId: run.traceId,
         });
         return;
@@ -509,7 +521,16 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          payload: toolPayload,
+          update: createAcpUpdate(
+            session.sessionId,
+            this.preset.providerId,
+            'tool_call',
+            {
+              traceId: run.traceId,
+              rawNotification: params,
+              toolCall: toolPayload,
+            },
+          ),
           traceId: run.traceId,
         });
         return;
@@ -529,12 +550,22 @@ export class CodexAppServerAdapter implements ProviderAdapter {
               run.messageLengths.set(itemId, text.length);
               run.callbacks.onEvent({
                 protocol: 'acp',
-                payload: {
-                  type: 'agent_message_chunk',
-                  sessionUpdate: 'agent_message_chunk',
-                  content: remainder,
-                  messageId: itemId,
-                },
+                update: createAcpUpdate(
+                  session.sessionId,
+                  this.preset.providerId,
+                  'agent_message',
+                  {
+                    traceId: run.traceId,
+                    rawNotification: item,
+                    message: {
+                      role: 'assistant',
+                      content: remainder,
+                      contentBlock: { type: 'text', text: remainder },
+                      isChunk: true,
+                      messageId: itemId,
+                    },
+                  },
+                ),
                 traceId: run.traceId,
               });
             }
@@ -549,7 +580,16 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          payload: toolPayload,
+          update: createAcpUpdate(
+            session.sessionId,
+            this.preset.providerId,
+            'tool_call_update',
+            {
+              traceId: run.traceId,
+              rawNotification: params,
+              toolCall: toolPayload,
+            },
+          ),
           traceId: run.traceId,
         });
         return;
@@ -803,7 +843,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 function toToolPayload(
   item: Record<string, unknown>,
   completed: boolean,
-): Record<string, unknown> | null {
+): NormalizedAcpToolCall | null {
   const type = asString(item.type);
   const id = asString(item.id);
   if (!type || !id) {
@@ -813,30 +853,27 @@ function toToolPayload(
   switch (type) {
     case 'commandExecution':
       return {
-        type: completed ? 'tool_result' : 'tool_call',
-        sessionUpdate: completed ? 'tool_call_update' : 'tool_call',
         toolCallId: id,
         title: asString(item.command) ?? 'command',
         kind: 'command_execution',
         status: completed
           ? normalizeCompletedToolStatus(asString(item.status))
           : 'running',
-        rawInput: {
+        input: {
           command: asString(item.command),
           cwd: asString(item.cwd),
           commandActions: Array.isArray(item.commandActions)
             ? item.commandActions
             : [],
         },
-        rawOutput: completed ? item.aggregatedOutput ?? null : null,
+        inputFinalized: true,
+        output: completed ? item.aggregatedOutput ?? null : null,
         locations: [],
         content: [],
       };
 
     case 'mcpToolCall':
       return {
-        type: completed ? 'tool_result' : 'tool_call',
-        sessionUpdate: completed ? 'tool_call_update' : 'tool_call',
         toolCallId: id,
         title:
           `${asString(item.server) ?? 'mcp'}:${asString(item.tool) ?? 'tool'}`,
@@ -844,40 +881,39 @@ function toToolPayload(
         status: completed
           ? normalizeCompletedToolStatus(asString(item.status))
           : 'running',
-        rawInput: item.arguments ?? null,
-        rawOutput: completed ? item.result ?? item.error ?? null : null,
+        input: item.arguments ?? null,
+        inputFinalized: true,
+        output: completed ? item.result ?? item.error ?? null : null,
         locations: [],
         content: [],
       };
 
     case 'dynamicToolCall':
       return {
-        type: completed ? 'tool_result' : 'tool_call',
-        sessionUpdate: completed ? 'tool_call_update' : 'tool_call',
         toolCallId: id,
         title: asString(item.tool) ?? 'dynamic_tool',
         kind: 'dynamic_tool_call',
         status: completed
           ? normalizeCompletedToolStatus(asString(item.status))
           : 'running',
-        rawInput: item.arguments ?? null,
-        rawOutput: completed ? item.contentItems ?? null : null,
+        input: item.arguments ?? null,
+        inputFinalized: true,
+        output: completed ? item.contentItems ?? null : null,
         locations: [],
         content: [],
       };
 
     case 'fileChange':
       return {
-        type: completed ? 'tool_result' : 'tool_call',
-        sessionUpdate: completed ? 'tool_call_update' : 'tool_call',
         toolCallId: id,
         title: 'file_change',
         kind: 'file_change',
         status: completed
           ? normalizeCompletedToolStatus(asString(item.status))
           : 'running',
-        rawInput: item.changes ?? null,
-        rawOutput: completed ? item.changes ?? null : null,
+        input: item.changes ?? null,
+        inputFinalized: true,
+        output: completed ? item.changes ?? null : null,
         locations: [],
         content: [],
       };
@@ -885,6 +921,25 @@ function toToolPayload(
     default:
       return null;
   }
+}
+
+function createAcpUpdate(
+  sessionId: string,
+  provider: string,
+  eventType: NormalizedAcpUpdate['eventType'],
+  extras: Omit<
+    Partial<NormalizedAcpUpdate>,
+    'eventType' | 'provider' | 'sessionId' | 'timestamp'
+  > = {},
+): NormalizedAcpUpdate {
+  return {
+    sessionId,
+    provider,
+    eventType,
+    timestamp: new Date().toISOString(),
+    rawNotification: extras.rawNotification ?? null,
+    ...extras,
+  };
 }
 
 function normalizeCompletedToolStatus(
