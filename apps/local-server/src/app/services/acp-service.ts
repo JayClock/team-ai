@@ -699,8 +699,6 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     completedAt: row.completed_at,
     failureReason: row.failure_reason,
     lastEventId: row.last_event_id ? { id: row.last_event_id } : null,
-    terminalState:
-      row.state === 'FAILED' || row.state === 'CANCELLED' ? row.state : null,
   };
 }
 

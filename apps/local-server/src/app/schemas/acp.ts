@@ -9,10 +9,6 @@ export type AcpSessionStatus =
   | 'ready'
   | 'error';
 
-export type AcpSessionTerminalState =
-  | 'FAILED'
-  | 'CANCELLED';
-
 export interface AcpRefPayload {
   id: string;
 }
@@ -64,7 +60,6 @@ export interface AcpSessionPayload {
   specialistId: string | null;
   startedAt: string | null;
   task: AcpRefPayload | null;
-  terminalState: AcpSessionTerminalState | null;
 }
 
 export interface AcpSessionListPayload {

@@ -34,7 +34,6 @@ type JsonRpcEnvelope<TResult> = Entity<{
 type SessionPayload = {
   acpStatus: string;
   id: string;
-  terminalState?: string | null;
 };
 
 type SessionRpcResult = {

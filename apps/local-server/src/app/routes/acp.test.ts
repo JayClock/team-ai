@@ -550,7 +550,6 @@ describe('acp route', () => {
       id: failedChildSessionId.id,
       failureReason: 'Provider codex is unavailable',
       task: { id: task.id },
-      terminalState: 'FAILED',
     });
     expect(failedTask).toMatchObject({
       completionSummary: 'Provider codex is unavailable',
@@ -658,7 +657,6 @@ describe('acp route', () => {
         session: {
           acpStatus: 'ready',
           id: childSessionId,
-          terminalState: null,
         },
       },
     });
@@ -930,7 +928,6 @@ describe('acp route', () => {
         session: {
           acpStatus: 'ready',
           id: childSessionId,
-          terminalState: 'CANCELLED',
         },
       },
     });
@@ -1243,7 +1240,6 @@ describe('acp route', () => {
       parentSession: { id: rootSessionId },
       specialistId: 'crafter-implementor',
       task: { id: implementTask.id },
-      terminalState: null,
     });
     expect(historyResponse.statusCode).toBe(200);
     expect(history.map((event) => event.type)).toEqual(

@@ -17,10 +17,6 @@ export type AcpSessionStatus =
   | 'ready'
   | 'error';
 
-export type AcpSessionTerminalState =
-  | 'FAILED'
-  | 'CANCELLED';
-
 export type AcpSessionData = {
   acpError: string | null;
   acpStatus: AcpSessionStatus;
@@ -39,7 +35,6 @@ export type AcpSessionData = {
   completedAt: string | null;
   failureReason: string | null;
   lastEventId: AcpRef | null;
-  terminalState: AcpSessionTerminalState | null;
 };
 
 export type AcpEventError = {

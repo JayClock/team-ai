@@ -16,7 +16,6 @@ export type {
   AcpRef,
   AcpSessionState,
   AcpSessionStatus,
-  AcpSessionTerminalState,
   AcpSessionData,
   AcpEventError,
   AcpEventType,

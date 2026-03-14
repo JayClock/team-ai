@@ -562,10 +562,7 @@ function ShellsSessionsContent(props: {
                               </span>
                             ) : null}
                             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                              {sessionStateLabel(
-                                session.data.terminalState ??
-                                  session.data.acpStatus,
-                              )}
+                              {sessionStateLabel(session.data.acpStatus)}
                             </span>
                             <span>
                               {formatDateTime(

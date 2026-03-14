@@ -295,7 +295,6 @@ function createSessionState(
       specialistId: 'routa-coordinator',
       startedAt: '2026-03-13T11:55:00.000Z',
       task: null,
-      terminalState: null,
       ...overrides,
     },
   } as State<AcpSession>;

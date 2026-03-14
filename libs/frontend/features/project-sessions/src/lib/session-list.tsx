@@ -92,12 +92,6 @@ function statusChipClasses(status: string | null | undefined): string {
   }
 }
 
-function resolveSessionStatus(
-  session: State<AcpSessionSummary>,
-): string | null | undefined {
-  return session.data.terminalState ?? session.data.acpStatus;
-}
-
 function sessionHierarchyLabel(
   session: State<AcpSessionSummary>,
   depth: number,
@@ -228,7 +222,7 @@ function SessionTreeItem(props: {
   const specialistLabel =
     node.session.data.specialistId?.trim() || '未指定 specialist';
   const showTimestamp = depth === 0 || active;
-  const sessionStatus = resolveSessionStatus(node.session);
+  const sessionStatus = node.session.data.acpStatus;
 
   return (
     <div className="space-y-2">

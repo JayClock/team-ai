@@ -895,9 +895,7 @@ export function ShellsSession(props: ShellsSessionProps) {
               provider:
                 selectedSession.data.provider ?? sessionDefaults.providerId,
               specialistId: selectedSession.data.specialistId,
-              status:
-                selectedSession.data.terminalState ??
-                selectedSession.data.acpStatus,
+              status: selectedSession.data.acpStatus,
               taskId: selectedSession.data.task?.id ?? null,
             }
           : null

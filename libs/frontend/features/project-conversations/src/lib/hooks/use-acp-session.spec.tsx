@@ -58,7 +58,6 @@ function createFixture() {
     completedAt: null,
     failureReason: null,
     lastEventId: { id: 'evt-1' },
-    terminalState: null,
   };
 
   const historyBySince: Record<string, AcpEventEnvelope[]> = {
@@ -172,7 +171,6 @@ function createFixture() {
                     session: {
                       acpStatus: 'connecting',
                       id: 's-1',
-                      terminalState: null,
                     },
                   },
                   error: null,
@@ -188,7 +186,6 @@ function createFixture() {
                     session: {
                       acpStatus: sessionData.acpStatus,
                       id: 's-1',
-                      terminalState: sessionData.terminalState,
                     },
                   },
                   error: null,
@@ -205,7 +202,6 @@ function createFixture() {
                     session: {
                       acpStatus: 'ready',
                       id: 's-1',
-                      terminalState: null,
                     },
                     runtime: { output: 'ok' },
                   },
@@ -214,7 +210,6 @@ function createFixture() {
               };
             }
             sessionData.lastEventId = { id: 'evt-3' };
-            sessionData.terminalState = 'CANCELLED';
             return {
               data: {
                 jsonrpc: '2.0',
@@ -223,7 +218,6 @@ function createFixture() {
                   session: {
                     acpStatus: 'ready',
                     id: 's-1',
-                    terminalState: 'CANCELLED',
                   },
                 },
                 error: null,
@@ -372,8 +366,6 @@ describe('useAcpSession', () => {
       { since: 'evt-1', limit: 200 },
       { since: 'evt-2', limit: 200 },
     ]);
-    expect(result.current.selectedSession?.data.terminalState).toBe(
-      'CANCELLED',
-    );
+    expect(result.current.selectedSession?.data.acpStatus).toBe('ready');
   });
 });
