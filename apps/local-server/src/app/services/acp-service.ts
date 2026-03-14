@@ -21,6 +21,7 @@ import type {
   AcpEventErrorPayload,
   AcpSessionListPayload,
   AcpSessionPayload,
+  AcpSessionStatus,
   AcpSessionState,
   AcpEventTypePayload,
 } from '../schemas/acp';
@@ -58,6 +59,8 @@ const eventIdGenerator = customAlphabet(
 );
 
 interface AcpSessionRow {
+  acp_error: string | null;
+  acp_status: AcpSessionStatus;
   agent_id: string | null;
   actor_id: string;
   completed_at: string | null;
@@ -679,6 +682,8 @@ async function syncTaskExecutionOutcome(
 
 function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
   return {
+    acpError: row.acp_error,
+    acpStatus: row.acp_status,
     id: row.id,
     project: { id: row.project_id },
     agent: row.agent_id ? { id: row.agent_id } : null,
@@ -689,12 +694,13 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     specialistId: row.specialist_id,
     task: row.task_id ? { id: row.task_id } : null,
     cwd: row.cwd ?? '',
-    state: row.state,
     startedAt: row.started_at,
     lastActivityAt: row.last_activity_at,
     completedAt: row.completed_at,
     failureReason: row.failure_reason,
     lastEventId: row.last_event_id ? { id: row.last_event_id } : null,
+    terminalState:
+      row.state === 'FAILED' || row.state === 'CANCELLED' ? row.state : null,
   };
 }
 
@@ -724,6 +730,8 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           name,
           provider,
           cwd,
+          acp_status,
+          acp_error,
           state,
           runtime_session_id,
           specialist_id,
@@ -751,6 +759,8 @@ function updateSessionRuntime(
   sessionId: string,
   update: {
     completedAt?: string | null;
+    acpError?: string | null;
+    acpStatus?: AcpSessionStatus;
     failureReason?: string | null;
     lastActivityAt?: string | null;
     lastEventId?: string | null;
@@ -768,6 +778,8 @@ function updateSessionRuntime(
         SET
           name = @name,
           runtime_session_id = @runtimeSessionId,
+          acp_status = @acpStatus,
+          acp_error = @acpError,
           state = @state,
           failure_reason = @failureReason,
           last_event_id = @lastEventId,
@@ -782,6 +794,10 @@ function updateSessionRuntime(
       id: sessionId,
       name: update.name === undefined ? current.name : update.name,
       runtimeSessionId: update.runtimeSessionId ?? current.runtime_session_id,
+      acpStatus:
+        update.acpStatus === undefined ? current.acp_status : update.acpStatus,
+      acpError:
+        update.acpError === undefined ? current.acp_error : update.acpError,
       state: update.state ?? current.state,
       failureReason:
         update.failureReason === undefined
@@ -993,6 +1009,9 @@ function createRuntimeHooks(
       );
       const metadata = extractSessionMetadataFromNormalizedUpdate(normalized);
       updateSessionRuntime(sqlite, localSessionId, {
+        acpError:
+          state === 'FAILED' ? emitted.error?.message ?? current.acp_error : null,
+        acpStatus: state === 'FAILED' ? 'error' : 'ready',
         state,
         lastActivityAt: metadata.updatedAt ?? emitted.emittedAt,
         name: metadata.title ?? current.name,
@@ -1150,6 +1169,8 @@ function createRuntimeHooks(
       });
 
       updateSessionRuntime(sqlite, localSessionId, {
+        acpStatus: 'error',
+        acpError: error.message,
         state: 'FAILED',
         failureReason: error.message,
         completedAt: new Date().toISOString(),
@@ -1222,6 +1243,8 @@ async function updateSessionFromPromptResponse(
   });
 
   updateSessionRuntime(sqlite, sessionId, {
+    acpStatus: 'ready',
+    acpError: null,
     state,
     failureReason: null,
     completedAt: state === 'CANCELLED' ? completedAt : null,
@@ -1362,6 +1385,8 @@ export async function createAcpSession(
           name,
           provider,
           cwd,
+          acp_status,
+          acp_error,
           state,
           runtime_session_id,
           task_id,
@@ -1384,6 +1409,8 @@ export async function createAcpSession(
           @name,
           @provider,
           @cwd,
+          @acpStatus,
+          @acpError,
           @state,
           NULL,
           @taskId,
@@ -1408,6 +1435,8 @@ export async function createAcpSession(
       name: input.goal?.trim() || null,
       provider,
       cwd,
+      acpStatus: 'connecting',
+      acpError: null,
       state: 'PENDING',
       taskId: task?.id ?? null,
       startedAt: now,
@@ -1427,6 +1456,8 @@ export async function createAcpSession(
 
     updateSessionRuntime(sqlite, sessionId, {
       runtimeSessionId: runtimeSession.runtimeSessionId,
+      acpStatus: 'ready',
+      acpError: null,
       state: 'PENDING',
       startedAt: now,
       lastActivityAt: now,
@@ -1488,6 +1519,8 @@ export async function createAcpSession(
       },
     });
     updateSessionRuntime(sqlite, sessionId, {
+      acpStatus: 'error',
+      acpError: message,
       state: 'FAILED',
       failureReason: message,
       completedAt: now,
@@ -1526,12 +1559,12 @@ export async function createAcpSession(
   }
 
   appendLocalEvent(sqlite, broker, {
-      sessionId,
-      type: 'session',
-      payload: {
-        source: 'local-server',
-        provider,
-        role: (specialist?.role ?? role) as RoleValue | null,
+    sessionId,
+    type: 'session',
+    payload: {
+      source: 'local-server',
+      provider,
+      role: (specialist?.role ?? role) as RoleValue | null,
       agentId: agent?.id ?? null,
       agentName: agent?.name ?? null,
       agentRole: agent?.role ?? null,
@@ -1569,6 +1602,8 @@ export async function listAcpSessionsByProject(
           name,
           provider,
           cwd,
+          acp_status,
+          acp_error,
           state,
           runtime_session_id,
           task_id,
@@ -1738,6 +1773,8 @@ export async function loadAcpSession(
 
     if (loaded.runtimeSessionId !== session.runtime_session_id) {
       updateSessionRuntime(sqlite, sessionId, {
+        acpStatus: 'ready',
+        acpError: null,
         runtimeSessionId: loaded.runtimeSessionId,
       });
     }
@@ -1777,6 +1814,8 @@ export async function promptAcpSession(
     input.eventId,
   );
   updateSessionRuntime(sqlite, sessionId, {
+    acpStatus: 'ready',
+    acpError: null,
     state: 'RUNNING',
     failureReason: null,
     completedAt: null,
@@ -1826,6 +1865,8 @@ export async function promptAcpSession(
       },
     });
     updateSessionRuntime(sqlite, sessionId, {
+      acpStatus: 'error',
+      acpError: message,
       state: 'FAILED',
       failureReason: message,
       completedAt: new Date().toISOString(),
@@ -1881,6 +1922,8 @@ export async function cancelAcpSession(
     },
   });
   updateSessionRuntime(sqlite, sessionId, {
+    acpStatus: 'ready',
+    acpError: null,
     state: 'CANCELLED',
     completedAt: new Date().toISOString(),
     failureReason: reason ?? null,

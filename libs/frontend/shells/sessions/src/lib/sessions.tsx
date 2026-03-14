@@ -95,7 +95,12 @@ function sessionStateLabel(value: string | null | undefined): string {
     case 'PLANNING':
       return '规划中';
     case 'READY':
+    case 'ready':
       return '就绪';
+    case 'connecting':
+      return '连接中';
+    case 'error':
+      return '错误';
     case 'RUNNING':
       return '进行中';
     case 'PAUSED':
@@ -557,7 +562,10 @@ function ShellsSessionsContent(props: {
                               </span>
                             ) : null}
                             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                              {sessionStateLabel(session.data.state)}
+                              {sessionStateLabel(
+                                session.data.terminalState ??
+                                  session.data.acpStatus,
+                              )}
                             </span>
                             <span>
                               {formatDateTime(

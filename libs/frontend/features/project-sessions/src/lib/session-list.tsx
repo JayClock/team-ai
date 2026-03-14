@@ -92,6 +92,12 @@ function statusChipClasses(status: string | null | undefined): string {
   }
 }
 
+function resolveSessionStatus(
+  session: State<AcpSessionSummary>,
+): string | null | undefined {
+  return session.data.terminalState ?? session.data.acpStatus;
+}
+
 function sessionHierarchyLabel(
   session: State<AcpSessionSummary>,
   depth: number,
@@ -222,6 +228,7 @@ function SessionTreeItem(props: {
   const specialistLabel =
     node.session.data.specialistId?.trim() || '未指定 specialist';
   const showTimestamp = depth === 0 || active;
+  const sessionStatus = resolveSessionStatus(node.session);
 
   return (
     <div className="space-y-2">
@@ -306,9 +313,9 @@ function SessionTreeItem(props: {
 
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
                     <span
-                      className={`rounded-full px-2 py-1 font-medium ring-1 ${statusChipClasses(node.session.data.state)}`}
+                      className={`rounded-full px-2 py-1 font-medium ring-1 ${statusChipClasses(sessionStatus)}`}
                     >
-                      {formatStatusLabel(node.session.data.state)}
+                      {formatStatusLabel(sessionStatus)}
                     </span>
                     <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
                       {node.session.data.provider ?? 'opencode'}

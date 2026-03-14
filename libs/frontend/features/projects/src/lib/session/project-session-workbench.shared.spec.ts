@@ -278,6 +278,8 @@ function createSessionState(
 ): State<AcpSession> {
   return {
     data: {
+      acpError: null,
+      acpStatus: 'ready',
       actor: { id: 'user_123' },
       agent: null,
       completedAt: null,
@@ -292,8 +294,8 @@ function createSessionState(
       provider: 'opencode',
       specialistId: 'routa-coordinator',
       startedAt: '2026-03-13T11:55:00.000Z',
-      state: 'RUNNING',
       task: null,
+      terminalState: null,
       ...overrides,
     },
   } as State<AcpSession>;

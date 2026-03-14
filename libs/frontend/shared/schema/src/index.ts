@@ -15,6 +15,8 @@ export type { Message } from './lib/message.js';
 export type {
   AcpRef,
   AcpSessionState,
+  AcpSessionStatus,
+  AcpSessionTerminalState,
   AcpSessionData,
   AcpEventError,
   AcpEventType,

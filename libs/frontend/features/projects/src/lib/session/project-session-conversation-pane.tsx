@@ -43,6 +43,8 @@ export function ProjectSessionConversationPane(props: {
     projectPicker,
     selectedSession,
   } = props;
+  const sessionStatus =
+    selectedSession?.data.terminalState ?? selectedSession?.data.acpStatus;
 
   const promptInputProps = {
     ariaLabel: '会话输入框',
@@ -50,7 +52,7 @@ export function ProjectSessionConversationPane(props: {
     footerStart: (
       <div className="text-xs text-muted-foreground">
         {selectedSession
-          ? formatStatusLabel(selectedSession.data.state)
+          ? formatStatusLabel(sessionStatus)
           : '发送后将创建新会话'}
       </div>
     ),

@@ -546,10 +546,11 @@ describe('acp route', () => {
       result: null,
     });
     expect(failedChildSession).toMatchObject({
+      acpStatus: 'error',
       id: failedChildSessionId.id,
       failureReason: 'Provider codex is unavailable',
-      state: 'FAILED',
       task: { id: task.id },
+      terminalState: 'FAILED',
     });
     expect(failedTask).toMatchObject({
       completionSummary: 'Provider codex is unavailable',
@@ -655,8 +656,9 @@ describe('acp route', () => {
     expect(promptResponse.json()).toMatchObject({
       result: {
         session: {
+          acpStatus: 'ready',
           id: childSessionId,
-          state: 'RUNNING',
+          terminalState: null,
         },
       },
     });
@@ -926,8 +928,9 @@ describe('acp route', () => {
     expect(cancelResponse.json()).toMatchObject({
       result: {
         session: {
+          acpStatus: 'ready',
           id: childSessionId,
-          state: 'CANCELLED',
+          terminalState: 'CANCELLED',
         },
       },
     });
@@ -1235,11 +1238,12 @@ describe('acp route', () => {
     expect(sessionsResponse.statusCode).toBe(200);
     expect(sessions).toHaveLength(2);
     expect(childSession).toMatchObject({
+      acpStatus: 'ready',
       id: dispatchedChildSessionId,
       parentSession: { id: rootSessionId },
       specialistId: 'crafter-implementor',
-      state: 'RUNNING',
       task: { id: implementTask.id },
+      terminalState: null,
     });
     expect(historyResponse.statusCode).toBe(200);
     expect(history.map((event) => event.type)).toEqual(

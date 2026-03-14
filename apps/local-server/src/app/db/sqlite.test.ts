@@ -122,6 +122,8 @@ describe('sqlite initialization', () => {
       'agent_id',
       'specialist_id',
       'task_id',
+      'acp_status',
+      'acp_error',
     ]);
     expect(agentColumns.map(({ name }) => name)).toEqual([
       'id',

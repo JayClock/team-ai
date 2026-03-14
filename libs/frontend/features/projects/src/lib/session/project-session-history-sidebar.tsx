@@ -25,7 +25,7 @@ export function ProjectSessionHistorySidebar(props: {
     lastActivityAt?: string | null;
     provider: string | null;
     specialistId?: string | null;
-    state: string | null;
+    status: string | null;
     taskId?: string | null;
   } | null;
   sessionQuickActions?: {
@@ -83,7 +83,7 @@ export function ProjectSessionHistorySidebar(props: {
                 </span>
               ) : null}
               <span className="rounded-full border border-border/60 bg-background px-2 py-1">
-                {formatStatusLabel(selectedSessionMeta.state)}
+                {formatStatusLabel(selectedSessionMeta.status)}
               </span>
               <span className="rounded-full border border-border/60 bg-background px-2 py-1">
                 {selectedSessionMeta.provider ?? '未配置 provider'}

@@ -4,6 +4,15 @@ export type AcpSessionState =
   | 'FAILED'
   | 'CANCELLED';
 
+export type AcpSessionStatus =
+  | 'connecting'
+  | 'ready'
+  | 'error';
+
+export type AcpSessionTerminalState =
+  | 'FAILED'
+  | 'CANCELLED';
+
 export interface AcpRefPayload {
   id: string;
 }
@@ -38,6 +47,8 @@ export interface AcpEventEnvelopePayload {
 }
 
 export interface AcpSessionPayload {
+  acpError: string | null;
+  acpStatus: AcpSessionStatus;
   agent: AcpRefPayload | null;
   actor: AcpRefPayload;
   completedAt: string | null;
@@ -52,8 +63,8 @@ export interface AcpSessionPayload {
   provider: string;
   specialistId: string | null;
   startedAt: string | null;
-  state: AcpSessionState;
   task: AcpRefPayload | null;
+  terminalState: AcpSessionTerminalState | null;
 }
 
 export interface AcpSessionListPayload {

@@ -41,6 +41,8 @@ function createFixture() {
   const rpcInvocations: RpcInvocation[] = [];
 
   const sessionData: AcpSession['data'] = {
+    acpError: null,
+    acpStatus: 'ready',
     id: 's-1',
     project: { id: 'p-1' },
     agent: { id: 'agent-1' },
@@ -51,12 +53,12 @@ function createFixture() {
     provider: 'codex',
     specialistId: 'routa-coordinator',
     cwd: '/tmp/project',
-    state: 'RUNNING',
     startedAt: '2026-03-04T00:00:00Z',
     lastActivityAt: '2026-03-04T00:00:00Z',
     completedAt: null,
     failureReason: null,
     lastEventId: { id: 'evt-1' },
+    terminalState: null,
   };
 
   const historyBySince: Record<string, AcpEventEnvelope[]> = {
@@ -166,7 +168,13 @@ function createFixture() {
                 data: {
                   jsonrpc: '2.0',
                   id: 'r-1',
-                  result: { session: { id: 's-1', state: 'PENDING' } },
+                  result: {
+                    session: {
+                      acpStatus: 'connecting',
+                      id: 's-1',
+                      terminalState: null,
+                    },
+                  },
                   error: null,
                 },
               };
@@ -176,7 +184,13 @@ function createFixture() {
                 data: {
                   jsonrpc: '2.0',
                   id: 'r-2',
-                  result: { session: { id: 's-1', state: sessionData.state } },
+                  result: {
+                    session: {
+                      acpStatus: sessionData.acpStatus,
+                      id: 's-1',
+                      terminalState: sessionData.terminalState,
+                    },
+                  },
                   error: null,
                 },
               };
@@ -188,7 +202,11 @@ function createFixture() {
                   jsonrpc: '2.0',
                   id: 'r-3',
                   result: {
-                    session: { id: 's-1', state: 'RUNNING' },
+                    session: {
+                      acpStatus: 'ready',
+                      id: 's-1',
+                      terminalState: null,
+                    },
                     runtime: { output: 'ok' },
                   },
                   error: null,
@@ -196,12 +214,18 @@ function createFixture() {
               };
             }
             sessionData.lastEventId = { id: 'evt-3' };
-            sessionData.state = 'CANCELLED';
+            sessionData.terminalState = 'CANCELLED';
             return {
               data: {
                 jsonrpc: '2.0',
                 id: 'r-4',
-                result: { session: { id: 's-1', state: 'CANCELLED' } },
+                result: {
+                  session: {
+                    acpStatus: 'ready',
+                    id: 's-1',
+                    terminalState: 'CANCELLED',
+                  },
+                },
                 error: null,
               },
             };
@@ -348,6 +372,8 @@ describe('useAcpSession', () => {
       { since: 'evt-1', limit: 200 },
       { since: 'evt-2', limit: 200 },
     ]);
-    expect(result.current.selectedSession?.data.state).toBe('CANCELLED');
+    expect(result.current.selectedSession?.data.terminalState).toBe(
+      'CANCELLED',
+    );
   });
 });

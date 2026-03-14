@@ -12,7 +12,18 @@ export type AcpSessionState =
   | 'FAILED'
   | 'CANCELLED';
 
+export type AcpSessionStatus =
+  | 'connecting'
+  | 'ready'
+  | 'error';
+
+export type AcpSessionTerminalState =
+  | 'FAILED'
+  | 'CANCELLED';
+
 export type AcpSessionData = {
+  acpError: string | null;
+  acpStatus: AcpSessionStatus;
   id: string;
   project: AcpRef;
   agent: AcpRef | null;
@@ -23,12 +34,12 @@ export type AcpSessionData = {
   provider: string;
   specialistId: string | null;
   cwd: string;
-  state: AcpSessionState;
   startedAt: string | null;
   lastActivityAt: string | null;
   completedAt: string | null;
   failureReason: string | null;
   lastEventId: AcpRef | null;
+  terminalState: AcpSessionTerminalState | null;
 };
 
 export type AcpEventError = {

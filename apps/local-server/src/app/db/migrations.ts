@@ -468,4 +468,26 @@ export const sqliteMigrations: SqliteMigration[] = [
         );
     `,
   },
+  {
+    version: '010_project_acp_session_status_split',
+    sql: `
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN acp_status TEXT NOT NULL DEFAULT 'connecting';
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN acp_error TEXT;
+
+      UPDATE project_acp_sessions
+      SET
+        acp_status = CASE
+          WHEN state = 'FAILED' THEN 'error'
+          WHEN runtime_session_id IS NOT NULL THEN 'ready'
+          ELSE 'connecting'
+        END,
+        acp_error = CASE
+          WHEN state = 'FAILED' THEN failure_reason
+          ELSE NULL
+        END;
+    `,
+  },
 ];

@@ -278,8 +278,9 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           );
           return resultEnvelope(id, {
             session: {
+              acpStatus: result.acpStatus,
               id: result.id,
-              state: result.state,
+              terminalState: result.terminalState,
             },
           });
         }
@@ -297,8 +298,9 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           );
           return resultEnvelope(id, {
             session: {
+              acpStatus: result.acpStatus,
               id: result.id,
-              state: result.state,
+              terminalState: result.terminalState,
             },
           });
         }
@@ -337,8 +339,9 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           );
           return resultEnvelope(id, {
             session: {
+              acpStatus: result.session.acpStatus,
               id: result.session.id,
-              state: result.session.state,
+              terminalState: result.session.terminalState,
             },
             runtime: result.runtime ?? null,
           });
@@ -358,8 +361,9 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           );
           return resultEnvelope(id, {
             session: {
+              acpStatus: result.acpStatus,
               id: result.id,
-              state: result.state,
+              terminalState: result.terminalState,
             },
           });
         }
