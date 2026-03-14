@@ -1,6 +1,16 @@
 import { State } from '@hateoas-ts/resource';
 import { AcpSession } from '@shared/schema';
-import { Button, Card, CardContent, Spinner } from '@shared/ui';
+import {
+  Button,
+  Card,
+  CardContent,
+  Spinner,
+  Task,
+  TaskContent,
+  TaskItem,
+  TaskTrigger,
+  type TaskStatus,
+} from '@shared/ui';
 import {
   ActivityIcon,
   AlertTriangleIcon,
@@ -103,6 +113,19 @@ function sourceIcon(source: TaskPanelItem['source']) {
     case 'tool':
       return <WrenchIcon className="size-3.5" />;
   }
+}
+
+function taskStatus(status: string): TaskStatus {
+  if (completedStatuses.has(status)) {
+    return 'completed';
+  }
+  if (runningStatuses.has(status)) {
+    return 'in_progress';
+  }
+  if (failureStatuses.has(status)) {
+    return 'error';
+  }
+  return 'pending';
 }
 
 function TaskMetric(props: {
@@ -316,54 +339,59 @@ export function ProjectSessionTaskStrip(props: {
             </div>
           ) : (
             <div className="mt-3 space-y-2">
-              {visibleItems.map((item) => (
-                <div
+              {visibleItems.map((item, index) => (
+                <Task
                   key={item.id}
-                  className="rounded-xl border border-border/60 bg-background/90 px-3 py-3"
+                  defaultOpen={index === 0}
+                  className="bg-background/90"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex size-6 items-center justify-center rounded-full bg-muted/60 text-muted-foreground">
-                          {sourceIcon(item.source)}
-                        </span>
-                        <div className="truncate text-sm font-medium">
-                          {item.title}
-                        </div>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                        <span className="rounded-full border border-border/60 bg-muted/20 px-2 py-1">
+                  <TaskTrigger
+                    title={item.title}
+                    icon={sourceIcon(item.source)}
+                    status={taskStatus(item.status)}
+                    description={
+                      item.description ?? `${taskSourceLabel(item.source)} 快照`
+                    }
+                    trailing={
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(item.status)}`}
+                      >
+                        {formatStatusLabel(item.status)}
+                      </span>
+                    }
+                  />
+                  <TaskContent>
+                    <TaskItem>
+                      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+                        <span className="rounded-full border border-border/60 bg-background px-2 py-1">
                           {taskSourceLabel(item.source)}
                         </span>
                         {item.kind ? (
-                          <span className="rounded-full border border-border/60 bg-muted/20 px-2 py-1">
+                          <span className="rounded-full border border-border/60 bg-background px-2 py-1">
                             {formatTaskKindLabel(item.kind)}
                           </span>
                         ) : null}
                         {item.assignedProvider ? (
-                          <span className="rounded-full border border-border/60 bg-muted/20 px-2 py-1 font-mono">
+                          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
                             {item.assignedProvider}
                           </span>
                         ) : null}
                         {item.assignedRole ? (
-                          <span className="rounded-full border border-border/60 bg-muted/20 px-2 py-1 font-mono">
+                          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
                             {item.assignedRole}
                           </span>
                         ) : null}
                       </div>
-                      {item.description ? (
-                        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                    </TaskItem>
+                    {item.description ? (
+                      <TaskItem>
+                        <p className="text-xs leading-5 text-muted-foreground">
                           {item.description}
                         </p>
-                      ) : null}
-                    </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(item.status)}`}
-                    >
-                      {formatStatusLabel(item.status)}
-                    </span>
-                  </div>
-                </div>
+                      </TaskItem>
+                    ) : null}
+                  </TaskContent>
+                </Task>
               ))}
             </div>
           )}
