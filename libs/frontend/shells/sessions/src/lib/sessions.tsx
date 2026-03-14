@@ -4,6 +4,7 @@ import { useAcpSession } from '@features/project-conversations';
 import {
   ProjectPromptInput,
   type ProjectRepositoryOption,
+  useAcpProviders,
 } from '@features/projects';
 import {
   AcpSessionSummary,
@@ -24,36 +25,18 @@ import {
 } from '@shared/ui';
 import {
   ArrowRightIcon,
-  ChevronDownIcon,
   Clock3Icon,
   DownloadIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AgentInstallPanel } from './agent-install-panel';
 import { storePendingProjectPrompt } from './pending-project-prompt';
-import { useAcpProviders, type AcpProvider } from './use-acp-providers';
 import {
   LocalProject,
   projectTitle,
   useProjectSelection,
 } from './use-project-selection';
-
-function providerGroupLabel(key: string): string {
-  switch (key) {
-    case 'static-available':
-      return 'Built-in - Runnable';
-    case 'registry-available':
-      return 'ACP Registry - Runnable';
-    case 'static-unavailable':
-      return 'Built-in - Unavailable';
-    case 'registry-unavailable':
-      return 'ACP Registry - Unavailable';
-    default:
-      return key;
-  }
-}
 
 type HomeAgentType = Extract<AgentRole, 'ROUTA' | 'DEVELOPER'>;
 
@@ -244,19 +227,12 @@ function ShellsSessionsContent(props: {
   });
 
   const [agentType, setAgentType] = useState<HomeAgentType>('ROUTA');
-  const [providerDropdownOpen, setProviderDropdownOpen] = useState(false);
-  const [providerDropdownPos, setProviderDropdownPos] = useState<{
-    bottom: number;
-    left: number;
-  } | null>(null);
   const [providerSheetOpen, setProviderSheetOpen] = useState(false);
   const [recentSessions, setRecentSessions] = useState<
     State<AcpSessionSummary>[]
   >([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [startingSession, setStartingSession] = useState(false);
-  const providerDropdownRef = useRef<HTMLDivElement>(null);
-  const providerButtonRef = useRef<HTMLButtonElement>(null);
 
   const homeAgentOptions = useMemo(
     () =>
@@ -273,53 +249,6 @@ function ShellsSessionsContent(props: {
       }),
     [rolesState.collection],
   );
-
-  const providerQuickGroups = useMemo(() => {
-    const builtinAvailable = providers.filter(
-      (provider) =>
-        provider.source !== 'registry' && provider.status === 'available',
-    );
-    const registryAvailable = providers.filter(
-      (provider) =>
-        provider.source === 'registry' && provider.status === 'available',
-    );
-    const builtinUnavailable = providers.filter(
-      (provider) =>
-        provider.source !== 'registry' && provider.status !== 'available',
-    );
-    const registryUnavailable = providers.filter(
-      (provider) =>
-        provider.source === 'registry' && provider.status !== 'available',
-    );
-
-    const groups: [string, AcpProvider[]][] = [
-      ['static-available', builtinAvailable],
-      ['registry-available', registryAvailable],
-      ['static-unavailable', builtinUnavailable],
-      ['registry-unavailable', registryUnavailable],
-    ];
-
-    return groups.filter(([, items]) => items.length > 0);
-  }, [providers]);
-
-  useEffect(() => {
-    if (!providerDropdownOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      const insideDropdown = providerDropdownRef.current?.contains(target);
-      const insideButton = providerButtonRef.current?.contains(target);
-
-      if (!insideDropdown && !insideButton) {
-        setProviderDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [providerDropdownOpen]);
 
   const loadRecentSessions = useCallback(async () => {
     setLoadingRecent(true);
@@ -358,14 +287,15 @@ function ShellsSessionsContent(props: {
   }, [loadRecentSessions]);
 
   const submitHomePrompt = useCallback(
-    async (input: { files: unknown[]; text: string }) => {
+    async (input: { files: unknown[]; provider?: string; text: string }) => {
       const goal = input.text.trim();
+      const providerId = input.provider?.trim() || selectedProvider?.id;
 
       if (!goal) {
         toast.error('输入内容不能为空');
         throw new Error('输入内容不能为空');
       }
-      if (!selectedProvider) {
+      if (!providerId) {
         toast.error('当前没有可启动的 ACP 提供方');
         throw new Error('当前没有可启动的 ACP 提供方');
       }
@@ -374,7 +304,7 @@ function ShellsSessionsContent(props: {
       try {
         const created = await create({
           actorUserId: me.id,
-          provider: selectedProvider.id,
+          provider: providerId,
           role: agentType,
           goal,
         });
@@ -455,52 +385,18 @@ function ShellsSessionsContent(props: {
     </>
   );
 
-  const homePromptFooterEnd = (
-    <Button
-      ref={providerButtonRef}
-      type="button"
-      variant="ghost"
-      size="sm"
-      onClick={() => {
-        if (providerDropdownOpen) {
-          setProviderDropdownOpen(false);
-          return;
-        }
-
-        const rect = providerButtonRef.current?.getBoundingClientRect();
-        if (rect) {
-          setProviderDropdownPos({
-            left: rect.left,
-            bottom: window.innerHeight - rect.top + 4,
-          });
-        }
-        setProviderDropdownOpen(true);
-      }}
-      className="h-8 rounded-lg px-2.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
-    >
-      <span
-        className={`size-2 rounded-full ${
-          selectedProvider?.status === 'available'
-            ? 'bg-emerald-500'
-            : 'bg-amber-500'
-        }`}
-      />
-      {selectedProvider?.name ?? selectedProviderId}
-      <ChevronDownIcon
-        className={`size-3 text-slate-400 transition-transform ${
-          providerDropdownOpen ? 'rotate-180' : ''
-        }`}
-      />
-    </Button>
-  );
-
   const homePromptInputProps = {
     ariaLabel: '项目指令输入框',
     disabled: startingSession,
-    footerEnd: homePromptFooterEnd,
     footerStart: homePromptFooterStart,
     onSubmit: submitHomePrompt,
     placeholder: '你想在这个项目里完成什么？可以直接描述需求、约束和期望结果。',
+    providerPicker: {
+      loading: providersLoading,
+      onValueChange: setSelectedProviderId,
+      providers,
+      value: selectedProviderId,
+    },
     projectPicker,
     submitDisabled: startingSession,
     submitPending: startingSession,
@@ -541,79 +437,6 @@ function ShellsSessionsContent(props: {
           <div id="home-input-container">
             <ProjectPromptInput {...homePromptInputProps} />
           </div>
-
-          {providerDropdownOpen &&
-          providerDropdownPos &&
-          typeof document !== 'undefined'
-            ? createPortal(
-                <div
-                  ref={providerDropdownRef}
-                  className="fixed z-[9999] max-h-80 w-72 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-[#1e2130]"
-                  style={{
-                    left: providerDropdownPos.left,
-                    bottom: providerDropdownPos.bottom,
-                  }}
-                >
-                  {providerQuickGroups.map(([groupKey, items], index) => (
-                    <div
-                      key={groupKey}
-                      className={
-                        index === 0
-                          ? 'py-1'
-                          : 'border-t border-gray-100 py-1 dark:border-gray-800'
-                      }
-                    >
-                      <div className="px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                        {providerGroupLabel(groupKey)} ({items.length})
-                      </div>
-                      {items.map((provider) => {
-                        const isAvailable = provider.status === 'available';
-                        const isSelected = provider.id === selectedProviderId;
-
-                        return (
-                          <button
-                            key={provider.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedProviderId(provider.id);
-                              setProviderDropdownOpen(false);
-                            }}
-                            className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs transition-colors ${
-                              isSelected
-                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
-                                : isAvailable
-                                  ? 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800/50'
-                                  : 'text-gray-500 opacity-60 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800/50'
-                            }`}
-                          >
-                            <span
-                              className={`size-1.5 shrink-0 rounded-full ${
-                                isAvailable
-                                  ? 'bg-green-500'
-                                  : 'bg-gray-300 dark:bg-gray-600'
-                              }`}
-                            />
-                            <span className="flex-1 truncate font-medium">
-                              {provider.name}
-                            </span>
-                            <span className="max-w-[140px] truncate font-mono text-[10px] text-gray-400 dark:text-gray-500">
-                              {provider.command ?? provider.envCommandKey}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-
-                  <div className="border-t border-gray-100 p-2 dark:border-gray-800">
-                    <div className="px-2 py-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
-                      Agent 管理入口位于页头
-                    </div>
-                  </div>
-                </div>,
-                document.body,
-              )
-            : null}
 
           <div className="mt-2 px-1 text-[10px] text-slate-400 dark:text-slate-500">
             {sessionAgentDescription(agentType, homeAgentOptions)}

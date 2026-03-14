@@ -1,5 +1,5 @@
-import { runtimeFetch } from '@shared/util-http';
 import { toast } from '@shared/ui';
+import { runtimeFetch } from '@shared/util-http';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export type AcpProviderStatus = 'available' | 'unavailable';
@@ -75,6 +75,15 @@ export function useAcpProviders(preferredProviderId = 'opencode') {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    const normalizedPreferredProviderId = preferredProviderId.trim();
+    if (!normalizedPreferredProviderId) {
+      return;
+    }
+
+    setSelectedProviderId(normalizedPreferredProviderId);
+  }, [preferredProviderId]);
 
   useEffect(() => {
     if (providers.length === 0) {

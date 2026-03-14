@@ -21,7 +21,6 @@ import {
   GitBranchPlusIcon,
   LoaderCircleIcon,
   SearchIcon,
-  XIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -251,7 +250,6 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
           project={selectedProject}
           showDropdown={showDropdown}
           triggerRef={triggerRef}
-          onClear={() => handleProjectSelect(null)}
           onToggleDropdown={() => {
             if (showDropdown) {
               setShowDropdown(false);
@@ -354,7 +352,9 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <p className="flex items-center gap-2 truncate text-sm font-medium">
-                                    <span className="truncate">{project.title}</span>
+                                    <span className="truncate">
+                                      {project.title}
+                                    </span>
                                     {selected ? (
                                       <CheckIcon className="size-3.5 shrink-0" />
                                     ) : null}
@@ -455,7 +455,6 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
 }
 
 type SelectedProjectPillProps = {
-  onClear: () => void;
   onToggleDropdown: () => void;
   project: ProjectRepositoryOption;
   showDropdown: boolean;
@@ -463,7 +462,7 @@ type SelectedProjectPillProps = {
 };
 
 function SelectedProjectPill(props: SelectedProjectPillProps) {
-  const { onClear, onToggleDropdown, project, showDropdown, triggerRef } = props;
+  const { onToggleDropdown, project, showDropdown, triggerRef } = props;
 
   return (
     <div className="flex max-w-full items-center gap-1.5">
@@ -482,26 +481,6 @@ function SelectedProjectPill(props: SelectedProjectPillProps) {
       >
         <span className="truncate">{project.title}</span>
         <ChevronDownIcon className="size-3.5 shrink-0 text-slate-400" />
-      </Button>
-
-      {project.repoPath ? (
-        <span
-          className="max-w-[220px] truncate text-[10px] font-mono text-slate-500 dark:text-slate-400"
-          title={project.repoPath}
-        >
-          {project.repoPath}
-        </span>
-      ) : null}
-
-      <Button
-        aria-label="清空仓库选择"
-        className="size-8 shrink-0 text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-200"
-        onClick={onClear}
-        title="清空仓库选择"
-        type="button"
-        variant="ghost"
-      >
-        <XIcon className="size-3.5" />
       </Button>
     </div>
   );

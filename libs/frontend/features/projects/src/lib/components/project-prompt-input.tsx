@@ -14,10 +14,15 @@ import {
 import { ArrowRightIcon, LoaderCircleIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
 import {
+  ProjectProviderPicker,
+  type ProjectProviderPickerProps,
+} from './project-provider-picker';
+import {
   ProjectRepositoryPicker,
   type ProjectRepositoryPickerProps,
 } from './project-repository-picker';
 
+export type { ProjectProviderPickerProps } from './project-provider-picker';
 export type {
   ProjectRepositoryOption,
   ProjectRepositoryPickerProps,
@@ -25,6 +30,7 @@ export type {
 
 type ProjectPromptSubmitInput = {
   files: unknown[];
+  provider?: string;
   text: string;
 };
 
@@ -35,6 +41,7 @@ export type ProjectPromptInputProps = {
   footerStart?: ReactNode;
   onSubmit: (input: ProjectPromptSubmitInput) => Promise<void> | void;
   placeholder: string;
+  providerPicker?: ProjectProviderPickerProps;
   projectPicker?: ProjectRepositoryPickerProps;
   submitDisabled?: boolean;
   submitPending?: boolean;
@@ -56,6 +63,7 @@ function ProjectPromptInputContent(props: ProjectPromptInputProps) {
     footerStart,
     onSubmit,
     placeholder,
+    providerPicker,
     projectPicker,
     submitDisabled,
     submitPending,
@@ -79,6 +87,7 @@ function ProjectPromptInputContent(props: ProjectPromptInputProps) {
         onSubmit={(message) =>
           onSubmit({
             files: message.files,
+            provider: providerPicker?.value ?? undefined,
             text: message.text,
           })
         }
@@ -107,6 +116,16 @@ function ProjectPromptInputContent(props: ProjectPromptInputProps) {
           </PromptInputTools>
 
           <div className="ml-auto flex items-center gap-2">
+            {providerPicker ? (
+              <ProjectProviderPicker
+                {...providerPicker}
+                disabled={
+                  disabled === true ||
+                  submitPending === true ||
+                  providerPicker.disabled === true
+                }
+              />
+            ) : null}
             {footerEnd}
 
             <PromptInputSubmit

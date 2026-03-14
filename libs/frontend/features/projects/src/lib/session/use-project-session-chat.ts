@@ -19,11 +19,14 @@ export type SessionChatMessage = UIMessage<{
 
 type PromptSubmitInput = {
   files: unknown[];
+  provider?: string;
   text: string;
 };
 
 type UseProjectSessionChatOptions = {
-  createSession: () => Promise<State<AcpSession>>;
+  createSession: (input?: {
+    provider?: string;
+  }) => Promise<State<AcpSession>>;
   history: AcpEventEnvelope[];
   onPendingPromptConsumed?: () => void;
   pendingPrompt?: string | null;
@@ -318,7 +321,7 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
   );
 
   const runPrompt = useCallback(
-    async (text: string) => {
+    async (text: string, provider?: string) => {
       const trimmed = text.trim();
       if (!trimmed) {
         toast.error('输入内容不能为空');
@@ -342,7 +345,8 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
         optimisticId = appendOptimisticUserMessage(targetSessionKey, trimmed);
         pendingAssistantId = appendPendingAssistantMessage(targetSessionKey);
 
-        const targetSession = selectedSession ?? (await createSession());
+        const targetSession =
+          selectedSession ?? (await createSession({ provider }));
         rebindTransientMessages(targetSessionKey, targetSession.data.id);
         targetSessionKey = targetSession.data.id;
 
@@ -373,8 +377,8 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
   );
 
   const handlePromptSubmit = useCallback(
-    async ({ text }: PromptSubmitInput) => {
-      await runPrompt(text);
+    async ({ provider, text }: PromptSubmitInput) => {
+      await runPrompt(text, provider);
     },
     [runPrompt],
   );

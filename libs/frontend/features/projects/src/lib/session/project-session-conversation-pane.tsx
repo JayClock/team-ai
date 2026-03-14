@@ -16,18 +16,27 @@ import {
   formatStatusLabel,
 } from './project-session-workbench.shared';
 import { SessionChatMessage } from './use-project-session-chat';
-import { ProjectPromptInput } from '../components/project-prompt-input';
+import {
+  ProjectPromptInput,
+  type ProjectProviderPickerProps,
+} from '../components/project-prompt-input';
 
 export function ProjectSessionConversationPane(props: {
   chatMessages: SessionChatMessage[];
   hasPendingAssistantMessage: boolean;
-  onSubmit: (input: { files: unknown[]; text: string }) => Promise<void>;
+  onSubmit: (input: {
+    files: unknown[];
+    provider?: string;
+    text: string;
+  }) => Promise<void>;
+  providerPicker?: ProjectProviderPickerProps;
   selectedSession: State<AcpSession> | null;
 }) {
   const {
     chatMessages,
     hasPendingAssistantMessage,
     onSubmit,
+    providerPicker,
     selectedSession,
   } = props;
 
@@ -45,6 +54,7 @@ export function ProjectSessionConversationPane(props: {
     placeholder: selectedSession
       ? '继续当前会话...'
       : '发送第一条消息，开始新的会话...',
+    providerPicker: selectedSession ? undefined : providerPicker,
     submitPending: hasPendingAssistantMessage,
   };
 

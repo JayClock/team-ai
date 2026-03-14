@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ProjectPromptInput } from './project-prompt-input';
 
 class ResizeObserverMock {
@@ -91,5 +91,49 @@ describe('ProjectPromptInput', () => {
     expect(screen.getByRole('button', { name: 'Project One' })).toBeTruthy();
     expect(screen.getByText('/tmp/project-1')).toBeTruthy();
     expect(screen.getByRole('button', { name: '清空仓库选择' })).toBeTruthy();
+  });
+
+  it('submits the selected provider with the prompt payload', async () => {
+    const onSubmit = vi.fn();
+
+    render(
+      <ProjectPromptInput
+        ariaLabel="项目指令输入框"
+        onSubmit={onSubmit}
+        placeholder="输入内容"
+        providerPicker={{
+          onValueChange: () => undefined,
+          providers: [
+            {
+              command: 'npx opencode',
+              description: 'OpenCode provider',
+              distributionTypes: ['npx'],
+              envCommandKey: 'OPENCODE_COMMAND',
+              id: 'opencode',
+              installable: true,
+              installed: true,
+              name: 'OpenCode',
+              source: 'static',
+              status: 'available',
+              unavailableReason: null,
+            },
+          ],
+          value: 'opencode',
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: '项目指令输入框' }), {
+      target: { value: '实现 provider 选择' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '发起会话' }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        files: [],
+        provider: 'opencode',
+        text: '实现 provider 选择',
+      }),
+    );
   });
 });

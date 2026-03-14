@@ -45,6 +45,7 @@ import {
   type WorkbenchSessionRole,
   type WorkbenchSessionRuntimeProfile,
 } from './session-runtime-profile';
+import { useAcpProviders } from './use-acp-providers';
 
 const STREAM_RETRY_DELAY_MS = 1500;
 const TASK_POLL_INTERVAL_MS = 3000;
@@ -190,6 +191,13 @@ export function ShellsSession(props: ShellsSessionProps) {
       ),
     [selectedSession?.data.provider, sessionDefaults.providerId],
   );
+  const {
+    loading: providersLoading,
+    providers,
+    selectedProvider,
+    selectedProviderId,
+    setSelectedProviderId,
+  } = useAcpProviders(sessionDefaults.providerId ?? 'opencode');
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;
@@ -253,8 +261,11 @@ export function ShellsSession(props: ShellsSessionProps) {
   const creationRole = preferredRole ?? sessionDefaults.role;
 
   const createSessionWithDefaults = useCallback(
-    async (input: { goal?: string } = {}) => {
-      if (!sessionDefaults.providerId) {
+    async (input: { goal?: string; provider?: string } = {}) => {
+      const providerId =
+        input.provider?.trim() || sessionDefaults.providerId?.trim();
+
+      if (!providerId) {
         throw new Error(
           '当前项目还没有可用的默认 provider，请先在 Runtime Profile 中设置默认 provider，或复用已有会话。',
         );
@@ -262,7 +273,7 @@ export function ShellsSession(props: ShellsSessionProps) {
 
       return create({
         actorUserId: me.id,
-        provider: sessionDefaults.providerId,
+        provider: providerId,
         role: creationRole,
         goal: input.goal,
       });
@@ -449,7 +460,7 @@ export function ShellsSession(props: ShellsSessionProps) {
       selectedSession: selectedSession ?? undefined,
       pendingPrompt,
       onPendingPromptConsumed,
-      createSession: () => createSessionWithDefaults(),
+      createSession: (input) => createSessionWithDefaults(input),
       submitPrompt: async ({ sessionId, prompt: nextPrompt }) => {
         await prompt({
           session: sessionId,
@@ -458,6 +469,14 @@ export function ShellsSession(props: ShellsSessionProps) {
       },
       refreshSessions: loadSessions,
     });
+  const sessionPromptProviderPicker = selectedSession
+    ? undefined
+    : {
+        loading: providersLoading,
+        onValueChange: setSelectedProviderId,
+        providers,
+        value: selectedProviderId || selectedProvider?.id,
+      };
 
   const stopStream = useCallback((manual: boolean) => {
     allowReconnectRef.current = !manual;
@@ -825,6 +844,7 @@ export function ShellsSession(props: ShellsSessionProps) {
               chatMessages={chatMessages}
               hasPendingAssistantMessage={hasPendingAssistantMessage}
               onSubmit={handlePromptSubmit}
+              providerPicker={sessionPromptProviderPicker}
               selectedSession={selectedSession}
             />
           </main>

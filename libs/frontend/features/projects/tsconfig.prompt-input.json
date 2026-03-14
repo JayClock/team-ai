@@ -32,8 +32,10 @@
     "eslint.config.mjs"
   ],
   "include": [
+    "src/lib/components/project-provider-picker.tsx",
     "src/lib/components/project-prompt-input.tsx",
-    "src/lib/components/project-repository-picker.tsx"
+    "src/lib/components/project-repository-picker.tsx",
+    "src/lib/session/use-acp-providers.ts"
   ],
   "references": [
     {

@@ -1,3 +1,4 @@
+import type { AcpProvider } from '@features/projects';
 import { Button, Card, Input, ScrollArea } from '@shared/ui';
 import {
   DownloadIcon,
@@ -7,7 +8,6 @@ import {
   WrenchIcon,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { AcpProvider } from './use-acp-providers';
 
 function runtimeBadge(type: string, available: boolean) {
   return (
