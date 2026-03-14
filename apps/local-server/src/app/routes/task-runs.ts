@@ -14,7 +14,7 @@ import {
   listTaskRuns,
   updateTaskRun,
 } from '../services/task-run-service';
-import { getTaskById, updateTaskAndDispatch } from '../services/task-service';
+import { executeTask, getTaskById } from '../services/task-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTaskRunsQuerySchema = z.object({
@@ -207,32 +207,20 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post('/task-runs/:taskRunId/retry', async (request, reply) => {
     const { taskRunId } = taskRunParamsSchema.parse(request.params);
     const sourceRun = await getRetryableTaskRunById(fastify.sqlite, taskRunId);
-    const result = await updateTaskAndDispatch(
-      fastify.sqlite,
-      sourceRun.taskId,
-      {
-        status: 'READY',
-      },
-      {
-        callbacks: dispatchCallbacks,
-        logger: request.log,
-        retryOfRunId: sourceRun.id,
-        triggerSource: 'manual',
-      },
-    );
+    const result = await executeTask(fastify.sqlite, sourceRun.taskId, {
+      callbacks: dispatchCallbacks,
+      logger: request.log,
+      retryOfRunId: sourceRun.id,
+    });
 
     if (!result.dispatch.attempted || !result.dispatch.result?.dispatched) {
-      const dispatchabilityReasons =
-        result.dispatch.result?.dispatchability.reasons.join(', ') ?? null;
       throw new ProblemError({
         type: 'https://team-ai.dev/problems/task-run-retry-dispatch-blocked',
         title: 'Task Run Retry Dispatch Blocked',
         status: 409,
         detail:
           result.dispatch.errorMessage ??
-          (dispatchabilityReasons
-            ? `Task run ${taskRunId} could not be retried because ${dispatchabilityReasons}`
-            : `Task run ${taskRunId} could not be retried`),
+          `Task run ${taskRunId} could not be retried`,
       });
     }
 

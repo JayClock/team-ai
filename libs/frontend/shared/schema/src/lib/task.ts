@@ -4,8 +4,6 @@ import type { TaskRunCollection } from './task-run.js';
 
 export type TaskKind = 'plan' | 'implement' | 'review' | 'verify';
 
-export type TaskSourceType = 'manual' | 'acp_plan';
-
 export type TaskStatus =
   | 'PENDING'
   | 'READY'
@@ -30,9 +28,6 @@ export type Task = Entity<
     objective: string;
     scope: string | null;
     status: TaskStatus;
-    sourceEventId: string | null;
-    sourceEntryIndex: number | null;
-    sourceType: TaskSourceType;
     kind: TaskKind | null;
     boardId: string | null;
     columnId: string | null;

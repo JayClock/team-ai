@@ -1,6 +1,12 @@
 import type { TaskListPayload, TaskPayload } from '../schemas/task';
 
-const executableTaskStatuses = new Set(['PENDING', 'READY']);
+const executableTaskStatuses = new Set([
+  'PENDING',
+  'READY',
+  'WAITING_RETRY',
+  'FAILED',
+  'CANCELLED',
+]);
 
 function shouldExposeExecuteLink(task: TaskPayload): boolean {
   return (

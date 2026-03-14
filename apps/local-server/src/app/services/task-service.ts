@@ -7,7 +7,6 @@ import type {
   TaskKind,
   TaskListPayload,
   TaskPayload,
-  TaskSourceType,
   UpdateTaskInput,
 } from '../schemas/task';
 import type { ProjectOrchestrationMode } from '../schemas/runtime-profile';
@@ -59,10 +58,10 @@ interface TaskRow {
   priority: string | null;
   project_id: string;
   result_session_id: string | null;
+  scope: string | null;
   source_entry_index: number | null;
   source_event_id: string | null;
-  source_type: TaskSourceType;
-  scope: string | null;
+  source_type: string;
   status: string;
   title: string;
   trigger_session_id: string | null;
@@ -119,30 +118,6 @@ export interface TaskDispatchability {
   unresolvedDependencyIds: string[];
 }
 
-export type TaskDispatchTriggerSource = 'automatic' | 'manual';
-
-export type TaskUpdateDispatchTriggerReason = 'MANUAL_RETRY' | 'STATUS_READY';
-
-export interface UpdateTaskAndDispatchOptions {
-  callbacks: DispatchTaskCallbacks;
-  logger?: DiagnosticLogger;
-  retryOfRunId?: string | null;
-  triggerSource: TaskDispatchTriggerSource;
-}
-
-export interface TaskUpdateDispatchAttempt {
-  attempted: boolean;
-  errorMessage: string | null;
-  result: DispatchTaskResult | null;
-  source: TaskDispatchTriggerSource;
-  triggerReason: TaskUpdateDispatchTriggerReason | null;
-}
-
-export interface UpdateTaskAndDispatchResult {
-  dispatch: TaskUpdateDispatchAttempt;
-  task: TaskPayload;
-}
-
 export interface ExecuteTaskDispatchAttempt {
   attempted: boolean;
   errorMessage: string | null;
@@ -152,6 +127,7 @@ export interface ExecuteTaskDispatchAttempt {
 export interface ExecuteTaskOptions {
   callbacks: DispatchTaskCallbacks;
   logger?: DiagnosticLogger;
+  retryOfRunId?: string | null;
 }
 
 export interface ExecuteTaskResult {
@@ -174,17 +150,6 @@ const dispatchableTaskStatuses = new Set<TaskStatus>([
   'RUNNING',
   'WAITING_RETRY',
 ]);
-const dispatchTriggerTaskStatuses = new Set<TaskStatus>([
-  'PENDING',
-  'READY',
-  'WAITING_RETRY',
-]);
-const manualRetrySourceTaskStatuses = new Set<TaskStatus>([
-  'CANCELLED',
-  'FAILED',
-  'WAITING_RETRY',
-]);
-const terminalTaskStatuses = new Set<TaskStatus>(['CANCELLED', 'COMPLETED']);
 const mcpWritableTaskStatuses = new Set<TaskStatus>([
   'PENDING',
   'READY',
@@ -395,43 +360,6 @@ function ensureTaskStatusWritableViaMcp(
   }
 }
 
-function resolveTaskDispatchTriggerReason(
-  currentStatus: string,
-  nextStatus: string,
-  source: TaskDispatchTriggerSource,
-): TaskUpdateDispatchTriggerReason | null {
-  const resolvedCurrentStatus = isTaskStatus(currentStatus)
-    ? currentStatus
-    : null;
-  const resolvedNextStatus = isTaskStatus(nextStatus) ? nextStatus : null;
-
-  if (currentStatus === nextStatus) {
-    return null;
-  }
-
-  if (!resolvedNextStatus) {
-    return null;
-  }
-
-  if (terminalTaskStatuses.has(resolvedNextStatus)) {
-    return null;
-  }
-
-  if (!dispatchTriggerTaskStatuses.has(resolvedNextStatus)) {
-    return null;
-  }
-
-  if (
-    source === 'manual' &&
-    resolvedCurrentStatus !== null &&
-    manualRetrySourceTaskStatuses.has(resolvedCurrentStatus)
-  ) {
-    return 'MANUAL_RETRY';
-  }
-
-  return 'STATUS_READY';
-}
-
 export function resolveDefaultTaskRole(
   kind: TaskKind | null,
   options: TaskDispatchabilityOptions = {},
@@ -503,9 +431,6 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     priority: row.priority,
     projectId: row.project_id,
     resultSessionId: row.result_session_id,
-    sourceEntryIndex: row.source_entry_index,
-    sourceEventId: row.source_event_id,
-    sourceType: row.source_type,
     scope: row.scope,
     status: row.status,
     title: row.title,
@@ -618,9 +543,6 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
           parent_task_id,
           execution_session_id,
           result_session_id,
-          source_type,
-          source_event_id,
-          source_entry_index,
           created_at,
           updated_at
         FROM project_tasks
@@ -858,9 +780,6 @@ export async function listDispatchableTasks(
           parent_task_id,
           execution_session_id,
           result_session_id,
-          source_type,
-          source_event_id,
-          source_entry_index,
           created_at,
           updated_at
         FROM project_tasks
@@ -922,7 +841,6 @@ export async function createTask(
   const status = ensureTaskStatus(input.status, 'PENDING');
   const now = new Date().toISOString();
   const taskId = createTaskId();
-  const sourceType = input.sourceType ?? 'manual';
 
   sqlite
     .prepare(
@@ -1047,9 +965,9 @@ export async function createTask(
       resultSessionId,
       scope: input.scope ?? null,
       status,
-      sourceEntryIndex: input.sourceEntryIndex ?? null,
-      sourceEventId: input.sourceEventId ?? null,
-      sourceType,
+      sourceEntryIndex: null,
+      sourceEventId: null,
+      sourceType: 'manual',
       title: input.title,
       triggerSessionId,
       updatedAt: now,
@@ -1144,9 +1062,6 @@ export async function listTasks(
           parent_task_id,
           execution_session_id,
           result_session_id,
-          source_type,
-          source_event_id,
-          source_entry_index,
           created_at,
           updated_at
         FROM project_tasks
@@ -1314,16 +1229,6 @@ export async function updateTask(
     scope: input.scope === undefined ? current.scope : input.scope,
     resultSessionId,
     status: ensureTaskStatus(input.status, currentStatus),
-    sourceEntryIndex:
-      input.sourceEntryIndex === undefined
-        ? current.source_entry_index
-        : input.sourceEntryIndex,
-    sourceEventId:
-      input.sourceEventId === undefined
-        ? current.source_event_id
-        : input.sourceEventId,
-    sourceType:
-      input.sourceType === undefined ? current.source_type : input.sourceType,
     title: input.title ?? current.title,
     triggerSessionId,
     updatedAt: new Date().toISOString(),
@@ -1379,9 +1284,6 @@ export async function updateTask(
           parent_task_id = @parentTaskId,
           execution_session_id = @executionSessionId,
           result_session_id = @resultSessionId,
-          source_type = @sourceType,
-          source_event_id = @sourceEventId,
-          source_entry_index = @sourceEntryIndex,
           updated_at = @updatedAt
         WHERE id = @id AND deleted_at IS NULL
       `,
@@ -1410,87 +1312,6 @@ export async function updateTaskFromMcp(
   return updateTask(sqlite, taskId, input);
 }
 
-export async function updateTaskAndDispatch(
-  sqlite: Database,
-  taskId: string,
-  input: UpdateTaskInput,
-  options: UpdateTaskAndDispatchOptions,
-): Promise<UpdateTaskAndDispatchResult> {
-  const current = getTaskRow(sqlite, taskId);
-  const currentStatus = ensureTaskStatus(current.status, 'PENDING');
-  const nextStatus = ensureTaskStatus(input.status, currentStatus);
-  const triggerReason = resolveTaskDispatchTriggerReason(
-    current.status,
-    nextStatus,
-    options.triggerSource,
-  );
-
-  const retryOfRunId =
-    triggerReason === 'MANUAL_RETRY'
-      ? await (
-          await import('./task-run-service.js')
-        ).resolveRetryDispatchRunId(sqlite, {
-          retryOfRunId: options.retryOfRunId,
-          taskId,
-        })
-      : null;
-  const task = await updateTask(sqlite, taskId, input);
-
-  if (!triggerReason) {
-    return {
-      dispatch: {
-        attempted: false,
-        errorMessage: null,
-        result: null,
-        source: options.triggerSource,
-        triggerReason: null,
-      },
-      task,
-    };
-  }
-
-  try {
-    const { dispatchTask } = await import('./task-dispatch-service.js');
-    const result = await dispatchTask(
-      sqlite,
-      options.callbacks,
-      {
-        retryOfRunId,
-        taskId,
-      },
-      {
-        logger: options.logger,
-        source: 'task_update_dispatch',
-        triggerReason,
-        triggerSource: options.triggerSource,
-      },
-    );
-
-    return {
-      dispatch: {
-        attempted: true,
-        errorMessage: null,
-        result,
-        source: options.triggerSource,
-        triggerReason,
-      },
-      task: await getTaskById(sqlite, taskId),
-    };
-  } catch (error) {
-    return {
-      dispatch: {
-        attempted: true,
-        errorMessage:
-          error instanceof Error ? error.message : 'Task dispatch failed',
-        result: null,
-        source: options.triggerSource,
-        triggerReason,
-      },
-      task: await getTaskById(sqlite, taskId),
-    };
-  }
-}
-
 export async function executeTask(
   sqlite: Database,
   taskId: string,
@@ -1507,36 +1328,20 @@ export async function executeTask(
     throwTaskExecutionNotAllowed(taskId, currentStatus);
   }
 
-  if (currentStatus !== 'READY') {
-    const result = await updateTaskAndDispatch(
-      sqlite,
-      taskId,
-      {
-        status: 'READY',
-      },
-      {
-        callbacks: options.callbacks,
-        logger: options.logger,
-        triggerSource: 'manual',
-      },
-    );
+  const retryOfRunId = await (
+    await import('./task-run-service.js')
+  ).resolveRetryDispatchRunId(sqlite, {
+    retryOfRunId: options.retryOfRunId,
+    taskId,
+  });
 
-    return {
-      dispatch: {
-        attempted: result.dispatch.attempted,
-        errorMessage: result.dispatch.errorMessage,
-        result: result.dispatch.result,
-      },
-      task: result.task,
-    };
+  if (currentStatus !== 'READY') {
+    await updateTask(sqlite, taskId, {
+      status: 'READY',
+    });
   }
 
   try {
-    const retryOfRunId = await (
-      await import('./task-run-service.js')
-    ).resolveRetryDispatchRunId(sqlite, {
-      taskId,
-    });
     const { dispatchTask } = await import('./task-dispatch-service.js');
     const result = await dispatchTask(
       sqlite,
@@ -1548,7 +1353,6 @@ export async function executeTask(
       {
         logger: options.logger,
         source: 'task_execute',
-        triggerSource: 'manual',
       },
     );
 

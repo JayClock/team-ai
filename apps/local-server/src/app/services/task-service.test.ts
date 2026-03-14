@@ -21,7 +21,6 @@ import {
   listDispatchableTasks,
   resolveDefaultTaskRole,
   updateTask,
-  updateTaskAndDispatch,
   updateTaskFromMcp,
 } from './task-service';
 
@@ -76,7 +75,6 @@ describe('task service', () => {
 
     expect(task.triggerSessionId).toBe(session.id);
     expect(task.acceptanceCriteria).toEqual(['Expose route']);
-    expect(task.sourceType).toBe('manual');
     expect(byProject.items.map((item) => item.id)).toContain(task.id);
     expect(bySession.items.map((item) => item.id)).toContain(task.id);
   });
@@ -343,7 +341,7 @@ describe('task service', () => {
     expect(dispatchableTasks.map((item) => item.task.id)).toEqual([task.id]);
   });
 
-  it('dispatches ready-state transitions and manual retries, while skipping terminal states', async () => {
+  it('updates task status without dispatching child ACP sessions', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Task Update Dispatch Project',
@@ -379,85 +377,23 @@ describe('task service', () => {
       triggerSessionId: rootSessionId,
     });
 
-    let sessionCount = 0;
-    const createSession = vi.fn(async () => ({
-      id: `acps_child_${++sessionCount}`,
-    }));
-    const promptSession = vi.fn(async () => undefined);
-    const callbacks = {
-      createSession,
-      promptSession,
-    };
-
-    const automaticReady = await updateTaskAndDispatch(
-      sqlite,
-      queuedTask.id,
-      {
-        status: 'READY',
-      },
-      {
-        callbacks,
-        triggerSource: 'automatic',
-      },
-    );
-
-    expect(automaticReady.dispatch).toMatchObject({
-      attempted: true,
-      errorMessage: null,
-      source: 'automatic',
-      triggerReason: 'STATUS_READY',
+    const automaticReady = await updateTask(sqlite, queuedTask.id, {
+      status: 'READY',
     });
-    expect(automaticReady.dispatch.result).toMatchObject({
-      dispatched: true,
-      reason: null,
-      role: 'CRAFTER',
+    const manualRetry = await updateTask(sqlite, retryTask.id, {
+      status: 'READY',
+    });
+    const completed = await updateTask(sqlite, completedTask.id, {
+      status: 'COMPLETED',
     });
 
-    const manualRetry = await updateTaskAndDispatch(
-      sqlite,
-      retryTask.id,
-      {
-        status: 'READY',
-      },
-      {
-        callbacks,
-        triggerSource: 'manual',
-      },
-    );
-
-    expect(manualRetry.dispatch).toMatchObject({
-      attempted: true,
-      errorMessage: null,
-      source: 'manual',
-      triggerReason: 'MANUAL_RETRY',
-    });
-    expect(manualRetry.dispatch.result).toMatchObject({
-      dispatched: true,
-      reason: null,
-      role: 'CRAFTER',
-    });
-
-    const completed = await updateTaskAndDispatch(
-      sqlite,
-      completedTask.id,
-      {
-        status: 'COMPLETED',
-      },
-      {
-        callbacks,
-        triggerSource: 'manual',
-      },
-    );
-
-    expect(completed.dispatch).toMatchObject({
-      attempted: false,
-      errorMessage: null,
-      result: null,
-      source: 'manual',
-      triggerReason: null,
-    });
-    expect(createSession).toHaveBeenCalledTimes(2);
-    expect(promptSession).toHaveBeenCalledTimes(2);
+    expect(automaticReady.status).toBe('READY');
+    expect(automaticReady.executionSessionId).toBeNull();
+    expect(automaticReady.resultSessionId).toBeNull();
+    expect(manualRetry.status).toBe('READY');
+    expect(manualRetry.executionSessionId).toBeNull();
+    expect(manualRetry.resultSessionId).toBeNull();
+    expect(completed.status).toBe('COMPLETED');
   });
 
   it('executes ready and retryable tasks through explicit task execution', async () => {

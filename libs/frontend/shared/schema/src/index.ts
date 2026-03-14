@@ -67,7 +67,6 @@ export type {
   Task,
   TaskCollection,
   TaskKind,
-  TaskSourceType,
   TaskStatus,
   VerificationVerdict,
 } from './lib/task.js';

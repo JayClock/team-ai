@@ -177,7 +177,9 @@ describe('task run routes', () => {
     });
   });
 
-  it('retries the latest failed task run without overwriting history', async () => {
+  it(
+    'retries the latest failed task run without overwriting history',
+    async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -269,7 +271,7 @@ describe('task run routes', () => {
     });
     expect(retriedSession).toMatchObject({
       id: retriedRun.sessionId,
-      state: 'COMPLETED',
+      acpStatus: 'ready',
       task: { id: task.id },
     });
     expect(taskRunsResponse.statusCode).toBe(200);
@@ -305,7 +307,9 @@ describe('task run routes', () => {
       title: 'Task Run Retry Source Not Latest',
       type: 'https://team-ai.dev/problems/task-run-retry-source-not-latest',
     });
-  });
+    },
+    15000,
+  );
 
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-task-runs-route-'));

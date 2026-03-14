@@ -12,7 +12,7 @@ import {
   executeTask,
   getTaskById,
   listTasks,
-  updateTaskAndDispatch,
+  updateTask,
 } from '../services/task-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
@@ -246,15 +246,11 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.patch('/tasks/:taskId', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
-    const result = await updateTaskAndDispatch(fastify.sqlite, taskId, body, {
-      callbacks: dispatchCallbacks,
-      logger: request.log,
-      triggerSource: 'manual',
-    });
+    const task = await updateTask(fastify.sqlite, taskId, body);
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
 
-    return presentTask(result.task);
+    return presentTask(task);
   });
 
   fastify.post('/tasks/:taskId/execute', async (request, reply) => {
