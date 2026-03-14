@@ -404,14 +404,20 @@ function ShellsSessionsContent(props: {
   const projectPicker = useMemo(
     () => ({
       onProjectCloned,
-      onProjectSelect: onProjectSelected,
+      onValueChange: (project: ProjectRepositoryOption | null) =>
+        onProjectSelected(project?.id ?? null),
       projects: projects.map<ProjectRepositoryOption>((project) => ({
         id: project.data.id,
         repoPath: project.data.repoPath,
         sourceUrl: project.data.sourceUrl,
         title: projectTitle(project),
       })),
-      selectedProjectId: selectedProject.data.id,
+      value: {
+        id: selectedProject.data.id,
+        repoPath: selectedProject.data.repoPath,
+        sourceUrl: selectedProject.data.sourceUrl,
+        title: projectTitle(selectedProject),
+      },
     }),
     [onProjectCloned, onProjectSelected, projects, selectedProject],
   );

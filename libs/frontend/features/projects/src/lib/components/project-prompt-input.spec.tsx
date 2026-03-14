@@ -20,10 +20,18 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
   value: ResizeObserverMock,
 });
 
-Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
-  configurable: true,
-  value: () => undefined,
-});
+const htmlElementPrototype = (
+  globalThis as {
+    HTMLElement?: { prototype: { scrollIntoView?: () => void } };
+  }
+).HTMLElement?.prototype;
+
+if (htmlElementPrototype) {
+  Object.defineProperty(htmlElementPrototype, 'scrollIntoView', {
+    configurable: true,
+    value: () => undefined,
+  });
+}
 
 describe('ProjectPromptInput', () => {
   it('renders the repository picker when configured', () => {
@@ -33,7 +41,7 @@ describe('ProjectPromptInput', () => {
         onSubmit={() => undefined}
         placeholder="输入内容"
         projectPicker={{
-          onProjectSelect: () => undefined,
+          onValueChange: () => undefined,
           projects: [
             {
               id: 'project-1',
@@ -42,7 +50,7 @@ describe('ProjectPromptInput', () => {
               title: 'Project One',
             },
           ],
-          selectedProjectId: null,
+          value: null,
         }}
       />,
     );
@@ -61,7 +69,7 @@ describe('ProjectPromptInput', () => {
         onSubmit={() => undefined}
         placeholder="输入内容"
         projectPicker={{
-          onProjectSelect: () => undefined,
+          onValueChange: () => undefined,
           projects: [
             {
               id: 'project-1',
@@ -70,7 +78,12 @@ describe('ProjectPromptInput', () => {
               title: 'Project One',
             },
           ],
-          selectedProjectId: 'project-1',
+          value: {
+            id: 'project-1',
+            repoPath: '/tmp/project-1',
+            sourceUrl: 'https://github.com/acme/project-1',
+            title: 'Project One',
+          },
         }}
       />,
     );

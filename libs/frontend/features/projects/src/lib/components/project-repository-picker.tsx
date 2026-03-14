@@ -35,9 +35,9 @@ export type ProjectRepositoryOption = {
 
 export type ProjectRepositoryPickerProps = {
   onProjectCloned?: (projectId: string) => Promise<void> | void;
-  onProjectSelect?: (projectId: string | null) => void;
+  onValueChange?: (project: ProjectRepositoryOption | null) => void;
   projects: ProjectRepositoryOption[];
-  selectedProjectId?: string | null;
+  value?: ProjectRepositoryOption | null;
 };
 
 type PickerTab = 'existing' | 'clone';
@@ -74,7 +74,7 @@ function isRepositoryInput(value: string): boolean {
 }
 
 export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
-  const { onProjectCloned, onProjectSelect, projects, selectedProjectId } = props;
+  const { onProjectCloned, onValueChange, projects, value } = props;
   const [activeTab, setActiveTab] = useState<PickerTab>('existing');
   const [cloneError, setCloneError] = useState<string | null>(null);
   const [cloneUrl, setCloneUrl] = useState('');
@@ -89,11 +89,13 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const selectedProject = useMemo(
-    () =>
-      projects.find((project) => project.id === selectedProjectId) ?? null,
-    [projects, selectedProjectId],
-  );
+  const selectedProject = useMemo(() => {
+    if (!value) {
+      return null;
+    }
+
+    return projects.find((project) => project.id === value.id) ?? value;
+  }, [projects, value]);
 
   const filteredProjects = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -181,12 +183,12 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
   }, []);
 
   const handleProjectSelect = useCallback(
-    (projectId: string | null) => {
-      onProjectSelect?.(projectId);
+    (project: ProjectRepositoryOption | null) => {
+      onValueChange?.(project);
       setShowDropdown(false);
       setSearchQuery('');
     },
-    [onProjectSelect],
+    [onValueChange],
   );
 
   const handleClone = useCallback(async () => {
@@ -223,7 +225,7 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
       if (onProjectCloned) {
         await onProjectCloned(project.id);
       } else {
-        onProjectSelect?.(project.id);
+        onValueChange?.(project);
       }
 
       toast.success(
@@ -240,7 +242,7 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
     } finally {
       setCloning(false);
     }
-  }, [cloneUrl, cloning, onProjectCloned, onProjectSelect]);
+  }, [cloneUrl, cloning, onProjectCloned, onValueChange]);
 
   return (
     <div className="relative">
@@ -338,13 +340,13 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
                       {filteredProjects.length > 0 ? (
                         <CommandGroup heading="受管仓库">
                           {filteredProjects.map((project) => {
-                            const selected = selectedProjectId === project.id;
+                            const selected = selectedProject?.id === project.id;
 
                             return (
                               <CommandItem
                                 key={project.id}
                                 className="items-start rounded-xl px-3 py-3 aria-selected:bg-sky-50 aria-selected:text-sky-950 dark:aria-selected:bg-sky-900/20 dark:aria-selected:text-sky-100"
-                                onSelect={() => handleProjectSelect(project.id)}
+                                onSelect={() => handleProjectSelect(project)}
                                 value={project.id}
                               >
                                 <div className="rounded-lg bg-slate-100 p-2 text-slate-500 dark:bg-[#1f2233] dark:text-slate-400">

@@ -15,10 +15,13 @@ import { ArrowRightIcon, LoaderCircleIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
 import {
   ProjectRepositoryPicker,
-  type ProjectRepositoryOption,
+  type ProjectRepositoryPickerProps,
 } from './project-repository-picker';
 
-export type { ProjectRepositoryOption } from './project-repository-picker';
+export type {
+  ProjectRepositoryOption,
+  ProjectRepositoryPickerProps,
+} from './project-repository-picker';
 
 type ProjectPromptSubmitInput = {
   files: unknown[];
@@ -32,12 +35,7 @@ export type ProjectPromptInputProps = {
   footerStart?: ReactNode;
   onSubmit: (input: ProjectPromptSubmitInput) => Promise<void> | void;
   placeholder: string;
-  projectPicker?: {
-    onProjectCloned?: (projectId: string) => Promise<void> | void;
-    onProjectSelect?: (projectId: string | null) => void;
-    projects: ProjectRepositoryOption[];
-    selectedProjectId?: string | null;
-  };
+  projectPicker?: ProjectRepositoryPickerProps;
   submitDisabled?: boolean;
   submitPending?: boolean;
 };
