@@ -22,7 +22,7 @@ describe('SessionList', () => {
     fireEvent.click(screen.getByRole('button', { name: '展开子会话' }));
 
     expect(screen.getByText('实现搜索索引')).toBeTruthy();
-    expect(screen.getByText('任务子会话')).toBeTruthy();
+    expect(screen.getByText('子会话')).toBeTruthy();
     expect(screen.getByText('gate-reviewer')).toBeTruthy();
   });
 
@@ -39,27 +39,7 @@ describe('SessionList', () => {
     );
 
     expect(screen.getByText('实现搜索索引')).toBeTruthy();
-    expect(screen.getByText('task_impl')).toBeTruthy();
-  });
-
-  it('routes linked child sessions back to task context', () => {
-    const { rootSession, childSession } = createSessionFixtures();
-    const onOpenTaskContext = vi.fn();
-
-    render(
-      <SessionList
-        loading={false}
-        onOpenTaskContext={onOpenTaskContext}
-        onSelect={vi.fn()}
-        sessions={buildSessionTree([childSession, rootSession])}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: '展开子会话' }));
-    fireEvent.click(screen.getByRole('button', { name: '查看任务' }));
-
-    expect(onOpenTaskContext).toHaveBeenCalledTimes(1);
-    expect(onOpenTaskContext).toHaveBeenCalledWith(childSession);
+    expect(screen.getByText('子会话')).toBeTruthy();
   });
 });
 
@@ -74,7 +54,6 @@ function createSessionFixtures() {
     name: '实现搜索索引',
     parentSession: { id: 'acps_root' },
     specialistId: 'gate-reviewer',
-    task: { id: 'task_impl' },
   });
 
   return { childSession, rootSession };
@@ -101,7 +80,6 @@ function createSessionSummary(
       provider: 'opencode',
       specialistId: 'routa-coordinator',
       startedAt: '2026-03-13T11:55:00.000Z',
-      task: null,
       ...overrides,
     },
   } as State<AcpSessionSummary>;

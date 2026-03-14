@@ -59,7 +59,6 @@ export interface AcpSessionPayload {
   provider: string;
   specialistId: string | null;
   startedAt: string | null;
-  task: AcpRefPayload | null;
 }
 
 export interface AcpSessionListPayload {

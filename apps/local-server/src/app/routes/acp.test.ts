@@ -9,7 +9,7 @@ import acpStreamPlugin from '../plugins/acp-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
-import { getAcpSessionById } from '../services/acp-service';
+import { createAcpSession, getAcpSessionById } from '../services/acp-service';
 import { createProject } from '../services/project-service';
 import { listTaskRuns } from '../services/task-run-service';
 import { createTask, getTaskById } from '../services/task-service';
@@ -358,36 +358,33 @@ describe('acp route', () => {
       status: 'READY',
     });
 
-    const childResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/acp',
-      payload: {
-        jsonrpc: '2.0',
-        id: 'child-session',
-        method: 'session/new',
-        params: {
-          actorUserId: 'desktop-user',
-          projectId: project.id,
-          provider: 'codex',
-          parentSessionId: rootSessionId,
-          role: 'CRAFTER',
-          taskId: task.id,
-        },
+    const childSession = await createAcpSession(
+      fastify.sqlite,
+      fastify.acpStreamBroker,
+      fastify.acpRuntime,
+      {
+        actorUserId: 'desktop-user',
+        projectId: project.id,
+        provider: 'codex',
+        parentSessionId: rootSessionId,
+        role: 'CRAFTER',
+        taskId: task.id,
       },
-    });
+      {
+        logger: fastify.log,
+        source: 'acp-route-test',
+      },
+    );
+    const childSessionId = childSession.id;
 
-    expect(childResponse.statusCode).toBe(200);
-    const childSessionId = childResponse.json().result.session.id as string;
-
-    const childSession = await fastify.inject({
+    const childSessionResponse = await fastify.inject({
       method: 'GET',
       url: `/api/projects/${project.id}/acp-sessions/${childSessionId}`,
     });
 
-    expect(childSession.json()).toMatchObject({
+    expect(childSessionResponse.json()).toMatchObject({
       parentSession: { id: rootSessionId },
       specialistId: 'crafter-implementor',
-      task: { id: task.id },
     });
 
     const updatedTask = await getTaskById(fastify.sqlite, task.id);
@@ -493,14 +490,12 @@ describe('acp route', () => {
       status: 'READY',
     });
 
-    const childResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/acp',
-      payload: {
-        jsonrpc: '2.0',
-        id: 'child-session-create-failure',
-        method: 'session/new',
-        params: {
+    await expect(
+      createAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        {
           actorUserId: 'desktop-user',
           projectId: project.id,
           provider: 'codex',
@@ -508,8 +503,12 @@ describe('acp route', () => {
           role: 'CRAFTER',
           taskId: task.id,
         },
-      },
-    });
+        {
+          logger: fastify.log,
+          source: 'acp-route-test',
+        },
+      ),
+    ).rejects.toThrow('Provider codex is unavailable');
 
     const failedTask = await getTaskById(fastify.sqlite, task.id);
     const taskRuns = await listTaskRuns(fastify.sqlite, {
@@ -534,21 +533,10 @@ describe('acp route', () => {
       failedChildSessionId.id,
     );
 
-    expect(childResponse.statusCode).toBe(200);
-    expect(childResponse.json()).toEqual({
-      error: {
-        code: -32000,
-        message: 'Provider codex is unavailable',
-      },
-      id: 'child-session-create-failure',
-      jsonrpc: '2.0',
-      result: null,
-    });
     expect(failedChildSession).toMatchObject({
       acpStatus: 'error',
       id: failedChildSessionId.id,
       failureReason: 'Provider codex is unavailable',
-      task: { id: task.id },
     });
     expect(failedTask).toMatchObject({
       completionSummary: 'Provider codex is unavailable',
@@ -1076,7 +1064,6 @@ describe('acp route', () => {
       id: string;
       parentSession: { id: string } | null;
       specialistId: string | null;
-      task: { id: string } | null;
     }>;
 
     const historyResponse = await fastify.inject({
@@ -1363,6 +1350,58 @@ describe('acp route', () => {
     });
   });
 
+  it('rejects session/new requests that still pass taskId on the public ACP route', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-taskid-test-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => false),
+      loadSession: vi.fn(),
+      promptSession: vi.fn(),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-taskid',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: 'project-1',
+          taskId: 'task-1',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      jsonrpc: '2.0',
+      id: 'req-taskid',
+      result: null,
+      error: {
+        code: -32602,
+        message:
+          'session/new no longer accepts taskId; execute the task explicitly instead',
+      },
+    });
+  });
+
   async function createFullAcpServer(runtime: AcpRuntimeClient) {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
@@ -1421,26 +1460,24 @@ describe('acp route', () => {
       status: 'READY',
     });
 
-    const childResponse = await fastify.inject({
-      method: 'POST',
-      url: '/api/acp',
-      payload: {
-        jsonrpc: '2.0',
-        id: `${project.id}-child-session`,
-        method: 'session/new',
-        params: {
-          actorUserId: 'desktop-user',
-          projectId: project.id,
-          provider: 'codex',
-          parentSessionId: rootSessionId,
-          role: 'CRAFTER',
-          taskId: task.id,
-        },
+    const childSession = await createAcpSession(
+      fastify.sqlite,
+      fastify.acpStreamBroker,
+      fastify.acpRuntime,
+      {
+        actorUserId: 'desktop-user',
+        projectId: project.id,
+        provider: 'codex',
+        parentSessionId: rootSessionId,
+        role: 'CRAFTER',
+        taskId: task.id,
       },
-    });
-
-    expect(childResponse.statusCode).toBe(200);
-    const childSessionId = childResponse.json().result.session.id as string;
+      {
+        logger: fastify.log,
+        source: 'acp-route-test',
+      },
+    );
+    const childSessionId = childSession.id;
 
     return {
       childSessionId,

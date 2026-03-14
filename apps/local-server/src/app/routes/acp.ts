@@ -250,6 +250,16 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
               'session/new no longer accepts mode; choose role instead',
             );
           }
+          if (
+            typeof params.taskId === 'string' &&
+            params.taskId.trim().length > 0
+          ) {
+            return errorEnvelope(
+              id,
+              -32602,
+              'session/new no longer accepts taskId; execute the task explicitly instead',
+            );
+          }
           const result = await createAcpSession(
             fastify.sqlite,
             fastify.acpStreamBroker,
@@ -268,7 +278,6 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
                 .min(1)
                 .optional()
                 .parse(params.parentSessionId),
-              taskId: z.string().trim().min(1).optional().parse(params.taskId),
               goal: z.string().trim().min(1).optional().parse(params.goal),
             },
             {

@@ -9,7 +9,6 @@ import {
 } from './project-session-workbench.shared';
 
 export function ProjectSessionHistorySidebar(props: {
-  onOpenTaskContext?: (session: State<AcpSessionSummary>) => void;
   onSelectSession: (session: State<AcpSessionSummary>) => void;
   projectTitle: string;
   selectedSessionId?: string;
@@ -20,7 +19,6 @@ export function ProjectSessionHistorySidebar(props: {
     provider: string | null;
     specialistId?: string | null;
     status: string | null;
-    taskId?: string | null;
   } | null;
   sessionQuickActions?: {
     activityCount: number;
@@ -33,7 +31,6 @@ export function ProjectSessionHistorySidebar(props: {
   sessionsLoading: boolean;
 }) {
   const {
-    onOpenTaskContext,
     onSelectSession,
     projectTitle,
     selectedSessionId,
@@ -87,11 +84,6 @@ export function ProjectSessionHistorySidebar(props: {
                   {selectedSessionMeta.specialistId}
                 </span>
               ) : null}
-              {selectedSessionMeta.taskId ? (
-                <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
-                  {selectedSessionMeta.taskId}
-                </span>
-              ) : null}
             </div>
 
             {selectedSessionMeta.lastActivityAt ? (
@@ -135,7 +127,6 @@ export function ProjectSessionHistorySidebar(props: {
           loading={sessionsLoading}
           sessions={sessions}
           selectedSessionId={selectedSessionId}
-          onOpenTaskContext={onOpenTaskContext}
           onSelect={onSelectSession}
         />
       </div>

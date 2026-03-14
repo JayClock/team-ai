@@ -58,7 +58,6 @@ export type CreateAcpSessionInput = {
   provider?: string;
   role?: AcpSessionRole;
   parentSessionId?: string;
-  taskId?: string;
   idempotencyKey?: string;
   goal?: string;
   traceId?: string;
@@ -289,7 +288,6 @@ export function useAcpSession(
           provider: input.provider ?? options.provider ?? 'codex',
           role: input.role ?? options.role,
           parentSessionId: input.parentSessionId,
-          taskId: input.taskId,
           idempotencyKey: input.idempotencyKey,
           goal: input.goal,
         },

@@ -10,7 +10,6 @@ import {
   ScrollArea,
 } from '@shared/ui';
 import {
-  ArrowUpRightIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   MessageSquareTextIcon,
@@ -93,15 +92,11 @@ function statusChipClasses(status: string | null | undefined): string {
 }
 
 function sessionHierarchyLabel(
-  session: State<AcpSessionSummary>,
+  _session: State<AcpSessionSummary>,
   depth: number,
 ): string {
   if (depth === 0) {
     return '根会话';
-  }
-
-  if (session.data.task?.id) {
-    return '任务子会话';
   }
 
   return '子会话';
@@ -109,18 +104,11 @@ function sessionHierarchyLabel(
 
 export function SessionList(props: {
   loading: boolean;
-  onOpenTaskContext?: (session: State<AcpSessionSummary>) => void;
   onSelect: (session: State<AcpSessionSummary>) => void;
   selectedSessionId?: string;
   sessions: SessionTreeNode[];
 }) {
-  const {
-    loading,
-    onOpenTaskContext,
-    onSelect,
-    selectedSessionId,
-    sessions,
-  } = props;
+  const { loading, onSelect, selectedSessionId, sessions } = props;
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const totalSessions = sessions.reduce(
     (count, node) => count + countSessionTree(node),
@@ -176,7 +164,6 @@ export function SessionList(props: {
                 depth={0}
                 expandedIdSet={expandedIdSet}
                 node={node}
-                onOpenTaskContext={onOpenTaskContext}
                 onSelect={onSelect}
                 onToggle={toggleSessionBranch}
                 selectedPathSet={selectedPathSet}
@@ -194,7 +181,6 @@ function SessionTreeItem(props: {
   depth: number;
   expandedIdSet: Set<string>;
   node: SessionTreeNode;
-  onOpenTaskContext?: (session: State<AcpSessionSummary>) => void;
   onSelect: (session: State<AcpSessionSummary>) => void;
   onToggle: (sessionId: string) => void;
   selectedPathSet: Set<string>;
@@ -204,14 +190,12 @@ function SessionTreeItem(props: {
     depth,
     expandedIdSet,
     node,
-    onOpenTaskContext,
     onSelect,
     onToggle,
     selectedPathSet,
     selectedSessionId,
   } = props;
   const sessionId = node.session.data.id;
-  const taskId = node.session.data.task?.id;
   const active = sessionId === selectedSessionId;
   const containsSelected = selectedPathSet.has(sessionId);
   const hasChildren = node.children.length > 0;
@@ -333,35 +317,6 @@ function SessionTreeItem(props: {
               </div>
             </button>
 
-            {taskId ? (
-              <div className="mt-3 rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  任务上下文
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate font-mono text-xs text-foreground">
-                      {taskId}
-                    </div>
-                    <div className="mt-1 text-[11px] text-muted-foreground">
-                      切回任务面板查看执行链路与结果。
-                    </div>
-                  </div>
-                  {onOpenTaskContext ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 shrink-0 gap-1.5 px-2 text-xs"
-                      onClick={() => onOpenTaskContext(node.session)}
-                    >
-                      查看任务
-                      <ArrowUpRightIcon className="size-3.5" />
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
           </div>
 
         </div>
@@ -376,7 +331,6 @@ function SessionTreeItem(props: {
                 depth={depth + 1}
                 expandedIdSet={expandedIdSet}
                 node={child}
-                onOpenTaskContext={onOpenTaskContext}
                 onSelect={onSelect}
                 onToggle={onToggle}
                 selectedPathSet={selectedPathSet}

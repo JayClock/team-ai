@@ -367,27 +367,13 @@ export function ShellsSession(props: ShellsSessionProps) {
     async (session: State<AcpSession>): Promise<TaskPanelItem[]> => {
       const itemsById = new Map<string, TaskPanelItem>();
       const taskStatesById = new Map<string, State<Task>>();
-      const [linkedTask, firstPage] = await Promise.all([
-        session.hasLink('task')
-          ? session
-              .follow('task')
-              .get()
-              .catch(() => null)
-          : Promise.resolve(null),
-        session.follow('tasks').refresh(),
-      ]);
-
-      const linkedTaskItem = linkedTask as
-        | Parameters<typeof buildTaskPanelItem>[0]
-        | null;
-
-      if (linkedTaskItem) {
-        taskStatesById.set(linkedTaskItem.data.id, linkedTaskItem);
-        itemsById.set(
-          linkedTaskItem.data.id,
-          buildTaskPanelItem(linkedTaskItem),
-        );
-      }
+      const firstPage = await projectState
+        .follow('tasks', {
+          page: 1,
+          pageSize: 50,
+          sessionId: session.data.id,
+        })
+        .refresh();
 
       const appendPage = (page: typeof firstPage) => {
         for (const taskState of page.collection) {
@@ -454,7 +440,7 @@ export function ShellsSession(props: ShellsSessionProps) {
 
       return Array.from(itemsById.values());
     },
-    [],
+    [projectState],
   );
 
   useEffect(() => {
@@ -742,9 +728,7 @@ export function ShellsSession(props: ShellsSessionProps) {
         selectedSession
           ? {
               hierarchyLabel: selectedSession.data.parentSession
-                ? selectedSession.data.task?.id
-                  ? '任务子会话'
-                  : '子会话'
+                ? '子会话'
                 : '根会话',
               label: sessionDisplayName(selectedSession),
               lastActivityAt:
@@ -755,7 +739,6 @@ export function ShellsSession(props: ShellsSessionProps) {
                 selectedSession.data.provider ?? sessionDefaults.providerId,
               specialistId: selectedSession.data.specialistId,
               status: selectedSession.data.acpStatus,
-              taskId: selectedSession.data.task?.id ?? null,
             }
           : null
       }

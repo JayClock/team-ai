@@ -272,7 +272,6 @@ describe('task run routes', () => {
     expect(retriedSession).toMatchObject({
       id: retriedRun.sessionId,
       acpStatus: 'ready',
-      task: { id: task.id },
     });
     expect(taskRunsResponse.statusCode).toBe(200);
     expect(taskRunsResponse.json()).toMatchObject({

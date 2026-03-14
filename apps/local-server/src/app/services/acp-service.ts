@@ -691,7 +691,6 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     name: row.name,
     provider: row.provider,
     specialistId: row.specialist_id,
-    task: row.task_id ? { id: row.task_id } : null,
     cwd: row.cwd ?? '',
     startedAt: row.started_at,
     lastActivityAt: row.last_activity_at,
