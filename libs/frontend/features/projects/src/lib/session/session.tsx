@@ -10,22 +10,6 @@ import {
   type Task,
 } from '@shared/schema';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Input,
   Sheet,
   SheetContent,
   toast,
@@ -72,7 +56,6 @@ type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
 export type ShellsSessionProps = {
   initialSessionId?: string;
-  onBack?: () => void;
   onPendingPromptConsumed?: () => void;
   onSessionNavigate?: (sessionId: string) => void;
   pendingPrompt?: string | null;
@@ -142,8 +125,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     create,
     select,
     prompt,
-    rename,
-    deleteSession,
     ingestEvents,
   } = useAcpSession(projectState, {
     actorUserId: me.id,
@@ -159,7 +140,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
-  const [mobileSessionsOpen, setMobileSessionsOpen] = useState(false);
   const [mobileInspectorOpen, setMobileInspectorOpen] = useState(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<
@@ -167,11 +147,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   >(null);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
   const [rightSidebarWidth, setRightSidebarWidth] = useState(480);
-  const [renameDialogSession, setRenameDialogSession] =
-    useState<State<AcpSessionSummary> | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-  const [deleteDialogSession, setDeleteDialogSession] =
-    useState<State<AcpSessionSummary> | null>(null);
   const [resizeMode, setResizeMode] = useState<'left' | 'right' | null>(null);
   const [preferredRole, setPreferredRole] =
     useState<WorkbenchSessionRole | null>(null);
@@ -581,48 +556,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     [onSessionNavigate, select],
   );
 
-  const submitRename = useCallback(async () => {
-    const session = renameDialogSession;
-    if (!session) {
-      return;
-    }
-    const nextName = renameValue.trim();
-    if (!nextName) {
-      toast.error('会话名称不能为空');
-      return;
-    }
-    try {
-      await rename({
-        session: session.data.id,
-        name: nextName,
-      });
-      await loadSessions();
-      setRenameDialogSession(null);
-      toast.success('会话已重命名');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '重命名会话失败';
-      toast.error(message);
-    }
-  }, [loadSessions, rename, renameDialogSession, renameValue]);
-
-  const confirmDelete = useCallback(async () => {
-    const session = deleteDialogSession;
-    if (!session) {
-      return;
-    }
-    try {
-      await deleteSession({
-        session: session.data.id,
-      });
-      await loadSessions();
-      setDeleteDialogSession(null);
-      toast.success('会话已删除');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '删除会话失败';
-      toast.error(message);
-    }
-  }, [deleteDialogSession, deleteSession, loadSessions]);
-
   useEffect(() => {
     if (!initialSessionId || sessionsLoading) {
       return;
@@ -697,14 +630,8 @@ export function ShellsSession(props: ShellsSessionProps) {
     };
   }, [resizeMode]);
 
-  const openRenameDialog = useCallback((session: State<AcpSessionSummary>) => {
-    setRenameDialogSession(session);
-    setRenameValue(session.data.name ?? sessionDisplayName(session));
-  }, []);
-
   const handleSidebarSessionSelect = useCallback(
     (session: State<AcpSessionSummary>) => {
-      setMobileSessionsOpen(false);
       void selectSessionFromList(session);
     },
     [selectSessionFromList],
@@ -726,7 +653,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const handleOpenTaskContext = useCallback(
     (session: State<AcpSessionSummary>) => {
       openInspectorTab('tasks');
-      setMobileSessionsOpen(false);
       void selectSessionFromList(session);
     },
     [openInspectorTab, selectSessionFromList],
@@ -810,8 +736,6 @@ export function ShellsSession(props: ShellsSessionProps) {
 
   const leftSidebar = (
     <ProjectSessionHistorySidebar
-      onDeleteSession={(session) => setDeleteDialogSession(session)}
-      onOpenRename={openRenameDialog}
       onOpenTaskContext={handleOpenTaskContext}
       onSelectSession={handleSidebarSessionSelect}
       projectTitle={projectTitle}
@@ -928,12 +852,6 @@ export function ShellsSession(props: ShellsSessionProps) {
         </div>
       </div>
 
-      <Sheet open={mobileSessionsOpen} onOpenChange={setMobileSessionsOpen}>
-        <SheetContent side="left" className="w-[360px] p-0 sm:max-w-[360px]">
-          {leftSidebar}
-        </SheetContent>
-      </Sheet>
-
       <Sheet open={mobileInspectorOpen} onOpenChange={setMobileInspectorOpen}>
         <SheetContent side="right" className="w-[420px] p-0 sm:max-w-[420px]">
           {inspector}
@@ -943,64 +861,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       {resizeMode ? (
         <div className="fixed inset-0 z-40 cursor-col-resize" />
       ) : null}
-
-      <Dialog
-        open={Boolean(renameDialogSession)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setRenameDialogSession(null);
-          }
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>重命名会话</DialogTitle>
-            <DialogDescription>请让标题与当前任务保持一致。</DialogDescription>
-          </DialogHeader>
-          <Input
-            value={renameValue}
-            onChange={(event) => setRenameValue(event.target.value)}
-            placeholder="输入会话标题"
-            autoFocus
-          />
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setRenameDialogSession(null)}
-            >
-              取消
-            </Button>
-            <Button onClick={() => void submitRename()}>保存</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog
-        open={Boolean(deleteDialogSession)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteDialogSession(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>删除会话</AlertDialogTitle>
-            <AlertDialogDescription>
-              删除后当前会话记录将无法恢复。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => void confirmDelete()}
-            >
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

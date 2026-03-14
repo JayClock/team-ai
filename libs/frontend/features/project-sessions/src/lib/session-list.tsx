@@ -2,11 +2,6 @@ import { State } from '@hateoas-ts/resource';
 import { AcpSessionSummary } from '@shared/schema';
 import {
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -19,10 +14,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   MessageSquareTextIcon,
-  MoreHorizontalIcon,
-  PencilIcon,
   SparklesIcon,
-  Trash2Icon,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
@@ -117,8 +109,6 @@ function sessionHierarchyLabel(
 
 export function SessionList(props: {
   loading: boolean;
-  onDelete: (session: State<AcpSessionSummary>) => void;
-  onOpenRename: (session: State<AcpSessionSummary>) => void;
   onOpenTaskContext?: (session: State<AcpSessionSummary>) => void;
   onSelect: (session: State<AcpSessionSummary>) => void;
   selectedSessionId?: string;
@@ -126,8 +116,6 @@ export function SessionList(props: {
 }) {
   const {
     loading,
-    onDelete,
-    onOpenRename,
     onOpenTaskContext,
     onSelect,
     selectedSessionId,
@@ -188,8 +176,6 @@ export function SessionList(props: {
                 depth={0}
                 expandedIdSet={expandedIdSet}
                 node={node}
-                onDelete={onDelete}
-                onOpenRename={onOpenRename}
                 onOpenTaskContext={onOpenTaskContext}
                 onSelect={onSelect}
                 onToggle={toggleSessionBranch}
@@ -208,8 +194,6 @@ function SessionTreeItem(props: {
   depth: number;
   expandedIdSet: Set<string>;
   node: SessionTreeNode;
-  onDelete: (session: State<AcpSessionSummary>) => void;
-  onOpenRename: (session: State<AcpSessionSummary>) => void;
   onOpenTaskContext?: (session: State<AcpSessionSummary>) => void;
   onSelect: (session: State<AcpSessionSummary>) => void;
   onToggle: (sessionId: string) => void;
@@ -220,8 +204,6 @@ function SessionTreeItem(props: {
     depth,
     expandedIdSet,
     node,
-    onDelete,
-    onOpenRename,
     onOpenTaskContext,
     onSelect,
     onToggle,
@@ -381,28 +363,6 @@ function SessionTreeItem(props: {
             ) : null}
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm">
-                <MoreHorizontalIcon />
-                <span className="sr-only">会话操作</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onOpenRename(node.session)}>
-                <PencilIcon />
-                重命名
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => onDelete(node.session)}
-              >
-                <Trash2Icon />
-                删除
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
@@ -415,8 +375,6 @@ function SessionTreeItem(props: {
                 depth={depth + 1}
                 expandedIdSet={expandedIdSet}
                 node={child}
-                onDelete={onDelete}
-                onOpenRename={onOpenRename}
                 onOpenTaskContext={onOpenTaskContext}
                 onSelect={onSelect}
                 onToggle={onToggle}

@@ -11,8 +11,6 @@ describe('SessionList', () => {
     render(
       <SessionList
         loading={false}
-        onDelete={vi.fn()}
-        onOpenRename={vi.fn()}
         onSelect={vi.fn()}
         sessions={buildSessionTree([childSession, rootSession])}
       />,
@@ -34,8 +32,6 @@ describe('SessionList', () => {
     render(
       <SessionList
         loading={false}
-        onDelete={vi.fn()}
-        onOpenRename={vi.fn()}
         onSelect={vi.fn()}
         selectedSessionId={childSession.data.id}
         sessions={buildSessionTree([childSession, rootSession])}
@@ -53,8 +49,6 @@ describe('SessionList', () => {
     render(
       <SessionList
         loading={false}
-        onDelete={vi.fn()}
-        onOpenRename={vi.fn()}
         onOpenTaskContext={onOpenTaskContext}
         onSelect={vi.fn()}
         sessions={buildSessionTree([childSession, rootSession])}

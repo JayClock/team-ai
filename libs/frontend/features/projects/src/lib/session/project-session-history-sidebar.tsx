@@ -15,8 +15,6 @@ import {
 } from './project-session-workbench.shared';
 
 export function ProjectSessionHistorySidebar(props: {
-  onDeleteSession: (session: State<AcpSessionSummary>) => void;
-  onOpenRename: (session: State<AcpSessionSummary>) => void;
   onOpenTaskContext?: (session: State<AcpSessionSummary>) => void;
   onSelectSession: (session: State<AcpSessionSummary>) => void;
   projectTitle: string;
@@ -41,8 +39,6 @@ export function ProjectSessionHistorySidebar(props: {
   sessionsLoading: boolean;
 }) {
   const {
-    onDeleteSession,
-    onOpenRename,
     onOpenTaskContext,
     onSelectSession,
     projectTitle,
@@ -163,8 +159,6 @@ export function ProjectSessionHistorySidebar(props: {
           loading={sessionsLoading}
           sessions={sessions}
           selectedSessionId={selectedSessionId}
-          onDelete={onDeleteSession}
-          onOpenRename={onOpenRename}
           onOpenTaskContext={onOpenTaskContext}
           onSelect={onSelectSession}
         />

@@ -44,10 +44,6 @@ export default function ProjectSessionPage() {
     [navigate, projectState],
   );
 
-  const handleBack = useCallback(() => {
-    navigate('/');
-  }, [navigate]);
-
   const safeSessionId = useMemo(() => sessionId ?? undefined, [sessionId]);
 
   if (projects.length === 0) {
@@ -74,7 +70,6 @@ export default function ProjectSessionPage() {
       <ProjectSessionWorkbench
         projectState={projectState}
         projectTitle={projectTitle(currentProject)}
-        onBack={handleBack}
         initialSessionId={safeSessionId}
         pendingPrompt={pendingPrompt}
         onPendingPromptConsumed={handlePendingPromptConsumed}
