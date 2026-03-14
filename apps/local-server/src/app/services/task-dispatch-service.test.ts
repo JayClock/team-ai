@@ -162,7 +162,7 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
-        parentSessionId: 'acps_duplicate_parent',
+        sessionId: 'acps_duplicate_parent',
         taskId: task.id,
       },
     );
@@ -178,7 +178,7 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
-        parentSessionId: 'acps_duplicate_parent',
+        sessionId: 'acps_duplicate_parent',
         taskId: task.id,
       },
     );
@@ -248,7 +248,7 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
-        parentSessionId: 'acps_provider_fallback_parent',
+        sessionId: 'acps_provider_fallback_parent',
         taskId: task.id,
       },
     );
@@ -303,7 +303,7 @@ describe('task dispatch service', () => {
           promptSession: vi.fn(async () => undefined),
         },
         {
-          parentSessionId: 'acps_provider_exhausted_parent',
+          sessionId: 'acps_provider_exhausted_parent',
           taskId: task.id,
         },
       ),
@@ -359,7 +359,7 @@ describe('task dispatch service', () => {
           promptSession: vi.fn(async () => undefined),
         },
         {
-          parentSessionId: 'acps_child_failure_parent',
+          sessionId: 'acps_child_failure_parent',
           taskId: task.id,
         },
       ),
@@ -415,7 +415,7 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
-        parentSessionId: 'acps_developer_parent',
+        sessionId: 'acps_developer_parent',
         taskId: task.id,
       },
     );
@@ -479,7 +479,7 @@ describe('task dispatch service', () => {
         promptSession: vi.fn(async () => undefined),
       },
       {
-        parentSessionId: 'acps_dispatch_diagnostics_parent',
+        sessionId: 'acps_dispatch_diagnostics_parent',
         taskId: readyTask.id,
       },
       {
@@ -498,7 +498,7 @@ describe('task dispatch service', () => {
         promptSession: vi.fn(async () => undefined),
       },
       {
-        parentSessionId: 'acps_dispatch_diagnostics_parent',
+        sessionId: 'acps_dispatch_diagnostics_parent',
         taskId: completedTask.id,
       },
       {

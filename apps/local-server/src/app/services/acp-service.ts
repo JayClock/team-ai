@@ -76,7 +76,6 @@ interface AcpSessionRow {
   specialist_id: string | null;
   started_at: string | null;
   state: AcpSessionState;
-  task_id?: string | null;
 }
 
 interface AcpEventRow {
@@ -124,6 +123,7 @@ interface TaskExecutionRow {
 interface TaskExecutionRunRow {
   id: string;
   status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  task_id: string;
 }
 
 interface SessionHistorySummaryRow {
@@ -450,23 +450,21 @@ function parseEventRecord(value: string | null): Record<string, unknown> {
 
 function getLatestTaskExecutionRun(
   sqlite: Database,
-  taskId: string,
   sessionId: string,
 ): TaskExecutionRunRow | null {
   return (
     (sqlite
       .prepare(
         `
-          SELECT id, status
+          SELECT id, status, task_id
           FROM project_task_runs
-          WHERE task_id = ?
-            AND session_id = ?
+          WHERE session_id = ?
             AND deleted_at IS NULL
           ORDER BY created_at DESC, updated_at DESC
           LIMIT 1
         `,
       )
-      .get(taskId, sessionId) as TaskExecutionRunRow | undefined) ?? null
+      .get(sessionId) as TaskExecutionRunRow | undefined) ?? null
   );
 }
 
@@ -603,7 +601,8 @@ async function syncTaskExecutionOutcome(
   taskStatusOverride?: string,
 ) {
   const session = getSessionRow(sqlite, sessionId);
-  if (!session.task_id) {
+  const taskRun = getLatestTaskExecutionRun(sqlite, sessionId);
+  if (!taskRun) {
     return;
   }
 
@@ -615,7 +614,7 @@ async function syncTaskExecutionOutcome(
   );
 
   updateTaskExecutionState(sqlite, {
-    taskId: session.task_id,
+    taskId: taskRun.task_id,
     executionSessionId: null,
     resultSessionId: sessionId,
     completionSummary: outcome.summary,
@@ -623,26 +622,6 @@ async function syncTaskExecutionOutcome(
     verificationVerdict: outcome.verificationVerdict,
     status: taskStatusOverride ?? state,
   });
-
-  const taskRun = getLatestTaskExecutionRun(sqlite, session.task_id, sessionId);
-  if (!taskRun) {
-    logDiagnostic(
-      options.logger,
-      'warn',
-      {
-        event: 'task.run.transition.missing',
-        projectId: session.project_id,
-        reason: 'task_execution_outcome_missing_run',
-        sessionId,
-        source: options.source ?? 'acp-service',
-        state,
-        taskId: session.task_id,
-      },
-      'Task execution outcome did not find a matching task run',
-    );
-
-    return;
-  }
 
   const runInput = {
     completedAt: session.completed_at ?? new Date().toISOString(),
@@ -731,7 +710,6 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           state,
           runtime_session_id,
           specialist_id,
-          task_id,
           failure_reason,
           last_event_id,
           started_at,
@@ -1115,7 +1093,6 @@ async function updateSessionFromPromptResponse(
   response: PromptResponse,
   options: AcpServiceOptions = {},
 ) {
-  const session = getSessionRow(sqlite, sessionId);
   let state: AcpSessionState = 'RUNNING';
   if (response.stopReason === 'cancelled') {
     state = 'CANCELLED';
@@ -1143,15 +1120,13 @@ async function updateSessionFromPromptResponse(
     lastActivityAt: completedAt,
   });
 
-  if (session.task_id) {
-    await syncTaskExecutionOutcome(
-      sqlite,
-      sessionId,
-      state === 'CANCELLED' ? 'CANCELLED' : 'COMPLETED',
-      undefined,
-      options,
-    );
-  }
+  await syncTaskExecutionOutcome(
+    sqlite,
+    sessionId,
+    state === 'CANCELLED' ? 'CANCELLED' : 'COMPLETED',
+    undefined,
+    options,
+  );
 }
 
 async function ensureRuntimeLoaded(
@@ -1281,7 +1256,6 @@ export async function createAcpSession(
           acp_error,
           state,
           runtime_session_id,
-          task_id,
           failure_reason,
           last_event_id,
           started_at,
@@ -1305,7 +1279,6 @@ export async function createAcpSession(
           @acpError,
           @state,
           NULL,
-          @taskId,
           NULL,
           NULL,
           @startedAt,
@@ -1330,7 +1303,6 @@ export async function createAcpSession(
       acpStatus: 'connecting',
       acpError: null,
       state: 'PENDING',
-      taskId: task?.id ?? null,
       startedAt: now,
       lastActivityAt: now,
       createdAt: now,
@@ -1498,7 +1470,6 @@ export async function listAcpSessionsByProject(
           acp_error,
           state,
           runtime_session_id,
-          task_id,
           failure_reason,
           last_event_id,
           started_at,
@@ -1764,16 +1735,14 @@ export async function promptAcpSession(
       completedAt: new Date().toISOString(),
     });
 
-    if (session.task_id) {
-      await syncTaskExecutionOutcome(
-        sqlite,
-        sessionId,
-        'FAILED',
-        message,
-        options,
-        recovery.taskStatus,
-      );
-    }
+    await syncTaskExecutionOutcome(
+      sqlite,
+      sessionId,
+      'FAILED',
+      message,
+      options,
+      recovery.taskStatus,
+    );
 
     throw error;
   }
@@ -1821,15 +1790,13 @@ export async function cancelAcpSession(
     failureReason: reason ?? null,
   });
 
-  if (session.task_id) {
-    await syncTaskExecutionOutcome(
-      sqlite,
-      sessionId,
-      'CANCELLED',
-      reason,
-      options,
-    );
-  }
+  await syncTaskExecutionOutcome(
+    sqlite,
+    sessionId,
+    'CANCELLED',
+    reason,
+    options,
+  );
 
   return await getAcpSessionById(sqlite, sessionId);
 }

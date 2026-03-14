@@ -517,17 +517,14 @@ describe('acp route', () => {
       projectId: project.id,
       taskId: task.id,
     });
-    const failedChildSessionId = fastify.sqlite
-      .prepare(
-        `
-          SELECT id
-          FROM project_acp_sessions
-          WHERE task_id = ? AND deleted_at IS NULL
-          ORDER BY created_at DESC
-          LIMIT 1
-        `,
-      )
-      .get(task.id) as { id: string };
+    const failedChildSessionId = taskRuns.items[0]
+      ? { id: taskRuns.items[0].sessionId as string }
+      : null;
+
+    if (!failedChildSessionId?.id) {
+      throw new Error('Expected a failed child session to be recorded');
+    }
+
     const failedChildSession = await getAcpSessionById(
       fastify.sqlite,
       failedChildSessionId.id,
