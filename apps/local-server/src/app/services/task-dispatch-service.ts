@@ -49,6 +49,7 @@ export interface DispatchTaskCallbacks {
 }
 
 export interface DispatchTaskInput {
+  sessionId: string;
   retryOfRunId?: string | null;
   taskId: string;
 }
@@ -259,13 +260,9 @@ async function recoverTaskForRetry(
 function buildDispatchLogContext(
   task: Pick<
     TaskPayload,
-    | 'executionSessionId'
-    | 'id'
-    | 'kind'
-    | 'projectId'
-    | 'status'
-    | 'triggerSessionId'
+    'executionSessionId' | 'id' | 'kind' | 'projectId' | 'status'
   >,
+  input: Pick<DispatchTaskInput, 'sessionId'>,
   options: DispatchTaskOptions,
 ) {
   return {
@@ -275,7 +272,7 @@ function buildDispatchLogContext(
     taskKind: task.kind,
     taskStatus: task.status,
     triggerReason: options.triggerReason ?? null,
-    triggerSessionId: task.triggerSessionId,
+    triggerSessionId: input.sessionId,
     triggerSource: options.triggerSource ?? null,
     projectId: task.projectId,
   };
@@ -299,7 +296,7 @@ export async function dispatchTask(
         event: 'task.dispatch.blocked',
         reason: 'TASK_ALREADY_DISPATCHING',
         retryOfRunId: input.retryOfRunId ?? null,
-        ...buildDispatchLogContext(initialTask, options),
+        ...buildDispatchLogContext(initialTask, input, options),
       },
       'Task dispatch skipped because another attempt is active',
     );
@@ -341,7 +338,7 @@ export async function dispatchTask(
           retryOfRunId: input.retryOfRunId ?? null,
           unresolvedDependencyIds: dispatchability.unresolvedDependencyIds,
           blockReasons: dispatchability.reasons,
-          ...buildDispatchLogContext(dispatchability.task, options),
+          ...buildDispatchLogContext(dispatchability.task, input, options),
         },
         'Task dispatch blocked by current task state',
       );
@@ -361,8 +358,24 @@ export async function dispatchTask(
 
     const triggerSession = getTriggerSessionRow(
       sqlite,
-      dispatchability.task.triggerSessionId as string,
+      input.sessionId,
     );
+
+    if (triggerSession.project_id !== dispatchability.task.projectId) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/task-dispatch-trigger-session-mismatch',
+        title: 'Task Dispatch Trigger Session Mismatch',
+        status: 409,
+        detail:
+          `Task dispatch trigger session ${input.sessionId} does not belong to ` +
+          `project ${dispatchability.task.projectId}`,
+        context: {
+          projectId: dispatchability.task.projectId,
+          sessionId: input.sessionId,
+          taskId: dispatchability.task.id,
+        },
+      });
+    }
     const providerCandidates = resolveDispatchProvider(
       dispatchability.task,
       triggerSession,
@@ -403,7 +416,7 @@ export async function dispatchTask(
           provider,
           retryOfRunId: input.retryOfRunId ?? null,
           triedProviders: providerCandidates,
-          ...buildDispatchLogContext(dispatchability.task, options),
+          ...buildDispatchLogContext(dispatchability.task, input, options),
         },
         'Task dispatch degraded to an available ACP provider',
       );
@@ -432,7 +445,7 @@ export async function dispatchTask(
         resolvedRole: dispatchability.resolvedRole,
         retryOfRunId: input.retryOfRunId ?? null,
         specialistId: specialist.id,
-        ...buildDispatchLogContext(hydratedTask, options),
+        ...buildDispatchLogContext(hydratedTask, input, options),
       },
       'Dispatching task to a child ACP session',
     );
@@ -467,7 +480,7 @@ export async function dispatchTask(
         retryOfRunId: input.retryOfRunId ?? null,
         sessionId: createdSession.id,
         specialistId: specialist.id,
-        ...buildDispatchLogContext(hydratedTask, options),
+        ...buildDispatchLogContext(hydratedTask, input, options),
       },
       'Task dispatch completed successfully',
     );
@@ -496,7 +509,7 @@ export async function dispatchTask(
         event: 'task.dispatch.failed',
         retryOfRunId: input.retryOfRunId ?? null,
         ...diagnostics,
-        ...buildDispatchLogContext(initialTask, options),
+        ...buildDispatchLogContext(initialTask, input, options),
       },
       'Task dispatch failed',
     );
@@ -550,11 +563,25 @@ export async function dispatchTasks(
   const results: DispatchTaskResult[] = [];
 
   for (const candidate of candidates.slice(0, limit)) {
+    if (!input.sessionId) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/task-dispatch-trigger-session-missing',
+        title: 'Task Dispatch Trigger Session Missing',
+        status: 409,
+        detail: `Task ${candidate.task.id} cannot be dispatched without a parent session`,
+        context: {
+          projectId: input.projectId,
+          taskId: candidate.task.id,
+        },
+      });
+    }
+
     results.push(
       await dispatchTask(
         sqlite,
         callbacks,
         {
+          sessionId: input.sessionId,
           taskId: candidate.task.id,
         },
         options,

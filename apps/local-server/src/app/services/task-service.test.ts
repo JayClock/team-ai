@@ -266,7 +266,7 @@ describe('task service', () => {
     });
   });
 
-  it('evaluates task dispatchability using status, execution session, trigger session, and dependencies', async () => {
+  it('evaluates task dispatchability using status, execution session, and dependencies', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Dispatchability Project',
@@ -338,7 +338,10 @@ describe('task service', () => {
       resolvedRole: 'CRAFTER',
       unresolvedDependencyIds: [],
     });
-    expect(dispatchableTasks.map((item) => item.task.id)).toEqual([task.id]);
+    expect(dispatchableTasks.map((item) => item.task.id)).toEqual(
+      expect.arrayContaining([task.id]),
+    );
+    expect(dispatchableTasks).toHaveLength(2);
   });
 
   it('updates task status without dispatching child ACP sessions', async () => {
@@ -444,6 +447,7 @@ describe('task service', () => {
 
     const readyResult = await executeTask(sqlite, readyTask.id, {
       callbacks,
+      sessionId: rootSessionId,
     });
 
     expect(readyResult.dispatch).toMatchObject({
@@ -458,6 +462,7 @@ describe('task service', () => {
 
     const failedResult = await executeTask(sqlite, failedTask.id, {
       callbacks,
+      sessionId: rootSessionId,
     });
 
     expect(failedResult.task.status).toBe('READY');
@@ -477,6 +482,7 @@ describe('task service', () => {
     await expect(
       executeTask(sqlite, completedTask.id, {
         callbacks,
+        sessionId: rootSessionId,
       }),
     ).rejects.toMatchObject({
       status: 409,
@@ -546,6 +552,7 @@ describe('task service', () => {
           createSession,
           promptSession,
         },
+        sessionId: rootSessionId,
       }),
     ).rejects.toMatchObject({
       status: 409,

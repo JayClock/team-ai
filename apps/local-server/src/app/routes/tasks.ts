@@ -37,6 +37,10 @@ const taskParamsSchema = z.object({
   taskId: z.string().min(1),
 });
 
+const taskExecuteBodySchema = z.object({
+  sessionId: z.string().trim().min(1),
+});
+
 const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
 const stringArraySchema = z.array(z.string().trim().min(1));
 const nullableTaskKindSchema = z.union([
@@ -255,9 +259,11 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/tasks/:taskId/execute', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
+    const body = taskExecuteBodySchema.parse(request.body);
     const result = await executeTask(fastify.sqlite, taskId, {
       callbacks: dispatchCallbacks,
       logger: request.log,
+      sessionId: body.sessionId,
     });
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);

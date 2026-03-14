@@ -5,7 +5,11 @@ import {
   presentTaskRun,
   presentTaskRunList,
 } from '../presenters/task-run-presenter';
-import { createAcpSession, promptAcpSession } from '../services/acp-service';
+import {
+  createAcpSession,
+  getAcpSessionById,
+  promptAcpSession,
+} from '../services/acp-service';
 import {
   createTaskRun,
   getLatestTaskRunByTaskId,
@@ -207,9 +211,26 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post('/task-runs/:taskRunId/retry', async (request, reply) => {
     const { taskRunId } = taskRunParamsSchema.parse(request.params);
     const sourceRun = await getRetryableTaskRunById(fastify.sqlite, taskRunId);
+    const sourceSession = sourceRun.sessionId
+      ? await getAcpSessionById(fastify.sqlite, sourceRun.sessionId)
+      : null;
+    const executionSessionId =
+      sourceSession?.parentSession?.id ?? sourceSession?.id ?? null;
+
+    if (!executionSessionId) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/task-run-retry-session-missing',
+        title: 'Task Run Retry Session Missing',
+        status: 409,
+        detail:
+          `Task run ${taskRunId} cannot be retried because no parent session is available`,
+      });
+    }
+
     const result = await executeTask(fastify.sqlite, sourceRun.taskId, {
       callbacks: dispatchCallbacks,
       logger: request.log,
+      sessionId: executionSessionId,
       retryOfRunId: sourceRun.id,
     });
 

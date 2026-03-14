@@ -377,6 +377,7 @@ describe('mcp route', () => {
           name: 'task_execute',
           arguments: {
             projectId: project.id,
+            sessionId: rootSessionId,
             taskId: task.id,
           },
         },
@@ -497,6 +498,7 @@ describe('mcp route', () => {
           name: 'task_execute',
           arguments: {
             projectId: project.id,
+            sessionId: rootSessionId,
             taskId: completedTask.id,
           },
         },

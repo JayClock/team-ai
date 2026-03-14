@@ -143,6 +143,7 @@ const taskUpdateArgsSchema = z
 
 const taskExecuteArgsSchema = z.object({
   projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1),
   taskId: z.string().trim().min(1),
 });
 
@@ -274,9 +275,10 @@ const mcpToolDefinitions: readonly McpToolDefinition[] = [
         'Get a single project task by id from the local desktop runtime.',
       inputSchema: {
         type: 'object',
-        required: ['projectId', 'taskId'],
+        required: ['projectId', 'sessionId', 'taskId'],
         properties: {
           projectId: { type: 'string' },
+          sessionId: { type: 'string' },
           taskId: { type: 'string' },
         },
       },
@@ -345,9 +347,10 @@ const mcpToolDefinitions: readonly McpToolDefinition[] = [
         'Move a task into execution and trigger dispatch in the local desktop runtime.',
       inputSchema: {
         type: 'object',
-        required: ['projectId', 'taskId'],
+        required: ['projectId', 'taskId', 'sessionId'],
         properties: {
           projectId: { type: 'string' },
+          sessionId: { type: 'string' },
           taskId: { type: 'string' },
         },
       },
@@ -1160,6 +1163,7 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 await executeTask(fastify.sqlite, args.taskId, {
                   callbacks: dispatchCallbacks,
                   logger: request.log,
+                  sessionId: args.sessionId,
                 }),
                 auditContext,
               );

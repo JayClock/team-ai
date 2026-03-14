@@ -95,8 +95,7 @@ export type TaskDispatchBlockReason =
   | 'TASK_EXECUTION_ALREADY_ACTIVE'
   | 'TASK_KIND_NOT_DISPATCHABLE'
   | 'TASK_ROLE_NOT_RESOLVED'
-  | 'TASK_STATUS_NOT_DISPATCHABLE'
-  | 'TASK_TRIGGER_SESSION_MISSING';
+  | 'TASK_STATUS_NOT_DISPATCHABLE';
 
 export const taskStatusValues = [
   'PENDING',
@@ -127,6 +126,7 @@ export interface ExecuteTaskDispatchAttempt {
 export interface ExecuteTaskOptions {
   callbacks: DispatchTaskCallbacks;
   logger?: DiagnosticLogger;
+  sessionId: string;
   retryOfRunId?: string | null;
 }
 
@@ -654,23 +654,6 @@ async function getTaskDispatchabilityForTask(
 
   if (task.executionSessionId) {
     reasons.push('TASK_EXECUTION_ALREADY_ACTIVE');
-  }
-
-  if (!task.triggerSessionId) {
-    reasons.push('TASK_TRIGGER_SESSION_MISSING');
-  } else {
-    try {
-      const session = await getAcpSessionById(sqlite, task.triggerSessionId);
-      if (session.project.id !== task.projectId) {
-        reasons.push('TASK_TRIGGER_SESSION_MISSING');
-      }
-    } catch (error) {
-      if (error instanceof ProblemError && error.status === 404) {
-        reasons.push('TASK_TRIGGER_SESSION_MISSING');
-      } else {
-        throw error;
-      }
-    }
   }
 
   const unresolvedDependencyIds = await resolveUnresolvedDependencyIds(
@@ -1347,6 +1330,7 @@ export async function executeTask(
       sqlite,
       options.callbacks,
       {
+        sessionId: options.sessionId,
         retryOfRunId,
         taskId,
       },
