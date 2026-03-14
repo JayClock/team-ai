@@ -35,7 +35,6 @@
     "src/**/*.spec.js",
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
-    "src/lib/components/project-prompt-input.tsx",
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"

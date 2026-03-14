@@ -46,6 +46,7 @@ import {
   type WorkbenchSessionRuntimeProfile,
 } from './session-runtime-profile';
 import { useAcpProviders } from './use-acp-providers';
+import { type ProjectRepositoryOption } from '../components/project-composer-input';
 
 const STREAM_RETRY_DELAY_MS = 1500;
 const TASK_POLL_INTERVAL_MS = 3000;
@@ -470,13 +471,47 @@ export function ShellsSession(props: ShellsSessionProps) {
       refreshSessions: loadSessions,
     });
   const sessionPromptProviderPicker = selectedSession
-    ? undefined
+    ? {
+        disabled: true,
+        loading: providersLoading,
+        onValueChange: setSelectedProviderId,
+        providers,
+        value:
+          selectedSession.data.provider ??
+          selectedProviderId ??
+          selectedProvider?.id,
+      }
     : {
         loading: providersLoading,
         onValueChange: setSelectedProviderId,
         providers,
         value: selectedProviderId || selectedProvider?.id,
       };
+  const sessionPromptProjectPicker = useMemo(
+    () => ({
+      disabled: true,
+      projects: [
+        {
+          id: projectState.data.id,
+          repoPath: projectState.data.repoPath,
+          sourceUrl: projectState.data.sourceUrl,
+          title: projectTitle,
+        },
+      ] satisfies ProjectRepositoryOption[],
+      value: {
+        id: projectState.data.id,
+        repoPath: projectState.data.repoPath,
+        sourceUrl: projectState.data.sourceUrl,
+        title: projectTitle,
+      },
+    }),
+    [
+      projectState.data.id,
+      projectState.data.repoPath,
+      projectState.data.sourceUrl,
+      projectTitle,
+    ],
+  );
 
   const stopStream = useCallback((manual: boolean) => {
     allowReconnectRef.current = !manual;
@@ -845,6 +880,7 @@ export function ShellsSession(props: ShellsSessionProps) {
               hasPendingAssistantMessage={hasPendingAssistantMessage}
               onSubmit={handlePromptSubmit}
               providerPicker={sessionPromptProviderPicker}
+              projectPicker={sessionPromptProjectPicker}
               selectedSession={selectedSession}
             />
           </main>

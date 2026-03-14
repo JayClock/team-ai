@@ -28,18 +28,18 @@ export type {
   ProjectRepositoryPickerProps,
 } from './project-repository-picker';
 
-type ProjectPromptSubmitInput = {
+export type ProjectComposerSubmitInput = {
   files: unknown[];
   provider?: string;
   text: string;
 };
 
-export type ProjectPromptInputProps = {
+export type ProjectComposerInputProps = {
   ariaLabel: string;
   disabled?: boolean;
   footerEnd?: ReactNode;
   footerStart?: ReactNode;
-  onSubmit: (input: ProjectPromptSubmitInput) => Promise<void> | void;
+  onSubmit: (input: ProjectComposerSubmitInput) => Promise<void> | void;
   placeholder: string;
   providerPicker?: ProjectProviderPickerProps;
   projectPicker?: ProjectRepositoryPickerProps;
@@ -47,15 +47,15 @@ export type ProjectPromptInputProps = {
   submitPending?: boolean;
 };
 
-export function ProjectPromptInput(props: ProjectPromptInputProps) {
+export function ProjectComposerInput(props: ProjectComposerInputProps) {
   return (
     <PromptInputProvider>
-      <ProjectPromptInputContent {...props} />
+      <ProjectComposerInputContent {...props} />
     </PromptInputProvider>
   );
 }
 
-function ProjectPromptInputContent(props: ProjectPromptInputProps) {
+function ProjectComposerInputContent(props: ProjectComposerInputProps) {
   const {
     ariaLabel,
     disabled,

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { ProjectPromptInput } from './project-prompt-input';
+import { ProjectComposerInput } from './project-composer-input';
 
 class ResizeObserverMock {
   disconnect() {
@@ -33,10 +33,10 @@ if (htmlElementPrototype) {
   });
 }
 
-describe('ProjectPromptInput', () => {
+describe('ProjectComposerInput', () => {
   it('renders the repository picker when configured', () => {
     render(
-      <ProjectPromptInput
+      <ProjectComposerInput
         ariaLabel="项目指令输入框"
         onSubmit={() => undefined}
         placeholder="输入内容"
@@ -64,7 +64,7 @@ describe('ProjectPromptInput', () => {
 
   it('renders the selected repository pill inline', () => {
     render(
-      <ProjectPromptInput
+      <ProjectComposerInput
         ariaLabel="项目指令输入框"
         onSubmit={() => undefined}
         placeholder="输入内容"
@@ -89,15 +89,13 @@ describe('ProjectPromptInput', () => {
     );
 
     expect(screen.getByRole('button', { name: 'Project One' })).toBeTruthy();
-    expect(screen.getByText('/tmp/project-1')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '清空仓库选择' })).toBeTruthy();
   });
 
   it('submits the selected provider with the prompt payload', async () => {
     const onSubmit = vi.fn();
 
     render(
-      <ProjectPromptInput
+      <ProjectComposerInput
         ariaLabel="项目指令输入框"
         onSubmit={onSubmit}
         placeholder="输入内容"

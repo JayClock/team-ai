@@ -33,6 +33,7 @@ export type ProjectRepositoryOption = {
 };
 
 export type ProjectRepositoryPickerProps = {
+  disabled?: boolean;
   onProjectCloned?: (projectId: string) => Promise<void> | void;
   onValueChange?: (project: ProjectRepositoryOption | null) => void;
   projects: ProjectRepositoryOption[];
@@ -73,7 +74,7 @@ function isRepositoryInput(value: string): boolean {
 }
 
 export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
-  const { onProjectCloned, onValueChange, projects, value } = props;
+  const { disabled, onProjectCloned, onValueChange, projects, value } = props;
   const [activeTab, setActiveTab] = useState<PickerTab>('existing');
   const [cloneError, setCloneError] = useState<string | null>(null);
   const [cloneUrl, setCloneUrl] = useState('');
@@ -247,10 +248,14 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
     <div className="relative">
       {selectedProject ? (
         <SelectedProjectPill
+          disabled={disabled === true}
           project={selectedProject}
           showDropdown={showDropdown}
           triggerRef={triggerRef}
           onToggleDropdown={() => {
+            if (disabled) {
+              return;
+            }
             if (showDropdown) {
               setShowDropdown(false);
               return;
@@ -263,7 +268,11 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
         <Button
           ref={triggerRef}
           className="h-8 max-w-full gap-1.5 px-2.5 text-xs text-slate-600 dark:text-slate-400"
+          disabled={disabled === true}
           onClick={() => {
+            if (disabled) {
+              return;
+            }
             if (showDropdown) {
               setShowDropdown(false);
               return;
@@ -455,6 +464,7 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
 }
 
 type SelectedProjectPillProps = {
+  disabled?: boolean;
   onToggleDropdown: () => void;
   project: ProjectRepositoryOption;
   showDropdown: boolean;
@@ -462,7 +472,8 @@ type SelectedProjectPillProps = {
 };
 
 function SelectedProjectPill(props: SelectedProjectPillProps) {
-  const { onToggleDropdown, project, showDropdown, triggerRef } = props;
+  const { disabled, onToggleDropdown, project, showDropdown, triggerRef } =
+    props;
 
   return (
     <div className="flex max-w-full items-center gap-1.5">
@@ -474,6 +485,7 @@ function SelectedProjectPill(props: SelectedProjectPillProps) {
         ref={triggerRef}
         aria-expanded={showDropdown}
         className="h-8 min-w-0 max-w-[220px] gap-1.5 px-2.5 text-xs font-medium text-slate-700 dark:text-slate-200"
+        disabled={disabled === true}
         onClick={onToggleDropdown}
         title={project.title}
         type="button"

@@ -17,9 +17,10 @@ import {
 } from './project-session-workbench.shared';
 import { SessionChatMessage } from './use-project-session-chat';
 import {
-  ProjectPromptInput,
+  ProjectComposerInput,
   type ProjectProviderPickerProps,
-} from '../components/project-prompt-input';
+  type ProjectRepositoryPickerProps,
+} from '../components/project-composer-input';
 
 export function ProjectSessionConversationPane(props: {
   chatMessages: SessionChatMessage[];
@@ -30,6 +31,7 @@ export function ProjectSessionConversationPane(props: {
     text: string;
   }) => Promise<void>;
   providerPicker?: ProjectProviderPickerProps;
+  projectPicker?: ProjectRepositoryPickerProps;
   selectedSession: State<AcpSession> | null;
 }) {
   const {
@@ -37,6 +39,7 @@ export function ProjectSessionConversationPane(props: {
     hasPendingAssistantMessage,
     onSubmit,
     providerPicker,
+    projectPicker,
     selectedSession,
   } = props;
 
@@ -54,7 +57,8 @@ export function ProjectSessionConversationPane(props: {
     placeholder: selectedSession
       ? '继续当前会话...'
       : '发送第一条消息，开始新的会话...',
-    providerPicker: selectedSession ? undefined : providerPicker,
+    projectPicker,
+    providerPicker,
     submitPending: hasPendingAssistantMessage,
   };
 
@@ -166,7 +170,7 @@ export function ProjectSessionConversationPane(props: {
 
         <div className="shrink-0 border-t border-border/60 bg-background/95">
           <div className="mx-auto w-full max-w-3xl px-4 py-3 md:px-5">
-            <ProjectPromptInput {...promptInputProps} />
+            <ProjectComposerInput {...promptInputProps} />
           </div>
         </div>
       </div>

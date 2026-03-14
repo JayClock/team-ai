@@ -2,7 +2,7 @@ import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
 import {
-  ProjectPromptInput,
+  ProjectComposerInput,
   type ProjectRepositoryOption,
   useAcpProviders,
 } from '@features/projects';
@@ -435,7 +435,7 @@ function ShellsSessionsContent(props: {
             输入首条指令后，会自动创建会话并进入项目协作。
           </p>
           <div id="home-input-container">
-            <ProjectPromptInput {...homePromptInputProps} />
+            <ProjectComposerInput {...homePromptInputProps} />
           </div>
 
           <div className="mt-2 px-1 text-[10px] text-slate-400 dark:text-slate-500">
