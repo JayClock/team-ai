@@ -25,26 +25,59 @@ describe('agent-gateway-runtime-client', () => {
         events: [
           gatewayEvent('gw-1:2', 'delta', {
             protocol: 'acp',
-            payload: {
-              type: 'agent_message_chunk',
-              content: 'hello from gateway',
+            update: {
+              eventType: 'agent_message',
+              message: {
+                role: 'assistant',
+                content: 'hello from gateway',
+                contentBlock: {
+                  type: 'text',
+                  text: 'hello from gateway',
+                },
+                isChunk: true,
+                messageId: 'msg-1',
+              },
+              rawNotification: {
+                update: {
+                  sessionUpdate: 'agent_message_chunk',
+                  messageId: 'msg-1',
+                  content: {
+                    type: 'text',
+                    text: 'hello from gateway',
+                  },
+                },
+              },
             },
-            text: 'hello from gateway',
           }),
           gatewayEvent('gw-1:3', 'tool', {
             protocol: 'acp',
-            payload: {
-              type: 'tool_call',
-              toolCallId: 'tool-1',
-              toolName: 'read_file',
-              arguments: {
-                path: 'README.md',
+            update: {
+              eventType: 'tool_call',
+              toolCall: {
+                toolCallId: 'tool-1',
+                title: 'Read file',
+                kind: 'read_file',
+                status: 'running',
+                input: {
+                  path: 'README.md',
+                },
+                inputFinalized: true,
+                output: null,
+                locations: [],
+                content: [],
               },
             },
           }),
           gatewayEvent('gw-1:4', 'complete', {
-            provider: 'opencode',
-            reason: 'prompt-finished',
+            protocol: 'acp',
+            update: {
+              eventType: 'turn_complete',
+              turnComplete: {
+                stopReason: 'end_turn',
+                usage: null,
+                userMessageId: null,
+              },
+            },
           }),
         ],
         nextCursor: 'gw-1:4',
@@ -128,12 +161,13 @@ describe('agent-gateway-runtime-client', () => {
     );
     expect(result.runtimeSessionId).toBe('gw-1');
     expect(result.response.stopReason).toBe('end_turn');
-    expect(hooks.onSessionUpdate).toHaveBeenCalledTimes(2);
+    expect(hooks.onSessionUpdate).toHaveBeenCalledTimes(3);
     const updates = hooks.onSessionUpdate.mock.calls as unknown as Array<
       [unknown]
     >;
     const firstUpdate = updates[0]?.[0];
     const secondUpdate = updates[1]?.[0];
+    const thirdUpdate = updates[2]?.[0];
 
     expect(firstUpdate).toMatchObject({
       update: {
@@ -149,6 +183,12 @@ describe('agent-gateway-runtime-client', () => {
         sessionUpdate: 'tool_call',
         toolCallId: 'tool-1',
         kind: 'read_file',
+      },
+    });
+    expect(thirdUpdate).toMatchObject({
+      update: {
+        sessionUpdate: 'turn_complete',
+        stopReason: 'end_turn',
       },
     });
   });

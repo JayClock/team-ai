@@ -93,10 +93,14 @@ export function normalizeSessionNotification(
   traceId?: string,
 ): NormalizedSessionUpdate | null {
   const update = notification.update;
-  const rawSessionUpdate = (update as { sessionUpdate?: string }).sessionUpdate;
+  const updateRecord = update as Record<string, unknown>;
+  const rawSessionUpdate =
+    typeof updateRecord.sessionUpdate === 'string'
+      ? updateRecord.sessionUpdate
+      : undefined;
 
   if (rawSessionUpdate === 'turn_complete') {
-    const turnCompleteUpdate = update as {
+    const turnCompleteUpdate = updateRecord as {
       sessionUpdate?: string;
       state?: string | null;
       stopReason?: string | null;
@@ -120,9 +124,12 @@ export function normalizeSessionNotification(
     };
   }
 
-  switch (update.sessionUpdate) {
+  switch (rawSessionUpdate) {
+    case 'user_message':
     case 'user_message_chunk':
+    case 'agent_message':
     case 'agent_message_chunk':
+    case 'agent_thought':
     case 'agent_thought_chunk':
       return {
         sessionId,
@@ -130,13 +137,16 @@ export function normalizeSessionNotification(
         timestamp: emittedAt,
         traceId,
         rawNotification: notification,
-        eventType: resolveMessageEventType(update.sessionUpdate),
+        eventType: resolveMessageEventType(rawSessionUpdate),
         message: {
-          role: resolveMessageRole(update.sessionUpdate),
-          messageId: update.messageId ?? null,
-          content: flattenContentBlock(update.content),
-          contentBlock: update.content,
-          isChunk: true,
+          role: resolveMessageRole(rawSessionUpdate),
+          messageId:
+            typeof updateRecord.messageId === 'string'
+              ? updateRecord.messageId
+              : null,
+          content: flattenContentBlock(updateRecord.content),
+          contentBlock: updateRecord.content as ContentBlock,
+          isChunk: rawSessionUpdate.endsWith('_chunk'),
         },
       };
     case 'tool_call':
@@ -148,15 +158,30 @@ export function normalizeSessionNotification(
         rawNotification: notification,
         eventType: 'tool_call',
         toolCall: {
-          toolCallId: update.toolCallId,
-          title: update.title,
-          status: normalizeToolCallStatus(update.status),
-          kind: update.kind ?? null,
-          input: update.rawInput ?? null,
-          inputFinalized: hasStructuredValue(update.rawInput),
-          output: update.rawOutput ?? null,
-          locations: update.locations ?? [],
-          content: update.content ?? [],
+          toolCallId:
+            typeof updateRecord.toolCallId === 'string'
+              ? updateRecord.toolCallId
+              : undefined,
+          title:
+            typeof updateRecord.title === 'string'
+              ? updateRecord.title
+              : undefined,
+          status: normalizeToolCallStatus(
+            typeof updateRecord.status === 'string'
+              ? updateRecord.status
+              : undefined,
+          ),
+          kind:
+            typeof updateRecord.kind === 'string' ? updateRecord.kind : null,
+          input: updateRecord.rawInput ?? null,
+          inputFinalized: hasStructuredValue(updateRecord.rawInput),
+          output: updateRecord.rawOutput ?? null,
+          locations: Array.isArray(updateRecord.locations)
+            ? updateRecord.locations
+            : [],
+          content: Array.isArray(updateRecord.content)
+            ? updateRecord.content
+            : [],
         },
       };
     case 'tool_call_update':
@@ -168,21 +193,40 @@ export function normalizeSessionNotification(
         rawNotification: notification,
         eventType: 'tool_call_update',
         toolCall: {
-          toolCallId: update.toolCallId,
-          title: update.title ?? null,
-          status: normalizeToolCallStatus(update.status),
-          kind: update.kind ?? null,
-          input: update.rawInput ?? null,
+          toolCallId:
+            typeof updateRecord.toolCallId === 'string'
+              ? updateRecord.toolCallId
+              : undefined,
+          title:
+            typeof updateRecord.title === 'string'
+              ? updateRecord.title
+              : null,
+          status: normalizeToolCallStatus(
+            typeof updateRecord.status === 'string'
+              ? updateRecord.status
+              : undefined,
+          ),
+          kind:
+            typeof updateRecord.kind === 'string' ? updateRecord.kind : null,
+          input: updateRecord.rawInput ?? null,
           inputFinalized:
-            hasStructuredValue(update.rawInput) ||
-            update.status === 'completed' ||
-            update.status === 'failed',
-          output: update.rawOutput ?? null,
-          locations: update.locations ?? [],
-          content: update.content ?? [],
+            hasStructuredValue(updateRecord.rawInput) ||
+            updateRecord.status === 'completed' ||
+            updateRecord.status === 'failed',
+          output: updateRecord.rawOutput ?? null,
+          locations: Array.isArray(updateRecord.locations)
+            ? updateRecord.locations
+            : [],
+          content: Array.isArray(updateRecord.content)
+            ? updateRecord.content
+            : [],
         },
       };
-    case 'plan':
+    case 'plan': {
+      const entries = Array.isArray(updateRecord.entries)
+        ? updateRecord.entries
+        : [];
+
       return {
         sessionId,
         provider,
@@ -190,12 +234,28 @@ export function normalizeSessionNotification(
         traceId,
         rawNotification: notification,
         eventType: 'plan_update',
-        planItems: update.entries.map((entry) => ({
-          description: entry.content,
-          priority: entry.priority,
-          status: entry.status,
-        })),
+        planItems: entries.map((entry) => {
+          const record = entry as Record<string, unknown>;
+
+          return {
+            description:
+              typeof record.content === 'string' ? record.content : '',
+            priority:
+              record.priority === 'high' ||
+              record.priority === 'medium' ||
+              record.priority === 'low'
+                ? record.priority
+                : undefined,
+            status:
+              record.status === 'completed' ||
+              record.status === 'in_progress' ||
+              record.status === 'pending'
+                ? record.status
+                : undefined,
+          };
+        }),
       };
+    }
     case 'session_info_update':
       return {
         sessionId,
@@ -205,8 +265,12 @@ export function normalizeSessionNotification(
         rawNotification: notification,
         eventType: 'session_info_update',
         sessionInfo: {
-          title: update.title ?? null,
-          updatedAt: update.updatedAt ?? null,
+          title:
+            typeof updateRecord.title === 'string' ? updateRecord.title : null,
+          updatedAt:
+            typeof updateRecord.updatedAt === 'string'
+              ? updateRecord.updatedAt
+              : null,
         },
       };
     case 'current_mode_update':
@@ -218,7 +282,10 @@ export function normalizeSessionNotification(
         rawNotification: notification,
         eventType: 'current_mode_update',
         mode: {
-          currentModeId: update.currentModeId,
+          currentModeId:
+            typeof updateRecord.currentModeId === 'string'
+              ? updateRecord.currentModeId
+              : undefined,
         },
       };
     case 'config_option_update':
@@ -229,7 +296,7 @@ export function normalizeSessionNotification(
         traceId,
         rawNotification: notification,
         eventType: 'config_option_update',
-        configOptions: update.configOptions,
+        configOptions: updateRecord.configOptions,
       };
     case 'usage_update':
       return {
@@ -240,9 +307,11 @@ export function normalizeSessionNotification(
         rawNotification: notification,
         eventType: 'usage_update',
         usage: {
-          size: update.size,
-          used: update.used,
-          cost: update.cost ?? null,
+          size:
+            typeof updateRecord.size === 'number' ? updateRecord.size : 0,
+          used:
+            typeof updateRecord.used === 'number' ? updateRecord.used : 0,
+          cost: updateRecord.cost ?? null,
         },
       };
     case 'available_commands_update':
@@ -253,9 +322,38 @@ export function normalizeSessionNotification(
         traceId,
         rawNotification: notification,
         eventType: 'available_commands_update',
-        availableCommands: update.availableCommands,
+        availableCommands: Array.isArray(updateRecord.availableCommands)
+          ? updateRecord.availableCommands
+          : [],
       };
+    case 'error': {
+      const errorUpdate = updateRecord as {
+        code?: string;
+        message?: string;
+      };
+
+      return {
+        sessionId,
+        provider,
+        timestamp: emittedAt,
+        traceId,
+        rawNotification: notification,
+        eventType: 'error',
+        error: {
+          code:
+            typeof errorUpdate.code === 'string'
+              ? errorUpdate.code
+              : 'PROTOCOL_ERROR',
+          message:
+            typeof errorUpdate.message === 'string'
+              ? errorUpdate.message
+              : 'Unknown protocol error',
+        },
+      };
+    }
   }
+
+  return null;
 }
 
 export function toPersistedAcpEvent(
@@ -437,15 +535,21 @@ export function extractSessionMetadataFromNormalizedUpdate(
 
 function resolveMessageEventType(
   updateType:
+    | 'user_message'
     | 'user_message_chunk'
+    | 'agent_message'
     | 'agent_message_chunk'
+    | 'agent_thought'
     | 'agent_thought_chunk',
 ): 'agent_message' | 'agent_thought' | 'user_message' {
-  if (updateType === 'user_message_chunk') {
+  if (updateType === 'user_message' || updateType === 'user_message_chunk') {
     return 'user_message';
   }
 
-  if (updateType === 'agent_thought_chunk') {
+  if (
+    updateType === 'agent_thought' ||
+    updateType === 'agent_thought_chunk'
+  ) {
     return 'agent_thought';
   }
 
@@ -454,32 +558,44 @@ function resolveMessageEventType(
 
 function resolveMessageRole(
   updateType:
+    | 'user_message'
     | 'user_message_chunk'
+    | 'agent_message'
     | 'agent_message_chunk'
+    | 'agent_thought'
     | 'agent_thought_chunk',
 ): 'assistant' | 'thought' | 'user' {
-  if (updateType === 'user_message_chunk') {
+  if (updateType === 'user_message' || updateType === 'user_message_chunk') {
     return 'user';
   }
 
-  if (updateType === 'agent_thought_chunk') {
+  if (
+    updateType === 'agent_thought' ||
+    updateType === 'agent_thought_chunk'
+  ) {
     return 'thought';
   }
 
   return 'assistant';
 }
 
-function flattenContentBlock(content: ContentBlock): string | null {
-  if (content.type === 'text') {
-    return content.text;
+function flattenContentBlock(content: unknown): string | null {
+  if (!content || typeof content !== 'object') {
+    return null;
   }
 
-  if (content.type === 'resource_link') {
-    return content.uri;
+  const block = content as ContentBlock;
+
+  if (block.type === 'text') {
+    return block.text;
   }
 
-  if (content.type === 'resource') {
-    const resource = content.resource;
+  if (block.type === 'resource_link') {
+    return block.uri;
+  }
+
+  if (block.type === 'resource') {
+    const resource = block.resource;
     if ('text' in resource) {
       return resource.text;
     }

@@ -54,6 +54,34 @@ describe('normalized-session-update', () => {
     });
   });
 
+  it('normalizes non-chunk ACP messages without forcing chunk semantics', () => {
+    const notification = {
+      update: {
+        sessionUpdate: 'agent_message',
+        messageId: 'msg-2',
+        content: {
+          type: 'text',
+          text: 'complete message',
+        },
+      },
+    } satisfies SessionNotification;
+
+    const normalized = normalizeSessionNotification(
+      'session-1b',
+      'opencode',
+      notification,
+    );
+
+    expect(normalized).toMatchObject({
+      eventType: 'agent_message',
+      message: {
+        messageId: 'msg-2',
+        content: 'complete message',
+        isChunk: false,
+      },
+    });
+  });
+
   it('normalizes tool call updates and converts completed calls to tool_result persistence', () => {
     const notification = {
       update: {
@@ -233,6 +261,40 @@ describe('normalized-session-update', () => {
       payload: {
         provider: 'codex',
         stopReason: 'end_turn',
+      },
+    });
+  });
+
+  it('normalizes protocol error updates to canonical error events', () => {
+    const notification = {
+      update: {
+        sessionUpdate: 'error',
+        code: 'PROTOCOL_ERROR',
+        message: 'bad protocol',
+      },
+    } satisfies SessionNotification;
+
+    const normalized = normalizeSessionNotification(
+      'session-5',
+      'codex',
+      notification,
+    );
+
+    expect(normalized).toMatchObject({
+      eventType: 'error',
+      error: {
+        code: 'PROTOCOL_ERROR',
+        message: 'bad protocol',
+      },
+    });
+    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
+      type: 'status',
+      payload: {
+        error: {
+          code: 'PROTOCOL_ERROR',
+          message: 'bad protocol',
+        },
+        provider: 'codex',
       },
     });
   });

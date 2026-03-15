@@ -344,6 +344,12 @@ function normalizeEnvSegment(value: string): string {
 function toSessionNotification(
   event: AgentGatewayEventEnvelope,
 ): SessionNotification | null {
+  const canonicalUpdate =
+    event.data && typeof event.data === 'object'
+      ? ((event.data as Record<string, unknown>).update as
+          | Record<string, unknown>
+          | undefined)
+      : undefined;
   const payload =
     event.data && typeof event.data === 'object'
       ? ((event.data as Record<string, unknown>).payload as
@@ -355,6 +361,13 @@ function toSessionNotification(
       ? ((event.data as Record<string, unknown>).text as string | undefined)
       : undefined;
 
+  const canonicalNotification =
+    canonicalUpdate &&
+    toCanonicalSessionNotification(canonicalUpdate, event.sessionId);
+  if (canonicalNotification) {
+    return canonicalNotification;
+  }
+
   const update = toSessionUpdatePayload(payload, text);
   if (!update) {
     return null;
@@ -363,6 +376,191 @@ function toSessionNotification(
   return {
     update,
   } as SessionNotification;
+}
+
+function toCanonicalSessionNotification(
+  update: Record<string, unknown>,
+  sessionId?: string,
+): SessionNotification | null {
+  const rawNotification = asRecord(update.rawNotification);
+  const rawUpdate = asRecord(rawNotification.update);
+
+  if (rawUpdate.sessionUpdate) {
+    return createSessionNotification(rawUpdate, sessionId);
+  }
+
+  const eventType = asString(update.eventType);
+  if (!eventType) {
+    return null;
+  }
+
+  switch (eventType) {
+    case 'agent_message':
+    case 'agent_thought':
+    case 'user_message': {
+      const message = asRecord(update.message);
+      const roleSessionUpdate =
+        eventType === 'user_message'
+          ? 'user_message'
+          : eventType === 'agent_thought'
+            ? 'agent_thought'
+            : 'agent_message';
+      const suffix = message.isChunk === false ? '' : '_chunk';
+
+      return createSessionNotification(
+        {
+          sessionUpdate: `${roleSessionUpdate}${suffix}`,
+          ...(asString(message.messageId)
+            ? { messageId: asString(message.messageId) ?? undefined }
+            : {}),
+          content: toContentBlock(
+            message.contentBlock ?? message.content ?? '',
+          ),
+        },
+        sessionId,
+      );
+    }
+
+    case 'tool_call':
+    case 'tool_call_update': {
+      const toolCall = asRecord(update.toolCall);
+      return createSessionNotification(
+        {
+          sessionUpdate: eventType,
+          ...(asString(toolCall.toolCallId)
+            ? { toolCallId: asString(toolCall.toolCallId) ?? undefined }
+            : {}),
+          ...(asString(toolCall.title)
+            ? { title: asString(toolCall.title) ?? undefined }
+            : {}),
+          ...(asString(toolCall.kind)
+            ? { kind: asString(toolCall.kind) ?? undefined }
+            : {}),
+          status: asString(toolCall.status) ?? 'pending',
+          rawInput: toolCall.input ?? null,
+          rawOutput: toolCall.output ?? null,
+          locations: Array.isArray(toolCall.locations) ? toolCall.locations : [],
+          content: Array.isArray(toolCall.content) ? toolCall.content : [],
+        },
+        sessionId,
+      );
+    }
+
+    case 'plan_update':
+      return createSessionNotification(
+        {
+          sessionUpdate: 'plan',
+          entries: Array.isArray(update.planItems)
+            ? update.planItems.map((item) => ({
+                content:
+                  asString(asRecord(item).description) ??
+                  asString(asRecord(item).content) ??
+                  '',
+                ...(asString(asRecord(item).priority)
+                  ? { priority: asString(asRecord(item).priority) ?? undefined }
+                  : {}),
+                ...(asString(asRecord(item).status)
+                  ? { status: asString(asRecord(item).status) ?? undefined }
+                  : {}),
+              }))
+            : [],
+        },
+        sessionId,
+      );
+
+    case 'turn_complete': {
+      const turnComplete = asRecord(update.turnComplete);
+      return createSessionNotification(
+        {
+          sessionUpdate: 'turn_complete',
+          ...(asString(turnComplete.state)
+            ? { state: asString(turnComplete.state) ?? undefined }
+            : {}),
+          stopReason: asString(turnComplete.stopReason) ?? 'end_turn',
+          usage: turnComplete.usage ?? null,
+          userMessageId: asString(turnComplete.userMessageId),
+        },
+        sessionId,
+      );
+    }
+
+    case 'session_info_update': {
+      const sessionInfo = asRecord(update.sessionInfo);
+      return createSessionNotification(
+        {
+          sessionUpdate: 'session_info_update',
+          ...(asString(sessionInfo.title)
+            ? { title: asString(sessionInfo.title) ?? undefined }
+            : {}),
+          ...(asString(sessionInfo.updatedAt)
+            ? { updatedAt: asString(sessionInfo.updatedAt) ?? undefined }
+            : {}),
+        },
+        sessionId,
+      );
+    }
+
+    case 'current_mode_update': {
+      const mode = asRecord(update.mode);
+      return createSessionNotification(
+        {
+          sessionUpdate: 'current_mode_update',
+          ...(asString(mode.currentModeId)
+            ? { currentModeId: asString(mode.currentModeId) ?? undefined }
+            : {}),
+        },
+        sessionId,
+      );
+    }
+
+    case 'config_option_update':
+      return createSessionNotification(
+        {
+          sessionUpdate: 'config_option_update',
+          configOptions: update.configOptions ?? {},
+        },
+        sessionId,
+      );
+
+    case 'usage_update': {
+      const usage = asRecord(update.usage);
+      return createSessionNotification(
+        {
+          sessionUpdate: 'usage_update',
+          size: asNumber(usage.size) ?? 0,
+          used: asNumber(usage.used) ?? 0,
+          cost: usage.cost ?? null,
+        },
+        sessionId,
+      );
+    }
+
+    case 'available_commands_update':
+      return createSessionNotification(
+        {
+          sessionUpdate: 'available_commands_update',
+          availableCommands: Array.isArray(update.availableCommands)
+            ? update.availableCommands
+            : [],
+        },
+        sessionId,
+      );
+
+    case 'error': {
+      const error = asRecord(update.error);
+      return createSessionNotification(
+        {
+          sessionUpdate: 'error',
+          code: asString(error.code) ?? 'PROTOCOL_ERROR',
+          message: asString(error.message) ?? 'Unknown protocol error',
+        },
+        sessionId,
+      );
+    }
+
+    default:
+      return null;
+  }
 }
 
 function toSessionUpdatePayload(
@@ -482,12 +680,20 @@ function toContentBlock(content: unknown): Record<string, unknown> {
 function resolveStopReason(
   event: AgentGatewayEventEnvelope,
 ): 'cancelled' | 'end_turn' {
+  const update =
+    event.data && typeof event.data === 'object'
+      ? asRecord((event.data as Record<string, unknown>).update)
+      : {};
+  const turnComplete = asRecord(update.turnComplete);
   const reason =
     event.data && typeof event.data === 'object'
       ? asString((event.data as Record<string, unknown>).reason)
       : null;
 
-  return reason === 'cancelled' ? 'cancelled' : 'end_turn';
+  const canonicalReason = asString(turnComplete.stopReason);
+  const effectiveReason = reason ?? canonicalReason;
+
+  return effectiveReason === 'cancelled' ? 'cancelled' : 'end_turn';
 }
 
 function isSessionNotFound(error: unknown): boolean {
@@ -496,6 +702,22 @@ function isSessionNotFound(error: unknown): boolean {
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
+}
+
+function createSessionNotification(
+  update: Record<string, unknown>,
+  sessionId?: string,
+): SessionNotification {
+  return {
+    sessionId: sessionId ?? '',
+    update,
+  } as unknown as SessionNotification;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function asNumber(value: unknown): number | null {
