@@ -2,7 +2,6 @@ import type { ProtocolName } from '../session-store.js';
 
 export const PROVIDER_ADAPTER_KINDS = {
   acpCli: 'acp-cli',
-  codexAppServer: 'codex-app-server',
 } as const;
 
 export type ProviderAdapterKind = string;

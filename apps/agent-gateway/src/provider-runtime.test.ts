@@ -1,19 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const acpConstructed = vi.fn();
-const codexConstructed = vi.fn();
 
 const acpPrompt = vi.fn(
-  (_request: unknown,
-    callbacks: {
-      onComplete: () => void;
-    },
-  ) => {
-    callbacks.onComplete();
-  },
-);
-
-const codexPrompt = vi.fn(
   (_request: unknown,
     callbacks: {
       onComplete: () => void;
@@ -39,30 +28,12 @@ vi.mock('./providers/acp-cli-provider.js', () => ({
   },
 }));
 
-vi.mock('./providers/codex-app-server-provider.js', () => ({
-  CodexAppServerAdapter: class {
-    constructor() {
-      codexConstructed();
-    }
-
-    prompt = codexPrompt;
-    cancel() {
-      return false;
-    }
-    close() {
-      return Promise.resolve();
-    }
-  },
-}));
-
 import { ProviderRuntime } from './provider-runtime.js';
 
 describe('ProviderRuntime', () => {
   it('accepts codex-acp as a codex alias', () => {
     acpConstructed.mockClear();
-    codexConstructed.mockClear();
     acpPrompt.mockClear();
-    codexPrompt.mockClear();
 
     const runtime = new ProviderRuntime({
       host: '127.0.0.1',
@@ -110,9 +81,8 @@ describe('ProviderRuntime', () => {
       },
     );
 
-    expect(codexConstructed).toHaveBeenCalledTimes(1);
-    expect(acpConstructed).not.toHaveBeenCalled();
-    expect(codexPrompt).toHaveBeenCalledTimes(2);
+    expect(acpConstructed).toHaveBeenCalledTimes(1);
+    expect(acpPrompt).toHaveBeenCalledTimes(2);
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalledWith(
       expect.objectContaining({

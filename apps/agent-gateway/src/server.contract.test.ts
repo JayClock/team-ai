@@ -145,8 +145,8 @@ class MockProviderManagement implements ProviderManagementPort {
         {
           id: 'codex',
           name: 'Codex',
-          description: 'OpenAI Codex CLI (via codex app-server)',
-          command: 'codex',
+          description: 'OpenAI Codex CLI (via codex-acp wrapper)',
+          command: 'codex-acp',
           envCommandKey: 'TEAMAI_ACP_CODEX_COMMAND',
           distributionTypes: [],
           installable: false,

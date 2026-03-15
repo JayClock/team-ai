@@ -1,5 +1,4 @@
 import { AcpCliProviderAdapter } from './acp-cli-provider.js';
-import { CodexAppServerAdapter } from './codex-app-server-provider.js';
 import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 import {
   PROVIDER_ADAPTER_KINDS,
@@ -23,12 +22,6 @@ registerProviderAdapter({
   kind: PROVIDER_ADAPTER_KINDS.acpCli,
   create: ({ preset, launchCommand }) =>
     new AcpCliProviderAdapter(preset, launchCommand),
-});
-
-registerProviderAdapter({
-  kind: PROVIDER_ADAPTER_KINDS.codexAppServer,
-  create: ({ preset, launchCommand }) =>
-    new CodexAppServerAdapter(preset, launchCommand),
 });
 
 export function registerProviderAdapter(
