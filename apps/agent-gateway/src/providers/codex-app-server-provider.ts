@@ -3,10 +3,12 @@ import type {
   NormalizedAcpToolCall,
   NormalizedAcpUpdate,
   ProviderAdapter,
+  ProviderBehavior,
   ProviderError,
   ProviderPromptCallbacks,
   ProviderPromptRequest,
 } from './provider-types.js';
+import { createNormalizedAcpUpdate } from './provider-types.js';
 import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 
 const DEFAULT_CANCEL_GRACE_MS = 3_000;
@@ -108,6 +110,28 @@ export class CodexAppServerAdapter implements ProviderAdapter {
     this.startingSessions.clear();
     await Promise.all(
       activeSessions.map((session) => this.disposeSession(session, true)),
+    );
+  }
+
+  getBehavior(): ProviderBehavior {
+    return {
+      immediateToolInput: true,
+      protocol: 'acp',
+      streaming: true,
+    };
+  }
+
+  normalizeNotification(
+    sessionId: string,
+    traceId: string | undefined,
+    notification: unknown,
+  ): NormalizedAcpUpdate | null {
+    return normalizeCodexNotification(
+      sessionId,
+      this.preset.providerId,
+      this.preset.name,
+      traceId,
+      notification,
     );
   }
 
@@ -421,7 +445,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
       case 'error': {
         run.callbacks.onEvent({
           protocol: 'acp',
-          update: createAcpUpdate(session.sessionId, this.preset.providerId, 'error', {
+          update: createNormalizedAcpUpdate(session.sessionId, this.preset.providerId, 'error', {
             traceId: run.traceId,
             rawNotification: params,
             error: {
@@ -464,7 +488,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          update: createAcpUpdate(session.sessionId, this.preset.providerId, 'agent_message', {
+          update: createNormalizedAcpUpdate(session.sessionId, this.preset.providerId, 'agent_message', {
             traceId: run.traceId,
             rawNotification: params,
             message: {
@@ -489,7 +513,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          update: createAcpUpdate(session.sessionId, this.preset.providerId, 'agent_thought', {
+          update: createNormalizedAcpUpdate(session.sessionId, this.preset.providerId, 'agent_thought', {
             traceId: run.traceId,
             rawNotification: params,
             message: {
@@ -514,7 +538,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          update: createAcpUpdate(session.sessionId, this.preset.providerId, 'plan_update', {
+          update: createNormalizedAcpUpdate(session.sessionId, this.preset.providerId, 'plan_update', {
             traceId: run.traceId,
             rawNotification: params,
             planItems: run.planItems.map((item) => ({
@@ -535,7 +559,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          update: createAcpUpdate(
+          update: createNormalizedAcpUpdate(
             session.sessionId,
             this.preset.providerId,
             'tool_call',
@@ -564,7 +588,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
               run.messageLengths.set(itemId, text.length);
               run.callbacks.onEvent({
                 protocol: 'acp',
-                update: createAcpUpdate(
+                update: createNormalizedAcpUpdate(
                   session.sessionId,
                   this.preset.providerId,
                   'agent_message',
@@ -594,7 +618,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
         run.callbacks.onEvent({
           protocol: 'acp',
-          update: createAcpUpdate(
+          update: createNormalizedAcpUpdate(
             session.sessionId,
             this.preset.providerId,
             'tool_call_update',
@@ -622,7 +646,7 @@ export class CodexAppServerAdapter implements ProviderAdapter {
         const status = asString(turn.status);
         run.callbacks.onEvent({
           protocol: 'acp',
-          update: createAcpUpdate(
+          update: createNormalizedAcpUpdate(
             session.sessionId,
             this.preset.providerId,
             'turn_complete',
@@ -957,23 +981,131 @@ function toToolPayload(
   }
 }
 
-function createAcpUpdate(
+function normalizeCodexNotification(
   sessionId: string,
   provider: string,
-  eventType: NormalizedAcpUpdate['eventType'],
-  extras: Omit<
-    Partial<NormalizedAcpUpdate>,
-    'eventType' | 'provider' | 'sessionId' | 'timestamp'
-  > = {},
-): NormalizedAcpUpdate {
-  return {
-    sessionId,
-    provider,
-    eventType,
-    timestamp: new Date().toISOString(),
-    rawNotification: extras.rawNotification ?? null,
-    ...extras,
+  providerName: string,
+  traceId: string | undefined,
+  notification: unknown,
+): NormalizedAcpUpdate | null {
+  const message = notification as {
+    method?: string;
+    params?: Record<string, unknown>;
   };
+  const method = message.method;
+  const params = asRecord(message.params);
+  if (!method) {
+    return null;
+  }
+
+  switch (method) {
+    case 'error':
+      return createNormalizedAcpUpdate(sessionId, provider, 'error', {
+        traceId,
+        rawNotification: params,
+        error: {
+          code: asString(params.code) ?? 'PROTOCOL_ERROR',
+          message:
+            asString(params.message) ??
+            `${providerName} returned an unknown protocol error`,
+        },
+      });
+    case 'item/agentMessage/delta': {
+      const itemId = asString(params.itemId) ?? undefined;
+      const delta = asString(params.delta);
+      if (!delta) {
+        return null;
+      }
+
+      return createNormalizedAcpUpdate(sessionId, provider, 'agent_message', {
+        traceId,
+        rawNotification: params,
+        message: {
+          role: 'assistant',
+          content: delta,
+          contentBlock: { type: 'text', text: delta },
+          isChunk: true,
+          messageId: itemId ?? null,
+        },
+      });
+    }
+    case 'item/reasoning/textDelta':
+    case 'item/reasoning/summaryTextDelta': {
+      const delta = asString(params.delta);
+      if (!delta) {
+        return null;
+      }
+
+      return createNormalizedAcpUpdate(sessionId, provider, 'agent_thought', {
+        traceId,
+        rawNotification: params,
+        message: {
+          role: 'thought',
+          content: delta,
+          contentBlock: { type: 'text', text: delta },
+          isChunk: true,
+          messageId: asString(params.itemId) ?? null,
+        },
+      });
+    }
+    case 'turn/plan/updated': {
+      const plan = Array.isArray(params.plan) ? params.plan : [];
+      return createNormalizedAcpUpdate(sessionId, provider, 'plan_update', {
+        traceId,
+        rawNotification: params,
+        planItems: plan.map((step) => ({
+          description: asString(asRecord(step).step) ?? '',
+          status: normalizePlanStatus(asString(asRecord(step).status)),
+        })),
+      });
+    }
+    case 'item/started': {
+      const toolCall = toToolPayload(asRecord(params.item), false);
+      if (!toolCall) {
+        return null;
+      }
+
+      return createNormalizedAcpUpdate(sessionId, provider, 'tool_call', {
+        traceId,
+        rawNotification: params,
+        toolCall,
+      });
+    }
+    case 'item/completed': {
+      const item = asRecord(params.item);
+      const type = asString(item.type);
+      if (type === 'agentMessage') {
+        return null;
+      }
+
+      const toolCall = toToolPayload(item, true);
+      if (!toolCall) {
+        return null;
+      }
+
+      return createNormalizedAcpUpdate(sessionId, provider, 'tool_call_update', {
+        traceId,
+        rawNotification: params,
+        toolCall,
+      });
+    }
+    case 'turn/completed': {
+      const turn = asRecord(params.turn);
+      const status = asString(turn.status);
+      return createNormalizedAcpUpdate(sessionId, provider, 'turn_complete', {
+        traceId,
+        rawNotification: params,
+        turnComplete: {
+          state: normalizeTurnCompleteState(status),
+          stopReason: normalizeTurnStopReason(status),
+          usage: turn.usage ?? null,
+          userMessageId: null,
+        },
+      });
+    }
+    default:
+      return null;
+  }
 }
 
 function normalizeCompletedToolStatus(

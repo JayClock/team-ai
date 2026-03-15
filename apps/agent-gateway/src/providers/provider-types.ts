@@ -102,6 +102,31 @@ export interface NormalizedAcpUpdate {
   };
 }
 
+export type ProviderBehavior = {
+  immediateToolInput: boolean;
+  protocol: 'acp';
+  streaming: boolean;
+};
+
+export function createNormalizedAcpUpdate(
+  sessionId: string,
+  provider: string,
+  eventType: NormalizedAcpUpdate['eventType'],
+  extras: Omit<
+    Partial<NormalizedAcpUpdate>,
+    'eventType' | 'provider' | 'sessionId' | 'timestamp'
+  > = {},
+): NormalizedAcpUpdate {
+  return {
+    sessionId,
+    provider,
+    eventType,
+    timestamp: new Date().toISOString(),
+    rawNotification: extras.rawNotification ?? null,
+    ...extras,
+  };
+}
+
 export type ProviderProtocolEvent =
   | {
       protocol: 'acp';
@@ -123,6 +148,14 @@ export type ProviderPromptCallbacks = {
 
 export interface ProviderAdapter {
   readonly name: string;
+
+  getBehavior(): ProviderBehavior;
+
+  normalizeNotification(
+    sessionId: string,
+    traceId: string | undefined,
+    notification: unknown,
+  ): NormalizedAcpUpdate | null;
 
   prompt(
     request: ProviderPromptRequest,

@@ -6,10 +6,12 @@ import type {
   NormalizedAcpToolCall,
   NormalizedAcpUpdate,
   ProviderAdapter,
+  ProviderBehavior,
   ProviderError,
   ProviderPromptCallbacks,
   ProviderPromptRequest,
 } from './provider-types.js';
+import { createNormalizedAcpUpdate } from './provider-types.js';
 import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 
 const DEFAULT_CANCEL_GRACE_MS = 3_000;
@@ -125,6 +127,27 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
     this.startingSessions.clear();
     await Promise.all(
       activeSessions.map((session) => this.disposeSession(session, true)),
+    );
+  }
+
+  getBehavior(): ProviderBehavior {
+    return {
+      immediateToolInput: false,
+      protocol: 'acp',
+      streaming: true,
+    };
+  }
+
+  normalizeNotification(
+    sessionId: string,
+    traceId: string | undefined,
+    notification: unknown,
+  ): NormalizedAcpUpdate | null {
+    return normalizeSessionUpdate(
+      sessionId,
+      this.preset.providerId,
+      notification,
+      traceId,
     );
   }
 
@@ -355,7 +378,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
       if (!session.run?.settled) {
         session.run?.callbacks.onEvent({
           protocol: 'acp',
-          update: createAcpUpdate(
+          update: createNormalizedAcpUpdate(
             session.sessionId,
             this.preset.providerId,
             'agent_message',
@@ -415,12 +438,14 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
       return;
     }
 
-    const payload = normalizeSessionUpdate(
+    const payload = this.normalizeNotification(
       session.sessionId,
-      this.preset.providerId,
-      asRecord(params).update ?? params ?? {},
       session.run.traceId,
+      asRecord(params).update ?? params ?? {},
     );
+    if (!payload) {
+      return;
+    }
     session.run.callbacks.onEvent({
       protocol: 'acp',
       update: payload,
@@ -770,7 +795,7 @@ function normalizeSessionUpdate(
   const sessionUpdate = asString(update.sessionUpdate) ?? asString(update.type);
 
   if (!sessionUpdate) {
-    return createAcpUpdate(sessionId, provider, 'agent_message', {
+    return createNormalizedAcpUpdate(sessionId, provider, 'agent_message', {
       traceId,
       rawNotification: updateInput,
       message: {
@@ -788,7 +813,7 @@ function normalizeSessionUpdate(
     case 'agent_message_chunk':
     case 'agent_thought':
     case 'agent_thought_chunk':
-      return createAcpUpdate(
+      return createNormalizedAcpUpdate(
         sessionId,
         provider,
         resolveMessageEventType(sessionUpdate),
@@ -806,14 +831,14 @@ function normalizeSessionUpdate(
       );
 
     case 'tool_call':
-      return createAcpUpdate(sessionId, provider, 'tool_call', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'tool_call', {
         traceId,
         rawNotification: updateInput,
         toolCall: createToolCall(update, false),
       });
 
     case 'tool_call_update':
-      return createAcpUpdate(sessionId, provider, 'tool_call_update', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'tool_call_update', {
         traceId,
         rawNotification: updateInput,
         toolCall: createToolCall(update, true),
@@ -821,7 +846,7 @@ function normalizeSessionUpdate(
 
     case 'plan': {
       const entries = Array.isArray(update.entries) ? update.entries : [];
-      return createAcpUpdate(sessionId, provider, 'plan_update', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'plan_update', {
         traceId,
         rawNotification: updateInput,
         planItems: entries.map((entry) => ({
@@ -842,7 +867,7 @@ function normalizeSessionUpdate(
     }
 
     case 'turn_complete':
-      return createAcpUpdate(sessionId, provider, 'turn_complete', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'turn_complete', {
         traceId,
         rawNotification: updateInput,
         turnComplete: {
@@ -854,7 +879,7 @@ function normalizeSessionUpdate(
       });
 
     case 'session_info_update':
-      return createAcpUpdate(sessionId, provider, 'session_info_update', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'session_info_update', {
         traceId,
         rawNotification: updateInput,
         sessionInfo: {
@@ -864,7 +889,7 @@ function normalizeSessionUpdate(
       });
 
     case 'current_mode_update':
-      return createAcpUpdate(sessionId, provider, 'current_mode_update', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'current_mode_update', {
         traceId,
         rawNotification: updateInput,
         mode: {
@@ -875,14 +900,14 @@ function normalizeSessionUpdate(
       });
 
     case 'config_option_update':
-      return createAcpUpdate(sessionId, provider, 'config_option_update', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'config_option_update', {
         traceId,
         rawNotification: updateInput,
         configOptions: update.configOptions ?? {},
       });
 
     case 'usage_update':
-      return createAcpUpdate(sessionId, provider, 'usage_update', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'usage_update', {
         traceId,
         rawNotification: updateInput,
         usage: {
@@ -893,7 +918,7 @@ function normalizeSessionUpdate(
       });
 
     case 'available_commands_update':
-      return createAcpUpdate(sessionId, provider, 'available_commands_update', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'available_commands_update', {
         traceId,
         rawNotification: updateInput,
         availableCommands: Array.isArray(update.availableCommands)
@@ -902,7 +927,7 @@ function normalizeSessionUpdate(
       });
 
     case 'error':
-      return createAcpUpdate(sessionId, provider, 'error', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'error', {
         traceId,
         rawNotification: updateInput,
         error: {
@@ -912,7 +937,7 @@ function normalizeSessionUpdate(
       });
 
     default:
-      return createAcpUpdate(sessionId, provider, 'agent_message', {
+      return createNormalizedAcpUpdate(sessionId, provider, 'agent_message', {
         traceId,
         rawNotification: updateInput,
         message: {
@@ -953,25 +978,6 @@ function normalizeContentBlock(contentInput: unknown): unknown {
   return {
     type: 'text',
     text: typeof contentInput === 'string' ? contentInput : '',
-  };
-}
-
-function createAcpUpdate(
-  sessionId: string,
-  provider: string,
-  eventType: NormalizedAcpUpdate['eventType'],
-  extras: Omit<
-    Partial<NormalizedAcpUpdate>,
-    'eventType' | 'provider' | 'sessionId' | 'timestamp'
-  > = {},
-): NormalizedAcpUpdate {
-  return {
-    sessionId,
-    provider,
-    eventType,
-    timestamp: new Date().toISOString(),
-    rawNotification: extras.rawNotification ?? null,
-    ...extras,
   };
 }
 
