@@ -9,6 +9,7 @@ import {
   cancelAcpSession,
   getAcpSessionById,
   createAcpSession,
+  promptAcpSession,
 } from '../services/acp-service';
 import { listAgents } from '../services/agent-service';
 import { getProjectById, listProjects } from '../services/project-service';
