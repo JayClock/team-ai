@@ -113,6 +113,30 @@ const taskPatchSchema = z
     message: 'At least one field must be provided',
   });
 
+function shouldAutoExecutePatchedTask(
+  patch: z.infer<typeof taskPatchSchema>,
+  task: {
+    executionSessionId: string | null;
+    status: string;
+    triggerSessionId: string | null;
+  },
+) {
+  if (task.status !== 'READY') {
+    return false;
+  }
+
+  if (task.executionSessionId || task.triggerSessionId) {
+    return false;
+  }
+
+  return (
+    patch.status === 'READY' ||
+    patch.assignedProvider !== undefined ||
+    patch.assignedRole !== undefined ||
+    patch.assignedSpecialistId !== undefined
+  );
+}
+
 const tasksRoute: FastifyPluginAsync = async (fastify) => {
   const dispatchCallbacks = {
     async createSession(input: {
@@ -220,10 +244,19 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
     const task = await updateTask(fastify.sqlite, taskId, body);
+    const executedTask = shouldAutoExecutePatchedTask(body, task)
+      ? (
+          await executeTask(fastify.sqlite, taskId, {
+            callbacks: dispatchCallbacks,
+            logger: request.log,
+            source: 'tasks_route_patch_auto_execute',
+          })
+        ).task
+      : task;
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
 
-    return presentTask(task);
+    return presentTask(executedTask);
   });
 
   fastify.post('/tasks/:taskId/execute', async (request, reply) => {
@@ -233,6 +266,7 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
       callbacks: dispatchCallbacks,
       callerSessionId: body.callerSessionId,
       logger: request.log,
+      source: 'tasks_route_execute',
     });
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);

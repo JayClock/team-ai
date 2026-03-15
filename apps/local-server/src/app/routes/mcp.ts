@@ -1164,6 +1164,7 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                   callbacks: dispatchCallbacks,
                   callerSessionId: args.callerSessionId,
                   logger: request.log,
+                  source: 'mcp_task_execute',
                 }),
                 auditContext,
               );

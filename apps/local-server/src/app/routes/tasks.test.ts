@@ -173,7 +173,7 @@ describe('tasks routes', () => {
     });
   });
 
-  it('updates task status without dispatching on patch', async () => {
+  it('auto-executes a task when a patch moves it into the ready state', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -197,11 +197,20 @@ describe('tasks routes', () => {
     expect(patchResponse.statusCode).toBe(200);
     expect(responseContentType(patchResponse)).toBe(VENDOR_MEDIA_TYPES.task);
     expect(patchResponse.json()).toMatchObject({
+      assignedProvider: 'codex',
+      assignedRole: 'CRAFTER',
+      assignedSpecialistId: 'crafter-implementor',
       id: taskId,
-      status: 'READY',
+      status: 'COMPLETED',
+      triggerSessionId: expect.stringMatching(/^acps_/),
     });
-    expect(fastify.acpRuntime.createSession).not.toHaveBeenCalled();
-    expect(fastify.acpRuntime.promptSession).not.toHaveBeenCalled();
+    expect(fastify.acpRuntime.createSession).toHaveBeenCalledTimes(1);
+    expect(fastify.acpRuntime.promptSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localSessionId: expect.any(String),
+        prompt: expect.stringContaining('Task: Retry-ready task'),
+      }),
+    );
   });
 
   it('executes a task through the explicit task action route', async () => {

@@ -18,6 +18,7 @@ export interface ExecuteTaskOptions {
   callerSessionId?: string;
   logger?: DiagnosticLogger;
   retryOfRunId?: string | null;
+  source?: string;
 }
 
 export interface ExecuteTaskResult {
@@ -102,7 +103,7 @@ export async function executeTask(
       },
       {
         logger: options.logger,
-        source: 'task_execute',
+        source: options.source ?? 'task_execute',
       },
     );
 

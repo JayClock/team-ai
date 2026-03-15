@@ -233,6 +233,7 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
       callerSessionId: executionSessionId,
       logger: request.log,
       retryOfRunId: sourceRun.id,
+      source: 'task_runs_retry',
     });
 
     if (!result.dispatch.attempted || !result.dispatch.result?.dispatched) {
