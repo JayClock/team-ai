@@ -823,7 +823,9 @@ function appendLocalEvent(
   const emittedAt = input.update.timestamp || new Date().toISOString();
   const update: AcpEventUpdatePayload = {
     ...input.update,
-    sessionId: input.update.sessionId || input.sessionId,
+    // Runtime providers can emit their own remote session ids. Persist and
+    // broadcast events against the local ACP session id used by our database.
+    sessionId: input.sessionId,
     timestamp: emittedAt,
   };
   const event: AcpEventEnvelopePayload = {

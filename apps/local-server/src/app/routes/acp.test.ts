@@ -215,6 +215,130 @@ describe('acp route', () => {
     expect(rootResponse.json()._links.acp.href).toBe('/api/acp');
   });
 
+  it('persists runtime updates against the local session when providers emit remote session ids', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-remote-session-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const sessionHooks = new Map<string, AcpRuntimeSessionHooks>();
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => {
+        sessionHooks.set(input.localSessionId, input.hooks);
+        return {
+          runtimeSessionId: `runtime-${input.localSessionId}`,
+          provider: input.provider,
+        };
+      }),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async (input) => {
+        const hooks = sessionHooks.get(input.localSessionId);
+        expect(hooks).toBeDefined();
+
+        await hooks?.onSessionUpdate({
+          eventType: 'agent_message',
+          message: {
+            content: 'Remote session id update',
+            contentBlock: {
+              type: 'text',
+              text: 'Remote session id update',
+            },
+            isChunk: true,
+            messageId: 'assistant-msg-remote',
+            role: 'assistant',
+          },
+          provider: input.provider,
+          rawNotification: {
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              messageId: 'assistant-msg-remote',
+              content: {
+                type: 'text',
+                text: 'Remote session id update',
+              },
+            },
+          },
+          sessionId: `runtime-${input.localSessionId}`,
+          timestamp: '2026-03-15T00:00:00.000Z',
+        } as Parameters<AcpRuntimeSessionHooks['onSessionUpdate']>[0]);
+
+        return {
+          runtimeSessionId: `runtime-${input.localSessionId}`,
+          response: {
+            stopReason: 'end_turn' as const,
+          },
+        };
+      }),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Remote Session Project',
+      repoPath: '/tmp/team-ai-desktop-remote-session-project',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-remote-session-create',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+          role: 'DEVELOPER',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    const sessionId = createResponse.json().result.session.id as string;
+
+    const promptResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-remote-session-prompt',
+        method: 'session/prompt',
+        params: {
+          projectId: project.id,
+          sessionId,
+          prompt: 'hello remote session',
+        },
+      },
+    });
+
+    expect(promptResponse.statusCode).toBe(200);
+
+    const historyResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/acp-sessions/${sessionId}/history`,
+    });
+
+    expect(historyResponse.statusCode).toBe(200);
+    expect(historyResponse.json().history).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sessionId,
+          update: expect.objectContaining({
+            eventType: 'agent_message',
+            sessionId,
+          }),
+        }),
+      ]),
+    );
+  });
+
   it('normalizes codex-acp to codex when creating desktop acp sessions', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-alias-test-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
