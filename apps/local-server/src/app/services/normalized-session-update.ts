@@ -3,82 +3,37 @@ import type {
   SessionNotification,
 } from '@agentclientprotocol/sdk';
 import type {
+  NormalizedAcpEventType,
+  NormalizedAcpToolCall,
+  NormalizedAcpUpdate,
+} from '../../../../agent-gateway/src/providers/provider-types.js';
+import type {
   AcpEventTypePayload,
   AcpSessionState,
 } from '../schemas/acp';
 
-export type NormalizedSessionUpdateEventType =
-  | 'tool_call'
-  | 'tool_call_update'
-  | 'agent_message'
-  | 'agent_thought'
-  | 'user_message'
-  | 'plan_update'
-  | 'turn_complete'
-  | 'session_info_update'
-  | 'current_mode_update'
-  | 'config_option_update'
-  | 'usage_update'
-  | 'available_commands_update'
-  | 'error';
+export type NormalizedSessionUpdateEventType = NormalizedAcpEventType;
 
-export interface NormalizedToolCall {
-  content: unknown[];
-  input?: unknown;
-  inputFinalized: boolean;
-  kind?: string | null;
-  locations: unknown[];
-  output?: unknown;
-  status: 'completed' | 'failed' | 'pending' | 'running';
-  title?: string | null;
-  toolCallId?: string;
-}
+export type NormalizedToolCall = NormalizedAcpToolCall;
 
-export interface NormalizedSessionUpdate {
-  eventType: NormalizedSessionUpdateEventType;
-  provider: string;
-  rawNotification: SessionNotification;
-  sessionId: string;
-  timestamp: string;
-  traceId?: string;
-  availableCommands?: unknown[];
-  configOptions?: unknown;
-  error?: {
-    code: string;
-    message: string;
-  };
-  message?: {
-    content: string | null;
+export type NormalizedSessionUpdate = Omit<
+  NormalizedAcpUpdate,
+  'message' | 'rawNotification' | 'turnComplete'
+> & {
+  message?: Omit<
+    NonNullable<NormalizedAcpUpdate['message']>,
+    'contentBlock'
+  > & {
     contentBlock: ContentBlock;
-    isChunk: boolean;
-    messageId?: string | null;
-    role: 'assistant' | 'thought' | 'user';
   };
-  mode?: {
-    currentModeId?: string;
-  };
-  planItems?: Array<{
-    description: string;
-    priority?: 'high' | 'low' | 'medium';
-    status?: 'completed' | 'in_progress' | 'pending';
-  }>;
-  sessionInfo?: {
-    title?: string | null;
-    updatedAt?: string | null;
-  };
-  toolCall?: NormalizedToolCall;
-  turnComplete?: {
+  rawNotification: SessionNotification;
+  turnComplete?: Omit<
+    NonNullable<NormalizedAcpUpdate['turnComplete']>,
+    'state'
+  > & {
     state?: Extract<AcpSessionState, 'FAILED' | 'CANCELLED'>;
-    stopReason: string;
-    usage: unknown;
-    userMessageId: string | null;
   };
-  usage?: {
-    cost: unknown;
-    size: number;
-    used: number;
-  };
-}
+};
 
 export type PersistedAcpEvent = {
   payload: Record<string, unknown>;
