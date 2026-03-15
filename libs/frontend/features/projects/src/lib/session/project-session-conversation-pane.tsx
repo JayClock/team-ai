@@ -1,9 +1,6 @@
 import { State } from '@hateoas-ts/resource';
 import { AcpSession } from '@shared/schema';
 import {
-  ChainOfThought,
-  ChainOfThoughtContent,
-  ChainOfThoughtHeader,
   Conversation,
   ConversationContent,
   ConversationEmptyState,
@@ -11,6 +8,9 @@ import {
   Message,
   MessageContent,
   MessageResponse,
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
   Spinner,
   Tool,
   ToolContent,
@@ -20,10 +20,7 @@ import {
 } from '@shared/ui';
 import type { DynamicToolUIPart, ToolUIPart } from 'ai';
 import { BotIcon } from 'lucide-react';
-import {
-  formatDateTime,
-  formatStatusLabel,
-} from './project-session-workbench.shared';
+import { formatStatusLabel } from './project-session-workbench.shared';
 import { SessionChatMessage } from './use-project-session-chat';
 import {
   ProjectComposerInput,
@@ -120,17 +117,13 @@ export function ProjectSessionConversationPane(props: {
                         {message.parts.map((part, index) => {
                           if (part.type === 'reasoning') {
                             return (
-                              <ChainOfThought
+                              <Reasoning
                                 key={`${message.id}-${index}`}
                                 defaultOpen={isThought}
                               >
-                                <ChainOfThoughtHeader>
-                                  助手推理
-                                </ChainOfThoughtHeader>
-                                <ChainOfThoughtContent>
-                                  <MessageResponse>{part.text}</MessageResponse>
-                                </ChainOfThoughtContent>
-                              </ChainOfThought>
+                                <ReasoningTrigger />
+                                <ReasoningContent>{part.text}</ReasoningContent>
+                              </Reasoning>
                             );
                           }
 
@@ -195,9 +188,6 @@ export function ProjectSessionConversationPane(props: {
 
                           return null;
                         })}
-                        <div className="mt-2 text-[11px] text-muted-foreground">
-                          {formatDateTime(message.metadata?.emittedAt ?? null)}
-                        </div>
                       </MessageContent>
                     </Message>
                   );
