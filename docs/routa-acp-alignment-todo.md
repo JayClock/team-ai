@@ -25,6 +25,7 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - [x] Phase 2 runtime hooks now accept canonical ACP updates only
 - [x] Phase 3 shared ACP provider behavior and normalize contract exists in `provider-types.ts`
 - [x] Phase 4 persistence projection and session-state derivation moved out of `normalized-session-update.ts`
+- [x] Phase 5 keeps `rawNotification` diagnostic-only and removes semantic reparsing from the gateway bridge
 
 ### Still Different From Routa
 
@@ -84,10 +85,10 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 
 ## Phase 5: Raw Notification Policy
 
-- [ ] decide whether `rawNotification` remains required on every canonical event
-- [ ] if kept, document that it is for diagnostics and trace only
+- [x] decide whether `rawNotification` remains required on every canonical event
+- [x] if kept, document that it is for diagnostics and trace only
 - [ ] if reduced, replace broad `unknown` usage with narrower provider-specific raw shapes
-- [ ] ensure downstream code does not parse business semantics from `rawNotification`
+- [x] ensure downstream code does not parse business semantics from `rawNotification`
 
 ## Phase 6: Test Alignment
 
@@ -124,6 +125,7 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - [x] Phase 2
 - [x] Phase 3
 - [x] Phase 4
+- [x] Phase 5
 - [ ] Phase 6
 - [ ] Phase 7
 
@@ -135,3 +137,4 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - Phase 2 keeps raw `SessionNotification` construction and parsing at the runtime bridge edge, but removes it from the runtime service contract.
 - Phase 3 adds a shared provider behavior + normalization contract in the existing `agent-gateway` provider type module instead of introducing a new adapter base module.
 - Phase 4 keeps normalization in `normalized-session-update.ts` and moves persistence/state projection responsibility into `acp-service.ts`, which is the real downstream consumer.
+- Phase 5 keeps `rawNotification` for diagnostics, but bridge code now reconstructs protocol notifications from canonical fields instead of reparsing `rawNotification`.
