@@ -15,7 +15,7 @@ export interface ExecuteTaskDispatchAttempt {
 
 export interface ExecuteTaskOptions {
   callbacks: DispatchTaskCallbacks;
-  callerSessionId: string;
+  callerSessionId?: string;
   logger?: DiagnosticLogger;
   retryOfRunId?: string | null;
 }
