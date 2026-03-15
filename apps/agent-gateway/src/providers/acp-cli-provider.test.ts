@@ -452,6 +452,54 @@ describe('AcpCliProviderAdapter', () => {
       }),
     );
   });
+
+  it('exposes shared adapter behavior and normalizeNotification contract', () => {
+    const adapter = new AcpCliProviderAdapter(
+      {
+        id: 'opencode',
+        providerId: 'opencode',
+        name: 'OpenCode',
+        command: 'opencode',
+        args: ['acp'],
+        cwdArg: '--cwd',
+      },
+      {
+        command: 'opencode',
+        args: ['acp'],
+      },
+    );
+
+    expect(adapter.getBehavior()).toEqual({
+      immediateToolInput: false,
+      protocol: 'acp',
+      streaming: true,
+    });
+
+    expect(
+      adapter.normalizeNotification('session-contract', 'trace-contract', {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'tool-contract',
+        kind: 'read_file',
+        status: 'completed',
+        rawInput: {
+          path: 'README.md',
+        },
+        rawOutput: 'done',
+        locations: [],
+        content: [],
+      }),
+    ).toMatchObject({
+      eventType: 'tool_call_update',
+      traceId: 'trace-contract',
+      toolCall: {
+        toolCallId: 'tool-contract',
+        kind: 'read_file',
+        status: 'completed',
+        inputFinalized: true,
+        output: 'done',
+      },
+    });
+  });
 });
 
 function emitJson(

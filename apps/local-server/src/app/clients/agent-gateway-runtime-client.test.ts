@@ -256,6 +256,105 @@ describe('agent-gateway-runtime-client', () => {
     expect(client.isConfigured('opencode')).toBe(true);
     expect(client.isConfigured('custom-provider')).toBe(false);
   });
+
+  it('rebuilds ACP notifications from canonical fields without depending on rawNotification shape', async () => {
+    const hooks = {
+      onClosed: vi.fn(),
+      onSessionUpdate: vi.fn(async () => undefined),
+    };
+
+    const client = createAgentGatewayRuntimeClient({
+      cancel: vi.fn(async () => ({
+        accepted: true,
+        session: gatewaySession('gw-rawless', 'CANCELLED', 'gw-rawless:3'),
+      })),
+      createSession: vi.fn(async () => ({
+        session: gatewaySession('gw-rawless', 'PENDING', 'gw-rawless:1'),
+      })),
+      isConfigured: vi.fn(() => true),
+      isProviderConfigured: vi.fn(() => true),
+      listEvents: vi.fn(async () => ({
+        events: [
+          gatewayEvent('gw-rawless:2', 'delta', {
+            protocol: 'acp',
+            update: {
+              eventType: 'agent_message',
+              message: {
+                role: 'assistant',
+                content: 'canonical only',
+                contentBlock: {
+                  type: 'text',
+                  text: 'canonical only',
+                },
+                isChunk: true,
+                messageId: 'msg-canonical',
+              },
+              rawNotification: {
+                ignored: true,
+              },
+            },
+          }),
+          gatewayEvent('gw-rawless:3', 'complete', {
+            protocol: 'acp',
+            update: {
+              eventType: 'turn_complete',
+              turnComplete: {
+                stopReason: 'end_turn',
+                usage: null,
+                userMessageId: null,
+              },
+            },
+          }),
+        ],
+        nextCursor: 'gw-rawless:3',
+        session: gatewaySession('gw-rawless', 'RUNNING', 'gw-rawless:3'),
+      })),
+      listProviders: vi.fn(),
+      prompt: vi.fn(async () => ({
+        accepted: true,
+        session: gatewaySession('gw-rawless', 'RUNNING', 'gw-rawless:1'),
+      })),
+      refreshProviderCatalog: vi.fn(),
+      stream: vi.fn(async () => undefined),
+    } satisfies AgentGatewayClient);
+
+    await client.createSession({
+      localSessionId: 'local-rawless',
+      provider: 'codex',
+      cwd: '/tmp/project',
+      mcpServers: [],
+      hooks,
+    });
+
+    await client.promptSession({
+      localSessionId: 'local-rawless',
+      prompt: 'hello',
+      timeoutMs: 2_000,
+    });
+
+    const updates = hooks.onSessionUpdate.mock.calls as unknown as Array<
+      [unknown]
+    >;
+    expect(updates[0]?.[0]).toEqual(
+      expect.objectContaining({
+        eventType: 'agent_message',
+        message: expect.objectContaining({
+          content: 'canonical only',
+          isChunk: true,
+        }),
+        rawNotification: expect.objectContaining({
+          update: expect.objectContaining({
+            sessionUpdate: 'agent_message_chunk',
+            messageId: 'msg-canonical',
+            content: {
+              type: 'text',
+              text: 'canonical only',
+            },
+          }),
+        }),
+      }),
+    );
+  });
 });
 
 function gatewayEvent(

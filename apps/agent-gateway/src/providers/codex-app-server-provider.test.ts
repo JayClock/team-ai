@@ -384,6 +384,54 @@ describe('CodexAppServerAdapter', () => {
       );
     });
   });
+
+  it('exposes shared adapter behavior and normalizeNotification contract', () => {
+    const adapter = new CodexAppServerAdapter(
+      {
+        id: 'codex',
+        providerId: 'codex',
+        name: 'Codex',
+        command: 'codex',
+        args: ['app-server'],
+      },
+      {
+        command: 'codex',
+        args: ['app-server'],
+      },
+    );
+
+    expect(adapter.getBehavior()).toEqual({
+      immediateToolInput: true,
+      protocol: 'acp',
+      streaming: true,
+    });
+
+    expect(
+      adapter.normalizeNotification('session-contract', 'trace-contract', {
+        method: 'item/started',
+        params: {
+          item: {
+            id: 'tool-contract',
+            type: 'mcpToolCall',
+            server: 'team_ai_local',
+            tool: 'read_file',
+            arguments: {
+              path: 'README.md',
+            },
+          },
+        },
+      }),
+    ).toMatchObject({
+      eventType: 'tool_call',
+      traceId: 'trace-contract',
+      toolCall: {
+        toolCallId: 'tool-contract',
+        kind: 'mcp_tool_call',
+        inputFinalized: true,
+        status: 'running',
+      },
+    });
+  });
 });
 
 function emitJson(
