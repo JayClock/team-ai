@@ -138,6 +138,14 @@ describe('mcp route', () => {
       kind: 'implement',
       sessionId: rootSessionId,
     });
+    const explicitTask = await createTask(fastify.sqlite, {
+      projectId: project.id,
+      title: 'Explicit MCP execute task',
+      objective: 'Ensure explicit MCP execution still works',
+      status: 'FAILED',
+      kind: 'implement',
+      sessionId: rootSessionId,
+    });
 
     const listToolsResponse = await callMcp(
       fastify,
@@ -335,10 +343,12 @@ describe('mcp route', () => {
     expect(taskUpdateResponse.json().result.content[0].json).toMatchObject({
       task: {
         id: task.id,
-        status: 'READY',
-        completionSummary: 'Ready for local execution',
+        status: 'COMPLETED',
+        completionSummary: 'ACP session completed',
+        triggerSessionId: expect.stringMatching(/^acps_/),
       },
     });
+    expect(promptMock).toHaveBeenCalledTimes(1);
 
     const invalidTaskUpdateResponse = await callMcp(
       fastify,
@@ -377,7 +387,7 @@ describe('mcp route', () => {
           name: 'task_execute',
           arguments: {
             projectId: project.id,
-            taskId: task.id,
+            taskId: completedTask.id,
           },
         },
       },
@@ -385,22 +395,13 @@ describe('mcp route', () => {
     );
 
     expect(taskExecuteResponse.statusCode).toBe(200);
-    expect(taskExecuteResponse.json().result.content[0].json).toMatchObject({
-      dispatch: {
-        attempted: true,
-        errorMessage: null,
-        result: {
-          dispatched: true,
-          reason: null,
-          role: 'CRAFTER',
-        },
+    expect(taskExecuteResponse.json()).toMatchObject({
+      error: {
+        code: -32000,
+        message: expect.stringContaining('COMPLETED'),
       },
-      task: {
-        id: task.id,
-        status: 'COMPLETED',
-      },
+      result: null,
     });
-    expect(promptMock).toHaveBeenCalledTimes(1);
 
     const taskRunsResponse = await callMcp(
       fastify,
@@ -487,31 +488,41 @@ describe('mcp route', () => {
       title: 'Review Summary',
     });
 
-    const invalidTaskExecuteResponse = await callMcp(
+    const explicitTaskExecuteResponse = await callMcp(
       fastify,
       {
         jsonrpc: '2.0',
-        id: 'mcp-task-execute-invalid',
+        id: 'mcp-task-execute-explicit',
         method: 'tools/call',
         params: {
           name: 'task_execute',
           arguments: {
             projectId: project.id,
-            taskId: completedTask.id,
+            taskId: explicitTask.id,
           },
         },
       },
       'read-write',
     );
 
-    expect(invalidTaskExecuteResponse.statusCode).toBe(200);
-    expect(invalidTaskExecuteResponse.json()).toMatchObject({
-      error: {
-        code: -32000,
-        message: expect.stringContaining('COMPLETED'),
-      },
-      result: null,
-    });
+    expect(explicitTaskExecuteResponse.statusCode).toBe(200);
+    expect(explicitTaskExecuteResponse.json().result.content[0].json)
+      .toMatchObject({
+        dispatch: {
+          attempted: true,
+          errorMessage: null,
+          result: {
+            dispatched: true,
+            reason: null,
+            role: 'CRAFTER',
+          },
+        },
+        task: {
+          id: explicitTask.id,
+          status: 'COMPLETED',
+        },
+      });
+    expect(promptMock).toHaveBeenCalledTimes(2);
 
     const createAcpResponse = await callMcp(
       fastify,
@@ -555,7 +566,7 @@ describe('mcp route', () => {
     );
 
     expect(promptAcpResponse.statusCode).toBe(200);
-    expect(promptMock).toHaveBeenCalledTimes(2);
+    expect(promptMock).toHaveBeenCalledTimes(3);
   });
 
   it('defaults MCP access to read-only and returns problem details for denied writes', async () => {

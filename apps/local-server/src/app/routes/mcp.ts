@@ -20,7 +20,10 @@ import {
   taskStatusValues,
   updateTaskFromMcp,
 } from '../services/task-service';
-import { executeTask } from '../services/task-orchestration-service';
+import {
+  executeTask,
+  maybeAutoExecutePatchedTask,
+} from '../services/task-orchestration-service';
 
 const mcpAccessModeHeader = 'x-teamai-mcp-access-mode';
 
@@ -1147,7 +1150,16 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 request,
                 id,
                 {
-                  task: await updateTaskFromMcp(fastify.sqlite, taskId, patch),
+                  task: await maybeAutoExecutePatchedTask(
+                    fastify.sqlite,
+                    await updateTaskFromMcp(fastify.sqlite, taskId, patch),
+                    patch,
+                    {
+                      callbacks: dispatchCallbacks,
+                      logger: request.log,
+                      source: 'mcp_task_update_auto_execute',
+                    },
+                  ),
                 },
                 auditContext,
               );

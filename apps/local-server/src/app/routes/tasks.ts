@@ -12,7 +12,10 @@ import {
   listTasks,
   updateTask,
 } from '../services/task-service';
-import { executeTask } from '../services/task-orchestration-service';
+import {
+  executeTask,
+  maybeAutoExecutePatchedTask,
+} from '../services/task-orchestration-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTasksQuerySchema = z.object({
@@ -112,30 +115,6 @@ const taskPatchSchema = z
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field must be provided',
   });
-
-function shouldAutoExecutePatchedTask(
-  patch: z.infer<typeof taskPatchSchema>,
-  task: {
-    executionSessionId: string | null;
-    status: string;
-    triggerSessionId: string | null;
-  },
-) {
-  if (task.status !== 'READY') {
-    return false;
-  }
-
-  if (task.executionSessionId || task.triggerSessionId) {
-    return false;
-  }
-
-  return (
-    patch.status === 'READY' ||
-    patch.assignedProvider !== undefined ||
-    patch.assignedRole !== undefined ||
-    patch.assignedSpecialistId !== undefined
-  );
-}
 
 const tasksRoute: FastifyPluginAsync = async (fastify) => {
   const dispatchCallbacks = {
@@ -244,15 +223,16 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
     const task = await updateTask(fastify.sqlite, taskId, body);
-    const executedTask = shouldAutoExecutePatchedTask(body, task)
-      ? (
-          await executeTask(fastify.sqlite, taskId, {
-            callbacks: dispatchCallbacks,
-            logger: request.log,
-            source: 'tasks_route_patch_auto_execute',
-          })
-        ).task
-      : task;
+    const executedTask = await maybeAutoExecutePatchedTask(
+      fastify.sqlite,
+      task,
+      body,
+      {
+        callbacks: dispatchCallbacks,
+        logger: request.log,
+        source: 'tasks_route_patch_auto_execute',
+      },
+    );
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
 

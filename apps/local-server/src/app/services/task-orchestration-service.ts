@@ -1,6 +1,7 @@
 import type { Database } from 'better-sqlite3';
 import type { DiagnosticLogger } from '../diagnostics';
 import { ProblemError } from '../errors/problem-error';
+import type { TaskPayload } from '../schemas/task';
 import type {
   DispatchTaskCallbacks,
   DispatchTaskResult,
@@ -26,6 +27,13 @@ export interface ExecuteTaskResult {
   task: Awaited<ReturnType<typeof getTaskById>>;
 }
 
+export interface AutoExecuteTaskPatch {
+  assignedProvider?: string | null;
+  assignedRole?: string | null;
+  assignedSpecialistId?: string | null;
+  status?: string;
+}
+
 const executableTaskStatuses = new Set([
   'PENDING',
   'READY',
@@ -33,6 +41,26 @@ const executableTaskStatuses = new Set([
   'FAILED',
   'CANCELLED',
 ]);
+
+function shouldAutoExecutePatchedTask(
+  patch: AutoExecuteTaskPatch,
+  task: Pick<TaskPayload, 'executionSessionId' | 'status' | 'triggerSessionId'>,
+) {
+  if (task.status !== 'READY') {
+    return false;
+  }
+
+  if (task.executionSessionId || task.triggerSessionId) {
+    return false;
+  }
+
+  return (
+    patch.status === 'READY' ||
+    patch.assignedProvider !== undefined ||
+    patch.assignedRole !== undefined ||
+    patch.assignedSpecialistId !== undefined
+  );
+}
 
 function throwTaskExecutionAlreadyActive(
   taskId: string,
@@ -126,4 +154,17 @@ export async function executeTask(
       task: await getTaskById(sqlite, taskId),
     };
   }
+}
+
+export async function maybeAutoExecutePatchedTask(
+  sqlite: Database,
+  task: TaskPayload,
+  patch: AutoExecuteTaskPatch,
+  options: ExecuteTaskOptions,
+): Promise<TaskPayload> {
+  if (!shouldAutoExecutePatchedTask(patch, task)) {
+    return task;
+  }
+
+  return (await executeTask(sqlite, task.id, options)).task;
 }
