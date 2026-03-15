@@ -21,11 +21,18 @@ import {
   type TaskDispatchability,
 } from './task-service';
 
-interface TaskTriggerSessionRow {
+interface TaskCallerSessionRow {
   actor_id: string;
   id: string;
   project_id: string;
   provider: string;
+}
+
+interface TaskDispatchContext {
+  actorUserId: string;
+  callerSessionId: string | null;
+  parentSessionId: string | null;
+  provider: string | null;
 }
 
 export interface DispatchTaskCallbacks {
@@ -49,7 +56,7 @@ export interface DispatchTaskCallbacks {
 }
 
 export interface DispatchTaskInput {
-  sessionId: string;
+  callerSessionId?: string;
   retryOfRunId?: string | null;
   taskId: string;
 }
@@ -67,9 +74,9 @@ export interface DispatchTaskResult {
 }
 
 export interface DispatchTasksInput {
+  callerSessionId?: string;
   limit?: number;
   projectId: string;
-  sessionId?: string;
 }
 
 export interface DispatchTasksResult {
@@ -99,28 +106,39 @@ function releaseTaskDispatchClaim(taskId: string) {
   activeDispatchClaims.delete(taskId);
 }
 
-function getTriggerSessionRow(
+const defaultTaskDispatchActorId = 'desktop-user';
+
+function findSessionRow(
   sqlite: Database,
   sessionId: string,
-): TaskTriggerSessionRow {
-  const row = sqlite
-    .prepare(
-      `
+): TaskCallerSessionRow | null {
+  return (
+    (sqlite
+      .prepare(
+        `
         SELECT id, project_id, actor_id, provider
         FROM project_acp_sessions
         WHERE id = ? AND deleted_at IS NULL
       `,
-    )
-    .get(sessionId) as TaskTriggerSessionRow | undefined;
+      )
+      .get(sessionId) as TaskCallerSessionRow | undefined) ?? null
+  );
+}
+
+function getCallerSessionRow(
+  sqlite: Database,
+  sessionId: string,
+): TaskCallerSessionRow {
+  const row = findSessionRow(sqlite, sessionId);
 
   if (!row) {
     throw new ProblemError({
       type: 'https://team-ai.dev/problems/task-dispatch-trigger-session-missing',
-      title: 'Task Dispatch Trigger Session Missing',
+      title: 'Task Dispatch Caller Session Missing',
       status: 409,
-      detail: `Task dispatch trigger session ${sessionId} is not available`,
+      detail: `Task dispatch caller session ${sessionId} is not available`,
       context: {
-        sessionId,
+        callerSessionId: sessionId,
       },
     });
   }
@@ -128,14 +146,49 @@ function getTriggerSessionRow(
   return row;
 }
 
+function resolveTaskDispatchContext(
+  sqlite: Database,
+  task: Pick<TaskPayload, 'projectId' | 'sessionId'>,
+  callerSessionId?: string,
+): TaskDispatchContext {
+  if (callerSessionId) {
+    const callerSession = getCallerSessionRow(sqlite, callerSessionId);
+    return {
+      actorUserId: callerSession.actor_id,
+      callerSessionId: callerSession.id,
+      parentSessionId: callerSession.id,
+      provider: callerSession.provider,
+    };
+  }
+
+  if (task.sessionId) {
+    const creatorSession = findSessionRow(sqlite, task.sessionId);
+    if (creatorSession && creatorSession.project_id === task.projectId) {
+      return {
+        actorUserId: creatorSession.actor_id,
+        callerSessionId: null,
+        parentSessionId: null,
+        provider: creatorSession.provider,
+      };
+    }
+  }
+
+  return {
+    actorUserId: defaultTaskDispatchActorId,
+    callerSessionId: null,
+    parentSessionId: null,
+    provider: null,
+  };
+}
+
 function resolveDispatchProvider(
   task: Pick<TaskPayload, 'assignedProvider'>,
-  triggerSession: Pick<TaskTriggerSessionRow, 'provider'>,
+  dispatchContext: Pick<TaskDispatchContext, 'provider'>,
   defaultProviderId: string | null,
 ) {
   return [
     task.assignedProvider,
-    triggerSession.provider,
+    dispatchContext.provider,
     defaultProviderId,
     'codex',
   ].filter((provider, index, providers): provider is string => {
@@ -262,17 +315,17 @@ function buildDispatchLogContext(
     TaskPayload,
     'executionSessionId' | 'id' | 'kind' | 'projectId' | 'status'
   >,
-  input: Pick<DispatchTaskInput, 'sessionId'>,
+  input: Pick<DispatchTaskInput, 'callerSessionId'>,
   options: DispatchTaskOptions,
 ) {
   return {
     source: options.source ?? 'task-dispatch-service',
+    callerSessionId: input.callerSessionId ?? null,
     taskExecutionSessionId: task.executionSessionId,
     taskId: task.id,
     taskKind: task.kind,
     taskStatus: task.status,
     triggerReason: options.triggerReason ?? null,
-    triggerSessionId: input.sessionId,
     triggerSource: options.triggerSource ?? null,
     projectId: task.projectId,
   };
@@ -356,29 +409,35 @@ export async function dispatchTask(
       };
     }
 
-    const triggerSession = getTriggerSessionRow(
+    const dispatchContext = resolveTaskDispatchContext(
       sqlite,
-      input.sessionId,
+      dispatchability.task,
+      input.callerSessionId,
     );
 
-    if (triggerSession.project_id !== dispatchability.task.projectId) {
+    if (
+      input.callerSessionId &&
+      dispatchContext.parentSessionId &&
+      getCallerSessionRow(sqlite, dispatchContext.parentSessionId).project_id !==
+        dispatchability.task.projectId
+    ) {
       throw new ProblemError({
         type: 'https://team-ai.dev/problems/task-dispatch-trigger-session-mismatch',
-        title: 'Task Dispatch Trigger Session Mismatch',
+        title: 'Task Dispatch Caller Session Mismatch',
         status: 409,
         detail:
-          `Task dispatch trigger session ${input.sessionId} does not belong to ` +
+          `Task dispatch caller session ${input.callerSessionId} does not belong to ` +
           `project ${dispatchability.task.projectId}`,
         context: {
+          callerSessionId: input.callerSessionId,
           projectId: dispatchability.task.projectId,
-          sessionId: input.sessionId,
           taskId: dispatchability.task.id,
         },
       });
     }
     const providerCandidates = resolveDispatchProvider(
       dispatchability.task,
-      triggerSession,
+      dispatchContext,
       runtimeProfile.defaultProviderId,
     );
     const preferredProvider = providerCandidates[0] ?? null;
@@ -452,9 +511,9 @@ export async function dispatchTask(
 
     dispatchPhase = 'create_session';
     const createdSession = await callbacks.createSession({
-      actorUserId: triggerSession.actor_id,
+      actorUserId: dispatchContext.actorUserId,
       goal: hydratedTask.title,
-      parentSessionId: triggerSession.id,
+      parentSessionId: dispatchContext.parentSessionId,
       projectId: hydratedTask.projectId,
       provider,
       retryOfRunId: input.retryOfRunId,
@@ -556,7 +615,6 @@ export async function dispatchTasks(
     sqlite,
     {
       projectId: input.projectId,
-      sessionId: input.sessionId,
     },
     {
       orchestrationMode: runtimeProfile.orchestrationMode,
@@ -566,25 +624,12 @@ export async function dispatchTasks(
   const results: DispatchTaskResult[] = [];
 
   for (const candidate of candidates.slice(0, limit)) {
-    if (!input.sessionId) {
-      throw new ProblemError({
-        type: 'https://team-ai.dev/problems/task-dispatch-trigger-session-missing',
-        title: 'Task Dispatch Trigger Session Missing',
-        status: 409,
-        detail: `Task ${candidate.task.id} cannot be dispatched without a parent session`,
-        context: {
-          projectId: input.projectId,
-          taskId: candidate.task.id,
-        },
-      });
-    }
-
     results.push(
       await dispatchTask(
         sqlite,
         callbacks,
         {
-          sessionId: input.sessionId,
+          callerSessionId: input.callerSessionId,
           taskId: candidate.task.id,
         },
         options,

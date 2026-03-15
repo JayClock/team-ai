@@ -8,11 +8,11 @@ import {
 import {
   createTask,
   deleteTask,
-  executeTask,
   getTaskById,
   listTasks,
   updateTask,
 } from '../services/task-service';
+import { executeTask } from '../services/task-orchestration-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTasksQuerySchema = z.object({
@@ -32,7 +32,7 @@ const taskParamsSchema = z.object({
 });
 
 const taskExecuteBodySchema = z.object({
-  sessionId: z.string().trim().min(1),
+  callerSessionId: z.string().trim().min(1).optional(),
 });
 
 const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
@@ -228,11 +228,11 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/tasks/:taskId/execute', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
-    const body = taskExecuteBodySchema.parse(request.body);
+    const body = taskExecuteBodySchema.parse(request.body ?? {});
     const result = await executeTask(fastify.sqlite, taskId, {
       callbacks: dispatchCallbacks,
+      callerSessionId: body.callerSessionId,
       logger: request.log,
-      sessionId: body.sessionId,
     });
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);

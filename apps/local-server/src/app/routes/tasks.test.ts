@@ -219,9 +219,6 @@ describe('tasks routes', () => {
 
     const executeResponse = await fastify.inject({
       method: 'POST',
-      payload: {
-        sessionId,
-      },
       url: `/api/tasks/${taskId}/execute`,
     });
 

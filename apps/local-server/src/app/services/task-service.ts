@@ -1,6 +1,5 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
-import type { DiagnosticLogger } from '../diagnostics';
 import { ProblemError } from '../errors/problem-error';
 import type {
   CreateTaskInput,
@@ -11,10 +10,6 @@ import type {
 } from '../schemas/task';
 import type { ProjectOrchestrationMode } from '../schemas/runtime-profile';
 import type { RoleValue } from '../schemas/role';
-import type {
-  DispatchTaskCallbacks,
-  DispatchTaskResult,
-} from './task-dispatch-service';
 import { getProjectById } from './project-service';
 import { getAcpSessionById } from './acp-service';
 import {
@@ -118,24 +113,6 @@ export interface TaskDispatchability {
   unresolvedDependencyIds: string[];
 }
 
-export interface ExecuteTaskDispatchAttempt {
-  attempted: boolean;
-  errorMessage: string | null;
-  result: DispatchTaskResult | null;
-}
-
-export interface ExecuteTaskOptions {
-  callbacks: DispatchTaskCallbacks;
-  logger?: DiagnosticLogger;
-  sessionId: string;
-  retryOfRunId?: string | null;
-}
-
-export interface ExecuteTaskResult {
-  dispatch: ExecuteTaskDispatchAttempt;
-  task: TaskPayload;
-}
-
 interface TaskDispatchabilityOptions {
   orchestrationMode?: ProjectOrchestrationMode;
 }
@@ -155,13 +132,6 @@ const mcpWritableTaskStatuses = new Set<TaskStatus>([
   'PENDING',
   'READY',
   'WAITING_RETRY',
-  'CANCELLED',
-]);
-const executableTaskStatuses = new Set<TaskStatus>([
-  'PENDING',
-  'READY',
-  'WAITING_RETRY',
-  'FAILED',
   'CANCELLED',
 ]);
 const mcpTaskStatusTransitions: Record<TaskStatus, readonly TaskStatus[]> = {
@@ -243,38 +213,6 @@ function throwTaskStatusTransitionNotAllowed(
     context: {
       currentStatus,
       nextStatus,
-      taskId,
-    },
-  });
-}
-
-function throwTaskExecutionNotAllowed(
-  taskId: string,
-  status: TaskStatus,
-): never {
-  throw new ProblemError({
-    type: 'https://team-ai.dev/problems/task-execution-not-allowed',
-    title: 'Task Execution Not Allowed',
-    status: 409,
-    detail: `Task ${taskId} cannot be executed from status ${status}`,
-    context: {
-      status,
-      taskId,
-    },
-  });
-}
-
-function throwTaskExecutionAlreadyActive(
-  taskId: string,
-  sessionId: string,
-): never {
-  throw new ProblemError({
-    type: 'https://team-ai.dev/problems/task-execution-already-active',
-    title: 'Task Execution Already Active',
-    status: 409,
-    detail: `Task ${taskId} is already executing in session ${sessionId}`,
-    context: {
-      sessionId,
       taskId,
     },
   });
@@ -1311,72 +1249,6 @@ export async function updateTaskFromMcp(
   }
 
   return updateTask(sqlite, taskId, input);
-}
-
-export async function executeTask(
-  sqlite: Database,
-  taskId: string,
-  options: ExecuteTaskOptions,
-): Promise<ExecuteTaskResult> {
-  const task = await getTaskById(sqlite, taskId);
-  const currentStatus = ensureTaskStatus(task.status, 'PENDING');
-
-  if (task.executionSessionId) {
-    throwTaskExecutionAlreadyActive(taskId, task.executionSessionId);
-  }
-
-  if (!executableTaskStatuses.has(currentStatus)) {
-    throwTaskExecutionNotAllowed(taskId, currentStatus);
-  }
-
-  const retryOfRunId = await (
-    await import('./task-run-service.js')
-  ).resolveRetryDispatchRunId(sqlite, {
-    retryOfRunId: options.retryOfRunId,
-    taskId,
-  });
-
-  if (currentStatus !== 'READY') {
-    await updateTask(sqlite, taskId, {
-      status: 'READY',
-    });
-  }
-
-  try {
-    const { dispatchTask } = await import('./task-dispatch-service.js');
-    const result = await dispatchTask(
-      sqlite,
-      options.callbacks,
-      {
-        sessionId: options.sessionId,
-        retryOfRunId,
-        taskId,
-      },
-      {
-        logger: options.logger,
-        source: 'task_execute',
-      },
-    );
-
-    return {
-      dispatch: {
-        attempted: true,
-        errorMessage: null,
-        result,
-      },
-      task: await getTaskById(sqlite, taskId),
-    };
-  } catch (error) {
-    return {
-      dispatch: {
-        attempted: true,
-        errorMessage:
-          error instanceof Error ? error.message : 'Task dispatch failed',
-        result: null,
-      },
-      task: await getTaskById(sqlite, taskId),
-    };
-  }
 }
 
 export async function deleteTask(

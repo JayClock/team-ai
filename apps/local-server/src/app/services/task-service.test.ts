@@ -10,11 +10,11 @@ import {
   MAX_TASK_RUN_RETRY_COUNT,
   startTaskRun,
 } from './task-run-service';
+import { executeTask } from './task-orchestration-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import {
   createTask,
   deleteTask,
-  executeTask,
   getTaskDispatchability,
   getTaskById,
   listTasks,
@@ -457,7 +457,7 @@ describe('task service', () => {
 
     const readyResult = await executeTask(sqlite, readyTask.id, {
       callbacks,
-      sessionId: rootSessionId,
+      callerSessionId: rootSessionId,
     });
 
     expect(readyResult.dispatch).toMatchObject({
@@ -476,7 +476,7 @@ describe('task service', () => {
 
     const failedResult = await executeTask(sqlite, failedTask.id, {
       callbacks,
-      sessionId: rootSessionId,
+      callerSessionId: rootSessionId,
     });
 
     expect(failedResult.task.status).toBe('READY');
@@ -496,7 +496,7 @@ describe('task service', () => {
     await expect(
       executeTask(sqlite, completedTask.id, {
         callbacks,
-        sessionId: rootSessionId,
+        callerSessionId: rootSessionId,
       }),
     ).rejects.toMatchObject({
       status: 409,
@@ -566,7 +566,7 @@ describe('task service', () => {
           createSession,
           promptSession,
         },
-        sessionId: rootSessionId,
+        callerSessionId: rootSessionId,
       }),
     ).rejects.toMatchObject({
       status: 409,

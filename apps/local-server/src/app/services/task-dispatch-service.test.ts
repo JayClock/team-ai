@@ -28,7 +28,7 @@ describe('task dispatch service', () => {
     }
   });
 
-  it('scans a project/session scope and dispatches child sessions with resolved defaults', async () => {
+  it('scans a project scope and dispatches child sessions with explicit caller context', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Dispatch Service Project',
@@ -50,7 +50,7 @@ describe('task dispatch service', () => {
       provider: 'codex',
     });
 
-    const inScopeTask = await createTask(sqlite, {
+    const firstTask = await createTask(sqlite, {
       acceptanceCriteria: ['Expose a deterministic dispatch entry point'],
       objective: 'Implement the deterministic dispatch service',
       projectId: project.id,
@@ -59,7 +59,7 @@ describe('task dispatch service', () => {
       sessionId: 'acps_dispatch_parent',
       verificationCommands: ['pnpm vitest task-dispatch-service'],
     });
-    await createTask(sqlite, {
+    const secondTask = await createTask(sqlite, {
       objective: 'Stay outside the requested dispatch scope',
       projectId: project.id,
       status: 'READY',
@@ -67,16 +67,18 @@ describe('task dispatch service', () => {
       sessionId: 'acps_other_parent',
     });
 
+    let sessionCount = 0;
     const createSession = vi.fn(async () => {
+      const id = `acps_dispatch_child_${++sessionCount}`;
       insertAcpSession(sqlite, {
         actorId: 'desktop-user',
         cwd: '/Users/example/dispatch-service-project',
-        id: 'acps_dispatch_child',
+        id,
         parentSessionId: 'acps_dispatch_parent',
         projectId: project.id,
         provider: 'opencode',
       });
-      return { id: 'acps_dispatch_child' };
+      return { id };
     });
     const promptSession = vi.fn(async () => undefined);
 
@@ -87,22 +89,33 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
+        callerSessionId: 'acps_dispatch_parent',
         projectId: project.id,
-        sessionId: 'acps_dispatch_parent',
       },
     );
-    const updatedTask = await getTaskById(sqlite, inScopeTask.id);
+    const updatedFirstTask = await getTaskById(sqlite, firstTask.id);
+    const updatedSecondTask = await getTaskById(sqlite, secondTask.id);
 
-    expect(result.dispatchedCount).toBe(1);
-    expect(result.results).toHaveLength(1);
+    expect(result.dispatchedCount).toBe(2);
+    expect(result.results).toHaveLength(2);
     expect(result.results[0]).toMatchObject({
       dispatched: true,
       provider: 'opencode',
       role: 'CRAFTER',
-      sessionId: 'acps_dispatch_child',
+      sessionId: 'acps_dispatch_child_1',
       specialistId: 'crafter-implementor',
       task: {
-        id: inScopeTask.id,
+        id: firstTask.id,
+      },
+    });
+    expect(result.results[1]).toMatchObject({
+      dispatched: true,
+      provider: 'opencode',
+      role: 'CRAFTER',
+      sessionId: 'acps_dispatch_child_2',
+      specialistId: 'crafter-implementor',
+      task: {
+        id: secondTask.id,
       },
     });
     expect(createSession).toHaveBeenCalledWith(
@@ -113,23 +126,104 @@ describe('task dispatch service', () => {
         provider: 'opencode',
         role: 'CRAFTER',
         specialistId: 'crafter-implementor',
-        taskId: inScopeTask.id,
+        taskId: firstTask.id,
       }),
     );
-    expect(promptSession).toHaveBeenCalledWith(
+    expect(createSession).toHaveBeenCalledWith(
       expect.objectContaining({
+        actorUserId: 'desktop-user',
+        parentSessionId: 'acps_dispatch_parent',
         projectId: project.id,
-        sessionId: 'acps_dispatch_child',
+        provider: 'opencode',
+        role: 'CRAFTER',
+        specialistId: 'crafter-implementor',
+        taskId: secondTask.id,
       }),
     );
-    expect(updatedTask).toMatchObject({
+    expect(promptSession).toHaveBeenCalledTimes(2);
+    expect(updatedFirstTask).toMatchObject({
       assignedProvider: 'opencode',
       assignedRole: 'CRAFTER',
       assignedSpecialistId: 'crafter-implementor',
       assignedSpecialistName: 'Crafter Implementor',
-      triggerSessionId: 'acps_dispatch_child',
+      triggerSessionId: 'acps_dispatch_child_1',
     });
-    expect(result.results[0].prompt).toContain('Acceptance Criteria');
+    expect(updatedSecondTask).toMatchObject({
+      assignedProvider: 'opencode',
+      assignedRole: 'CRAFTER',
+      assignedSpecialistId: 'crafter-implementor',
+      assignedSpecialistName: 'Crafter Implementor',
+      triggerSessionId: 'acps_dispatch_child_2',
+    });
+    expect(result.results[0].prompt ?? result.results[1].prompt).toContain(
+      'Acceptance Criteria',
+    );
+  });
+
+  it('falls back to the task creator session when no caller session is provided', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Dispatch Creator Fallback Project',
+      repoPath: '/Users/example/dispatch-creator-fallback',
+    });
+
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/dispatch-creator-fallback',
+      id: 'acps_creator_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const task = await createTask(sqlite, {
+      objective: 'Dispatch using the task creator session when no caller is supplied',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Creator fallback task',
+      sessionId: 'acps_creator_parent',
+    });
+
+    const createSession = vi.fn(async (input) => {
+      insertAcpSession(sqlite, {
+        actorId: input.actorUserId,
+        cwd: '/Users/example/dispatch-creator-fallback',
+        id: 'acps_creator_child',
+        projectId: project.id,
+        provider: input.provider,
+      });
+      return { id: 'acps_creator_child' };
+    });
+    const promptSession = vi.fn(async () => undefined);
+
+    const result = await dispatchTask(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        taskId: task.id,
+      },
+    );
+
+    expect(result).toMatchObject({
+      dispatched: true,
+      provider: 'codex',
+      sessionId: 'acps_creator_child',
+      task: {
+        id: task.id,
+        triggerSessionId: 'acps_creator_child',
+      },
+    });
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: 'desktop-user',
+        parentSessionId: null,
+        projectId: project.id,
+        provider: 'codex',
+        taskId: task.id,
+      }),
+    );
   });
 
   it('prevents duplicate concurrent dispatch attempts for the same task', async () => {
@@ -173,7 +267,7 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
-        sessionId: 'acps_duplicate_parent',
+        callerSessionId: 'acps_duplicate_parent',
         taskId: task.id,
       },
     );
@@ -189,7 +283,7 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
-        sessionId: 'acps_duplicate_parent',
+        callerSessionId: 'acps_duplicate_parent',
         taskId: task.id,
       },
     );
@@ -275,7 +369,7 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
-        sessionId: 'acps_provider_fallback_parent',
+        callerSessionId: 'acps_provider_fallback_parent',
         taskId: task.id,
       },
     );
@@ -331,7 +425,7 @@ describe('task dispatch service', () => {
           promptSession: vi.fn(async () => undefined),
         },
         {
-          sessionId: 'acps_provider_exhausted_parent',
+          callerSessionId: 'acps_provider_exhausted_parent',
           taskId: task.id,
         },
       ),
@@ -387,7 +481,7 @@ describe('task dispatch service', () => {
           promptSession: vi.fn(async () => undefined),
         },
         {
-          sessionId: 'acps_child_failure_parent',
+          callerSessionId: 'acps_child_failure_parent',
           taskId: task.id,
         },
       ),
@@ -443,7 +537,7 @@ describe('task dispatch service', () => {
         promptSession,
       },
       {
-        sessionId: 'acps_developer_parent',
+        callerSessionId: 'acps_developer_parent',
         taskId: task.id,
       },
     );
@@ -515,7 +609,7 @@ describe('task dispatch service', () => {
         promptSession: vi.fn(async () => undefined),
       },
       {
-        sessionId: 'acps_dispatch_diagnostics_parent',
+        callerSessionId: 'acps_dispatch_diagnostics_parent',
         taskId: readyTask.id,
       },
       {
@@ -534,7 +628,7 @@ describe('task dispatch service', () => {
         promptSession: vi.fn(async () => undefined),
       },
       {
-        sessionId: 'acps_dispatch_diagnostics_parent',
+        callerSessionId: 'acps_dispatch_diagnostics_parent',
         taskId: completedTask.id,
       },
       {

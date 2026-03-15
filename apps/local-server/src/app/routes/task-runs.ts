@@ -18,7 +18,8 @@ import {
   listTaskRuns,
   updateTaskRun,
 } from '../services/task-run-service';
-import { executeTask, getTaskById } from '../services/task-service';
+import { getTaskById } from '../services/task-service';
+import { executeTask } from '../services/task-orchestration-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTaskRunsQuerySchema = z.object({
@@ -229,8 +230,8 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
 
     const result = await executeTask(fastify.sqlite, sourceRun.taskId, {
       callbacks: dispatchCallbacks,
+      callerSessionId: executionSessionId,
       logger: request.log,
-      sessionId: executionSessionId,
       retryOfRunId: sourceRun.id,
     });
 

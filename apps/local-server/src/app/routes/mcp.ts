@@ -15,12 +15,12 @@ import { listAgents } from '../services/agent-service';
 import { getProjectById, listProjects } from '../services/project-service';
 import { listTaskRuns } from '../services/task-run-service';
 import {
-  executeTask,
   getTaskById,
   listTasks,
   taskStatusValues,
   updateTaskFromMcp,
 } from '../services/task-service';
+import { executeTask } from '../services/task-orchestration-service';
 
 const mcpAccessModeHeader = 'x-teamai-mcp-access-mode';
 
@@ -142,8 +142,8 @@ const taskUpdateArgsSchema = z
   }, 'At least one task field must be provided');
 
 const taskExecuteArgsSchema = z.object({
+  callerSessionId: z.string().trim().min(1).optional(),
   projectId: z.string().trim().min(1),
-  sessionId: z.string().trim().min(1),
   taskId: z.string().trim().min(1),
 });
 
@@ -347,10 +347,10 @@ const mcpToolDefinitions: readonly McpToolDefinition[] = [
         'Move a task into execution and trigger dispatch in the local desktop runtime.',
       inputSchema: {
         type: 'object',
-        required: ['projectId', 'taskId', 'sessionId'],
+        required: ['projectId', 'taskId'],
         properties: {
+          callerSessionId: { type: 'string' },
           projectId: { type: 'string' },
-          sessionId: { type: 'string' },
           taskId: { type: 'string' },
         },
       },
@@ -1162,8 +1162,8 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 id,
                 await executeTask(fastify.sqlite, args.taskId, {
                   callbacks: dispatchCallbacks,
+                  callerSessionId: args.callerSessionId,
                   logger: request.log,
-                  sessionId: args.sessionId,
                 }),
                 auditContext,
               );
