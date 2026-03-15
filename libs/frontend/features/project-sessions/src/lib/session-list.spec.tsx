@@ -16,14 +16,14 @@ describe('SessionList', () => {
       />,
     );
 
-    expect(screen.getByText('根会话')).toBeTruthy();
+    expect(screen.getByText('主控会话')).toBeTruthy();
     expect(screen.queryByText('实现搜索索引')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '展开子会话' }));
 
     expect(screen.getByText('实现搜索索引')).toBeTruthy();
-    expect(screen.getByText('子会话')).toBeTruthy();
-    expect(screen.getByText('gate-reviewer')).toBeTruthy();
+    expect(screen.getByText('Child')).toBeTruthy();
+    expect(screen.getByText('GATE')).toBeTruthy();
   });
 
   it('auto-expands the selected session lineage', () => {
@@ -39,7 +39,8 @@ describe('SessionList', () => {
     );
 
     expect(screen.getByText('实现搜索索引')).toBeTruthy();
-    expect(screen.getByText('子会话')).toBeTruthy();
+    expect(screen.getByText('Child')).toBeTruthy();
+    expect(screen.getByText('ROUTA')).toBeTruthy();
   });
 });
 

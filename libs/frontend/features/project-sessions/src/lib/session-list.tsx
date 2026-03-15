@@ -2,6 +2,8 @@ import { State } from '@hateoas-ts/resource';
 import { AcpSessionSummary } from '@shared/schema';
 import {
   Button,
+  Card,
+  CardContent,
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -17,89 +19,31 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
-  countSessionTree,
   findSessionPathIds,
   SessionTreeNode,
   sessionDisplayName,
 } from './session-tree';
 
-function formatDateTime(value: string | null): string {
-  if (!value) {
-    return '无';
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-  return parsed.toLocaleString();
-}
-
-function formatStatusLabel(status: string | null | undefined): string {
-  switch (status) {
-    case 'PENDING':
-    case 'pending':
-      return '待处理';
-    case 'READY':
-    case 'ready':
-      return '就绪';
-    case 'COMPLETED':
-    case 'completed':
-      return '已完成';
-    case 'RUNNING':
-    case 'running':
-      return '进行中';
-    case 'in_progress':
-      return '处理中';
-    case 'BLOCKED':
-    case 'blocked':
-      return '已阻塞';
-    case 'FAILED':
-    case 'failed':
-      return '失败';
-    case 'CANCELLED':
-    case 'cancelled':
-      return '已取消';
-    default:
-      return status?.trim() || '无';
-  }
-}
-
-function statusChipClasses(status: string | null | undefined): string {
-  switch (status) {
-    case 'PENDING':
-    case 'pending':
-    case 'READY':
-    case 'ready':
-      return 'bg-sky-50 text-sky-700 ring-sky-200';
-    case 'COMPLETED':
-    case 'completed':
-      return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
-    case 'RUNNING':
-    case 'running':
-    case 'in_progress':
-      return 'bg-amber-50 text-amber-700 ring-amber-200';
-    case 'FAILED':
-    case 'failed':
-    case 'BLOCKED':
-    case 'blocked':
-      return 'bg-rose-50 text-rose-700 ring-rose-200';
-    case 'CANCELLED':
-    case 'cancelled':
-      return 'bg-slate-100 text-slate-600 ring-slate-200';
-    default:
-      return 'bg-slate-100 text-slate-600 ring-slate-200';
-  }
-}
-
-function sessionHierarchyLabel(
-  _session: State<AcpSessionSummary>,
-  depth: number,
+function sessionRoleLabel(
+  session: State<AcpSessionSummary>,
 ): string {
-  if (depth === 0) {
-    return '根会话';
+  const specialistId = session.data.specialistId?.trim().toLowerCase();
+  if (!specialistId) {
+    return 'ROUTA';
   }
-
-  return '子会话';
+  if (specialistId.includes('developer')) {
+    return 'DEVELOPER';
+  }
+  if (specialistId.includes('gate')) {
+    return 'GATE';
+  }
+  if (specialistId.includes('crafter')) {
+    return 'CRAFTER';
+  }
+  if (specialistId.includes('routa')) {
+    return 'ROUTA';
+  }
+  return specialistId.toUpperCase();
 }
 
 export function SessionList(props: {
@@ -110,10 +54,6 @@ export function SessionList(props: {
 }) {
   const { loading, onSelect, selectedSessionId, sessions } = props;
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
-  const totalSessions = sessions.reduce(
-    (count, node) => count + countSessionTree(node),
-    0,
-  );
   const selectedPathIds = useMemo(
     () => findSessionPathIds(sessions, selectedSessionId),
     [selectedSessionId, sessions],
@@ -133,12 +73,11 @@ export function SessionList(props: {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden h-full">
       <div className="border-b px-3 py-2.5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           会话
         </p>
-        <p className="mt-1 text-sm font-medium">共 {totalSessions} 个会话</p>
       </div>
 
       <ScrollArea className="h-full">
@@ -201,127 +140,94 @@ function SessionTreeItem(props: {
   const hasChildren = node.children.length > 0;
   const isExpanded =
     hasChildren && (expandedIdSet.has(sessionId) || containsSelected);
-  const childSessionCount = countSessionTree(node) - 1;
-  const hierarchyLabel = sessionHierarchyLabel(node.session, depth);
-  const specialistLabel =
-    node.session.data.specialistId?.trim() || '未指定 specialist';
-  const showTimestamp = depth === 0 || active;
-  const sessionStatus = node.session.data.acpStatus;
+  const isChildSession = depth > 0;
+  const roleLabel = sessionRoleLabel(node.session);
 
   return (
     <div className="space-y-2">
-      <div
-        className={`rounded-2xl border transition ${
+      <Card
+        className={`overflow-hidden rounded-2xl border shadow-none transition ${
           active
-            ? 'border-primary bg-primary/5 shadow-sm'
+            ? 'border-primary/50 bg-primary/5'
             : containsSelected
-              ? 'border-border/80 bg-muted/20'
-              : 'border-border/70 bg-background'
+              ? 'border-border/90 bg-muted/30'
+              : 'border-border/70 bg-background/90 hover:border-border'
         }`}
       >
-        <div className="flex items-start gap-2 px-3 py-3">
-          {hasChildren ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="mt-1 h-8 w-8 shrink-0 rounded-xl text-muted-foreground"
-              onClick={() => onToggle(sessionId)}
-              aria-label={isExpanded ? '收起子会话' : '展开子会话'}
-            >
-              {isExpanded ? (
-                <ChevronDownIcon className="size-4" />
-              ) : (
-                <ChevronRightIcon className="size-4" />
-              )}
-            </Button>
-          ) : (
-            <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-dashed border-border/60 bg-muted/20 text-muted-foreground">
-              <MessageSquareTextIcon className="size-4" />
-            </div>
-          )}
-
-          <div className="min-w-0 flex-1">
-            <button
-              type="button"
-              className="w-full min-w-0 text-left"
-              onClick={() => onSelect(node.session)}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${
-                    depth === 0
-                      ? 'bg-primary/10 text-primary ring-primary/15'
-                      : 'bg-muted/60 text-foreground/70 ring-border/60'
-                  }`}
-                >
-                  {hierarchyLabel}
-                </span>
-                {hasChildren ? (
-                  <span className="rounded-full border border-border/60 bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
-                    {childSessionCount} 个子会话
-                  </span>
-                ) : null}
-                {active ? (
-                  <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary">
-                    当前会话
-                  </span>
-                ) : null}
+        <CardContent className="p-0">
+          <div className="flex items-start gap-1.5 px-2.5 py-2">
+            {hasChildren ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="mt-0.5 h-7 w-7 shrink-0 rounded-lg text-muted-foreground"
+                onClick={() => onToggle(sessionId)}
+                aria-label={isExpanded ? '收起子会话' : '展开子会话'}
+              >
+                {isExpanded ? (
+                  <ChevronDownIcon className="size-4" />
+                ) : (
+                  <ChevronRightIcon className="size-4" />
+                )}
+              </Button>
+            ) : (
+              <div
+                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${
+                  depth === 0
+                    ? 'border-primary/20 bg-primary/10 text-primary'
+                    : 'border-border/60 bg-muted/30 text-muted-foreground'
+                }`}
+              >
+                {depth === 0 ? (
+                  <SparklesIcon className="size-3.5" />
+                ) : (
+                  <MessageSquareTextIcon className="size-3.5" />
+                )}
               </div>
+            )}
 
-              <div className="mt-3 flex min-w-0 items-start gap-3">
-                <div
-                  className={`flex size-9 shrink-0 items-center justify-center rounded-2xl border ${
-                    depth === 0
-                      ? 'border-primary/20 bg-primary/10 text-primary'
-                      : 'border-border/60 bg-muted/40 text-foreground/70'
-                  }`}
-                >
-                  {depth === 0 ? (
-                    <SparklesIcon className="size-4" />
-                  ) : (
-                    <MessageSquareTextIcon className="size-4" />
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold">
-                    {sessionDisplayName(node.session)}
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                className="w-full min-w-0 text-left"
+                onClick={() => onSelect(node.session)}
+              >
+                <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1">
+                    <div className="truncate text-[13px] font-medium leading-5 text-foreground">
+                      {sessionDisplayName(node.session)}
+                    </div>
+                    {isChildSession ? (
+                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-amber-700">
+                        Child
+                      </span>
+                    ) : null}
+                    {active ? (
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-primary">
+                        当前
+                      </span>
+                    ) : null}
+                    {containsSelected && !active ? (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Focus
+                      </span>
+                    ) : null}
                   </div>
 
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                    <span
-                      className={`rounded-full px-2 py-1 font-medium ring-1 ${statusChipClasses(sessionStatus)}`}
-                    >
-                      {formatStatusLabel(sessionStatus)}
-                    </span>
-                    <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[10px] leading-4 text-muted-foreground">
+                    <span className="font-mono">
                       {node.session.data.provider ?? 'opencode'}
                     </span>
-                    <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
-                      {specialistLabel}
-                    </span>
+                    <span aria-hidden="true">•</span>
+                    <span className="font-mono">{roleLabel}</span>
                   </div>
-
-                  {showTimestamp ? (
-                    <div className="mt-2 text-[11px] text-muted-foreground">
-                      最近活动{' '}
-                      {formatDateTime(
-                        node.session.data.lastActivityAt ??
-                          node.session.data.startedAt ??
-                          node.session.data.completedAt,
-                      )}
-                    </div>
-                  ) : null}
                 </div>
-              </div>
-            </button>
-
+              </button>
+            </div>
           </div>
-
-        </div>
-      </div>
-
+        </CardContent>
+      </Card>
       {hasChildren && isExpanded ? (
         <div className="ml-4 border-l border-border/60 pl-4">
           <div className="space-y-2">

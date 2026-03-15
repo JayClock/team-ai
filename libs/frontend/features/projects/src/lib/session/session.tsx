@@ -3,12 +3,10 @@ import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
 import {
   AcpEventEnvelope,
-  AcpSession,
   AcpSessionSummary,
   Codebase,
   Project,
   Root,
-  type Task,
 } from '@shared/schema';
 import { toast } from '@shared/ui';
 import {
@@ -27,12 +25,7 @@ import { ProjectSessionConversationPane } from './project-session-conversation-p
 import { ProjectSessionHistorySidebar } from './project-session-history-sidebar';
 import { useProjectSessionChat } from './use-project-session-chat';
 import {
-  buildTaskRunPanelItem,
-  buildTaskPanelItem,
   buildSessionTree,
-  buildTaskSnapshot,
-  sessionDisplayName,
-  type TaskPanelItem,
 } from './project-session-workbench.shared';
 import {
   resolveWorkbenchSessionDefaults,
@@ -43,7 +36,6 @@ import { useAcpProviders } from './use-acp-providers';
 import { type ProjectRepositoryOption } from '../components/project-composer-input';
 
 const STREAM_RETRY_DELAY_MS = 1500;
-const TASK_POLL_INTERVAL_MS = 3000;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
 const LEFT_SIDEBAR_COLLAPSED_KEY = 'team-ai.session.left-sidebar-collapsed';
 
@@ -101,7 +93,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   });
 
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
-  const [sessionTaskItems, setSessionTaskItems] = useState<TaskPanelItem[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
@@ -120,64 +111,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const leftResizeStartRef = useRef({ width: 320, x: 0 });
 
   const selectedSessionId = selectedSession?.data.id;
-  const sideEvents = useMemo(
-    () =>
-      history.filter(
-        (event) =>
-          event.update.eventType !== 'agent_message' &&
-          event.update.eventType !== 'agent_thought' &&
-          event.update.eventType !== 'user_message',
-      ),
-    [history],
-  );
-  const fallbackTaskItems = useMemo(
-    () => buildTaskSnapshot(history),
-    [history],
-  );
-  const taskItems = useMemo(
-    () => (sessionTaskItems.length > 0 ? sessionTaskItems : fallbackTaskItems),
-    [fallbackTaskItems, sessionTaskItems],
-  );
-  const taskSummary = useMemo(
-    () =>
-      taskItems.reduce(
-        (summary, item) => {
-          switch (item.status) {
-            case 'COMPLETED':
-            case 'completed':
-            case 'connected':
-              summary.completed += 1;
-              break;
-            case 'RUNNING':
-            case 'running':
-            case 'in_progress':
-            case 'connecting':
-              summary.running += 1;
-              break;
-            case 'FAILED':
-            case 'failed':
-            case 'CANCELLED':
-            case 'cancelled':
-            case 'BLOCKED':
-            case 'blocked':
-            case 'WAITING_RETRY':
-            case 'error':
-            case 'error-stream':
-              summary.failed += 1;
-              break;
-            default:
-              break;
-          }
-          return summary;
-        },
-        {
-          completed: 0,
-          failed: 0,
-          running: 0,
-        },
-      ),
-    [taskItems],
-  );
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
   const repositoryOptions = useMemo(
     () =>
@@ -364,120 +297,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
-
-  const loadTaskItems = useCallback(
-    async (session: State<AcpSession>): Promise<TaskPanelItem[]> => {
-      const itemsById = new Map<string, TaskPanelItem>();
-      const taskStatesById = new Map<string, State<Task>>();
-      const firstPage = await projectState
-        .follow('tasks', {
-          page: 1,
-          pageSize: 50,
-          sessionId: session.data.id,
-        })
-        .refresh();
-
-      const appendPage = (page: typeof firstPage) => {
-        for (const taskState of page.collection) {
-          taskStatesById.set(taskState.data.id, taskState);
-          itemsById.set(taskState.data.id, buildTaskPanelItem(taskState));
-        }
-      };
-
-      appendPage(firstPage);
-
-      let currentPage = firstPage;
-      while (currentPage.hasLink('next')) {
-        currentPage = await currentPage.follow('next').get();
-        appendPage(currentPage);
-      }
-
-      const taskRunsByTaskId = await Promise.all(
-        Array.from(taskStatesById.values()).map(async (taskState) => {
-          let taskRunsPage = await taskState
-            .follow('runs', { page: 1, pageSize: 50 })
-            .refresh();
-          const taskRuns = [...taskRunsPage.collection];
-
-          while (taskRunsPage.hasLink('next')) {
-            taskRunsPage = await taskRunsPage.follow('next').get();
-            taskRuns.push(...taskRunsPage.collection);
-          }
-
-          const runItems = taskRuns
-            .map((taskRun) => buildTaskRunPanelItem(taskRun))
-            .sort((left, right) => {
-              if (left.isLatest !== right.isLatest) {
-                return left.isLatest ? -1 : 1;
-              }
-
-              const timeDelta =
-                timestamp(
-                  right.startedAt ?? right.createdAt ?? right.updatedAt,
-                ) -
-                timestamp(left.startedAt ?? left.createdAt ?? left.updatedAt);
-
-              if (timeDelta !== 0) {
-                return timeDelta;
-              }
-
-              return timestamp(right.updatedAt) - timestamp(left.updatedAt);
-            });
-
-          return [taskState.data.id, runItems] as const;
-        }),
-      );
-
-      for (const [taskId, taskRuns] of taskRunsByTaskId) {
-        const item = itemsById.get(taskId);
-        if (!item) {
-          continue;
-        }
-
-        itemsById.set(taskId, {
-          ...item,
-          taskRuns,
-        });
-      }
-
-      return Array.from(itemsById.values());
-    },
-    [projectState],
-  );
-
-  useEffect(() => {
-    if (!selectedSession) {
-      setSessionTaskItems([]);
-      return;
-    }
-
-    let active = true;
-
-    const syncTaskItems = async (notifyOnError: boolean) => {
-      try {
-        const nextItems = await loadTaskItems(selectedSession);
-        if (active) {
-          setSessionTaskItems(nextItems);
-        }
-      } catch (error) {
-        if (!notifyOnError || !active) {
-          return;
-        }
-        const message = error instanceof Error ? error.message : '加载任务失败';
-        toast.error(message);
-      }
-    };
-
-    void syncTaskItems(true);
-    const intervalId = window.setInterval(() => {
-      void syncTaskItems(false);
-    }, TASK_POLL_INTERVAL_MS);
-
-    return () => {
-      active = false;
-      window.clearInterval(intervalId);
-    };
-  }, [loadTaskItems, selectedSession]);
 
   const { chatMessages, handlePromptSubmit, hasPendingAssistantMessage } =
     useProjectSessionChat({
@@ -709,35 +528,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       onSelectSession={handleSidebarSessionSelect}
       projectTitle={projectTitle}
       selectedSessionId={selectedSessionId}
-      selectedSessionMeta={
-        selectedSession
-          ? {
-              hierarchyLabel: selectedSession.data.parentSession
-                ? '子会话'
-                : '根会话',
-              label: sessionDisplayName(selectedSession),
-              lastActivityAt:
-                selectedSession.data.lastActivityAt ??
-                selectedSession.data.startedAt ??
-                selectedSession.data.completedAt,
-              provider:
-                selectedSession.data.provider ?? sessionDefaults.providerId,
-              specialistId: selectedSession.data.specialistId,
-              status: selectedSession.data.acpStatus,
-            }
-          : null
-      }
-      sessionQuickActions={
-        selectedSession
-          ? {
-              activityCount: sideEvents.length,
-              completedCount: taskSummary.completed,
-              failedCount: taskSummary.failed,
-              runningCount: taskSummary.running,
-              taskCount: taskItems.length,
-            }
-          : null
-      }
       sessions={sessionTree}
       sessionsLoading={sessionsLoading}
     />
