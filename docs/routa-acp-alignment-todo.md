@@ -27,14 +27,11 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - [x] Phase 4 persistence projection and session-state derivation moved out of `normalized-session-update.ts`
 - [x] Phase 5 keeps `rawNotification` diagnostic-only and removes semantic reparsing from the gateway bridge
 - [x] Phase 6 adds provider/bridge contract tests around canonical ACP normalization
+- [x] Phase 7 removes remaining duplicated normalization helpers and confirms canonical-only ACP consumption
 
 ### Still Different From Routa
 
-- [x] canonical ACP types still exist in two places
-- [x] runtime boundary still accepts both `NormalizedSessionUpdate` and raw `SessionNotification`
-- [x] provider normalization is still implemented per provider file, not through a shared adapter base
-- [x] `normalized-session-update.ts` still combines protocol normalization and persistence projection
-- [ ] cross-layer tests still focus on app-specific projections, not a single adapter-to-runtime contract
+- [ ] `rawNotification` is still typed broadly as `unknown` instead of narrower provider-specific raw shapes
 
 ## Phase 1: Single Type Source
 
@@ -106,19 +103,19 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 
 ## Phase 7: Final Cleanup
 
-- [ ] remove any remaining duplicated helper logic between gateway and local-server normalization
-- [ ] audit `rawInput` / `rawOutput` references and keep them only at true protocol boundaries
-- [ ] verify no ACP consumer branches on provider-specific event payload structure
-- [ ] verify no ACP consumer requires separate `tool_result` event semantics
-- [ ] update architecture docs after code convergence is complete
+- [x] remove any remaining duplicated helper logic between gateway and local-server normalization
+- [x] audit `rawInput` / `rawOutput` references and keep them only at true protocol boundaries
+- [x] verify no ACP consumer branches on provider-specific event payload structure
+- [x] verify no ACP consumer requires separate `tool_result` event semantics
+- [x] update architecture docs after code convergence is complete
 
 ## Acceptance Checklist
 
-- [ ] one canonical ACP type definition is used across gateway and local-server
-- [ ] raw ACP `SessionNotification` is no longer part of the runtime service contract
-- [ ] provider-specific parsing is isolated behind a shared adapter pattern
-- [ ] canonical updates are the only source model for session state, persistence projection, and UI projection
-- [ ] all ACP tests still pass after removing duplicate normalization paths
+- [x] one canonical ACP type definition is used across gateway and local-server
+- [x] raw ACP `SessionNotification` is no longer part of the runtime service contract
+- [x] provider-specific parsing is isolated behind a shared adapter pattern
+- [x] canonical updates are the only source model for session state, persistence projection, and UI projection
+- [x] all ACP tests still pass after removing duplicate normalization paths
 
 ## Suggested Execution Order
 
@@ -128,7 +125,7 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - [x] Phase 4
 - [x] Phase 5
 - [x] Phase 6
-- [ ] Phase 7
+- [x] Phase 7
 
 ## Notes
 
@@ -140,3 +137,4 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - Phase 4 keeps normalization in `normalized-session-update.ts` and moves persistence/state projection responsibility into `acp-service.ts`, which is the real downstream consumer.
 - Phase 5 keeps `rawNotification` for diagnostics, but bridge code now reconstructs protocol notifications from canonical fields instead of reparsing `rawNotification`.
 - Phase 6 adds direct provider contract tests for `getBehavior()` and `normalizeNotification()`, plus a gateway bridge test proving canonical fields are sufficient without semantic dependence on `rawNotification`.
+- Phase 7 shares common ACP content/input helpers through the existing `provider-types.ts` module and leaves only true protocol-boundary `rawInput` / `rawOutput` handling in place.
