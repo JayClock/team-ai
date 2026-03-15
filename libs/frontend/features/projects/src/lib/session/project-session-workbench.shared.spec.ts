@@ -1,12 +1,17 @@
 import type { State } from '@hateoas-ts/resource';
 import type { AcpSession } from '@shared/schema';
+import { createElement, Fragment } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
 import {
+  buildTaskSnapshot,
   buildWorkbenchWalkthroughScenarios,
   buildTaskRunPanelItem,
   canRetryTask,
   formatStatusLabel,
   formatVerificationVerdictLabel,
   getTaskPrimaryAction,
+  renderEventDetails,
   type TaskPanelItem,
   type TaskRunPanelItem,
 } from './project-session-workbench.shared';
@@ -235,6 +240,60 @@ describe('project session workbench task actions', () => {
       'goal-plan-review': 'ready',
       'provider-switch': 'covered',
     });
+  });
+
+  it('uses canonical plan descriptions when building task snapshots', () => {
+    const items = buildTaskSnapshot([
+      {
+        data: {
+          entries: [
+            {
+              content: 'legacy title',
+              description: 'canonical plan title',
+              priority: 'high',
+              status: 'in_progress',
+            },
+          ],
+        },
+        emittedAt: '2026-03-13T12:07:00.000Z',
+        eventId: 'evt_plan',
+        sessionId: 'acps_root',
+        type: 'plan',
+      },
+    ] as Parameters<typeof buildTaskSnapshot>[0]);
+
+    expect(items).toMatchObject([
+      {
+        title: 'canonical plan title',
+        status: 'in_progress',
+      },
+    ]);
+  });
+
+  it('renders canonical tool output details before legacy raw output fallbacks', () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        Fragment,
+        null,
+        renderEventDetails({
+          data: {
+            output: {
+              result: 'done',
+            },
+            rawOutput: 'legacy output',
+            toolCallId: 'tool-1',
+            toolName: 'read_file',
+          },
+          emittedAt: '2026-03-13T12:07:00.000Z',
+          eventId: 'evt_tool',
+          sessionId: 'acps_root',
+          type: 'tool_result',
+        }),
+      ),
+    );
+
+    expect(markup).toContain('&quot;result&quot;: &quot;done&quot;');
+    expect(markup).not.toContain('legacy output');
   });
 });
 
