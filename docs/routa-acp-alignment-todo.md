@@ -24,13 +24,14 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - [x] Phase 1 canonical ACP type ownership is consolidated onto `agent-gateway`
 - [x] Phase 2 runtime hooks now accept canonical ACP updates only
 - [x] Phase 3 shared ACP provider behavior and normalize contract exists in `provider-types.ts`
+- [x] Phase 4 persistence projection and session-state derivation moved out of `normalized-session-update.ts`
 
 ### Still Different From Routa
 
 - [x] canonical ACP types still exist in two places
 - [x] runtime boundary still accepts both `NormalizedSessionUpdate` and raw `SessionNotification`
 - [x] provider normalization is still implemented per provider file, not through a shared adapter base
-- [ ] `normalized-session-update.ts` still combines protocol normalization and persistence projection
+- [x] `normalized-session-update.ts` still combines protocol normalization and persistence projection
 - [ ] cross-layer tests still focus on app-specific projections, not a single adapter-to-runtime contract
 
 ## Phase 1: Single Type Source
@@ -75,11 +76,11 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 
 ## Phase 4: Responsibility Separation
 
-- [ ] split protocol normalization from persistence projection logic
-- [ ] keep `normalizeSessionNotification()` focused on canonical update construction
-- [ ] keep `toPersistedAcpEvent()` focused on storage/UI projection
-- [ ] remove mixed responsibilities from `normalized-session-update.ts` where practical
-- [ ] make session-state derivation operate only on canonical event semantics
+- [x] split protocol normalization from persistence projection logic
+- [x] keep `normalizeSessionNotification()` focused on canonical update construction
+- [x] keep `toPersistedAcpEvent()` focused on storage/UI projection
+- [x] remove mixed responsibilities from `normalized-session-update.ts` where practical
+- [x] make session-state derivation operate only on canonical event semantics
 
 ## Phase 5: Raw Notification Policy
 
@@ -122,7 +123,7 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - [x] Phase 1
 - [x] Phase 2
 - [x] Phase 3
-- [ ] Phase 4
+- [x] Phase 4
 - [ ] Phase 6
 - [ ] Phase 7
 
@@ -133,3 +134,4 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - Phase 1 reuses `apps/agent-gateway/src/providers/provider-types.ts` as the current canonical ACP type owner without introducing a new module.
 - Phase 2 keeps raw `SessionNotification` construction and parsing at the runtime bridge edge, but removes it from the runtime service contract.
 - Phase 3 adds a shared provider behavior + normalization contract in the existing `agent-gateway` provider type module instead of introducing a new adapter base module.
+- Phase 4 keeps normalization in `normalized-session-update.ts` and moves persistence/state projection responsibility into `acp-service.ts`, which is the real downstream consumer.
