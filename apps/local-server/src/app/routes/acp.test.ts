@@ -587,14 +587,30 @@ describe('acp route', () => {
         expect(hooks).toBeDefined();
 
         await hooks?.onSessionUpdate({
-          update: {
-            sessionUpdate: 'agent_message_chunk',
-            messageId: 'assistant-msg-1',
-            content: {
+          eventType: 'agent_message',
+          message: {
+            content: assistantReply,
+            contentBlock: {
               type: 'text',
               text: assistantReply,
             },
+            isChunk: true,
+            messageId: 'assistant-msg-1',
+            role: 'assistant',
           },
+          provider: input.provider,
+          rawNotification: {
+            update: {
+              sessionUpdate: 'agent_message_chunk',
+              messageId: 'assistant-msg-1',
+              content: {
+                type: 'text',
+                text: assistantReply,
+              },
+            },
+          },
+          sessionId: input.localSessionId,
+          timestamp: '2026-03-15T00:00:00.000Z',
         } as Parameters<AcpRuntimeSessionHooks['onSessionUpdate']>[0]);
 
         return {
@@ -1039,10 +1055,21 @@ describe('acp route', () => {
     ];
 
     await rootHooks.onSessionUpdate({
-      update: {
-        entries: planEntries,
-        sessionUpdate: 'plan',
+      eventType: 'plan_update',
+      planItems: planEntries.map((entry) => ({
+        description: entry.content,
+        priority: entry.priority,
+        status: entry.status,
+      })),
+      provider: 'codex',
+      rawNotification: {
+        update: {
+          entries: planEntries,
+          sessionUpdate: 'plan',
+        },
       },
+      sessionId: rootSessionId,
+      timestamp: '2026-03-15T00:00:00.000Z',
     } as Parameters<AcpRuntimeSessionHooks['onSessionUpdate']>[0]);
 
     const tasksResponse = await fastify.inject({

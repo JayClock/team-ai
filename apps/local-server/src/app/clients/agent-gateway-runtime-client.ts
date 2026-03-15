@@ -13,7 +13,6 @@ import type {
   AcpPromptRuntimeResult,
   AcpRuntimeClient,
   AcpRuntimeSessionHooks,
-  AcpRuntimeSessionUpdate,
   AcpRuntimeSessionSnapshot,
   CancelAcpRuntimeSessionInput,
   CreateAcpRuntimeSessionInput,
@@ -347,7 +346,7 @@ function normalizeEnvSegment(value: string): string {
 function toRuntimeSessionUpdate(
   event: AgentGatewayEventEnvelope,
   provider: string,
-): AcpRuntimeSessionUpdate | null {
+): NormalizedSessionUpdate | null {
   const canonicalUpdate =
     event.data && typeof event.data === 'object'
       ? ((event.data as Record<string, unknown>).update as

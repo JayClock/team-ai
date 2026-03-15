@@ -18,7 +18,10 @@ import {
   type WaitForTerminalExitResponse,
 } from '@agentclientprotocol/sdk';
 import { ProblemError } from '../errors/problem-error';
-import type { NormalizedSessionUpdate } from '../services/normalized-session-update';
+import {
+  normalizeSessionNotification,
+  type NormalizedSessionUpdate,
+} from '../services/normalized-session-update';
 import {
   getProviderEnvCommandKey,
   normalizeAcpProviderId,
@@ -33,14 +36,10 @@ const terminalIdGenerator = customAlphabet(
 
 export interface AcpRuntimeSessionHooks {
   onClosed(error?: Error): Promise<void> | void;
-  onSessionUpdate(
-    update: NormalizedSessionUpdate | SessionNotification,
-  ): Promise<void> | void;
+  onSessionUpdate(update: NormalizedSessionUpdate): Promise<void> | void;
 }
 
-export type AcpRuntimeSessionUpdate =
-  | NormalizedSessionUpdate
-  | SessionNotification;
+export type AcpRuntimeSessionUpdate = NormalizedSessionUpdate;
 
 export interface CreateAcpRuntimeSessionInput {
   cwd: string;
@@ -450,7 +449,16 @@ function createClientHandler(
       };
     },
     async sessionUpdate(notification: SessionNotification) {
-      await input.hooks.onSessionUpdate(notification);
+      const normalized = normalizeSessionNotification(
+        input.localSessionId,
+        input.provider,
+        notification,
+      );
+      if (!normalized) {
+        return;
+      }
+
+      await input.hooks.onSessionUpdate(normalized);
     },
     async readTextFile(params: {
       limit?: number | null;

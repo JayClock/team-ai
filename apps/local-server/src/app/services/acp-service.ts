@@ -28,10 +28,10 @@ import type {
 import type { RoleValue } from '../schemas/role';
 import { normalizeAcpProviderId } from './acp-provider-service';
 import {
-  coerceNormalizedSessionUpdate,
   extractSessionMetadataFromNormalizedUpdate,
   resolveSessionStateFromNormalizedUpdate,
   toPersistedAcpEvent,
+  type NormalizedSessionUpdate,
 } from './normalized-session-update';
 import { createAgent } from './agent-service';
 import { getProjectById } from './project-service';
@@ -962,14 +962,7 @@ function createRuntimeHooks(
   return {
     async onSessionUpdate(update) {
       const current = getSessionRow(sqlite, localSessionId);
-      const normalized = coerceNormalizedSessionUpdate(
-        localSessionId,
-        current.provider,
-        update,
-      );
-      if (!normalized) {
-        return;
-      }
+      const normalized: NormalizedSessionUpdate = update;
       const persisted = toPersistedAcpEvent(normalized);
       const emitted = appendLocalEvent(sqlite, broker, {
         sessionId: localSessionId,
