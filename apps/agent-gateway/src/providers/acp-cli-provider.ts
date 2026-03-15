@@ -782,8 +782,11 @@ function normalizeSessionUpdate(
   }
 
   switch (sessionUpdate) {
+    case 'user_message':
     case 'user_message_chunk':
+    case 'agent_message':
     case 'agent_message_chunk':
+    case 'agent_thought':
     case 'agent_thought_chunk':
       return createAcpUpdate(
         sessionId,
@@ -794,9 +797,9 @@ function normalizeSessionUpdate(
           rawNotification: updateInput,
           message: {
             role: resolveMessageRole(sessionUpdate),
-            content: flattenContentBlock(update.content),
-            contentBlock: update.content,
-            isChunk: true,
+            content: flattenContentBlock(update.content ?? update.text ?? ''),
+            contentBlock: normalizeContentBlock(update.content ?? update.text),
+            isChunk: sessionUpdate.endsWith('_chunk'),
             messageId: asString(update.messageId),
           },
         },
@@ -826,10 +829,87 @@ function normalizeSessionUpdate(
             asString(asRecord(entry).content) ??
             asString(asRecord(entry).description) ??
             '',
+          ...(normalizePlanPriority(asString(asRecord(entry).priority))
+            ? {
+                priority: normalizePlanPriority(
+                  asString(asRecord(entry).priority),
+                ),
+              }
+            : {}),
           status: normalizePlanStatus(asString(asRecord(entry).status)),
         })),
       });
     }
+
+    case 'turn_complete':
+      return createAcpUpdate(sessionId, provider, 'turn_complete', {
+        traceId,
+        rawNotification: updateInput,
+        turnComplete: {
+          state: normalizeTurnCompleteState(asString(update.state)),
+          stopReason: asString(update.stopReason) ?? 'end_turn',
+          usage: update.usage ?? null,
+          userMessageId: asString(update.userMessageId) ?? null,
+        },
+      });
+
+    case 'session_info_update':
+      return createAcpUpdate(sessionId, provider, 'session_info_update', {
+        traceId,
+        rawNotification: updateInput,
+        sessionInfo: {
+          title: asString(update.title) ?? null,
+          updatedAt: asString(update.updatedAt) ?? null,
+        },
+      });
+
+    case 'current_mode_update':
+      return createAcpUpdate(sessionId, provider, 'current_mode_update', {
+        traceId,
+        rawNotification: updateInput,
+        mode: {
+          ...(asString(update.currentModeId)
+            ? { currentModeId: asString(update.currentModeId) ?? undefined }
+            : {}),
+        },
+      });
+
+    case 'config_option_update':
+      return createAcpUpdate(sessionId, provider, 'config_option_update', {
+        traceId,
+        rawNotification: updateInput,
+        configOptions: update.configOptions ?? {},
+      });
+
+    case 'usage_update':
+      return createAcpUpdate(sessionId, provider, 'usage_update', {
+        traceId,
+        rawNotification: updateInput,
+        usage: {
+          size: asNumber(update.size) ?? 0,
+          used: asNumber(update.used) ?? 0,
+          cost: update.cost ?? null,
+        },
+      });
+
+    case 'available_commands_update':
+      return createAcpUpdate(sessionId, provider, 'available_commands_update', {
+        traceId,
+        rawNotification: updateInput,
+        availableCommands: Array.isArray(update.availableCommands)
+          ? update.availableCommands
+          : [],
+      });
+
+    case 'error':
+      return createAcpUpdate(sessionId, provider, 'error', {
+        traceId,
+        rawNotification: updateInput,
+        error: {
+          code: asString(update.code) ?? 'PROTOCOL_ERROR',
+          message: asString(update.message) ?? 'Unknown protocol error',
+        },
+      });
 
     default:
       return createAcpUpdate(sessionId, provider, 'agent_message', {
@@ -863,6 +943,17 @@ function flattenContentBlock(contentInput: unknown): string | null {
   }
 
   return asString(contentInput);
+}
+
+function normalizeContentBlock(contentInput: unknown): unknown {
+  if (contentInput && typeof contentInput === 'object') {
+    return contentInput;
+  }
+
+  return {
+    type: 'text',
+    text: typeof contentInput === 'string' ? contentInput : '',
+  };
 }
 
 function createAcpUpdate(
@@ -914,11 +1005,11 @@ function createToolCall(
 function resolveMessageEventType(
   updateType: string,
 ): 'agent_message' | 'agent_thought' | 'user_message' {
-  if (updateType === 'user_message_chunk') {
+  if (updateType === 'user_message_chunk' || updateType === 'user_message') {
     return 'user_message';
   }
 
-  if (updateType === 'agent_thought_chunk') {
+  if (updateType === 'agent_thought_chunk' || updateType === 'agent_thought') {
     return 'agent_thought';
   }
 
@@ -928,11 +1019,11 @@ function resolveMessageEventType(
 function resolveMessageRole(
   updateType: string,
 ): 'assistant' | 'thought' | 'user' {
-  if (updateType === 'user_message_chunk') {
+  if (updateType === 'user_message_chunk' || updateType === 'user_message') {
     return 'user';
   }
 
-  if (updateType === 'agent_thought_chunk') {
+  if (updateType === 'agent_thought_chunk' || updateType === 'agent_thought') {
     return 'thought';
   }
 
@@ -970,6 +1061,26 @@ function normalizePlanStatus(
   }
 
   return 'pending';
+}
+
+function normalizePlanPriority(
+  priority: string | null,
+): 'high' | 'low' | 'medium' | undefined {
+  if (priority === 'high' || priority === 'medium' || priority === 'low') {
+    return priority;
+  }
+
+  return undefined;
+}
+
+function normalizeTurnCompleteState(
+  state: string | null,
+): 'FAILED' | 'CANCELLED' | undefined {
+  if (state === 'FAILED' || state === 'CANCELLED') {
+    return state;
+  }
+
+  return undefined;
 }
 
 function hasStructuredValue(value: unknown): boolean {

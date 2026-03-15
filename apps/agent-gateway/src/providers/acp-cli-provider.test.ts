@@ -245,6 +245,213 @@ describe('AcpCliProviderAdapter', () => {
       },
     });
   });
+
+  it('normalizes turn_complete session updates to canonical completion events', async () => {
+    const childProcess = new FakeChildProcess();
+    vi.mocked(spawn).mockReturnValue(childProcess as never);
+
+    const adapter = new AcpCliProviderAdapter(
+      {
+        id: 'opencode',
+        providerId: 'opencode',
+        name: 'OpenCode',
+        command: 'opencode',
+        args: ['acp'],
+        cwdArg: '--cwd',
+      },
+      {
+        command: 'opencode',
+        args: ['acp'],
+      },
+    );
+
+    const onEvent = vi.fn();
+
+    adapter.prompt(
+      {
+        sessionId: 'session-3',
+        input: 'complete me',
+        timeoutMs: 2_000,
+        traceId: 'trace-complete',
+        cwd: '/tmp/workspace',
+      },
+      {
+        onChunk: vi.fn(),
+        onEvent,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+      },
+    );
+
+    await waitForWrites(childProcess, 1);
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: readWrite(childProcess, 0).id,
+      result: { protocolVersion: 1 },
+    });
+
+    await waitForWrites(childProcess, 2);
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: readWrite(childProcess, 1).id,
+      result: { sessionId: 'runtime-3' },
+    });
+
+    await waitForWrites(childProcess, 3);
+    const promptRequest = readWrite(childProcess, 2);
+
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      method: 'session/update',
+      params: {
+        sessionId: 'runtime-3',
+        update: {
+          sessionUpdate: 'turn_complete',
+          stopReason: 'end_turn',
+          state: 'CANCELLED',
+          usage: { inputTokens: 12, outputTokens: 6 },
+          userMessageId: 'user-1',
+        },
+      },
+    });
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: promptRequest.id,
+      result: { stopReason: 'end_turn' },
+    });
+
+    await flush();
+
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        protocol: 'acp',
+        update: expect.objectContaining({
+          eventType: 'turn_complete',
+          provider: 'opencode',
+          sessionId: 'session-3',
+          traceId: 'trace-complete',
+          turnComplete: expect.objectContaining({
+            stopReason: 'end_turn',
+            state: 'CANCELLED',
+            usage: { inputTokens: 12, outputTokens: 6 },
+            userMessageId: 'user-1',
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('normalizes extended acp session updates to canonical shapes', async () => {
+    const childProcess = new FakeChildProcess();
+    vi.mocked(spawn).mockReturnValue(childProcess as never);
+
+    const adapter = new AcpCliProviderAdapter(
+      {
+        id: 'opencode',
+        providerId: 'opencode',
+        name: 'OpenCode',
+        command: 'opencode',
+        args: ['acp'],
+        cwdArg: '--cwd',
+      },
+      {
+        command: 'opencode',
+        args: ['acp'],
+      },
+    );
+
+    const onEvent = vi.fn();
+
+    adapter.prompt(
+      {
+        sessionId: 'session-4',
+        input: 'list commands',
+        timeoutMs: 2_000,
+        traceId: 'trace-meta',
+        cwd: '/tmp/workspace',
+      },
+      {
+        onChunk: vi.fn(),
+        onEvent,
+        onComplete: vi.fn(),
+        onError: vi.fn(),
+      },
+    );
+
+    await waitForWrites(childProcess, 1);
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: readWrite(childProcess, 0).id,
+      result: { protocolVersion: 1 },
+    });
+
+    await waitForWrites(childProcess, 2);
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: readWrite(childProcess, 1).id,
+      result: { sessionId: 'runtime-4' },
+    });
+
+    await waitForWrites(childProcess, 3);
+    const promptRequest = readWrite(childProcess, 2);
+
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      method: 'session/update',
+      params: {
+        sessionId: 'runtime-4',
+        update: {
+          sessionUpdate: 'available_commands_update',
+          availableCommands: [{ name: 'ship-it', description: 'Deploy now' }],
+        },
+      },
+    });
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      method: 'session/update',
+      params: {
+        sessionId: 'runtime-4',
+        update: {
+          sessionUpdate: 'session_info_update',
+          title: 'Renamed Session',
+          updatedAt: '2026-03-14T10:00:00.000Z',
+        },
+      },
+    });
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: promptRequest.id,
+      result: { stopReason: 'end_turn' },
+    });
+
+    await flush();
+
+    expect(onEvent).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        protocol: 'acp',
+        update: expect.objectContaining({
+          eventType: 'available_commands_update',
+          availableCommands: [
+            { name: 'ship-it', description: 'Deploy now' },
+          ],
+        }),
+      }),
+    );
+    expect(onEvent).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        protocol: 'acp',
+        update: expect.objectContaining({
+          eventType: 'session_info_update',
+          sessionInfo: {
+            title: 'Renamed Session',
+            updatedAt: '2026-03-14T10:00:00.000Z',
+          },
+        }),
+      }),
+    );
+  });
 });
 
 function emitJson(
