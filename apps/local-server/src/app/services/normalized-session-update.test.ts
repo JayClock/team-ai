@@ -81,6 +81,12 @@ describe('normalized-session-update', () => {
         isChunk: false,
       },
     });
+    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
+      type: 'message',
+      payload: {
+        kind: 'agent_message',
+      },
+    });
   });
 
   it('normalizes tool call updates and converts completed calls to tool_result persistence', () => {

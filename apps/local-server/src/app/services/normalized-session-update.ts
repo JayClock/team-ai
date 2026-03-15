@@ -399,7 +399,7 @@ export function toPersistedAcpEvent(
         type: 'message',
         payload: {
           source: 'acp-sdk',
-          kind: update.rawNotification.update.sessionUpdate,
+          kind: resolvePersistedMessageKind(update),
           role: update.message?.role ?? 'assistant',
           messageId: update.message?.messageId ?? null,
           content: update.message?.content ?? null,
@@ -670,4 +670,31 @@ function normalizeTurnCompleteState(
   }
 
   return undefined;
+}
+
+function resolvePersistedMessageKind(
+  update: NormalizedSessionUpdate,
+):
+  | 'agent_message'
+  | 'agent_message_chunk'
+  | 'agent_thought'
+  | 'agent_thought_chunk'
+  | 'user_message'
+  | 'user_message_chunk' {
+  const suffix = update.message?.isChunk === false ? '' : '_chunk';
+
+  switch (update.eventType) {
+    case 'user_message':
+      return `user_message${suffix}` as
+        | 'user_message'
+        | 'user_message_chunk';
+    case 'agent_thought':
+      return `agent_thought${suffix}` as
+        | 'agent_thought'
+        | 'agent_thought_chunk';
+    default:
+      return `agent_message${suffix}` as
+        | 'agent_message'
+        | 'agent_message_chunk';
+  }
 }
