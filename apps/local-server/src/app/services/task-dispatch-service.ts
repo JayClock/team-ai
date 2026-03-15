@@ -10,9 +10,8 @@ import type { SpecialistPayload } from '../schemas/specialist';
 import type { TaskPayload } from '../schemas/task';
 import { getProjectRuntimeProfile } from './project-runtime-profile-service';
 import {
-  getDefaultSpecialistByRole,
-  getSpecialistById,
-} from './specialist-service';
+  resolveTaskDispatchPolicy,
+} from './task-dispatch-policy-service';
 import {
   getTaskById,
   getTaskDispatchability,
@@ -20,20 +19,6 @@ import {
   updateTask,
   type TaskDispatchability,
 } from './task-service';
-
-interface TaskCallerSessionRow {
-  actor_id: string;
-  id: string;
-  project_id: string;
-  provider: string;
-}
-
-interface TaskDispatchContext {
-  actorUserId: string;
-  callerSessionId: string | null;
-  parentSessionId: string | null;
-  provider: string | null;
-}
 
 export interface DispatchTaskCallbacks {
   createSession(input: {
@@ -106,117 +91,6 @@ function releaseTaskDispatchClaim(taskId: string) {
   activeDispatchClaims.delete(taskId);
 }
 
-const defaultTaskDispatchActorId = 'desktop-user';
-
-function findSessionRow(
-  sqlite: Database,
-  sessionId: string,
-): TaskCallerSessionRow | null {
-  return (
-    (sqlite
-      .prepare(
-        `
-        SELECT id, project_id, actor_id, provider
-        FROM project_acp_sessions
-        WHERE id = ? AND deleted_at IS NULL
-      `,
-      )
-      .get(sessionId) as TaskCallerSessionRow | undefined) ?? null
-  );
-}
-
-function getCallerSessionRow(
-  sqlite: Database,
-  sessionId: string,
-): TaskCallerSessionRow {
-  const row = findSessionRow(sqlite, sessionId);
-
-  if (!row) {
-    throw new ProblemError({
-      type: 'https://team-ai.dev/problems/task-dispatch-trigger-session-missing',
-      title: 'Task Dispatch Caller Session Missing',
-      status: 409,
-      detail: `Task dispatch caller session ${sessionId} is not available`,
-      context: {
-        callerSessionId: sessionId,
-      },
-    });
-  }
-
-  return row;
-}
-
-function resolveTaskDispatchContext(
-  sqlite: Database,
-  task: Pick<TaskPayload, 'projectId' | 'sessionId'>,
-  callerSessionId?: string,
-): TaskDispatchContext {
-  if (callerSessionId) {
-    const callerSession = getCallerSessionRow(sqlite, callerSessionId);
-    return {
-      actorUserId: callerSession.actor_id,
-      callerSessionId: callerSession.id,
-      parentSessionId: callerSession.id,
-      provider: callerSession.provider,
-    };
-  }
-
-  if (task.sessionId) {
-    const creatorSession = findSessionRow(sqlite, task.sessionId);
-    if (creatorSession && creatorSession.project_id === task.projectId) {
-      return {
-        actorUserId: creatorSession.actor_id,
-        callerSessionId: null,
-        parentSessionId: null,
-        provider: creatorSession.provider,
-      };
-    }
-  }
-
-  return {
-    actorUserId: defaultTaskDispatchActorId,
-    callerSessionId: null,
-    parentSessionId: null,
-    provider: null,
-  };
-}
-
-function resolveDispatchProvider(
-  task: Pick<TaskPayload, 'assignedProvider'>,
-  dispatchContext: Pick<TaskDispatchContext, 'provider'>,
-  defaultProviderId: string | null,
-) {
-  return [
-    task.assignedProvider,
-    dispatchContext.provider,
-    defaultProviderId,
-    'codex',
-  ].filter((provider, index, providers): provider is string => {
-    return (
-      typeof provider === 'string' &&
-      provider.trim().length > 0 &&
-      providers.indexOf(provider) === index
-    );
-  });
-}
-
-async function resolveAvailableDispatchProvider(
-  callbacks: DispatchTaskCallbacks,
-  providers: string[],
-): Promise<string | null> {
-  for (const provider of providers) {
-    if (!callbacks.isProviderAvailable) {
-      return provider;
-    }
-
-    if (await callbacks.isProviderAvailable(provider)) {
-      return provider;
-    }
-  }
-
-  return null;
-}
-
 function buildTaskDispatchPrompt(task: TaskPayload) {
   const sections = [`Task: ${task.title}`, `Objective:\n${task.objective}`];
 
@@ -249,18 +123,6 @@ function buildTaskDispatchPrompt(task: TaskPayload) {
   );
 
   return sections.join('\n\n');
-}
-
-async function resolveDispatchSpecialist(
-  sqlite: Database,
-  task: TaskPayload,
-  role: RoleValue,
-): Promise<SpecialistPayload> {
-  if (task.assignedSpecialistId) {
-    return getSpecialistById(sqlite, task.projectId, task.assignedSpecialistId);
-  }
-
-  return getDefaultSpecialistByRole(sqlite, task.projectId, role);
 }
 
 async function hydrateTaskAssignment(
@@ -372,15 +234,18 @@ export async function dispatchTask(
       sqlite,
       initialTask.projectId,
     );
-    const dispatchability = await getTaskDispatchability(
+    const policy = await resolveTaskDispatchPolicy(
       sqlite,
-      initialTask.id,
       {
-        orchestrationMode: runtimeProfile.orchestrationMode,
+        callbacks,
+        callerSessionId: input.callerSessionId,
+        runtimeProfile,
+        task: initialTask,
       },
     );
+    const dispatchability = policy.dispatchability;
 
-    if (!dispatchability.dispatchable || !dispatchability.resolvedRole) {
+    if (!policy.dispatchable || !policy.resolvedRole) {
       logDiagnostic(
         options.logger,
         'info',
@@ -408,43 +273,10 @@ export async function dispatchTask(
         task: dispatchability.task,
       };
     }
-
-    const dispatchContext = resolveTaskDispatchContext(
-      sqlite,
-      dispatchability.task,
-      input.callerSessionId,
-    );
-
-    if (
-      input.callerSessionId &&
-      dispatchContext.parentSessionId &&
-      getCallerSessionRow(sqlite, dispatchContext.parentSessionId).project_id !==
-        dispatchability.task.projectId
-    ) {
-      throw new ProblemError({
-        type: 'https://team-ai.dev/problems/task-dispatch-trigger-session-mismatch',
-        title: 'Task Dispatch Caller Session Mismatch',
-        status: 409,
-        detail:
-          `Task dispatch caller session ${input.callerSessionId} does not belong to ` +
-          `project ${dispatchability.task.projectId}`,
-        context: {
-          callerSessionId: input.callerSessionId,
-          projectId: dispatchability.task.projectId,
-          taskId: dispatchability.task.id,
-        },
-      });
-    }
-    const providerCandidates = resolveDispatchProvider(
-      dispatchability.task,
-      dispatchContext,
-      runtimeProfile.defaultProviderId,
-    );
-    const preferredProvider = providerCandidates[0] ?? null;
-    const provider = await resolveAvailableDispatchProvider(
-      callbacks,
-      providerCandidates,
-    );
+    const dispatchContext = policy.dispatchContext;
+    const providerCandidates = policy.providerCandidates;
+    const preferredProvider = policy.preferredProvider;
+    const provider = policy.resolvedProvider;
 
     if (!provider) {
       const message =
@@ -480,16 +312,16 @@ export async function dispatchTask(
         'Task dispatch degraded to an available ACP provider',
       );
     }
+    const specialist = policy.resolvedSpecialist;
 
-    const specialist = await resolveDispatchSpecialist(
-      sqlite,
-      dispatchability.task,
-      dispatchability.resolvedRole,
-    );
+    if (!dispatchContext || !specialist) {
+      throw new Error('Dispatch policy resolved an incomplete dispatch plan');
+    }
+
     const hydratedTask = await hydrateTaskAssignment(
       sqlite,
       dispatchability.task,
-      dispatchability.resolvedRole,
+      policy.resolvedRole,
       specialist,
       provider,
     );
@@ -501,7 +333,7 @@ export async function dispatchTask(
       {
         event: 'task.dispatch.attempt',
         provider,
-        resolvedRole: dispatchability.resolvedRole,
+        resolvedRole: policy.resolvedRole,
         retryOfRunId: input.retryOfRunId ?? null,
         specialistId: specialist.id,
         ...buildDispatchLogContext(hydratedTask, input, options),
@@ -517,7 +349,7 @@ export async function dispatchTask(
       projectId: hydratedTask.projectId,
       provider,
       retryOfRunId: input.retryOfRunId,
-      role: dispatchability.resolvedRole,
+      role: policy.resolvedRole,
       specialistId: specialist.id,
       taskId: hydratedTask.id,
     });
@@ -538,7 +370,7 @@ export async function dispatchTask(
       {
         event: 'task.dispatch.succeeded',
         provider,
-        resolvedRole: dispatchability.resolvedRole,
+        resolvedRole: policy.resolvedRole,
         retryOfRunId: input.retryOfRunId ?? null,
         sessionId: createdSession.id,
         specialistId: specialist.id,
@@ -556,7 +388,7 @@ export async function dispatchTask(
       prompt,
       provider,
       reason: null,
-      role: dispatchability.resolvedRole,
+      role: policy.resolvedRole,
       sessionId: createdSession.id,
       specialistId: specialist.id,
       task: dispatchedTask,
