@@ -59,6 +59,8 @@ export interface NormalizedAcpToolCall {
 export interface NormalizedAcpUpdate {
   eventType: NormalizedAcpEventType;
   provider: string;
+  // Diagnostic-only provider payload. Downstream business semantics should
+  // come from canonical fields on this update, not by reparsing this object.
   rawNotification: unknown;
   sessionId: string;
   timestamp: string;

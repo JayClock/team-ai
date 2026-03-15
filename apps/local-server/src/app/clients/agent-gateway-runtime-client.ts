@@ -364,13 +364,6 @@ function toCanonicalSessionNotification(
   update: Record<string, unknown>,
   sessionId?: string,
 ): SessionNotification | null {
-  const rawNotification = asRecord(update.rawNotification);
-  const rawUpdate = asRecord(rawNotification.update);
-
-  if (rawUpdate.sessionUpdate) {
-    return createSessionNotification(rawUpdate, sessionId);
-  }
-
   const eventType = asString(update.eventType);
   if (!eventType) {
     return null;
