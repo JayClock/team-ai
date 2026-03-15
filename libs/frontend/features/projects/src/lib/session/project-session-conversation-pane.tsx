@@ -7,18 +7,7 @@ import {
   ConversationScrollButton,
   Message,
   MessageContent,
-  MessageResponse,
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-  Spinner,
-  Tool,
-  ToolContent,
-  ToolHeader,
-  ToolInput,
-  ToolOutput,
 } from '@shared/ui';
-import type { DynamicToolUIPart, ToolUIPart } from 'ai';
 import { BotIcon } from 'lucide-react';
 import { formatStatusLabel } from './project-session-workbench.shared';
 import { SessionChatMessage } from './use-project-session-chat';
@@ -27,12 +16,9 @@ import {
   type ProjectProviderPickerProps,
   type ProjectRepositoryPickerProps,
 } from '../components/project-composer-input';
-
-type RenderableToolPart = DynamicToolUIPart | ToolUIPart;
-
-function isRenderableToolPart(part: SessionChatMessage['parts'][number]): part is RenderableToolPart {
-  return part.type === 'dynamic-tool' || part.type.startsWith('tool-');
-}
+import { ReasoningPart } from './conversation-part-reasoning';
+import { isRenderableToolPart, ToolPart } from './conversation-part-tool';
+import { TextPart } from './conversation-part-text';
 
 export function ProjectSessionConversationPane(props: {
   chatMessages: SessionChatMessage[];
@@ -117,72 +103,33 @@ export function ProjectSessionConversationPane(props: {
                         {message.parts.map((part, index) => {
                           if (part.type === 'reasoning') {
                             return (
-                              <Reasoning
-                                key={`${message.id}-${index}`}
+                              <ReasoningPart
+                                part={part}
                                 defaultOpen={isThought}
-                              >
-                                <ReasoningTrigger />
-                                <ReasoningContent>{part.text}</ReasoningContent>
-                              </Reasoning>
+                                index={index}
+                                messageId={message.id}
+                              />
                             );
                           }
 
                           if (isRenderableToolPart(part)) {
                             return (
-                              <Tool
-                                key={`${message.id}-${index}`}
-                                defaultOpen={
-                                  part.state === 'output-available' ||
-                                  part.state === 'output-error'
-                                }
-                              >
-                                {part.type === 'dynamic-tool' ? (
-                                  <ToolHeader
-                                    title={part.title}
-                                    type={part.type}
-                                    state={part.state}
-                                    toolName={part.toolName}
-                                  />
-                                ) : (
-                                  <ToolHeader
-                                    title={'title' in part ? part.title : undefined}
-                                    type={part.type}
-                                    state={part.state}
-                                  />
-                                )}
-                                <ToolContent>
-                                  <ToolInput input={part.input} />
-                                  <ToolOutput
-                                    errorText={
-                                      'errorText' in part
-                                        ? part.errorText
-                                        : undefined
-                                    }
-                                    output={
-                                      'output' in part ? part.output : undefined
-                                    }
-                                  />
-                                </ToolContent>
-                              </Tool>
+                              <ToolPart
+                                part={part}
+                                index={index}
+                                messageId={message.id}
+                              />
                             );
                           }
 
                           if (part.type === 'text') {
-                            if (isPending) {
-                              return (
-                                <div
-                                  key={`${message.id}-${index}`}
-                                  className="flex items-center gap-2 text-sm text-muted-foreground"
-                                >
-                                  <Spinner className="size-4" />
-                                  正在等待响应...
-                                </div>
-                              );
-                            }
                             return (
-                              <MessageResponse key={`${message.id}-${index}`}>
-                                {part.text}
-                              </MessageResponse>
+                              <TextPart
+                                part={part}
+                                isPending={isPending}
+                                index={index}
+                                messageId={message.id}
+                              />
                             );
                           }
 
