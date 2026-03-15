@@ -5,7 +5,7 @@ export interface SqliteMigration {
 
 export const sqliteMigrations: SqliteMigration[] = [
   {
-    version: '001_initial_schema',
+    version: '001_settings',
     sql: `
       CREATE TABLE IF NOT EXISTS settings (
         id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -15,7 +15,11 @@ export const sqliteMigrations: SqliteMigration[] = [
         sync_enabled INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT NOT NULL
       );
-
+    `,
+  },
+  {
+    version: '002_projects',
+    sql: `
       CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -35,7 +39,11 @@ export const sqliteMigrations: SqliteMigration[] = [
       CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_source_url_active
         ON projects(source_url)
         WHERE source_url IS NOT NULL AND deleted_at IS NULL;
-
+    `,
+  },
+  {
+    version: '003_agents',
+    sql: `
       CREATE TABLE IF NOT EXISTS agents (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -47,7 +55,11 @@ export const sqliteMigrations: SqliteMigration[] = [
         updated_at TEXT NOT NULL,
         deleted_at TEXT
       );
-
+    `,
+  },
+  {
+    version: '004_sync_state',
+    sql: `
       CREATE TABLE IF NOT EXISTS sync_state (
         id INTEGER PRIMARY KEY CHECK (id = 1),
         status TEXT NOT NULL,
@@ -57,7 +69,11 @@ export const sqliteMigrations: SqliteMigration[] = [
         last_error TEXT,
         updated_at TEXT NOT NULL
       );
-
+    `,
+  },
+  {
+    version: '005_sync_conflicts',
+    sql: `
       CREATE TABLE IF NOT EXISTS sync_conflicts (
         id TEXT PRIMARY KEY,
         resource_type TEXT NOT NULL,
@@ -73,7 +89,11 @@ export const sqliteMigrations: SqliteMigration[] = [
 
       CREATE INDEX IF NOT EXISTS idx_sync_conflicts_status
         ON sync_conflicts(status, updated_at);
-
+    `,
+  },
+  {
+    version: '006_project_acp_sessions',
+    sql: `
       CREATE TABLE IF NOT EXISTS project_acp_sessions (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL,
@@ -105,7 +125,11 @@ export const sqliteMigrations: SqliteMigration[] = [
       CREATE INDEX IF NOT EXISTS idx_project_acp_sessions_agent_id
         ON project_acp_sessions(agent_id, updated_at DESC)
         WHERE deleted_at IS NULL;
-
+    `,
+  },
+  {
+    version: '007_project_acp_session_events',
+    sql: `
       CREATE TABLE IF NOT EXISTS project_acp_session_events (
         sequence INTEGER PRIMARY KEY AUTOINCREMENT,
         event_id TEXT NOT NULL UNIQUE,
@@ -120,7 +144,11 @@ export const sqliteMigrations: SqliteMigration[] = [
 
       CREATE INDEX IF NOT EXISTS idx_project_acp_session_events_session_id
         ON project_acp_session_events(session_id, sequence ASC);
-
+    `,
+  },
+  {
+    version: '008_project_agents',
+    sql: `
       CREATE TABLE IF NOT EXISTS project_agents (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL,
@@ -148,7 +176,11 @@ export const sqliteMigrations: SqliteMigration[] = [
       CREATE INDEX IF NOT EXISTS idx_project_agents_specialist_id
         ON project_agents(specialist_id, updated_at DESC)
         WHERE deleted_at IS NULL;
-
+    `,
+  },
+  {
+    version: '009_project_tasks',
+    sql: `
       CREATE TABLE IF NOT EXISTS project_tasks (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL,
@@ -202,7 +234,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '002_task_driven_workflow',
+    version: '010_project_tasks_task_id',
     sql: `
       ALTER TABLE project_acp_sessions
         ADD COLUMN task_id TEXT;
@@ -233,7 +265,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '003_task_source_tracking',
+    version: '011_project_tasks_source_tracking',
     sql: `
       ALTER TABLE project_tasks
         ADD COLUMN source_type TEXT NOT NULL DEFAULT 'manual';
@@ -254,7 +286,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '004_project_notes',
+    version: '012_project_notes',
     sql: `
       CREATE TABLE IF NOT EXISTS project_notes (
         id TEXT PRIMARY KEY,
@@ -294,7 +326,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '005_project_note_events',
+    version: '013_project_note_events',
     sql: `
       CREATE TABLE IF NOT EXISTS project_note_events (
         sequence INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -322,7 +354,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '006_project_task_runs',
+    version: '014_project_task_runs',
     sql: `
       CREATE TABLE IF NOT EXISTS project_task_runs (
         id TEXT PRIMARY KEY,
@@ -367,7 +399,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '007_project_runtime_profiles',
+    version: '015_project_runtime_profiles',
     sql: `
       CREATE TABLE IF NOT EXISTS project_runtime_profiles (
         id TEXT PRIMARY KEY,
@@ -389,7 +421,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '008_project_runtime_profile_configs',
+    version: '016_project_runtime_profiles_configs',
     sql: `
       ALTER TABLE project_runtime_profiles
         ADD COLUMN skill_configs_json TEXT NOT NULL DEFAULT '{}';
@@ -399,7 +431,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '009_project_codebases',
+    version: '017_project_codebases',
     sql: `
       CREATE TABLE IF NOT EXISTS project_codebases (
         id TEXT PRIMARY KEY,
@@ -469,7 +501,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '010_project_acp_session_status_split',
+    version: '018_project_acp_sessions_status_split',
     sql: `
       ALTER TABLE project_acp_sessions
         ADD COLUMN acp_status TEXT NOT NULL DEFAULT 'connecting';
@@ -491,7 +523,7 @@ export const sqliteMigrations: SqliteMigration[] = [
     `,
   },
   {
-    version: '011_project_task_session_split',
+    version: '019_project_tasks_session_split',
     sql: `
       ALTER TABLE project_tasks
         ADD COLUMN session_id TEXT;
