@@ -13,11 +13,6 @@ import type {
 export type ProtocolEnvelope =
   | Extract<ProviderProtocolEvent, { protocol: 'acp' }>
   | {
-      protocol: 'acp';
-      payload: unknown;
-      traceId?: string;
-    }
-  | {
       protocol: Exclude<ProtocolName, 'acp'>;
       payload: unknown;
       traceId?: string;
@@ -28,9 +23,7 @@ export function mapProtocolEvent(envelope: ProtocolEnvelope): SessionEventInput 
     case 'mcp':
       return mapMcpEvent(asRecord(envelope.payload), envelope.traceId);
     case 'acp':
-      return 'update' in envelope
-        ? mapAcpEvent(envelope.update, envelope.traceId)
-        : mapAcpLegacyEvent(asRecord(envelope.payload), envelope.traceId);
+      return mapAcpEvent(envelope.update, envelope.traceId);
     case 'a2a':
       return mapA2aEvent(asRecord(envelope.payload), envelope.traceId);
   }
@@ -115,49 +108,6 @@ function mapAcpEvent(update: NormalizedAcpUpdate, traceId?: string): SessionEven
         nextState: 'RUNNING',
       };
   }
-}
-
-function mapAcpLegacyEvent(
-  payload: Record<string, unknown>,
-  traceId?: string,
-): SessionEventInput {
-  const explicitState = extractState(payload);
-  if (explicitState) {
-    return statusEvent(payload, traceId, explicitState, 'acp');
-  }
-
-  const sessionUpdate = asText(payload.sessionUpdate);
-  if (sessionUpdate === 'terminal_exited') {
-    return completeEvent(payload, traceId, 'acp');
-  }
-  if (sessionUpdate === 'terminal_created') {
-    return statusEvent(payload, traceId, 'RUNNING', 'acp');
-  }
-  if (sessionUpdate === 'terminal_output') {
-    return deltaEvent(payload, traceId, 'acp');
-  }
-
-  const eventType = asText(payload.type);
-  if (eventType === 'agent_message_chunk') {
-    return deltaEvent(payload, traceId, 'acp');
-  }
-  if (eventType === 'tool_call' || eventType === 'tool_result') {
-    return toolEvent(payload, traceId, 'acp');
-  }
-  if (eventType === 'complete') {
-    return completeEvent(payload, traceId, 'acp');
-  }
-  if (payload.error) {
-    return {
-      type: 'error',
-      traceId,
-      data: { protocol: 'acp', payload },
-      error: normalizeError(payload.error),
-      nextState: 'FAILED',
-    };
-  }
-
-  return deltaEvent(payload, traceId, 'acp');
 }
 
 function mapA2aEvent(payload: Record<string, unknown>, traceId?: string): SessionEventInput {

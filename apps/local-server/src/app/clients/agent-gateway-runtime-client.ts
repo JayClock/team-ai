@@ -354,32 +354,11 @@ function toRuntimeSessionUpdate(
           | Record<string, unknown>
           | undefined)
       : undefined;
-  const payload =
-    event.data && typeof event.data === 'object'
-      ? ((event.data as Record<string, unknown>).payload as
-          | Record<string, unknown>
-          | undefined)
-      : undefined;
-  const text =
-    event.data && typeof event.data === 'object'
-      ? ((event.data as Record<string, unknown>).text as string | undefined)
-      : undefined;
 
   const normalizedUpdate =
     canonicalUpdate &&
     toNormalizedGatewayUpdate(canonicalUpdate, provider, event);
-  if (normalizedUpdate) {
-    return normalizedUpdate;
-  }
-
-  const update = toSessionUpdatePayload(payload, text);
-  if (!update) {
-    return null;
-  }
-
-  return {
-    update,
-  } as SessionNotification;
+  return normalizedUpdate ?? null;
 }
 
 function toCanonicalSessionNotification(
@@ -715,106 +694,6 @@ function toNormalizedGatewayUpdate(
   }
 
   return normalized;
-}
-
-function toSessionUpdatePayload(
-  payload: Record<string, unknown> | undefined,
-  text: string | undefined,
-): Record<string, unknown> | null {
-  const sessionUpdate =
-    asString(payload?.sessionUpdate) ?? asString(payload?.type) ?? null;
-
-  if (!sessionUpdate && text) {
-    return {
-      sessionUpdate: 'agent_message_chunk',
-      content: {
-        type: 'text',
-        text,
-      },
-    };
-  }
-
-  switch (sessionUpdate) {
-    case 'user_message_chunk':
-    case 'agent_message_chunk':
-    case 'agent_thought_chunk':
-      return {
-        sessionUpdate,
-        messageId: asString(payload?.messageId) ?? undefined,
-        content: toContentBlock(payload?.content ?? text ?? ''),
-      };
-    case 'tool_call':
-      return {
-        sessionUpdate: 'tool_call',
-        toolCallId:
-          asString(payload?.toolCallId) ??
-          asString(payload?.toolName) ??
-          undefined,
-        title:
-          asString(payload?.title) ?? asString(payload?.toolName) ?? undefined,
-        status: asString(payload?.status) ?? 'running',
-        kind:
-          asString(payload?.kind) ?? asString(payload?.toolName) ?? undefined,
-        rawInput: payload?.rawInput ?? payload?.arguments ?? null,
-        rawOutput: payload?.rawOutput ?? null,
-        locations: Array.isArray(payload?.locations) ? payload?.locations : [],
-        content: Array.isArray(payload?.content) ? payload?.content : [],
-      };
-    case 'tool_result':
-      return {
-        sessionUpdate: 'tool_call_update',
-        toolCallId:
-          asString(payload?.toolCallId) ??
-          asString(payload?.toolName) ??
-          undefined,
-        title:
-          asString(payload?.title) ?? asString(payload?.toolName) ?? undefined,
-        status: 'completed',
-        kind:
-          asString(payload?.kind) ?? asString(payload?.toolName) ?? undefined,
-        rawInput: payload?.rawInput ?? payload?.arguments ?? null,
-        rawOutput: payload?.rawOutput ?? payload?.output ?? null,
-        locations: Array.isArray(payload?.locations) ? payload?.locations : [],
-        content: Array.isArray(payload?.content) ? payload?.content : [],
-      };
-    case 'plan_update':
-      return {
-        sessionUpdate: 'plan',
-        entries: Array.isArray(payload?.items)
-          ? payload?.items.map((item) => ({
-              content:
-                asString((item as Record<string, unknown>).description) ?? '',
-              status:
-                asString((item as Record<string, unknown>).status) ?? 'pending',
-            }))
-          : [],
-      };
-    case 'session_info_update':
-      return {
-        sessionUpdate: 'session_info_update',
-        title: asString(payload?.title) ?? undefined,
-        updatedAt: asString(payload?.updatedAt) ?? undefined,
-      };
-    case 'current_mode_update':
-      return {
-        sessionUpdate: 'current_mode_update',
-        currentModeId: asString(payload?.currentModeId) ?? undefined,
-      };
-    case 'config_option_update':
-      return {
-        sessionUpdate: 'config_option_update',
-        configOptions: payload?.configOptions ?? {},
-      };
-    case 'usage_update':
-      return {
-        sessionUpdate: 'usage_update',
-        size: asNumber(payload?.size) ?? 0,
-        used: asNumber(payload?.used) ?? 0,
-        cost: asNumber(payload?.cost) ?? undefined,
-      };
-    default:
-      return null;
-  }
 }
 
 function toContentBlock(content: unknown): ContentBlock {

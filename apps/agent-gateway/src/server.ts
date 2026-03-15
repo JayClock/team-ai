@@ -18,6 +18,7 @@ import type {
 } from './provider-management.js';
 import { isProviderManagementError } from './provider-management.js';
 import type {
+  NormalizedAcpUpdate,
   ProviderPromptRequest,
   ProviderProtocolEvent,
 } from './providers/provider-types.js';
@@ -395,11 +396,26 @@ export function createGatewayServer(
           return;
         }
 
+        if (protocol === 'acp') {
+          if (!body.update || typeof body.update !== 'object') {
+            writeError(
+              res,
+              400,
+              traceId,
+              'INVALID_REQUEST_BODY',
+              'acp events must provide update as a JSON object',
+              false,
+              0
+            );
+            return;
+          }
+        }
+
         const normalizedEvent = mapProtocolEvent(
           protocol === 'acp'
             ? {
                 protocol: 'acp',
-                payload: body.payload,
+                update: body.update as NormalizedAcpUpdate,
                 traceId,
               }
             : {
