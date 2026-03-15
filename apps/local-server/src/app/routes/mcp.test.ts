@@ -566,7 +566,7 @@ describe('mcp route', () => {
     );
 
     expect(promptAcpResponse.statusCode).toBe(200);
-    expect(promptMock).toHaveBeenCalledTimes(3);
+    expect(promptMock).toHaveBeenCalledTimes(2);
   });
 
   it('defaults MCP access to read-only and returns problem details for denied writes', async () => {

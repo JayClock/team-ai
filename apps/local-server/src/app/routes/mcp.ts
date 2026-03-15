@@ -7,9 +7,8 @@ import { recordNoteEvent } from '../services/note-event-service';
 import { createNote, getNoteById } from '../services/note-service';
 import {
   cancelAcpSession,
-  createAcpSession,
   getAcpSessionById,
-  promptAcpSession,
+  createAcpSession,
 } from '../services/acp-service';
 import { listAgents } from '../services/agent-service';
 import { getProjectById, listProjects } from '../services/project-service';
@@ -21,9 +20,8 @@ import {
   updateTaskFromMcp,
 } from '../services/task-service';
 import {
-  executeTask,
-  maybeAutoExecutePatchedTask,
-} from '../services/task-orchestration-service';
+  createTaskWorkflowOrchestrator,
+} from '../services/task-workflow-orchestrator-service';
 
 const mcpAccessModeHeader = 'x-teamai-mcp-access-mode';
 
@@ -980,57 +978,13 @@ function describeNoteScope(note: {
 }
 
 const mcpRoute: FastifyPluginAsync = async (fastify) => {
-  const dispatchCallbacks = {
-    async createSession(input: {
-      actorUserId: string;
-      goal?: string;
-      parentSessionId?: string | null;
-      projectId: string;
-      provider: string;
-      retryOfRunId?: string | null;
-      role?: string | null;
-      specialistId?: string;
-      taskId?: string | null;
-    }) {
-      const session = await createAcpSession(
-        fastify.sqlite,
-        fastify.acpStreamBroker,
-        fastify.acpRuntime,
-        input,
-        {
-          logger: fastify.log,
-          source: 'mcp-route-callback',
-        },
-      );
-
-      return {
-        id: session.id,
-      };
-    },
-    async isProviderAvailable(provider: string) {
-      return fastify.acpRuntime.isConfigured(provider);
-    },
-    async promptSession(input: {
-      projectId: string;
-      prompt: string;
-      sessionId: string;
-    }) {
-      return await promptAcpSession(
-        fastify.sqlite,
-        fastify.acpStreamBroker,
-        fastify.acpRuntime,
-        input.projectId,
-        input.sessionId,
-        {
-          prompt: input.prompt,
-        },
-        {
-          logger: fastify.log,
-          source: 'mcp-route-callback',
-        },
-      );
-    },
-  };
+  const workflow = createTaskWorkflowOrchestrator({
+    broker: fastify.acpStreamBroker,
+    callbackSource: 'mcp-route-callback',
+    logger: fastify.log,
+    runtime: fastify.acpRuntime,
+    sqlite: fastify.sqlite,
+  });
 
   fastify.post('/mcp', async (request) => {
     let rpcRequest: z.infer<typeof mcpJsonRpcRequestSchema> | null = null;
@@ -1150,12 +1104,10 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 request,
                 id,
                 {
-                  task: await maybeAutoExecutePatchedTask(
-                    fastify.sqlite,
+                  task: await workflow.maybeAutoExecutePatchedTask(
                     await updateTaskFromMcp(fastify.sqlite, taskId, patch),
                     patch,
                     {
-                      callbacks: dispatchCallbacks,
                       logger: request.log,
                       source: 'mcp_task_update_auto_execute',
                     },
@@ -1172,8 +1124,7 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
               return toolResult(
                 request,
                 id,
-                await executeTask(fastify.sqlite, args.taskId, {
-                  callbacks: dispatchCallbacks,
+                await workflow.executeTask(args.taskId, {
                   callerSessionId: args.callerSessionId,
                   logger: request.log,
                   source: 'mcp_task_execute',

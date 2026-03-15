@@ -2,20 +2,13 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { presentTask, presentTaskList } from '../presenters/task-presenter';
 import {
-  createAcpSession,
-  promptAcpSession,
-} from '../services/acp-service';
-import {
   createTask,
   deleteTask,
   getTaskById,
   listTasks,
   updateTask,
 } from '../services/task-service';
-import {
-  executeTask,
-  maybeAutoExecutePatchedTask,
-} from '../services/task-orchestration-service';
+import { createTaskWorkflowOrchestrator } from '../services/task-workflow-orchestrator-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTasksQuerySchema = z.object({
@@ -117,57 +110,13 @@ const taskPatchSchema = z
   });
 
 const tasksRoute: FastifyPluginAsync = async (fastify) => {
-  const dispatchCallbacks = {
-    async createSession(input: {
-      actorUserId: string;
-      goal?: string;
-      parentSessionId?: string | null;
-      projectId: string;
-      provider: string;
-      retryOfRunId?: string | null;
-      role?: string | null;
-      specialistId?: string;
-      taskId?: string | null;
-    }) {
-      const session = await createAcpSession(
-        fastify.sqlite,
-        fastify.acpStreamBroker,
-        fastify.acpRuntime,
-        input,
-        {
-          logger: fastify.log,
-          source: 'tasks-route',
-        },
-      );
-
-      return {
-        id: session.id,
-      };
-    },
-    async isProviderAvailable(provider: string) {
-      return fastify.acpRuntime.isConfigured(provider);
-    },
-    async promptSession(input: {
-      projectId: string;
-      prompt: string;
-      sessionId: string;
-    }) {
-      return await promptAcpSession(
-        fastify.sqlite,
-        fastify.acpStreamBroker,
-        fastify.acpRuntime,
-        input.projectId,
-        input.sessionId,
-        {
-          prompt: input.prompt,
-        },
-        {
-          logger: fastify.log,
-          source: 'tasks-route',
-        },
-      );
-    },
-  };
+  const workflow = createTaskWorkflowOrchestrator({
+    broker: fastify.acpStreamBroker,
+    callbackSource: 'tasks-route',
+    logger: fastify.log,
+    runtime: fastify.acpRuntime,
+    sqlite: fastify.sqlite,
+  });
 
   fastify.get('/tasks', async (request, reply) => {
     const query = listTasksQuerySchema.parse(request.query);
@@ -223,12 +172,10 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
     const task = await updateTask(fastify.sqlite, taskId, body);
-    const executedTask = await maybeAutoExecutePatchedTask(
-      fastify.sqlite,
+    const executedTask = await workflow.maybeAutoExecutePatchedTask(
       task,
       body,
       {
-        callbacks: dispatchCallbacks,
         logger: request.log,
         source: 'tasks_route_patch_auto_execute',
       },
@@ -242,8 +189,7 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post('/tasks/:taskId/execute', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskExecuteBodySchema.parse(request.body ?? {});
-    const result = await executeTask(fastify.sqlite, taskId, {
-      callbacks: dispatchCallbacks,
+    const result = await workflow.executeTask(taskId, {
       callerSessionId: body.callerSessionId,
       logger: request.log,
       source: 'tasks_route_execute',
