@@ -123,6 +123,10 @@ function formatJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+function planEntryLabel(entry: { content: string; description?: string }): string {
+  return entry.description ?? entry.content;
+}
+
 export function formatStatusLabel(status: string | null | undefined): string {
   switch (status) {
     case 'PENDING':
@@ -785,7 +789,10 @@ export function renderEventDetails(event: AcpEventEnvelope) {
     const primaryValue =
       event.type === 'tool_call'
         ? ((data as AcpToolCallEventData).input ?? data.rawInput)
-        : ((data as AcpToolResultEventData).output ?? data.rawOutput);
+        : ((data as AcpToolResultEventData).output ??
+            (data as AcpToolResultEventData & { input?: unknown }).input ??
+            data.rawOutput ??
+            data.rawInput);
 
     return (
       <div className="mt-3 space-y-2">
@@ -831,7 +838,7 @@ export function renderEventDetails(event: AcpEventEnvelope) {
             key={`${event.eventId}-${index}`}
             className="rounded-xl border bg-muted/40 p-3"
           >
-            <div className="text-sm font-medium">{entry.content}</div>
+            <div className="text-sm font-medium">{planEntryLabel(entry)}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {formatPriorityLabel(entry.priority)} ·{' '}
               {formatStatusLabel(entry.status)}
@@ -865,8 +872,8 @@ export function buildTaskSnapshot(
     AcpEventEnvelope & { type: 'plan'; data: AcpPlanEventData }
   >;
   const planItems = (plans.at(-1)?.data.entries ?? []).map((entry, index) => ({
-    id: `plan-${index}-${entry.content}`,
-    title: entry.content,
+    id: `plan-${index}-${planEntryLabel(entry)}`,
+    title: planEntryLabel(entry),
     status: entry.status,
     description: formatPriorityLabel(entry.priority),
     source: 'plan' as const,

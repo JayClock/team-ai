@@ -416,6 +416,8 @@ export function toPersistedAcpEvent(
           title: update.toolCall?.title ?? null,
           status: update.toolCall?.status ?? null,
           kind: update.toolCall?.kind ?? null,
+          input: update.toolCall?.input ?? null,
+          output: update.toolCall?.output ?? null,
           rawInput: update.toolCall?.input ?? null,
           rawOutput: update.toolCall?.output ?? null,
           locations: update.toolCall?.locations ?? [],
@@ -432,6 +434,8 @@ export function toPersistedAcpEvent(
           title: update.toolCall?.title ?? null,
           status: update.toolCall?.status ?? null,
           kind: update.toolCall?.kind ?? null,
+          input: update.toolCall?.input ?? null,
+          output: update.toolCall?.output ?? null,
           rawInput: update.toolCall?.input ?? null,
           rawOutput: update.toolCall?.output ?? null,
           locations: update.toolCall?.locations ?? [],
@@ -445,6 +449,7 @@ export function toPersistedAcpEvent(
         payload: {
           source: 'acp-sdk',
           entries: (update.planItems ?? []).map((item) => ({
+            description: item.description,
             content: item.description,
             ...(item.priority ? { priority: item.priority } : {}),
             ...(item.status ? { status: item.status } : {}),

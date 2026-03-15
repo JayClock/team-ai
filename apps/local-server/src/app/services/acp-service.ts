@@ -519,9 +519,10 @@ function buildTaskExecutionOutcome(
     }
 
     if (row.type === 'tool_result') {
-      const rawOutput = extractEventText(payload.rawOutput);
-      if (rawOutput) {
-        toolOutputs.push(rawOutput);
+      const toolOutput =
+        extractEventText(payload.output) ?? extractEventText(payload.rawOutput);
+      if (toolOutput) {
+        toolOutputs.push(toolOutput);
       }
       continue;
     }

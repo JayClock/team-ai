@@ -93,6 +93,7 @@ export type AcpToolResultEventData = AcpBaseEventData & {
   content?: unknown[];
   kind?: string | null;
   locations?: Array<{ line?: number | null; path: string }>;
+  input?: unknown;
   output?: unknown;
   rawInput?: unknown;
   rawOutput?: unknown;
@@ -118,6 +119,7 @@ export type AcpErrorEventData = AcpBaseEventData & {
 export type AcpPlanEventData = AcpBaseEventData & {
   entries: Array<{
     content: string;
+    description?: string;
     priority: 'high' | 'medium' | 'low';
     status: 'pending' | 'in_progress' | 'completed';
   }>;
