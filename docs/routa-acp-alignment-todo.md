@@ -70,7 +70,7 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
   - describe provider behavior
   - handle deferred tool input if needed
 - [x] refactor `acp-cli-provider.ts` to use the shared adapter contract
-- [x] refactor `codex-app-server-provider.ts` to use the shared adapter contract
+- [x] keep `codex` on the shared ACP CLI adapter path instead of a dedicated app-server adapter
 - [x] keep provider-specific parsing isolated from downstream event mapping
 
 ## Phase 4: Responsibility Separation
