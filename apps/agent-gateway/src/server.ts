@@ -196,6 +196,8 @@ export function createGatewayServer(
           ...(metadata ? { metadata } : {}),
         };
         metrics.promptStarted(promptRoute.param);
+        let sawCanonicalTurnComplete = false;
+        let canonicalTurnTerminalState: 'CANCELLED' | 'FAILED' | undefined;
 
         sessionStore.appendEvent(promptRoute.param, {
           type: 'status',
@@ -212,6 +214,11 @@ export function createGatewayServer(
 
         providerRuntime.prompt(session.provider, request, {
           onEvent: (event) => {
+            if (event.protocol === 'acp' && event.update.eventType === 'turn_complete') {
+              sawCanonicalTurnComplete = true;
+              canonicalTurnTerminalState = event.update.turnComplete?.state;
+            }
+
             const normalizedEvent = mapProtocolEvent(
               event.protocol === 'acp'
                 ? {
@@ -228,7 +235,11 @@ export function createGatewayServer(
 
             if (
               normalizedEvent.nextState &&
-              TERMINAL_SESSION_STATES.has(normalizedEvent.nextState)
+              TERMINAL_SESSION_STATES.has(normalizedEvent.nextState) &&
+              !(
+                event.protocol === 'acp' &&
+                event.update.eventType === 'turn_complete'
+              )
             ) {
               normalizedEvent.nextState = undefined;
             }
@@ -266,6 +277,9 @@ export function createGatewayServer(
               return;
             }
             metrics.promptCompletedNow(promptRoute.param);
+            if (sawCanonicalTurnComplete) {
+              return;
+            }
             sessionStore.appendEvent(promptRoute.param, {
               type: 'complete',
               traceId,
@@ -282,6 +296,12 @@ export function createGatewayServer(
             }
             metrics.promptFailedNow(promptRoute.param, error.code);
             if (error.code === 'PROVIDER_CANCELLED') {
+              if (
+                sawCanonicalTurnComplete &&
+                canonicalTurnTerminalState === 'CANCELLED'
+              ) {
+                return;
+              }
               sessionStore.appendEvent(promptRoute.param, {
                 type: 'complete',
                 traceId,
@@ -291,6 +311,13 @@ export function createGatewayServer(
                 },
                 nextState: 'CANCELLED',
               });
+              return;
+            }
+
+            if (
+              sawCanonicalTurnComplete &&
+              canonicalTurnTerminalState === 'FAILED'
+            ) {
               return;
             }
 

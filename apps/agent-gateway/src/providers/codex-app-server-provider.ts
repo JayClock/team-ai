@@ -419,6 +419,20 @@ export class CodexAppServerAdapter implements ProviderAdapter {
 
     switch (method) {
       case 'error': {
+        run.callbacks.onEvent({
+          protocol: 'acp',
+          update: createAcpUpdate(session.sessionId, this.preset.providerId, 'error', {
+            traceId: run.traceId,
+            rawNotification: params,
+            error: {
+              code: asString(params.code) ?? 'PROTOCOL_ERROR',
+              message:
+                asString(params.message) ??
+                `${this.preset.name} returned an unknown protocol error`,
+            },
+          }),
+          traceId: run.traceId,
+        });
         run.rejectCompletion(
           new Error(
             asString(params.message) ??
@@ -606,6 +620,26 @@ export class CodexAppServerAdapter implements ProviderAdapter {
         }
 
         const status = asString(turn.status);
+        run.callbacks.onEvent({
+          protocol: 'acp',
+          update: createAcpUpdate(
+            session.sessionId,
+            this.preset.providerId,
+            'turn_complete',
+            {
+              traceId: run.traceId,
+              rawNotification: params,
+              turnComplete: {
+                state: normalizeTurnCompleteState(status),
+                stopReason: normalizeTurnStopReason(status),
+                usage: turn.usage ?? null,
+                userMessageId: null,
+              },
+            },
+          ),
+          traceId: run.traceId,
+        });
+
         if (status === 'completed') {
           run.resolveCompletion('completed');
           return;
@@ -968,6 +1002,32 @@ function normalizePlanStatus(
   }
 
   return 'pending';
+}
+
+function normalizeTurnCompleteState(
+  status: string | null,
+): 'FAILED' | 'CANCELLED' | undefined {
+  if (status === 'interrupted') {
+    return 'CANCELLED';
+  }
+
+  if (status === 'failed') {
+    return 'FAILED';
+  }
+
+  return undefined;
+}
+
+function normalizeTurnStopReason(status: string | null): string {
+  if (status === 'interrupted') {
+    return 'cancelled';
+  }
+
+  if (status === 'failed') {
+    return 'failed';
+  }
+
+  return 'end_turn';
 }
 
 function buildCodexTurnError(providerName: string, errorInput: unknown): Error {

@@ -177,6 +177,23 @@ describe('CodexAppServerAdapter', () => {
       );
     });
     await vi.waitFor(() => {
+      expect(onEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          protocol: 'acp',
+          update: expect.objectContaining({
+            eventType: 'turn_complete',
+            provider: 'codex',
+            sessionId: 'session-1',
+            traceId: 'trace-codex',
+            turnComplete: expect.objectContaining({
+              stopReason: 'end_turn',
+              state: undefined,
+            }),
+          }),
+        }),
+      );
+    });
+    await vi.waitFor(() => {
       expect(onComplete).toHaveBeenCalledTimes(1);
     });
     expect(onError).not.toHaveBeenCalled();
@@ -266,6 +283,105 @@ describe('CodexAppServerAdapter', () => {
         threadId: 'thread-2',
         turnId: 'turn-2',
       },
+    });
+  });
+
+  it('emits canonical error events for protocol errors', async () => {
+    const childProcess = new FakeChildProcess();
+    vi.mocked(spawn).mockReturnValue(childProcess as never);
+
+    const adapter = new CodexAppServerAdapter(
+      {
+        id: 'codex',
+        providerId: 'codex',
+        name: 'Codex',
+        command: 'codex',
+        args: ['app-server'],
+      },
+      {
+        command: 'codex',
+        args: ['app-server'],
+      },
+    );
+
+    const onEvent = vi.fn();
+    const onError = vi.fn();
+
+    adapter.prompt(
+      {
+        sessionId: 'session-3',
+        input: 'hello codex',
+        timeoutMs: 2_000,
+        traceId: 'trace-error',
+        cwd: '/tmp/workspace',
+      },
+      {
+        onChunk: vi.fn(),
+        onEvent,
+        onComplete: vi.fn(),
+        onError,
+      },
+    );
+
+    await waitForWrites(childProcess, 1);
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: readWrite(childProcess, 0).id,
+      result: { userAgent: 'probe/0.114.0' },
+    });
+
+    await waitForWrites(childProcess, 3);
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: readWrite(childProcess, 2).id,
+      result: { thread: { id: 'thread-3' } },
+    });
+
+    await waitForWrites(childProcess, 4);
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: readWrite(childProcess, 3).id,
+      result: {
+        turn: {
+          id: 'turn-3',
+          status: 'inProgress',
+          error: null,
+        },
+      },
+    });
+
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      method: 'error',
+      params: {
+        code: 'PROTOCOL_ERROR',
+        message: 'bad protocol',
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(onEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          protocol: 'acp',
+          update: expect.objectContaining({
+            eventType: 'error',
+            provider: 'codex',
+            sessionId: 'session-3',
+            traceId: 'trace-error',
+            error: {
+              code: 'PROTOCOL_ERROR',
+              message: 'bad protocol',
+            },
+          }),
+        }),
+      );
+    });
+    await vi.waitFor(() => {
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'PROVIDER_RUNTIME_ERROR',
+        }),
+      );
     });
   });
 });
