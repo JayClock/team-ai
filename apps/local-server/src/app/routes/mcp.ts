@@ -20,9 +20,6 @@ import {
   taskStatusValues,
   updateTaskFromMcp,
 } from '../services/task-service';
-import {
-  createTaskWorkflowOrchestrator,
-} from '../services/task-workflow-orchestrator-service';
 
 const mcpAccessModeHeader = 'x-teamai-mcp-access-mode';
 
@@ -979,13 +976,7 @@ function describeNoteScope(note: {
 }
 
 const mcpRoute: FastifyPluginAsync = async (fastify) => {
-  const workflow = createTaskWorkflowOrchestrator({
-    broker: fastify.acpStreamBroker,
-    callbackSource: 'mcp-route-callback',
-    logger: fastify.log,
-    runtime: fastify.acpRuntime,
-    sqlite: fastify.sqlite,
-  });
+  const workflow = fastify.taskWorkflowOrchestrator;
 
   fastify.post('/mcp', async (request) => {
     let rpcRequest: z.infer<typeof mcpJsonRpcRequestSchema> | null = null;

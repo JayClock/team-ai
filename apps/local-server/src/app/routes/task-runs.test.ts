@@ -10,6 +10,7 @@ import acpStreamPlugin from '../plugins/acp-stream';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
+import taskWorkflowOrchestratorPlugin from '../plugins/task-workflow-orchestrator';
 import { getAcpSessionById } from '../services/acp-service';
 import { createProject } from '../services/project-service';
 import { failTaskRun, startTaskRun } from '../services/task-run-service';
@@ -359,6 +360,7 @@ describe('task run routes', () => {
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
     await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(taskRunsRoute, { prefix: '/api' });
     await fastify.ready();
 

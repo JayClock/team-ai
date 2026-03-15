@@ -8,7 +8,6 @@ import {
   listTasks,
   updateTask,
 } from '../services/task-service';
-import { createTaskWorkflowOrchestrator } from '../services/task-workflow-orchestrator-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTasksQuerySchema = z.object({
@@ -110,13 +109,7 @@ const taskPatchSchema = z
   });
 
 const tasksRoute: FastifyPluginAsync = async (fastify) => {
-  const workflow = createTaskWorkflowOrchestrator({
-    broker: fastify.acpStreamBroker,
-    callbackSource: 'tasks-route',
-    logger: fastify.log,
-    runtime: fastify.acpRuntime,
-    sqlite: fastify.sqlite,
-  });
+  const workflow = fastify.taskWorkflowOrchestrator;
 
   fastify.get('/tasks', async (request, reply) => {
     const query = listTasksQuerySchema.parse(request.query);

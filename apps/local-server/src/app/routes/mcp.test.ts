@@ -5,6 +5,7 @@ import acpStreamPlugin from '../plugins/acp-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
+import taskWorkflowOrchestratorPlugin from '../plugins/task-workflow-orchestrator';
 import { createAgent } from '../services/agent-service';
 import { createNote, getNoteById } from '../services/note-service';
 import { createProject } from '../services/project-service';
@@ -96,6 +97,7 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -601,6 +603,7 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -710,6 +713,7 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(mcpRoute, { prefix: '/api' });
     await fastify.ready();
 
@@ -818,6 +822,7 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -1009,6 +1014,7 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });

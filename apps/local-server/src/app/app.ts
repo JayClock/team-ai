@@ -10,6 +10,7 @@ import executionRuntimePlugin from './plugins/execution-runtime';
 import problemJsonPlugin from './plugins/problem-json';
 import sensiblePlugin from './plugins/sensible';
 import sqlitePlugin from './plugins/sqlite';
+import taskWorkflowOrchestratorPlugin from './plugins/task-workflow-orchestrator';
 
 export interface AppOptions extends FastifyPluginOptions {
   agentGatewayBaseUrl?: string;
@@ -28,6 +29,7 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
     agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
   });
   fastify.register(acpRuntimePlugin);
+  fastify.register(taskWorkflowOrchestratorPlugin);
   fastify.register(desktopCorsPlugin);
   fastify.register(desktopAuthPlugin, {
     desktopSessionToken: opts.desktopSessionToken,

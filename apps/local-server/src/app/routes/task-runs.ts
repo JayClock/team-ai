@@ -1,21 +1,16 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { ProblemError } from '../errors/problem-error';
 import {
   presentTaskRun,
   presentTaskRunList,
 } from '../presenters/task-run-presenter';
-import { getAcpSessionById } from '../services/acp-service';
 import {
   createTaskRun,
-  getLatestTaskRunByTaskId,
-  getRetryableTaskRunById,
   getTaskRunById,
   listTaskRuns,
   updateTaskRun,
 } from '../services/task-run-service';
 import { getTaskById } from '../services/task-service';
-import { createTaskWorkflowOrchestrator } from '../services/task-workflow-orchestrator-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTaskRunsQuerySchema = z.object({
@@ -78,13 +73,7 @@ const taskRunPatchSchema = z
   });
 
 const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
-  const workflow = createTaskWorkflowOrchestrator({
-    broker: fastify.acpStreamBroker,
-    callbackSource: 'task-runs-route',
-    logger: fastify.log,
-    runtime: fastify.acpRuntime,
-    sqlite: fastify.sqlite,
-  });
+  const workflow = fastify.taskWorkflowOrchestrator;
 
   fastify.get('/projects/:projectId/task-runs', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
@@ -163,58 +152,10 @@ const taskRunsRoute: FastifyPluginAsync = async (fastify) => {
 
   fastify.post('/task-runs/:taskRunId/retry', async (request, reply) => {
     const { taskRunId } = taskRunParamsSchema.parse(request.params);
-    const sourceRun = await getRetryableTaskRunById(fastify.sqlite, taskRunId);
-    const sourceSession = sourceRun.sessionId
-      ? await getAcpSessionById(fastify.sqlite, sourceRun.sessionId)
-      : null;
-    const executionSessionId =
-      sourceSession?.parentSession?.id ?? sourceSession?.id ?? null;
-
-    if (!executionSessionId) {
-      throw new ProblemError({
-        type: 'https://team-ai.dev/problems/task-run-retry-session-missing',
-        title: 'Task Run Retry Session Missing',
-        status: 409,
-        detail:
-          `Task run ${taskRunId} cannot be retried because no parent session is available`,
-      });
-    }
-
-    const result = await workflow.executeTask(sourceRun.taskId, {
-      callerSessionId: executionSessionId,
+    const retriedRun = await workflow.retryTaskRun(taskRunId, {
       logger: request.log,
-      retryOfRunId: sourceRun.id,
       source: 'task_runs_retry',
     });
-
-    if (!result.dispatch.attempted || !result.dispatch.result?.dispatched) {
-      throw new ProblemError({
-        type: 'https://team-ai.dev/problems/task-run-retry-dispatch-blocked',
-        title: 'Task Run Retry Dispatch Blocked',
-        status: 409,
-        detail:
-          result.dispatch.errorMessage ??
-          `Task run ${taskRunId} could not be retried`,
-      });
-    }
-
-    const retriedRun = await getLatestTaskRunByTaskId(
-      fastify.sqlite,
-      sourceRun.taskId,
-    );
-
-    if (
-      !retriedRun ||
-      retriedRun.id === sourceRun.id ||
-      retriedRun.retryOfRunId !== sourceRun.id
-    ) {
-      throw new ProblemError({
-        type: 'https://team-ai.dev/problems/task-run-retry-not-created',
-        title: 'Task Run Retry Not Created',
-        status: 500,
-        detail: `Task run ${taskRunId} was retried but no retry run was recorded`,
-      });
-    }
 
     reply
       .code(201)
