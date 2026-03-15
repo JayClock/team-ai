@@ -47,8 +47,6 @@ const TASK_POLL_INTERVAL_MS = 3000;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
 const LEFT_SIDEBAR_COLLAPSED_KEY = 'team-ai.session.left-sidebar-collapsed';
 
-type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error';
-
 export type ShellsSessionProps = {
   initialSessionId?: string;
   onPendingPromptConsumed?: () => void;
@@ -104,9 +102,7 @@ export function ShellsSession(props: ShellsSessionProps) {
 
   const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
   const [sessionTaskItems, setSessionTaskItems] = useState<TaskPanelItem[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
   >(null);
@@ -452,17 +448,12 @@ export function ShellsSession(props: ShellsSessionProps) {
   useEffect(() => {
     if (!selectedSession) {
       setSessionTaskItems([]);
-      setTasksLoading(false);
       return;
     }
 
     let active = true;
 
     const syncTaskItems = async (notifyOnError: boolean) => {
-      if (notifyOnError) {
-        setTasksLoading(true);
-      }
-
       try {
         const nextItems = await loadTaskItems(selectedSession);
         if (active) {
@@ -474,10 +465,6 @@ export function ShellsSession(props: ShellsSessionProps) {
         }
         const message = error instanceof Error ? error.message : '加载任务失败';
         toast.error(message);
-      } finally {
-        if (notifyOnError && active) {
-          setTasksLoading(false);
-        }
       }
     };
 
@@ -573,9 +560,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-    if (manual) {
-      setStreamStatus('idle');
-    }
   }, []);
 
   const startStream = useCallback(() => {
@@ -584,7 +568,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
     stopStream(false);
     allowReconnectRef.current = true;
-    setStreamStatus('connecting');
 
     const url = new URL(resolveRuntimeApiUrl('/api/acp'));
     url.searchParams.set('sessionId', selectedSession.data.id);
@@ -601,9 +584,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
 
     const source = new EventSource(url.toString(), { withCredentials: true });
-    source.onopen = () => {
-      setStreamStatus('connected');
-    };
 
     const onEvent = (raw: string) => {
       try {
@@ -623,7 +603,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       onEvent(event.data);
     };
     source.onerror = () => {
-      setStreamStatus('error');
       source.close();
       eventSourceRef.current = null;
       if (!allowReconnectRef.current) {
@@ -792,16 +771,12 @@ export function ShellsSession(props: ShellsSessionProps) {
 
           <main className="min-w-0 flex-1 bg-background">
             <ProjectSessionConversationPane
-              activityCount={sideEvents.length}
               chatMessages={chatMessages}
               hasPendingAssistantMessage={hasPendingAssistantMessage}
               onSubmit={handlePromptSubmit}
               providerPicker={sessionPromptProviderPicker}
               projectPicker={sessionPromptProjectPicker}
               selectedSession={selectedSession}
-              streamStatus={streamStatus}
-              taskItems={taskItems}
-              tasksLoading={tasksLoading}
             />
           </main>
         </div>

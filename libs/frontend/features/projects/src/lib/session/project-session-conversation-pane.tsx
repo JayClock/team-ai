@@ -1,6 +1,9 @@
 import { State } from '@hateoas-ts/resource';
 import { AcpSession } from '@shared/schema';
 import {
+  ChainOfThought,
+  ChainOfThoughtContent,
+  ChainOfThoughtHeader,
   Conversation,
   ConversationContent,
   ConversationEmptyState,
@@ -10,13 +13,11 @@ import {
   MessageResponse,
   Spinner,
 } from '@shared/ui';
-import { BotIcon, SparklesIcon } from 'lucide-react';
+import { BotIcon } from 'lucide-react';
 import {
   formatDateTime,
   formatStatusLabel,
-  type TaskPanelItem,
 } from './project-session-workbench.shared';
-import { ProjectSessionTaskStrip } from './project-session-task-strip';
 import { SessionChatMessage } from './use-project-session-chat';
 import {
   ProjectComposerInput,
@@ -25,7 +26,6 @@ import {
 } from '../components/project-composer-input';
 
 export function ProjectSessionConversationPane(props: {
-  activityCount: number;
   chatMessages: SessionChatMessage[];
   hasPendingAssistantMessage: boolean;
   onSubmit: (input: {
@@ -37,21 +37,14 @@ export function ProjectSessionConversationPane(props: {
   providerPicker?: ProjectProviderPickerProps;
   projectPicker?: ProjectRepositoryPickerProps;
   selectedSession: State<AcpSession> | null;
-  streamStatus: string;
-  taskItems: TaskPanelItem[];
-  tasksLoading: boolean;
 }) {
   const {
-    activityCount,
     chatMessages,
     hasPendingAssistantMessage,
     onSubmit,
     providerPicker,
     projectPicker,
     selectedSession,
-    streamStatus,
-    taskItems,
-    tasksLoading,
   } = props;
 
   const promptInputProps = {
@@ -76,15 +69,6 @@ export function ProjectSessionConversationPane(props: {
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-muted/10">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="mx-auto w-full max-w-3xl px-4 pt-4 md:px-5">
-          <ProjectSessionTaskStrip
-            activityCount={activityCount}
-            selectedSession={selectedSession}
-            streamStatus={streamStatus}
-            taskItems={taskItems}
-            tasksLoading={tasksLoading}
-          />
-        </div>
         <Conversation className="min-h-0 flex-1" resize="instant">
           <ConversationContent className="mx-auto flex w-full max-w-3xl gap-4 px-4 py-6 md:px-5">
             {chatMessages.length === 0 ? (
@@ -98,9 +82,6 @@ export function ProjectSessionConversationPane(props: {
                 {chatMessages.map((message) => {
                   const isSystem = message.role === 'system';
                   const isThought = message.parts.every(
-                    (part) => part.type === 'reasoning',
-                  );
-                  const hasReasoning = message.parts.some(
                     (part) => part.type === 'reasoning',
                   );
                   const isPending = message.metadata?.pending === true;
@@ -121,36 +102,23 @@ export function ProjectSessionConversationPane(props: {
                         className={
                           isSystem
                             ? 'mx-auto rounded-full border bg-muted/50 px-3 py-2 text-xs text-muted-foreground'
-                            : isThought
-                              ? 'rounded-2xl border border-dashed border-border/70 bg-muted/40 px-4 py-3'
-                              : undefined
+                            : undefined
                         }
                       >
-                        {isThought ? (
-                          <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                            <SparklesIcon className="size-3.5" />
-                            <span>助手推理</span>
-                          </div>
-                        ) : null}
                         {message.parts.map((part, index) => {
                           if (part.type === 'reasoning') {
                             return (
-                              <div
+                              <ChainOfThought
                                 key={`${message.id}-${index}`}
-                                className={
-                                  hasReasoning && !isThought
-                                    ? 'mb-3 rounded-2xl border border-dashed border-border/70 bg-muted/40 px-4 py-3'
-                                    : undefined
-                                }
+                                defaultOpen={isThought}
                               >
-                                {!isThought ? (
-                                  <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-                                    <SparklesIcon className="size-3.5" />
-                                    <span>助手推理</span>
-                                  </div>
-                                ) : null}
-                                <MessageResponse>{part.text}</MessageResponse>
-                              </div>
+                                <ChainOfThoughtHeader>
+                                  助手推理
+                                </ChainOfThoughtHeader>
+                                <ChainOfThoughtContent>
+                                  <MessageResponse>{part.text}</MessageResponse>
+                                </ChainOfThoughtContent>
+                              </ChainOfThought>
                             );
                           }
 

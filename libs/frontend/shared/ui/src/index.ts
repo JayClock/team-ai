@@ -1,4 +1,5 @@
 export * from './components/ai-elements/canvas';
+export * from './components/ai-elements/chain-of-thought';
 export * from './components/ai-elements/conversation';
 export * from './components/ai-elements/message';
 export * from './components/ai-elements/model-selector';
@@ -10,6 +11,7 @@ export * from './components/ai-elements/task';
 export * from './components/avatar';
 export * from './components/alert-dialog';
 export * from './components/action-form';
+export * from './components/badge';
 export * from './components/button';
 export * from './components/button-group';
 export * from './components/breadcrumb';
