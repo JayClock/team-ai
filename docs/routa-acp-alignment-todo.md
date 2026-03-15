@@ -26,6 +26,7 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - [x] Phase 3 shared ACP provider behavior and normalize contract exists in `provider-types.ts`
 - [x] Phase 4 persistence projection and session-state derivation moved out of `normalized-session-update.ts`
 - [x] Phase 5 keeps `rawNotification` diagnostic-only and removes semantic reparsing from the gateway bridge
+- [x] Phase 6 adds provider/bridge contract tests around canonical ACP normalization
 
 ### Still Different From Routa
 
@@ -92,16 +93,16 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 
 ## Phase 6: Test Alignment
 
-- [ ] add adapter contract tests that cover:
+- [x] add adapter contract tests that cover:
   - immediate tool input
   - deferred tool input
   - chunked assistant messages
   - plan updates
   - turn completion
   - error events
-- [ ] add end-to-end tests from provider raw event to canonical update consumption
-- [ ] add assertions that downstream code no longer depends on raw ACP notification shape
-- [ ] keep existing projection/UI tests, but make them secondary to canonical contract tests
+- [x] add end-to-end tests from provider raw event to canonical update consumption
+- [x] add assertions that downstream code no longer depends on raw ACP notification shape
+- [x] keep existing projection/UI tests, but make them secondary to canonical contract tests
 
 ## Phase 7: Final Cleanup
 
@@ -126,7 +127,7 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - [x] Phase 3
 - [x] Phase 4
 - [x] Phase 5
-- [ ] Phase 6
+- [x] Phase 6
 - [ ] Phase 7
 
 ## Notes
@@ -138,3 +139,4 @@ Make `team-ai` ACP handling match `routa` more closely in three areas:
 - Phase 3 adds a shared provider behavior + normalization contract in the existing `agent-gateway` provider type module instead of introducing a new adapter base module.
 - Phase 4 keeps normalization in `normalized-session-update.ts` and moves persistence/state projection responsibility into `acp-service.ts`, which is the real downstream consumer.
 - Phase 5 keeps `rawNotification` for diagnostics, but bridge code now reconstructs protocol notifications from canonical fields instead of reparsing `rawNotification`.
+- Phase 6 adds direct provider contract tests for `getBehavior()` and `normalizeNotification()`, plus a gateway bridge test proving canonical fields are sufficient without semantic dependence on `rawNotification`.
