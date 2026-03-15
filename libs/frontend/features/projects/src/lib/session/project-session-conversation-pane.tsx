@@ -76,7 +76,7 @@ export function ProjectSessionConversationPane(props: {
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-muted/10">
+    <section className="flex min-h-0 flex-1 flex-col bg-muted/10 h-full">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <Conversation className="min-h-0 flex-1" resize="instant">
           <ConversationContent className="mx-auto flex w-full max-w-3xl gap-4 px-4 py-6 md:px-5">
