@@ -1,15 +1,10 @@
 import type { Database } from 'better-sqlite3';
-import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
 import type { DiagnosticLogger } from '../diagnostics';
 import { ProblemError } from '../errors/problem-error';
-import type { AcpStreamBroker } from '../plugins/acp-stream';
 import type { TaskRunPayload } from '../schemas/task-run';
-import {
-  getAcpSessionById,
-  createAcpSession,
-  promptAcpSession,
-} from './acp-service';
+import { getAcpSessionById } from './acp-service';
 import type { TaskPayload } from '../schemas/task';
+import type { TaskExecutionRuntime } from './task-execution-runtime-service';
 import {
   type ExecuteTaskResult,
   executeTask as executeTaskWithCallbacks,
@@ -19,10 +14,8 @@ import {
 import type { DispatchTasksResult } from './task-dispatch-service';
 
 interface TaskWorkflowOrchestratorDependencies {
-  broker: AcpStreamBroker;
-  callbackSource: string;
+  executionRuntime: TaskExecutionRuntime;
   logger?: DiagnosticLogger;
-  runtime: AcpRuntimeClient;
   sqlite: Database;
 }
 
@@ -88,66 +81,10 @@ function throwTaskRunRetryNotCreated(taskRunId: string): never {
   });
 }
 
-function createDispatchCallbacks(
-  dependencies: TaskWorkflowOrchestratorDependencies,
-) {
-  return {
-    async createSession(input: {
-      actorUserId: string;
-      goal?: string;
-      parentSessionId?: string | null;
-      projectId: string;
-      provider: string;
-      retryOfRunId?: string | null;
-      role?: string | null;
-      specialistId?: string;
-      taskId?: string | null;
-    }) {
-      const session = await createAcpSession(
-        dependencies.sqlite,
-        dependencies.broker,
-        dependencies.runtime,
-        input,
-        {
-          logger: dependencies.logger,
-          source: dependencies.callbackSource,
-        },
-      );
-
-      return {
-        id: session.id,
-      };
-    },
-    async isProviderAvailable(provider: string) {
-      return dependencies.runtime.isConfigured(provider);
-    },
-    async promptSession(input: {
-      projectId: string;
-      prompt: string;
-      sessionId: string;
-    }) {
-      return await promptAcpSession(
-        dependencies.sqlite,
-        dependencies.broker,
-        dependencies.runtime,
-        input.projectId,
-        input.sessionId,
-        {
-          prompt: input.prompt,
-        },
-        {
-          logger: dependencies.logger,
-          source: dependencies.callbackSource,
-        },
-      );
-    },
-  };
-}
-
 export function createTaskWorkflowOrchestrator(
   dependencies: TaskWorkflowOrchestratorDependencies,
 ): TaskWorkflowOrchestrator {
-  const callbacks = createDispatchCallbacks(dependencies);
+  const callbacks = dependencies.executionRuntime;
 
   return {
     async dispatchReadyTasks(

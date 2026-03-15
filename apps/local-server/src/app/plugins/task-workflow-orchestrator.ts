@@ -1,5 +1,6 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
+import { createTaskExecutionRuntime } from '../services/task-execution-runtime-service';
 import {
   createTaskWorkflowOrchestrator,
   type TaskWorkflowOrchestrator,
@@ -12,13 +13,18 @@ declare module 'fastify' {
 }
 
 const taskWorkflowOrchestratorPlugin: FastifyPluginAsync = async (fastify) => {
+  const executionRuntime = createTaskExecutionRuntime({
+    broker: fastify.acpStreamBroker,
+    logger: fastify.log,
+    runtime: fastify.acpRuntime,
+    sqlite: fastify.sqlite,
+  });
+
   fastify.decorate(
     'taskWorkflowOrchestrator',
     createTaskWorkflowOrchestrator({
-      broker: fastify.acpStreamBroker,
-      callbackSource: 'task-workflow-orchestrator',
+      executionRuntime,
       logger: fastify.log,
-      runtime: fastify.acpRuntime,
       sqlite: fastify.sqlite,
     }),
   );
