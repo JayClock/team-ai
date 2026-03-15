@@ -143,6 +143,9 @@ importers:
       react-intersection-observer:
         specifier: ^10.0.0
         version: 10.0.0(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
+      react-resizable-panels:
+        specifier: ^4.7.3
+        version: 4.7.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       react-router-dom:
         specifier: ^7.8.2
         version: 7.10.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -467,6 +470,9 @@ importers:
       '@features/project-sessions':
         specifier: workspace:*
         version: link:../project-sessions
+      '@hateoas-ts/resource':
+        specifier: workspace:*
+        version: link:../../../../packages/resource
       '@hateoas-ts/resource-react':
         specifier: workspace:*
         version: link:../../../../packages/resource-react
@@ -479,9 +485,6 @@ importers:
       '@shared/util-http':
         specifier: workspace:^
         version: link:../../shared/util-http
-      '@shells/session':
-        specifier: workspace:*
-        version: link:../../shells/session
 
   libs/frontend/features/user-projects: {}
 
@@ -539,33 +542,18 @@ importers:
 
   libs/frontend/shells/session:
     dependencies:
-      '@features/project-conversations':
+      '@features/projects':
         specifier: workspace:*
-        version: link:../../features/project-conversations
-      '@features/project-sessions':
-        specifier: workspace:*
-        version: link:../../features/project-sessions
-      '@hateoas-ts/resource':
-        specifier: workspace:*
-        version: link:../../../../packages/resource
-      '@hateoas-ts/resource-react':
-        specifier: workspace:*
-        version: link:../../../../packages/resource-react
-      '@shared/schema':
-        specifier: workspace:*
-        version: link:../../shared/schema
-      '@shared/ui':
-        specifier: workspace:*
-        version: link:../../shared/ui
-      '@shared/util-http':
-        specifier: workspace:*
-        version: link:../../shared/util-http
+        version: link:../../features/projects
 
   libs/frontend/shells/sessions:
     dependencies:
       '@features/project-conversations':
         specifier: workspace:^
         version: link:../../features/project-conversations
+      '@features/projects':
+        specifier: workspace:^
+        version: link:../../features/projects
       '@hateoas-ts/resource':
         specifier: workspace:^
         version: link:../../../../packages/resource
@@ -9919,6 +9907,12 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  react-resizable-panels@4.7.3:
+    resolution: {integrity: sha512-PYcYMLtvJD+Pr0TQNeMvddcnLOwUa/Yb4iNwU7ThNLlHaQYEEC9MIBWHaBGODzYuXIkPRZ/OWe5sbzG1Rzq5ew==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
 
   react-router-dom@7.10.1:
     resolution: {integrity: sha512-JNBANI6ChGVjA5bwsUIwJk7LHKmqB4JYnYfzFwyp2t12Izva11elds2jx7Yfoup2zssedntwU0oZ5DEmk5Sdaw==}
@@ -23254,6 +23248,11 @@ snapshots:
       use-sidecar: 1.1.3(@types/react@19.2.7)(react@19.0.0)
     optionalDependencies:
       '@types/react': 19.2.7
+
+  react-resizable-panels@4.7.3(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
+    dependencies:
+      react: 19.0.0
+      react-dom: 19.0.0(react@19.0.0)
 
   react-router-dom@7.10.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0):
     dependencies:

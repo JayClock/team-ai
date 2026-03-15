@@ -28,6 +28,7 @@ export * from './components/hover-card';
 export * from './components/input';
 export * from './components/input-group';
 export * from './components/navigation-menu';
+export * from './components/resizable';
 export * from './components/select';
 export * from './components/scroll-area';
 export * from './components/separator';
