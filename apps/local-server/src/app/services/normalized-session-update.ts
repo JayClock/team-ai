@@ -85,6 +85,32 @@ export type PersistedAcpEvent = {
   type: AcpEventTypePayload;
 };
 
+export function coerceNormalizedSessionUpdate(
+  sessionId: string,
+  provider: string,
+  update: NormalizedSessionUpdate | SessionNotification,
+  emittedAt = new Date().toISOString(),
+  traceId?: string,
+): NormalizedSessionUpdate | null {
+  if (isNormalizedSessionUpdate(update)) {
+    return {
+      ...update,
+      sessionId: update.sessionId || sessionId,
+      provider: update.provider || provider,
+      timestamp: update.timestamp || emittedAt,
+      traceId: update.traceId ?? traceId,
+    };
+  }
+
+  return normalizeSessionNotification(
+    sessionId,
+    provider,
+    update,
+    emittedAt,
+    traceId,
+  );
+}
+
 export function normalizeSessionNotification(
   sessionId: string,
   provider: string,
@@ -354,6 +380,12 @@ export function normalizeSessionNotification(
   }
 
   return null;
+}
+
+function isNormalizedSessionUpdate(
+  value: NormalizedSessionUpdate | SessionNotification,
+): value is NormalizedSessionUpdate {
+  return 'eventType' in value && 'provider' in value && 'timestamp' in value;
 }
 
 export function toPersistedAcpEvent(

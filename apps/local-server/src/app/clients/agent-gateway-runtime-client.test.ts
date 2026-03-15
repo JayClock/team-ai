@@ -13,7 +13,7 @@ describe('agent-gateway-runtime-client', () => {
     vi.restoreAllMocks();
   });
 
-  it('prompts through agent-gateway and replays gateway events as ACP updates', async () => {
+  it('prompts through agent-gateway and replays canonical gateway events directly', async () => {
     const hooks = {
       onClosed: vi.fn(),
       onSessionUpdate: vi.fn(async () => undefined),
@@ -170,24 +170,24 @@ describe('agent-gateway-runtime-client', () => {
     const thirdUpdate = updates[2]?.[0];
 
     expect(firstUpdate).toMatchObject({
-      update: {
-        sessionUpdate: 'agent_message_chunk',
-        content: {
-          type: 'text',
-          text: 'hello from gateway',
-        },
+      eventType: 'agent_message',
+      provider: 'opencode',
+      message: {
+        content: 'hello from gateway',
+        isChunk: true,
+        messageId: 'msg-1',
       },
     });
     expect(secondUpdate).toMatchObject({
-      update: {
-        sessionUpdate: 'tool_call',
+      eventType: 'tool_call',
+      toolCall: {
         toolCallId: 'tool-1',
         kind: 'read_file',
       },
     });
     expect(thirdUpdate).toMatchObject({
-      update: {
-        sessionUpdate: 'turn_complete',
+      eventType: 'turn_complete',
+      turnComplete: {
         stopReason: 'end_turn',
       },
     });

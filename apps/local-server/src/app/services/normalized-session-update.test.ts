@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionNotification } from '@agentclientprotocol/sdk';
 import {
+  coerceNormalizedSessionUpdate,
   extractSessionMetadataFromNormalizedUpdate,
   normalizeSessionNotification,
   resolveSessionStateFromNormalizedUpdate,
@@ -297,5 +298,39 @@ describe('normalized-session-update', () => {
         provider: 'codex',
       },
     });
+  });
+
+  it('passes through canonical normalized updates without rehydrating notifications', () => {
+    const canonical = {
+      eventType: 'agent_message',
+      provider: 'codex',
+      rawNotification: {
+        sessionId: 'session-6',
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: 'direct canonical update',
+          },
+        },
+      } satisfies SessionNotification,
+      sessionId: 'session-6',
+      timestamp: '2026-03-15T00:00:00.000Z',
+      traceId: 'trace-6',
+      message: {
+        role: 'assistant' as const,
+        content: 'direct canonical update',
+        contentBlock: {
+          type: 'text' as const,
+          text: 'direct canonical update',
+        },
+        isChunk: true,
+        messageId: 'msg-6',
+      },
+    };
+
+    expect(
+      coerceNormalizedSessionUpdate('session-6', 'codex', canonical),
+    ).toEqual(canonical);
   });
 });

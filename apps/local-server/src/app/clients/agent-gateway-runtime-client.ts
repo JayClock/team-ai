@@ -1,4 +1,5 @@
 import type {
+  ContentBlock,
   McpServer,
   PromptResponse,
   SessionNotification,
@@ -12,12 +13,14 @@ import type {
   AcpPromptRuntimeResult,
   AcpRuntimeClient,
   AcpRuntimeSessionHooks,
+  AcpRuntimeSessionUpdate,
   AcpRuntimeSessionSnapshot,
   CancelAcpRuntimeSessionInput,
   CreateAcpRuntimeSessionInput,
   LoadAcpRuntimeSessionInput,
   PromptAcpRuntimeSessionInput,
 } from './acp-runtime-client';
+import type { NormalizedSessionUpdate } from '../services/normalized-session-update';
 
 const EVENT_POLL_INTERVAL_MS = 150;
 
@@ -258,9 +261,9 @@ async function flushGatewayEvents(
     response.nextCursor ?? response.session.lastCursor ?? session.cursor;
 
   for (const event of response.events) {
-    const notification = toSessionNotification(event);
-    if (notification) {
-      await session.hooks.onSessionUpdate(notification);
+    const update = toRuntimeSessionUpdate(event, session.provider);
+    if (update) {
+      await session.hooks.onSessionUpdate(update);
     }
 
     if (event.type === 'error') {
@@ -341,9 +344,10 @@ function normalizeEnvSegment(value: string): string {
     .replace(/[^A-Z0-9]+/g, '_');
 }
 
-function toSessionNotification(
+function toRuntimeSessionUpdate(
   event: AgentGatewayEventEnvelope,
-): SessionNotification | null {
+  provider: string,
+): AcpRuntimeSessionUpdate | null {
   const canonicalUpdate =
     event.data && typeof event.data === 'object'
       ? ((event.data as Record<string, unknown>).update as
@@ -361,11 +365,11 @@ function toSessionNotification(
       ? ((event.data as Record<string, unknown>).text as string | undefined)
       : undefined;
 
-  const canonicalNotification =
+  const normalizedUpdate =
     canonicalUpdate &&
-    toCanonicalSessionNotification(canonicalUpdate, event.sessionId);
-  if (canonicalNotification) {
-    return canonicalNotification;
+    toNormalizedGatewayUpdate(canonicalUpdate, provider, event);
+  if (normalizedUpdate) {
+    return normalizedUpdate;
   }
 
   const update = toSessionUpdatePayload(payload, text);
@@ -563,6 +567,156 @@ function toCanonicalSessionNotification(
   }
 }
 
+function toNormalizedGatewayUpdate(
+  update: Record<string, unknown>,
+  provider: string,
+  event: AgentGatewayEventEnvelope,
+): NormalizedSessionUpdate | null {
+  const eventType = asNormalizedEventType(update.eventType);
+  if (!eventType) {
+    return null;
+  }
+
+  const sessionId = asString(update.sessionId) ?? event.sessionId ?? '';
+  const traceId = asString(update.traceId) ?? event.traceId ?? undefined;
+  const timestamp =
+    asString(update.timestamp) ??
+    event.emittedAt ??
+    new Date().toISOString();
+  const rawNotification =
+    toCanonicalSessionNotification(update, sessionId) ??
+    createSessionNotification(
+      {
+        sessionUpdate: fallbackSessionUpdate(eventType),
+      },
+      sessionId,
+    );
+
+  const normalized: NormalizedSessionUpdate = {
+    eventType,
+    provider: asString(update.provider) ?? provider,
+    rawNotification,
+    sessionId,
+    timestamp,
+    ...(traceId ? { traceId } : {}),
+  };
+
+  const message = asRecord(update.message);
+  if (
+    eventType === 'agent_message' ||
+    eventType === 'agent_thought' ||
+    eventType === 'user_message'
+  ) {
+    normalized.message = {
+      role:
+        eventType === 'user_message'
+          ? 'user'
+          : eventType === 'agent_thought'
+            ? 'thought'
+            : 'assistant',
+      messageId: asString(message.messageId),
+      content:
+        asString(message.content) ??
+        flattenContentBlock(message.contentBlock) ??
+        null,
+      contentBlock: toContentBlock(message.contentBlock ?? message.content ?? ''),
+      isChunk: message.isChunk !== false,
+    };
+  }
+
+  const toolCall = asRecord(update.toolCall);
+  if (eventType === 'tool_call' || eventType === 'tool_call_update') {
+    normalized.toolCall = {
+      toolCallId: asString(toolCall.toolCallId) ?? undefined,
+      title: asString(toolCall.title),
+      kind: asString(toolCall.kind),
+      status: normalizeToolCallStatus(toolCall.status),
+      input: toolCall.input ?? null,
+      inputFinalized:
+        typeof toolCall.inputFinalized === 'boolean'
+          ? toolCall.inputFinalized
+          : hasStructuredValue(toolCall.input),
+      output: toolCall.output ?? null,
+      locations: Array.isArray(toolCall.locations) ? toolCall.locations : [],
+      content: Array.isArray(toolCall.content) ? toolCall.content : [],
+    };
+  }
+
+  if (eventType === 'plan_update') {
+    normalized.planItems = Array.isArray(update.planItems)
+      ? update.planItems.map((item) => {
+          const record = asRecord(item);
+          return {
+            description:
+              asString(record.description) ?? asString(record.content) ?? '',
+            ...(isPlanPriority(record.priority)
+              ? { priority: record.priority }
+              : {}),
+            ...(isPlanStatus(record.status) ? { status: record.status } : {}),
+          };
+        })
+      : [];
+  }
+
+  if (eventType === 'session_info_update') {
+    const sessionInfo = asRecord(update.sessionInfo);
+    normalized.sessionInfo = {
+      title: asString(sessionInfo.title),
+      updatedAt: asString(sessionInfo.updatedAt),
+    };
+  }
+
+  if (eventType === 'current_mode_update') {
+    const mode = asRecord(update.mode);
+    normalized.mode = {
+      ...(asString(mode.currentModeId)
+        ? { currentModeId: asString(mode.currentModeId) ?? undefined }
+        : {}),
+    };
+  }
+
+  if (eventType === 'config_option_update') {
+    normalized.configOptions = update.configOptions ?? {};
+  }
+
+  if (eventType === 'usage_update') {
+    const usage = asRecord(update.usage);
+    normalized.usage = {
+      size: asNumber(usage.size) ?? 0,
+      used: asNumber(usage.used) ?? 0,
+      cost: usage.cost ?? null,
+    };
+  }
+
+  if (eventType === 'available_commands_update') {
+    normalized.availableCommands = Array.isArray(update.availableCommands)
+      ? update.availableCommands
+      : [];
+  }
+
+  if (eventType === 'error') {
+    const error = asRecord(update.error);
+    normalized.error = {
+      code: asString(error.code) ?? 'PROTOCOL_ERROR',
+      message: asString(error.message) ?? 'Unknown protocol error',
+    };
+  }
+
+  if (eventType === 'turn_complete') {
+    const turnComplete = asRecord(update.turnComplete);
+    normalized.turnComplete = {
+      stopReason: asString(turnComplete.stopReason) ?? 'end_turn',
+      usage: turnComplete.usage ?? null,
+      userMessageId: asString(turnComplete.userMessageId),
+      ...(isTerminalState(turnComplete.state)
+        ? { state: turnComplete.state }
+        : {}),
+    };
+  }
+
+  return normalized;
+}
+
 function toSessionUpdatePayload(
   payload: Record<string, unknown> | undefined,
   text: string | undefined,
@@ -663,11 +817,11 @@ function toSessionUpdatePayload(
   }
 }
 
-function toContentBlock(content: unknown): Record<string, unknown> {
+function toContentBlock(content: unknown): ContentBlock {
   if (content && typeof content === 'object') {
     const record = content as Record<string, unknown>;
     if (record.type === 'text' && typeof record.text === 'string') {
-      return record;
+      return record as ContentBlock;
     }
   }
 
@@ -722,6 +876,113 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function asNormalizedEventType(
+  value: unknown,
+): NormalizedSessionUpdate['eventType'] | null {
+  switch (value) {
+    case 'tool_call':
+    case 'tool_call_update':
+    case 'agent_message':
+    case 'agent_thought':
+    case 'user_message':
+    case 'plan_update':
+    case 'turn_complete':
+    case 'session_info_update':
+    case 'current_mode_update':
+    case 'config_option_update':
+    case 'usage_update':
+    case 'available_commands_update':
+    case 'error':
+      return value;
+    default:
+      return null;
+  }
+}
+
+function fallbackSessionUpdate(
+  eventType: NormalizedSessionUpdate['eventType'],
+): string {
+  switch (eventType) {
+    case 'agent_message':
+      return 'agent_message_chunk';
+    case 'agent_thought':
+      return 'agent_thought_chunk';
+    case 'user_message':
+      return 'user_message_chunk';
+    case 'plan_update':
+      return 'plan';
+    default:
+      return eventType;
+  }
+}
+
+function normalizeToolCallStatus(
+  value: unknown,
+): 'completed' | 'failed' | 'pending' | 'running' {
+  if (
+    value === 'completed' ||
+    value === 'failed' ||
+    value === 'pending' ||
+    value === 'running'
+  ) {
+    return value;
+  }
+
+  return 'pending';
+}
+
+function hasStructuredValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.keys(value).length > 0;
+  }
+
+  return value !== null && value !== undefined;
+}
+
+function isPlanPriority(
+  value: unknown,
+): value is 'high' | 'low' | 'medium' {
+  return value === 'high' || value === 'medium' || value === 'low';
+}
+
+function isPlanStatus(
+  value: unknown,
+): value is 'completed' | 'in_progress' | 'pending' {
+  return value === 'completed' || value === 'in_progress' || value === 'pending';
+}
+
+function isTerminalState(
+  value: unknown,
+): value is 'FAILED' | 'CANCELLED' {
+  return value === 'FAILED' || value === 'CANCELLED';
+}
+
+function flattenContentBlock(content: unknown): string | null {
+  if (!content || typeof content !== 'object') {
+    return asString(content);
+  }
+
+  const record = content as Record<string, unknown>;
+  if (record.type === 'text' && typeof record.text === 'string') {
+    return record.text;
+  }
+
+  if (record.type === 'resource_link' && typeof record.uri === 'string') {
+    return record.uri;
+  }
+
+  if (record.type === 'resource') {
+    const resource = asRecord(record.resource);
+    return asString(resource.text);
+  }
+
+  return null;
 }
 
 function sleep(ms: number): Promise<void> {

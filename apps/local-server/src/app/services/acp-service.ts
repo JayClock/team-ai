@@ -28,8 +28,8 @@ import type {
 import type { RoleValue } from '../schemas/role';
 import { normalizeAcpProviderId } from './acp-provider-service';
 import {
+  coerceNormalizedSessionUpdate,
   extractSessionMetadataFromNormalizedUpdate,
-  normalizeSessionNotification,
   resolveSessionStateFromNormalizedUpdate,
   toPersistedAcpEvent,
 } from './normalized-session-update';
@@ -960,12 +960,12 @@ function createRuntimeHooks(
   options: AcpServiceOptions = {},
 ): AcpRuntimeSessionHooks {
   return {
-    async onSessionUpdate(notification) {
+    async onSessionUpdate(update) {
       const current = getSessionRow(sqlite, localSessionId);
-      const normalized = normalizeSessionNotification(
+      const normalized = coerceNormalizedSessionUpdate(
         localSessionId,
         current.provider,
-        notification,
+        update,
       );
       if (!normalized) {
         return;
