@@ -129,6 +129,54 @@ export function createNormalizedAcpUpdate(
   };
 }
 
+export function hasStructuredValue(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.keys(value).length > 0;
+  }
+
+  return value !== null && value !== undefined;
+}
+
+export function flattenAcpContentText(contentInput: unknown): string | null {
+  if (typeof contentInput === 'string') {
+    return contentInput;
+  }
+
+  if (!contentInput || typeof contentInput !== 'object') {
+    return null;
+  }
+
+  const block = contentInput as {
+    resource?: { text?: unknown };
+    text?: unknown;
+    type?: unknown;
+    uri?: unknown;
+  };
+
+  if (block.type === 'text' && typeof block.text === 'string') {
+    return block.text;
+  }
+
+  if (block.type === 'resource_link' && typeof block.uri === 'string') {
+    return block.uri;
+  }
+
+  if (
+    block.type === 'resource' &&
+    block.resource &&
+    typeof block.resource === 'object' &&
+    typeof block.resource.text === 'string'
+  ) {
+    return block.resource.text;
+  }
+
+  return null;
+}
+
 export type ProviderProtocolEvent =
   | {
       protocol: 'acp';

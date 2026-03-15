@@ -4,6 +4,10 @@ import type {
   PromptResponse,
   SessionNotification,
 } from '@agentclientprotocol/sdk';
+import {
+  flattenAcpContentText,
+  hasStructuredValue,
+} from '../../../../agent-gateway/src/providers/provider-types.js';
 import { ProblemError } from '../errors/problem-error';
 import type {
   AgentGatewayClient,
@@ -588,7 +592,7 @@ function toNormalizedGatewayUpdate(
       messageId: asString(message.messageId),
       content:
         asString(message.content) ??
-        flattenContentBlock(message.contentBlock) ??
+        flattenAcpContentText(message.contentBlock) ??
         null,
       contentBlock: toContentBlock(message.contentBlock ?? message.content ?? ''),
       isChunk: message.isChunk !== false,
@@ -804,18 +808,6 @@ function normalizeToolCallStatus(
   return 'pending';
 }
 
-function hasStructuredValue(value: unknown): boolean {
-  if (Array.isArray(value)) {
-    return value.length > 0;
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.keys(value).length > 0;
-  }
-
-  return value !== null && value !== undefined;
-}
-
 function isPlanPriority(
   value: unknown,
 ): value is 'high' | 'low' | 'medium' {
@@ -832,28 +824,6 @@ function isTerminalState(
   value: unknown,
 ): value is 'FAILED' | 'CANCELLED' {
   return value === 'FAILED' || value === 'CANCELLED';
-}
-
-function flattenContentBlock(content: unknown): string | null {
-  if (!content || typeof content !== 'object') {
-    return asString(content);
-  }
-
-  const record = content as Record<string, unknown>;
-  if (record.type === 'text' && typeof record.text === 'string') {
-    return record.text;
-  }
-
-  if (record.type === 'resource_link' && typeof record.uri === 'string') {
-    return record.uri;
-  }
-
-  if (record.type === 'resource') {
-    const resource = asRecord(record.resource);
-    return asString(resource.text);
-  }
-
-  return null;
 }
 
 function sleep(ms: number): Promise<void> {

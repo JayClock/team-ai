@@ -11,7 +11,11 @@ import type {
   ProviderPromptCallbacks,
   ProviderPromptRequest,
 } from './provider-types.js';
-import { createNormalizedAcpUpdate } from './provider-types.js';
+import {
+  createNormalizedAcpUpdate,
+  flattenAcpContentText,
+  hasStructuredValue,
+} from './provider-types.js';
 import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 
 const DEFAULT_CANCEL_GRACE_MS = 3_000;
@@ -822,7 +826,7 @@ function normalizeSessionUpdate(
           rawNotification: updateInput,
           message: {
             role: resolveMessageRole(sessionUpdate),
-            content: flattenContentBlock(update.content ?? update.text ?? ''),
+            content: flattenAcpContentText(update.content ?? update.text ?? ''),
             contentBlock: normalizeContentBlock(update.content ?? update.text),
             isChunk: sessionUpdate.endsWith('_chunk'),
             messageId: asString(update.messageId),
@@ -942,32 +946,13 @@ function normalizeSessionUpdate(
         rawNotification: updateInput,
         message: {
           role: 'assistant',
-          content: flattenContentBlock(update.content ?? update.text ?? ''),
+          content: flattenAcpContentText(update.content ?? update.text ?? ''),
           contentBlock: update.content,
           isChunk: true,
           messageId: asString(update.messageId),
         },
       });
   }
-}
-
-function flattenContentBlock(contentInput: unknown): string | null {
-  const content = asRecord(contentInput);
-  const type = asString(content.type);
-
-  if (type === 'text') {
-    return asString(content.text);
-  }
-
-  if (type === 'resource_link') {
-    return asString(content.uri);
-  }
-
-  if (type === 'resource') {
-    return asString(asRecord(content.resource).text);
-  }
-
-  return asString(contentInput);
 }
 
 function normalizeContentBlock(contentInput: unknown): unknown {
@@ -1087,18 +1072,6 @@ function normalizeTurnCompleteState(
   }
 
   return undefined;
-}
-
-function hasStructuredValue(value: unknown): boolean {
-  if (Array.isArray(value)) {
-    return value.length > 0;
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.keys(value as Record<string, unknown>).length > 0;
-  }
-
-  return value !== null && value !== undefined;
 }
 
 function resolveMcpServers(

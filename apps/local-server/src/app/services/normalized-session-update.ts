@@ -2,6 +2,10 @@ import type {
   ContentBlock,
   SessionNotification,
 } from '@agentclientprotocol/sdk';
+import {
+  flattenAcpContentText,
+  hasStructuredValue,
+} from '../../../../agent-gateway/src/providers/provider-types.js';
 import type {
   NormalizedAcpEventType,
   NormalizedAcpToolCall,
@@ -119,7 +123,7 @@ export function normalizeSessionNotification(
             typeof updateRecord.messageId === 'string'
               ? updateRecord.messageId
               : null,
-          content: flattenContentBlock(updateRecord.content),
+          content: flattenAcpContentText(updateRecord.content),
           contentBlock: updateRecord.content as ContentBlock,
           isChunk: rawSessionUpdate.endsWith('_chunk'),
         },
@@ -383,31 +387,6 @@ function resolveMessageRole(
   return 'assistant';
 }
 
-function flattenContentBlock(content: unknown): string | null {
-  if (!content || typeof content !== 'object') {
-    return null;
-  }
-
-  const block = content as ContentBlock;
-
-  if (block.type === 'text') {
-    return block.text;
-  }
-
-  if (block.type === 'resource_link') {
-    return block.uri;
-  }
-
-  if (block.type === 'resource') {
-    const resource = block.resource;
-    if ('text' in resource) {
-      return resource.text;
-    }
-  }
-
-  return null;
-}
-
 function normalizeToolCallStatus(
   status: string | null | undefined,
 ): 'completed' | 'failed' | 'pending' | 'running' {
@@ -420,18 +399,6 @@ function normalizeToolCallStatus(
   }
 
   return 'pending';
-}
-
-function hasStructuredValue(value: unknown): boolean {
-  if (Array.isArray(value)) {
-    return value.length > 0;
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.keys(value).length > 0;
-  }
-
-  return value !== null && value !== undefined;
 }
 
 function normalizeTurnCompleteState(
