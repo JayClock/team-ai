@@ -65,6 +65,7 @@ interface TaskRow {
   source_type: string;
   status: string;
   title: string;
+  trigger_session_id: string | null;
   updated_at: string;
   verification_commands_json: string;
   verification_report: string | null;
@@ -435,7 +436,7 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     scope: row.scope,
     status: row.status,
     title: row.title,
-    triggerSessionId: row.execution_session_id ?? row.result_session_id,
+    triggerSessionId: row.trigger_session_id,
     updatedAt: row.updated_at,
     verificationCommands: parseStringArray(row.verification_commands_json),
     verificationReport: row.verification_report,
@@ -511,6 +512,7 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
         SELECT
           id,
           project_id,
+          trigger_session_id,
           title,
           objective,
           scope,
@@ -731,6 +733,7 @@ export async function listDispatchableTasks(
         SELECT
           id,
           project_id,
+          trigger_session_id,
           title,
           objective,
           scope,
@@ -1016,6 +1019,7 @@ export async function listTasks(
         SELECT
           id,
           project_id,
+          trigger_session_id,
           title,
           objective,
           scope,
@@ -1101,6 +1105,14 @@ export async function updateTask(
           sqlite,
           current.project_id,
           input.sessionId,
+        );
+  const triggerSessionId =
+    input.triggerSessionId === undefined
+      ? current.trigger_session_id
+      : await validateTriggerSession(
+          sqlite,
+          current.project_id,
+          input.triggerSessionId,
         );
   const parentTaskId =
     input.parentTaskId === undefined
@@ -1218,6 +1230,7 @@ export async function updateTask(
     sessionId,
     status: ensureTaskStatus(input.status, currentStatus),
     title: input.title ?? current.title,
+    triggerSessionId,
     updatedAt: new Date().toISOString(),
     verificationCommandsJson:
       input.verificationCommands === undefined
@@ -1239,6 +1252,7 @@ export async function updateTask(
         UPDATE project_tasks
         SET
           session_id = @sessionId,
+          trigger_session_id = @triggerSessionId,
           title = @title,
           objective = @objective,
           scope = @scope,

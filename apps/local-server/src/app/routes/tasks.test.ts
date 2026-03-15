@@ -234,6 +234,7 @@ describe('tasks routes', () => {
       id: taskId,
       resultSessionId: expect.stringMatching(/^acps_/),
       status: 'COMPLETED',
+      triggerSessionId: expect.stringMatching(/^acps_/),
     });
     expect(fastify.acpRuntime.createSession).toHaveBeenCalledTimes(1);
     expect(fastify.acpRuntime.promptSession).toHaveBeenCalledWith(

@@ -439,9 +439,16 @@ describe('task service', () => {
     });
 
     let sessionCount = 0;
-    const createSession = vi.fn(async () => ({
-      id: `acps_execute_${++sessionCount}`,
-    }));
+    const createSession = vi.fn(async () => {
+      const id = `acps_execute_${++sessionCount}`;
+      insertAcpSession(sqlite, {
+        cwd: '/Users/example/task-execute-project',
+        id,
+        projectId: project.id,
+        provider: 'codex',
+      });
+      return { id };
+    });
     const promptSession = vi.fn(async () => undefined);
     const callbacks = {
       createSession,
@@ -456,6 +463,9 @@ describe('task service', () => {
     expect(readyResult.dispatch).toMatchObject({
       attempted: true,
       errorMessage: null,
+    });
+    expect(readyResult.task).toMatchObject({
+      triggerSessionId: 'acps_execute_1',
     });
     expect(readyResult.dispatch.result).toMatchObject({
       dispatched: true,

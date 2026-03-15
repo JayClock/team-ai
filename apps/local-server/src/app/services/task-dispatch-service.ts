@@ -462,10 +462,13 @@ export async function dispatchTask(
       specialistId: specialist.id,
       taskId: hydratedTask.id,
     });
+    const dispatchedTask = await updateTask(sqlite, hydratedTask.id, {
+      triggerSessionId: createdSession.id,
+    });
 
     dispatchPhase = 'prompt_session';
     await callbacks.promptSession({
-      projectId: hydratedTask.projectId,
+      projectId: dispatchedTask.projectId,
       prompt,
       sessionId: createdSession.id,
     });
@@ -480,7 +483,7 @@ export async function dispatchTask(
         retryOfRunId: input.retryOfRunId ?? null,
         sessionId: createdSession.id,
         specialistId: specialist.id,
-        ...buildDispatchLogContext(hydratedTask, input, options),
+        ...buildDispatchLogContext(dispatchedTask, input, options),
       },
       'Task dispatch completed successfully',
     );
@@ -488,7 +491,7 @@ export async function dispatchTask(
     return {
       dispatchability: {
         ...dispatchability,
-        task: hydratedTask,
+        task: dispatchedTask,
       },
       dispatched: true,
       prompt,
@@ -497,7 +500,7 @@ export async function dispatchTask(
       role: dispatchability.resolvedRole,
       sessionId: createdSession.id,
       specialistId: specialist.id,
-      task: hydratedTask,
+      task: dispatchedTask,
     };
   } catch (error) {
     const diagnostics = getErrorDiagnostics(error, 'TASK_DISPATCH_FAILED');

@@ -119,6 +119,7 @@ export interface UpdateTaskInput {
   sessionId?: string | null;
   status?: string;
   title?: string;
+  triggerSessionId?: string | null;
   verificationCommands?: string[];
   verificationReport?: string | null;
   verificationVerdict?: string | null;

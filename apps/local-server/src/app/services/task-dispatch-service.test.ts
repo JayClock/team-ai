@@ -67,9 +67,17 @@ describe('task dispatch service', () => {
       sessionId: 'acps_other_parent',
     });
 
-    const createSession = vi.fn(async () => ({
-      id: 'acps_dispatch_child',
-    }));
+    const createSession = vi.fn(async () => {
+      insertAcpSession(sqlite, {
+        actorId: 'desktop-user',
+        cwd: '/Users/example/dispatch-service-project',
+        id: 'acps_dispatch_child',
+        parentSessionId: 'acps_dispatch_parent',
+        projectId: project.id,
+        provider: 'opencode',
+      });
+      return { id: 'acps_dispatch_child' };
+    });
     const promptSession = vi.fn(async () => undefined);
 
     const result = await dispatchTasks(
@@ -119,6 +127,7 @@ describe('task dispatch service', () => {
       assignedRole: 'CRAFTER',
       assignedSpecialistId: 'crafter-implementor',
       assignedSpecialistName: 'Crafter Implementor',
+      triggerSessionId: 'acps_dispatch_child',
     });
     expect(result.results[0].prompt).toContain('Acceptance Criteria');
   });
@@ -146,7 +155,9 @@ describe('task dispatch service', () => {
       sessionId: 'acps_duplicate_parent',
     });
 
-    let releaseCreateSession: ((value: { id: string }) => void) | undefined;
+    let releaseCreateSession:
+      | ((value: { id: string }) => void)
+      | undefined;
     const createSession = vi.fn(
       () =>
         new Promise<{ id: string }>((resolve) => {
@@ -193,6 +204,14 @@ describe('task dispatch service', () => {
       throw new Error('Expected createSession to be waiting for resolution');
     }
 
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/duplicate-dispatch',
+      id: 'acps_duplicate_child',
+      parentSessionId: 'acps_duplicate_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
     releaseCreateSession({
       id: 'acps_duplicate_child',
     });
@@ -233,9 +252,17 @@ describe('task dispatch service', () => {
       sessionId: 'acps_provider_fallback_parent',
     });
 
-    const createSession = vi.fn(async () => ({
-      id: 'acps_provider_fallback_child',
-    }));
+    const createSession = vi.fn(async () => {
+      insertAcpSession(sqlite, {
+        actorId: 'desktop-user',
+        cwd: '/Users/example/dispatch-provider-fallback',
+        id: 'acps_provider_fallback_child',
+        parentSessionId: 'acps_provider_fallback_parent',
+        projectId: project.id,
+        provider: 'codex',
+      });
+      return { id: 'acps_provider_fallback_child' };
+    });
     const promptSession = vi.fn(async () => undefined);
 
     const result = await dispatchTask(
@@ -266,6 +293,7 @@ describe('task dispatch service', () => {
       }),
     );
     expect(updatedTask.assignedProvider).toBe('codex');
+    expect(updatedTask.triggerSessionId).toBe('acps_provider_fallback_child');
   });
 
   it('moves tasks to waiting retry when no configured provider is available', async () => {
@@ -473,9 +501,17 @@ describe('task dispatch service', () => {
     await dispatchTask(
       sqlite,
       {
-        createSession: vi.fn(async () => ({
-          id: 'acps_dispatch_diagnostics_child',
-        })),
+        createSession: vi.fn(async () => {
+          insertAcpSession(sqlite, {
+            actorId: 'desktop-user',
+            cwd: '/Users/example/dispatch-diagnostics',
+            id: 'acps_dispatch_diagnostics_child',
+            parentSessionId: 'acps_dispatch_diagnostics_parent',
+            projectId: project.id,
+            provider: 'codex',
+          });
+          return { id: 'acps_dispatch_diagnostics_child' };
+        }),
         promptSession: vi.fn(async () => undefined),
       },
       {
