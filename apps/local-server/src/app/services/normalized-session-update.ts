@@ -8,7 +8,6 @@ import type {
   NormalizedAcpUpdate,
 } from '../../../../agent-gateway/src/providers/provider-types.js';
 import type {
-  AcpEventTypePayload,
   AcpSessionState,
 } from '../schemas/acp';
 
@@ -33,11 +32,6 @@ export type NormalizedSessionUpdate = Omit<
   > & {
     state?: Extract<AcpSessionState, 'FAILED' | 'CANCELLED'>;
   };
-};
-
-export type PersistedAcpEvent = {
-  payload: Record<string, unknown>;
-  type: AcpEventTypePayload;
 };
 
 export function coerceNormalizedSessionUpdate(
@@ -343,183 +337,6 @@ function isNormalizedSessionUpdate(
   return 'eventType' in value && 'provider' in value && 'timestamp' in value;
 }
 
-export function toPersistedAcpEvent(
-  update: NormalizedSessionUpdate,
-): PersistedAcpEvent {
-  switch (update.eventType) {
-    case 'agent_message':
-    case 'agent_thought':
-    case 'user_message':
-      return {
-        type: 'message',
-        payload: {
-          source: 'acp-sdk',
-          kind: resolvePersistedMessageKind(update),
-          role: update.message?.role ?? 'assistant',
-          messageId: update.message?.messageId ?? null,
-          content: update.message?.content ?? null,
-          contentBlock: update.message?.contentBlock ?? null,
-          provider: update.provider,
-        },
-      };
-    case 'tool_call':
-      return {
-        type: 'tool_call',
-        payload: {
-          source: 'acp-sdk',
-          toolCallId: update.toolCall?.toolCallId,
-          title: update.toolCall?.title ?? null,
-          status: update.toolCall?.status ?? null,
-          kind: update.toolCall?.kind ?? null,
-          input: update.toolCall?.input ?? null,
-          output: update.toolCall?.output ?? null,
-          locations: update.toolCall?.locations ?? [],
-          content: update.toolCall?.content ?? [],
-          provider: update.provider,
-        },
-      };
-    case 'tool_call_update':
-      return {
-        type: 'tool_call',
-        payload: {
-          source: 'acp-sdk',
-          toolCallId: update.toolCall?.toolCallId,
-          title: update.toolCall?.title ?? null,
-          status: update.toolCall?.status ?? null,
-          kind: update.toolCall?.kind ?? null,
-          input: update.toolCall?.input ?? null,
-          output: update.toolCall?.output ?? null,
-          locations: update.toolCall?.locations ?? [],
-          content: update.toolCall?.content ?? [],
-          provider: update.provider,
-        },
-      };
-    case 'plan_update':
-      return {
-        type: 'plan',
-        payload: {
-          source: 'acp-sdk',
-          entries: (update.planItems ?? []).map((item) => ({
-            description: item.description,
-            ...(item.priority ? { priority: item.priority } : {}),
-            ...(item.status ? { status: item.status } : {}),
-          })),
-          provider: update.provider,
-        },
-      };
-    case 'session_info_update':
-      return {
-        type: 'session',
-        payload: {
-          source: 'acp-sdk',
-          title: update.sessionInfo?.title ?? null,
-          updatedAt: update.sessionInfo?.updatedAt ?? null,
-          provider: update.provider,
-        },
-      };
-    case 'current_mode_update':
-      return {
-        type: 'mode',
-        payload: {
-          source: 'acp-sdk',
-          currentModeId: update.mode?.currentModeId,
-          provider: update.provider,
-        },
-      };
-    case 'config_option_update':
-      return {
-        type: 'config',
-        payload: {
-          source: 'acp-sdk',
-          configOptions: update.configOptions ?? {},
-          provider: update.provider,
-        },
-      };
-    case 'usage_update':
-      return {
-        type: 'usage',
-        payload: {
-          source: 'acp-sdk',
-          size: update.usage?.size ?? 0,
-          used: update.usage?.used ?? 0,
-          cost: update.usage?.cost ?? null,
-          provider: update.provider,
-        },
-      };
-    case 'available_commands_update':
-      return {
-        type: 'status',
-        payload: {
-          source: 'acp-sdk',
-          availableCommands: update.availableCommands ?? [],
-          provider: update.provider,
-        },
-      };
-    case 'error':
-      return {
-        type: 'status',
-        payload: {
-          source: 'acp-sdk',
-          error: update.error ?? null,
-          provider: update.provider,
-        },
-      };
-    case 'turn_complete':
-      return {
-        type: 'complete',
-        payload: {
-          source: 'acp-sdk',
-          stopReason: update.turnComplete?.stopReason ?? 'end_turn',
-          userMessageId: update.turnComplete?.userMessageId ?? null,
-          usage: update.turnComplete?.usage ?? null,
-          ...(update.turnComplete?.state
-            ? { state: update.turnComplete.state }
-            : {}),
-          provider: update.provider,
-        },
-      };
-  }
-
-  throw new Error(`Unsupported normalized ACP event type: ${update.eventType}`);
-}
-
-export function resolveSessionStateFromNormalizedUpdate(
-  update: NormalizedSessionUpdate,
-  fallback: AcpSessionState,
-): AcpSessionState {
-  switch (update.eventType) {
-    case 'agent_message':
-    case 'agent_thought':
-    case 'tool_call':
-      return 'RUNNING';
-    case 'tool_call_update':
-      return update.toolCall?.status === 'failed' ? 'FAILED' : 'RUNNING';
-    case 'turn_complete':
-      return update.turnComplete?.state ?? fallback;
-    default:
-      return fallback;
-  }
-}
-
-export function extractSessionMetadataFromNormalizedUpdate(
-  update: NormalizedSessionUpdate,
-): {
-  title: string | null;
-  updatedAt: string | null;
-} {
-  if (update.eventType !== 'session_info_update') {
-    return {
-      title: null,
-      updatedAt: null,
-    };
-  }
-
-  return {
-    title: update.sessionInfo?.title ?? null,
-    updatedAt: update.sessionInfo?.updatedAt ?? null,
-  };
-}
-
 function resolveMessageEventType(
   updateType:
     | 'user_message'
@@ -625,31 +442,4 @@ function normalizeTurnCompleteState(
   }
 
   return undefined;
-}
-
-function resolvePersistedMessageKind(
-  update: NormalizedSessionUpdate,
-):
-  | 'agent_message'
-  | 'agent_message_chunk'
-  | 'agent_thought'
-  | 'agent_thought_chunk'
-  | 'user_message'
-  | 'user_message_chunk' {
-  const suffix = update.message?.isChunk === false ? '' : '_chunk';
-
-  switch (update.eventType) {
-    case 'user_message':
-      return `user_message${suffix}` as
-        | 'user_message'
-        | 'user_message_chunk';
-    case 'agent_thought':
-      return `agent_thought${suffix}` as
-        | 'agent_thought'
-        | 'agent_thought_chunk';
-    default:
-      return `agent_message${suffix}` as
-        | 'agent_message'
-        | 'agent_message_chunk';
-  }
 }

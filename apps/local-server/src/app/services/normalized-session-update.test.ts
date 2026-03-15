@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { SessionNotification } from '@agentclientprotocol/sdk';
 import {
   coerceNormalizedSessionUpdate,
-  extractSessionMetadataFromNormalizedUpdate,
   normalizeSessionNotification,
+} from './normalized-session-update';
+import {
+  extractSessionMetadataFromNormalizedUpdate,
   resolveSessionStateFromNormalizedUpdate,
   toPersistedAcpEvent,
-} from './normalized-session-update';
+} from './acp-service';
 
 describe('normalized-session-update', () => {
   it('normalizes agent message chunks to canonical agent_message updates', () => {
