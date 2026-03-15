@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createProviderAdapter } from './provider-adapter-registry.js';
 import { PROVIDER_ADAPTER_KINDS } from './provider-types.js';
 
 const acpCliFactory = vi.fn();
+const opencodeFactory = vi.fn();
 
 vi.mock('./acp-cli-provider.js', () => ({
   AcpCliProviderAdapter: class {
@@ -10,10 +11,19 @@ vi.mock('./acp-cli-provider.js', () => ({
       acpCliFactory(...args);
     }
   },
+  OpencodeAcpCliProviderAdapter: class {
+    constructor(...args: unknown[]) {
+      opencodeFactory(...args);
+    }
+  },
 }));
 
 describe('provider adapter registry', () => {
-  it('creates the generic ACP CLI adapter for acp-cli providers', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates the dedicated opencode ACP adapter for opencode providers', () => {
     const preset = {
       id: 'opencode',
       providerId: 'opencode',
@@ -21,7 +31,7 @@ describe('provider adapter registry', () => {
       description: 'OpenCode AI coding agent',
       command: 'opencode',
       args: ['acp'],
-      adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
+      adapterKind: PROVIDER_ADAPTER_KINDS.opencodeAcpCli,
       cwdArg: '--cwd',
     };
     const launchCommand = {
@@ -31,7 +41,7 @@ describe('provider adapter registry', () => {
 
     createProviderAdapter({ preset, launchCommand });
 
-    expect(acpCliFactory).toHaveBeenCalledWith(preset, launchCommand);
+    expect(opencodeFactory).toHaveBeenCalledWith(preset, launchCommand);
   });
 
   it('creates the generic ACP CLI adapter for codex providers', () => {
@@ -52,5 +62,6 @@ describe('provider adapter registry', () => {
     createProviderAdapter({ preset, launchCommand });
 
     expect(acpCliFactory).toHaveBeenCalledWith(preset, launchCommand);
+    expect(opencodeFactory).not.toHaveBeenCalled();
   });
 });

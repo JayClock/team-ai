@@ -89,7 +89,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
   private readonly startingSessions = new Map<string, Promise<ActiveSession>>();
 
   constructor(
-    private readonly preset: ResolvedAcpCliProviderPreset,
+    protected readonly preset: ResolvedAcpCliProviderPreset,
     launchCommand: {
       args: string[];
       command: string;
@@ -135,11 +135,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
   }
 
   getBehavior(): ProviderBehavior {
-    return {
-      immediateToolInput: false,
-      protocol: 'acp',
-      streaming: true,
-    };
+    return getStandardAcpCliBehavior();
   }
 
   normalizeNotification(
@@ -152,6 +148,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
       this.preset.providerId,
       notification,
       traceId,
+      this.getBehavior(),
     );
   }
 
@@ -775,6 +772,12 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
   }
 }
 
+export class OpencodeAcpCliProviderAdapter extends AcpCliProviderAdapter {
+  override getBehavior(): ProviderBehavior {
+    return getOpencodeAcpCliBehavior();
+  }
+}
+
 function buildLaunchArgs(
   args: string[],
   cwdArg: string | undefined,
@@ -794,6 +797,7 @@ function normalizeSessionUpdate(
   provider: string,
   updateInput: unknown,
   traceId?: string,
+  behavior: ProviderBehavior = getStandardAcpCliBehavior(),
 ): NormalizedAcpUpdate {
   const update = asRecord(updateInput);
   const sessionUpdate = asString(update.sessionUpdate) ?? asString(update.type);
@@ -838,14 +842,14 @@ function normalizeSessionUpdate(
       return createNormalizedAcpUpdate(sessionId, provider, 'tool_call', {
         traceId,
         rawNotification: updateInput,
-        toolCall: createToolCall(update, false),
+        toolCall: createToolCall(update, false, behavior),
       });
 
     case 'tool_call_update':
       return createNormalizedAcpUpdate(sessionId, provider, 'tool_call_update', {
         traceId,
         rawNotification: updateInput,
-        toolCall: createToolCall(update, true),
+        toolCall: createToolCall(update, true, behavior),
       });
 
     case 'plan': {
@@ -969,6 +973,32 @@ function normalizeContentBlock(contentInput: unknown): unknown {
 function createToolCall(
   update: Record<string, unknown>,
   allowCompletion: boolean,
+  behavior: ProviderBehavior,
+): NormalizedAcpToolCall {
+  if (behavior.toolInputMode === 'deferred') {
+    return createDeferredInputToolCall(update, allowCompletion);
+  }
+
+  return createStandardToolCall(update, allowCompletion);
+}
+
+function createDeferredInputToolCall(
+  update: Record<string, unknown>,
+  allowCompletion: boolean,
+): NormalizedAcpToolCall {
+  return createNormalizedToolCallRecord(update, allowCompletion);
+}
+
+function createStandardToolCall(
+  update: Record<string, unknown>,
+  allowCompletion: boolean,
+): NormalizedAcpToolCall {
+  return createNormalizedToolCallRecord(update, allowCompletion);
+}
+
+function createNormalizedToolCallRecord(
+  update: Record<string, unknown>,
+  allowCompletion: boolean,
 ): NormalizedAcpToolCall {
   const input = update.rawInput ?? null;
   const output = update.rawOutput ?? null;
@@ -990,6 +1020,24 @@ function createToolCall(
     output,
     locations: Array.isArray(update.locations) ? update.locations : [],
     content: Array.isArray(update.content) ? update.content : [],
+  };
+}
+
+function getStandardAcpCliBehavior(): ProviderBehavior {
+  return {
+    immediateToolInput: false,
+    protocol: 'acp',
+    streaming: true,
+    toolInputMode: 'standard',
+  };
+}
+
+function getOpencodeAcpCliBehavior(): ProviderBehavior {
+  return {
+    immediateToolInput: false,
+    protocol: 'acp',
+    streaming: true,
+    toolInputMode: 'deferred',
   };
 }
 

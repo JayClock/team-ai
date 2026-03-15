@@ -2,6 +2,7 @@ import type { ProtocolName } from '../session-store.js';
 
 export const PROVIDER_ADAPTER_KINDS = {
   acpCli: 'acp-cli',
+  opencodeAcpCli: 'opencode-acp-cli',
 } as const;
 
 export type ProviderAdapterKind = string;
@@ -107,6 +108,7 @@ export type ProviderBehavior = {
   immediateToolInput: boolean;
   protocol: 'acp';
   streaming: boolean;
+  toolInputMode: 'deferred' | 'standard';
 };
 
 export function createNormalizedAcpUpdate(

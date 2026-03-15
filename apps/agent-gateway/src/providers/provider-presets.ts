@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   PROVIDER_ADAPTER_KINDS,
   type ProviderAdapterKind,
@@ -29,7 +31,7 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     description: 'OpenCode AI coding agent',
     command: 'opencode',
     args: ['acp'],
-    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
+    adapterKind: PROVIDER_ADAPTER_KINDS.opencodeAcpCli,
     cwdArg: '--cwd',
   },
   {
@@ -109,24 +111,21 @@ export function resolveAcpCliCommand(
   env: NodeJS.ProcessEnv = process.env,
 ): ProviderLaunchCommand {
   const override = env[getProviderEnvCommandKey(preset.providerId)]?.trim();
-  if (!override) {
-    return {
-      command: preset.command,
-      args: [...preset.args],
-    };
+  if (override) {
+    const parsed = parseProviderCommand(override);
+    if (parsed) {
+      return parsed;
+    }
   }
 
-  const [command, ...args] = tokenizeCommand(override);
-  if (!command) {
-    return {
-      command: preset.command,
-      args: [...preset.args],
-    };
+  const installed = readInstalledProviderCommand(preset.providerId, env);
+  if (installed) {
+    return installed;
   }
 
   return {
-    command,
-    args,
+    command: preset.command,
+    args: [...preset.args],
   };
 }
 
@@ -159,4 +158,57 @@ function tokenizeCommand(command: string): string[] {
     .split(/\s+/)
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
+}
+
+function parseProviderCommand(rawCommand: string): ProviderLaunchCommand | null {
+  const [command, ...args] = tokenizeCommand(rawCommand);
+  if (!command) {
+    return null;
+  }
+
+  return {
+    command,
+    args,
+  };
+}
+
+function readInstalledProviderCommand(
+  providerName: string,
+  env: NodeJS.ProcessEnv,
+): ProviderLaunchCommand | null {
+  try {
+    const manifestPath = path.join(
+      resolveDataDirectory(env),
+      'acp',
+      'providers.json',
+    );
+
+    if (!fs.existsSync(manifestPath)) {
+      return null;
+    }
+
+    const raw = fs.readFileSync(manifestPath, 'utf-8');
+    const parsed = JSON.parse(raw) as Record<
+      string,
+      { args?: unknown; command?: unknown }
+    >;
+    const entry = parsed[normalizeProviderId(providerName)];
+
+    if (!entry || typeof entry.command !== 'string' || !entry.command.trim()) {
+      return null;
+    }
+
+    return {
+      command: entry.command,
+      args: Array.isArray(entry.args)
+        ? entry.args.filter((arg): arg is string => typeof arg === 'string')
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function resolveDataDirectory(env: NodeJS.ProcessEnv): string {
+  return env.TEAMAI_DATA_DIR?.trim() || path.join(process.cwd(), '.team-ai');
 }

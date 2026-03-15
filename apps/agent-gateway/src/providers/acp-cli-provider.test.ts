@@ -1,7 +1,10 @@
 import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AcpCliProviderAdapter } from './acp-cli-provider.js';
+import {
+  AcpCliProviderAdapter,
+  OpencodeAcpCliProviderAdapter,
+} from './acp-cli-provider.js';
 
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
@@ -27,7 +30,7 @@ describe('AcpCliProviderAdapter', () => {
     const childProcess = new FakeChildProcess();
     vi.mocked(spawn).mockReturnValue(childProcess as never);
 
-    const adapter = new AcpCliProviderAdapter(
+    const adapter = new OpencodeAcpCliProviderAdapter(
       {
         id: 'opencode',
         providerId: 'opencode',
@@ -188,7 +191,7 @@ describe('AcpCliProviderAdapter', () => {
     const childProcess = new FakeChildProcess();
     vi.mocked(spawn).mockReturnValue(childProcess as never);
 
-    const adapter = new AcpCliProviderAdapter(
+    const adapter = new OpencodeAcpCliProviderAdapter(
       {
         id: 'opencode',
         providerId: 'opencode',
@@ -250,7 +253,7 @@ describe('AcpCliProviderAdapter', () => {
     const childProcess = new FakeChildProcess();
     vi.mocked(spawn).mockReturnValue(childProcess as never);
 
-    const adapter = new AcpCliProviderAdapter(
+    const adapter = new OpencodeAcpCliProviderAdapter(
       {
         id: 'opencode',
         providerId: 'opencode',
@@ -345,7 +348,7 @@ describe('AcpCliProviderAdapter', () => {
     const childProcess = new FakeChildProcess();
     vi.mocked(spawn).mockReturnValue(childProcess as never);
 
-    const adapter = new AcpCliProviderAdapter(
+    const adapter = new OpencodeAcpCliProviderAdapter(
       {
         id: 'opencode',
         providerId: 'opencode',
@@ -454,7 +457,7 @@ describe('AcpCliProviderAdapter', () => {
   });
 
   it('exposes shared adapter behavior and normalizeNotification contract', () => {
-    const adapter = new AcpCliProviderAdapter(
+    const adapter = new OpencodeAcpCliProviderAdapter(
       {
         id: 'opencode',
         providerId: 'opencode',
@@ -473,6 +476,7 @@ describe('AcpCliProviderAdapter', () => {
       immediateToolInput: false,
       protocol: 'acp',
       streaming: true,
+      toolInputMode: 'deferred',
     });
 
     expect(
@@ -497,6 +501,55 @@ describe('AcpCliProviderAdapter', () => {
         status: 'completed',
         inputFinalized: true,
         output: 'done',
+      },
+    });
+  });
+
+  it('keeps generic ACP CLI providers on the standard tool input path', () => {
+    const adapter = new AcpCliProviderAdapter(
+      {
+        id: 'codex',
+        providerId: 'codex',
+        name: 'Codex',
+        command: 'codex-acp',
+        args: [],
+      },
+      {
+        command: 'codex-acp',
+        args: [],
+      },
+    );
+
+    expect(adapter.getBehavior()).toEqual({
+      immediateToolInput: false,
+      protocol: 'acp',
+      streaming: true,
+      toolInputMode: 'standard',
+    });
+
+    expect(
+      adapter.normalizeNotification('session-contract', 'trace-contract', {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'tool-contract',
+        kind: 'read_file',
+        status: 'running',
+        rawInput: {
+          path: 'README.md',
+        },
+        locations: [],
+        content: [],
+      }),
+    ).toMatchObject({
+      eventType: 'tool_call',
+      traceId: 'trace-contract',
+      toolCall: {
+        toolCallId: 'tool-contract',
+        kind: 'read_file',
+        status: 'running',
+        input: {
+          path: 'README.md',
+        },
+        inputFinalized: true,
       },
     });
   });

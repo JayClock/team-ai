@@ -1,4 +1,7 @@
-import { AcpCliProviderAdapter } from './acp-cli-provider.js';
+import {
+  AcpCliProviderAdapter,
+  OpencodeAcpCliProviderAdapter,
+} from './acp-cli-provider.js';
 import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 import {
   PROVIDER_ADAPTER_KINDS,
@@ -22,6 +25,12 @@ registerProviderAdapter({
   kind: PROVIDER_ADAPTER_KINDS.acpCli,
   create: ({ preset, launchCommand }) =>
     new AcpCliProviderAdapter(preset, launchCommand),
+});
+
+registerProviderAdapter({
+  kind: PROVIDER_ADAPTER_KINDS.opencodeAcpCli,
+  create: ({ preset, launchCommand }) =>
+    new OpencodeAcpCliProviderAdapter(preset, launchCommand),
 });
 
 export function registerProviderAdapter(
