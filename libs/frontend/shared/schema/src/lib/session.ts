@@ -43,142 +43,85 @@ export type AcpEventError = {
 };
 
 export type AcpEventType =
-  | 'status'
-  | 'message'
   | 'tool_call'
-  | 'plan'
-  | 'session'
-  | 'mode'
-  | 'config'
-  | 'usage'
-  | 'complete'
+  | 'tool_call_update'
+  | 'agent_message'
+  | 'agent_thought'
+  | 'user_message'
+  | 'plan_update'
+  | 'turn_complete'
+  | 'session_info_update'
+  | 'current_mode_update'
+  | 'config_option_update'
+  | 'usage_update'
+  | 'available_commands_update'
   | 'error';
 
-export type AcpBaseEventData = {
-  protocol?: string;
-  payload?: Record<string, unknown>;
-  source?: string;
-};
-
-export type AcpStatusEventData = AcpBaseEventData & {
-  availableCommands?: unknown[];
-  prompt?: string;
-  reason?: string;
-  state?: string;
-};
-
-export type AcpMessageEventData = AcpBaseEventData & {
-  content: string | null;
-  contentBlock?: unknown;
-  kind?: 'user_message_chunk' | 'agent_message_chunk' | 'agent_thought_chunk';
-  messageId?: string | null;
-  role?: 'user' | 'assistant' | 'thought';
-};
-
-export type AcpToolCallEventData = AcpBaseEventData & {
-  content?: unknown[];
+export type AcpToolCall = {
+  content: unknown[];
   input?: unknown;
+  inputFinalized: boolean;
   kind?: string | null;
-  locations?: Array<{ line?: number | null; path: string }>;
+  locations: unknown[];
   output?: unknown;
-  status?: 'pending' | 'in_progress' | 'completed' | 'failed' | null;
+  status: 'completed' | 'failed' | 'pending' | 'running';
   title?: string | null;
-  toolName: string | null;
   toolCallId?: string;
 };
 
-export type AcpCompleteEventData = AcpBaseEventData & {
-  reason?: string | null;
-  state?: string;
-  stopReason?: string | null;
-  usage?: unknown;
-  userMessageId?: string | null;
-};
-
-export type AcpErrorEventData = AcpBaseEventData & {
-  message?: string | null;
-  state?: string;
-};
-
-export type AcpPlanEventData = AcpBaseEventData & {
-  entries: Array<{
+export type AcpCanonicalUpdate = {
+  availableCommands?: unknown[];
+  configOptions?: unknown;
+  error?: {
+    code: string;
+    message: string;
+  };
+  eventType: AcpEventType;
+  message?: {
+    content: string | null;
+    contentBlock?: unknown;
+    isChunk: boolean;
+    messageId?: string | null;
+    role: 'assistant' | 'thought' | 'user';
+  };
+  mode?: {
+    currentModeId?: string;
+  };
+  planItems?: Array<{
     description: string;
-    priority: 'high' | 'medium' | 'low';
-    status: 'pending' | 'in_progress' | 'completed';
+    priority?: 'high' | 'low' | 'medium';
+    status?: 'completed' | 'in_progress' | 'pending';
   }>;
+  provider: string;
+  rawNotification: unknown;
+  sessionId: string;
+  sessionInfo?: {
+    title?: string | null;
+    updatedAt?: string | null;
+  };
+  timestamp: string;
+  toolCall?: AcpToolCall;
+  traceId?: string;
+  turnComplete?: {
+    state?: 'FAILED' | 'CANCELLED';
+    stopReason: string;
+    usage: unknown;
+    userMessageId: string | null;
+  };
+  usage?: {
+    cost: unknown;
+    size: number;
+    used: number;
+  };
 };
 
-export type AcpSessionEventData = AcpBaseEventData & {
-  cwd?: string;
-  provider?: string;
-  reason?: string;
-  state?: string;
-  title?: string | null;
-  updatedAt?: string | null;
-};
-
-export type AcpModeEventData = AcpBaseEventData & {
-  currentModeId: string;
-};
-
-export type AcpConfigEventData = AcpBaseEventData & {
-  configOptions: unknown[];
-};
-
-export type AcpUsageEventData = AcpBaseEventData & {
-  cost?: unknown;
-  size: number;
-  used: number;
-};
-
-export type AcpEventEnvelopeBase = {
+export type AcpEventEnvelope = {
   eventId: string;
   sessionId: string;
   emittedAt: string;
   error?: AcpEventError | null;
+  update: AcpCanonicalUpdate;
 };
-
-export type AcpEventEnvelope =
-  | (AcpEventEnvelopeBase & {
-      type: 'status';
-      data: AcpStatusEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'message';
-      data: AcpMessageEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'tool_call';
-      data: AcpToolCallEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'plan';
-      data: AcpPlanEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'session';
-      data: AcpSessionEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'mode';
-      data: AcpModeEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'config';
-      data: AcpConfigEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'usage';
-      data: AcpUsageEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'complete';
-      data: AcpCompleteEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'error';
-      data: AcpErrorEventData;
-    });
 
 export type AcpSessionHistory = Entity<{
   projectId: string;

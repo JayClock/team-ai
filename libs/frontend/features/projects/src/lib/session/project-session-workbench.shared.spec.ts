@@ -148,9 +148,6 @@ describe('project session workbench task actions', () => {
     const scenarios = buildWorkbenchWalkthroughScenarios({
       events: [
         {
-          data: {
-            message: 'provider offline',
-          },
           emittedAt: '2026-03-13T12:07:00.000Z',
           error: {
             code: 'PROVIDER_TIMEOUT',
@@ -160,7 +157,17 @@ describe('project session workbench task actions', () => {
           },
           eventId: 'evt_error',
           sessionId: 'acps_root',
-          type: 'error',
+          update: {
+            error: {
+              code: 'PROVIDER_TIMEOUT',
+              message: 'provider offline',
+            },
+            eventType: 'error',
+            provider: 'opencode',
+            rawNotification: null,
+            sessionId: 'acps_root',
+            timestamp: '2026-03-13T12:07:00.000Z',
+          },
         },
       ],
       runtimeProfile: createRuntimeProfile(),
@@ -245,19 +252,23 @@ describe('project session workbench task actions', () => {
   it('uses canonical plan descriptions when building task snapshots', () => {
     const items = buildTaskSnapshot([
       {
-        data: {
-          entries: [
+        emittedAt: '2026-03-13T12:07:00.000Z',
+        eventId: 'evt_plan',
+        sessionId: 'acps_root',
+        update: {
+          eventType: 'plan_update',
+          planItems: [
             {
               description: 'canonical plan title',
               priority: 'high',
               status: 'in_progress',
             },
           ],
+          provider: 'opencode',
+          rawNotification: null,
+          sessionId: 'acps_root',
+          timestamp: '2026-03-13T12:07:00.000Z',
         },
-        emittedAt: '2026-03-13T12:07:00.000Z',
-        eventId: 'evt_plan',
-        sessionId: 'acps_root',
-        type: 'plan',
       },
     ] as Parameters<typeof buildTaskSnapshot>[0]);
 
@@ -275,18 +286,27 @@ describe('project session workbench task actions', () => {
         Fragment,
         null,
         renderEventDetails({
-          data: {
-            output: {
-              result: 'done',
-            },
-            status: 'completed',
-            toolCallId: 'tool-1',
-            toolName: 'read_file',
-          },
           emittedAt: '2026-03-13T12:07:00.000Z',
           eventId: 'evt_tool',
           sessionId: 'acps_root',
-          type: 'tool_call',
+          update: {
+            eventType: 'tool_call',
+            provider: 'opencode',
+            rawNotification: null,
+            sessionId: 'acps_root',
+            timestamp: '2026-03-13T12:07:00.000Z',
+            toolCall: {
+              content: [],
+              inputFinalized: true,
+              kind: 'read_file',
+              locations: [],
+              output: {
+                result: 'done',
+              },
+              status: 'completed',
+              toolCallId: 'tool-1',
+            },
+          },
         }),
       ),
     );

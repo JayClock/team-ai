@@ -21,24 +21,84 @@ export interface AcpEventErrorPayload {
 }
 
 export type AcpEventTypePayload =
-  | 'status'
-  | 'message'
   | 'tool_call'
-  | 'plan'
-  | 'session'
-  | 'mode'
-  | 'config'
-  | 'usage'
-  | 'complete'
+  | 'tool_call_update'
+  | 'agent_message'
+  | 'agent_thought'
+  | 'user_message'
+  | 'plan_update'
+  | 'turn_complete'
+  | 'session_info_update'
+  | 'current_mode_update'
+  | 'config_option_update'
+  | 'usage_update'
+  | 'available_commands_update'
   | 'error';
 
+export interface AcpEventToolCallPayload {
+  content: unknown[];
+  input?: unknown;
+  inputFinalized: boolean;
+  kind?: string | null;
+  locations: unknown[];
+  output?: unknown;
+  status: 'completed' | 'failed' | 'pending' | 'running';
+  title?: string | null;
+  toolCallId?: string;
+}
+
+export interface AcpEventUpdatePayload {
+  availableCommands?: unknown[];
+  configOptions?: unknown;
+  error?: {
+    code: string;
+    message: string;
+  };
+  eventType: AcpEventTypePayload;
+  message?: {
+    content: string | null;
+    contentBlock?: unknown;
+    isChunk: boolean;
+    messageId?: string | null;
+    role: 'assistant' | 'thought' | 'user';
+  };
+  mode?: {
+    currentModeId?: string;
+  };
+  planItems?: Array<{
+    description: string;
+    priority?: 'high' | 'low' | 'medium';
+    status?: 'completed' | 'in_progress' | 'pending';
+  }>;
+  provider: string;
+  rawNotification: unknown;
+  sessionId: string;
+  sessionInfo?: {
+    title?: string | null;
+    updatedAt?: string | null;
+  };
+  timestamp: string;
+  toolCall?: AcpEventToolCallPayload;
+  traceId?: string;
+  turnComplete?: {
+    state?: 'FAILED' | 'CANCELLED';
+    stopReason: string;
+    usage: unknown;
+    userMessageId: string | null;
+  };
+  usage?: {
+    cost: unknown;
+    size: number;
+    used: number;
+  };
+}
+
 export interface AcpEventEnvelopePayload {
-  data: Record<string, unknown>;
   emittedAt: string;
   error: AcpEventErrorPayload | null;
   eventId: string;
   sessionId: string;
-  type: AcpEventTypePayload;
+  update: AcpEventUpdatePayload;
 }
 
 export interface AcpSessionPayload {

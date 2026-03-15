@@ -3,9 +3,6 @@ import { State } from '@hateoas-ts/resource';
 import {
   AcpEventEnvelope,
   AcpSession,
-  type AcpErrorEventData,
-  type AcpMessageEventData,
-  type AcpSessionEventData,
 } from '@shared/schema';
 import { toast } from '@shared/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -41,54 +38,23 @@ function asText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
-function formatStatusLabel(status: string | null | undefined): string {
-  switch (status) {
-    case 'COMPLETED':
-    case 'completed':
-      return '已完成';
-    case 'RUNNING':
-    case 'running':
-      return '进行中';
-    case 'in_progress':
-      return '处理中';
-    case 'FAILED':
-    case 'failed':
-      return '失败';
-    case 'CANCELLED':
-    case 'cancelled':
-      return '已取消';
-    case 'connected':
-      return '已连接';
-    case 'connecting':
-      return '连接中';
-    case 'idle':
-      return '空闲';
-    case 'error':
-    case 'error-stream':
-      return '错误';
-    default:
-      return status?.trim() || '无';
-  }
-}
-
 function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
-  switch (event.type) {
-    case 'session': {
-      const data = event.data as AcpSessionEventData;
-      if (data.title) {
-        return `会话标题已更新为 ${data.title}。`;
-      }
-      if (data.state) {
-        return `会话状态已变更为${formatStatusLabel(data.state)}。`;
+  switch (event.update.eventType) {
+    case 'session_info_update': {
+      const title = event.update.sessionInfo?.title;
+      if (title) {
+        return `会话标题已更新为 ${title}。`;
       }
       return null;
     }
-    case 'complete':
+    case 'turn_complete':
       return null;
-    case 'error': {
-      const data = event.data as AcpErrorEventData;
-      return data.message ?? event.error?.message ?? '执行过程中发生错误。';
-    }
+    case 'error':
+      return (
+        event.update.error?.message ??
+        event.error?.message ??
+        '执行过程中发生错误。'
+      );
     default:
       return null;
   }
@@ -98,23 +64,27 @@ function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
   const messages: SessionChatMessage[] = [];
 
   for (const event of history) {
-    if (event.type === 'message') {
-      const data = event.data as AcpMessageEventData;
-      const content = asText(data.content);
+    if (
+      event.update.eventType === 'agent_message' ||
+      event.update.eventType === 'agent_thought' ||
+      event.update.eventType === 'user_message'
+    ) {
+      const data = event.update.message;
+      const content = asText(data?.content);
       if (!content) {
         continue;
       }
 
       const role =
-        data.role === 'user'
+        data?.role === 'user'
           ? 'user'
-          : data.role === 'thought'
+          : data?.role === 'thought'
             ? 'assistant'
             : 'assistant';
       const previous = messages[messages.length - 1];
-      const chunkKeyBase = data.role ?? data.kind ?? 'assistant';
-      const partType = data.role === 'thought' ? 'reasoning' : 'text';
-      const chunkKey = data.messageId
+      const chunkKeyBase = data?.role ?? event.update.eventType;
+      const partType = data?.role === 'thought' ? 'reasoning' : 'text';
+      const chunkKey = data?.messageId
         ? `${role}:${data.messageId}`
         : previous &&
             previous.role === role &&

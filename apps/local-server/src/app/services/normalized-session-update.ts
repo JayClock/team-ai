@@ -3,35 +3,33 @@ import type {
   SessionNotification,
 } from '@agentclientprotocol/sdk';
 import {
+  type CanonicalAcpEventType,
+  type CanonicalAcpToolCall,
+  type CanonicalAcpUpdate,
   flattenAcpContentText,
   hasStructuredValue,
-} from '../../../../agent-gateway/src/providers/provider-types.js';
-import type {
-  NormalizedAcpEventType,
-  NormalizedAcpToolCall,
-  NormalizedAcpUpdate,
-} from '../../../../agent-gateway/src/providers/provider-types.js';
+} from './canonical-acp-update';
 import type {
   AcpSessionState,
 } from '../schemas/acp';
 
-export type NormalizedSessionUpdateEventType = NormalizedAcpEventType;
+export type NormalizedSessionUpdateEventType = CanonicalAcpEventType;
 
-export type NormalizedToolCall = NormalizedAcpToolCall;
+export type NormalizedToolCall = CanonicalAcpToolCall;
 
 export type NormalizedSessionUpdate = Omit<
-  NormalizedAcpUpdate,
+  CanonicalAcpUpdate,
   'message' | 'rawNotification' | 'turnComplete'
 > & {
   message?: Omit<
-    NonNullable<NormalizedAcpUpdate['message']>,
+    NonNullable<CanonicalAcpUpdate['message']>,
     'contentBlock'
   > & {
     contentBlock: ContentBlock;
   };
   rawNotification: SessionNotification;
   turnComplete?: Omit<
-    NonNullable<NormalizedAcpUpdate['turnComplete']>,
+    NonNullable<CanonicalAcpUpdate['turnComplete']>,
     'state'
   > & {
     state?: Extract<AcpSessionState, 'FAILED' | 'CANCELLED'>;

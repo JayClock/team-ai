@@ -27,12 +27,20 @@ type RpcInvocation = {
 };
 
 function event(eventId: string): AcpEventEnvelope {
+  const emittedAt = '2026-03-04T00:00:00Z';
   return {
     eventId,
     sessionId: 's-1',
-    type: 'status',
-    emittedAt: '2026-03-04T00:00:00Z',
-    data: {},
+    emittedAt,
+    error: null,
+    update: {
+      eventType: 'available_commands_update',
+      provider: 'codex',
+      rawNotification: null,
+      sessionId: 's-1',
+      timestamp: emittedAt,
+      availableCommands: [],
+    },
   };
 }
 

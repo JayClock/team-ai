@@ -7,7 +7,7 @@ import type {
 import {
   flattenAcpContentText,
   hasStructuredValue,
-} from '../../../../agent-gateway/src/providers/provider-types.js';
+} from '../services/canonical-acp-update';
 import { ProblemError } from '../errors/problem-error';
 import type {
   AgentGatewayClient,

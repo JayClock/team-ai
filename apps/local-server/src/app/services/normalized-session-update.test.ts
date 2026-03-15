@@ -7,7 +7,6 @@ import {
 import {
   extractSessionMetadataFromNormalizedUpdate,
   resolveSessionStateFromNormalizedUpdate,
-  toPersistedAcpEvent,
 } from './acp-service';
 
 describe('normalized-session-update', () => {
@@ -47,14 +46,6 @@ describe('normalized-session-update', () => {
     expect(
       resolveSessionStateFromNormalizedUpdate(normalized!, 'PENDING'),
     ).toBe('RUNNING');
-    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
-      type: 'message',
-      payload: {
-        role: 'assistant',
-        provider: 'codex',
-        content: 'hello world',
-      },
-    });
   });
 
   it('normalizes non-chunk ACP messages without forcing chunk semantics', () => {
@@ -81,12 +72,6 @@ describe('normalized-session-update', () => {
         messageId: 'msg-2',
         content: 'complete message',
         isChunk: false,
-      },
-    });
-    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
-      type: 'message',
-      payload: {
-        kind: 'agent_message',
       },
     });
   });
@@ -130,14 +115,6 @@ describe('normalized-session-update', () => {
     expect(
       resolveSessionStateFromNormalizedUpdate(normalized!, 'RUNNING'),
     ).toBe('RUNNING');
-    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
-      type: 'tool_call',
-      payload: {
-        toolCallId: 'tool-1',
-        provider: 'opencode',
-        output: 'file contents',
-      },
-    });
   });
 
   it('keeps deferred tool input marked as unfinished on tool_call', () => {
@@ -201,18 +178,6 @@ describe('normalized-session-update', () => {
         },
       ],
     });
-    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
-      type: 'plan',
-      payload: {
-        entries: [
-          {
-            description: 'Implement ACP normalization',
-            priority: 'high',
-            status: 'in_progress',
-          },
-        ],
-      },
-    });
   });
 
   it('extracts session metadata from canonical session_info updates', () => {
@@ -233,13 +198,6 @@ describe('normalized-session-update', () => {
     expect(extractSessionMetadataFromNormalizedUpdate(normalized!)).toEqual({
       title: 'Renamed Session',
       updatedAt: '2026-03-14T12:00:00.000Z',
-    });
-    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
-      type: 'session',
-      payload: {
-        title: 'Renamed Session',
-        provider: 'codex',
-      },
     });
   });
 
@@ -265,13 +223,6 @@ describe('normalized-session-update', () => {
     expect(
       resolveSessionStateFromNormalizedUpdate(normalized, 'RUNNING'),
     ).toBe('RUNNING');
-    expect(toPersistedAcpEvent(normalized)).toMatchObject({
-      type: 'complete',
-      payload: {
-        provider: 'codex',
-        stopReason: 'end_turn',
-      },
-    });
   });
 
   it('normalizes protocol error updates to canonical error events', () => {
@@ -294,16 +245,6 @@ describe('normalized-session-update', () => {
       error: {
         code: 'PROTOCOL_ERROR',
         message: 'bad protocol',
-      },
-    });
-    expect(toPersistedAcpEvent(normalized!)).toMatchObject({
-      type: 'status',
-      payload: {
-        error: {
-          code: 'PROTOCOL_ERROR',
-          message: 'bad protocol',
-        },
-        provider: 'codex',
       },
     });
   });

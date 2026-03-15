@@ -125,7 +125,13 @@ export function ShellsSession(props: ShellsSessionProps) {
 
   const selectedSessionId = selectedSession?.data.id;
   const sideEvents = useMemo(
-    () => history.filter((event) => event.type !== 'message'),
+    () =>
+      history.filter(
+        (event) =>
+          event.update.eventType !== 'agent_message' &&
+          event.update.eventType !== 'agent_thought' &&
+          event.update.eventType !== 'user_message',
+      ),
     [history],
   );
   const fallbackTaskItems = useMemo(

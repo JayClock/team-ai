@@ -19,13 +19,12 @@ import type { AcpStreamBroker } from '../plugins/acp-stream';
 import type {
   AcpEventEnvelopePayload,
   AcpEventErrorPayload,
+  AcpEventUpdatePayload,
   AcpSessionListPayload,
   AcpSessionPayload,
   AcpSessionStatus,
   AcpSessionState,
-  AcpEventTypePayload,
 } from '../schemas/acp';
-import type { RoleValue } from '../schemas/role';
 import { normalizeAcpProviderId } from './acp-provider-service';
 import {
   type NormalizedSessionUpdate,
@@ -84,11 +83,6 @@ interface AcpEventRow {
   type: string;
 }
 
-export type PersistedAcpEvent = {
-  payload: Record<string, unknown>;
-  type: AcpEventTypePayload;
-};
-
 interface ListSessionsQuery {
   page: number;
   pageSize: number;
@@ -131,7 +125,7 @@ interface TaskExecutionRunRow {
 interface SessionHistorySummaryRow {
   error_json: string | null;
   payload_json: string;
-  type: AcpEventTypePayload;
+  type: AcpEventUpdatePayload['eventType'];
 }
 
 interface PromptSessionInput {
@@ -498,17 +492,17 @@ function buildTaskExecutionOutcome(
   let cancelReason: string | null = null;
 
   for (const row of rows) {
-    const payload = parseEventRecord(row.payload_json);
+    const payload = parseEventRecord(row.payload_json) as unknown as AcpEventUpdatePayload;
     const error = parseEventRecord(row.error_json);
 
-    if (row.type === 'message' && payload.role === 'assistant') {
-      const content = extractEventText(payload.content);
+    if (row.type === 'agent_message' && payload.message?.role === 'assistant') {
+      const content = extractEventText(payload.message.content);
       if (!content) {
         continue;
       }
 
       const messageId =
-        extractEventText(payload.messageId) ??
+        extractEventText(payload.message.messageId) ??
         `assistant-${anonymousAssistantIndex++}`;
       const previous = assistantMessages.get(messageId) ?? '';
 
@@ -520,8 +514,11 @@ function buildTaskExecutionOutcome(
       continue;
     }
 
-    if (row.type === 'tool_call' && payload.status === 'completed') {
-      const toolOutput = extractEventText(payload.output);
+    if (
+      (row.type === 'tool_call' || row.type === 'tool_call_update') &&
+      payload.toolCall?.status === 'completed'
+    ) {
+      const toolOutput = extractEventText(payload.toolCall.output);
       if (toolOutput) {
         toolOutputs.push(toolOutput);
       }
@@ -530,17 +527,15 @@ function buildTaskExecutionOutcome(
 
     if (row.type === 'error') {
       lastErrorMessage =
-        extractEventText(payload.message) ??
+        extractEventText(payload.error?.message) ??
         extractEventText(error.message) ??
         lastErrorMessage;
       continue;
     }
 
-    if (row.type === 'complete') {
-      const completionReason = extractEventText(payload.reason);
-      const stopReason = extractEventText(payload.stopReason);
+    if (row.type === 'turn_complete') {
+      const stopReason = extractEventText(payload.turnComplete?.stopReason);
       cancelReason =
-        completionReason ??
         (stopReason && stopReason !== 'cancelled' ? stopReason : null) ??
         cancelReason;
     }
@@ -685,9 +680,8 @@ function mapEventRow(row: AcpEventRow): AcpEventEnvelopePayload {
   return {
     eventId: row.event_id,
     sessionId: row.session_id,
-    type: row.type as AcpEventTypePayload,
     emittedAt: row.emitted_at,
-    data: JSON.parse(row.payload_json) as Record<string, unknown>,
+    update: JSON.parse(row.payload_json) as AcpEventUpdatePayload,
     error: row.error_json
       ? (JSON.parse(row.error_json) as AcpEventErrorPayload)
       : null,
@@ -797,24 +791,46 @@ function updateSessionRuntime(
     });
 }
 
+function createCanonicalUpdate(
+  sessionId: string,
+  provider: string,
+  eventType: AcpEventUpdatePayload['eventType'],
+  extras: Omit<
+    Partial<AcpEventUpdatePayload>,
+    'eventType' | 'provider' | 'rawNotification' | 'sessionId' | 'timestamp'
+  > = {},
+): AcpEventUpdatePayload {
+  return {
+    sessionId,
+    provider,
+    eventType,
+    timestamp: new Date().toISOString(),
+    rawNotification: null,
+    ...extras,
+  };
+}
+
 function appendLocalEvent(
   sqlite: Database,
   broker: AcpStreamBroker,
   input: {
     error?: AcpEventErrorPayload | null;
     eventId?: string;
-    payload: Record<string, unknown>;
     sessionId: string;
-    type: AcpEventTypePayload;
+    update: AcpEventUpdatePayload;
   },
 ): AcpEventEnvelopePayload {
-  const emittedAt = new Date().toISOString();
+  const emittedAt = input.update.timestamp || new Date().toISOString();
+  const update: AcpEventUpdatePayload = {
+    ...input.update,
+    sessionId: input.update.sessionId || input.sessionId,
+    timestamp: emittedAt,
+  };
   const event: AcpEventEnvelopePayload = {
     eventId: input.eventId ?? createEventId(),
-    sessionId: input.sessionId,
-    type: input.type,
+    sessionId: update.sessionId,
     emittedAt,
-    data: input.payload,
+    update,
     error: input.error ?? null,
   };
 
@@ -844,8 +860,8 @@ function appendLocalEvent(
     .run({
       eventId: event.eventId,
       sessionId: event.sessionId,
-      type: event.type,
-      payloadJson: JSON.stringify(event.data),
+      type: update.eventType,
+      payloadJson: JSON.stringify(update),
       errorJson: event.error ? JSON.stringify(event.error) : null,
       emittedAt: event.emittedAt,
       createdAt: emittedAt,
@@ -889,7 +905,8 @@ function sessionHasPromptHistory(sqlite: Database, sessionId: string): boolean {
       `
         SELECT COUNT(*) AS count
         FROM project_acp_session_events
-        WHERE session_id = ? AND type = 'message'
+        WHERE session_id = ?
+          AND type IN ('user_message', 'agent_message', 'agent_thought')
       `,
     )
     .get(sessionId) as { count: number };
@@ -954,131 +971,6 @@ function resolveLocalMcpServers(): McpServer[] {
   ];
 }
 
-export function toPersistedAcpEvent(
-  update: NormalizedSessionUpdate,
-): PersistedAcpEvent {
-  switch (update.eventType) {
-    case 'agent_message':
-    case 'agent_thought':
-    case 'user_message':
-      return {
-        type: 'message',
-        payload: {
-          source: 'acp-sdk',
-          kind: resolvePersistedMessageKind(update),
-          role: update.message?.role ?? 'assistant',
-          messageId: update.message?.messageId ?? null,
-          content: update.message?.content ?? null,
-          contentBlock: update.message?.contentBlock ?? null,
-          provider: update.provider,
-        },
-      };
-    case 'tool_call':
-    case 'tool_call_update':
-      return {
-        type: 'tool_call',
-        payload: {
-          source: 'acp-sdk',
-          toolCallId: update.toolCall?.toolCallId,
-          title: update.toolCall?.title ?? null,
-          status: update.toolCall?.status ?? null,
-          kind: update.toolCall?.kind ?? null,
-          input: update.toolCall?.input ?? null,
-          output: update.toolCall?.output ?? null,
-          locations: update.toolCall?.locations ?? [],
-          content: update.toolCall?.content ?? [],
-          provider: update.provider,
-        },
-      };
-    case 'plan_update':
-      return {
-        type: 'plan',
-        payload: {
-          source: 'acp-sdk',
-          entries: (update.planItems ?? []).map((item) => ({
-            description: item.description,
-            ...(item.priority ? { priority: item.priority } : {}),
-            ...(item.status ? { status: item.status } : {}),
-          })),
-          provider: update.provider,
-        },
-      };
-    case 'session_info_update':
-      return {
-        type: 'session',
-        payload: {
-          source: 'acp-sdk',
-          title: update.sessionInfo?.title ?? null,
-          updatedAt: update.sessionInfo?.updatedAt ?? null,
-          provider: update.provider,
-        },
-      };
-    case 'current_mode_update':
-      return {
-        type: 'mode',
-        payload: {
-          source: 'acp-sdk',
-          currentModeId: update.mode?.currentModeId,
-          provider: update.provider,
-        },
-      };
-    case 'config_option_update':
-      return {
-        type: 'config',
-        payload: {
-          source: 'acp-sdk',
-          configOptions: update.configOptions ?? {},
-          provider: update.provider,
-        },
-      };
-    case 'usage_update':
-      return {
-        type: 'usage',
-        payload: {
-          source: 'acp-sdk',
-          size: update.usage?.size ?? 0,
-          used: update.usage?.used ?? 0,
-          cost: update.usage?.cost ?? null,
-          provider: update.provider,
-        },
-      };
-    case 'available_commands_update':
-      return {
-        type: 'status',
-        payload: {
-          source: 'acp-sdk',
-          availableCommands: update.availableCommands ?? [],
-          provider: update.provider,
-        },
-      };
-    case 'error':
-      return {
-        type: 'status',
-        payload: {
-          source: 'acp-sdk',
-          error: update.error ?? null,
-          provider: update.provider,
-        },
-      };
-    case 'turn_complete':
-      return {
-        type: 'complete',
-        payload: {
-          source: 'acp-sdk',
-          stopReason: update.turnComplete?.stopReason ?? 'end_turn',
-          userMessageId: update.turnComplete?.userMessageId ?? null,
-          usage: update.turnComplete?.usage ?? null,
-          ...(update.turnComplete?.state
-            ? { state: update.turnComplete.state }
-            : {}),
-          provider: update.provider,
-        },
-      };
-  }
-
-  throw new Error(`Unsupported normalized ACP event type: ${update.eventType}`);
-}
-
 export function resolveSessionStateFromNormalizedUpdate(
   update: NormalizedSessionUpdate,
   fallback: AcpSessionState,
@@ -1127,11 +1019,9 @@ function createRuntimeHooks(
     async onSessionUpdate(update) {
       const current = getSessionRow(sqlite, localSessionId);
       const normalized: NormalizedSessionUpdate = update;
-      const persisted = toPersistedAcpEvent(normalized);
       const emitted = appendLocalEvent(sqlite, broker, {
         sessionId: localSessionId,
-        type: persisted.type,
-        payload: persisted.payload,
+        update: normalized,
       });
 
       const state = resolveSessionStateFromNormalizedUpdate(
@@ -1152,20 +1042,6 @@ function createRuntimeHooks(
             : null,
         failureReason: state === 'FAILED' ? current.failure_reason : null,
       });
-
-      if (persisted.type === 'plan') {
-        appendLocalEvent(sqlite, broker, {
-          sessionId: localSessionId,
-          type: 'status',
-          payload: {
-            source: 'local-server',
-            reason: 'plan_sync_disabled',
-            planEventId: emitted.eventId,
-            message:
-              'ACP plan events no longer create or dispatch project tasks automatically.',
-          },
-        });
-      }
     },
     async onClosed(error) {
       const current = getSessionRow(sqlite, localSessionId);
@@ -1182,11 +1058,17 @@ function createRuntimeHooks(
 
       appendLocalEvent(sqlite, broker, {
         sessionId: localSessionId,
-        type: 'error',
-        payload: {
-          source: 'acp-sdk',
-          message: error.message,
-        },
+        update: createCanonicalUpdate(
+          localSessionId,
+          current.provider,
+          'error',
+          {
+            error: {
+              code: 'ACP_CONNECTION_CLOSED',
+              message: error.message,
+            },
+          },
+        ),
         error: {
           code: 'ACP_CONNECTION_CLOSED',
           message: error.message,
@@ -1214,59 +1096,29 @@ function createRuntimeHooks(
   };
 }
 
-function resolvePersistedMessageKind(
-  update: NormalizedSessionUpdate,
-):
-  | 'agent_message'
-  | 'agent_message_chunk'
-  | 'agent_thought'
-  | 'agent_thought_chunk'
-  | 'user_message'
-  | 'user_message_chunk' {
-  const suffix = update.message?.isChunk === false ? '' : '_chunk';
-
-  switch (update.eventType) {
-    case 'user_message':
-      return `user_message${suffix}` as
-        | 'user_message'
-        | 'user_message_chunk';
-    case 'agent_thought':
-      return `agent_thought${suffix}` as
-        | 'agent_thought'
-        | 'agent_thought_chunk';
-    default:
-      return `agent_message${suffix}` as
-        | 'agent_message'
-        | 'agent_message_chunk';
-  }
-}
-
 function appendPromptRequestedEvents(
   sqlite: Database,
   broker: AcpStreamBroker,
   sessionId: string,
+  provider: string,
   prompt: string,
   eventId?: string,
 ) {
   appendLocalEvent(sqlite, broker, {
     sessionId,
     eventId,
-    type: 'message',
-    payload: {
-      source: 'local-server',
-      role: 'user',
-      content: prompt,
-    },
-  });
-
-  appendLocalEvent(sqlite, broker, {
-    sessionId,
-    type: 'status',
-    payload: {
-      source: 'local-server',
-      state: 'RUNNING',
-      reason: 'prompt_requested',
-    },
+    update: createCanonicalUpdate(sessionId, provider, 'user_message', {
+      message: {
+        role: 'user',
+        messageId: null,
+        content: prompt,
+        contentBlock: {
+          type: 'text',
+          text: prompt,
+        },
+        isChunk: false,
+      },
+    }),
   });
 }
 
@@ -1285,14 +1137,14 @@ async function updateSessionFromPromptResponse(
   const completedAt = new Date().toISOString();
   appendLocalEvent(sqlite, broker, {
     sessionId,
-    type: 'complete',
-    payload: {
-      source: 'acp-sdk',
-      stopReason: response.stopReason,
-      userMessageId: response.userMessageId ?? null,
-      usage: response.usage ?? null,
-      ...(state === 'CANCELLED' ? { state } : {}),
-    },
+    update: createCanonicalUpdate(sessionId, getSessionRow(sqlite, sessionId).provider, 'turn_complete', {
+      turnComplete: {
+        stopReason: response.stopReason,
+        usage: response.usage ?? null,
+        userMessageId: response.userMessageId ?? null,
+        ...(state === 'CANCELLED' ? { state } : {}),
+      },
+    }),
   });
 
   updateSessionRuntime(sqlite, sessionId, {
@@ -1553,12 +1405,12 @@ export async function createAcpSession(
 
     appendLocalEvent(sqlite, broker, {
       sessionId,
-      type: 'error',
-      payload: {
-        source: 'local-server',
-        message,
-        reason: 'session_create_failed',
-      },
+      update: createCanonicalUpdate(sessionId, provider, 'error', {
+        error: {
+          code: recovery.errorCode,
+          message,
+        },
+      }),
       error: {
         code: recovery.errorCode,
         message,
@@ -1605,25 +1457,6 @@ export async function createAcpSession(
 
     throw error;
   }
-
-  appendLocalEvent(sqlite, broker, {
-    sessionId,
-    type: 'session',
-    payload: {
-      source: 'local-server',
-      provider,
-      role: (specialist?.role ?? role) as RoleValue | null,
-      agentId: agent?.id ?? null,
-      agentName: agent?.name ?? null,
-      agentRole: agent?.role ?? null,
-      specialistId: specialist?.id ?? null,
-      taskId: task?.id ?? null,
-      taskKind: task?.kind ?? null,
-      cwd,
-      state: 'PENDING',
-      reason: 'session_created',
-    },
-  });
 
   return await getAcpSessionById(sqlite, sessionId);
 }
@@ -1857,6 +1690,7 @@ export async function promptAcpSession(
     sqlite,
     broker,
     sessionId,
+    session.provider,
     input.prompt,
     input.eventId,
   );
@@ -1899,11 +1733,12 @@ export async function promptAcpSession(
     const recovery = classifyTaskExecutionFailure(error, 'prompt');
     appendLocalEvent(sqlite, broker, {
       sessionId,
-      type: 'error',
-      payload: {
-        source: 'acp-sdk',
-        message,
-      },
+      update: createCanonicalUpdate(sessionId, session.provider, 'error', {
+        error: {
+          code: recovery.errorCode,
+          message,
+        },
+      }),
       error: {
         code: recovery.errorCode,
         message,
@@ -1959,12 +1794,14 @@ export async function cancelAcpSession(
 
   appendLocalEvent(sqlite, broker, {
     sessionId,
-    type: 'complete',
-    payload: {
-      source: 'local-server',
-      reason: reason ?? 'cancel-requested',
-      state: 'CANCELLED',
-    },
+    update: createCanonicalUpdate(sessionId, session.provider, 'turn_complete', {
+      turnComplete: {
+        stopReason: 'cancelled',
+        usage: null,
+        userMessageId: null,
+        state: 'CANCELLED',
+      },
+    }),
   });
   updateSessionRuntime(sqlite, sessionId, {
     acpStatus: 'ready',

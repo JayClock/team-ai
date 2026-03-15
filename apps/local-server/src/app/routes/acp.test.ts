@@ -200,9 +200,11 @@ describe('acp route', () => {
     expect(
       historyResponse
         .json()
-        .history.map((event: { type: string }) => event.type),
+        .history.map(
+          (event: { update: { eventType: string } }) => event.update.eventType,
+        ),
     ).toEqual(
-      expect.arrayContaining(['session', 'message', 'status', 'complete']),
+      expect.arrayContaining(['user_message', 'turn_complete']),
     );
 
     const rootResponse = await fastify.inject({
@@ -1097,9 +1099,13 @@ describe('acp route', () => {
     const history = historyResponse.json().history as Array<{
       emittedAt: string;
       eventId: string;
-      type: string;
+      update: {
+        eventType: string;
+      };
     }>;
-    const planEvent = history.find((event) => event.type === 'plan');
+    const planEvent = history.find(
+      (event) => event.update.eventType === 'plan_update',
+    );
 
     if (!planEvent) {
       throw new Error('Expected the root session plan event to be recorded');
@@ -1110,8 +1116,8 @@ describe('acp route', () => {
     expect(sessionsResponse.statusCode).toBe(200);
     expect(sessions).toHaveLength(1);
     expect(historyResponse.statusCode).toBe(200);
-    expect(history.map((event) => event.type)).toEqual(
-      expect.arrayContaining(['plan', 'status']),
+    expect(history.map((event) => event.update.eventType)).toEqual(
+      expect.arrayContaining(['plan_update']),
     );
     expect(createRuntimeSession).toHaveBeenCalledTimes(1);
     expect(promptRuntimeSession).not.toHaveBeenCalled();

@@ -7,14 +7,9 @@ import {
 } from '@features/project-sessions';
 import {
   AcpEventEnvelope,
-  type AcpCompleteEventData,
-  type AcpErrorEventData,
-  type AcpPlanEventData,
   type AcpSession,
-  type AcpSessionEventData,
   type Task,
   type TaskRun,
-  type AcpToolCallEventData,
 } from '@shared/schema';
 import { SparklesIcon, WrenchIcon } from 'lucide-react';
 import type { WorkbenchSessionRuntimeProfile } from './session-runtime-profile';
@@ -196,6 +191,13 @@ function normalizeOptionalText(
 ): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function isToolEventType(event: AcpEventEnvelope): boolean {
+  return (
+    event.update.eventType === 'tool_call' ||
+    event.update.eventType === 'tool_call_update'
+  );
 }
 
 export function buildTaskPanelItem(task: State<Task>): TaskPanelItem {
@@ -434,7 +436,7 @@ export function buildWorkbenchWalkthroughScenarios(input: {
   const failureRunCount = allRuns.filter((run) =>
     taskRunFailureStatuses.has(run.status),
   ).length;
-  const errorEvents = events.filter((event) => event.type === 'error');
+  const errorEvents = events.filter((event) => event.update.eventType === 'error');
   const hasSessionFailure = Boolean(
     selectedSession?.data.failureReason?.trim(),
   );
@@ -615,92 +617,96 @@ function formatPriorityLabel(priority: string | null | undefined): string {
 }
 
 export function eventLabel(event: AcpEventEnvelope): string {
-  switch (event.type) {
+  switch (event.update.eventType) {
     case 'tool_call':
-      return event.data.status === 'completed' ? '工具结果' : '工具调用';
-    case 'session':
+    case 'tool_call_update':
+      return event.update.toolCall?.status === 'completed' ? '工具结果' : '工具调用';
+    case 'session_info_update':
       return '会话';
-    case 'plan':
+    case 'plan_update':
       return '计划';
-    case 'usage':
+    case 'usage_update':
       return '上下文用量';
-    case 'mode':
+    case 'current_mode_update':
       return '模式';
-    case 'config':
+    case 'config_option_update':
       return '配置';
-    case 'complete':
+    case 'turn_complete':
       return '完成';
     case 'error':
       return '错误';
-    case 'status':
-      return '状态';
-    case 'message':
+    case 'available_commands_update':
+      return '可用命令';
+    case 'agent_message':
+    case 'agent_thought':
+    case 'user_message':
       return '消息';
   }
 
-  return event.type;
+  return event.update.eventType;
 }
 
 export function eventHeadline(event: AcpEventEnvelope): string {
-  switch (event.type) {
+  switch (event.update.eventType) {
     case 'tool_call':
-      return event.data.title ?? event.data.toolName ?? '工具调用';
-    case 'plan':
-      return `共 ${event.data.entries.length} 项计划`;
-    case 'usage':
-      return `${event.data.used}/${event.data.size} 上下文令牌`;
-    case 'session':
-      return (
-        event.data.reason ??
-        event.data.title ??
-        formatStatusLabel(event.data.state) ??
-        '会话'
-      );
-    case 'mode':
-      return event.data.currentModeId;
-    case 'config':
-      return `共 ${event.data.configOptions.length} 个配置项`;
-    case 'complete':
-      return event.data.stopReason ?? event.data.reason ?? '已完成';
+    case 'tool_call_update':
+      return event.update.toolCall?.title ?? event.update.toolCall?.kind ?? '工具调用';
+    case 'plan_update':
+      return `共 ${event.update.planItems?.length ?? 0} 项计划`;
+    case 'usage_update':
+      return `${event.update.usage?.used ?? 0}/${event.update.usage?.size ?? 0} 上下文令牌`;
+    case 'session_info_update':
+      return event.update.sessionInfo?.title ?? '会话信息已更新';
+    case 'current_mode_update':
+      return event.update.mode?.currentModeId ?? '模式已更新';
+    case 'config_option_update': {
+      const configOptions = event.update.configOptions;
+      const count = Array.isArray(configOptions)
+        ? configOptions.length
+        : configOptions && typeof configOptions === 'object'
+          ? Object.keys(configOptions).length
+          : 0;
+      return `共 ${count} 个配置项`;
+    }
+    case 'turn_complete':
+      return event.update.turnComplete?.stopReason ?? '已完成';
     case 'error':
-      return event.error?.message ?? event.data.message ?? '发生错误';
-    case 'status':
-      return (
-        event.data.reason ?? formatStatusLabel(event.data.state) ?? '状态更新'
-      );
-    case 'message':
-      return event.data.role ?? '消息';
+      return event.error?.message ?? event.update.error?.message ?? '发生错误';
+    case 'available_commands_update':
+      return `共 ${event.update.availableCommands?.length ?? 0} 个命令`;
+    case 'agent_message':
+    case 'agent_thought':
+    case 'user_message':
+      return event.update.message?.role ?? '消息';
   }
 
-  return event.type;
+  return event.update.eventType;
 }
 
 export function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
-  switch (event.type) {
-    case 'session': {
-      const data = event.data as AcpSessionEventData;
-      if (data.reason === 'session_created') {
-        return '会话已创建，可以直接继续对话。';
-      }
-      if (data.title) {
-        return `会话标题已更新为 ${data.title}。`;
-      }
-      if (data.state) {
-        return `会话状态已变更为${formatStatusLabel(data.state)}。`;
+  switch (event.update.eventType) {
+    case 'session_info_update': {
+      const title = event.update.sessionInfo?.title;
+      if (title) {
+        return `会话标题已更新为 ${title}。`;
       }
       return null;
     }
-    case 'complete': {
-      const data = event.data as AcpCompleteEventData;
-      if (data.state === 'CANCELLED' || data.stopReason === 'cancelled') {
+    case 'turn_complete': {
+      if (
+        event.update.turnComplete?.state === 'CANCELLED' ||
+        event.update.turnComplete?.stopReason === 'cancelled'
+      ) {
         return '本次对话已取消。';
       }
       return '本轮对话已结束。';
     }
-    case 'error': {
-      const data = event.data as AcpErrorEventData;
-      return data.message ?? event.error?.message ?? '执行过程中发生错误。';
-    }
+    case 'error':
+      return (
+        event.update.error?.message ??
+        event.error?.message ??
+        '执行过程中发生错误。'
+      );
     default:
       return null;
   }
@@ -774,15 +780,14 @@ export function statusChipClasses(status: string): string {
 }
 
 export function renderEventDetails(event: AcpEventEnvelope) {
-  const rawPayload = event.data.payload;
+  const rawPayload = event.update.rawNotification;
 
-  if (event.type === 'tool_call') {
-    const data = event.data as AcpToolCallEventData;
-    const toolData = data as AcpToolCallEventData & { output?: unknown };
+  if (isToolEventType(event)) {
+    const data = event.update.toolCall;
     const primaryValue =
-      data.status === 'completed' || data.status === 'failed'
-        ? toolData.output ?? data.input
-        : data.input;
+      data?.status === 'completed' || data?.status === 'failed'
+        ? data.output ?? data.input
+        : data?.input;
 
     return (
       <div className="mt-3 space-y-2">
@@ -793,15 +798,16 @@ export function renderEventDetails(event: AcpEventEnvelope) {
               : formatJson(primaryValue)}
           </pre>
         ) : null}
-        {data.locations && data.locations.length > 0 ? (
+        {data?.locations && data.locations.length > 0 ? (
           <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
             {data.locations.map((location, index) => (
               <span
-                key={`${location.path}-${index}`}
+                key={`${String(location)}-${index}`}
                 className="rounded-full border bg-background px-2 py-1"
               >
-                {location.path}
-                {location.line ? `:${location.line}` : ''}
+                {typeof location === 'object' && location !== null
+                  ? JSON.stringify(location)
+                  : String(location)}
               </span>
             ))}
           </div>
@@ -820,10 +826,10 @@ export function renderEventDetails(event: AcpEventEnvelope) {
     );
   }
 
-  if (event.type === 'plan') {
+  if (event.update.eventType === 'plan_update') {
     return (
       <div className="mt-3 space-y-2">
-        {event.data.entries.map((entry, index) => (
+        {(event.update.planItems ?? []).map((entry, index) => (
           <div
             key={`${event.eventId}-${index}`}
             className="rounded-xl border bg-muted/40 p-3"
@@ -858,35 +864,34 @@ export function renderEventDetails(event: AcpEventEnvelope) {
 export function buildTaskSnapshot(
   history: AcpEventEnvelope[],
 ): TaskPanelItem[] {
-  const plans = history.filter((event) => event.type === 'plan') as Array<
-    AcpEventEnvelope & { type: 'plan'; data: AcpPlanEventData }
-  >;
-  const planItems = (plans.at(-1)?.data.entries ?? []).map((entry, index) => ({
+  const plans = history.filter((event) => event.update.eventType === 'plan_update');
+  const planItems = (plans.at(-1)?.update.planItems ?? []).map((entry, index) => ({
     id: `plan-${index}-${entry.description ?? ''}`,
     title: entry.description ?? '',
-    status: entry.status,
+    status: entry.status ?? 'pending',
     description: formatPriorityLabel(entry.priority),
     source: 'plan' as const,
   }));
 
   const toolMap = new Map<string, TaskPanelItem>();
   for (const event of history) {
-    if (event.type !== 'tool_call') {
+    if (!isToolEventType(event)) {
       continue;
     }
 
-    const data = event.data as AcpToolCallEventData;
+    const data = event.update.toolCall;
     const key =
-      data.toolCallId ?? `tool_call:${data.title ?? data.toolName ?? event.eventId}`;
-    const title = data.title ?? data.toolName ?? '工具';
+      data?.toolCallId ??
+      `tool_call:${data?.title ?? data?.kind ?? event.eventId}`;
+    const title = data?.title ?? data?.kind ?? '工具';
     const description =
-      data.locations && data.locations.length > 0
+      data?.locations && data.locations.length > 0
         ? data.locations
             .slice(0, 2)
             .map((location) =>
-              location.line
-                ? `${location.path}:${location.line}`
-                : location.path,
+              typeof location === 'object' && location !== null
+                ? JSON.stringify(location)
+                : String(location),
             )
             .join(' · ')
         : undefined;
@@ -894,7 +899,7 @@ export function buildTaskSnapshot(
     toolMap.set(key, {
       id: key,
       title,
-      status: data.status ?? 'in_progress',
+      status: data?.status ?? 'in_progress',
       description,
       source: 'tool',
     });

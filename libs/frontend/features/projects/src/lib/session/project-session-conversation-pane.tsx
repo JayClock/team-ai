@@ -76,6 +76,15 @@ export function ProjectSessionConversationPane(props: {
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-muted/10">
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="mx-auto w-full max-w-3xl px-4 pt-4 md:px-5">
+          <ProjectSessionTaskStrip
+            activityCount={activityCount}
+            selectedSession={selectedSession}
+            streamStatus={streamStatus}
+            taskItems={taskItems}
+            tasksLoading={tasksLoading}
+          />
+        </div>
         <Conversation className="min-h-0 flex-1" resize="instant">
           <ConversationContent className="mx-auto flex w-full max-w-3xl gap-4 px-4 py-6 md:px-5">
             {chatMessages.length === 0 ? (
@@ -181,13 +190,6 @@ export function ProjectSessionConversationPane(props: {
 
         <div className="shrink-0 border-t border-border/60 bg-background/95">
           <div className="mx-auto w-full max-w-3xl px-4 py-3 md:px-5">
-            <ProjectSessionTaskStrip
-              activityCount={activityCount}
-              selectedSession={selectedSession}
-              streamStatus={streamStatus}
-              taskItems={taskItems}
-              tasksLoading={tasksLoading}
-            />
             <ProjectComposerInput {...promptInputProps} />
           </div>
         </div>
