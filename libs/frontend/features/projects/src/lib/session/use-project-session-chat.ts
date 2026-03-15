@@ -1,10 +1,11 @@
-import { UIMessage, useChat } from '@ai-sdk/react';
+import { useChat } from '@ai-sdk/react';
 import { State } from '@hateoas-ts/resource';
 import {
   AcpEventEnvelope,
   AcpSession,
 } from '@shared/schema';
 import { toast } from '@shared/ui';
+import type { DynamicToolUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 export type SessionChatMessage = UIMessage<{
@@ -60,8 +61,140 @@ function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
   }
 }
 
+function resolveToolName(event: AcpEventEnvelope): string {
+  const kind = asText(event.update.toolCall?.kind);
+  if (kind) {
+    return kind;
+  }
+
+  const title = asText(event.update.toolCall?.title);
+  if (title) {
+    return title;
+  }
+
+  return 'tool';
+}
+
+function resolveToolInput(event: AcpEventEnvelope): unknown {
+  const toolCall = event.update.toolCall;
+  if (!toolCall) {
+    return null;
+  }
+
+  if (toolCall.input !== undefined) {
+    return toolCall.input;
+  }
+
+  if (toolCall.content.length > 0) {
+    return toolCall.content;
+  }
+
+  return null;
+}
+
+function resolveToolOutput(event: AcpEventEnvelope): unknown {
+  const toolCall = event.update.toolCall;
+  if (!toolCall) {
+    return null;
+  }
+
+  if (toolCall.output !== undefined) {
+    return toolCall.output;
+  }
+
+  if (toolCall.content.length > 0) {
+    return toolCall.content;
+  }
+
+  return null;
+}
+
+function resolveToolErrorText(event: AcpEventEnvelope): string {
+  const output = resolveToolOutput(event);
+
+  if (typeof output === 'string' && output.trim()) {
+    return output.trim();
+  }
+
+  if (output && typeof output === 'object') {
+    return JSON.stringify(output, null, 2);
+  }
+
+  const title = asText(event.update.toolCall?.title);
+  if (title) {
+    return `${title} failed`;
+  }
+
+  return 'Tool execution failed';
+}
+
+function buildToolPart(event: AcpEventEnvelope): DynamicToolUIPart | null {
+  if (
+    event.update.eventType !== 'tool_call' &&
+    event.update.eventType !== 'tool_call_update'
+  ) {
+    return null;
+  }
+
+  const toolCall = event.update.toolCall;
+  if (!toolCall) {
+    return null;
+  }
+
+  const toolCallId = asText(toolCall.toolCallId) ?? event.eventId;
+  const toolName = resolveToolName(event);
+  const title = asText(toolCall.title) ?? undefined;
+
+  switch (toolCall.status) {
+    case 'completed':
+      return {
+        type: 'dynamic-tool',
+        toolCallId,
+        toolName,
+        title,
+        providerExecuted: true,
+        state: 'output-available',
+        input: resolveToolInput(event),
+        output: resolveToolOutput(event),
+      };
+    case 'failed':
+      return {
+        type: 'dynamic-tool',
+        toolCallId,
+        toolName,
+        title,
+        providerExecuted: true,
+        state: 'output-error',
+        input: resolveToolInput(event),
+        errorText: resolveToolErrorText(event),
+      };
+    case 'pending':
+      return {
+        type: 'dynamic-tool',
+        toolCallId,
+        toolName,
+        title,
+        providerExecuted: true,
+        state: 'input-streaming',
+        input: resolveToolInput(event),
+      };
+    case 'running':
+    default:
+      return {
+        type: 'dynamic-tool',
+        toolCallId,
+        toolName,
+        title,
+        providerExecuted: true,
+        state: 'input-available',
+        input: resolveToolInput(event),
+      };
+  }
+}
+
 function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
   const messages: SessionChatMessage[] = [];
+  const messagesByChunkKey = new Map<string, SessionChatMessage>();
 
   for (const event of history) {
     if (
@@ -119,7 +252,7 @@ function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
         continue;
       }
 
-      messages.push({
+      const nextMessage: SessionChatMessage = {
         id: chunkKey,
         role,
         metadata: {
@@ -137,7 +270,55 @@ function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
                 text: content,
               },
         ],
-      });
+      };
+      messages.push(nextMessage);
+      messagesByChunkKey.set(chunkKey, nextMessage);
+      continue;
+    }
+
+    if (
+      event.update.eventType === 'tool_call' ||
+      event.update.eventType === 'tool_call_update'
+    ) {
+      const toolPart = buildToolPart(event);
+      if (!toolPart) {
+        continue;
+      }
+
+      const chunkKey = `assistant:tool:${toolPart.toolCallId}`;
+      const existing = messagesByChunkKey.get(chunkKey);
+
+      if (existing) {
+        const partIndex = existing.parts.findIndex(
+          (part) =>
+            part.type === 'dynamic-tool' &&
+            part.toolCallId === toolPart.toolCallId,
+        );
+
+        if (partIndex >= 0) {
+          existing.parts[partIndex] = toolPart;
+        } else {
+          existing.parts.push(toolPart);
+        }
+
+        existing.metadata = {
+          ...existing.metadata,
+          emittedAt: event.emittedAt,
+        };
+        continue;
+      }
+
+      const nextMessage: SessionChatMessage = {
+        id: chunkKey,
+        role: 'assistant',
+        metadata: {
+          chunkKey,
+          emittedAt: event.emittedAt,
+        },
+        parts: [toolPart],
+      };
+      messages.push(nextMessage);
+      messagesByChunkKey.set(chunkKey, nextMessage);
       continue;
     }
 
