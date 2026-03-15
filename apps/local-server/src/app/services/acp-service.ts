@@ -518,9 +518,8 @@ function buildTaskExecutionOutcome(
       continue;
     }
 
-    if (row.type === 'tool_result') {
-      const toolOutput =
-        extractEventText(payload.output) ?? extractEventText(payload.rawOutput);
+    if (row.type === 'tool_call' && payload.status === 'completed') {
+      const toolOutput = extractEventText(payload.output);
       if (toolOutput) {
         toolOutputs.push(toolOutput);
       }

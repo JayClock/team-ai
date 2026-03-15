@@ -15,7 +15,6 @@ import {
   type Task,
   type TaskRun,
   type AcpToolCallEventData,
-  type AcpToolResultEventData,
 } from '@shared/schema';
 import { SparklesIcon, WrenchIcon } from 'lucide-react';
 import type { WorkbenchSessionRuntimeProfile } from './session-runtime-profile';
@@ -121,10 +120,6 @@ function normalizeProviderId(value: string | null | undefined): string | null {
 
 function formatJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
-}
-
-function planEntryLabel(entry: { content: string; description?: string }): string {
-  return entry.description ?? entry.content;
 }
 
 export function formatStatusLabel(status: string | null | undefined): string {
@@ -622,9 +617,7 @@ function formatPriorityLabel(priority: string | null | undefined): string {
 export function eventLabel(event: AcpEventEnvelope): string {
   switch (event.type) {
     case 'tool_call':
-      return '工具调用';
-    case 'tool_result':
-      return '工具结果';
+      return event.data.status === 'completed' ? '工具结果' : '工具调用';
     case 'session':
       return '会话';
     case 'plan':
@@ -644,14 +637,14 @@ export function eventLabel(event: AcpEventEnvelope): string {
     case 'message':
       return '消息';
   }
+
+  return event.type;
 }
 
 export function eventHeadline(event: AcpEventEnvelope): string {
   switch (event.type) {
     case 'tool_call':
       return event.data.title ?? event.data.toolName ?? '工具调用';
-    case 'tool_result':
-      return event.data.title ?? event.data.toolName ?? '工具结果';
     case 'plan':
       return `共 ${event.data.entries.length} 项计划`;
     case 'usage':
@@ -678,6 +671,8 @@ export function eventHeadline(event: AcpEventEnvelope): string {
     case 'message':
       return event.data.role ?? '消息';
   }
+
+  return event.type;
 }
 
 export function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
@@ -781,18 +776,13 @@ export function statusChipClasses(status: string): string {
 export function renderEventDetails(event: AcpEventEnvelope) {
   const rawPayload = event.data.payload;
 
-  if (event.type === 'tool_call' || event.type === 'tool_result') {
-    const data =
-      event.type === 'tool_call'
-        ? (event.data as AcpToolCallEventData)
-        : (event.data as AcpToolResultEventData);
+  if (event.type === 'tool_call') {
+    const data = event.data as AcpToolCallEventData;
+    const toolData = data as AcpToolCallEventData & { output?: unknown };
     const primaryValue =
-      event.type === 'tool_call'
-        ? ((data as AcpToolCallEventData).input ?? data.rawInput)
-        : ((data as AcpToolResultEventData).output ??
-            (data as AcpToolResultEventData & { input?: unknown }).input ??
-            data.rawOutput ??
-            data.rawInput);
+      data.status === 'completed' || data.status === 'failed'
+        ? toolData.output ?? data.input
+        : data.input;
 
     return (
       <div className="mt-3 space-y-2">
@@ -838,7 +828,7 @@ export function renderEventDetails(event: AcpEventEnvelope) {
             key={`${event.eventId}-${index}`}
             className="rounded-xl border bg-muted/40 p-3"
           >
-            <div className="text-sm font-medium">{planEntryLabel(entry)}</div>
+            <div className="text-sm font-medium">{entry.description}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {formatPriorityLabel(entry.priority)} ·{' '}
               {formatStatusLabel(entry.status)}
@@ -872,8 +862,8 @@ export function buildTaskSnapshot(
     AcpEventEnvelope & { type: 'plan'; data: AcpPlanEventData }
   >;
   const planItems = (plans.at(-1)?.data.entries ?? []).map((entry, index) => ({
-    id: `plan-${index}-${planEntryLabel(entry)}`,
-    title: planEntryLabel(entry),
+    id: `plan-${index}-${entry.description ?? ''}`,
+    title: entry.description ?? '',
     status: entry.status,
     description: formatPriorityLabel(entry.priority),
     source: 'plan' as const,
@@ -881,20 +871,14 @@ export function buildTaskSnapshot(
 
   const toolMap = new Map<string, TaskPanelItem>();
   for (const event of history) {
-    if (event.type !== 'tool_call' && event.type !== 'tool_result') {
+    if (event.type !== 'tool_call') {
       continue;
     }
 
-    const data =
-      event.type === 'tool_call'
-        ? (event.data as AcpToolCallEventData)
-        : (event.data as AcpToolResultEventData);
+    const data = event.data as AcpToolCallEventData;
     const key =
-      data.toolCallId ??
-      `${event.type}:${data.title ?? data.toolName ?? event.eventId}`;
+      data.toolCallId ?? `tool_call:${data.title ?? data.toolName ?? event.eventId}`;
     const title = data.title ?? data.toolName ?? '工具';
-    const fallbackStatus =
-      event.type === 'tool_result' ? 'completed' : 'in_progress';
     const description =
       data.locations && data.locations.length > 0
         ? data.locations
@@ -910,7 +894,7 @@ export function buildTaskSnapshot(
     toolMap.set(key, {
       id: key,
       title,
-      status: data.status ?? fallbackStatus,
+      status: data.status ?? 'in_progress',
       description,
       source: 'tool',
     });

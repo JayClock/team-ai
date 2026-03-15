@@ -248,7 +248,6 @@ describe('project session workbench task actions', () => {
         data: {
           entries: [
             {
-              content: 'legacy title',
               description: 'canonical plan title',
               priority: 'high',
               status: 'in_progress',
@@ -280,20 +279,19 @@ describe('project session workbench task actions', () => {
             output: {
               result: 'done',
             },
-            rawOutput: 'legacy output',
+            status: 'completed',
             toolCallId: 'tool-1',
             toolName: 'read_file',
           },
           emittedAt: '2026-03-13T12:07:00.000Z',
           eventId: 'evt_tool',
           sessionId: 'acps_root',
-          type: 'tool_result',
+          type: 'tool_call',
         }),
       ),
     );
 
     expect(markup).toContain('&quot;result&quot;: &quot;done&quot;');
-    expect(markup).not.toContain('legacy output');
   });
 });
 

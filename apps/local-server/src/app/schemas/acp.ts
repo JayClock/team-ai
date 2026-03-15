@@ -24,7 +24,6 @@ export type AcpEventTypePayload =
   | 'status'
   | 'message'
   | 'tool_call'
-  | 'tool_result'
   | 'plan'
   | 'session'
   | 'mode'

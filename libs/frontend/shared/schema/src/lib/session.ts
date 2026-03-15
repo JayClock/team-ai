@@ -46,7 +46,6 @@ export type AcpEventType =
   | 'status'
   | 'message'
   | 'tool_call'
-  | 'tool_result'
   | 'plan'
   | 'session'
   | 'mode'
@@ -81,22 +80,7 @@ export type AcpToolCallEventData = AcpBaseEventData & {
   input?: unknown;
   kind?: string | null;
   locations?: Array<{ line?: number | null; path: string }>;
-  rawInput?: unknown;
-  rawOutput?: unknown;
-  status?: 'pending' | 'in_progress' | 'completed' | 'failed' | null;
-  title?: string | null;
-  toolName: string | null;
-  toolCallId?: string;
-};
-
-export type AcpToolResultEventData = AcpBaseEventData & {
-  content?: unknown[];
-  kind?: string | null;
-  locations?: Array<{ line?: number | null; path: string }>;
-  input?: unknown;
   output?: unknown;
-  rawInput?: unknown;
-  rawOutput?: unknown;
   status?: 'pending' | 'in_progress' | 'completed' | 'failed' | null;
   title?: string | null;
   toolName: string | null;
@@ -118,8 +102,7 @@ export type AcpErrorEventData = AcpBaseEventData & {
 
 export type AcpPlanEventData = AcpBaseEventData & {
   entries: Array<{
-    content: string;
-    description?: string;
+    description: string;
     priority: 'high' | 'medium' | 'low';
     status: 'pending' | 'in_progress' | 'completed';
   }>;
@@ -167,10 +150,6 @@ export type AcpEventEnvelope =
   | (AcpEventEnvelopeBase & {
       type: 'tool_call';
       data: AcpToolCallEventData;
-    })
-  | (AcpEventEnvelopeBase & {
-      type: 'tool_result';
-      data: AcpToolResultEventData;
     })
   | (AcpEventEnvelopeBase & {
       type: 'plan';

@@ -238,8 +238,7 @@ export function ProjectSessionStatusSidebar(props: {
                     <CardContent className="space-y-3 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2">
-                          {event.type === 'tool_call' ||
-                          event.type === 'tool_result'
+                          {event.type === 'tool_call'
                             ? eventIcon.tool
                             : eventIcon.default}
                           <div className="min-w-0">

@@ -418,8 +418,6 @@ export function toPersistedAcpEvent(
           kind: update.toolCall?.kind ?? null,
           input: update.toolCall?.input ?? null,
           output: update.toolCall?.output ?? null,
-          rawInput: update.toolCall?.input ?? null,
-          rawOutput: update.toolCall?.output ?? null,
           locations: update.toolCall?.locations ?? [],
           content: update.toolCall?.content ?? [],
           provider: update.provider,
@@ -427,7 +425,7 @@ export function toPersistedAcpEvent(
       };
     case 'tool_call_update':
       return {
-        type: update.toolCall?.status === 'completed' ? 'tool_result' : 'tool_call',
+        type: 'tool_call',
         payload: {
           source: 'acp-sdk',
           toolCallId: update.toolCall?.toolCallId,
@@ -436,8 +434,6 @@ export function toPersistedAcpEvent(
           kind: update.toolCall?.kind ?? null,
           input: update.toolCall?.input ?? null,
           output: update.toolCall?.output ?? null,
-          rawInput: update.toolCall?.input ?? null,
-          rawOutput: update.toolCall?.output ?? null,
           locations: update.toolCall?.locations ?? [],
           content: update.toolCall?.content ?? [],
           provider: update.provider,
@@ -450,7 +446,6 @@ export function toPersistedAcpEvent(
           source: 'acp-sdk',
           entries: (update.planItems ?? []).map((item) => ({
             description: item.description,
-            content: item.description,
             ...(item.priority ? { priority: item.priority } : {}),
             ...(item.status ? { status: item.status } : {}),
           })),

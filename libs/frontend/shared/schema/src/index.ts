@@ -23,7 +23,6 @@ export type {
   AcpStatusEventData,
   AcpMessageEventData,
   AcpToolCallEventData,
-  AcpToolResultEventData,
   AcpCompleteEventData,
   AcpErrorEventData,
   AcpPlanEventData,

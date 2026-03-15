@@ -89,7 +89,7 @@ describe('normalized-session-update', () => {
     });
   });
 
-  it('normalizes tool call updates and converts completed calls to tool_result persistence', () => {
+  it('normalizes tool call updates and persists completed calls as tool_call events', () => {
     const notification = {
       update: {
         sessionUpdate: 'tool_call_update',
@@ -129,11 +129,11 @@ describe('normalized-session-update', () => {
       resolveSessionStateFromNormalizedUpdate(normalized!, 'RUNNING'),
     ).toBe('RUNNING');
     expect(toPersistedAcpEvent(normalized!)).toMatchObject({
-      type: 'tool_result',
+      type: 'tool_call',
       payload: {
         toolCallId: 'tool-1',
         provider: 'opencode',
-        rawOutput: 'file contents',
+        output: 'file contents',
       },
     });
   });
@@ -204,7 +204,7 @@ describe('normalized-session-update', () => {
       payload: {
         entries: [
           {
-            content: 'Implement ACP normalization',
+            description: 'Implement ACP normalization',
             priority: 'high',
             status: 'in_progress',
           },
