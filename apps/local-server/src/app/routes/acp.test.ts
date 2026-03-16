@@ -594,6 +594,150 @@ describe('acp route', () => {
     expect(storedSession.model).toBe('openai/gpt-5-mini');
   });
 
+  it('defaults role-less root sessions to the routa coordinator in multi-agent mode', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-default-routa-role-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Default Routa Role',
+      repoPath: '/tmp/team-ai-desktop-default-routa-role',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-default-routa-role',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    const sessionId = createResponse.json().result.session.id as string;
+    const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
+    expect(storedSession.specialistId).toBe('routa-coordinator');
+
+    const agentsResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/agents`,
+    });
+
+    expect(agentsResponse.statusCode).toBe(200);
+    expect(agentsResponse.json()._embedded.agents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Routa Coordinator',
+          role: 'ROUTA',
+          specialistId: 'routa-coordinator',
+        }),
+      ]),
+    );
+  });
+
+  it('defaults role-less root sessions to solo developer when the runtime profile selects DEVELOPER mode', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-default-developer-role-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Default Developer Role',
+      repoPath: '/tmp/team-ai-desktop-default-developer-role',
+    });
+
+    await updateProjectRuntimeProfile(fastify.sqlite, project.id, {
+      orchestrationMode: 'DEVELOPER',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-default-developer-role',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          provider: 'codex',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    const sessionId = createResponse.json().result.session.id as string;
+    const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
+    expect(storedSession.specialistId).toBe('solo-developer');
+
+    const agentsResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/agents`,
+    });
+
+    expect(agentsResponse.statusCode).toBe(200);
+    expect(agentsResponse.json()._embedded.agents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Solo Developer',
+          role: 'DEVELOPER',
+          specialistId: 'solo-developer',
+        }),
+      ]),
+    );
+  });
+
   it('fails explicitly when neither an input provider nor a runtime profile default provider exists', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-missing-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';

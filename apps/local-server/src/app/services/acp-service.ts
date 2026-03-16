@@ -273,6 +273,7 @@ async function resolveAcpSessionDefaults(
     provider?: string | null;
   },
 ): Promise<{
+  orchestrationMode: 'ROUTA' | 'DEVELOPER';
   model: string | null;
   provider: string;
 }> {
@@ -289,11 +290,18 @@ async function resolveAcpSessionDefaults(
   }
 
   return {
+    orchestrationMode: runtimeProfile.orchestrationMode,
     model:
       normalizeOptionalText(input.model) ??
       normalizeOptionalText(runtimeProfile.defaultModel),
     provider: normalizeAcpProviderId(providerId),
   };
+}
+
+function resolveDefaultAcpSessionRole(
+  orchestrationMode: 'ROUTA' | 'DEVELOPER',
+) {
+  return orchestrationMode === 'DEVELOPER' ? 'DEVELOPER' : 'ROUTA';
 }
 
 function getTaskExecutionRow(
@@ -1443,7 +1451,11 @@ export async function createAcpSession(
   input: CreateSessionInput,
   options: AcpServiceOptions = {},
 ): Promise<AcpSessionPayload> {
-  const { model, provider } = await resolveAcpSessionDefaults(sqlite, input);
+  const {
+    model,
+    orchestrationMode,
+    provider,
+  } = await resolveAcpSessionDefaults(sqlite, input);
   const project = await getProjectById(sqlite, input.projectId);
   const parentSession = input.parentSessionId
     ? getSessionRow(sqlite, input.parentSessionId)
@@ -1465,7 +1477,10 @@ export async function createAcpSession(
     );
   }
 
-  const role = taskRole ?? requestedRole;
+  const role =
+    taskRole ??
+    requestedRole ??
+    resolveDefaultAcpSessionRole(orchestrationMode);
   let specialist = input.specialistId
     ? await getSpecialistById(sqlite, input.projectId, input.specialistId)
     : null;
