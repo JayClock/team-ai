@@ -11,6 +11,9 @@ function createCodebaseLinks(codebase: CodebasePayload) {
     collection: {
       href: `/api/projects/${codebase.projectId}/codebases`,
     },
+    worktrees: {
+      href: `/api/projects/${codebase.projectId}/codebases/${codebase.id}/worktrees`,
+    },
     project: {
       href: `/api/projects/${codebase.projectId}`,
     },
@@ -46,4 +49,3 @@ export function presentCodebaseList(payload: CodebaseListPayload) {
     },
   };
 }
-

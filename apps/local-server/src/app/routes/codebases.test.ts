@@ -64,6 +64,15 @@ describe('codebases route', () => {
             repoPath: '/Users/example/workspace-root',
             sourceUrl: 'https://github.com/example/workspace-root',
             title: 'Workspace Root',
+            _links: {
+              worktrees: {
+                href: expect.stringMatching(
+                  new RegExp(
+                    `^/api/projects/${project.id}/codebases/cdb_[a-z0-9]+/worktrees$`,
+                  ),
+                ),
+              },
+            },
           },
         ],
       },
@@ -125,4 +134,3 @@ describe('codebases route', () => {
     return sqlite;
   }
 });
-

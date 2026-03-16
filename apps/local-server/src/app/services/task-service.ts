@@ -29,6 +29,7 @@ interface TaskRow {
   assigned_specialist_name: string | null;
   assignee: string | null;
   board_id: string | null;
+  codebase_id: string | null;
   column_id: string | null;
   completion_summary: string | null;
   created_at: string;
@@ -63,6 +64,7 @@ interface TaskRow {
   verification_commands_json: string;
   verification_report: string | null;
   verification_verdict: string | null;
+  worktree_id: string | null;
 }
 
 interface ListTasksQuery {
@@ -273,6 +275,7 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     assignedSpecialistName: row.assigned_specialist_name,
     assignee: row.assignee,
     boardId: row.board_id,
+    codebaseId: row.codebase_id,
     columnId: row.column_id,
     completionSummary: row.completion_summary,
     createdAt: row.created_at,
@@ -304,6 +307,7 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     verificationCommands: parseStringArray(row.verification_commands_json),
     verificationReport: row.verification_report,
     verificationVerdict: row.verification_verdict,
+    worktreeId: row.worktree_id,
   };
 }
 
@@ -409,6 +413,8 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
           execution_session_id,
           result_session_id,
           session_id,
+          codebase_id,
+          worktree_id,
           created_at,
           updated_at
         FROM project_tasks
@@ -732,6 +738,8 @@ export async function listTasks(
           execution_session_id,
           result_session_id,
           session_id,
+          codebase_id,
+          worktree_id,
           created_at,
           updated_at
         FROM project_tasks

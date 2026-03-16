@@ -1,5 +1,8 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
+import type { Codebase } from './codebase.js';
 import type { NoteCollection } from './note.js';
+import type { Project } from './project.js';
+import type { Worktree } from './worktree.js';
 
 export type AcpRef = {
   id: string;
@@ -23,6 +26,7 @@ export type AcpSessionData = {
   project: AcpRef;
   agent: AcpRef | null;
   actor: AcpRef;
+  codebase: AcpRef | null;
   parentSession: AcpRef | null;
   name: string | null;
   provider: string;
@@ -33,6 +37,7 @@ export type AcpSessionData = {
   completedAt: string | null;
   failureReason: string | null;
   lastEventId: AcpRef | null;
+  worktree: AcpRef | null;
 };
 
 export type AcpEventError = {
@@ -146,7 +151,10 @@ export type AcpSessionSummary = Entity<
   AcpSessionData,
   {
     self: AcpSession;
+    codebase?: Codebase;
     notes: NoteCollection;
+    project?: Project;
+    worktree?: Worktree;
   }
 >;
 
@@ -162,5 +170,8 @@ export type AcpSession = Entity<
     history: AcpSessionHistory;
     notes: NoteCollection;
     collection: AcpSessionCollection;
+    codebase?: Codebase;
+    project?: Project;
+    worktree?: Worktree;
   }
 >;

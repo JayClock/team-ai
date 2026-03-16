@@ -29,6 +29,20 @@ function createTaskLinks(task: TaskPayload) {
     project: {
       href: `/api/projects/${task.projectId}`,
     },
+    ...(task.codebaseId
+      ? {
+          codebase: {
+            href: `/api/projects/${task.projectId}/codebases/${task.codebaseId}`,
+          },
+        }
+      : {}),
+    ...(task.worktreeId
+      ? {
+          worktree: {
+            href: `/api/projects/${task.projectId}/worktrees/${task.worktreeId}`,
+          },
+        }
+      : {}),
     ...(task.parentTaskId
       ? {
           parent: {

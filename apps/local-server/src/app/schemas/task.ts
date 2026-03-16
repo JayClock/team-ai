@@ -8,6 +8,7 @@ export interface TaskPayload {
   assignedSpecialistName: string | null;
   assignee: string | null;
   boardId: string | null;
+  codebaseId: string | null;
   columnId: string | null;
   completionSummary: string | null;
   createdAt: string;
@@ -39,6 +40,7 @@ export interface TaskPayload {
   verificationCommands: string[];
   verificationReport: string | null;
   verificationVerdict: string | null;
+  worktreeId: string | null;
 }
 
 export interface TaskListPayload {

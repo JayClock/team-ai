@@ -38,6 +38,8 @@ export const VENDOR_MEDIA_TYPES = {
   taskRuns: vendorMediaType('task-runs'),
   tasks: vendorMediaType('tasks'),
   user: vendorMediaType('user'),
+  worktree: vendorMediaType('worktree'),
+  worktrees: vendorMediaType('worktrees'),
 } as const;
 
 export function setVendorMediaType(reply: FastifyReply, mediaType: string) {

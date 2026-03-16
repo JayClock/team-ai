@@ -1,5 +1,6 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
 import type { Project } from './project.js';
+import type { WorktreeCollection } from './worktree.js';
 
 export type Codebase = Entity<
   {
@@ -18,6 +19,7 @@ export type Codebase = Entity<
     self: Codebase;
     collection: CodebaseCollection;
     project: Project;
+    worktrees: WorktreeCollection;
   }
 >;
 
@@ -25,4 +27,3 @@ export type CodebaseCollection = Entity<
   Collection<Codebase>['data'],
   Collection<Codebase>['links']
 >;
-

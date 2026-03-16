@@ -58,6 +58,7 @@ interface AcpSessionRow {
   acp_status: AcpSessionStatus;
   agent_id: string | null;
   actor_id: string;
+  codebase_id: string | null;
   completed_at: string | null;
   cwd: string | null;
   failure_reason: string | null;
@@ -72,6 +73,7 @@ interface AcpSessionRow {
   specialist_id: string | null;
   started_at: string | null;
   state: AcpSessionState;
+  worktree_id: string | null;
 }
 
 interface AcpEventRow {
@@ -663,6 +665,7 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     project: { id: row.project_id },
     agent: row.agent_id ? { id: row.agent_id } : null,
     actor: { id: row.actor_id },
+    codebase: row.codebase_id ? { id: row.codebase_id } : null,
     parentSession: row.parent_session_id ? { id: row.parent_session_id } : null,
     name: row.name,
     provider: row.provider,
@@ -673,6 +676,7 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     completedAt: row.completed_at,
     failureReason: row.failure_reason,
     lastEventId: row.last_event_id ? { id: row.last_event_id } : null,
+    worktree: row.worktree_id ? { id: row.worktree_id } : null,
   };
 }
 
@@ -697,6 +701,7 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           project_id,
           agent_id,
           actor_id,
+          codebase_id,
           parent_session_id,
           name,
           provider,
@@ -710,7 +715,8 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           last_event_id,
           started_at,
           last_activity_at,
-          completed_at
+          completed_at,
+          worktree_id
         FROM project_acp_sessions
         WHERE id = ? AND deleted_at IS NULL
       `,
@@ -1483,6 +1489,7 @@ export async function listAcpSessionsByProject(
           project_id,
           agent_id,
           actor_id,
+          codebase_id,
           parent_session_id,
           specialist_id,
           name,
@@ -1496,7 +1503,8 @@ export async function listAcpSessionsByProject(
           last_event_id,
           started_at,
           last_activity_at,
-          completed_at
+          completed_at,
+          worktree_id
         FROM project_acp_sessions
         WHERE project_id = @projectId AND deleted_at IS NULL
         ORDER BY COALESCE(last_activity_at, started_at, completed_at) DESC, updated_at DESC

@@ -1,6 +1,9 @@
 import { Collection, Entity } from '@hateoas-ts/resource';
 import type { AgentRole } from './agent.js';
+import type { Codebase } from './codebase.js';
+import type { AcpSession } from './session.js';
 import type { TaskRunCollection } from './task-run.js';
+import type { Worktree } from './worktree.js';
 
 export type TaskKind = 'plan' | 'implement' | 'review' | 'verify';
 
@@ -39,6 +42,7 @@ export type Task = Entity<
     assignedRole: AgentRole | (string & {}) | null;
     assignedSpecialistId: string | null;
     assignedSpecialistName: string | null;
+    codebaseId: string | null;
     dependencies: string[];
     parallelGroup: string | null;
     acceptanceCriteria: string[];
@@ -61,12 +65,17 @@ export type Task = Entity<
     projectId: string;
     createdAt: string;
     updatedAt: string;
+    worktreeId: string | null;
   },
   {
     self: Task;
     collection: TaskCollection;
+    codebase?: Codebase;
     execute?: Task;
+    execution?: AcpSession;
+    result?: AcpSession;
     runs: TaskRunCollection;
+    worktree?: Worktree;
   }
 >;
 

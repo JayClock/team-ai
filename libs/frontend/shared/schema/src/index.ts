@@ -3,6 +3,11 @@ export type { User } from './lib/user.js';
 export type { Project, DiagramCollection } from './lib/project.js';
 export type { Codebase, CodebaseCollection } from './lib/codebase.js';
 export type {
+  Worktree,
+  WorktreeCollection,
+  WorktreeStatus,
+} from './lib/worktree.js';
+export type {
   Sidebar,
   SidebarSection,
   SidebarItem,

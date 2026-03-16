@@ -119,6 +119,7 @@ export interface AcpSessionPayload {
   acpStatus: AcpSessionStatus;
   agent: AcpRefPayload | null;
   actor: AcpRefPayload;
+  codebase: AcpRefPayload | null;
   completedAt: string | null;
   cwd: string;
   failureReason: string | null;
@@ -131,6 +132,7 @@ export interface AcpSessionPayload {
   provider: string;
   specialistId: string | null;
   startedAt: string | null;
+  worktree: AcpRefPayload | null;
 }
 
 export interface AcpSessionListPayload {
