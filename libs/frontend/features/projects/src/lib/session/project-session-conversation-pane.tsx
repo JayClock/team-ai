@@ -17,6 +17,10 @@ import {
   type ProjectRepositoryPickerProps,
 } from '../components/project-composer-input';
 import { ReasoningPart } from './conversation-part-reasoning';
+import {
+  isRenderableTerminalPart,
+  TerminalPart,
+} from './conversation-part-terminal';
 import { isRenderableToolPart, ToolPart } from './conversation-part-tool';
 import { TextPart } from './conversation-part-text';
 
@@ -115,6 +119,16 @@ export function ProjectSessionConversationPane(props: {
                           if (isRenderableToolPart(part)) {
                             return (
                               <ToolPart
+                                part={part}
+                                index={index}
+                                messageId={message.id}
+                              />
+                            );
+                          }
+
+                          if (isRenderableTerminalPart(part)) {
+                            return (
+                              <TerminalPart
                                 part={part}
                                 index={index}
                                 messageId={message.id}

@@ -148,6 +148,71 @@ describe('normalized-session-update', () => {
     });
   });
 
+  it('normalizes terminal lifecycle notifications', () => {
+    const created = normalizeSessionNotification(
+      'session-term',
+      'codex',
+      {
+        update: {
+          sessionUpdate: 'terminal_created',
+          terminalId: 'term-1',
+          command: 'npm',
+          args: ['test'],
+          interactive: false,
+        },
+      } satisfies SessionNotification,
+    );
+    const output = normalizeSessionNotification(
+      'session-term',
+      'codex',
+      {
+        update: {
+          sessionUpdate: 'terminal_output',
+          terminalId: 'term-1',
+          data: 'running tests\n',
+        },
+      } satisfies SessionNotification,
+    );
+    const exited = normalizeSessionNotification(
+      'session-term',
+      'codex',
+      {
+        update: {
+          sessionUpdate: 'terminal_exited',
+          terminalId: 'term-1',
+          exitCode: 0,
+        },
+      } satisfies SessionNotification,
+    );
+
+    expect(created).toMatchObject({
+      eventType: 'terminal_created',
+      terminal: {
+        terminalId: 'term-1',
+        command: 'npm',
+        args: ['test'],
+        interactive: false,
+      },
+    });
+    expect(output).toMatchObject({
+      eventType: 'terminal_output',
+      terminal: {
+        terminalId: 'term-1',
+        data: 'running tests\n',
+      },
+    });
+    expect(exited).toMatchObject({
+      eventType: 'terminal_exited',
+      terminal: {
+        terminalId: 'term-1',
+        exitCode: 0,
+      },
+    });
+    expect(
+      resolveSessionStateFromNormalizedUpdate(created!, 'PENDING'),
+    ).toBe('RUNNING');
+  });
+
   it('normalizes plan entries to description while preserving legacy persisted content', () => {
     const notification = {
       update: {

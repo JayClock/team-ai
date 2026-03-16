@@ -34,6 +34,7 @@
     "@shared/ui": "workspace:*",
     "@shells/cockpit": "workspace:*",
     "@tailwindcss/vite": "^4.1.12",
+    "ansi-to-react": "^6.2.6",
     "best-effort-json-parser": "^1.2.1",
     "better-sqlite3": "11.10.0",
     "class-variance-authority": "^0.7.1",

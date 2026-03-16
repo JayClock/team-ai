@@ -424,6 +424,10 @@ function createClientHandler(
   terminals: Map<string, LocalTerminal>,
   logger: LoggerLike | undefined,
 ) {
+  const emitTerminalUpdate = (update: NormalizedSessionUpdate) => {
+    void input.hooks.onSessionUpdate(update);
+  };
+
   return {
     async requestPermission(
       params: RequestPermissionRequest,
@@ -485,10 +489,32 @@ function createClientHandler(
       const terminal = createLocalTerminal(
         terminalId,
         params,
+        input.localSessionId,
+        input.provider,
         input.cwd,
         logger,
+        emitTerminalUpdate,
       );
       terminals.set(terminalId, terminal);
+      emitTerminalUpdate(
+        createTerminalLifecycleUpdate(
+          input.localSessionId,
+          input.provider,
+          {
+            sessionUpdate: 'terminal_created',
+            terminalId,
+            command: params.command,
+            args: params.args ?? [],
+            interactive: false,
+          },
+          {
+            terminalId,
+            command: params.command,
+            args: params.args ?? [],
+            interactive: false,
+          },
+        ),
+      );
       return { terminalId };
     },
     async terminalOutput(params: {
@@ -526,8 +552,11 @@ function createClientHandler(
 function createLocalTerminal(
   terminalId: string,
   params: CreateTerminalRequest,
+  localSessionId: string,
+  provider: string,
   fallbackCwd: string,
   logger: LoggerLike | undefined,
+  emitUpdate: (update: NormalizedSessionUpdate) => void,
 ): LocalTerminal {
   const cwd = params.cwd?.trim() || fallbackCwd;
   ensureAbsolutePath(cwd, 'ACP terminal cwd');
@@ -552,6 +581,21 @@ function createLocalTerminal(
           exitCode,
           signal,
         };
+        emitUpdate(
+          createTerminalLifecycleUpdate(
+            localSessionId,
+            provider,
+            {
+              sessionUpdate: 'terminal_exited',
+              terminalId,
+              exitCode: exitCode ?? null,
+            },
+            {
+              terminalId,
+              exitCode: exitCode ?? null,
+            },
+          ),
+        );
         resolve({
           exitCode,
           signal,
@@ -561,10 +605,28 @@ function createLocalTerminal(
   };
 
   const appendOutput = (chunk: Buffer) => {
+    const data = chunk.toString('utf-8');
     terminal.output = truncateUtf8(
-      `${terminal.output}${chunk.toString('utf-8')}`,
+      `${terminal.output}${data}`,
       terminal.outputByteLimit,
     );
+    if (data.length > 0) {
+      emitUpdate(
+        createTerminalLifecycleUpdate(
+          localSessionId,
+          provider,
+          {
+            sessionUpdate: 'terminal_output',
+            terminalId,
+            data,
+          },
+          {
+            terminalId,
+            data,
+          },
+        ),
+      );
+    }
   };
 
   child.stdout?.on('data', appendOutput);
@@ -581,6 +643,28 @@ function createLocalTerminal(
   });
 
   return terminal;
+}
+
+function createTerminalLifecycleUpdate(
+  sessionId: string,
+  provider: string,
+  rawUpdate: Record<string, unknown>,
+  terminal: NonNullable<NormalizedSessionUpdate['terminal']>,
+): NormalizedSessionUpdate {
+  return {
+    eventType: rawUpdate.sessionUpdate as
+      | 'terminal_created'
+      | 'terminal_output'
+      | 'terminal_exited',
+    provider,
+    rawNotification: {
+      sessionId,
+      update: rawUpdate,
+    } as SessionNotification,
+    sessionId,
+    terminal,
+    timestamp: new Date().toISOString(),
+  };
 }
 
 function getTerminal(

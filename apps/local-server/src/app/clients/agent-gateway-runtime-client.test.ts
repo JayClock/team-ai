@@ -68,6 +68,16 @@ describe('agent-gateway-runtime-client', () => {
               },
             },
           }),
+          gatewayEvent('gw-1:3.5', 'terminal', {
+            protocol: 'acp',
+            update: {
+              eventType: 'terminal_output',
+              terminal: {
+                terminalId: 'term-1',
+                data: 'npm test\\n',
+              },
+            },
+          }),
           gatewayEvent('gw-1:4', 'complete', {
             protocol: 'acp',
             update: {
@@ -161,13 +171,14 @@ describe('agent-gateway-runtime-client', () => {
     );
     expect(result.runtimeSessionId).toBe('gw-1');
     expect(result.response.stopReason).toBe('end_turn');
-    expect(hooks.onSessionUpdate).toHaveBeenCalledTimes(3);
+    expect(hooks.onSessionUpdate).toHaveBeenCalledTimes(4);
     const updates = hooks.onSessionUpdate.mock.calls as unknown as Array<
       [unknown]
     >;
     const firstUpdate = updates[0]?.[0];
     const secondUpdate = updates[1]?.[0];
     const thirdUpdate = updates[2]?.[0];
+    const fourthUpdate = updates[3]?.[0];
 
     expect(firstUpdate).toMatchObject({
       eventType: 'agent_message',
@@ -186,6 +197,13 @@ describe('agent-gateway-runtime-client', () => {
       },
     });
     expect(thirdUpdate).toMatchObject({
+      eventType: 'terminal_output',
+      terminal: {
+        terminalId: 'term-1',
+        data: 'npm test\\n',
+      },
+    });
+    expect(fourthUpdate).toMatchObject({
       eventType: 'turn_complete',
       turnComplete: {
         stopReason: 'end_turn',

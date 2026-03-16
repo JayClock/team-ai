@@ -26,6 +26,9 @@ export type AcpEventTypePayload =
   | 'agent_message'
   | 'agent_thought'
   | 'user_message'
+  | 'terminal_created'
+  | 'terminal_output'
+  | 'terminal_exited'
   | 'plan_update'
   | 'turn_complete'
   | 'session_info_update'
@@ -45,6 +48,15 @@ export interface AcpEventToolCallPayload {
   status: 'completed' | 'failed' | 'pending' | 'running';
   title?: string | null;
   toolCallId?: string;
+}
+
+export interface AcpEventTerminalPayload {
+  args?: string[];
+  command?: string | null;
+  data?: string | null;
+  exitCode?: number | null;
+  interactive?: boolean;
+  terminalId: string;
 }
 
 export interface AcpEventUpdatePayload {
@@ -77,6 +89,7 @@ export interface AcpEventUpdatePayload {
     title?: string | null;
     updatedAt?: string | null;
   };
+  terminal?: AcpEventTerminalPayload;
   timestamp: string;
   toolCall?: AcpEventToolCallPayload;
   traceId?: string;

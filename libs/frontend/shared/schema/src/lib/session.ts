@@ -48,6 +48,9 @@ export type AcpEventType =
   | 'agent_message'
   | 'agent_thought'
   | 'user_message'
+  | 'terminal_created'
+  | 'terminal_output'
+  | 'terminal_exited'
   | 'plan_update'
   | 'turn_complete'
   | 'session_info_update'
@@ -67,6 +70,15 @@ export type AcpToolCall = {
   status: 'completed' | 'failed' | 'pending' | 'running';
   title?: string | null;
   toolCallId?: string;
+};
+
+export type AcpTerminal = {
+  terminalId: string;
+  command?: string | null;
+  args?: string[];
+  data?: string | null;
+  interactive?: boolean;
+  exitCode?: number | null;
 };
 
 export type AcpCanonicalUpdate = {
@@ -99,6 +111,7 @@ export type AcpCanonicalUpdate = {
     title?: string | null;
     updatedAt?: string | null;
   };
+  terminal?: AcpTerminal;
   timestamp: string;
   toolCall?: AcpToolCall;
   traceId?: string;

@@ -981,6 +981,9 @@ export function resolveSessionStateFromNormalizedUpdate(
     case 'agent_message':
     case 'agent_thought':
     case 'tool_call':
+    case 'terminal_created':
+    case 'terminal_output':
+    case 'terminal_exited':
       return 'RUNNING';
     case 'tool_call_update':
       return update.toolCall?.status === 'failed' ? 'FAILED' : 'RUNNING';

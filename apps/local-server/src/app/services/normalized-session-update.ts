@@ -199,6 +199,70 @@ export function normalizeSessionNotification(
             : [],
         },
       };
+    case 'terminal_created':
+      return {
+        sessionId,
+        provider,
+        timestamp: emittedAt,
+        traceId,
+        rawNotification: notification,
+        eventType: 'terminal_created',
+        terminal: {
+          terminalId:
+            typeof updateRecord.terminalId === 'string'
+              ? updateRecord.terminalId
+              : 'unknown-terminal',
+          command:
+            typeof updateRecord.command === 'string'
+              ? updateRecord.command
+              : null,
+          args: Array.isArray(updateRecord.args)
+            ? updateRecord.args.filter(
+                (value): value is string => typeof value === 'string',
+              )
+            : undefined,
+          interactive:
+            typeof updateRecord.interactive === 'boolean'
+              ? updateRecord.interactive
+              : undefined,
+        },
+      };
+    case 'terminal_output':
+      return {
+        sessionId,
+        provider,
+        timestamp: emittedAt,
+        traceId,
+        rawNotification: notification,
+        eventType: 'terminal_output',
+        terminal: {
+          terminalId:
+            typeof updateRecord.terminalId === 'string'
+              ? updateRecord.terminalId
+              : 'unknown-terminal',
+          data:
+            typeof updateRecord.data === 'string' ? updateRecord.data : null,
+        },
+      };
+    case 'terminal_exited':
+      return {
+        sessionId,
+        provider,
+        timestamp: emittedAt,
+        traceId,
+        rawNotification: notification,
+        eventType: 'terminal_exited',
+        terminal: {
+          terminalId:
+            typeof updateRecord.terminalId === 'string'
+              ? updateRecord.terminalId
+              : 'unknown-terminal',
+          exitCode:
+            typeof updateRecord.exitCode === 'number'
+              ? updateRecord.exitCode
+              : null,
+        },
+      };
     case 'plan': {
       const entries = Array.isArray(updateRecord.entries)
         ? updateRecord.entries

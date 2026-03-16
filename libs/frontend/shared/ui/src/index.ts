@@ -8,6 +8,7 @@ export * from './components/ai-elements/prompt-input';
 export * from './components/ai-elements/reasoning';
 export * from './components/ai-elements/suggestion';
 export * from './components/ai-elements/task';
+export * from './components/ai-elements/terminal';
 export * from './components/ai-elements/tool';
 
 export * from './components/avatar';

@@ -4,6 +4,9 @@ export type CanonicalAcpEventType =
   | 'agent_message'
   | 'agent_thought'
   | 'user_message'
+  | 'terminal_created'
+  | 'terminal_output'
+  | 'terminal_exited'
   | 'plan_update'
   | 'turn_complete'
   | 'session_info_update'
@@ -23,6 +26,15 @@ export interface CanonicalAcpToolCall {
   status: 'completed' | 'failed' | 'pending' | 'running';
   title?: string | null;
   toolCallId?: string;
+}
+
+export interface CanonicalAcpTerminalEvent {
+  args?: string[];
+  command?: string | null;
+  data?: string | null;
+  exitCode?: number | null;
+  interactive?: boolean;
+  terminalId: string;
 }
 
 export interface CanonicalAcpUpdate {
@@ -57,6 +69,7 @@ export interface CanonicalAcpUpdate {
     title?: string | null;
     updatedAt?: string | null;
   };
+  terminal?: CanonicalAcpTerminalEvent;
   toolCall?: CanonicalAcpToolCall;
   turnComplete?: {
     state?: 'FAILED' | 'CANCELLED';

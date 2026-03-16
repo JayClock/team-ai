@@ -425,6 +425,35 @@ function toCanonicalSessionNotification(
       );
     }
 
+    case 'terminal_created':
+    case 'terminal_output':
+    case 'terminal_exited': {
+      const terminal = asRecord(update.terminal);
+      return createSessionNotification(
+        {
+          sessionUpdate: eventType,
+          ...(asString(terminal.terminalId)
+            ? { terminalId: asString(terminal.terminalId) ?? undefined }
+            : {}),
+          ...(asString(terminal.command)
+            ? { command: asString(terminal.command) ?? undefined }
+            : {}),
+          args: Array.isArray(terminal.args) ? terminal.args : [],
+          ...(typeof terminal.interactive === 'boolean'
+            ? { interactive: terminal.interactive }
+            : {}),
+          ...(asString(terminal.data)
+            ? { data: asString(terminal.data) ?? undefined }
+            : {}),
+          ...(typeof terminal.exitCode === 'number' ||
+          terminal.exitCode === null
+            ? { exitCode: terminal.exitCode }
+            : {}),
+        },
+        sessionId,
+      );
+    }
+
     case 'plan_update':
       return createSessionNotification(
         {
@@ -617,6 +646,34 @@ function toNormalizedGatewayUpdate(
     };
   }
 
+  if (
+    eventType === 'terminal_created' ||
+    eventType === 'terminal_output' ||
+    eventType === 'terminal_exited'
+  ) {
+    const terminal = asRecord(update.terminal);
+    normalized.terminal = {
+      terminalId: asString(terminal.terminalId) ?? 'unknown-terminal',
+      ...(asString(terminal.command)
+        ? { command: asString(terminal.command) }
+        : {}),
+      ...(Array.isArray(terminal.args)
+        ? {
+            args: terminal.args.filter(
+              (value): value is string => typeof value === 'string',
+            ),
+          }
+        : {}),
+      ...(typeof terminal.interactive === 'boolean'
+        ? { interactive: terminal.interactive }
+        : {}),
+      ...(asString(terminal.data) ? { data: asString(terminal.data) } : {}),
+      ...(typeof terminal.exitCode === 'number' || terminal.exitCode === null
+        ? { exitCode: terminal.exitCode as number | null }
+        : {}),
+    };
+  }
+
   if (eventType === 'plan_update') {
     normalized.planItems = Array.isArray(update.planItems)
       ? update.planItems.map((item) => {
@@ -762,6 +819,9 @@ function asNormalizedEventType(
     case 'agent_message':
     case 'agent_thought':
     case 'user_message':
+    case 'terminal_created':
+    case 'terminal_output':
+    case 'terminal_exited':
     case 'plan_update':
     case 'turn_complete':
     case 'session_info_update':

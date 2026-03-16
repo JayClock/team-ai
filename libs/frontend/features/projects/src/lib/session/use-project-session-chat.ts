@@ -8,12 +8,28 @@ import { toast } from '@shared/ui';
 import type { DynamicToolUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+type SessionTerminalData = {
+  args?: string[];
+  command?: string | null;
+  exitCode?: number | null;
+  output: string;
+  status: 'completed' | 'failed' | 'running';
+  terminalId: string;
+};
+
 export type SessionChatMessage = UIMessage<{
   chunkKey?: string;
   emittedAt: string;
   optimistic?: boolean;
   pending?: boolean;
+}, {
+  terminal: SessionTerminalData;
 }>;
+
+type SessionTerminalPart = Extract<
+  SessionChatMessage['parts'][number],
+  { type: 'data-terminal' }
+>;
 
 type PromptSubmitInput = {
   cwd?: string;
@@ -192,6 +208,50 @@ function buildToolPart(event: AcpEventEnvelope): DynamicToolUIPart | null {
   }
 }
 
+function buildTerminalPart(
+  event: AcpEventEnvelope,
+  previous?: SessionTerminalData,
+) {
+  if (
+    event.update.eventType !== 'terminal_created' &&
+    event.update.eventType !== 'terminal_output' &&
+    event.update.eventType !== 'terminal_exited'
+  ) {
+    return null;
+  }
+
+  const terminal = event.update.terminal;
+  const terminalId = asText(terminal?.terminalId);
+  if (!terminalId) {
+    return null;
+  }
+
+  const nextData: SessionTerminalData = {
+    terminalId,
+    command: terminal?.command ?? previous?.command ?? null,
+    args: terminal?.args ?? previous?.args,
+    output: previous?.output ?? '',
+    status: previous?.status ?? 'running',
+    exitCode: previous?.exitCode,
+  };
+
+  if (event.update.eventType === 'terminal_output') {
+    nextData.output = `${nextData.output}${terminal?.data ?? ''}`;
+  }
+
+  if (event.update.eventType === 'terminal_exited') {
+    nextData.exitCode = terminal?.exitCode ?? null;
+    nextData.status =
+      (terminal?.exitCode ?? 0) === 0 ? 'completed' : 'failed';
+  }
+
+  return {
+    type: 'data-terminal' as const,
+    id: terminalId,
+    data: nextData,
+  };
+}
+
 function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
   const messages: SessionChatMessage[] = [];
   const messagesByChunkKey = new Map<string, SessionChatMessage>();
@@ -316,6 +376,59 @@ function buildChatMessages(history: AcpEventEnvelope[]): SessionChatMessage[] {
           emittedAt: event.emittedAt,
         },
         parts: [toolPart],
+      };
+      messages.push(nextMessage);
+      messagesByChunkKey.set(chunkKey, nextMessage);
+      continue;
+    }
+
+    if (
+      event.update.eventType === 'terminal_created' ||
+      event.update.eventType === 'terminal_output' ||
+      event.update.eventType === 'terminal_exited'
+    ) {
+      const terminalId = asText(event.update.terminal?.terminalId);
+      if (!terminalId) {
+        continue;
+      }
+
+      const chunkKey = `assistant:terminal:${terminalId}`;
+      const existing = messagesByChunkKey.get(chunkKey);
+      const previousPart = existing?.parts.find(
+        (part): part is SessionTerminalPart => part.type === 'data-terminal',
+      );
+      const terminalPart = buildTerminalPart(event, previousPart?.data);
+
+      if (!terminalPart) {
+        continue;
+      }
+
+      if (existing) {
+        const partIndex = existing.parts.findIndex(
+          (part) => part.type === 'data-terminal' && part.id === terminalId,
+        );
+
+        if (partIndex >= 0) {
+          existing.parts[partIndex] = terminalPart;
+        } else {
+          existing.parts.push(terminalPart);
+        }
+
+        existing.metadata = {
+          ...existing.metadata,
+          emittedAt: event.emittedAt,
+        };
+        continue;
+      }
+
+      const nextMessage: SessionChatMessage = {
+        id: chunkKey,
+        role: 'assistant',
+        metadata: {
+          chunkKey,
+          emittedAt: event.emittedAt,
+        },
+        parts: [terminalPart],
       };
       messages.push(nextMessage);
       messagesByChunkKey.set(chunkKey, nextMessage);
