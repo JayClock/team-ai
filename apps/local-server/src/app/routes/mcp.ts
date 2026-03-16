@@ -15,6 +15,11 @@ import {
   syncSpecNoteToTasks,
 } from '../services/spec-task-sync-service';
 import {
+  ensureRoleValue,
+  getDefaultSpecialistByRole,
+  getSpecialistById,
+} from '../services/specialist-service';
+import {
   cancelAcpSession,
   getAcpSessionById,
   createAcpSession,
@@ -186,6 +191,16 @@ const setNoteContentArgsSchema = z.object({
   taskId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1).optional(),
   type: noteTypeSchema.default('general'),
+});
+
+const delegateTaskToAgentArgsSchema = z.object({
+  additionalInstructions: z.string().trim().min(1).optional(),
+  callerSessionId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1),
+  provider: z.string().trim().min(1).optional(),
+  specialist: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+  waitMode: z.enum(['immediate', 'after_all']).optional(),
 });
 
 const createAcpSessionArgsSchema = z.object({
@@ -401,6 +416,37 @@ const mcpToolDefinitions: readonly McpToolDefinition[] = [
           },
           page: { type: 'number', minimum: 1, default: 1 },
           pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
+        },
+      },
+    },
+  },
+  {
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'delegate_task_to_agent',
+      title: 'Delegate Task To Agent',
+      description:
+        'Assign a task to a downstream specialist and trigger a child execution session in the local desktop runtime.',
+      inputSchema: {
+        type: 'object',
+        required: ['callerSessionId', 'projectId', 'specialist', 'taskId'],
+        properties: {
+          callerSessionId: { type: 'string' },
+          projectId: { type: 'string' },
+          taskId: { type: 'string' },
+          specialist: {
+            type: 'string',
+            description: 'Role value like CRAFTER/GATE/DEVELOPER or a specialist id.',
+          },
+          provider: { type: 'string' },
+          waitMode: {
+            type: 'string',
+            enum: ['immediate', 'after_all'],
+          },
+          additionalInstructions: { type: 'string' },
         },
       },
     },
@@ -1036,6 +1082,29 @@ function describeNoteScope(note: {
   };
 }
 
+async function resolveDelegationSpecialist(
+  sqlite: Parameters<typeof getProjectById>[0],
+  projectId: string,
+  specialistValue: string,
+) {
+  const role = ensureRoleValue(specialistValue);
+  if (role) {
+    const specialist = await getDefaultSpecialistByRole(sqlite, projectId, role);
+    return {
+      requested: specialistValue,
+      resolvedRole: role,
+      specialist,
+    };
+  }
+
+  const specialist = await getSpecialistById(sqlite, projectId, specialistValue);
+  return {
+    requested: specialistValue,
+    resolvedRole: specialist.role,
+    specialist,
+  };
+}
+
 const mcpRoute: FastifyPluginAsync = async (fastify) => {
   const workflow = fastify.taskWorkflowOrchestrator;
 
@@ -1207,6 +1276,61 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 request,
                 id,
                 await listTaskRuns(fastify.sqlite, args),
+                auditContext,
+              );
+            }
+            case 'delegate_task_to_agent': {
+              const args = delegateTaskToAgentArgsSchema.parse(
+                toolCall.arguments,
+              );
+              await getProjectById(fastify.sqlite, args.projectId);
+              await getProjectSession(
+                fastify.sqlite,
+                args.projectId,
+                args.callerSessionId,
+              );
+              await getProjectTask(
+                fastify.sqlite,
+                args.projectId,
+                args.taskId,
+              );
+
+              const delegation = await resolveDelegationSpecialist(
+                fastify.sqlite,
+                args.projectId,
+                args.specialist,
+              );
+              const task = await workflow.patchTaskFromMcpAndMaybeExecute(
+                args.taskId,
+                {
+                  assignedProvider: args.provider,
+                  assignedRole: delegation.resolvedRole,
+                  assignedSpecialistId: delegation.specialist.id,
+                  status: 'READY',
+                },
+                {
+                  callerSessionId: args.callerSessionId,
+                  logger: request.log,
+                  source: 'mcp_delegate_task_to_agent',
+                },
+              );
+
+              return toolResult(
+                request,
+                id,
+                {
+                  delegation: {
+                    additionalInstructions: args.additionalInstructions ?? null,
+                    requestedSpecialist: delegation.requested,
+                    resolvedRole: delegation.resolvedRole,
+                    resolvedSpecialist: {
+                      id: delegation.specialist.id,
+                      name: delegation.specialist.name,
+                    },
+                    waitMode: args.waitMode ?? 'after_all',
+                  },
+                  task,
+                },
                 auditContext,
               );
             }

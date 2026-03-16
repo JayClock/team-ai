@@ -174,6 +174,7 @@ describe('mcp route', () => {
         'task_update',
         'task_execute',
         'task_runs_list',
+        'delegate_task_to_agent',
         'set_note_content',
         'notes_append',
         'acp_session_create',
@@ -645,6 +646,7 @@ describe('mcp route', () => {
     );
     expect(toolNames).not.toContain('task_update');
     expect(toolNames).not.toContain('task_execute');
+    expect(toolNames).not.toContain('delegate_task_to_agent');
     expect(toolNames).not.toContain('set_note_content');
     expect(toolNames).not.toContain('notes_append');
     expect(toolNames).not.toContain('acp_session_create');
@@ -1011,6 +1013,108 @@ Validation and review logic
         }),
       ]),
     );
+  });
+
+  it('delegates a task to a downstream specialist via MCP', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-delegate-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    const promptMock = vi.fn(async () => ({
+      runtimeSessionId: 'runtime-delegate',
+      response: {
+        stopReason: 'end_turn' as const,
+      },
+    }));
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.provider}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: promptMock,
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Delegate Task Project',
+      repoPath: '/tmp/team-ai-mcp-delegate-project',
+    });
+    const callerSessionId = 'acps_delegate_root';
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-delegate-project',
+      id: callerSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+    const task = await createTask(fastify.sqlite, {
+      projectId: project.id,
+      title: 'Implement delegated feature',
+      objective: 'Delegate this task to the built-in crafter specialist',
+      status: 'PENDING',
+      kind: 'implement',
+      sessionId: callerSessionId,
+    });
+
+    const response = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-delegate-task',
+        method: 'tools/call',
+        params: {
+          name: 'delegate_task_to_agent',
+          arguments: {
+            callerSessionId,
+            projectId: project.id,
+            specialist: 'CRAFTER',
+            taskId: task.id,
+            waitMode: 'after_all',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().result.content[0].json).toMatchObject({
+      delegation: {
+        requestedSpecialist: 'CRAFTER',
+        resolvedRole: 'CRAFTER',
+        resolvedSpecialist: {
+          id: 'crafter-implementor',
+          name: 'Crafter Implementor',
+        },
+        waitMode: 'after_all',
+      },
+      task: {
+        id: task.id,
+        assignedRole: 'CRAFTER',
+        assignedSpecialistId: 'crafter-implementor',
+        status: 'COMPLETED',
+      },
+    });
+    expect(promptMock).toHaveBeenCalledTimes(1);
   });
 
   it('rejects cross-project task, run, and note scope arguments', async () => {
