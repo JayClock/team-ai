@@ -6,7 +6,9 @@ import type {
   ProjectRuntimeProfilePayload,
   UpdateProjectRuntimeProfileInput,
 } from '../schemas/runtime-profile';
+import { ProblemError } from '../errors/problem-error';
 import { getProjectById } from './project-service';
+import { listProviderModels as listProviderModelsFromService } from './provider-service';
 
 const runtimeProfileIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -25,6 +27,12 @@ interface ProjectRuntimeProfileRow {
   project_id: string;
   skill_configs_json: string;
   updated_at: string;
+}
+
+export interface UpdateProjectRuntimeProfileDeps {
+  listProviderModels?: (
+    providerId: string,
+  ) => Promise<Array<{ id: string; providerId: string }>>;
 }
 
 function createRuntimeProfileId() {
@@ -92,6 +100,55 @@ function normalizeConfigMap(
       return [[trimmedKey, { ...config }]];
     }),
   );
+}
+
+function normalizeOptionalText(
+  value: string | null | undefined,
+): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+async function validateRuntimeProfileDefaults(
+  profile: Pick<ProjectRuntimeProfilePayload, 'defaultModel' | 'defaultProviderId'>,
+  deps: UpdateProjectRuntimeProfileDeps,
+): Promise<void> {
+  const providerId = normalizeOptionalText(profile.defaultProviderId);
+  const model = normalizeOptionalText(profile.defaultModel);
+
+  if (!model) {
+    return;
+  }
+
+  if (!providerId) {
+    throw new ProblemError({
+      type: 'https://team-ai.dev/problems/runtime-profile-default-model-provider-required',
+      title: 'Runtime Profile Default Provider Required',
+      status: 400,
+      detail:
+        'defaultProviderId must be set before saving a defaultModel in the runtime profile',
+    });
+  }
+
+  const listProviderModels =
+    deps.listProviderModels ?? listProviderModelsFromService;
+  const models = await listProviderModels(providerId);
+  const belongsToProvider = models.some(
+    (candidate) =>
+      normalizeOptionalText(candidate.providerId) === providerId &&
+      normalizeOptionalText(candidate.id) === model,
+  );
+
+  if (belongsToProvider) {
+    return;
+  }
+
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/runtime-profile-default-model-provider-mismatch',
+    title: 'Runtime Profile Default Model Provider Mismatch',
+    status: 400,
+    detail: `Model ${model} is not available for provider ${providerId}`,
+  });
 }
 
 function mapProjectRuntimeProfileRow(
@@ -226,18 +283,19 @@ export async function updateProjectRuntimeProfile(
   sqlite: Database,
   projectId: string,
   input: UpdateProjectRuntimeProfileInput,
+  deps: UpdateProjectRuntimeProfileDeps = {},
 ): Promise<ProjectRuntimeProfilePayload> {
   const current = await getProjectRuntimeProfile(sqlite, projectId);
   const next: ProjectRuntimeProfilePayload = {
     createdAt: current.createdAt,
     defaultModel:
       input.defaultModel === undefined
-        ? current.defaultModel
-        : input.defaultModel,
+        ? normalizeOptionalText(current.defaultModel)
+        : normalizeOptionalText(input.defaultModel),
     defaultProviderId:
       input.defaultProviderId === undefined
-        ? current.defaultProviderId
-        : input.defaultProviderId,
+        ? normalizeOptionalText(current.defaultProviderId)
+        : normalizeOptionalText(input.defaultProviderId),
     enabledMcpServerIds:
       input.enabledMcpServerIds === undefined
         ? current.enabledMcpServerIds
@@ -259,6 +317,8 @@ export async function updateProjectRuntimeProfile(
         : normalizeConfigMap(input.skillConfigs),
     updatedAt: new Date().toISOString(),
   };
+
+  await validateRuntimeProfileDefaults(next, deps);
 
   sqlite
     .prepare(

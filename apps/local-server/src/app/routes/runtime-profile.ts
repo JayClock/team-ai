@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { presentProjectRuntimeProfile } from '../presenters/project-runtime-profile-presenter';
 import {
   getProjectRuntimeProfile,
+  type UpdateProjectRuntimeProfileDeps,
   updateProjectRuntimeProfile,
 } from '../services/project-runtime-profile-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -30,7 +31,10 @@ const runtimeProfilePatchSchema = z
     message: 'At least one field must be provided',
   });
 
-const runtimeProfileRoute: FastifyPluginAsync = async (fastify) => {
+type RuntimeProfileRouteOptions = UpdateProjectRuntimeProfileDeps;
+
+const runtimeProfileRoute: FastifyPluginAsync<RuntimeProfileRouteOptions> =
+  async (fastify, options) => {
   fastify.get(
     '/projects/:projectId/runtime-profile',
     async (request, reply) => {
@@ -53,7 +57,9 @@ const runtimeProfileRoute: FastifyPluginAsync = async (fastify) => {
       setVendorMediaType(reply, VENDOR_MEDIA_TYPES.projectRuntimeProfile);
 
       return presentProjectRuntimeProfile(
-        await updateProjectRuntimeProfile(fastify.sqlite, projectId, body),
+        await updateProjectRuntimeProfile(fastify.sqlite, projectId, body, {
+          listProviderModels: options.listProviderModels,
+        }),
       );
     },
   );

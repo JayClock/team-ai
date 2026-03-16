@@ -532,10 +532,22 @@ describe('acp route', () => {
       repoPath: '/tmp/team-ai-desktop-runtime-profile-defaults',
     });
 
-    await updateProjectRuntimeProfile(fastify.sqlite, project.id, {
-      defaultModel: 'gpt-5-mini',
-      defaultProviderId: 'opencode',
-    });
+    await updateProjectRuntimeProfile(
+      fastify.sqlite,
+      project.id,
+      {
+        defaultModel: 'openai/gpt-5-mini',
+        defaultProviderId: 'opencode',
+      },
+      {
+        listProviderModels: async () => [
+          {
+            id: 'openai/gpt-5-mini',
+            providerId: 'opencode',
+          },
+        ],
+      },
+    );
 
     const createResponse = await fastify.inject({
       method: 'POST',
@@ -555,7 +567,7 @@ describe('acp route', () => {
     expect(createResponse.statusCode).toBe(200);
     expect(fastify.acpRuntime.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gpt-5-mini',
+        model: 'openai/gpt-5-mini',
         provider: 'opencode',
       }),
     );
@@ -563,7 +575,7 @@ describe('acp route', () => {
     const sessionId = createResponse.json().result.session.id as string;
     const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
     expect(storedSession.provider).toBe('opencode');
-    expect(storedSession.model).toBe('gpt-5-mini');
+    expect(storedSession.model).toBe('openai/gpt-5-mini');
   });
 
   it('fails explicitly when neither an input provider nor a runtime profile default provider exists', async () => {

@@ -180,7 +180,13 @@ describe('resource content types', () => {
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
     await fastify.register(meRoute, { prefix: '/api' });
-    await fastify.register(providersRoute, { prefix: '/api' });
+    await fastify.register(providersRoute, {
+      prefix: '/api',
+      providerModelCommandRunner: async () => ({
+        stdout: 'openai/gpt-5-mini\n',
+        stderr: '',
+      }),
+    });
     await fastify.register(settingsRoute, { prefix: '/api' });
     await fastify.register(syncRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });

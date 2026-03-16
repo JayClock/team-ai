@@ -16,9 +16,11 @@ import { useMemo } from 'react';
 import type { AcpProvider } from '../session/use-acp-providers';
 
 export type ProjectProviderPickerProps = {
+  allowClear?: boolean;
   disabled?: boolean;
+  emptyLabel?: string;
   loading?: boolean;
-  onValueChange?: (providerId: string) => void;
+  onValueChange?: (providerId: string | null) => void;
   providers: AcpProvider[];
   value?: string | null;
 };
@@ -44,7 +46,15 @@ function normalizeProviderId(value: string | null | undefined): string | null {
 }
 
 export function ProjectProviderPicker(props: ProjectProviderPickerProps) {
-  const { disabled, loading, onValueChange, providers, value } = props;
+  const {
+    allowClear,
+    disabled,
+    emptyLabel,
+    loading,
+    onValueChange,
+    providers,
+    value,
+  } = props;
   const normalizedValue = normalizeProviderId(value);
   const selectedProvider =
     providers.find((provider) => provider.id === normalizedValue) ?? null;
@@ -77,7 +87,10 @@ export function ProjectProviderPicker(props: ProjectProviderPickerProps) {
 
   const triggerLabel = loading
     ? '加载 provider...'
-    : selectedProvider?.name ?? normalizedValue ?? '选择 provider';
+    : selectedProvider?.name ??
+      normalizedValue ??
+      emptyLabel ??
+      '选择 provider';
   const triggerStatusClass = loading
     ? 'bg-slate-300 dark:bg-slate-600'
     : selectedProvider?.status === 'available'
@@ -111,6 +124,25 @@ export function ProjectProviderPicker(props: ProjectProviderPickerProps) {
         side="top"
         className="w-72 rounded-lg border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-[#1e2130]"
       >
+        {allowClear ? (
+          <>
+            <DropdownMenuItem
+              onSelect={() => onValueChange?.(null)}
+              className="gap-2 rounded-md px-3 py-2 text-left text-gray-600 focus:bg-gray-50 focus:text-gray-900 dark:text-gray-300 dark:focus:bg-gray-800/50 dark:focus:text-gray-100"
+            >
+              <span className="min-w-0 flex-1 truncate text-xs">
+                {emptyLabel ?? '不指定 provider'}
+              </span>
+              {!normalizedValue ? (
+                <CheckIcon className="size-3.5 shrink-0" />
+              ) : null}
+            </DropdownMenuItem>
+            {groupedProviders.length > 0 ? (
+              <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-800" />
+            ) : null}
+          </>
+        ) : null}
+
         {groupedProviders.length > 0 ? (
           groupedProviders.map(([groupKey, items], index) => (
             <div key={groupKey}>

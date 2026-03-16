@@ -5,7 +5,7 @@ import { ShellsSession, type ShellsSessionProps } from '../session/session';
 
 export type ProjectSessionWorkbenchProps = Omit<
   ShellsSessionProps,
-  'runtimeProfile'
+  'onRuntimeProfileChange' | 'runtimeProfile'
 >;
 
 type ProjectSessionRuntimeProfile = NonNullable<
@@ -53,5 +53,11 @@ export function ProjectSessionWorkbench(props: ProjectSessionWorkbenchProps) {
     };
   }, [projectState]);
 
-  return <ShellsSession {...props} runtimeProfile={runtimeProfile} />;
+  return (
+    <ShellsSession
+      {...props}
+      onRuntimeProfileChange={setRuntimeProfile}
+      runtimeProfile={runtimeProfile}
+    />
+  );
 }

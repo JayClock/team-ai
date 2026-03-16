@@ -42,6 +42,7 @@ import {
   type ProjectRepositoryOption,
   type ProjectWorktreeOption,
 } from '../components/project-composer-input';
+import { ProjectRuntimeProfilePanel } from '../components/project-runtime-profile-panel';
 import type { ProjectModelPickerProps } from '../components/project-model-picker';
 
 const STREAM_RETRY_DELAY_MS = 1500;
@@ -51,6 +52,9 @@ const LEFT_SIDEBAR_COLLAPSED_KEY = 'team-ai.session.left-sidebar-collapsed';
 export type ShellsSessionProps = {
   initialSessionId?: string;
   onPendingPromptConsumed?: () => void;
+  onRuntimeProfileChange?: (
+    profile: WorkbenchSessionRuntimeProfile | null,
+  ) => void;
   onSessionNavigate?: (sessionId: string) => void;
   pendingPrompt?: string | null;
   projectState: State<Project>;
@@ -84,6 +88,7 @@ export function ShellsSession(props: ShellsSessionProps) {
   const {
     projectState,
     initialSessionId,
+    onRuntimeProfileChange,
     pendingPrompt,
     onPendingPromptConsumed,
     onSessionNavigate,
@@ -791,15 +796,29 @@ export function ShellsSession(props: ShellsSessionProps) {
           ) : null}
 
           <main className="min-w-0 flex-1 bg-background">
-            <ProjectSessionConversationPane
-              chatMessages={chatMessages}
-              hasPendingAssistantMessage={hasPendingAssistantMessage}
-              modelPicker={sessionPromptModelPicker}
-              onSubmit={handlePromptSubmit}
-              providerPicker={sessionPromptProviderPicker}
-              projectPicker={sessionPromptProjectPicker}
-              selectedSession={selectedSession}
-            />
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="border-b border-border/60 bg-background px-4 py-3 md:px-5">
+                <div className="mx-auto w-full max-w-3xl">
+                  <ProjectRuntimeProfilePanel
+                    onRuntimeProfileChange={onRuntimeProfileChange}
+                    projectId={projectState.data.id}
+                    runtimeProfile={runtimeProfile}
+                  />
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1">
+                <ProjectSessionConversationPane
+                  chatMessages={chatMessages}
+                  hasPendingAssistantMessage={hasPendingAssistantMessage}
+                  modelPicker={sessionPromptModelPicker}
+                  onSubmit={handlePromptSubmit}
+                  providerPicker={sessionPromptProviderPicker}
+                  projectPicker={sessionPromptProjectPicker}
+                  selectedSession={selectedSession}
+                />
+              </div>
+            </div>
           </main>
         </div>
       </div>

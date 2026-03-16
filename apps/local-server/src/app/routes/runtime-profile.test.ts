@@ -64,7 +64,7 @@ describe('runtime profile routes', () => {
       method: 'PATCH',
       url: `/api/projects/${project.id}/runtime-profile`,
       payload: {
-        defaultModel: 'gpt-5.4',
+        defaultModel: 'openai/gpt-5-mini',
         defaultProviderId: 'opencode',
         enabledMcpServerIds: ['team_ai_local'],
         enabledSkillIds: ['reviewer'],
@@ -87,7 +87,7 @@ describe('runtime profile routes', () => {
       VENDOR_MEDIA_TYPES.projectRuntimeProfile,
     );
     expect(patchResponse.json()).toMatchObject({
-      defaultModel: 'gpt-5.4',
+      defaultModel: 'openai/gpt-5-mini',
       defaultProviderId: 'opencode',
       enabledMcpServerIds: ['team_ai_local'],
       enabledSkillIds: ['reviewer'],
@@ -112,7 +112,7 @@ describe('runtime profile routes', () => {
 
     expect(secondReadResponse.statusCode).toBe(200);
     expect(secondReadResponse.json()).toMatchObject({
-      defaultModel: 'gpt-5.4',
+      defaultModel: 'openai/gpt-5-mini',
       defaultProviderId: 'opencode',
       enabledMcpServerIds: ['team_ai_local'],
       enabledSkillIds: ['reviewer'],
@@ -211,7 +211,8 @@ describe('runtime profile routes', () => {
       method: 'PATCH',
       url: `/api/projects/${project.id}/runtime-profile`,
       payload: {
-        defaultModel: 'gpt-5.4',
+        defaultModel: 'openai/gpt-5-mini',
+        defaultProviderId: 'opencode',
         enabledMcpServerIds: ['team_ai_local'],
         enabledSkillIds: ['reviewer'],
         mcpServerConfigs: {
@@ -238,7 +239,7 @@ describe('runtime profile routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      defaultModel: 'gpt-5.4',
+      defaultModel: 'openai/gpt-5-mini',
       defaultProviderId: 'opencode',
       enabledMcpServerIds: ['team_ai_local'],
       enabledSkillIds: ['reviewer'],
@@ -279,14 +280,31 @@ describe('runtime profile routes', () => {
     return sqlite;
   }
 
-  async function createTestServer(sqlite: Database) {
+  async function createTestServer(
+    sqlite: Database,
+    options?: {
+      listProviderModels?: (providerId: string) => Promise<
+        Array<{ id: string; providerId: string }>
+      >;
+    },
+  ) {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
     fastify.decorate('sqlite', sqlite);
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
-    await fastify.register(runtimeProfileRoute, { prefix: '/api' });
+    await fastify.register(runtimeProfileRoute, {
+      prefix: '/api',
+      listProviderModels:
+        options?.listProviderModels ??
+        (async (providerId: string) => [
+          {
+            id: 'openai/gpt-5-mini',
+            providerId,
+          },
+        ]),
+    });
     await fastify.ready();
 
     return fastify;
