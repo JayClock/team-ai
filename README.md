@@ -72,6 +72,57 @@ Electron desktop UI
   -> ACP provider / CLI adapter
 ```
 
+#### Task Orchestration Sequence
+
+The desktop task orchestration path in `apps/local-server` is now layered so each module owns one part of the flow:
+
+- route handlers call one app-scoped `taskWorkflowOrchestrator`
+- the workflow facade delegates execution lifecycle decisions to `task-orchestration-service`
+- dispatch policy resolution lives in `task-dispatch-policy-service`
+- child-session dispatch flow lives in `task-dispatch-service`
+- ACP runtime integration lives in `task-execution-runtime-service`
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant UI as Desktop UI / MCP Client
+  participant Route as local-server route
+  participant Workflow as taskWorkflowOrchestrator
+  participant Orchestration as task-orchestration-service
+  participant Policy as task-dispatch-policy-service
+  participant Dispatch as task-dispatch-service
+  participant Runtime as task-execution-runtime-service
+  participant ACP as acp-service / agent-gateway / provider
+
+  UI->>Route: PATCH task / execute task / retry task run
+  Route->>Workflow: executeTask / patchTaskAndMaybeExecute / retryTaskRun
+  Workflow->>Orchestration: apply state transition and execution rules
+  Orchestration->>Policy: evaluate dispatchability, role, specialist, provider
+  Policy-->>Orchestration: dispatch decision
+
+  alt task should dispatch
+    Orchestration->>Dispatch: dispatchTask
+    Dispatch->>Policy: resolveTaskDispatchPolicy
+    Policy-->>Dispatch: dispatch context + resolved assignment
+    Dispatch->>Dispatch: hydrate task assignment and claim dispatch
+    Dispatch->>Runtime: createSession
+    Runtime->>ACP: create ACP child session
+    ACP-->>Runtime: session id
+    Runtime-->>Dispatch: session id
+    Dispatch->>Runtime: promptSession
+    Runtime->>ACP: send task prompt to execution session
+    ACP-->>Runtime: accepted / stream started
+    Runtime-->>Dispatch: prompt dispatched
+    Dispatch-->>Orchestration: dispatch result
+    Orchestration-->>Workflow: updated task state
+  else task is blocked
+    Orchestration-->>Workflow: unchanged or patched task
+  end
+
+  Workflow-->>Route: task / task run result
+  Route-->>UI: HTTP response
+```
+
 #### Current Provider Authority
 
 After the provider runtime refactor:
