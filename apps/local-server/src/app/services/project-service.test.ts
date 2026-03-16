@@ -1,17 +1,26 @@
+import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import {
   createProject,
+  deleteProject,
   findProjectBySourceUrl,
   findProjectByRepoPath,
   getProjectById,
   listProjects,
   updateProject,
 } from './project-service';
+import { listProjectCodebases } from './project-codebase-service';
+import {
+  createProjectWorktree,
+} from './project-worktree-service';
+
+const execFileAsync = promisify(execFile);
 
 describe('project service', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];
@@ -144,6 +153,40 @@ describe('project service', () => {
     });
   });
 
+  it('cleans up attached codebase worktrees before deleting the project', async () => {
+    const sqlite = await createTestDatabase();
+    const repoPath = await createGitRepository(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Delete Project',
+      repoPath,
+    });
+    const [codebase] = (await listProjectCodebases(sqlite, project.id)).items;
+
+    await createProjectWorktree(sqlite, project.id, codebase.id, {
+      label: 'Delete Project Worktree',
+    });
+
+    await deleteProject(sqlite, project.id);
+
+    await expect(getProjectById(sqlite, project.id)).rejects.toMatchObject({
+      status: 404,
+      type: 'https://team-ai.dev/problems/project-not-found',
+    });
+    expect(
+      (
+        sqlite
+          .prepare(
+            `
+              SELECT COUNT(*) AS count
+              FROM project_worktrees
+              WHERE project_id = ? AND deleted_at IS NULL
+            `,
+          )
+          .get(project.id) as { count: number }
+      ).count,
+    ).toBe(0);
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-project-service-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
@@ -162,5 +205,25 @@ describe('project service', () => {
     });
 
     return sqlite;
+  }
+
+  async function createGitRepository(cleanup: Array<() => Promise<void>>) {
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-project-service-repo-'));
+    cleanup.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+
+    await execFileAsync('git', ['init', '--initial-branch=main'], { cwd: repoPath });
+    await execFileAsync('git', ['config', 'user.name', 'Team AI Test'], {
+      cwd: repoPath,
+    });
+    await execFileAsync('git', ['config', 'user.email', 'team-ai@example.test'], {
+      cwd: repoPath,
+    });
+    await execFileAsync('git', ['commit', '--allow-empty', '-m', 'initial'], {
+      cwd: repoPath,
+    });
+
+    return repoPath;
   }
 });

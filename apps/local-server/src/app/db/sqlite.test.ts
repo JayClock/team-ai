@@ -72,6 +72,15 @@ describe('sqlite initialization', () => {
     const runtimeProfileColumns = sqlite
       .prepare('PRAGMA table_info(project_runtime_profiles)')
       .all() as Array<{ name: string }>;
+    const worktreeIndexes = sqlite
+      .prepare('PRAGMA index_list(project_worktrees)')
+      .all() as Array<{ name: string }>;
+    const taskIndexes = sqlite
+      .prepare('PRAGMA index_list(project_tasks)')
+      .all() as Array<{ name: string }>;
+    const acpSessionIndexes = sqlite
+      .prepare('PRAGMA index_list(project_acp_sessions)')
+      .all() as Array<{ name: string }>;
 
     expect(tables.map(({ name }) => name)).toEqual([
       'agents',
@@ -220,6 +229,27 @@ describe('sqlite initialization', () => {
       'skill_configs_json',
       'mcp_server_configs_json',
     ]);
+    expect(worktreeIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_worktrees_project_id',
+        'idx_project_worktrees_codebase_id',
+        'idx_project_worktrees_session_id',
+        'idx_project_worktrees_codebase_branch_active',
+        'idx_project_worktrees_path_active',
+      ]),
+    );
+    expect(taskIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_tasks_codebase_id',
+        'idx_project_tasks_worktree_id',
+      ]),
+    );
+    expect(acpSessionIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_acp_sessions_codebase_id',
+        'idx_project_acp_sessions_worktree_id',
+      ]),
+    );
 
     sqlite.close();
   });

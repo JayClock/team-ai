@@ -99,6 +99,40 @@ describe('project worktree service', () => {
     ).toBe('issue/task_123-fix-flaky-worktree-cleanup');
   });
 
+  it('serializes worktree operations per repository', async () => {
+    const steps: string[] = [];
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+
+    const first = __worktreeTestUtils.withRepoLock('/tmp/repo-lock-test', async () => {
+      steps.push('first:start');
+      await firstGate;
+      steps.push('first:end');
+    });
+    const second = __worktreeTestUtils.withRepoLock('/tmp/repo-lock-test', async () => {
+      steps.push('second:start');
+      steps.push('second:end');
+    });
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    expect(steps).toEqual(['first:start']);
+
+    releaseFirst();
+    await Promise.all([first, second]);
+
+    expect(steps).toEqual([
+      'first:start',
+      'first:end',
+      'second:start',
+      'second:end',
+    ]);
+  });
+
   async function createTestDatabase(): Promise<{ sqlite: Database }> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-worktree-service-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
