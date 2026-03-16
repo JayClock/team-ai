@@ -1,5 +1,5 @@
 export interface ProviderPayload {
-  defaultModel: string;
+  defaultModel: string | null;
   id: string;
   modelsHref: string;
   name: string;

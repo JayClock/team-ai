@@ -43,22 +43,28 @@ describe('providers route', () => {
     expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.providers);
     expect(response.json()).toMatchObject({
       _embedded: {
-        providers: expect.arrayContaining([
+        providers: [
           expect.objectContaining({
-            id: 'openai',
-            modelsHref: '/api/providers/openai/models',
+            defaultModel: null,
+            id: 'opencode',
+            modelsHref: '/api/providers/opencode/models',
           }),
-        ]),
+        ],
       },
     });
   });
 
   it('lists models for a specific provider', async () => {
-    const fastify = await createTestServer();
+    const fastify = await createTestServer({
+      providerModelCommandRunner: async () => ({
+        stdout: 'openai/gpt-5-mini\nopenai/gpt-5\ninvalid-line\n',
+        stderr: '',
+      }),
+    });
 
     const response = await fastify.inject({
       method: 'GET',
-      url: '/api/providers/openai/models',
+      url: '/api/providers/opencode/models',
     });
 
     expect(response.statusCode).toBe(200);
@@ -69,20 +75,20 @@ describe('providers route', () => {
       _embedded: {
         models: [
           {
-            id: 'gpt-4o-mini',
-            name: 'GPT-4o mini',
-            providerId: 'openai',
+            id: 'openai/gpt-5-mini',
+            name: 'openai/gpt-5-mini',
+            providerId: 'opencode',
           },
           {
-            id: 'gpt-4.1',
-            name: 'GPT-4.1',
-            providerId: 'openai',
+            id: 'openai/gpt-5',
+            name: 'openai/gpt-5',
+            providerId: 'opencode',
           },
         ],
       },
       _links: {
         self: {
-          href: '/api/providers/openai/models',
+          href: '/api/providers/opencode/models',
         },
       },
     });
@@ -103,7 +109,12 @@ describe('providers route', () => {
     });
   });
 
-  async function createTestServer() {
+  async function createTestServer(options?: {
+    providerModelCommandRunner?: (
+      command: string,
+      args: string[],
+    ) => Promise<{ stderr: string; stdout: string }>;
+  }) {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-providers-route-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
     process.env.TEAMAI_DATA_DIR = dataDir;
@@ -125,7 +136,10 @@ describe('providers route', () => {
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
-    await fastify.register(providersRoute, { prefix: '/api' });
+    await fastify.register(providersRoute, {
+      prefix: '/api',
+      providerModelCommandRunner: options?.providerModelCommandRunner,
+    });
     await fastify.ready();
 
     return fastify;

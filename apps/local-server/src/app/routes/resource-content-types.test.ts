@@ -57,7 +57,7 @@ describe('resource content types', () => {
 
     const providerModelsResponse = await fastify.inject({
       method: 'GET',
-      url: '/api/providers/openai/models',
+      url: '/api/providers/opencode/models',
     });
     expect(providerModelsResponse.statusCode).toBe(200);
     expect(responseContentType(providerModelsResponse)).toBe(

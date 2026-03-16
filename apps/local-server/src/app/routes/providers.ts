@@ -7,6 +7,7 @@ import {
 import {
   listProviderModels,
   listProviders,
+  type ProviderModelCommandRunner,
 } from '../services/provider-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
@@ -14,7 +15,14 @@ const providerParamsSchema = z.object({
   providerId: z.string().trim().min(1),
 });
 
-const providersRoute: FastifyPluginAsync = async (fastify) => {
+interface ProvidersRouteOptions {
+  providerModelCommandRunner?: ProviderModelCommandRunner;
+}
+
+const providersRoute: FastifyPluginAsync<ProvidersRouteOptions> = async (
+  fastify,
+  options,
+) => {
   fastify.get('/providers', async (_request, reply) => {
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.providers);
 
@@ -28,7 +36,9 @@ const providersRoute: FastifyPluginAsync = async (fastify) => {
 
     return presentProviderModels(
       providerId,
-      await listProviderModels(providerId),
+      await listProviderModels(providerId, {
+        runCommand: options.providerModelCommandRunner,
+      }),
     );
   });
 };
