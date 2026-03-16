@@ -28,15 +28,21 @@ import { ProjectSessionHistorySidebar } from './project-session-history-sidebar'
 import { useProjectSessionChat } from './use-project-session-chat';
 import { buildSessionTree } from './project-session-workbench.shared';
 import {
+  resolveComposerModel,
+  shouldResetComposerModelOnProviderChange,
+} from './session-composer-model';
+import {
   resolveWorkbenchSessionDefaults,
   type WorkbenchSessionRole,
   type WorkbenchSessionRuntimeProfile,
 } from './session-runtime-profile';
 import { useAcpProviders } from './use-acp-providers';
+import { useAcpProviderModels } from './use-acp-provider-models';
 import {
   type ProjectRepositoryOption,
   type ProjectWorktreeOption,
 } from '../components/project-composer-input';
+import type { ProjectModelPickerProps } from '../components/project-model-picker';
 
 const STREAM_RETRY_DELAY_MS = 1500;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
@@ -121,7 +127,9 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [resizeMode, setResizeMode] = useState<'left' | null>(null);
   const [preferredRole, setPreferredRole] =
     useState<WorkbenchSessionRole | null>(null);
-  const [preferredModel, setPreferredModel] = useState<string | null>(null);
+  const [preferredModelOverride, setPreferredModelOverride] = useState<
+    string | null | undefined
+  >(undefined);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
@@ -199,6 +207,13 @@ export function ShellsSession(props: ShellsSessionProps) {
     selectedProviderId,
     setSelectedProviderId,
   } = useAcpProviders(sessionDefaults.providerId);
+  const composerProviderId =
+    selectedSession?.data.provider ?? selectedProviderId ?? null;
+  const {
+    error: providerModelsError,
+    loading: providerModelsLoading,
+    models: providerModels,
+  } = useAcpProviderModels(composerProviderId);
 
   useEffect(() => {
     if (
@@ -318,16 +333,37 @@ export function ShellsSession(props: ShellsSessionProps) {
           ? 'DEVELOPER'
           : 'ROUTA',
       );
-      setPreferredModel(selectedSession.data.model ?? null);
       return;
     }
 
     setPreferredRole((current) => current ?? sessionDefaults.role);
-    setPreferredModel((current) => current ?? sessionDefaults.model);
-  }, [selectedSession, sessionDefaults.model, sessionDefaults.role]);
+  }, [selectedSession, sessionDefaults.role]);
+
+  const lastComposerProviderIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (selectedSession) {
+      lastComposerProviderIdRef.current = composerProviderId;
+      return;
+    }
+
+    if (
+      shouldResetComposerModelOnProviderChange({
+        previousProviderId: lastComposerProviderIdRef.current,
+        nextProviderId: composerProviderId,
+      })
+    ) {
+      setPreferredModelOverride(null);
+    }
+
+    lastComposerProviderIdRef.current = composerProviderId;
+  }, [composerProviderId, selectedSession]);
 
   const creationRole = preferredRole ?? sessionDefaults.role;
-  const creationModel = preferredModel ?? sessionDefaults.model;
+  const creationModel = resolveComposerModel({
+    modelOverride: preferredModelOverride,
+    sessionDefaultModel: sessionDefaults.model,
+  });
 
   const createSessionWithDefaults = useCallback(
     async (
@@ -424,6 +460,15 @@ export function ShellsSession(props: ShellsSessionProps) {
         providers,
         value: selectedProviderId,
       };
+  const sessionPromptModelPicker: ProjectModelPickerProps = {
+    disabled: selectedSession !== null,
+    error: providerModelsError,
+    loading: providerModelsLoading,
+    models: providerModels,
+    onValueChange: setPreferredModelOverride,
+    providerId: composerProviderId,
+    value: selectedSession ? selectedSession.data.model : creationModel,
+  };
   const sessionPromptProjectPicker = useMemo(() => {
     const sessionRepository = selectedSession?.data.codebase?.id
       ? (repositoryOptions.find(
@@ -749,6 +794,7 @@ export function ShellsSession(props: ShellsSessionProps) {
             <ProjectSessionConversationPane
               chatMessages={chatMessages}
               hasPendingAssistantMessage={hasPendingAssistantMessage}
+              modelPicker={sessionPromptModelPicker}
               onSubmit={handlePromptSubmit}
               providerPicker={sessionPromptProviderPicker}
               projectPicker={sessionPromptProjectPicker}

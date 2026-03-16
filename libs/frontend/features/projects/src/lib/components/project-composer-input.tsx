@@ -14,6 +14,10 @@ import {
 import { ArrowRightIcon, LoaderCircleIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
 import {
+  ProjectModelPicker,
+  type ProjectModelPickerProps,
+} from './project-model-picker';
+import {
   ProjectProviderPicker,
   type ProjectProviderPickerProps,
 } from './project-provider-picker';
@@ -23,6 +27,10 @@ import {
 } from './project-repository-picker';
 
 export type { ProjectProviderPickerProps } from './project-provider-picker';
+export type {
+  ProjectModelOption,
+  ProjectModelPickerProps,
+} from './project-model-picker';
 export type {
   ProjectRepositoryOption,
   ProjectRepositoryPickerProps,
@@ -43,6 +51,7 @@ export type ProjectComposerInputProps = {
   footerEnd?: ReactNode;
   footerStart?: ReactNode;
   onSubmit: (input: ProjectComposerSubmitInput) => Promise<void> | void;
+  modelPicker?: ProjectModelPickerProps;
   placeholder: string;
   providerPicker?: ProjectProviderPickerProps;
   projectPicker?: ProjectRepositoryPickerProps;
@@ -64,6 +73,7 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
     disabled,
     footerEnd,
     footerStart,
+    modelPicker,
     onSubmit,
     placeholder,
     providerPicker,
@@ -91,6 +101,7 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
           onSubmit({
             cwd: projectPicker?.value?.repoPath ?? undefined,
             files: message.files,
+            model: modelPicker?.value ?? undefined,
             provider: providerPicker?.value ?? undefined,
             text: message.text,
           })
@@ -129,6 +140,16 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
                   disabled === true ||
                   submitPending === true ||
                   providerPicker.disabled === true
+                }
+              />
+            ) : null}
+            {modelPicker ? (
+              <ProjectModelPicker
+                {...modelPicker}
+                disabled={
+                  disabled === true ||
+                  submitPending === true ||
+                  modelPicker.disabled === true
                 }
               />
             ) : null}

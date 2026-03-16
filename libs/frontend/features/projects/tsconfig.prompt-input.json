@@ -33,6 +33,7 @@
   ],
   "include": [
     "src/lib/components/project-composer-input.tsx",
+    "src/lib/components/project-model-picker.tsx",
     "src/lib/components/project-provider-picker.tsx",
     "src/lib/components/project-repository-picker.tsx",
     "src/lib/session/use-acp-providers.ts"

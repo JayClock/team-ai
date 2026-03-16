@@ -16,6 +16,7 @@ import {
   type ProjectProviderPickerProps,
   type ProjectRepositoryPickerProps,
 } from '../components/project-composer-input';
+import type { ProjectModelPickerProps } from '../components/project-model-picker';
 import { ReasoningPart } from './conversation-part-reasoning';
 import {
   isRenderableTerminalPart,
@@ -34,6 +35,7 @@ export function ProjectSessionConversationPane(props: {
     provider?: string;
     text: string;
   }) => Promise<void>;
+  modelPicker?: ProjectModelPickerProps;
   providerPicker?: ProjectProviderPickerProps;
   projectPicker?: ProjectRepositoryPickerProps;
   selectedSession: State<AcpSession> | null;
@@ -41,6 +43,7 @@ export function ProjectSessionConversationPane(props: {
   const {
     chatMessages,
     hasPendingAssistantMessage,
+    modelPicker,
     onSubmit,
     providerPicker,
     projectPicker,
@@ -67,9 +70,15 @@ export function ProjectSessionConversationPane(props: {
             {selectedSession.data.worktree.id}
           </span>
         ) : null}
+        {selectedSession ? (
+          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+            {selectedSession.data.model ?? '未指定 model'}
+          </span>
+        ) : null}
       </div>
     ),
     onSubmit,
+    modelPicker,
     placeholder: selectedSession
       ? '继续当前会话...'
       : '发送第一条消息，开始新的会话...',

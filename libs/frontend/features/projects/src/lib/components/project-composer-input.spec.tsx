@@ -186,6 +186,63 @@ describe('ProjectComposerInput', () => {
     );
   });
 
+  it('submits the selected model with the prompt payload', async () => {
+    const onSubmit = vi.fn();
+
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        modelPicker={{
+          models: [
+            {
+              id: 'gpt-5.4',
+              name: 'GPT 5.4',
+              providerId: 'opencode',
+            },
+          ],
+          providerId: 'opencode',
+          value: 'gpt-5.4',
+        }}
+        onSubmit={onSubmit}
+        placeholder="输入内容"
+        providerPicker={{
+          onValueChange: () => undefined,
+          providers: [
+            {
+              command: 'npx opencode',
+              description: 'OpenCode provider',
+              distributionTypes: ['npx'],
+              envCommandKey: 'OPENCODE_COMMAND',
+              id: 'opencode',
+              installable: true,
+              installed: true,
+              name: 'OpenCode',
+              source: 'static',
+              status: 'available',
+              unavailableReason: null,
+            },
+          ],
+          value: 'opencode',
+        }}
+      />,
+    );
+
+    fireEvent.change(screen.getByRole('textbox', { name: '项目指令输入框' }), {
+      target: { value: '实现 model 选择' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '发起会话' }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        cwd: undefined,
+        files: [],
+        model: 'gpt-5.4',
+        provider: 'opencode',
+        text: '实现 model 选择',
+      }),
+    );
+  });
+
   it('submits the selected repository path as cwd', async () => {
     const onSubmit = vi.fn();
 
