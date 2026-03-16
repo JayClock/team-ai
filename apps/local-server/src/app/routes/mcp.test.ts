@@ -37,16 +37,145 @@ describe('mcp route', () => {
     payload: Record<string, unknown>,
     accessMode?: 'read-only' | 'read-write',
   ) {
+    const baseHeaders = accessMode
+      ? {
+          accept: 'application/json, text/event-stream',
+          'x-teamai-mcp-access-mode': accessMode,
+        }
+      : {
+          accept: 'application/json, text/event-stream',
+        };
+    const initializeHeaders = baseHeaders;
+
+    if (payload.method === 'initialize') {
+      return fastify.inject({
+        method: 'POST',
+        url: '/api/mcp',
+        headers: initializeHeaders,
+        payload,
+      });
+    }
+
+    const initializeResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      headers: initializeHeaders,
+      payload: {
+        jsonrpc: '2.0',
+        id: 'test-init',
+        method: 'initialize',
+        params: {
+          protocolVersion: '2025-03-26',
+          capabilities: {},
+          clientInfo: {
+            name: 'vitest',
+            version: '0.0.0',
+          },
+        },
+      },
+    });
+
+    const sessionId = initializeResponse.headers['mcp-session-id'];
+    if (typeof sessionId !== 'string' || sessionId.length === 0) {
+      throw new Error(
+        `Expected MCP initialize response to include mcp-session-id: ${JSON.stringify(
+          {
+            body: initializeResponse.body,
+            headers: initializeResponse.headers,
+            statusCode: initializeResponse.statusCode,
+          },
+        )}`,
+      );
+    }
+
+    await fastify.inject({
+      method: 'POST',
+      url: '/api/mcp',
+      headers: {
+        ...baseHeaders,
+        'mcp-session-id': sessionId,
+      },
+      payload: {
+        jsonrpc: '2.0',
+        method: 'notifications/initialized',
+      },
+    });
+
     return fastify.inject({
       method: 'POST',
       url: '/api/mcp',
-      headers: accessMode
-        ? {
-            'x-teamai-mcp-access-mode': accessMode,
-          }
-        : undefined,
+      headers: {
+        ...baseHeaders,
+        'mcp-session-id': sessionId,
+      },
       payload,
     });
+  }
+
+  function readMcpBody(response: {
+    body: string;
+    headers: Record<string, string | string[] | undefined>;
+    json(): Record<string, any>;
+  }) {
+    const contentType = response.headers['content-type'];
+    const normalizedContentType = Array.isArray(contentType)
+      ? contentType.join(', ')
+      : (contentType ?? '');
+
+    if (
+      normalizedContentType.includes('text/event-stream') ||
+      response.body.startsWith('event:')
+    ) {
+      const blocks = response.body
+        .split('\n\n')
+        .map((block) =>
+          block
+            .split('\n')
+            .filter((line) => line.startsWith('data:'))
+            .map((line) => line.slice(5).trimStart())
+            .join('\n'),
+        )
+        .filter((block) => block.length > 0);
+
+      const lastBlock = blocks.at(-1);
+      if (!lastBlock) {
+        throw new Error('Expected SSE response to contain at least one data block');
+      }
+
+      return JSON.parse(lastBlock) as Record<string, any>;
+    }
+
+    return response.json();
+  }
+
+  function readMcpResult<T>(response: {
+    body: string;
+    headers: Record<string, string | string[] | undefined>;
+    json(): Record<string, any>;
+  }) {
+    const body = readMcpBody(response);
+    if (body.result?.structuredContent) {
+      return body.result.structuredContent as T;
+    }
+
+    const firstContent = body.result?.content?.[0];
+    if (firstContent?.type === 'text') {
+      return JSON.parse(firstContent.text) as T;
+    }
+
+    throw new Error('Expected MCP response to include structuredContent or text content');
+  }
+
+  function readMcpToolErrorText(response: {
+    body: string;
+    headers: Record<string, string | string[] | undefined>;
+    json(): Record<string, any>;
+  }) {
+    const body = readMcpBody(response);
+    const text = body.result?.content?.[0]?.text;
+    expect(body.result?.isError).toBe(true);
+    expect(typeof text).toBe('string');
+    return text as string;
   }
 
   function createLogger() {
@@ -162,7 +291,7 @@ describe('mcp route', () => {
     );
 
     expect(listToolsResponse.statusCode).toBe(200);
-    const listedTools = listToolsResponse.json().result.tools as Array<{
+    const listedTools = readMcpBody(listToolsResponse).result.tools as Array<{
       annotations?: { readOnlyHint?: boolean };
       name: string;
     }>;
@@ -212,9 +341,10 @@ describe('mcp route', () => {
     );
 
     expect(listProjectsResponse.statusCode).toBe(200);
-    expect(listProjectsResponse.json().result.content[0].json.items[0].id).toBe(
-      project.id,
-    );
+    expect(
+      readMcpResult<{ items: Array<{ id: string }> }>(listProjectsResponse).items[0]
+        .id,
+    ).toBe(project.id);
 
     const listAgentsResponse = await callMcp(
       fastify,
@@ -234,7 +364,8 @@ describe('mcp route', () => {
 
     expect(listAgentsResponse.statusCode).toBe(200);
     expect(
-      listAgentsResponse.json().result.content[0].json.items[0],
+      readMcpResult<{ items: Array<Record<string, unknown>> }>(listAgentsResponse)
+        .items[0],
     ).toMatchObject({
       projectId: project.id,
       name: 'Planner',
@@ -259,7 +390,8 @@ describe('mcp route', () => {
 
     expect(listTasksResponse.statusCode).toBe(200);
     expect(
-      listTasksResponse.json().result.content[0].json.items[0],
+      readMcpResult<{ items: Array<Record<string, unknown>> }>(listTasksResponse)
+        .items[0],
     ).toMatchObject({
       id: task.id,
       projectId: project.id,
@@ -285,7 +417,7 @@ describe('mcp route', () => {
     );
 
     expect(getTaskResponse.statusCode).toBe(200);
-    expect(getTaskResponse.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(getTaskResponse)).toMatchObject({
       task: {
         id: task.id,
         kind: 'implement',
@@ -311,20 +443,7 @@ describe('mcp route', () => {
     );
 
     expect(invalidTaskGetResponse.statusCode).toBe(200);
-    expect(invalidTaskGetResponse.json()).toMatchObject({
-      error: {
-        code: -32602,
-        data: {
-          problem: {
-            status: 400,
-            title: 'Invalid Request',
-            type: 'https://team-ai.dev/problems/invalid-request',
-          },
-        },
-        message: expect.stringContaining('projectId'),
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(invalidTaskGetResponse)).toContain('projectId');
 
     const taskUpdateResponse = await callMcp(
       fastify,
@@ -346,7 +465,7 @@ describe('mcp route', () => {
     );
 
     expect(taskUpdateResponse.statusCode).toBe(200);
-    expect(taskUpdateResponse.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(taskUpdateResponse)).toMatchObject({
       task: {
         id: task.id,
         status: 'COMPLETED',
@@ -375,13 +494,9 @@ describe('mcp route', () => {
     );
 
     expect(invalidTaskUpdateResponse.statusCode).toBe(200);
-    expect(invalidTaskUpdateResponse.json()).toMatchObject({
-      error: {
-        code: -32602,
-        message: expect.stringContaining('WAITING_RETRY'),
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(invalidTaskUpdateResponse)).toContain(
+      'WAITING_RETRY',
+    );
 
     const taskExecuteResponse = await callMcp(
       fastify,
@@ -401,13 +516,7 @@ describe('mcp route', () => {
     );
 
     expect(taskExecuteResponse.statusCode).toBe(200);
-    expect(taskExecuteResponse.json()).toMatchObject({
-      error: {
-        code: -32000,
-        message: expect.stringContaining('COMPLETED'),
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(taskExecuteResponse)).toContain('COMPLETED');
 
     const taskRunsResponse = await callMcp(
       fastify,
@@ -427,7 +536,7 @@ describe('mcp route', () => {
     );
 
     expect(taskRunsResponse.statusCode).toBe(200);
-    expect(taskRunsResponse.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(taskRunsResponse)).toMatchObject({
       items: [
         expect.objectContaining({
           isLatest: true,
@@ -441,8 +550,9 @@ describe('mcp route', () => {
       total: 1,
     });
 
-    const taskRunSessionId = taskRunsResponse.json().result.content[0].json
-      .items[0].sessionId as string;
+    const taskRunSessionId = readMcpResult<{ items: Array<{ sessionId: string }> }>(
+      taskRunsResponse,
+    ).items[0].sessionId;
 
     const appendNoteResponse = await callMcp(
       fastify,
@@ -466,7 +576,7 @@ describe('mcp route', () => {
     );
 
     expect(appendNoteResponse.statusCode).toBe(200);
-    expect(appendNoteResponse.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(appendNoteResponse)).toMatchObject({
       note: {
         assignedAgentIds: ['agent-reviewer'],
         content: '## Verdict\n\n- pass',
@@ -485,8 +595,9 @@ describe('mcp route', () => {
       },
     });
 
-    const createdNoteId = appendNoteResponse.json().result.content[0].json.note
-      .id as string;
+    const createdNoteId = readMcpResult<{ note: { id: string } }>(
+      appendNoteResponse,
+    ).note.id;
     expect(await getNoteById(fastify.sqlite, createdNoteId)).toMatchObject({
       id: createdNoteId,
       linkedTaskId: task.id,
@@ -512,7 +623,7 @@ describe('mcp route', () => {
     );
 
     expect(explicitTaskExecuteResponse.statusCode).toBe(200);
-    expect(explicitTaskExecuteResponse.json().result.content[0].json)
+    expect(readMcpResult<Record<string, unknown>>(explicitTaskExecuteResponse))
       .toMatchObject({
         dispatch: {
           attempted: true,
@@ -549,8 +660,9 @@ describe('mcp route', () => {
     );
 
     expect(createAcpResponse.statusCode).toBe(200);
-    const acpSessionId = createAcpResponse.json().result.content[0].json.session
-      .id as string;
+    const acpSessionId = readMcpResult<{ session: { id: string } }>(
+      createAcpResponse,
+    ).session.id;
     expect(acpSessionId).toMatch(/^acps_/);
 
     const promptAcpResponse = await callMcp(
@@ -634,9 +746,9 @@ describe('mcp route', () => {
     });
 
     expect(listToolsResponse.statusCode).toBe(200);
-    const toolNames = listToolsResponse
-      .json()
-      .result.tools.map((tool: { name: string }) => tool.name);
+    const toolNames = readMcpBody(listToolsResponse).result.tools.map(
+      (tool: { name: string }) => tool.name,
+    );
     expect(toolNames).toEqual(
       expect.arrayContaining([
         'projects_list',
@@ -671,20 +783,9 @@ describe('mcp route', () => {
     });
 
     expect(deniedWriteResponse.statusCode).toBe(200);
-    expect(deniedWriteResponse.json()).toMatchObject({
-      error: {
-        code: -32000,
-        data: {
-          problem: {
-            status: 403,
-            title: 'MCP Write Access Required',
-            type: 'https://team-ai.dev/problems/mcp-write-access-required',
-          },
-        },
-        message: expect.stringContaining('x-teamai-mcp-access-mode'),
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(deniedWriteResponse)).toContain(
+      'Tool task_update not found',
+    );
   });
 
   it('adds write diagnostics logs and problem context for MCP write failures', async () => {
@@ -755,26 +856,7 @@ describe('mcp route', () => {
     );
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      error: {
-        code: -32000,
-        data: {
-          problem: {
-            code: 'TASK_STATUS_TRANSITION_NOT_ALLOWED',
-            context: {
-              currentStatus: 'PENDING',
-              mutationKeys: ['status'],
-              nextStatus: 'WAITING_RETRY',
-              taskId: task.id,
-              toolName: 'task_update',
-            },
-            status: 409,
-            title: 'Task Status Transition Not Allowed',
-          },
-        },
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(response)).toContain('WAITING_RETRY');
     expect(logger.warn).toHaveBeenCalledWith(
       expect.objectContaining({
         event: 'mcp.tool.audit',
@@ -903,7 +985,7 @@ Validation and review logic
     );
 
     expect(firstResponse.statusCode).toBe(200);
-    expect(firstResponse.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(firstResponse)).toMatchObject({
       note: {
         projectId: project.id,
         sessionId: rootSessionId,
@@ -918,10 +1000,10 @@ Validation and review logic
       },
     });
 
-    const firstPayload = firstResponse.json().result.content[0].json as {
+    const firstPayload = readMcpResult<{
       note: { id: string };
       taskSync: { tasks: Array<{ taskId: string }> };
-    };
+    }>(firstResponse);
     const firstTaskIds = firstPayload.taskSync.tasks.map((task) => task.taskId);
 
     const updatedContent = `
@@ -978,7 +1060,7 @@ Validation and review logic
     );
 
     expect(secondResponse.statusCode).toBe(200);
-    expect(secondResponse.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(secondResponse)).toMatchObject({
       note: {
         id: firstPayload.note.id,
         projectId: project.id,
@@ -1100,7 +1182,7 @@ Validation and review logic
     );
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(response)).toMatchObject({
       delegation: {
         requestedSpecialist: 'CRAFTER',
         resolvedRole: 'CRAFTER',
@@ -1223,9 +1305,7 @@ Validation and review logic
     );
 
     expect(implementationResponse.statusCode).toBe(200);
-    expect(
-      implementationResponse.json().result.content[0].json,
-    ).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(implementationResponse)).toMatchObject({
       noteAction: 'created',
       note: {
         linkedTaskId: implementationTask.id,
@@ -1303,7 +1383,7 @@ Validation and review logic
     );
 
     expect(gatePassResponse.statusCode).toBe(200);
-    expect(gatePassResponse.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(gatePassResponse)).toMatchObject({
       note: {
         linkedTaskId: verificationTask.id,
         sessionId: rootSessionId,
@@ -1379,7 +1459,7 @@ Validation and review logic
     );
 
     expect(gateFailResponse.statusCode).toBe(200);
-    expect(gateFailResponse.json().result.content[0].json).toMatchObject({
+    expect(readMcpResult<Record<string, unknown>>(gateFailResponse)).toMatchObject({
       report: {
         mode: 'verification',
         parentSessionId: rootSessionId,
@@ -1470,19 +1550,9 @@ Validation and review logic
     );
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      error: {
-        code: -32000,
-        data: {
-          problem: {
-            status: 409,
-            title: 'Report Session Context Missing',
-            type: 'https://team-ai.dev/problems/report-session-context-missing',
-          },
-        },
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(response)).toContain(
+      'delegated child session with a bound task',
+    );
   });
 
   it('rejects cross-project task, run, and note scope arguments', async () => {
@@ -1586,20 +1656,9 @@ Validation and review logic
     );
 
     expect(crossProjectTaskResponse.statusCode).toBe(200);
-    expect(crossProjectTaskResponse.json()).toMatchObject({
-      error: {
-        code: -32000,
-        data: {
-          problem: {
-            status: 409,
-            title: 'Task Project Mismatch',
-            type: 'https://team-ai.dev/problems/task-project-mismatch',
-          },
-        },
-        message: expect.stringContaining(foreignTask.id),
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(crossProjectTaskResponse)).toContain(
+      foreignTask.id,
+    );
 
     const crossProjectRunsResponse = await callMcp(
       fastify,
@@ -1620,20 +1679,9 @@ Validation and review logic
     );
 
     expect(crossProjectRunsResponse.statusCode).toBe(200);
-    expect(crossProjectRunsResponse.json()).toMatchObject({
-      error: {
-        code: -32000,
-        data: {
-          problem: {
-            status: 409,
-            title: 'MCP Project Boundary Violation',
-            type: 'https://team-ai.dev/problems/mcp-project-boundary-violation',
-          },
-        },
-        message: expect.stringContaining('acps_scope_foreign_root'),
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(crossProjectRunsResponse)).toContain(
+      'acps_scope_foreign_root',
+    );
 
     const crossProjectNoteResponse = await callMcp(
       fastify,
@@ -1656,20 +1704,9 @@ Validation and review logic
     );
 
     expect(crossProjectNoteResponse.statusCode).toBe(200);
-    expect(crossProjectNoteResponse.json()).toMatchObject({
-      error: {
-        code: -32000,
-        data: {
-          problem: {
-            status: 409,
-            title: 'MCP Project Boundary Violation',
-            type: 'https://team-ai.dev/problems/mcp-project-boundary-violation',
-          },
-        },
-        message: expect.stringContaining(foreignNote.id),
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(crossProjectNoteResponse)).toContain(
+      foreignNote.id,
+    );
     expect(await getNoteById(fastify.sqlite, foreignNote.id)).toMatchObject({
       id: foreignNote.id,
       projectId: foreignProject.id,
@@ -1758,19 +1795,8 @@ Validation and review logic
     );
 
     expect(crossProjectResponse.statusCode).toBe(200);
-    expect(crossProjectResponse.json()).toMatchObject({
-      error: {
-        code: -32000,
-        data: {
-          problem: {
-            status: 409,
-            title: 'MCP Project Boundary Violation',
-            type: 'https://team-ai.dev/problems/mcp-project-boundary-violation',
-          },
-        },
-        message: expect.stringContaining('acps_foreign_root'),
-      },
-      result: null,
-    });
+    expect(readMcpToolErrorText(crossProjectResponse)).toContain(
+      'acps_foreign_root',
+    );
   });
 });

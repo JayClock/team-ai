@@ -1,0 +1,209 @@
+import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { z } from 'zod';
+import { taskStatusValues } from '../services/task-service';
+
+export const mcpAccessModeHeader = 'x-teamai-mcp-access-mode';
+export const mcpSessionHeader = 'mcp-session-id';
+export const mcpRoutePath = '/api/mcp';
+
+export type McpAccessMode = 'read-only' | 'read-write';
+export type McpToolAccess = 'read' | 'write';
+
+export interface McpToolDefinition {
+  access: McpToolAccess;
+  tool: {
+    annotations: {
+      destructiveHint?: boolean;
+      idempotentHint?: boolean;
+      openWorldHint?: boolean;
+      readOnlyHint: boolean;
+      title?: string;
+    };
+    description: string;
+    name: string;
+    title: string;
+  };
+}
+
+export interface McpAuditContext {
+  accessMode: McpAccessMode;
+  argumentKeys: string[];
+  mutationKeys: string[];
+  parentNoteId: string | null;
+  parentSessionId: string | null;
+  projectId: string | null;
+  sessionId: string | null;
+  taskId: string | null;
+  toolAccess: McpToolAccess;
+  toolName: string;
+}
+
+export interface McpSession {
+  accessMode: McpAccessMode;
+  server: McpServer;
+  transport: StreamableHTTPServerTransport;
+}
+
+export const projectsListArgsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  q: z.string().trim().min(1).optional(),
+  repoPath: z.string().trim().min(1).optional(),
+  sourceUrl: z.string().trim().min(1).optional(),
+});
+
+export const agentsListArgsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  projectId: z.string().trim().min(1),
+});
+
+const taskStatusSchema = z.enum(taskStatusValues);
+
+export const tasksListArgsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  status: taskStatusSchema.optional(),
+});
+
+export const taskGetArgsSchema = z.object({
+  projectId: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+});
+
+const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
+const stringArraySchema = z.array(z.string().trim().min(1));
+const noteSourceSchema = z.enum(['user', 'agent', 'system']);
+const noteTypeSchema = z.enum(['spec', 'task', 'general']);
+const mcpWritableTaskStatusSchema = z.enum([
+  'PENDING',
+  'READY',
+  'WAITING_RETRY',
+  'CANCELLED',
+]);
+const taskRunStatusSchema = z.enum([
+  'PENDING',
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+  'CANCELLED',
+]);
+
+export const taskUpdateArgsSchema = z
+  .object({
+    acceptanceCriteria: stringArraySchema.optional(),
+    assignedProvider: nullableStringSchema.optional(),
+    assignedRole: nullableStringSchema.optional(),
+    assignedSpecialistId: nullableStringSchema.optional(),
+    assignedSpecialistName: nullableStringSchema.optional(),
+    completionSummary: nullableStringSchema.optional(),
+    dependencies: stringArraySchema.optional(),
+    labels: stringArraySchema.optional(),
+    objective: z.string().trim().min(1).optional(),
+    priority: nullableStringSchema.optional(),
+    projectId: z.string().trim().min(1),
+    scope: nullableStringSchema.optional(),
+    status: mcpWritableTaskStatusSchema.optional(),
+    taskId: z.string().trim().min(1),
+    title: z.string().trim().min(1).optional(),
+    verificationCommands: stringArraySchema.optional(),
+    verificationReport: nullableStringSchema.optional(),
+    verificationVerdict: nullableStringSchema.optional(),
+  })
+  .refine((input) => {
+    const { projectId, taskId, ...patch } = input;
+    void projectId;
+    void taskId;
+    return Object.keys(patch).length > 0;
+  }, 'At least one task field must be provided');
+
+export const taskExecuteArgsSchema = z.object({
+  callerSessionId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+});
+
+export const taskRunsListArgsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  status: taskRunStatusSchema.optional(),
+  taskId: z.string().trim().min(1).optional(),
+});
+
+export const notesAppendArgsSchema = z.object({
+  assignedAgentIds: stringArraySchema.optional(),
+  content: z.string().min(1),
+  parentNoteId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  source: noteSourceSchema.default('agent'),
+  taskId: z.string().trim().min(1).optional(),
+  title: z.string().trim().min(1),
+  type: noteTypeSchema.default('general'),
+});
+
+export const setNoteContentArgsSchema = z.object({
+  assignedAgentIds: stringArraySchema.optional(),
+  content: z.string(),
+  noteId: z.string().trim().min(1).optional(),
+  parentNoteId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  source: noteSourceSchema.default('agent'),
+  taskId: z.string().trim().min(1).optional(),
+  title: z.string().trim().min(1).optional(),
+  type: noteTypeSchema.default('general'),
+});
+
+export const delegateTaskToAgentArgsSchema = z.object({
+  additionalInstructions: z.string().trim().min(1).optional(),
+  callerSessionId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1),
+  provider: z.string().trim().min(1).optional(),
+  specialist: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+  waitMode: z.enum(['immediate', 'after_all']).optional(),
+});
+
+export const reportToParentArgsSchema = z.object({
+  areasChanged: stringArraySchema.optional(),
+  blocker: nullableStringSchema.optional(),
+  filesChanged: stringArraySchema.optional(),
+  projectId: z.string().trim().min(1),
+  residualRisk: nullableStringSchema.optional(),
+  sessionId: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
+  verificationPerformed: stringArraySchema.optional(),
+  verdict: z.enum(['completed', 'blocked', 'pass', 'fail']),
+});
+
+export const createAcpSessionArgsSchema = z.object({
+  actorUserId: z.string().trim().min(1),
+  goal: z.string().trim().min(1).optional(),
+  model: z.string().trim().min(1).nullable().optional(),
+  parentSessionId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+  provider: z.string().trim().min(1).nullable().optional(),
+  role: z.string().trim().min(1).optional(),
+  specialistId: z.string().trim().min(1).optional(),
+});
+
+export const promptAcpSessionArgsSchema = z.object({
+  eventId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+  prompt: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1),
+  timeoutMs: z.coerce.number().int().positive().optional(),
+  traceId: z.string().trim().min(1).optional(),
+});
+
+export const cancelAcpSessionArgsSchema = z.object({
+  projectId: z.string().trim().min(1),
+  reason: z.string().trim().min(1).optional(),
+  sessionId: z.string().trim().min(1),
+});
