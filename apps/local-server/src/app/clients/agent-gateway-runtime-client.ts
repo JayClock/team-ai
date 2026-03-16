@@ -34,6 +34,7 @@ interface ActiveGatewayRuntimeSession {
   hooks: AcpRuntimeSessionHooks;
   localSessionId: string;
   mcpServers: McpServer[];
+  model: string | null;
   provider: string;
 }
 
@@ -64,6 +65,7 @@ export function createAgentGatewayRuntimeClient(
     input: CreateAcpRuntimeSessionInput,
   ): Promise<AcpRuntimeSessionSnapshot> {
     const created = await agentGatewayClient.createSession({
+      model: input.model ?? undefined,
       provider: input.provider,
       metadata: {
         cwd: input.cwd,
@@ -78,6 +80,7 @@ export function createAgentGatewayRuntimeClient(
       hooks: input.hooks,
       localSessionId: input.localSessionId,
       mcpServers: input.mcpServers,
+      model: input.model ?? null,
       provider: input.provider,
     });
 
@@ -109,6 +112,7 @@ export function createAgentGatewayRuntimeClient(
         hooks: input.hooks,
         localSessionId: input.localSessionId,
         mcpServers: input.mcpServers,
+        model: input.model ?? null,
         provider: input.provider,
       });
 
@@ -194,6 +198,7 @@ function buildGatewayPromptInput(
   env: Record<string, string> | undefined;
   input: string;
   metadata: Record<string, unknown> | undefined;
+  model: string | undefined;
   timeoutMs: number | undefined;
   traceId: string | undefined;
 } {
@@ -209,6 +214,7 @@ function buildGatewayPromptInput(
 
   return {
     input: input.prompt,
+    model: session.model ?? undefined,
     timeoutMs: input.timeoutMs,
     traceId: input.traceId,
     cwd: session.cwd,
@@ -418,7 +424,9 @@ function toCanonicalSessionNotification(
           status: asString(toolCall.status) ?? 'pending',
           rawInput: toolCall.input ?? null,
           rawOutput: toolCall.output ?? null,
-          locations: Array.isArray(toolCall.locations) ? toolCall.locations : [],
+          locations: Array.isArray(toolCall.locations)
+            ? toolCall.locations
+            : [],
           content: Array.isArray(toolCall.content) ? toolCall.content : [],
         },
         sessionId,
@@ -584,9 +592,7 @@ function toNormalizedGatewayUpdate(
   const sessionId = asString(update.sessionId) ?? event.sessionId ?? '';
   const traceId = asString(update.traceId) ?? event.traceId ?? undefined;
   const timestamp =
-    asString(update.timestamp) ??
-    event.emittedAt ??
-    new Date().toISOString();
+    asString(update.timestamp) ?? event.emittedAt ?? new Date().toISOString();
   const rawNotification =
     toCanonicalSessionNotification(update, sessionId) ??
     createSessionNotification(
@@ -623,7 +629,9 @@ function toNormalizedGatewayUpdate(
         asString(message.content) ??
         flattenAcpContentText(message.contentBlock) ??
         null,
-      contentBlock: toContentBlock(message.contentBlock ?? message.content ?? ''),
+      contentBlock: toContentBlock(
+        message.contentBlock ?? message.content ?? '',
+      ),
       isChunk: message.isChunk !== false,
     };
   }
@@ -868,21 +876,19 @@ function normalizeToolCallStatus(
   return 'pending';
 }
 
-function isPlanPriority(
-  value: unknown,
-): value is 'high' | 'low' | 'medium' {
+function isPlanPriority(value: unknown): value is 'high' | 'low' | 'medium' {
   return value === 'high' || value === 'medium' || value === 'low';
 }
 
 function isPlanStatus(
   value: unknown,
 ): value is 'completed' | 'in_progress' | 'pending' {
-  return value === 'completed' || value === 'in_progress' || value === 'pending';
+  return (
+    value === 'completed' || value === 'in_progress' || value === 'pending'
+  );
 }
 
-function isTerminalState(
-  value: unknown,
-): value is 'FAILED' | 'CANCELLED' {
+function isTerminalState(value: unknown): value is 'FAILED' | 'CANCELLED' {
   return value === 'FAILED' || value === 'CANCELLED';
 }
 

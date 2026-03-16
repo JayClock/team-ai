@@ -339,6 +339,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
     const created = (await this.sendRequest(session, 'session/new', {
       cwd: request.cwd,
       mcpServers: resolveMcpServers(request.metadata),
+      ...(request.model ? { model: request.model } : {}),
     })) as { sessionId?: unknown };
 
     const runtimeSessionId =
@@ -846,11 +847,16 @@ function normalizeSessionUpdate(
       });
 
     case 'tool_call_update':
-      return createNormalizedAcpUpdate(sessionId, provider, 'tool_call_update', {
-        traceId,
-        rawNotification: updateInput,
-        toolCall: createToolCall(update, true, behavior),
-      });
+      return createNormalizedAcpUpdate(
+        sessionId,
+        provider,
+        'tool_call_update',
+        {
+          traceId,
+          rawNotification: updateInput,
+          toolCall: createToolCall(update, true, behavior),
+        },
+      );
 
     case 'plan': {
       const entries = Array.isArray(update.entries) ? update.entries : [];
@@ -887,32 +893,47 @@ function normalizeSessionUpdate(
       });
 
     case 'session_info_update':
-      return createNormalizedAcpUpdate(sessionId, provider, 'session_info_update', {
-        traceId,
-        rawNotification: updateInput,
-        sessionInfo: {
-          title: asString(update.title) ?? null,
-          updatedAt: asString(update.updatedAt) ?? null,
+      return createNormalizedAcpUpdate(
+        sessionId,
+        provider,
+        'session_info_update',
+        {
+          traceId,
+          rawNotification: updateInput,
+          sessionInfo: {
+            title: asString(update.title) ?? null,
+            updatedAt: asString(update.updatedAt) ?? null,
+          },
         },
-      });
+      );
 
     case 'current_mode_update':
-      return createNormalizedAcpUpdate(sessionId, provider, 'current_mode_update', {
-        traceId,
-        rawNotification: updateInput,
-        mode: {
-          ...(asString(update.currentModeId)
-            ? { currentModeId: asString(update.currentModeId) ?? undefined }
-            : {}),
+      return createNormalizedAcpUpdate(
+        sessionId,
+        provider,
+        'current_mode_update',
+        {
+          traceId,
+          rawNotification: updateInput,
+          mode: {
+            ...(asString(update.currentModeId)
+              ? { currentModeId: asString(update.currentModeId) ?? undefined }
+              : {}),
+          },
         },
-      });
+      );
 
     case 'config_option_update':
-      return createNormalizedAcpUpdate(sessionId, provider, 'config_option_update', {
-        traceId,
-        rawNotification: updateInput,
-        configOptions: update.configOptions ?? {},
-      });
+      return createNormalizedAcpUpdate(
+        sessionId,
+        provider,
+        'config_option_update',
+        {
+          traceId,
+          rawNotification: updateInput,
+          configOptions: update.configOptions ?? {},
+        },
+      );
 
     case 'usage_update':
       return createNormalizedAcpUpdate(sessionId, provider, 'usage_update', {
@@ -926,13 +947,18 @@ function normalizeSessionUpdate(
       });
 
     case 'available_commands_update':
-      return createNormalizedAcpUpdate(sessionId, provider, 'available_commands_update', {
-        traceId,
-        rawNotification: updateInput,
-        availableCommands: Array.isArray(update.availableCommands)
-          ? update.availableCommands
-          : [],
-      });
+      return createNormalizedAcpUpdate(
+        sessionId,
+        provider,
+        'available_commands_update',
+        {
+          traceId,
+          rawNotification: updateInput,
+          availableCommands: Array.isArray(update.availableCommands)
+            ? update.availableCommands
+            : [],
+        },
+      );
 
     case 'error':
       return createNormalizedAcpUpdate(sessionId, provider, 'error', {

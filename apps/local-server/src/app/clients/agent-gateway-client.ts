@@ -47,6 +47,7 @@ export interface AgentGatewayEventEnvelope {
 
 export interface CreateAgentGatewaySessionInput {
   metadata?: Record<string, unknown>;
+  model?: string;
   provider?: string;
   traceId?: string;
 }
@@ -73,9 +74,7 @@ export interface AgentGatewayClient {
     accepted: boolean;
     session: AgentGatewaySessionPayload;
   }>;
-  createSession(
-    input?: CreateAgentGatewaySessionInput,
-  ): Promise<{
+  createSession(input?: CreateAgentGatewaySessionInput): Promise<{
     session: AgentGatewaySessionPayload;
   }>;
   isConfigured(): boolean;
@@ -190,11 +189,14 @@ export function createAgentGatewayClient(
         fetchImpl,
         normalizedBaseUrl,
         {
-        method: 'POST',
-        path: '/providers/install',
-        body: input,
-      });
-      await loadProviderCatalog({ includeRegistry: true }).catch(() => undefined);
+          method: 'POST',
+          path: '/providers/install',
+          body: input,
+        },
+      );
+      await loadProviderCatalog({ includeRegistry: true }).catch(
+        () => undefined,
+      );
       return payload;
     },
 
@@ -207,9 +209,7 @@ export function createAgentGatewayClient(
     },
 
     async listEvents(sessionId, cursor) {
-      const query = cursor
-        ? `?cursor=${encodeURIComponent(cursor)}`
-        : '';
+      const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
 
       return await requestJson(fetchImpl, normalizedBaseUrl, {
         method: 'GET',
@@ -231,12 +231,16 @@ export function createAgentGatewayClient(
       const query = options.cursor
         ? `?cursor=${encodeURIComponent(options.cursor)}`
         : '';
-      const response = await performFetch(fetchImpl, `${normalizedBaseUrl}/sessions/${encodeURIComponent(sessionId)}/stream${query}`, {
-        method: 'GET',
-        headers: {
-          Accept: 'text/event-stream',
+      const response = await performFetch(
+        fetchImpl,
+        `${normalizedBaseUrl}/sessions/${encodeURIComponent(sessionId)}/stream${query}`,
+        {
+          method: 'GET',
+          headers: {
+            Accept: 'text/event-stream',
+          },
         },
-      });
+      );
 
       await consumeEventStream(response, options.onEvent);
     },
@@ -331,14 +335,14 @@ async function performFetch(
       title: 'Agent Gateway Unavailable',
       status: 503,
       detail:
-        error instanceof Error
-          ? error.message
-          : 'Agent gateway request failed',
+        error instanceof Error ? error.message : 'Agent gateway request failed',
     });
   }
 }
 
-async function safeJson(response: Response): Promise<Record<string, unknown> | null> {
+async function safeJson(
+  response: Response,
+): Promise<Record<string, unknown> | null> {
   try {
     return (await response.json()) as Record<string, unknown>;
   } catch {

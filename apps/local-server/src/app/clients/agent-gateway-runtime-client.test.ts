@@ -102,16 +102,22 @@ describe('agent-gateway-runtime-client', () => {
       session: gatewaySession('gw-1', 'RUNNING', 'gw-1:1'),
     }));
 
+    const createSession = vi.fn<AgentGatewayClient['createSession']>(
+      async () => ({
+        session: gatewaySession('gw-1', 'PENDING', 'gw-1:1'),
+      }),
+    );
+
     const client = createAgentGatewayRuntimeClient({
       cancel: vi.fn(async () => ({
         accepted: true,
         session: gatewaySession('gw-1', 'CANCELLED', 'gw-1:5'),
       })),
-      createSession: vi.fn(async () => ({
-        session: gatewaySession('gw-1', 'PENDING', 'gw-1:1'),
-      })),
+      createSession,
       isConfigured: vi.fn(() => true),
-      isProviderConfigured: vi.fn((providerId: string) => providerId === 'opencode'),
+      isProviderConfigured: vi.fn(
+        (providerId: string) => providerId === 'opencode',
+      ),
       listEvents,
       listProviders: vi.fn(),
       prompt,
@@ -135,10 +141,20 @@ describe('agent-gateway-runtime-client', () => {
 
     await client.createSession({
       localSessionId: 'local-1',
+      model: 'openai/gpt-5',
       provider: 'opencode',
       cwd: '/tmp/project',
       mcpServers,
       hooks,
+    });
+
+    expect(createSession).toHaveBeenCalledWith({
+      model: 'openai/gpt-5',
+      provider: 'opencode',
+      metadata: {
+        cwd: '/tmp/project',
+        localSessionId: 'local-1',
+      },
     });
 
     const result = await client.promptSession({
@@ -152,6 +168,7 @@ describe('agent-gateway-runtime-client', () => {
       'gw-1',
       expect.objectContaining({
         input: 'hello',
+        model: 'openai/gpt-5',
         traceId: 'trace-1',
         timeoutMs: 2_000,
         cwd: '/tmp/project',
@@ -212,16 +229,22 @@ describe('agent-gateway-runtime-client', () => {
   });
 
   it('recreates missing gateway sessions on load', async () => {
+    const createSession = vi.fn<AgentGatewayClient['createSession']>(
+      async () => ({
+        session: gatewaySession('gw-new', 'PENDING', 'gw-new:1'),
+      }),
+    );
+
     const client = createAgentGatewayRuntimeClient({
       cancel: vi.fn(async () => ({
         accepted: true,
         session: gatewaySession('gw-new', 'CANCELLED', 'gw-new:2'),
       })),
-      createSession: vi.fn(async () => ({
-        session: gatewaySession('gw-new', 'PENDING', 'gw-new:1'),
-      })),
+      createSession,
       isConfigured: vi.fn(() => true),
-      isProviderConfigured: vi.fn((providerId: string) => providerId === 'opencode'),
+      isProviderConfigured: vi.fn(
+        (providerId: string) => providerId === 'opencode',
+      ),
       listEvents: vi.fn(async () => {
         throw new ProblemError({
           type: 'https://team-ai.dev/problems/agent-gateway-request-failed',
@@ -241,6 +264,7 @@ describe('agent-gateway-runtime-client', () => {
 
     const loaded = await client.loadSession({
       localSessionId: 'local-2',
+      model: 'openai/gpt-5-mini',
       runtimeSessionId: 'missing-session',
       provider: 'opencode',
       cwd: '/tmp/project',
@@ -255,6 +279,14 @@ describe('agent-gateway-runtime-client', () => {
       provider: 'opencode',
       runtimeSessionId: 'gw-new',
     });
+    expect(createSession).toHaveBeenCalledWith({
+      model: 'openai/gpt-5-mini',
+      provider: 'opencode',
+      metadata: {
+        cwd: '/tmp/project',
+        localSessionId: 'local-2',
+      },
+    });
   });
 
   it('checks provider availability against the gateway catalog cache', () => {
@@ -262,7 +294,9 @@ describe('agent-gateway-runtime-client', () => {
       cancel: vi.fn(),
       createSession: vi.fn(),
       isConfigured: vi.fn(() => true),
-      isProviderConfigured: vi.fn((providerId: string) => providerId === 'opencode'),
+      isProviderConfigured: vi.fn(
+        (providerId: string) => providerId === 'opencode',
+      ),
       installProvider: vi.fn(),
       listEvents: vi.fn(),
       listProviders: vi.fn(),

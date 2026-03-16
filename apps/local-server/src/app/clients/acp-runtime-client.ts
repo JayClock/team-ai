@@ -46,6 +46,7 @@ export interface CreateAcpRuntimeSessionInput {
   hooks: AcpRuntimeSessionHooks;
   localSessionId: string;
   mcpServers: McpServer[];
+  model?: string | null;
   provider: string;
 }
 
@@ -162,6 +163,7 @@ export function createAcpRuntimeClient(
     const created = await session.connection.newSession({
       cwd: input.cwd,
       mcpServers: input.mcpServers,
+      ...(input.model ? { model: input.model } : {}),
     });
 
     session.runtimeSessionId = created.sessionId;

@@ -13,13 +13,14 @@ export type ProviderLaunchCommand = {
 };
 
 export type ProviderPromptRequest = {
-  sessionId: string;
-  input: string;
-  timeoutMs: number;
-  traceId?: string;
   cwd?: string;
   env?: Record<string, string>;
+  input: string;
   metadata?: Record<string, unknown>;
+  model?: string;
+  sessionId: string;
+  timeoutMs: number;
+  traceId?: string;
 };
 
 export type ProviderError = {

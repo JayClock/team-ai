@@ -1393,6 +1393,7 @@ async function ensureRuntimeLoaded(
 
   const loaded = await runtime.loadSession({
     localSessionId: session.id,
+    model: session.model,
     runtimeSessionId: session.runtime_session_id,
     provider: session.provider,
     cwd: session.cwd ?? '',
@@ -1584,6 +1585,7 @@ export async function createAcpSession(
   try {
     const runtimeSession = await runtime.createSession({
       localSessionId: sessionId,
+      model,
       provider,
       cwd: workspaceBinding.cwd,
       mcpServers: resolveLocalMcpServers(),
@@ -1883,6 +1885,7 @@ export async function loadAcpSession(
   if (session.runtime_session_id && !runtime.isSessionActive(sessionId)) {
     const loaded = await runtime.loadSession({
       localSessionId: session.id,
+      model: session.model,
       runtimeSessionId: session.runtime_session_id,
       provider: session.provider,
       cwd: session.cwd ?? '',

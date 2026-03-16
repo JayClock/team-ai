@@ -555,6 +555,7 @@ describe('acp route', () => {
     expect(createResponse.statusCode).toBe(200);
     expect(fastify.acpRuntime.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
+        model: 'gpt-5-mini',
         provider: 'opencode',
       }),
     );

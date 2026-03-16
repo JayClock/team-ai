@@ -54,6 +54,7 @@ describe('AcpCliProviderAdapter', () => {
       {
         sessionId: 'session-1',
         input: 'hello opencode',
+        model: 'openai/gpt-5',
         timeoutMs: 2_000,
         traceId: 'trace-opencode',
         cwd: '/tmp/workspace',
@@ -94,6 +95,7 @@ describe('AcpCliProviderAdapter', () => {
     expect(newSessionRequest.params).toMatchObject({
       cwd: '/tmp/workspace',
       mcpServers: [],
+      model: 'openai/gpt-5',
     });
 
     emitJson(childProcess, {
@@ -247,6 +249,75 @@ describe('AcpCliProviderAdapter', () => {
         sessionId: 'runtime-2',
       },
     });
+  });
+
+  it('fails loudly when session/new rejects the requested model', async () => {
+    const childProcess = new FakeChildProcess();
+    vi.mocked(spawn).mockReturnValue(childProcess as never);
+
+    const adapter = new OpencodeAcpCliProviderAdapter(
+      {
+        id: 'opencode',
+        providerId: 'opencode',
+        name: 'OpenCode',
+        command: 'opencode',
+        args: ['acp'],
+        cwdArg: '--cwd',
+      },
+      {
+        command: 'opencode',
+        args: ['acp'],
+      },
+    );
+
+    const onError = vi.fn();
+
+    adapter.prompt(
+      {
+        sessionId: 'session-model-error',
+        input: 'hello opencode',
+        model: 'openai/does-not-exist',
+        timeoutMs: 2_000,
+        cwd: '/tmp/workspace',
+      },
+      {
+        onChunk: vi.fn(),
+        onEvent: vi.fn(),
+        onComplete: vi.fn(),
+        onError,
+      },
+    );
+
+    await waitForWrites(childProcess, 1);
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: readWrite(childProcess, 0).id,
+      result: { protocolVersion: 1 },
+    });
+
+    await waitForWrites(childProcess, 2);
+    const newSessionRequest = readWrite(childProcess, 1);
+    expect(newSessionRequest.params).toMatchObject({
+      model: 'openai/does-not-exist',
+    });
+
+    emitJson(childProcess, {
+      jsonrpc: '2.0',
+      id: newSessionRequest.id,
+      error: {
+        code: -32000,
+        message: 'unsupported model',
+      },
+    });
+
+    await flush();
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'PROVIDER_PROMPT_FAILED',
+        message: expect.stringContaining('unsupported model'),
+      }),
+    );
   });
 
   it('normalizes turn_complete session updates to canonical completion events', async () => {
@@ -435,9 +506,7 @@ describe('AcpCliProviderAdapter', () => {
         protocol: 'acp',
         update: expect.objectContaining({
           eventType: 'available_commands_update',
-          availableCommands: [
-            { name: 'ship-it', description: 'Deploy now' },
-          ],
+          availableCommands: [{ name: 'ship-it', description: 'Deploy now' }],
         }),
       }),
     );

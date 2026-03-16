@@ -26,22 +26,30 @@ describe('agent-gateway-client', () => {
   });
 
   it('supports session create, prompt, cancel, and event listing', async () => {
+    let createRequestBody: Record<string, unknown> | null = null;
+
     const server = http.createServer((request, response) => {
       if (request.url === '/sessions' && request.method === 'POST') {
-        response.writeHead(201, { 'Content-Type': 'application/json' });
-        response.end(
-          JSON.stringify({
-            session: {
-              provider: 'codex',
-              sessionId: 'session-1',
-              state: 'PENDING',
-            },
-          }),
-        );
+        void readRequestBody(request).then((payload) => {
+          createRequestBody = payload;
+          response.writeHead(201, { 'Content-Type': 'application/json' });
+          response.end(
+            JSON.stringify({
+              session: {
+                provider: 'codex',
+                sessionId: 'session-1',
+                state: 'PENDING',
+              },
+            }),
+          );
+        });
         return;
       }
 
-      if (request.url === '/sessions/session-1/prompt' && request.method === 'POST') {
+      if (
+        request.url === '/sessions/session-1/prompt' &&
+        request.method === 'POST'
+      ) {
         response.writeHead(202, { 'Content-Type': 'application/json' });
         response.end(
           JSON.stringify({
@@ -53,7 +61,10 @@ describe('agent-gateway-client', () => {
         return;
       }
 
-      if (request.url === '/sessions/session-1/cancel' && request.method === 'POST') {
+      if (
+        request.url === '/sessions/session-1/cancel' &&
+        request.method === 'POST'
+      ) {
         response.writeHead(202, { 'Content-Type': 'application/json' });
         response.end(
           JSON.stringify({
@@ -86,12 +97,21 @@ describe('agent-gateway-client', () => {
     const baseUrl = urlFor(server);
     const client = createAgentGatewayClient(baseUrl);
 
-    await expect(client.createSession({ provider: 'codex' })).resolves.toEqual({
+    await expect(
+      client.createSession({
+        model: 'openai/gpt-5',
+        provider: 'codex',
+      }),
+    ).resolves.toEqual({
       session: {
         provider: 'codex',
         sessionId: 'session-1',
         state: 'PENDING',
       },
+    });
+    expect(createRequestBody).toMatchObject({
+      model: 'openai/gpt-5',
+      provider: 'codex',
     });
     await expect(
       client.prompt('session-1', { input: 'hello', timeoutMs: 1000 }),
@@ -100,7 +120,9 @@ describe('agent-gateway-client', () => {
       runtime: { provider: 'codex' },
       session: { sessionId: 'session-1', state: 'RUNNING' },
     });
-    await expect(client.cancel('session-1', { reason: 'stop' })).resolves.toEqual({
+    await expect(
+      client.cancel('session-1', { reason: 'stop' }),
+    ).resolves.toEqual({
       accepted: true,
       session: { sessionId: 'session-1', state: 'CANCELLED' },
     });
@@ -114,7 +136,10 @@ describe('agent-gateway-client', () => {
 
   it('supports provider listing and install', async () => {
     const server = http.createServer((request, response) => {
-      if (request.url === '/providers?registry=true' && request.method === 'GET') {
+      if (
+        request.url === '/providers?registry=true' &&
+        request.method === 'GET'
+      ) {
         response.writeHead(200, { 'Content-Type': 'application/json' });
         response.end(
           JSON.stringify({
@@ -286,4 +311,15 @@ async function listen(server: http.Server): Promise<void> {
 function urlFor(server: http.Server): string {
   const address = server.address() as AddressInfo;
   return `http://127.0.0.1:${address.port}`;
+}
+
+async function readRequestBody(
+  request: http.IncomingMessage,
+): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  const raw = Buffer.concat(chunks).toString('utf-8');
+  return raw.length > 0 ? (JSON.parse(raw) as Record<string, unknown>) : {};
 }

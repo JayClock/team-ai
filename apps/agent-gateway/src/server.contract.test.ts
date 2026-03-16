@@ -12,14 +12,22 @@ import { createGatewayServer } from './server.js';
 import { SessionStore } from './session-store.js';
 
 class MockProviderRuntime implements ProviderRuntimePort {
-  readonly requests: Array<{ providerName: string; request: ProviderPromptRequest }> = [];
+  readonly requests: Array<{
+    providerName: string;
+    request: ProviderPromptRequest;
+  }> = [];
   private readonly active = new Map<
     string,
     {
       onChunk: (chunk: string) => void;
       onEvent: (event: ProviderProtocolEvent) => void;
       onComplete: () => void;
-      onError: (error: { code: string; message: string; retryable: boolean; retryAfterMs: number }) => void;
+      onError: (error: {
+        code: string;
+        message: string;
+        retryable: boolean;
+        retryAfterMs: number;
+      }) => void;
     }
   >();
 
@@ -30,8 +38,13 @@ class MockProviderRuntime implements ProviderRuntimePort {
       onChunk: (chunk: string) => void;
       onEvent: (event: ProviderProtocolEvent) => void;
       onComplete: () => void;
-      onError: (error: { code: string; message: string; retryable: boolean; retryAfterMs: number }) => void;
-    }
+      onError: (error: {
+        code: string;
+        message: string;
+        retryable: boolean;
+        retryAfterMs: number;
+      }) => void;
+    },
   ): void {
     this.requests.push({ providerName, request });
     this.active.set(request.sessionId, callbacks);
@@ -177,6 +190,7 @@ describe('gateway contract', () => {
           'X-Trace-Id': 'trace-contract-1',
         },
         body: JSON.stringify({
+          model: 'openai/gpt-5',
           provider: 'codex',
           metadata: {
             role: 'planner',
@@ -191,28 +205,32 @@ describe('gateway contract', () => {
       };
       const sessionId = created.session.sessionId;
       expect(created.session.metadata).toEqual({
+        model: 'openai/gpt-5',
         role: 'planner',
         workspaceRoot: '/tmp/repo',
       });
 
-      const promptResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/prompt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Trace-Id': 'trace-contract-1',
+      const promptResponse = await fetch(
+        `${gateway.baseUrl}/sessions/${sessionId}/prompt`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Trace-Id': 'trace-contract-1',
+          },
+          body: JSON.stringify({
+            input: 'hello-contract',
+            timeoutMs: 2000,
+            cwd: '/tmp/repo',
+            env: {
+              TEAM_AI_STEP: 'planner',
+            },
+            metadata: {
+              stepId: 'step-1',
+            },
+          }),
         },
-        body: JSON.stringify({
-          input: 'hello-contract',
-          timeoutMs: 2000,
-          cwd: '/tmp/repo',
-          env: {
-            TEAM_AI_STEP: 'planner',
-          },
-          metadata: {
-            stepId: 'step-1',
-          },
-        }),
-      });
+      );
       expect(promptResponse.status).toBe(202);
       const promptPayload = (await promptResponse.json()) as {
         runtime: {
@@ -241,6 +259,7 @@ describe('gateway contract', () => {
         request: {
           sessionId,
           input: 'hello-contract',
+          model: 'openai/gpt-5',
           timeoutMs: 2000,
           traceId: 'trace-contract-1',
           cwd: '/tmp/repo',
@@ -253,10 +272,17 @@ describe('gateway contract', () => {
         },
       });
 
-      const eventsResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/events`);
+      const eventsResponse = await fetch(
+        `${gateway.baseUrl}/sessions/${sessionId}/events`,
+      );
       expect(eventsResponse.status).toBe(200);
       const eventsPage = (await eventsResponse.json()) as {
-        events: Array<{ cursor: string; type: string; traceId: string; error?: { code: string } }>;
+        events: Array<{
+          cursor: string;
+          type: string;
+          traceId: string;
+          error?: { code: string };
+        }>;
       };
       expect(eventsPage.events.length).toBeGreaterThanOrEqual(3);
       expect(eventsPage.events[0]?.type).toBe('status');
@@ -267,9 +293,11 @@ describe('gateway contract', () => {
 
       const cursor = eventsPage.events[1]?.cursor;
       const replayResponse = await fetch(
-        `${gateway.baseUrl}/sessions/${sessionId}/events?cursor=${encodeURIComponent(cursor)}`
+        `${gateway.baseUrl}/sessions/${sessionId}/events?cursor=${encodeURIComponent(cursor)}`,
       );
-      const replayPage = (await replayResponse.json()) as { events: Array<{ cursor: string }> };
+      const replayPage = (await replayResponse.json()) as {
+        events: Array<{ cursor: string }>;
+      };
       expect(replayPage.events.length).toBeGreaterThanOrEqual(1);
       expect(replayPage.events[0]?.cursor).not.toBe(cursor);
 
@@ -277,7 +305,11 @@ describe('gateway contract', () => {
       expect(metricsResponse.status).toBe(200);
       const metrics = (await metricsResponse.json()) as {
         sessions: { createAttempts: number; createSuccessRate: number };
-        prompts: { attempts: number; completionRate: number; firstTokenLatencyMs: { count: number } };
+        prompts: {
+          attempts: number;
+          completionRate: number;
+          firstTokenLatencyMs: { count: number };
+        };
       };
       expect(metrics.sessions.createAttempts).toBe(1);
       expect(metrics.sessions.createSuccessRate).toBe(1);
@@ -298,32 +330,51 @@ describe('gateway contract', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: 'codex' }),
       });
-      const created = (await createResponse.json()) as { session: { sessionId: string } };
+      const created = (await createResponse.json()) as {
+        session: { sessionId: string };
+      };
       const sessionId = created.session.sessionId;
 
-      const promptResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Trace-Id': 'trace-structured-1' },
-        body: JSON.stringify({ input: 'structured-contract', timeoutMs: 2000 }),
-      });
+      const promptResponse = await fetch(
+        `${gateway.baseUrl}/sessions/${sessionId}/prompt`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Trace-Id': 'trace-structured-1',
+          },
+          body: JSON.stringify({
+            input: 'structured-contract',
+            timeoutMs: 2000,
+          }),
+        },
+      );
       expect(promptResponse.status).toBe(202);
 
       await sleep(30);
 
-      const eventsResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/events`);
+      const eventsResponse = await fetch(
+        `${gateway.baseUrl}/sessions/${sessionId}/events`,
+      );
       const eventsPage = (await eventsResponse.json()) as {
-        events: Array<{ type: string; data: Record<string, unknown>; traceId: string }>;
+        events: Array<{
+          type: string;
+          data: Record<string, unknown>;
+          traceId: string;
+        }>;
       };
       const structuredEvents = eventsPage.events.filter(
-        (event) => event.traceId === 'trace-structured-1'
+        (event) => event.traceId === 'trace-structured-1',
       );
 
-      expect(structuredEvents.some((event) => event.type === 'tool')).toBe(true);
+      expect(structuredEvents.some((event) => event.type === 'tool')).toBe(
+        true,
+      );
       expect(
         structuredEvents.some(
           (event) =>
-            event.type === 'delta' && event.data.text === 'structured:hello'
-        )
+            event.type === 'delta' && event.data.text === 'structured:hello',
+        ),
       ).toBe(true);
       expect(structuredEvents.at(-1)?.type).toBe('complete');
     } finally {
@@ -340,26 +391,33 @@ describe('gateway contract', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: 'codex' }),
       });
-      const created = (await createResponse.json()) as { session: { sessionId: string } };
+      const created = (await createResponse.json()) as {
+        session: { sessionId: string };
+      };
 
-      const promptResponse = await fetch(`${gateway.baseUrl}/sessions/${created.session.sessionId}/prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          input: 'hello-contract',
-          timeoutMs: 2000,
-          env: {
-            TEAM_AI_STEP: 1,
-          },
-        }),
-      });
+      const promptResponse = await fetch(
+        `${gateway.baseUrl}/sessions/${created.session.sessionId}/prompt`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: 'hello-contract',
+            timeoutMs: 2000,
+            env: {
+              TEAM_AI_STEP: 1,
+            },
+          }),
+        },
+      );
 
       expect(promptResponse.status).toBe(400);
       const payload = (await promptResponse.json()) as {
         error: { code: string; message: string };
       };
       expect(payload.error.code).toBe('INVALID_REQUEST_BODY');
-      expect(payload.error.message).toContain('env must be a JSON object with string values');
+      expect(payload.error.message).toContain(
+        'env must be a JSON object with string values',
+      );
       expect(runtime.requests).toHaveLength(0);
     } finally {
       await gateway.close();
@@ -375,32 +433,45 @@ describe('gateway contract', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: 'codex' }),
       });
-      const created = (await createResponse.json()) as { session: { sessionId: string } };
+      const created = (await createResponse.json()) as {
+        session: { sessionId: string };
+      };
       const sessionId = created.session.sessionId;
 
       const streamController = new AbortController();
-      const streamPromise = fetch(`${gateway.baseUrl}/sessions/${sessionId}/stream`, {
-        method: 'GET',
-        signal: streamController.signal,
-      });
+      const streamPromise = fetch(
+        `${gateway.baseUrl}/sessions/${sessionId}/stream`,
+        {
+          method: 'GET',
+          signal: streamController.signal,
+        },
+      );
 
-      const promptResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: 'slow-contract', timeoutMs: 5000 }),
-      });
+      const promptResponse = await fetch(
+        `${gateway.baseUrl}/sessions/${sessionId}/prompt`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input: 'slow-contract', timeoutMs: 5000 }),
+        },
+      );
       expect(promptResponse.status).toBe(202);
 
-      const cancelResponse = await fetch(`${gateway.baseUrl}/sessions/${sessionId}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: 'cancel by contract test' }),
-      });
+      const cancelResponse = await fetch(
+        `${gateway.baseUrl}/sessions/${sessionId}/cancel`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: 'cancel by contract test' }),
+        },
+      );
       expect(cancelResponse.status).toBe(202);
 
       const streamResponse = await streamPromise;
       expect(streamResponse.status).toBe(200);
-      expect(streamResponse.headers.get('content-type')).toContain('text/event-stream');
+      expect(streamResponse.headers.get('content-type')).toContain(
+        'text/event-stream',
+      );
       streamController.abort();
 
       const createSecond = await fetch(`${gateway.baseUrl}/sessions`, {
@@ -408,8 +479,9 @@ describe('gateway contract', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider: 'codex' }),
       });
-      const session2 = ((await createSecond.json()) as { session: { sessionId: string } }).session
-        .sessionId;
+      const session2 = (
+        (await createSecond.json()) as { session: { sessionId: string } }
+      ).session.sessionId;
       await fetch(`${gateway.baseUrl}/sessions/${session2}/prompt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -419,13 +491,18 @@ describe('gateway contract', () => {
 
       const metricsResponse = await fetch(`${gateway.baseUrl}/metrics`);
       const metrics = (await metricsResponse.json()) as {
-        errors: { byCategory: Record<string, number>; byCode: Record<string, number> };
+        errors: {
+          byCategory: Record<string, number>;
+          byCode: Record<string, number>;
+        };
         prompts: { attempts: number; failed: number };
       };
       expect(metrics.prompts.attempts).toBe(2);
       expect(metrics.prompts.failed).toBe(2);
       expect(metrics.errors.byCategory.provider ?? 0).toBeGreaterThanOrEqual(1);
-      expect(metrics.errors.byCode.PROVIDER_PROCESS_EXITED ?? 0).toBeGreaterThanOrEqual(1);
+      expect(
+        metrics.errors.byCode.PROVIDER_PROCESS_EXITED ?? 0,
+      ).toBeGreaterThanOrEqual(1);
     } finally {
       await gateway.close();
     }
