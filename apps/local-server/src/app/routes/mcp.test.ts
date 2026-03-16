@@ -9,7 +9,8 @@ import taskWorkflowOrchestratorPlugin from '../plugins/task-workflow-orchestrato
 import { createAgent } from '../services/agent-service';
 import { createNote, getNoteById } from '../services/note-service';
 import { createProject } from '../services/project-service';
-import { createTask, listTasks } from '../services/task-service';
+import { startTaskRun } from '../services/task-run-service';
+import { createTask, listTasks, updateTask } from '../services/task-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import acpRoute from './acp';
 import mcpRoute from './mcp';
@@ -175,6 +176,7 @@ describe('mcp route', () => {
         'task_execute',
         'task_runs_list',
         'delegate_task_to_agent',
+        'report_to_parent',
         'set_note_content',
         'notes_append',
         'acp_session_create',
@@ -647,6 +649,7 @@ describe('mcp route', () => {
     expect(toolNames).not.toContain('task_update');
     expect(toolNames).not.toContain('task_execute');
     expect(toolNames).not.toContain('delegate_task_to_agent');
+    expect(toolNames).not.toContain('report_to_parent');
     expect(toolNames).not.toContain('set_note_content');
     expect(toolNames).not.toContain('notes_append');
     expect(toolNames).not.toContain('acp_session_create');
@@ -1115,6 +1118,371 @@ Validation and review logic
       },
     });
     expect(promptMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports child session outcomes back into task, note, and run state via MCP', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-report-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.provider}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-report',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Report Task Project',
+      repoPath: '/tmp/team-ai-mcp-report-project',
+    });
+    const rootSessionId = 'acps_report_root';
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-report-project',
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const implementationTask = await createTask(fastify.sqlite, {
+      kind: 'implement',
+      objective: 'Capture crafter completion summaries',
+      projectId: project.id,
+      sessionId: rootSessionId,
+      status: 'READY',
+      title: 'Implement report flow',
+    });
+    const implementationSessionId = 'acps_report_impl_child';
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-report-project',
+      id: implementationSessionId,
+      parentSessionId: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+      taskId: implementationTask.id,
+    });
+    await updateTask(fastify.sqlite, implementationTask.id, {
+      assignedRole: 'CRAFTER',
+      executionSessionId: implementationSessionId,
+      status: 'RUNNING',
+    });
+    await startTaskRun(fastify.sqlite, {
+      projectId: project.id,
+      role: 'CRAFTER',
+      sessionId: implementationSessionId,
+      status: 'RUNNING',
+      taskId: implementationTask.id,
+    });
+
+    const implementationResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-report-impl',
+        method: 'tools/call',
+        params: {
+          name: 'report_to_parent',
+          arguments: {
+            projectId: project.id,
+            sessionId: implementationSessionId,
+            summary: 'Implemented the downstream report flow',
+            verdict: 'completed',
+            filesChanged: ['apps/local-server/src/app/routes/mcp.ts'],
+            verificationPerformed: ['npx nx test local-server --runTestsByPath mcp'],
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(implementationResponse.statusCode).toBe(200);
+    expect(
+      implementationResponse.json().result.content[0].json,
+    ).toMatchObject({
+      noteAction: 'created',
+      note: {
+        linkedTaskId: implementationTask.id,
+        sessionId: rootSessionId,
+        title: 'Task Report: Implement report flow',
+        type: 'task',
+      },
+      report: {
+        mode: 'implementation',
+        parentSessionId: rootSessionId,
+        taskId: implementationTask.id,
+        verdict: 'completed',
+      },
+      task: {
+        completionSummary: 'Implemented the downstream report flow',
+        executionSessionId: null,
+        resultSessionId: implementationSessionId,
+        status: 'COMPLETED',
+      },
+      taskRun: {
+        sessionId: implementationSessionId,
+        status: 'COMPLETED',
+        summary: 'Implemented the downstream report flow',
+      },
+    });
+
+    const verificationTask = await createTask(fastify.sqlite, {
+      kind: 'verify',
+      objective: 'Capture gate approval states',
+      projectId: project.id,
+      sessionId: rootSessionId,
+      status: 'READY',
+      title: 'Verify report flow',
+    });
+    const verificationSessionId = 'acps_report_gate_child';
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-report-project',
+      id: verificationSessionId,
+      parentSessionId: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+      taskId: verificationTask.id,
+    });
+    await updateTask(fastify.sqlite, verificationTask.id, {
+      assignedRole: 'GATE',
+      executionSessionId: verificationSessionId,
+      status: 'RUNNING',
+    });
+    await startTaskRun(fastify.sqlite, {
+      projectId: project.id,
+      role: 'GATE',
+      sessionId: verificationSessionId,
+      status: 'RUNNING',
+      taskId: verificationTask.id,
+    });
+
+    const gatePassResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-report-gate-pass',
+        method: 'tools/call',
+        params: {
+          name: 'report_to_parent',
+          arguments: {
+            projectId: project.id,
+            sessionId: verificationSessionId,
+            summary: 'Gate approved the report flow',
+            verdict: 'pass',
+            verificationPerformed: ['npx nx test local-server --runTestsByPath task-report-service'],
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(gatePassResponse.statusCode).toBe(200);
+    expect(gatePassResponse.json().result.content[0].json).toMatchObject({
+      note: {
+        linkedTaskId: verificationTask.id,
+        sessionId: rootSessionId,
+        title: 'Verification Report: Verify report flow',
+        type: 'general',
+      },
+      report: {
+        mode: 'verification',
+        parentSessionId: rootSessionId,
+        taskId: verificationTask.id,
+        verdict: 'pass',
+      },
+      task: {
+        resultSessionId: verificationSessionId,
+        status: 'COMPLETED',
+        verificationVerdict: 'pass',
+      },
+      taskRun: {
+        sessionId: verificationSessionId,
+        status: 'COMPLETED',
+        verificationVerdict: 'pass',
+      },
+    });
+
+    const failingTask = await createTask(fastify.sqlite, {
+      kind: 'review',
+      objective: 'Make gate failures retryable',
+      projectId: project.id,
+      sessionId: rootSessionId,
+      status: 'READY',
+      title: 'Reject report flow',
+    });
+    const failingSessionId = 'acps_report_gate_fail_child';
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-report-project',
+      id: failingSessionId,
+      parentSessionId: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+      taskId: failingTask.id,
+    });
+    await updateTask(fastify.sqlite, failingTask.id, {
+      assignedRole: 'GATE',
+      executionSessionId: failingSessionId,
+      status: 'RUNNING',
+    });
+    await startTaskRun(fastify.sqlite, {
+      projectId: project.id,
+      role: 'GATE',
+      sessionId: failingSessionId,
+      status: 'RUNNING',
+      taskId: failingTask.id,
+    });
+
+    const gateFailResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-report-gate-fail',
+        method: 'tools/call',
+        params: {
+          name: 'report_to_parent',
+          arguments: {
+            projectId: project.id,
+            sessionId: failingSessionId,
+            summary: 'Gate rejected the report flow',
+            verdict: 'fail',
+            blocker: 'Regression remains in MCP route handling',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(gateFailResponse.statusCode).toBe(200);
+    expect(gateFailResponse.json().result.content[0].json).toMatchObject({
+      report: {
+        mode: 'verification',
+        parentSessionId: rootSessionId,
+        taskId: failingTask.id,
+        verdict: 'fail',
+      },
+      task: {
+        resultSessionId: failingSessionId,
+        status: 'WAITING_RETRY',
+        verificationVerdict: 'fail',
+      },
+      taskRun: {
+        sessionId: failingSessionId,
+        status: 'FAILED',
+        verificationVerdict: 'fail',
+      },
+    });
+  });
+
+  it('rejects report_to_parent without a valid child session context', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-report-invalid-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.provider}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-report-invalid',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Invalid Report Task Project',
+      repoPath: '/tmp/team-ai-mcp-report-invalid-project',
+    });
+    const rootSessionId = 'acps_report_invalid_root';
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-report-invalid-project',
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const response = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-report-invalid',
+        method: 'tools/call',
+        params: {
+          name: 'report_to_parent',
+          arguments: {
+            projectId: project.id,
+            sessionId: rootSessionId,
+            summary: 'This should not be accepted',
+            verdict: 'completed',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      error: {
+        code: -32000,
+        data: {
+          problem: {
+            status: 409,
+            title: 'Report Session Context Missing',
+            type: 'https://team-ai.dev/problems/report-session-context-missing',
+          },
+        },
+      },
+      result: null,
+    });
   });
 
   it('rejects cross-project task, run, and note scope arguments', async () => {

@@ -346,6 +346,75 @@ export async function findSpecNoteByScope(
   return row ? mapNoteRow(row) : null;
 }
 
+export async function findLatestTaskNote(
+  sqlite: Database,
+  input: {
+    projectId: string;
+    sessionId?: string | null;
+    taskId: string;
+    title?: string;
+    type?: NoteType;
+  },
+): Promise<NotePayload | null> {
+  await getProjectById(sqlite, input.projectId);
+  await ensureSessionProjectMatch(sqlite, input.projectId, input.sessionId);
+  await ensureTaskProjectMatch(sqlite, input.projectId, input.taskId);
+
+  const filters = [
+    'project_id = @projectId',
+    'linked_task_id = @taskId',
+    'deleted_at IS NULL',
+  ];
+  const parameters: Record<string, unknown> = {
+    projectId: input.projectId,
+    taskId: input.taskId,
+  };
+
+  if (input.sessionId === null || input.sessionId === undefined) {
+    filters.push('session_id IS NULL');
+  } else {
+    filters.push('session_id = @sessionId');
+    parameters.sessionId = input.sessionId;
+  }
+
+  if (input.type) {
+    filters.push('type = @type');
+    parameters.type = input.type;
+  }
+
+  if (input.title) {
+    filters.push('title = @title');
+    parameters.title = input.title;
+  }
+
+  const row = sqlite
+    .prepare(
+      `
+        SELECT
+          id,
+          project_id,
+          session_id,
+          type,
+          title,
+          content,
+          format,
+          parent_note_id,
+          linked_task_id,
+          assigned_agent_ids_json,
+          source,
+          created_at,
+          updated_at
+        FROM project_notes
+        WHERE ${filters.join(' AND ')}
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT 1
+      `,
+    )
+    .get(parameters) as NoteRow | undefined;
+
+  return row ? mapNoteRow(row) : null;
+}
+
 export async function createNote(
   sqlite: Database,
   input: CreateNoteInput,

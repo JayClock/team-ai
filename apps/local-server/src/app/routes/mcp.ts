@@ -27,6 +27,7 @@ import {
 } from '../services/acp-service';
 import { listAgents } from '../services/agent-service';
 import { getProjectById, listProjects } from '../services/project-service';
+import { reportToParent } from '../services/task-report-service';
 import { listTaskRuns } from '../services/task-run-service';
 import {
   getTaskById,
@@ -203,6 +204,18 @@ const delegateTaskToAgentArgsSchema = z.object({
   waitMode: z.enum(['immediate', 'after_all']).optional(),
 });
 
+const reportToParentArgsSchema = z.object({
+  areasChanged: stringArraySchema.optional(),
+  blocker: nullableStringSchema.optional(),
+  filesChanged: stringArraySchema.optional(),
+  projectId: z.string().trim().min(1),
+  residualRisk: nullableStringSchema.optional(),
+  sessionId: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
+  verificationPerformed: stringArraySchema.optional(),
+  verdict: z.enum(['completed', 'blocked', 'pass', 'fail']),
+});
+
 const createAcpSessionArgsSchema = z.object({
   actorUserId: z.string().trim().min(1),
   goal: z.string().trim().min(1).optional(),
@@ -367,6 +380,45 @@ const mcpToolDefinitions: readonly McpToolDefinition[] = [
             type: 'string',
             enum: ['PENDING', 'READY', 'WAITING_RETRY', 'CANCELLED'],
           },
+        },
+      },
+    },
+  },
+  {
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'report_to_parent',
+      title: 'Report To Parent',
+      description:
+        'Persist a delegated child session report back into shared task and note state for the parent workflow.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'sessionId', 'summary', 'verdict'],
+        properties: {
+          projectId: { type: 'string' },
+          sessionId: { type: 'string' },
+          summary: { type: 'string' },
+          verdict: {
+            type: 'string',
+            enum: ['completed', 'blocked', 'pass', 'fail'],
+          },
+          filesChanged: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          areasChanged: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          verificationPerformed: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          blocker: { type: ['string', 'null'] },
+          residualRisk: { type: ['string', 'null'] },
         },
       },
     },
@@ -1331,6 +1383,22 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                   },
                   task,
                 },
+                auditContext,
+              );
+            }
+            case 'report_to_parent': {
+              const args = reportToParentArgsSchema.parse(toolCall.arguments);
+              await getProjectById(fastify.sqlite, args.projectId);
+              await getProjectSession(
+                fastify.sqlite,
+                args.projectId,
+                args.sessionId,
+              );
+
+              return toolResult(
+                request,
+                id,
+                await reportToParent(fastify.sqlite, args),
                 auditContext,
               );
             }

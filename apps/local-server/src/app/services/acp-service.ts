@@ -793,12 +793,28 @@ async function syncTaskExecutionOutcome(
     return;
   }
 
-  const outcome = buildTaskExecutionOutcome(
+  const currentTask = getTaskExecutionRow(sqlite, taskRun.task_id);
+  const computedOutcome = buildTaskExecutionOutcome(
     sqlite,
     sessionId,
     state,
     fallbackFailureReason ?? session.failure_reason,
   );
+  const hasManualReportOutcome =
+    currentTask.result_session_id === sessionId &&
+    currentTask.execution_session_id === null;
+  const outcome = hasManualReportOutcome
+    ? {
+        summary: currentTask.completion_summary ?? computedOutcome.summary,
+        verificationReport:
+          currentTask.verification_report ?? computedOutcome.verificationReport,
+        verificationVerdict:
+          currentTask.verification_verdict ?? computedOutcome.verificationVerdict,
+      }
+    : computedOutcome;
+  const nextTaskStatus =
+    taskStatusOverride ??
+    (hasManualReportOutcome ? currentTask.status : state);
 
   updateTaskExecutionState(sqlite, {
     taskId: taskRun.task_id,
@@ -807,7 +823,7 @@ async function syncTaskExecutionOutcome(
     completionSummary: outcome.summary,
     verificationReport: outcome.verificationReport,
     verificationVerdict: outcome.verificationVerdict,
-    status: taskStatusOverride ?? state,
+    status: nextTaskStatus,
   });
 
   const runInput = {
@@ -820,7 +836,7 @@ async function syncTaskExecutionOutcome(
     verificationVerdict: outcome.verificationVerdict,
   };
 
-  if (state === 'COMPLETED') {
+  if (nextTaskStatus === 'COMPLETED') {
     await completeTaskRun(sqlite, taskRun.id, runInput, {
       logger: options.logger,
       reason: 'task_execution_completed',
@@ -829,7 +845,16 @@ async function syncTaskExecutionOutcome(
     return;
   }
 
-  if (state === 'FAILED') {
+  if (nextTaskStatus === 'CANCELLED') {
+    await cancelTaskRun(sqlite, taskRun.id, runInput, {
+      logger: options.logger,
+      reason: 'task_execution_cancelled',
+      source: options.source ?? 'acp-service',
+    });
+    return;
+  }
+
+  if (nextTaskStatus === 'WAITING_RETRY' || nextTaskStatus === 'FAILED') {
     await failTaskRun(sqlite, taskRun.id, runInput, {
       logger: options.logger,
       reason: 'task_execution_failed',
