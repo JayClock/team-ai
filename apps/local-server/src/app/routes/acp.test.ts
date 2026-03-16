@@ -497,6 +497,22 @@ describe('acp route', () => {
       model: 'gpt-5',
       provider: 'codex',
     });
+
+    const collectionResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/acp-sessions`,
+    });
+
+    expect(collectionResponse.statusCode).toBe(200);
+    expect(collectionResponse.json()._embedded.sessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: sessionId,
+          model: 'gpt-5',
+          provider: 'codex',
+        }),
+      ]),
+    );
   });
 
   it('resolves provider and model from the project runtime profile when session/new omits them', async () => {

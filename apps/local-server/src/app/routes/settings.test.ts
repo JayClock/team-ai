@@ -62,6 +62,21 @@ describe('settings route', () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it('rejects the legacy modelProvider patch field', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+
+    const response = await fastify.inject({
+      method: 'PATCH',
+      url: '/api/settings',
+      payload: {
+        modelProvider: 'openai',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-settings-route-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
