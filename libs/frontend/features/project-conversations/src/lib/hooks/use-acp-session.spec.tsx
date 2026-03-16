@@ -55,6 +55,7 @@ function createFixture() {
     project: { id: 'p-1' },
     agent: { id: 'agent-1' },
     actor: { id: 'u-1' },
+    codebase: null,
     parentSession: null,
     model: null,
     name: 'Session 1',
@@ -66,6 +67,7 @@ function createFixture() {
     completedAt: null,
     failureReason: null,
     lastEventId: { id: 'evt-1' },
+    worktree: null,
   };
 
   const historyBySince: Record<string, AcpEventEnvelope[]> = {
@@ -281,7 +283,7 @@ describe('useAcpSession', () => {
         actorUserId: 'u-1',
         cwd: undefined,
         model: null,
-        provider: 'codex',
+        provider: null,
         role: 'DEVELOPER',
         parentSessionId: undefined,
         idempotencyKey: undefined,
@@ -310,7 +312,7 @@ describe('useAcpSession', () => {
         actorUserId: 'u-1',
         cwd: '/tmp/alternate-repo',
         model: null,
-        provider: 'codex',
+        provider: null,
         role: undefined,
         parentSessionId: undefined,
         idempotencyKey: undefined,
@@ -339,7 +341,7 @@ describe('useAcpSession', () => {
         actorUserId: 'u-1',
         cwd: undefined,
         model: 'gpt-5',
-        provider: 'codex',
+        provider: null,
         role: undefined,
         parentSessionId: undefined,
         idempotencyKey: undefined,

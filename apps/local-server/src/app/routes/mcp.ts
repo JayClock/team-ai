@@ -169,9 +169,10 @@ const notesAppendArgsSchema = z.object({
 const createAcpSessionArgsSchema = z.object({
   actorUserId: z.string().trim().min(1),
   goal: z.string().trim().min(1).optional(),
+  model: z.string().trim().min(1).nullable().optional(),
   parentSessionId: z.string().trim().min(1).optional(),
   projectId: z.string().trim().min(1),
-  provider: z.string().trim().min(1).default('codex'),
+  provider: z.string().trim().min(1).nullable().optional(),
   role: z.string().trim().min(1).optional(),
   specialistId: z.string().trim().min(1).optional(),
 });

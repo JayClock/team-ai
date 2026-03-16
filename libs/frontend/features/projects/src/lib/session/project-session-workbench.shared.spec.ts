@@ -379,11 +379,13 @@ function createSessionState(
 
 function createRuntimeProfile(
   overrides: Partial<{
+    defaultModel: string | null;
     defaultProviderId: string | null;
     orchestrationMode: 'ROUTA' | 'DEVELOPER';
   }> = {},
 ) {
   return {
+    defaultModel: null,
     defaultProviderId: 'opencode',
     orchestrationMode: 'ROUTA' as const,
     ...overrides,

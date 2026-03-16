@@ -41,15 +41,21 @@ type InstallAcpProviderResponse = {
   success: boolean;
 };
 
-export function useAcpProviders(preferredProviderId = 'opencode') {
+function normalizeProviderId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function useAcpProviders(preferredProviderId: string | null = null) {
   const [providers, setProviders] = useState<AcpProvider[]>([]);
   const [registryError, setRegistryError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [installingProviderId, setInstallingProviderId] = useState<
     string | null
   >(null);
-  const [selectedProviderId, setSelectedProviderId] =
-    useState(preferredProviderId);
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
+    normalizeProviderId(preferredProviderId),
+  );
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -77,16 +83,15 @@ export function useAcpProviders(preferredProviderId = 'opencode') {
   }, [reload]);
 
   useEffect(() => {
-    const normalizedPreferredProviderId = preferredProviderId.trim();
-    if (!normalizedPreferredProviderId) {
-      return;
-    }
-
-    setSelectedProviderId(normalizedPreferredProviderId);
+    setSelectedProviderId(normalizeProviderId(preferredProviderId));
   }, [preferredProviderId]);
 
   useEffect(() => {
     if (providers.length === 0) {
+      return;
+    }
+
+    if (!selectedProviderId) {
       return;
     }
 
@@ -97,10 +102,7 @@ export function useAcpProviders(preferredProviderId = 'opencode') {
       return;
     }
 
-    const availableProvider = providers.find(
-      (provider) => provider.status === 'available',
-    );
-    setSelectedProviderId(availableProvider?.id ?? providers[0].id);
+    setSelectedProviderId(null);
   }, [providers, selectedProviderId]);
 
   const install = useCallback(
@@ -147,9 +149,7 @@ export function useAcpProviders(preferredProviderId = 'opencode') {
 
   const selectedProvider = useMemo(
     () =>
-      providers.find((provider) => provider.id === selectedProviderId) ??
-      providers[0] ??
-      null,
+      providers.find((provider) => provider.id === selectedProviderId) ?? null,
     [providers, selectedProviderId],
   );
 

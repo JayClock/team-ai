@@ -16,6 +16,7 @@ function toWorkbenchRuntimeProfile(
   profileState: State<ProjectRuntimeProfile>,
 ): ProjectSessionRuntimeProfile {
   return {
+    defaultModel: profileState.data.defaultModel,
     defaultProviderId: profileState.data.defaultProviderId,
     orchestrationMode: profileState.data.orchestrationMode,
   };

@@ -56,7 +56,7 @@ export type CreateAcpSessionInput = {
   actorUserId?: string;
   cwd?: string;
   model?: string | null;
-  provider?: string;
+  provider?: string | null;
   role?: AcpSessionRole;
   parentSessionId?: string;
   idempotencyKey?: string;
@@ -104,7 +104,7 @@ export type DeleteAcpSessionInput = {
 export type UseAcpSessionOptions = {
   actorUserId?: string;
   model?: string | null;
-  provider?: string;
+  provider?: string | null;
   role?: AcpSessionRole;
   historyLimit?: number;
   traceId?: string;
@@ -288,7 +288,7 @@ export function useAcpSession(
           actorUserId,
           cwd: input.cwd,
           model: input.model ?? options.model ?? null,
-          provider: input.provider ?? options.provider ?? 'codex',
+          provider: input.provider ?? options.provider ?? null,
           role: input.role ?? options.role,
           parentSessionId: input.parentSessionId,
           idempotencyKey: input.idempotencyKey,

@@ -84,7 +84,7 @@ describe('ProjectSessionWorkbench', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          '{"defaultProviderId":"opencode","orchestrationMode":"DEVELOPER"}',
+          '{"defaultModel":null,"defaultProviderId":"opencode","orchestrationMode":"DEVELOPER"}',
         ),
       ).toBeTruthy();
     });

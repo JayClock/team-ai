@@ -9,41 +9,30 @@ describe('resolveWorkbenchSessionDefaults', () => {
     expect(
       resolveWorkbenchSessionDefaults({
         runtimeProfile: {
+          defaultModel: 'gpt-5',
           defaultProviderId: 'opencode',
           orchestrationMode: 'DEVELOPER',
         },
-        selectedSessionProvider: 'codex',
-        recentSessionProvider: 'claude',
       }),
     ).toEqual({
+      model: 'gpt-5',
       providerId: 'opencode',
       role: 'DEVELOPER',
     });
   });
 
-  it('falls back to the current session provider when profile provider is blank', () => {
+  it('returns null defaults when the runtime profile fields are blank', () => {
     expect(
       resolveWorkbenchSessionDefaults({
         runtimeProfile: {
+          defaultModel: '  ',
           defaultProviderId: '  ',
           orchestrationMode: 'ROUTA',
         },
-        selectedSessionProvider: 'codex',
-        recentSessionProvider: 'claude',
       }),
     ).toEqual({
-      providerId: 'codex',
-      role: 'ROUTA',
-    });
-  });
-
-  it('falls back to the latest known session provider when profile is missing', () => {
-    expect(
-      resolveWorkbenchSessionDefaults({
-        recentSessionProvider: 'opencode',
-      }),
-    ).toEqual({
-      providerId: 'opencode',
+      model: null,
+      providerId: null,
       role: 'ROUTA',
     });
   });
@@ -51,19 +40,21 @@ describe('resolveWorkbenchSessionDefaults', () => {
   it('falls back safely when a legacy runtime profile omits newer fields', () => {
     expect(
       resolveWorkbenchSessionDefaults({
-        recentSessionProvider: 'opencode',
         runtimeProfile: {
+          defaultModel: null,
           defaultProviderId: null,
         } as unknown as WorkbenchSessionRuntimeProfile,
       }),
     ).toEqual({
-      providerId: 'opencode',
+      model: null,
+      providerId: null,
       role: 'ROUTA',
     });
   });
 
   it('returns a null provider when no safe fallback exists', () => {
     expect(resolveWorkbenchSessionDefaults({})).toEqual({
+      model: null,
       providerId: null,
       role: 'ROUTA',
     });

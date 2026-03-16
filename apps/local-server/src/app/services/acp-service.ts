@@ -26,6 +26,7 @@ import { normalizeAcpProviderId } from './acp-provider-service';
 import { type NormalizedSessionUpdate } from './normalized-session-update';
 import { createAgent } from './agent-service';
 import { getProjectCodebaseById } from './project-codebase-service';
+import { getProjectRuntimeProfile } from './project-runtime-profile-service';
 import { getProjectById } from './project-service';
 import { getProjectWorktreeById } from './project-worktree-service';
 import {
@@ -96,7 +97,7 @@ interface CreateSessionInput {
   model?: string | null;
   parentSessionId?: string | null;
   projectId: string;
-  provider: string;
+  provider?: string | null;
   retryOfRunId?: string | null;
   role?: string | null;
   specialistId?: string;
@@ -251,6 +252,48 @@ function throwTaskWorkspaceMismatch(
       taskId,
     },
   });
+}
+
+function throwSessionProviderNotConfigured(projectId: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/acp-session-provider-not-configured',
+    title: 'ACP Session Provider Not Configured',
+    status: 409,
+    detail:
+      `Project ${projectId} does not have a provider for ACP session creation. ` +
+      'Set runtime profile defaultProviderId or pass provider explicitly.',
+  });
+}
+
+async function resolveAcpSessionDefaults(
+  sqlite: Database,
+  input: {
+    model?: string | null;
+    projectId: string;
+    provider?: string | null;
+  },
+): Promise<{
+  model: string | null;
+  provider: string;
+}> {
+  const runtimeProfile = await getProjectRuntimeProfile(
+    sqlite,
+    input.projectId,
+  );
+  const providerId =
+    normalizeOptionalText(input.provider) ??
+    normalizeOptionalText(runtimeProfile.defaultProviderId);
+
+  if (!providerId) {
+    throwSessionProviderNotConfigured(input.projectId);
+  }
+
+  return {
+    model:
+      normalizeOptionalText(input.model) ??
+      normalizeOptionalText(runtimeProfile.defaultModel),
+    provider: normalizeAcpProviderId(providerId),
+  };
 }
 
 function getTaskExecutionRow(
@@ -1374,7 +1417,7 @@ export async function createAcpSession(
   input: CreateSessionInput,
   options: AcpServiceOptions = {},
 ): Promise<AcpSessionPayload> {
-  const provider = normalizeAcpProviderId(input.provider);
+  const { model, provider } = await resolveAcpSessionDefaults(sqlite, input);
   const project = await getProjectById(sqlite, input.projectId);
   const parentSession = input.parentSessionId
     ? getSessionRow(sqlite, input.parentSessionId)
@@ -1434,7 +1477,6 @@ export async function createAcpSession(
   );
   const now = new Date().toISOString();
   const sessionId = createSessionId();
-  const model = normalizeOptionalText(input.model);
   const agent = specialist
     ? await createAgent(sqlite, {
         projectId: input.projectId,
