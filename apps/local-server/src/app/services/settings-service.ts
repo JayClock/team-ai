@@ -2,8 +2,6 @@ import type { Database } from 'better-sqlite3';
 import type { SettingsPatch, SettingsPayload } from '../schemas/settings';
 
 interface SettingsRow {
-  default_model: string;
-  model_provider: string;
   sync_enabled: number;
   theme: SettingsPayload['theme'];
   updated_at: string;
@@ -12,8 +10,6 @@ interface SettingsRow {
 function mapSettingsRow(row: SettingsRow): SettingsPayload {
   return {
     theme: row.theme,
-    modelProvider: row.model_provider,
-    defaultModel: row.default_model,
     syncEnabled: Boolean(row.sync_enabled),
     updatedAt: row.updated_at,
   };
@@ -25,8 +21,6 @@ export async function getSettings(sqlite: Database): Promise<SettingsPayload> {
       `
         SELECT
           theme,
-          model_provider,
-          default_model,
           sync_enabled,
           updated_at
         FROM settings
@@ -59,8 +53,6 @@ export async function updateSettings(
         UPDATE settings
         SET
           theme = @theme,
-          model_provider = @modelProvider,
-          default_model = @defaultModel,
           sync_enabled = @syncEnabled,
           updated_at = @updatedAt
         WHERE id = 1
@@ -68,8 +60,6 @@ export async function updateSettings(
     )
     .run({
       theme: next.theme,
-      modelProvider: next.modelProvider,
-      defaultModel: next.defaultModel,
       syncEnabled: next.syncEnabled ? 1 : 0,
       updatedAt: next.updatedAt,
     });

@@ -615,4 +615,14 @@ export const sqliteMigrations: SqliteMigration[] = [
         ADD COLUMN model TEXT;
     `,
   },
+  {
+    version: '022_settings_remove_model_defaults',
+    sql: `
+      ALTER TABLE settings
+        DROP COLUMN model_provider;
+
+      ALTER TABLE settings
+        DROP COLUMN default_model;
+    `,
+  },
 ];

@@ -57,6 +57,9 @@ describe('sqlite initialization', () => {
     const projectColumns = sqlite
       .prepare('PRAGMA table_info(projects)')
       .all() as Array<{ name: string }>;
+    const settingsColumns = sqlite
+      .prepare('PRAGMA table_info(settings)')
+      .all() as Array<{ name: string }>;
     const acpSessionColumns = sqlite
       .prepare('PRAGMA table_info(project_acp_sessions)')
       .all() as Array<{ name: string }>;
@@ -113,6 +116,12 @@ describe('sqlite initialization', () => {
       'workspace_root',
       'source_type',
       'source_url',
+    ]);
+    expect(settingsColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'theme',
+      'sync_enabled',
+      'updated_at',
     ]);
     expect(acpSessionColumns.map(({ name }) => name)).toEqual([
       'id',
@@ -262,21 +271,17 @@ describe('sqlite initialization', () => {
     const settings = sqlite
       .prepare(
         `
-          SELECT theme, model_provider, default_model, sync_enabled
+          SELECT theme, sync_enabled
           FROM settings
           WHERE id = 1
         `,
       )
       .get() as {
-      default_model: string;
-      model_provider: string;
       sync_enabled: number;
       theme: string;
     };
 
     expect(settings).toEqual({
-      default_model: 'deepseek-chat',
-      model_provider: 'deepseek',
       sync_enabled: 0,
       theme: 'system',
     });

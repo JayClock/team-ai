@@ -5,11 +5,9 @@ import { getSettings, updateSettings } from '../services/settings-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const updateSettingsSchema = z.object({
-  defaultModel: z.string().min(1).optional(),
-  modelProvider: z.string().min(1).optional(),
   syncEnabled: z.boolean().optional(),
   theme: z.enum(['system', 'light', 'dark']).optional(),
-});
+}).strict();
 
 const settingsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/settings', async (_request, reply) => {

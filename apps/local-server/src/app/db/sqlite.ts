@@ -63,19 +63,15 @@ export function initializeDatabase(): Database {
         INSERT INTO settings (
           id,
           theme,
-          model_provider,
-          default_model,
           sync_enabled,
           updated_at
         )
-        VALUES (1, @theme, @modelProvider, @defaultModel, @syncEnabled, @updatedAt)
+        VALUES (1, @theme, @syncEnabled, @updatedAt)
         ON CONFLICT(id) DO NOTHING
       `,
     )
     .run({
       theme: 'system',
-      modelProvider: 'deepseek',
-      defaultModel: 'deepseek-chat',
       syncEnabled: 0,
       updatedAt: new Date().toISOString(),
     });
