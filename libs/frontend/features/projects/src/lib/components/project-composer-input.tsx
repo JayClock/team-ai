@@ -26,6 +26,7 @@ export type { ProjectProviderPickerProps } from './project-provider-picker';
 export type {
   ProjectRepositoryOption,
   ProjectRepositoryPickerProps,
+  ProjectWorktreeOption,
 } from './project-repository-picker';
 
 export type ProjectComposerSubmitInput = {

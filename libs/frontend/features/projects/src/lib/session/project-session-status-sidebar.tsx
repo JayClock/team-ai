@@ -430,6 +430,16 @@ function TaskExecutionDetails(props: {
             {item.assignedProvider}
           </span>
         ) : null}
+        {item.codebaseId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            {item.codebaseId}
+          </span>
+        ) : null}
+        {item.worktreeId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            {item.worktreeId}
+          </span>
+        ) : null}
       </div>
 
       {executionStatus ? (

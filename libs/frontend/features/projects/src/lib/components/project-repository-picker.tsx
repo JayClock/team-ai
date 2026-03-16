@@ -21,6 +21,8 @@ import {
   GitBranchPlusIcon,
   LoaderCircleIcon,
   SearchIcon,
+  ShieldCheckIcon,
+  Trash2Icon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -33,13 +35,38 @@ export type ProjectRepositoryOption = {
   title: string;
 };
 
+export type ProjectWorktreeOption = {
+  id: string;
+  codebaseId: string;
+  branch: string;
+  baseBranch: string;
+  status: 'active' | 'creating' | 'error' | 'removing' | (string & {});
+  worktreePath: string;
+  sessionId: string | null;
+  label: string | null;
+  errorMessage: string | null;
+};
+
 export type ProjectRepositoryPickerProps = {
   cloneEndpoint?: string;
   disabled?: boolean;
+  onCreateWorktree?: (codebaseId: string) => Promise<void> | void;
+  onDeleteWorktree?: (input: {
+    codebaseId: string;
+    deleteBranch?: boolean;
+    worktreeId: string;
+  }) => Promise<void> | void;
   onProjectCloned?: (projectId: string) => Promise<void> | void;
+  onValidateWorktree?: (input: {
+    codebaseId: string;
+    worktreeId: string;
+  }) => Promise<void> | void;
   onValueChange?: (project: ProjectRepositoryOption | null) => void;
   projects: ProjectRepositoryOption[];
+  selectedWorktreeId?: string | null;
   value?: ProjectRepositoryOption | null;
+  worktrees?: ProjectWorktreeOption[];
+  worktreesLoading?: boolean;
 };
 
 type PickerTab = 'existing' | 'clone';
@@ -86,9 +113,15 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
     cloneEndpoint = '/api/projects/clone',
     disabled,
     onProjectCloned,
+    onCreateWorktree,
+    onDeleteWorktree,
+    onValidateWorktree,
     onValueChange,
     projects,
+    selectedWorktreeId,
     value,
+    worktrees = [],
+    worktreesLoading = false,
   } = props;
   const [activeTab, setActiveTab] = useState<PickerTab>('existing');
   const [cloneError, setCloneError] = useState<string | null>(null);
@@ -98,6 +131,7 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
     useState<DropdownPosition | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [worktreeActionKey, setWorktreeActionKey] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const cloneInputRef = useRef<HTMLInputElement>(null);
@@ -267,6 +301,26 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
     }
   }, [cloneEndpoint, cloneUrl, cloning, onProjectCloned, onValueChange]);
 
+  const runWorktreeAction = useCallback(
+    async (key: string, callback: () => Promise<void> | void) => {
+      if (worktreeActionKey) {
+        return;
+      }
+
+      setWorktreeActionKey(key);
+      try {
+        await callback();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Worktree 操作失败';
+        toast.error(message);
+      } finally {
+        setWorktreeActionKey(null);
+      }
+    },
+    [worktreeActionKey],
+  );
+
   return (
     <div className="relative">
       {selectedProject ? (
@@ -411,6 +465,187 @@ export function ProjectRepositoryPicker(props: ProjectRepositoryPickerProps) {
                       )}
                     </CommandList>
                   </Command>
+
+                  <div className="border-t border-slate-100 p-3 dark:border-[#1c1f2e]">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                          Worktrees
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          当前 codebase 的分支工作区。
+                        </p>
+                      </div>
+                      {selectedProject && onCreateWorktree ? (
+                        <Button
+                          className="h-8 rounded-lg px-2.5 text-[11px]"
+                          disabled={Boolean(worktreeActionKey)}
+                          onClick={() =>
+                            void runWorktreeAction(
+                              `create:${selectedProject.id}`,
+                              async () => {
+                                await onCreateWorktree(selectedProject.id);
+                              },
+                            )
+                          }
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          {worktreeActionKey === `create:${selectedProject.id}` ? (
+                            <LoaderCircleIcon className="size-3.5 animate-spin" />
+                          ) : (
+                            <GitBranchPlusIcon className="size-3.5" />
+                          )}
+                          新建 worktree
+                        </Button>
+                      ) : null}
+                    </div>
+
+                    {!selectedProject ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 px-3 py-3 text-xs text-slate-500 dark:border-[#2a2d3d] dark:text-slate-400">
+                        先选择一个 codebase，再查看它的 worktrees。
+                      </div>
+                    ) : worktreesLoading ? (
+                      <div className="flex items-center gap-2 rounded-xl border border-slate-100 px-3 py-3 text-xs text-slate-500 dark:border-[#1c1f2e] dark:text-slate-400">
+                        <LoaderCircleIcon className="size-3.5 animate-spin" />
+                        正在加载 worktrees...
+                      </div>
+                    ) : worktrees.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-slate-200 px-3 py-3 text-xs text-slate-500 dark:border-[#2a2d3d] dark:text-slate-400">
+                        当前 codebase 还没有持久化 worktree。
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {worktrees.map((worktree) => {
+                          const actionPrefix = `${selectedProject.id}:${worktree.id}`;
+                          const isBusy =
+                            worktreeActionKey?.startsWith(actionPrefix) === true;
+                          const isSelected = selectedWorktreeId === worktree.id;
+
+                          return (
+                            <div
+                              key={worktree.id}
+                              className={`rounded-xl border px-3 py-3 ${
+                                isSelected
+                                  ? 'border-amber-300 bg-amber-50/70 dark:border-amber-500/40 dark:bg-amber-900/10'
+                                  : 'border-slate-100 dark:border-[#1c1f2e]'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                                      {worktree.label?.trim() || worktree.branch}
+                                    </p>
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:bg-[#1f2233] dark:text-slate-300">
+                                      {worktree.status}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                                    {worktree.branch}
+                                  </p>
+                                  <p className="mt-1 truncate text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                                    {worktree.worktreePath}
+                                  </p>
+                                  {worktree.errorMessage ? (
+                                    <p className="mt-2 text-[11px] text-red-600 dark:text-red-300">
+                                      {worktree.errorMessage}
+                                    </p>
+                                  ) : null}
+                                </div>
+
+                                <div className="flex shrink-0 items-center gap-1">
+                                  {onValidateWorktree ? (
+                                    <Button
+                                      className="h-8 rounded-lg px-2.5 text-[11px]"
+                                      disabled={isBusy}
+                                      onClick={() =>
+                                        void runWorktreeAction(
+                                          `${actionPrefix}:validate`,
+                                          async () => {
+                                            await onValidateWorktree({
+                                              codebaseId: worktree.codebaseId,
+                                              worktreeId: worktree.id,
+                                            });
+                                          },
+                                        )
+                                      }
+                                      size="sm"
+                                      type="button"
+                                      variant="ghost"
+                                    >
+                                      {worktreeActionKey === `${actionPrefix}:validate` ? (
+                                        <LoaderCircleIcon className="size-3.5 animate-spin" />
+                                      ) : (
+                                        <ShieldCheckIcon className="size-3.5" />
+                                      )}
+                                      校验
+                                    </Button>
+                                  ) : null}
+                                  {onDeleteWorktree ? (
+                                    <>
+                                      <Button
+                                        className="h-8 rounded-lg px-2.5 text-[11px]"
+                                        disabled={isBusy}
+                                        onClick={() =>
+                                          void runWorktreeAction(
+                                            `${actionPrefix}:delete`,
+                                            async () => {
+                                              await onDeleteWorktree({
+                                                codebaseId: worktree.codebaseId,
+                                                worktreeId: worktree.id,
+                                              });
+                                            },
+                                          )
+                                        }
+                                        size="sm"
+                                        type="button"
+                                        variant="ghost"
+                                      >
+                                        {worktreeActionKey === `${actionPrefix}:delete` ? (
+                                          <LoaderCircleIcon className="size-3.5 animate-spin" />
+                                        ) : (
+                                          <Trash2Icon className="size-3.5" />
+                                        )}
+                                        删除
+                                      </Button>
+                                      <Button
+                                        className="h-8 rounded-lg px-2.5 text-[11px]"
+                                        disabled={isBusy}
+                                        onClick={() =>
+                                          void runWorktreeAction(
+                                            `${actionPrefix}:delete-branch`,
+                                            async () => {
+                                              await onDeleteWorktree({
+                                                codebaseId: worktree.codebaseId,
+                                                deleteBranch: true,
+                                                worktreeId: worktree.id,
+                                              });
+                                            },
+                                          )
+                                        }
+                                        size="sm"
+                                        type="button"
+                                        variant="ghost"
+                                      >
+                                        {worktreeActionKey === `${actionPrefix}:delete-branch` ? (
+                                          <LoaderCircleIcon className="size-3.5 animate-spin" />
+                                        ) : (
+                                          <Trash2Icon className="size-3.5" />
+                                        )}
+                                        删分支
+                                      </Button>
+                                    </>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </TabsContent>
 
                 <TabsContent className="mt-0 px-3 py-3" value="clone">

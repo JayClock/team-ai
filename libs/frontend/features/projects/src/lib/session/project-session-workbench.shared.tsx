@@ -20,6 +20,7 @@ export { buildSessionTree, countSessionTree, sessionDisplayName };
 export type TaskPanelItem = {
   assignedProvider?: string | null;
   assignedRole?: string | null;
+  codebaseId?: string | null;
   description?: string;
   executionSessionId?: string | null;
   id: string;
@@ -31,6 +32,7 @@ export type TaskPanelItem = {
   taskId?: string;
   taskRuns?: TaskRunPanelItem[];
   title: string;
+  worktreeId?: string | null;
 };
 
 export type TaskRunPanelItem = {
@@ -215,9 +217,11 @@ export function buildTaskPanelItem(task: State<Task>): TaskPanelItem {
     kind: task.data.kind,
     assignedRole: task.data.assignedRole,
     assignedProvider: task.data.assignedProvider,
+    codebaseId: task.data.codebaseId,
     executionSessionId: task.data.executionSessionId,
     resultSessionId: task.data.resultSessionId,
     taskState: task,
+    worktreeId: task.data.worktreeId,
   };
 }
 

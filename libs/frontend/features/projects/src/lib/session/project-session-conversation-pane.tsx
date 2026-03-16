@@ -50,10 +50,22 @@ export function ProjectSessionConversationPane(props: {
     ariaLabel: '会话输入框',
     disabled: hasPendingAssistantMessage,
     footerStart: (
-      <div className="text-xs text-muted-foreground">
-        {selectedSession
-          ? formatStatusLabel(selectedSession.data.acpStatus)
-          : '发送后将创建新会话'}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>
+          {selectedSession
+            ? formatStatusLabel(selectedSession.data.acpStatus)
+            : '发送后将创建新会话'}
+        </span>
+        {selectedSession?.data.codebase ? (
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+            {selectedSession.data.codebase.id}
+          </span>
+        ) : null}
+        {selectedSession?.data.worktree ? (
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+            {selectedSession.data.worktree.id}
+          </span>
+        ) : null}
       </div>
     ),
     onSubmit,

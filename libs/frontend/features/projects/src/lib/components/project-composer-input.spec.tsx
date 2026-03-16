@@ -91,6 +91,56 @@ describe('ProjectComposerInput', () => {
     expect(screen.getByRole('button', { name: 'Project One' })).toBeTruthy();
   });
 
+  it('renders worktree management actions when worktrees are provided', () => {
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        onSubmit={() => undefined}
+        placeholder="输入内容"
+        projectPicker={{
+          onCreateWorktree: () => undefined,
+          onDeleteWorktree: () => undefined,
+          onValidateWorktree: () => undefined,
+          onValueChange: () => undefined,
+          projects: [
+            {
+              id: 'project-1',
+              repoPath: '/tmp/project-1',
+              sourceUrl: 'https://github.com/acme/project-1',
+              title: 'Project One',
+            },
+          ],
+          value: {
+            id: 'project-1',
+            repoPath: '/tmp/project-1',
+            sourceUrl: 'https://github.com/acme/project-1',
+            title: 'Project One',
+          },
+          worktrees: [
+            {
+              id: 'wt_123',
+              codebaseId: 'project-1',
+              branch: 'wt/feature',
+              baseBranch: 'main',
+              status: 'active',
+              worktreePath: '/tmp/worktrees/project-1',
+              sessionId: null,
+              label: 'Feature worktree',
+              errorMessage: null,
+            },
+          ],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Project One' }));
+
+    expect(screen.getByText('Feature worktree')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '校验' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '删除' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '删分支' })).toBeTruthy();
+  });
+
   it('submits the selected provider with the prompt payload', async () => {
     const onSubmit = vi.fn();
 

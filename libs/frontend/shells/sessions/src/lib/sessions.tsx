@@ -4,6 +4,7 @@ import { useAcpSession } from '@features/project-conversations';
 import {
   ProjectComposerInput,
   type ProjectRepositoryOption,
+  type ProjectWorktreeOption,
   useAcpProviders,
 } from '@features/projects';
 import {
@@ -13,6 +14,7 @@ import {
   Project,
   Role,
   Root,
+  Worktree,
 } from '@shared/schema';
 import {
   Button,
@@ -24,6 +26,7 @@ import {
   DialogContent,
   toast,
 } from '@shared/ui';
+import { runtimeFetch } from '@shared/util-http';
 import {
   ArrowRightIcon,
   Clock3Icon,
@@ -218,6 +221,8 @@ function ShellsSessionsContent(props: {
   const [recentSessions, setRecentSessions] = useState<
     State<AcpSessionSummary>[]
   >([]);
+  const [worktrees, setWorktrees] = useState<ProjectWorktreeOption[]>([]);
+  const [worktreesLoading, setWorktreesLoading] = useState(false);
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
@@ -268,6 +273,62 @@ function ShellsSessionsContent(props: {
       },
     [repositoryOptions, selectedProject, selectedRepositoryId],
   );
+  const selectedCodebaseState = useMemo(
+    () =>
+      codebasesState.collection.find(
+        (codebase) => codebase.data.id === selectedRepository.id,
+      ) ?? null,
+    [codebasesState.collection, selectedRepository.id],
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    if (!selectedCodebaseState?.hasLink('worktrees')) {
+      setWorktrees([]);
+      setWorktreesLoading(false);
+      return;
+    }
+
+    setWorktreesLoading(true);
+
+    void selectedCodebaseState
+      .follow('worktrees')
+      .refresh()
+      .then((worktreesState) => {
+        if (!active) {
+          return;
+        }
+
+        setWorktrees(
+          worktreesState.collection.map((worktree: State<Worktree>) => ({
+            id: worktree.data.id,
+            codebaseId: worktree.data.codebaseId,
+            branch: worktree.data.branch,
+            baseBranch: worktree.data.baseBranch,
+            status: worktree.data.status,
+            worktreePath: worktree.data.worktreePath,
+            sessionId: worktree.data.sessionId,
+            label: worktree.data.label,
+            errorMessage: worktree.data.errorMessage,
+          })),
+        );
+      })
+      .catch(() => {
+        if (active) {
+          setWorktrees([]);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setWorktreesLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCodebaseState]);
 
   const homeAgentOptions = useMemo(
     () =>
@@ -377,6 +438,75 @@ function ShellsSessionsContent(props: {
   const projectPicker = useMemo(
     () => ({
       cloneEndpoint: `/api/projects/${selectedProjectId}/codebases/clone`,
+      onCreateWorktree: async (codebaseId: string) => {
+        const response = await runtimeFetch(
+          `/api/projects/${selectedProjectId}/codebases/${codebaseId}/worktrees`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({}),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error('创建 worktree 失败');
+        }
+
+        await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
+          setWorktrees(
+            worktreesState.collection.map((worktree: State<Worktree>) => ({
+              id: worktree.data.id,
+              codebaseId: worktree.data.codebaseId,
+              branch: worktree.data.branch,
+              baseBranch: worktree.data.baseBranch,
+              status: worktree.data.status,
+              worktreePath: worktree.data.worktreePath,
+              sessionId: worktree.data.sessionId,
+              label: worktree.data.label,
+              errorMessage: worktree.data.errorMessage,
+            })),
+          );
+        });
+        toast.success('已创建新的 worktree');
+      },
+      onDeleteWorktree: async (input: {
+        codebaseId: string;
+        deleteBranch?: boolean;
+        worktreeId: string;
+      }) => {
+        const query = input.deleteBranch ? '?deleteBranch=true' : '';
+        const response = await runtimeFetch(
+          `/api/projects/${selectedProjectId}/worktrees/${input.worktreeId}${query}`,
+          {
+            method: 'DELETE',
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error('删除 worktree 失败');
+        }
+
+        await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
+          setWorktrees(
+            worktreesState.collection.map((worktree: State<Worktree>) => ({
+              id: worktree.data.id,
+              codebaseId: worktree.data.codebaseId,
+              branch: worktree.data.branch,
+              baseBranch: worktree.data.baseBranch,
+              status: worktree.data.status,
+              worktreePath: worktree.data.worktreePath,
+              sessionId: worktree.data.sessionId,
+              label: worktree.data.label,
+              errorMessage: worktree.data.errorMessage,
+            })),
+          );
+        });
+        toast.success(
+          input.deleteBranch ? '已删除 worktree 和分支' : '已删除 worktree',
+        );
+      },
       onProjectCloned: async (projectId: string) => {
         await codebasesResource.refresh();
         setSelectedRepositoryId(projectId);
@@ -393,8 +523,44 @@ function ShellsSessionsContent(props: {
                 repoPath: selectedRepository.repoPath,
                 sourceUrl: selectedRepository.sourceUrl,
                 title: selectedRepository.title,
-              },
-            ],
+          },
+      ],
+      onValidateWorktree: async (input: {
+        codebaseId: string;
+        worktreeId: string;
+      }) => {
+        const response = await runtimeFetch(
+          `/api/projects/${selectedProjectId}/worktrees/${input.worktreeId}/validate`,
+          {
+            method: 'POST',
+          },
+        );
+        const payload = (await response.json()) as {
+          error?: string;
+          healthy?: boolean;
+        };
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? '校验 worktree 失败');
+        }
+
+        await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
+          setWorktrees(
+            worktreesState.collection.map((worktree: State<Worktree>) => ({
+              id: worktree.data.id,
+              codebaseId: worktree.data.codebaseId,
+              branch: worktree.data.branch,
+              baseBranch: worktree.data.baseBranch,
+              status: worktree.data.status,
+              worktreePath: worktree.data.worktreePath,
+              sessionId: worktree.data.sessionId,
+              label: worktree.data.label,
+              errorMessage: worktree.data.errorMessage,
+            })),
+          );
+        });
+        toast.success(payload.healthy ? 'Worktree 校验通过' : 'Worktree 校验已更新');
+      },
       value: {
         id: selectedRepository.id,
         isDefault: selectedRepository.isDefault,
@@ -402,8 +568,18 @@ function ShellsSessionsContent(props: {
         sourceUrl: selectedRepository.sourceUrl,
         title: selectedRepository.title,
       },
+      worktrees,
+      worktreesLoading,
     }),
-    [codebasesResource, repositoryOptions, selectedProjectId, selectedRepository],
+    [
+      codebasesResource,
+      repositoryOptions,
+      selectedCodebaseState,
+      selectedProjectId,
+      selectedRepository,
+      worktrees,
+      worktreesLoading,
+    ],
   );
 
   const homePromptFooterStart = (
@@ -535,6 +711,12 @@ function ShellsSessionsContent(props: {
                     session.data.specialistId,
                     homeAgentOptions,
                   );
+                  const sessionCodebase = session.data.codebase
+                    ? repositoryOptions.find(
+                        (repository) =>
+                          repository.id === session.data.codebase?.id,
+                      )
+                    : null;
 
                   return (
                     <button
@@ -559,6 +741,16 @@ function ShellsSessionsContent(props: {
                             {agentLabel ? (
                               <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
                                 {agentLabel}
+                              </span>
+                            ) : null}
+                            {sessionCodebase ? (
+                              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                {sessionCodebase.title}
+                              </span>
+                            ) : null}
+                            {session.data.worktree ? (
+                              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
+                                {session.data.worktree.id}
                               </span>
                             ) : null}
                             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">

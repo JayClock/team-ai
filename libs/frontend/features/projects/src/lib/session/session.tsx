@@ -7,11 +7,13 @@ import {
   Codebase,
   Project,
   Root,
+  Worktree,
 } from '@shared/schema';
 import { toast } from '@shared/ui';
 import {
   getCurrentDesktopRuntimeConfig,
   resolveRuntimeApiUrl,
+  runtimeFetch,
 } from '@shared/util-http';
 import {
   type MouseEvent as ReactMouseEvent,
@@ -33,7 +35,10 @@ import {
   type WorkbenchSessionRuntimeProfile,
 } from './session-runtime-profile';
 import { useAcpProviders } from './use-acp-providers';
-import { type ProjectRepositoryOption } from '../components/project-composer-input';
+import {
+  type ProjectRepositoryOption,
+  type ProjectWorktreeOption,
+} from '../components/project-composer-input';
 
 const STREAM_RETRY_DELAY_MS = 1500;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
@@ -55,6 +60,22 @@ function timestamp(value: string | null): number {
   }
   const parsed = Date.parse(value);
   return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function mapWorktreeOptions(
+  items: State<Worktree>[],
+): ProjectWorktreeOption[] {
+  return items.map((worktree) => ({
+    id: worktree.data.id,
+    codebaseId: worktree.data.codebaseId,
+    branch: worktree.data.branch,
+    baseBranch: worktree.data.baseBranch,
+    status: worktree.data.status,
+    worktreePath: worktree.data.worktreePath,
+    sessionId: worktree.data.sessionId,
+    label: worktree.data.label,
+    errorMessage: worktree.data.errorMessage,
+  }));
 }
 
 export function ShellsSession(props: ShellsSessionProps) {
@@ -97,6 +118,8 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
   >(null);
+  const [worktrees, setWorktrees] = useState<ProjectWorktreeOption[]>([]);
+  const [worktreesLoading, setWorktreesLoading] = useState(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
   const [resizeMode, setResizeMode] = useState<'left' | null>(null);
@@ -145,6 +168,23 @@ export function ShellsSession(props: ShellsSessionProps) {
       selectedRepositoryId,
     ],
   );
+  const selectedCodebaseState = useMemo(() => {
+    const activeCodebaseId =
+      selectedSession?.data.codebase?.id ?? selectedRepository.id;
+
+    return (
+      codebasesState.collection.find(
+        (codebase) => codebase.data.id === activeCodebaseId,
+      ) ?? null
+    );
+  }, [codebasesState.collection, selectedRepository.id, selectedSession?.data.codebase?.id]);
+  const selectedWorktree = useMemo(
+    () =>
+      worktrees.find(
+        (worktree) => worktree.id === selectedSession?.data.worktree?.id,
+      ) ?? null,
+    [selectedSession?.data.worktree?.id, worktrees],
+  );
   const sessionDefaults = useMemo(
     () =>
       resolveWorkbenchSessionDefaults({
@@ -178,6 +218,11 @@ export function ShellsSession(props: ShellsSessionProps) {
   }, [repositoryOptions, selectedRepositoryId]);
 
   useEffect(() => {
+    if (selectedSession?.data.codebase?.id) {
+      setSelectedRepositoryId(selectedSession.data.codebase.id);
+      return;
+    }
+
     if (!selectedSession?.data.cwd) {
       return;
     }
@@ -188,7 +233,44 @@ export function ShellsSession(props: ShellsSessionProps) {
     if (matched) {
       setSelectedRepositoryId(matched.id);
     }
-  }, [repositoryOptions, selectedSession?.data.cwd]);
+  }, [repositoryOptions, selectedSession?.data.codebase?.id, selectedSession?.data.cwd]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!selectedCodebaseState?.hasLink('worktrees')) {
+      setWorktrees([]);
+      setWorktreesLoading(false);
+      return;
+    }
+
+    setWorktreesLoading(true);
+
+    void selectedCodebaseState
+      .follow('worktrees')
+      .refresh()
+      .then((worktreesState) => {
+        if (!active) {
+          return;
+        }
+
+        setWorktrees(mapWorktreeOptions(worktreesState.collection));
+      })
+      .catch(() => {
+        if (active) {
+          setWorktrees([]);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setWorktreesLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCodebaseState]);
 
   useEffect(() => {
     latestEventIdRef.current = history[history.length - 1]?.eventId;
@@ -333,7 +415,11 @@ export function ShellsSession(props: ShellsSessionProps) {
   const sessionPromptProjectPicker = useMemo(
     () => {
       const sessionRepository =
-        selectedSession?.data.cwd
+        selectedSession?.data.codebase?.id
+          ? repositoryOptions.find(
+              (repository) => repository.id === selectedSession.data.codebase?.id,
+            ) ?? selectedRepository
+          : selectedSession?.data.cwd
           ? repositoryOptions.find(
               (repository) => repository.repoPath === selectedSession.data.cwd,
             ) ?? {
@@ -348,16 +434,89 @@ export function ShellsSession(props: ShellsSessionProps) {
 
       return {
         cloneEndpoint: `/api/projects/${projectState.data.id}/codebases/clone`,
-        disabled: selectedSession !== null,
+        disabled: false,
+        onCreateWorktree: async (codebaseId: string) => {
+          const response = await runtimeFetch(
+            `/api/projects/${projectState.data.id}/codebases/${codebaseId}/worktrees`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({}),
+            },
+          );
+
+          if (!response.ok) {
+            throw new Error('创建 worktree 失败');
+          }
+
+          await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
+            setWorktrees(mapWorktreeOptions(worktreesState.collection));
+          });
+          toast.success('已创建新的 worktree');
+        },
+        onDeleteWorktree: async (input: {
+          codebaseId: string;
+          deleteBranch?: boolean;
+          worktreeId: string;
+        }) => {
+          const query = input.deleteBranch ? '?deleteBranch=true' : '';
+          const response = await runtimeFetch(
+            `/api/projects/${projectState.data.id}/worktrees/${input.worktreeId}${query}`,
+            {
+              method: 'DELETE',
+            },
+          );
+
+          if (!response.ok) {
+            throw new Error('删除 worktree 失败');
+          }
+
+          await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
+            setWorktrees(mapWorktreeOptions(worktreesState.collection));
+          });
+          toast.success(
+            input.deleteBranch ? '已删除 worktree 和分支' : '已删除 worktree',
+          );
+        },
         onProjectCloned: async (projectId: string) => {
           await codebasesResource.refresh();
           setSelectedRepositoryId(projectId);
         },
-        onValueChange: (repository: ProjectRepositoryOption | null) =>
-          setSelectedRepositoryId(repository?.id ?? null),
+        onValidateWorktree: async (input: {
+          codebaseId: string;
+          worktreeId: string;
+        }) => {
+          const response = await runtimeFetch(
+            `/api/projects/${projectState.data.id}/worktrees/${input.worktreeId}/validate`,
+            {
+              method: 'POST',
+            },
+          );
+          const payload = (await response.json()) as { healthy?: boolean; error?: string };
+
+          if (!response.ok) {
+            throw new Error(payload.error ?? '校验 worktree 失败');
+          }
+
+          await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
+            setWorktrees(mapWorktreeOptions(worktreesState.collection));
+          });
+          toast.success(payload.healthy ? 'Worktree 校验通过' : 'Worktree 校验已更新');
+        },
+        onValueChange: (repository: ProjectRepositoryOption | null) => {
+          if (selectedSession) {
+            return;
+          }
+          setSelectedRepositoryId(repository?.id ?? null);
+        },
         projects:
           repositoryOptions.length > 0 ? repositoryOptions : [selectedRepository],
+        selectedWorktreeId: selectedWorktree?.id ?? selectedSession?.data.worktree?.id ?? null,
         value: sessionRepository,
+        worktrees,
+        worktreesLoading,
       };
     },
     [
@@ -365,7 +524,11 @@ export function ShellsSession(props: ShellsSessionProps) {
       codebasesResource,
       repositoryOptions,
       selectedRepository,
+      selectedCodebaseState,
       selectedSession,
+      selectedWorktree?.id,
+      worktrees,
+      worktreesLoading,
     ],
   );
 
