@@ -16,9 +16,7 @@ type StorageLike = {
 };
 
 const API_KEY_STORAGE_KEY = 'api-key';
-const MODEL_STORAGE_KEY = 'ai-model';
 const API_KEY_HEADER = 'X-Api-Key';
-const MODEL_HEADER = 'X-AI-Model';
 
 export type StandardStructuredDataPayload = {
   kind: string;
@@ -31,7 +29,7 @@ export interface StandardSseChatTransportInitOptions<
 > extends HttpChatTransportInitOptions<UI_MESSAGE> {
   dataEventParsers?: SseDataEventParsers;
   includeCredentials?: boolean;
-  includeAiSettingsHeaders?: boolean;
+  includeApiKeyHeader?: boolean;
 }
 
 export function parseStandardStructuredDataPayload(
@@ -75,17 +73,17 @@ function getBrowserStorage(): StorageLike | null {
 function createRequestEnhancer({
   fetcher = fetch,
   includeCredentials = false,
-  includeAiSettingsHeaders = true,
+  includeApiKeyHeader = true,
 }: {
   fetcher?: typeof fetch;
   includeCredentials?: boolean;
-  includeAiSettingsHeaders?: boolean;
+  includeApiKeyHeader?: boolean;
 }) {
   return async (
     input: Parameters<typeof fetch>[0],
     init?: Parameters<typeof fetch>[1],
   ) => {
-    if (!includeCredentials && !includeAiSettingsHeaders) {
+    if (!includeCredentials && !includeApiKeyHeader) {
       return fetcher(input, init);
     }
 
@@ -94,16 +92,12 @@ function createRequestEnhancer({
       credentials: includeCredentials ? 'include' : init?.credentials,
     });
 
-    if (includeAiSettingsHeaders) {
+    if (includeApiKeyHeader) {
       const storage = getBrowserStorage();
       const apiKey = storage?.getItem(API_KEY_STORAGE_KEY);
-      const model = storage?.getItem(MODEL_STORAGE_KEY);
 
       if (apiKey) {
         requestWithHeaders.headers.set(API_KEY_HEADER, apiKey);
-      }
-      if (model) {
-        requestWithHeaders.headers.set(MODEL_HEADER, model);
       }
     }
 
@@ -149,7 +143,7 @@ export class StandardSseChatTransport<
     const {
       dataEventParsers = {},
       includeCredentials = false,
-      includeAiSettingsHeaders = true,
+      includeApiKeyHeader = true,
       fetch: fetcher,
       ...transportOptions
     } = options;
@@ -158,7 +152,7 @@ export class StandardSseChatTransport<
       fetch: createRequestEnhancer({
         fetcher,
         includeCredentials,
-        includeAiSettingsHeaders,
+        includeApiKeyHeader,
       }),
     });
     this.dataEventParsers = {
