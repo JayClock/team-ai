@@ -1,3 +1,8 @@
+import { execFile } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -10,6 +15,11 @@ import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
 import { createAcpSession, getAcpSessionById } from '../services/acp-service';
+import {
+  getProjectWorktreeById,
+  createProjectWorktree,
+} from '../services/project-worktree-service';
+import { listProjectCodebases } from '../services/project-codebase-service';
 import { createProject } from '../services/project-service';
 import { listTaskRuns } from '../services/task-run-service';
 import { createTask, getTaskById } from '../services/task-service';
@@ -22,8 +32,11 @@ import projectsRoute from './projects';
 import rootRoute from './root';
 import tasksRoute from './tasks';
 
+const execFileAsync = promisify(execFile);
+
 describe('acp route', () => {
   const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];
+  const tempRepoPaths: string[] = [];
   const originalDataDir = process.env.TEAMAI_DATA_DIR;
   const originalDesktopSessionToken = process.env.DESKTOP_SESSION_TOKEN;
   const originalHost = process.env.HOST;
@@ -42,6 +55,13 @@ describe('acp route', () => {
       const fastify = fastifyInstances.pop();
       if (fastify) {
         await fastify.close();
+      }
+    }
+
+    while (tempRepoPaths.length > 0) {
+      const repoPath = tempRepoPaths.pop();
+      if (repoPath) {
+        await rm(repoPath, { recursive: true, force: true });
       }
     }
   });
@@ -681,6 +701,86 @@ describe('acp route', () => {
       }),
     ]);
     expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+  });
+
+  it('binds ACP sessions to worktrees and resolves cwd from the worktree path', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-worktree-cwd-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4316';
+
+    const runtime = {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'unused',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient;
+    const fastify = await createFullAcpServer(runtime);
+    const repoPath = await createGitRepository();
+    const project = await createProject(fastify.sqlite, {
+      title: 'ACP Worktree Session Project',
+      repoPath,
+    });
+    const [codebase] = (await listProjectCodebases(fastify.sqlite, project.id)).items;
+    const worktree = await createProjectWorktree(
+      fastify.sqlite,
+      project.id,
+      codebase.id,
+      {
+        label: 'Session Workspace',
+      },
+    );
+
+    const session = await createAcpSession(
+      fastify.sqlite,
+      fastify.acpStreamBroker,
+      fastify.acpRuntime,
+      {
+        actorUserId: 'desktop-user',
+        codebaseId: codebase.id,
+        cwd: '/tmp/ignored-cwd',
+        projectId: project.id,
+        provider: 'codex',
+        worktreeId: worktree.id,
+      },
+      {
+        logger: fastify.log,
+        source: 'acp-route-test-worktree-cwd',
+      },
+    );
+    const persistedWorktree = await getProjectWorktreeById(
+      fastify.sqlite,
+      project.id,
+      worktree.id,
+    );
+
+    expect(session).toMatchObject({
+      codebase: { id: codebase.id },
+      cwd: worktree.worktreePath,
+      worktree: { id: worktree.id },
+    });
+    expect(runtime.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cwd: worktree.worktreePath,
+        localSessionId: session.id,
+      }),
+    );
+    expect(persistedWorktree.sessionId).toBe(session.id);
   });
 
   it('completes task runs when task-bound prompts finish successfully', async () => {
@@ -1639,5 +1739,24 @@ describe('acp route', () => {
       rootSessionId,
       task,
     };
+  }
+
+  async function createGitRepository() {
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-acp-worktree-repo-'));
+    tempRepoPaths.push(repoPath);
+
+    await mkdir(repoPath, { recursive: true });
+    await execFileAsync('git', ['init', '--initial-branch=main'], { cwd: repoPath });
+    await execFileAsync('git', ['config', 'user.name', 'Team AI Test'], {
+      cwd: repoPath,
+    });
+    await execFileAsync('git', ['config', 'user.email', 'team-ai@example.test'], {
+      cwd: repoPath,
+    });
+    await writeFile(join(repoPath, 'README.md'), '# test\n');
+    await execFileAsync('git', ['add', 'README.md'], { cwd: repoPath });
+    await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: repoPath });
+
+    return repoPath;
   }
 });

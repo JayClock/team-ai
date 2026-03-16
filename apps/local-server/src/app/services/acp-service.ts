@@ -30,7 +30,9 @@ import {
   type NormalizedSessionUpdate,
 } from './normalized-session-update';
 import { createAgent } from './agent-service';
+import { getProjectCodebaseById } from './project-codebase-service';
 import { getProjectById } from './project-service';
+import { getProjectWorktreeById } from './project-worktree-service';
 import {
   ensureRoleValue,
   getDefaultSpecialistByRole,
@@ -108,6 +110,7 @@ interface CreateSessionInput {
 interface TaskExecutionRow {
   assigned_role: string | null;
   assigned_specialist_id: string | null;
+  codebase_id: string | null;
   completion_summary: string | null;
   execution_session_id: string | null;
   id: string;
@@ -118,6 +121,7 @@ interface TaskExecutionRow {
   trigger_session_id: string | null;
   verification_report: string | null;
   verification_verdict: string | null;
+  worktree_id: string | null;
 }
 
 interface TaskExecutionRunRow {
@@ -207,6 +211,46 @@ function throwTaskRoleMismatch(
   });
 }
 
+function throwSessionWorktreeCodebaseMismatch(
+  projectId: string,
+  codebaseId: string,
+  worktreeId: string,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/session-worktree-codebase-mismatch',
+    title: 'Session Worktree Codebase Mismatch',
+    status: 409,
+    detail:
+      `Worktree ${worktreeId} does not belong to codebase ${codebaseId} in project ${projectId}`,
+    context: {
+      codebaseId,
+      projectId,
+      worktreeId,
+    },
+  });
+}
+
+function throwTaskWorkspaceMismatch(
+  taskId: string,
+  field: 'codebaseId' | 'worktreeId',
+  expected: string,
+  received: string,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-session-workspace-mismatch',
+    title: 'Task Session Workspace Mismatch',
+    status: 409,
+    detail:
+      `Task ${taskId} requires ${field} ${expected}, but session creation requested ${received}`,
+    context: {
+      expected,
+      field,
+      received,
+      taskId,
+    },
+  });
+}
+
 function getTaskExecutionRow(
   sqlite: Database,
   taskId: string,
@@ -220,13 +264,15 @@ function getTaskExecutionRow(
           trigger_session_id,
           assigned_role,
           assigned_specialist_id,
+          codebase_id,
           completion_summary,
           status,
           kind,
           execution_session_id,
           result_session_id,
           verification_report,
-          verification_verdict
+          verification_verdict,
+          worktree_id
         FROM project_tasks
         WHERE id = ? AND deleted_at IS NULL
       `,
@@ -293,6 +339,87 @@ function updateTaskExecutionState(
         input.verificationVerdict === undefined
           ? current.verification_verdict
           : input.verificationVerdict,
+    });
+}
+
+async function resolveSessionWorkspaceBinding(
+  sqlite: Database,
+  projectId: string,
+  projectRepoPath: string | null,
+  input: {
+    codebaseId?: string | null;
+    cwd?: string | null;
+    task: TaskExecutionRow | null;
+    worktreeId?: string | null;
+  },
+) {
+  if (input.task?.codebase_id && input.codebaseId && input.codebaseId !== input.task.codebase_id) {
+    throwTaskWorkspaceMismatch(
+      input.task.id,
+      'codebaseId',
+      input.task.codebase_id,
+      input.codebaseId,
+    );
+  }
+
+  if (input.task?.worktree_id && input.worktreeId && input.worktreeId !== input.task.worktree_id) {
+    throwTaskWorkspaceMismatch(
+      input.task.id,
+      'worktreeId',
+      input.task.worktree_id,
+      input.worktreeId,
+    );
+  }
+
+  let codebaseId = input.codebaseId ?? input.task?.codebase_id ?? null;
+  const worktreeId = input.worktreeId ?? input.task?.worktree_id ?? null;
+  let worktreePath: string | null = null;
+
+  if (worktreeId) {
+    const worktree = await getProjectWorktreeById(sqlite, projectId, worktreeId);
+
+    if (codebaseId && codebaseId !== worktree.codebaseId) {
+      throwSessionWorktreeCodebaseMismatch(projectId, codebaseId, worktreeId);
+    }
+
+    codebaseId = worktree.codebaseId;
+    worktreePath = worktree.worktreePath;
+  }
+
+  if (codebaseId) {
+    await getProjectCodebaseById(sqlite, projectId, codebaseId);
+  }
+
+  return {
+    codebaseId,
+    cwd: resolveSessionCwd(worktreePath ?? input.cwd ?? projectRepoPath),
+    worktreeId,
+  };
+}
+
+function assignSessionToWorktree(
+  sqlite: Database,
+  projectId: string,
+  worktreeId: string,
+  sessionId: string,
+) {
+  sqlite
+    .prepare(
+      `
+        UPDATE project_worktrees
+        SET
+          session_id = @sessionId,
+          updated_at = @updatedAt
+        WHERE id = @worktreeId
+          AND project_id = @projectId
+          AND deleted_at IS NULL
+      `,
+    )
+    .run({
+      projectId,
+      sessionId,
+      updatedAt: new Date().toISOString(),
+      worktreeId,
     });
 }
 
@@ -1272,7 +1399,17 @@ export async function createAcpSession(
     );
   }
 
-  const cwd = resolveSessionCwd(input.cwd ?? project.repoPath ?? null);
+  const workspaceBinding = await resolveSessionWorkspaceBinding(
+    sqlite,
+    input.projectId,
+    project.repoPath ?? null,
+    {
+      codebaseId: input.codebaseId,
+      cwd: input.cwd,
+      task,
+      worktreeId: input.worktreeId,
+    },
+  );
   const now = new Date().toISOString();
   const sessionId = createSessionId();
   const agent = specialist
@@ -1296,11 +1433,14 @@ export async function createAcpSession(
           project_id,
           agent_id,
           actor_id,
+          codebase_id,
           parent_session_id,
           specialist_id,
           name,
           provider,
           cwd,
+          worktree_id,
+          task_id,
           acp_status,
           acp_error,
           state,
@@ -1319,11 +1459,14 @@ export async function createAcpSession(
           @projectId,
           @agentId,
           @actorId,
+          @codebaseId,
           @parentSessionId,
           @specialistId,
           @name,
           @provider,
           @cwd,
+          @worktreeId,
+          @taskId,
           @acpStatus,
           @acpError,
           @state,
@@ -1344,11 +1487,14 @@ export async function createAcpSession(
       projectId: input.projectId,
       agentId: agent?.id ?? null,
       actorId: input.actorUserId,
+      codebaseId: workspaceBinding.codebaseId,
       parentSessionId: input.parentSessionId ?? null,
       specialistId: specialist?.id ?? null,
       name: input.goal?.trim() || null,
       provider,
-      cwd,
+      cwd: workspaceBinding.cwd,
+      worktreeId: workspaceBinding.worktreeId,
+      taskId: input.taskId ?? null,
       acpStatus: 'connecting',
       acpError: null,
       state: 'PENDING',
@@ -1358,11 +1504,20 @@ export async function createAcpSession(
       updatedAt: now,
     });
 
+  if (workspaceBinding.worktreeId) {
+    assignSessionToWorktree(
+      sqlite,
+      input.projectId,
+      workspaceBinding.worktreeId,
+      sessionId,
+    );
+  }
+
   try {
     const runtimeSession = await runtime.createSession({
       localSessionId: sessionId,
       provider,
-      cwd,
+      cwd: workspaceBinding.cwd,
       mcpServers: resolveLocalMcpServers(),
       hooks: createRuntimeHooks(sqlite, broker, runtime, sessionId, options),
     });
