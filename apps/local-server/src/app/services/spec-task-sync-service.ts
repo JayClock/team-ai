@@ -45,12 +45,56 @@ export interface SyncSpecTasksResult {
   updatedCount: number;
 }
 
+export type SpecTaskSyncSnapshotStatus =
+  | 'clean'
+  | 'pending_sync'
+  | 'parse_error'
+  | 'conflict';
+
+export interface SpecTaskSyncSnapshotItem {
+  blockIndex: number;
+  expectedTaskTitle: string;
+  reason:
+    | 'DUPLICATE_SOURCE_MAPPING'
+    | 'FIELD_MISMATCH'
+    | 'MISSING_TASK'
+    | 'ORPHANED_TASK'
+    | 'TASK_NOT_MUTABLE';
+  taskId: string | null;
+}
+
+export interface SpecTaskSyncSnapshot {
+  conflictCount: number;
+  items: SpecTaskSyncSnapshotItem[];
+  matchedCount: number;
+  noteId: string;
+  orphanedTaskCount: number;
+  parseError: string | null;
+  parsedCount: number;
+  pendingCount: number;
+  status: SpecTaskSyncSnapshotStatus;
+  taskCount: number;
+}
+
 function throwInvalidSpecTask(message: string): never {
   throw new ProblemError({
     type: 'https://team-ai.dev/problems/spec-task-block-invalid',
     title: 'Spec Task Block Invalid',
     status: 409,
     detail: message,
+  });
+}
+
+function assertSpecNote(note: NotePayload) {
+  if (note.type === 'spec') {
+    return;
+  }
+
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/spec-note-required',
+    title: 'Spec Note Required',
+    status: 409,
+    detail: `Note ${note.id} is ${note.type}, expected spec`,
   });
 }
 
@@ -228,6 +272,345 @@ function isMutableSpecTask(task: TaskPayload): boolean {
   );
 }
 
+function parseSpecTaskBlocksSafely(
+  content: string,
+): { blocks: ParsedSpecTaskBlock[]; error: string | null } {
+  try {
+    return {
+      blocks: parseSpecTaskBlocks(content),
+      error: null,
+    };
+  } catch (error) {
+    if (error instanceof ProblemError) {
+      return {
+        blocks: [],
+        error: error.message,
+      };
+    }
+
+    throw error;
+  }
+}
+
+function listSpecNoteTasks(sqlite: Database, noteId: string): TaskPayload[] {
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT
+          id,
+          project_id,
+          board_id,
+          column_id,
+          position,
+          priority,
+          labels_json,
+          assignee,
+          assigned_provider,
+          assigned_role,
+          assigned_specialist_id,
+          assigned_specialist_name,
+          codebase_id,
+          dependencies_json,
+          parallel_group,
+          acceptance_criteria_json,
+          objective,
+          scope,
+          kind,
+          verification_commands_json,
+          completion_summary,
+          verification_verdict,
+          verification_report,
+          parent_task_id,
+          execution_session_id,
+          result_session_id,
+          session_id,
+          trigger_session_id,
+          github_id,
+          github_number,
+          github_url,
+          github_repo,
+          github_state,
+          github_synced_at,
+          last_sync_error,
+          source_type,
+          source_event_id,
+          source_entry_index,
+          status,
+          title,
+          created_at,
+          updated_at,
+          worktree_id
+        FROM project_tasks
+        WHERE source_type = @sourceType
+          AND source_event_id = @noteId
+          AND deleted_at IS NULL
+        ORDER BY source_entry_index ASC, updated_at DESC, created_at DESC
+      `,
+    )
+    .all({
+      noteId,
+      sourceType: specTaskSourceType,
+    }) as TaskRow[];
+
+  return rows.map(mapSpecTaskRow);
+}
+
+type TaskRow = Parameters<typeof mapSpecTaskRow>[0];
+
+function mapSpecTaskRow(row: {
+  acceptance_criteria_json: string;
+  assigned_provider: string | null;
+  assigned_role: string | null;
+  assigned_specialist_id: string | null;
+  assigned_specialist_name: string | null;
+  assignee: string | null;
+  board_id: string | null;
+  codebase_id: string | null;
+  column_id: string | null;
+  completion_summary: string | null;
+  created_at: string;
+  dependencies_json: string;
+  github_id: string | null;
+  github_number: number | null;
+  github_repo: string | null;
+  github_state: string | null;
+  github_synced_at: string | null;
+  github_url: string | null;
+  id: string;
+  kind: TaskKind | null;
+  labels_json: string;
+  last_sync_error: string | null;
+  objective: string;
+  execution_session_id: string | null;
+  parallel_group: string | null;
+  parent_task_id: string | null;
+  position: number | null;
+  priority: string | null;
+  project_id: string;
+  result_session_id: string | null;
+  session_id: string | null;
+  scope: string | null;
+  source_entry_index: number | null;
+  source_event_id: string | null;
+  source_type: string;
+  status: string;
+  title: string;
+  trigger_session_id: string | null;
+  updated_at: string;
+  verification_commands_json: string;
+  verification_report: string | null;
+  verification_verdict: string | null;
+  worktree_id: string | null;
+}): TaskPayload {
+  const parseStringArray = (value: string): string[] => {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is string => typeof item === 'string')
+        : [];
+    } catch {
+      return [];
+    }
+  };
+
+  return {
+    acceptanceCriteria: parseStringArray(row.acceptance_criteria_json),
+    assignedProvider: row.assigned_provider,
+    assignedRole: row.assigned_role,
+    assignedSpecialistId: row.assigned_specialist_id,
+    assignedSpecialistName: row.assigned_specialist_name,
+    assignee: row.assignee,
+    boardId: row.board_id,
+    codebaseId: row.codebase_id,
+    columnId: row.column_id,
+    completionSummary: row.completion_summary,
+    createdAt: row.created_at,
+    dependencies: parseStringArray(row.dependencies_json),
+    executionSessionId: row.execution_session_id,
+    githubId: row.github_id,
+    githubNumber: row.github_number,
+    githubRepo: row.github_repo,
+    githubState: row.github_state,
+    githubSyncedAt: row.github_synced_at,
+    githubUrl: row.github_url,
+    id: row.id,
+    kind: row.kind,
+    labels: parseStringArray(row.labels_json),
+    lastSyncError: row.last_sync_error,
+    objective: row.objective,
+    parallelGroup: row.parallel_group,
+    parentTaskId: row.parent_task_id,
+    position: row.position,
+    priority: row.priority,
+    projectId: row.project_id,
+    resultSessionId: row.result_session_id,
+    sessionId: row.session_id,
+    scope: row.scope,
+    sourceEntryIndex: row.source_entry_index,
+    sourceEventId: row.source_event_id,
+    sourceType: row.source_type,
+    status: row.status,
+    title: row.title,
+    triggerSessionId: row.trigger_session_id,
+    updatedAt: row.updated_at,
+    verificationCommands: parseStringArray(row.verification_commands_json),
+    verificationReport: row.verification_report,
+    verificationVerdict: row.verification_verdict,
+    worktreeId: row.worktree_id,
+  };
+}
+
+function specTaskMatchesBlock(
+  task: TaskPayload,
+  block: ParsedSpecTaskBlock,
+): boolean {
+  const hasMatchingAssignedRole = task.assignedSpecialistId
+    ? true
+    : task.assignedRole === roleForTaskKind(block.kind);
+
+  return (
+    task.kind === block.kind &&
+    task.title === block.title &&
+    task.objective === block.objective &&
+    (task.scope ?? null) === block.scope &&
+    hasMatchingAssignedRole &&
+    JSON.stringify(task.acceptanceCriteria) ===
+      JSON.stringify(block.acceptanceCriteria) &&
+    JSON.stringify(task.verificationCommands) ===
+      JSON.stringify(block.verificationCommands)
+  );
+}
+
+export function getSpecNoteTaskSyncSnapshot(
+  sqlite: Database,
+  note: NotePayload,
+): SpecTaskSyncSnapshot {
+  assertSpecNote(note);
+
+  const parsed = parseSpecTaskBlocksSafely(note.content);
+  const tasks = listSpecNoteTasks(sqlite, note.id);
+
+  if (parsed.error) {
+    return {
+      conflictCount: 0,
+      items: [],
+      matchedCount: 0,
+      noteId: note.id,
+      orphanedTaskCount: 0,
+      parseError: parsed.error,
+      parsedCount: 0,
+      pendingCount: 0,
+      status: 'parse_error',
+      taskCount: tasks.length,
+    };
+  }
+
+  const items: SpecTaskSyncSnapshotItem[] = [];
+  const tasksByIndex = new Map<number, TaskPayload>();
+  let conflictCount = 0;
+  let matchedCount = 0;
+  let orphanedTaskCount = 0;
+  let pendingCount = 0;
+
+  for (const task of tasks) {
+    const entryIndex = task.sourceEntryIndex;
+    if (entryIndex === null || entryIndex === undefined) {
+      conflictCount += 1;
+      items.push({
+        blockIndex: -1,
+        expectedTaskTitle: task.title,
+        reason: 'DUPLICATE_SOURCE_MAPPING',
+        taskId: task.id,
+      });
+      continue;
+    }
+
+    if (tasksByIndex.has(entryIndex)) {
+      conflictCount += 1;
+      items.push({
+        blockIndex: entryIndex,
+        expectedTaskTitle: task.title,
+        reason: 'DUPLICATE_SOURCE_MAPPING',
+        taskId: task.id,
+      });
+      continue;
+    }
+
+    tasksByIndex.set(entryIndex, task);
+  }
+
+  for (const block of parsed.blocks) {
+    const task = tasksByIndex.get(block.index);
+    if (!task) {
+      pendingCount += 1;
+      items.push({
+        blockIndex: block.index,
+        expectedTaskTitle: block.title,
+        reason: 'MISSING_TASK',
+        taskId: null,
+      });
+      continue;
+    }
+
+    if (specTaskMatchesBlock(task, block)) {
+      matchedCount += 1;
+      continue;
+    }
+
+    if (!isMutableSpecTask(task)) {
+      conflictCount += 1;
+      items.push({
+        blockIndex: block.index,
+        expectedTaskTitle: block.title,
+        reason: 'TASK_NOT_MUTABLE',
+        taskId: task.id,
+      });
+      continue;
+    }
+
+    pendingCount += 1;
+    items.push({
+      blockIndex: block.index,
+      expectedTaskTitle: block.title,
+      reason: 'FIELD_MISMATCH',
+      taskId: task.id,
+    });
+  }
+
+  for (const [blockIndex, task] of tasksByIndex.entries()) {
+    if (parsed.blocks.some((block) => block.index === blockIndex)) {
+      continue;
+    }
+
+    orphanedTaskCount += 1;
+    pendingCount += 1;
+    items.push({
+      blockIndex,
+      expectedTaskTitle: task.title,
+      reason: 'ORPHANED_TASK',
+      taskId: task.id,
+    });
+  }
+
+  return {
+    conflictCount,
+    items,
+    matchedCount,
+    noteId: note.id,
+    orphanedTaskCount,
+    parseError: null,
+    parsedCount: parsed.blocks.length,
+    pendingCount,
+    status:
+      conflictCount > 0
+        ? 'conflict'
+        : pendingCount > 0
+          ? 'pending_sync'
+          : 'clean',
+    taskCount: tasks.length,
+  };
+}
+
 function getSourceTaskId(
   sqlite: Database,
   noteId: string,
@@ -258,14 +641,7 @@ export async function syncSpecNoteToTasks(
   sqlite: Database,
   note: NotePayload,
 ): Promise<SyncSpecTasksResult> {
-  if (note.type !== 'spec') {
-    throw new ProblemError({
-      type: 'https://team-ai.dev/problems/spec-note-required',
-      title: 'Spec Note Required',
-      status: 409,
-      detail: `Note ${note.id} is ${note.type}, expected spec`,
-    });
-  }
+  assertSpecNote(note);
 
   const parsedBlocks = parseSpecTaskBlocks(note.content);
   const tasks: SyncSpecTaskItemResult[] = [];
@@ -338,4 +714,3 @@ export async function syncSpecNoteToTasks(
     updatedCount,
   };
 }
-

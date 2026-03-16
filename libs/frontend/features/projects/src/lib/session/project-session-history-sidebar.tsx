@@ -1,12 +1,25 @@
 import { State } from '@hateoas-ts/resource';
-import { SessionList, SessionTreeNode } from '@features/project-sessions';
 import { AcpSessionSummary } from '@shared/schema';
 import { FolderTreeIcon } from 'lucide-react';
+import type { ComponentType } from 'react';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- source import keeps the local workbench prop contract aligned during the phase 7 upgrade
+import { SessionList } from '../../../../project-sessions/src/lib/session-list';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- source import keeps the local workbench prop contract aligned during the phase 7 upgrade
+import { SessionTreeNode } from '../../../../project-sessions/src/lib/session-tree';
+
+const SessionListWithAnnotations = SessionList as ComponentType<{
+  loading: boolean;
+  onSelect: (session: State<AcpSessionSummary>) => void;
+  selectedSessionId?: string;
+  sessionAnnotationsById?: Record<string, string[]>;
+  sessions: SessionTreeNode[];
+}>;
 
 export function ProjectSessionHistorySidebar(props: {
   onSelectSession: (session: State<AcpSessionSummary>) => void;
   projectTitle: string;
   selectedSessionId?: string;
+  sessionAnnotationsById?: Record<string, string[]>;
   sessions: SessionTreeNode[];
   sessionsLoading: boolean;
 }) {
@@ -14,6 +27,7 @@ export function ProjectSessionHistorySidebar(props: {
     onSelectSession,
     projectTitle,
     selectedSessionId,
+    sessionAnnotationsById,
     sessions,
     sessionsLoading,
   } = props;
@@ -35,9 +49,10 @@ export function ProjectSessionHistorySidebar(props: {
       </div>
 
       <div className="min-h-0 flex-1">
-        <SessionList
+        <SessionListWithAnnotations
           loading={sessionsLoading}
           sessions={sessions}
+          sessionAnnotationsById={sessionAnnotationsById}
           selectedSessionId={selectedSessionId}
           onSelect={onSelectSession}
         />

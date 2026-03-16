@@ -33,6 +33,9 @@ describe('task presenter', () => {
       executionSessionId: null,
       resultSessionId: null,
       sessionId: null,
+      sourceEntryIndex: 2,
+      sourceEventId: 'note_spec_123',
+      sourceType: 'spec_note',
       triggerSessionId: null,
       githubId: null,
       githubNumber: null,
@@ -47,6 +50,9 @@ describe('task presenter', () => {
     });
 
     expect(task).toMatchObject({
+      sourceEntryIndex: 2,
+      sourceEventId: 'note_spec_123',
+      sourceType: 'spec_note',
       _links: {
         codebase: {
           href: '/api/projects/proj_123/codebases/cdb_123',

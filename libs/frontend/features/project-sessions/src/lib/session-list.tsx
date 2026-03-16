@@ -50,9 +50,16 @@ export function SessionList(props: {
   loading: boolean;
   onSelect: (session: State<AcpSessionSummary>) => void;
   selectedSessionId?: string;
+  sessionAnnotationsById?: Record<string, string[]>;
   sessions: SessionTreeNode[];
 }) {
-  const { loading, onSelect, selectedSessionId, sessions } = props;
+  const {
+    loading,
+    onSelect,
+    selectedSessionId,
+    sessionAnnotationsById,
+    sessions,
+  } = props;
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const selectedPathIds = useMemo(
     () => findSessionPathIds(sessions, selectedSessionId),
@@ -105,6 +112,7 @@ export function SessionList(props: {
                 node={node}
                 onSelect={onSelect}
                 onToggle={toggleSessionBranch}
+                sessionAnnotationsById={sessionAnnotationsById}
                 selectedPathSet={selectedPathSet}
                 selectedSessionId={selectedSessionId}
               />
@@ -122,6 +130,7 @@ function SessionTreeItem(props: {
   node: SessionTreeNode;
   onSelect: (session: State<AcpSessionSummary>) => void;
   onToggle: (sessionId: string) => void;
+  sessionAnnotationsById?: Record<string, string[]>;
   selectedPathSet: Set<string>;
   selectedSessionId?: string;
 }) {
@@ -131,6 +140,7 @@ function SessionTreeItem(props: {
     node,
     onSelect,
     onToggle,
+    sessionAnnotationsById,
     selectedPathSet,
     selectedSessionId,
   } = props;
@@ -142,6 +152,8 @@ function SessionTreeItem(props: {
     hasChildren && (expandedIdSet.has(sessionId) || containsSelected);
   const isChildSession = depth > 0;
   const roleLabel = sessionRoleLabel(node.session);
+  const sessionAnnotations = sessionAnnotationsById?.[sessionId] ?? [];
+  const specialistId = node.session.data.specialistId?.trim() || null;
 
   return (
     <div className="space-y-2">
@@ -222,6 +234,23 @@ function SessionTreeItem(props: {
                     <span aria-hidden="true">•</span>
                     <span className="font-mono">{roleLabel}</span>
                   </div>
+                  {specialistId ? (
+                    <div className="mt-1 break-all font-mono text-[10px] leading-4 text-muted-foreground">
+                      {specialistId}
+                    </div>
+                  ) : null}
+                  {sessionAnnotations.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {sessionAnnotations.map((annotation) => (
+                        <span
+                          key={`${sessionId}-${annotation}`}
+                          className="rounded-full border border-border/60 bg-muted/40 px-1.5 py-0.5 text-[9px] text-muted-foreground"
+                        >
+                          {annotation}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </button>
             </div>
@@ -239,6 +268,7 @@ function SessionTreeItem(props: {
                 node={child}
                 onSelect={onSelect}
                 onToggle={onToggle}
+                sessionAnnotationsById={sessionAnnotationsById}
                 selectedPathSet={selectedPathSet}
                 selectedSessionId={selectedSessionId}
               />

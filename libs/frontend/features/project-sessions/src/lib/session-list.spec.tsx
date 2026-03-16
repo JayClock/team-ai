@@ -12,6 +12,9 @@ describe('SessionList', () => {
       <SessionList
         loading={false}
         onSelect={vi.fn()}
+        sessionAnnotationsById={{
+          acps_child: ['执行 task_search'],
+        }}
         sessions={buildSessionTree([childSession, rootSession])}
       />,
     );
@@ -24,6 +27,8 @@ describe('SessionList', () => {
     expect(screen.getByText('实现搜索索引')).toBeTruthy();
     expect(screen.getByText('Child')).toBeTruthy();
     expect(screen.getByText('GATE')).toBeTruthy();
+    expect(screen.getByText('gate-reviewer')).toBeTruthy();
+    expect(screen.getByText('执行 task_search')).toBeTruthy();
   });
 
   it('auto-expands the selected session lineage', () => {

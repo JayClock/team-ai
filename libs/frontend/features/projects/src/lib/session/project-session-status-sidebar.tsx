@@ -22,6 +22,7 @@ import {
   formatDateTime,
   formatOrchestrationModeLabel,
   formatStatusLabel,
+  formatTaskSourceLabel,
   formatTaskKindLabel,
   formatVerificationVerdictLabel,
   formatWalkthroughStatusLabel,
@@ -425,6 +426,16 @@ function TaskExecutionDetails(props: {
             {item.assignedRole}
           </span>
         ) : null}
+        {item.assignedSpecialistName ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+            {item.assignedSpecialistName}
+          </span>
+        ) : null}
+        {item.assignedSpecialistId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            {item.assignedSpecialistId}
+          </span>
+        ) : null}
         {item.assignedProvider ? (
           <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
             {item.assignedProvider}
@@ -440,10 +451,23 @@ function TaskExecutionDetails(props: {
             {item.worktreeId}
           </span>
         ) : null}
+        {item.sourceType ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+            来源 {formatTaskSourceLabel(item.sourceType)}
+          </span>
+        ) : null}
       </div>
 
       {executionStatus ? (
         <TaskMetaBlock label="当前执行状态" value={executionStatus} />
+      ) : null}
+
+      {item.sourceType ? (
+        <TaskSourceBlock
+          sourceEntryIndex={item.sourceEntryIndex ?? null}
+          sourceEventId={item.sourceEventId ?? null}
+          sourceType={item.sourceType}
+        />
       ) : null}
 
       <TaskRunTimelineCard
@@ -471,6 +495,37 @@ function TaskExecutionDetails(props: {
         onTaskAction={onTaskAction}
         pendingTaskAction={pendingTaskAction}
       />
+    </div>
+  );
+}
+
+function TaskSourceBlock(props: {
+  sourceEntryIndex: number | null;
+  sourceEventId: string | null;
+  sourceType: string;
+}) {
+  const { sourceEntryIndex, sourceEventId, sourceType } = props;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        任务来源
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+        <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+          {formatTaskSourceLabel(sourceType)}
+        </span>
+        {sourceEntryIndex !== null ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+            block #{sourceEntryIndex + 1}
+          </span>
+        ) : null}
+        {sourceEventId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            {sourceEventId}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }

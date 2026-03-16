@@ -5,11 +5,17 @@ import {
   AcpEventEnvelope,
   AcpSessionSummary,
   Codebase,
+  Note,
+  NoteCollection,
   Project,
   Root,
+  Task,
+  TaskCollection,
+  TaskRun,
+  TaskRunCollection,
   Worktree,
 } from '@shared/schema';
-import { toast } from '@shared/ui';
+import { Button, toast } from '@shared/ui';
 import {
   getCurrentDesktopRuntimeConfig,
   resolveRuntimeApiUrl,
@@ -25,8 +31,17 @@ import {
 } from 'react';
 import { ProjectSessionConversationPane } from './project-session-conversation-pane';
 import { ProjectSessionHistorySidebar } from './project-session-history-sidebar';
+import { ProjectSessionSpecPane } from './project-session-spec-pane';
+import { ProjectSessionStatusSidebar } from './project-session-status-sidebar';
 import { useProjectSessionChat } from './use-project-session-chat';
-import { buildSessionTree } from './project-session-workbench.shared';
+import {
+  buildSessionTree,
+  buildTaskPanelItem,
+  buildTaskRunPanelItem,
+  type SpecSyncSnapshot,
+  type TaskPanelAction,
+  type TaskPanelItem,
+} from './project-session-workbench.shared';
 import {
   resolveComposerModel,
   shouldResetComposerModelOnProviderChange,
@@ -48,6 +63,134 @@ import type { ProjectModelPickerProps } from '../components/project-model-picker
 const STREAM_RETRY_DELAY_MS = 1500;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
 const LEFT_SIDEBAR_COLLAPSED_KEY = 'team-ai.session.left-sidebar-collapsed';
+
+type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error';
+type MainPane = 'conversation' | 'spec' | 'ops';
+
+function buildCollectionPath(
+  path: string,
+  query: Record<string, string | number | null | undefined>,
+): string {
+  const searchParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query)) {
+    if (value === null || value === undefined || value === '') {
+      continue;
+    }
+    searchParams.set(key, String(value));
+  }
+
+  const queryString = searchParams.toString();
+  return queryString ? `${path}?${queryString}` : path;
+}
+
+async function loadTaskCollectionPages(
+  initialPage: State<TaskCollection>,
+): Promise<State<Task>[]> {
+  const items = [...initialPage.collection];
+  let currentPage = initialPage;
+
+  while (currentPage.hasLink('next' as never)) {
+    currentPage = await currentPage.follow('next' as never).get();
+    items.push(...currentPage.collection);
+  }
+
+  return items;
+}
+
+async function loadTaskRunCollectionPages(
+  initialPage: State<TaskRunCollection>,
+): Promise<State<TaskRun>[]> {
+  const items = [...initialPage.collection];
+  let currentPage = initialPage;
+
+  while (currentPage.hasLink('next' as never)) {
+    currentPage = await currentPage.follow('next' as never).get();
+    items.push(...currentPage.collection);
+  }
+
+  return items;
+}
+
+async function loadNoteCollectionPages(
+  initialPage: State<NoteCollection>,
+): Promise<State<Note>[]> {
+  const items = [...initialPage.collection];
+  let currentPage = initialPage;
+
+  while (currentPage.hasLink('next' as never)) {
+    currentPage = await currentPage.follow('next' as never).get();
+    items.push(...currentPage.collection);
+  }
+
+  return items;
+}
+
+function resolveRootSessionId(
+  sessions: State<AcpSessionSummary>[],
+  sessionId: string | undefined,
+): string | undefined {
+  if (!sessionId) {
+    return undefined;
+  }
+
+  const parentById = new Map(
+    sessions.map((session) => [
+      session.data.id,
+      session.data.parentSession?.id ?? null,
+    ]),
+  );
+  const visited = new Set<string>();
+  let currentId: string | null | undefined = sessionId;
+
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const parentId = parentById.get(currentId);
+    if (!parentId) {
+      return currentId;
+    }
+    currentId = parentId;
+  }
+
+  return sessionId;
+}
+
+function createSessionAnnotationMap(
+  taskItems: TaskPanelItem[],
+): Record<string, string[]> {
+  const annotationMap = new Map<string, Set<string>>();
+
+  const addAnnotation = (sessionId: string | null | undefined, label: string) => {
+    if (!sessionId) {
+      return;
+    }
+
+    const current = annotationMap.get(sessionId) ?? new Set<string>();
+    current.add(label);
+    annotationMap.set(sessionId, current);
+  };
+
+  for (const item of taskItems) {
+    if (item.source !== 'task') {
+      continue;
+    }
+
+    if (item.executionSessionId) {
+      addAnnotation(item.executionSessionId, `执行 ${item.taskId ?? item.id}`);
+    }
+
+    if (item.resultSessionId) {
+      addAnnotation(item.resultSessionId, `回写 ${item.taskId ?? item.id}`);
+    }
+  }
+
+  return Object.fromEntries(
+    [...annotationMap.entries()].map(([sessionId, labels]) => [
+      sessionId,
+      [...labels].slice(0, 3),
+    ]),
+  );
+}
 
 export type ShellsSessionProps = {
   initialSessionId?: string;
@@ -135,6 +278,19 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [preferredModelOverride, setPreferredModelOverride] = useState<
     string | null | undefined
   >(undefined);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
+  const [mainPane, setMainPane] = useState<MainPane>('conversation');
+  const [taskItems, setTaskItems] = useState<TaskPanelItem[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [pendingTaskAction, setPendingTaskAction] = useState<{
+    action: TaskPanelAction;
+    taskId: string;
+  } | null>(null);
+  const [specNote, setSpecNote] = useState<State<Note> | null>(null);
+  const [specSyncSnapshot, setSpecSyncSnapshot] =
+    useState<SpecSyncSnapshot | null>(null);
+  const [specLoading, setSpecLoading] = useState(false);
+  const [specSyncLoading, setSpecSyncLoading] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
@@ -145,6 +301,25 @@ export function ShellsSession(props: ShellsSessionProps) {
 
   const selectedSessionId = selectedSession?.data.id;
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
+  const workbenchSessionId = useMemo(
+    () =>
+      resolveRootSessionId(sessions, selectedSessionId) ??
+      selectedSessionId ??
+      undefined,
+    [selectedSessionId, sessions],
+  );
+  const workbenchSessionSummary = useMemo(
+    () =>
+      sessions.find((session) => session.data.id === workbenchSessionId) ?? null,
+    [sessions, workbenchSessionId],
+  );
+  const scopeSessionLabel = useMemo(() => {
+    const name = workbenchSessionSummary?.data.name?.trim();
+    if (name) {
+      return name;
+    }
+    return workbenchSessionSummary?.data.id ?? null;
+  }, [workbenchSessionSummary]);
   const repositoryOptions = useMemo(
     () =>
       codebasesState.collection.map<ProjectRepositoryOption>(
@@ -198,6 +373,10 @@ export function ShellsSession(props: ShellsSessionProps) {
         (worktree) => worktree.id === selectedSession?.data.worktree?.id,
       ) ?? null,
     [selectedSession?.data.worktree?.id, worktrees],
+  );
+  const sessionAnnotationsById = useMemo(
+    () => createSessionAnnotationMap(taskItems),
+    [taskItems],
   );
   const sessionDefaults = useMemo(
     () =>
@@ -436,6 +615,147 @@ export function ShellsSession(props: ShellsSessionProps) {
     void loadSessions();
   }, [loadSessions]);
 
+  const refreshTaskItems = useCallback(async () => {
+    if (!workbenchSessionId) {
+      setTaskItems([]);
+      setTasksLoading(false);
+      return;
+    }
+
+    setTasksLoading(true);
+
+    try {
+      const taskListPath = buildCollectionPath(
+        `/api/projects/${projectState.data.id}/tasks`,
+        {
+          pageSize: 100,
+          sessionId: workbenchSessionId,
+        },
+      );
+      const taskPage = await client.go<TaskCollection>(taskListPath).get();
+      const taskStates = await loadTaskCollectionPages(taskPage);
+      const taskRunStatesByTask = await Promise.all(
+        taskStates.map(async (taskState) => {
+          const runsPage = await taskState.follow('runs').get();
+          const runStates = await loadTaskRunCollectionPages(runsPage);
+
+          return [...runStates].sort((left, right) => {
+            const leftValue = timestamp(
+              left.data.startedAt ??
+                left.data.completedAt ??
+                left.data.updatedAt ??
+                left.data.createdAt,
+            );
+            const rightValue = timestamp(
+              right.data.startedAt ??
+                right.data.completedAt ??
+                right.data.updatedAt ??
+                right.data.createdAt,
+            );
+            return rightValue - leftValue;
+          });
+        }),
+      );
+
+      const nextItems = taskStates
+        .map((taskState, index) => ({
+          ...buildTaskPanelItem(taskState),
+          taskRuns: taskRunStatesByTask[index].map(buildTaskRunPanelItem),
+        }))
+        .sort((left, right) => {
+          const leftIndex = left.sourceEntryIndex ?? Number.MAX_SAFE_INTEGER;
+          const rightIndex = right.sourceEntryIndex ?? Number.MAX_SAFE_INTEGER;
+
+          if (leftIndex !== rightIndex) {
+            return leftIndex - rightIndex;
+          }
+
+          return left.title.localeCompare(right.title, 'zh-CN');
+        });
+
+      setTaskItems(nextItems);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '加载任务工作区失败';
+      toast.error(message);
+      setTaskItems([]);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [client, projectState.data.id, workbenchSessionId]);
+
+  const refreshSpecPane = useCallback(async () => {
+    if (!workbenchSessionId) {
+      setSpecLoading(false);
+      setSpecNote(null);
+      setSpecSyncSnapshot(null);
+      return;
+    }
+
+    setSpecLoading(true);
+
+    try {
+      const sessionNotesPath = buildCollectionPath(
+        `/api/projects/${projectState.data.id}/acp-sessions/${workbenchSessionId}/notes`,
+        {
+          pageSize: 1,
+          type: 'spec',
+        },
+      );
+      const sessionNotesPage =
+        await client.go<NoteCollection>(sessionNotesPath).get();
+      const sessionSpecNote =
+        (await loadNoteCollectionPages(sessionNotesPage))[0] ?? null;
+
+      const projectNotesPage = sessionSpecNote
+        ? null
+        : await client
+            .go<NoteCollection>(
+              buildCollectionPath(`/api/projects/${projectState.data.id}/notes`, {
+                pageSize: 1,
+                type: 'spec',
+              }),
+            )
+            .get();
+
+      const projectSpecNote =
+        projectNotesPage &&
+        (await loadNoteCollectionPages(projectNotesPage))[0];
+
+      const resolvedNote = sessionSpecNote ?? projectSpecNote ?? null;
+      setSpecNote(resolvedNote);
+
+      if (!resolvedNote) {
+        setSpecSyncSnapshot(null);
+        return;
+      }
+
+      const response = await runtimeFetch(
+        `/api/notes/${resolvedNote.data.id}/spec-task-sync`,
+      );
+      const payload = (await response.json()) as SpecSyncSnapshot;
+
+      if (!response.ok) {
+        throw new Error('加载 Spec 同步状态失败');
+      }
+
+      setSpecSyncSnapshot(payload);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '加载 Spec 工作区失败';
+      toast.error(message);
+      setSpecNote(null);
+      setSpecSyncSnapshot(null);
+    } finally {
+      setSpecLoading(false);
+    }
+  }, [client, projectState.data.id, workbenchSessionId]);
+
+  useEffect(() => {
+    void refreshTaskItems();
+    void refreshSpecPane();
+  }, [refreshSpecPane, refreshTaskItems]);
+
   const { chatMessages, handlePromptSubmit, hasPendingAssistantMessage } =
     useProjectSessionChat({
       history,
@@ -605,6 +925,102 @@ export function ShellsSession(props: ShellsSessionProps) {
     worktreesLoading,
   ]);
 
+  const handleSpecSync = useCallback(async () => {
+    if (!specNote) {
+      return;
+    }
+
+    setSpecSyncLoading(true);
+    setMainPane('spec');
+
+    try {
+      const response = await runtimeFetch(
+        `/api/notes/${specNote.data.id}/spec-task-sync`,
+        {
+          method: 'POST',
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('同步 Spec 失败');
+      }
+
+      await Promise.all([refreshSpecPane(), refreshTaskItems(), loadSessions()]);
+      toast.success('Spec 已同步到任务面板');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '同步 Spec 失败';
+      toast.error(message);
+    } finally {
+      setSpecSyncLoading(false);
+    }
+  }, [loadSessions, refreshSpecPane, refreshTaskItems, specNote]);
+
+  const handleTaskAction = useCallback(
+    async (item: TaskPanelItem, action: TaskPanelAction) => {
+      if (!item.taskId) {
+        return;
+      }
+
+      setPendingTaskAction({
+        action,
+        taskId: item.id,
+      });
+      setMainPane('ops');
+
+      try {
+        if (action === 'retry') {
+          const latestRun = item.taskRuns?.find((run) => run.isLatest) ?? null;
+
+          if (!latestRun) {
+            throw new Error('当前任务没有可重试的最新执行记录');
+          }
+
+          const retryResponse = await runtimeFetch(
+            `/api/task-runs/${latestRun.id}/retry`,
+            {
+              method: 'POST',
+            },
+          );
+
+          if (!retryResponse.ok) {
+            throw new Error('重试任务失败');
+          }
+        } else {
+          const executeResponse = await runtimeFetch(
+            `/api/tasks/${item.taskId}/execute`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                callerSessionId: workbenchSessionId ?? selectedSession?.data.id,
+              }),
+            },
+          );
+
+          if (!executeResponse.ok) {
+            throw new Error('启动任务失败');
+          }
+        }
+
+        await Promise.all([refreshTaskItems(), loadSessions()]);
+        toast.success(action === 'retry' ? '任务已重新排队' : '任务已分发');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '任务操作失败';
+        toast.error(message);
+      } finally {
+        setPendingTaskAction(null);
+      }
+    },
+    [
+      loadSessions,
+      refreshTaskItems,
+      selectedSession?.data.id,
+      workbenchSessionId,
+    ],
+  );
+
   const stopStream = useCallback((manual: boolean) => {
     allowReconnectRef.current = !manual;
     if (reconnectTimerRef.current !== null) {
@@ -615,6 +1031,9 @@ export function ShellsSession(props: ShellsSessionProps) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
+    if (manual) {
+      setStreamStatus('idle');
+    }
   }, []);
 
   const startStream = useCallback(() => {
@@ -623,6 +1042,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
     stopStream(false);
     allowReconnectRef.current = true;
+    setStreamStatus('connecting');
 
     const url = new URL(resolveRuntimeApiUrl('/api/acp'));
     url.searchParams.set('sessionId', selectedSession.data.id);
@@ -639,6 +1059,9 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
 
     const source = new EventSource(url.toString(), { withCredentials: true });
+    source.onopen = () => {
+      setStreamStatus('connected');
+    };
 
     const onEvent = (raw: string) => {
       try {
@@ -658,6 +1081,7 @@ export function ShellsSession(props: ShellsSessionProps) {
       onEvent(event.data);
     };
     source.onerror = () => {
+      setStreamStatus('error');
       source.close();
       eventSourceRef.current = null;
       if (!allowReconnectRef.current) {
@@ -692,6 +1116,20 @@ export function ShellsSession(props: ShellsSessionProps) {
       }
     },
     [onSessionNavigate, select],
+  );
+
+  const handleOpenSession = useCallback(
+    (sessionId: string) => {
+      const target =
+        sessions.find((session) => session.data.id === sessionId) ?? null;
+
+      if (!target) {
+        return;
+      }
+
+      void selectSessionFromList(target);
+    },
+    [selectSessionFromList, sessions],
   );
 
   useEffect(() => {
@@ -764,8 +1202,37 @@ export function ShellsSession(props: ShellsSessionProps) {
       onSelectSession={handleSidebarSessionSelect}
       projectTitle={projectTitle}
       selectedSessionId={selectedSessionId}
+      sessionAnnotationsById={sessionAnnotationsById}
       sessions={sessionTree}
       sessionsLoading={sessionsLoading}
+    />
+  );
+  const providerFallbackLabel =
+    composerProviderId ?? sessionDefaults.providerId ?? '未配置 provider';
+  const specPane = (
+    <ProjectSessionSpecPane
+      note={specNote}
+      onSync={handleSpecSync}
+      scopeSessionLabel={scopeSessionLabel}
+      selectedSession={selectedSession}
+      syncLoading={specLoading || specSyncLoading}
+      syncSnapshot={specSyncSnapshot}
+      tasksLoading={tasksLoading}
+      taskItems={taskItems}
+    />
+  );
+  const opsPane = (
+    <ProjectSessionStatusSidebar
+      events={history}
+      onOpenSession={handleOpenSession}
+      onTaskAction={handleTaskAction}
+      pendingTaskAction={pendingTaskAction}
+      providerFallbackLabel={providerFallbackLabel}
+      runtimeProfile={runtimeProfile}
+      selectedSession={selectedSession}
+      streamStatus={streamStatus}
+      taskItems={taskItems}
+      tasksLoading={tasksLoading}
     />
   );
 
@@ -807,16 +1274,96 @@ export function ShellsSession(props: ShellsSessionProps) {
                 </div>
               </div>
 
+              <div className="border-b border-border/60 bg-background px-4 py-2 xl:hidden">
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    type="button"
+                    variant={mainPane === 'conversation' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => setMainPane('conversation')}
+                  >
+                    会话
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={mainPane === 'spec' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => setMainPane('spec')}
+                  >
+                    Spec
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={mainPane === 'ops' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => setMainPane('ops')}
+                  >
+                    Ops
+                  </Button>
+                </div>
+              </div>
+
               <div className="min-h-0 flex-1">
-                <ProjectSessionConversationPane
-                  chatMessages={chatMessages}
-                  hasPendingAssistantMessage={hasPendingAssistantMessage}
-                  modelPicker={sessionPromptModelPicker}
-                  onSubmit={handlePromptSubmit}
-                  providerPicker={sessionPromptProviderPicker}
-                  projectPicker={sessionPromptProjectPicker}
-                  selectedSession={selectedSession}
-                />
+                <div className="h-full xl:hidden">
+                  {mainPane === 'conversation' ? (
+                    <ProjectSessionConversationPane
+                      chatMessages={chatMessages}
+                      hasPendingAssistantMessage={hasPendingAssistantMessage}
+                      modelPicker={sessionPromptModelPicker}
+                      onSubmit={handlePromptSubmit}
+                      providerPicker={sessionPromptProviderPicker}
+                      projectPicker={sessionPromptProjectPicker}
+                      selectedSession={selectedSession}
+                    />
+                  ) : mainPane === 'ops' ? (
+                    opsPane
+                  ) : (
+                    specPane
+                  )}
+                </div>
+
+                <div className="hidden h-full min-h-0 xl:flex">
+                  <div className="min-w-0 flex-1">
+                    <ProjectSessionConversationPane
+                      chatMessages={chatMessages}
+                      hasPendingAssistantMessage={hasPendingAssistantMessage}
+                      modelPicker={sessionPromptModelPicker}
+                      onSubmit={handlePromptSubmit}
+                      providerPicker={sessionPromptProviderPicker}
+                      projectPicker={sessionPromptProjectPicker}
+                      selectedSession={selectedSession}
+                    />
+                  </div>
+
+                  <aside className="hidden w-[420px] shrink-0 border-l border-border/60 bg-background xl:flex xl:flex-col">
+                    <div className="grid grid-cols-2 gap-2 border-b border-border/60 px-4 py-2">
+                      <Button
+                        type="button"
+                        variant={mainPane === 'spec' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => setMainPane('spec')}
+                      >
+                        Spec
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={mainPane === 'ops' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={() => setMainPane('ops')}
+                      >
+                        Ops
+                      </Button>
+                    </div>
+                    <div className="min-h-0 flex-1">
+                      {mainPane === 'ops' ? opsPane : specPane}
+                    </div>
+                  </aside>
+                </div>
               </div>
             </div>
           </main>

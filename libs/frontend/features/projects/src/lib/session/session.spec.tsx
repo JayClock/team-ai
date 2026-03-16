@@ -7,18 +7,20 @@ import { ShellsSession } from './session';
 
 const conversationPaneSpy = vi.fn();
 const sessionsRefreshMock = vi.fn();
+const resourceGetMock = vi.fn(async () => ({
+  collection: [],
+  follow: vi.fn(),
+  hasLink: vi.fn(() => false),
+}));
 
 const meResource = { id: 'me-resource' };
 const codebasesResource = { id: 'codebases-resource' };
 const codebasesState = {
   collection: [],
 } as { collection: Array<State<unknown>> };
-
-let currentSelectedSession: State<AcpSession> | null = null;
-
-vi.mock('@hateoas-ts/resource-react', () => ({
-  useClient: () => ({
-    go: vi.fn(() => ({
+const clientGoMock = vi.fn((path: string) => {
+  if (path === '/api') {
+    return {
       follow: vi.fn((rel: string) => {
         if (rel !== 'me') {
           throw new Error(`Unsupported rel: ${rel}`);
@@ -26,8 +28,21 @@ vi.mock('@hateoas-ts/resource-react', () => ({
 
         return meResource;
       }),
-    })),
-  }),
+    };
+  }
+
+  return {
+    get: resourceGetMock,
+  };
+});
+const clientMock = {
+  go: clientGoMock,
+};
+
+let currentSelectedSession: State<AcpSession> | null = null;
+
+vi.mock('@hateoas-ts/resource-react', () => ({
+  useClient: () => clientMock,
   useSuspenseResource: (resource: unknown) => {
     if (resource === meResource) {
       return {
@@ -62,6 +77,7 @@ vi.mock('@features/project-conversations', () => ({
 }));
 
 vi.mock('@shared/ui', () => ({
+  Button: (props: { children?: unknown }) => createElement('button', null, props.children),
   toast: {
     error: vi.fn(),
     success: vi.fn(),
@@ -89,6 +105,16 @@ vi.mock('./project-session-conversation-pane', () => ({
     conversationPaneSpy(props);
     return createElement('div', { 'data-testid': 'conversation-pane' });
   },
+}));
+
+vi.mock('./project-session-spec-pane', () => ({
+  ProjectSessionSpecPane: () =>
+    createElement('div', { 'data-testid': 'spec-pane' }),
+}));
+
+vi.mock('./project-session-status-sidebar', () => ({
+  ProjectSessionStatusSidebar: () =>
+    createElement('div', { 'data-testid': 'status-sidebar' }),
 }));
 
 vi.mock('./use-project-session-chat', () => ({
@@ -176,7 +202,9 @@ Object.defineProperty(globalThis, 'EventSource', {
 describe('ShellsSession', () => {
   beforeEach(() => {
     currentSelectedSession = null;
+    clientGoMock.mockClear();
     conversationPaneSpy.mockClear();
+    resourceGetMock.mockClear();
     sessionsRefreshMock.mockReset();
     sessionsRefreshMock.mockResolvedValue({
       collection: [],

@@ -55,6 +55,9 @@ export type Task = Entity<
     resultSessionId: string | null;
     sessionId: string | null;
     triggerSessionId: string | null;
+    sourceType: string | null;
+    sourceEventId: string | null;
+    sourceEntryIndex: number | null;
     githubId: string | null;
     githubNumber: number | null;
     githubUrl: string | null;

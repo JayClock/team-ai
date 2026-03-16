@@ -10,6 +10,10 @@ import {
   listNotes,
   updateNote,
 } from '../services/note-service';
+import {
+  getSpecNoteTaskSyncSnapshot,
+  syncSpecNoteToTasks,
+} from '../services/spec-task-sync-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listNotesQuerySchema = z.object({
@@ -174,6 +178,13 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
     return presentNote(await getNoteById(fastify.sqlite, noteId));
   });
 
+  fastify.get('/notes/:noteId/spec-task-sync', async (request) => {
+    const { noteId } = noteParamsSchema.parse(request.params);
+    const note = await getNoteById(fastify.sqlite, noteId);
+
+    return getSpecNoteTaskSyncSnapshot(fastify.sqlite, note);
+  });
+
   fastify.patch('/notes/:noteId', async (request, reply) => {
     const { noteId } = noteParamsSchema.parse(request.params);
     const body = notePatchSchema.parse(request.body);
@@ -186,6 +197,18 @@ const notesRoute: FastifyPluginAsync = async (fastify) => {
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.note);
 
     return presentNote(note);
+  });
+
+  fastify.post('/notes/:noteId/spec-task-sync', async (request) => {
+    const { noteId } = noteParamsSchema.parse(request.params);
+    const note = await getNoteById(fastify.sqlite, noteId);
+    const taskSync = await syncSpecNoteToTasks(fastify.sqlite, note);
+
+    return {
+      noteId: note.id,
+      syncState: getSpecNoteTaskSyncSnapshot(fastify.sqlite, note),
+      taskSync,
+    };
   });
 
   fastify.delete('/notes/:noteId', async (request, reply) => {

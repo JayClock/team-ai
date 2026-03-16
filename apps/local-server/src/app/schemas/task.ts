@@ -33,6 +33,9 @@ export interface TaskPayload {
   resultSessionId: string | null;
   sessionId: string | null;
   scope: string | null;
+  sourceEntryIndex: number | null;
+  sourceEventId: string | null;
+  sourceType: string;
   status: string;
   title: string;
   triggerSessionId: string | null;

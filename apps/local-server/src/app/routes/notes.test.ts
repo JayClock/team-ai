@@ -176,6 +176,112 @@ describe('notes routes', () => {
     });
   });
 
+  it('exposes spec task sync status and manual sync under note detail routes', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Spec Sync Notes',
+      repoPath: '/tmp/team-ai-spec-sync-notes',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/notes`,
+      payload: {
+        content: `
+## Goal
+Ship phase 7.
+
+@@@task
+# Implement workbench sync
+Render the phase 7 workbench.
+
+## Definition of Done
+- spec pane is visible
+
+## Verification
+- npx vitest run notes.test.ts
+@@@
+`,
+        title: 'Spec',
+        type: 'spec',
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const noteId = (createResponse.json() as { id: string }).id;
+
+    const pendingResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/notes/${noteId}/spec-task-sync`,
+    });
+
+    expect(pendingResponse.statusCode).toBe(200);
+    expect(pendingResponse.json()).toMatchObject({
+      noteId,
+      parsedCount: 1,
+      pendingCount: 1,
+      status: 'pending_sync',
+    });
+
+    const syncResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/notes/${noteId}/spec-task-sync`,
+    });
+
+    expect(syncResponse.statusCode).toBe(200);
+    expect(syncResponse.json()).toMatchObject({
+      noteId,
+      taskSync: {
+        createdCount: 1,
+        parsedCount: 1,
+      },
+      syncState: {
+        matchedCount: 1,
+        pendingCount: 0,
+        status: 'clean',
+      },
+    });
+  });
+
+  it('returns parse_error snapshots for malformed spec notes', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Broken Spec Notes',
+      repoPath: '/tmp/team-ai-broken-spec-notes',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/notes`,
+      payload: {
+        content: `
+@@@task
+# Broken block
+Missing closing marker
+`,
+        title: 'Broken Spec',
+        type: 'spec',
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const noteId = (createResponse.json() as { id: string }).id;
+
+    const snapshotResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/notes/${noteId}/spec-task-sync`,
+    });
+
+    expect(snapshotResponse.statusCode).toBe(200);
+    expect(snapshotResponse.json()).toMatchObject({
+      noteId,
+      parseError: 'Task block 1 is missing a closing "@@@" marker',
+      status: 'parse_error',
+    });
+  });
+
   it('rejects cross-project session note creation and missing projectId queries', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);

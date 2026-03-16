@@ -20,6 +20,8 @@ export { buildSessionTree, countSessionTree, sessionDisplayName };
 export type TaskPanelItem = {
   assignedProvider?: string | null;
   assignedRole?: string | null;
+  assignedSpecialistId?: string | null;
+  assignedSpecialistName?: string | null;
   codebaseId?: string | null;
   description?: string;
   executionSessionId?: string | null;
@@ -28,6 +30,9 @@ export type TaskPanelItem = {
   resultSessionId?: string | null;
   source: 'plan' | 'task' | 'tool';
   status: string;
+  sourceEntryIndex?: number | null;
+  sourceEventId?: string | null;
+  sourceType?: string | null;
   taskState?: State<Task>;
   taskId?: string;
   taskRuns?: TaskRunPanelItem[];
@@ -97,6 +102,31 @@ export type WorkbenchProjectInsights = {
   sessionTaskRunCount: number;
   taskRunCount: number;
   runtimeProfile: WorkbenchRuntimeProfile | null;
+};
+
+export type SpecSyncState = 'clean' | 'pending_sync' | 'parse_error' | 'conflict';
+
+export type SpecSyncSnapshot = {
+  conflictCount: number;
+  items: Array<{
+    blockIndex: number;
+    expectedTaskTitle: string;
+    reason:
+      | 'DUPLICATE_SOURCE_MAPPING'
+      | 'FIELD_MISMATCH'
+      | 'MISSING_TASK'
+      | 'ORPHANED_TASK'
+      | 'TASK_NOT_MUTABLE';
+    taskId: string | null;
+  }>;
+  matchedCount: number;
+  noteId: string;
+  orphanedTaskCount: number;
+  parseError: string | null;
+  parsedCount: number;
+  pendingCount: number;
+  status: SpecSyncState;
+  taskCount: number;
 };
 
 export function formatDateTime(value: string | null): string {
@@ -203,25 +233,35 @@ function isToolEventType(event: AcpEventEnvelope): boolean {
 }
 
 export function buildTaskPanelItem(task: State<Task>): TaskPanelItem {
+  const taskData = task.data as Task['data'] & {
+    sourceEntryIndex?: number | null;
+    sourceEventId?: string | null;
+    sourceType?: string | null;
+  };
   const description =
-    normalizeOptionalText(task.data.objective) ??
-    normalizeOptionalText(task.data.scope);
+    normalizeOptionalText(taskData.objective) ??
+    normalizeOptionalText(taskData.scope);
 
   return {
-    id: task.data.id,
-    taskId: task.data.id,
-    title: task.data.title,
-    status: task.data.status,
+    id: taskData.id,
+    taskId: taskData.id,
+    title: taskData.title,
+    status: taskData.status,
     description,
     source: 'task',
-    kind: task.data.kind,
-    assignedRole: task.data.assignedRole,
-    assignedProvider: task.data.assignedProvider,
-    codebaseId: task.data.codebaseId,
-    executionSessionId: task.data.executionSessionId,
-    resultSessionId: task.data.resultSessionId,
+    kind: taskData.kind,
+    assignedRole: taskData.assignedRole,
+    assignedProvider: taskData.assignedProvider,
+    assignedSpecialistId: taskData.assignedSpecialistId,
+    assignedSpecialistName: taskData.assignedSpecialistName,
+    codebaseId: taskData.codebaseId,
+    executionSessionId: taskData.executionSessionId,
+    resultSessionId: taskData.resultSessionId,
+    sourceEntryIndex: taskData.sourceEntryIndex,
+    sourceEventId: taskData.sourceEventId,
+    sourceType: taskData.sourceType,
     taskState: task,
-    worktreeId: task.data.worktreeId,
+    worktreeId: taskData.worktreeId,
   };
 }
 
@@ -262,6 +302,55 @@ export function formatVerificationVerdictLabel(
       return '待验证';
     default:
       return verdict?.trim() || '未产出';
+  }
+}
+
+export function formatSpecSyncStateLabel(
+  status: SpecSyncState | null | undefined,
+): string {
+  switch (status) {
+    case 'clean':
+      return '已同步';
+    case 'pending_sync':
+      return '待同步';
+    case 'parse_error':
+      return '解析错误';
+    case 'conflict':
+      return '存在冲突';
+    default:
+      return '未同步';
+  }
+}
+
+export function specSyncStateChipClasses(
+  status: SpecSyncState | null | undefined,
+): string {
+  switch (status) {
+    case 'clean':
+      return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+    case 'pending_sync':
+      return 'bg-sky-50 text-sky-700 ring-sky-200';
+    case 'parse_error':
+      return 'bg-rose-50 text-rose-700 ring-rose-200';
+    case 'conflict':
+      return 'bg-amber-50 text-amber-700 ring-amber-200';
+    default:
+      return 'bg-slate-100 text-slate-600 ring-slate-200';
+  }
+}
+
+export function formatTaskSourceLabel(
+  sourceType: string | null | undefined,
+): string {
+  switch (sourceType) {
+    case 'spec_note':
+      return 'Spec';
+    case 'acp_plan':
+      return 'Plan';
+    case 'manual':
+      return 'Manual';
+    default:
+      return sourceType?.trim() || '未知来源';
   }
 }
 
