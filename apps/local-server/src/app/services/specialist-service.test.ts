@@ -142,6 +142,9 @@ describe('specialist service', () => {
     );
     expect(specialist.systemPrompt).toContain('`delegate_task_to_agent`');
     expect(specialist.systemPrompt).toContain('`notes_append`');
+    expect(specialist.systemPrompt).toContain('`list_notes`');
+    expect(specialist.systemPrompt).toContain('`read_note`');
+    expect(specialist.systemPrompt).toContain('`read_agent_conversation`');
     expect(specialist.systemPrompt).toContain('get approval');
     expect(specialist.systemPrompt).toContain('After each delegation or reporting wave');
     expect(specialist.systemPrompt).not.toContain('`acp_session_create`');

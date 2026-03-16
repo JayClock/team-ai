@@ -3,6 +3,10 @@ import { ProblemError } from '../errors/problem-error';
 import type { NotePayload, NoteType } from '../schemas/note';
 import type { TaskRunPayload } from '../schemas/task-run';
 import type { TaskPayload } from '../schemas/task';
+import {
+  completeDelegationGroup,
+  getDelegationGroupProgress,
+} from './delegation-group-service';
 import { recordNoteEvent } from './note-event-service';
 import {
   createNote,
@@ -35,6 +39,14 @@ interface ReportToParentInput {
 }
 
 export interface ReportToParentResult {
+  delegationGroup: {
+    completedCount: number;
+    groupId: string;
+    pendingCount: number;
+    settled: boolean;
+    status: 'ACTIVE' | 'COMPLETED';
+    totalCount: number;
+  } | null;
   note: NotePayload;
   noteAction: 'created' | 'updated';
   report: {
@@ -399,8 +411,36 @@ export async function reportToParent(
     verificationReport,
     verdict: input.verdict,
   });
+  let delegationGroup =
+    updatedTask.parallelGroup === null
+      ? null
+      : await getDelegationGroupProgress(sqlite, {
+          groupId: updatedTask.parallelGroup,
+          projectId: updatedTask.projectId,
+        });
+
+  if (delegationGroup?.settled && delegationGroup.status !== 'COMPLETED') {
+    const completedGroup = await completeDelegationGroup(
+      sqlite,
+      delegationGroup.groupId,
+    );
+    delegationGroup = {
+      ...delegationGroup,
+      status: completedGroup.status,
+    };
+  }
 
   return {
+    delegationGroup: delegationGroup
+      ? {
+          completedCount: delegationGroup.completedCount,
+          groupId: delegationGroup.groupId,
+          pendingCount: delegationGroup.pendingCount,
+          settled: delegationGroup.settled,
+          status: delegationGroup.status,
+          totalCount: delegationGroup.totalCount,
+        }
+      : null,
     note: noteResult.note,
     noteAction: noteResult.noteAction,
     report: {

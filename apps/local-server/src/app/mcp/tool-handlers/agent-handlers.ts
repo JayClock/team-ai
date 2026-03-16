@@ -1,10 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { listAgents } from '../../services/agent-service';
+import { readAgentConversation } from '../../services/acp-conversation-service';
+import { getOrCreateActiveDelegationGroup } from '../../services/delegation-group-service';
 import { getProjectById } from '../../services/project-service';
 import {
   agentsListArgsSchema,
   delegateTaskToAgentArgsSchema,
+  readAgentConversationArgsSchema,
 } from '../contracts';
 import {
   getProjectSession,
@@ -14,6 +17,7 @@ import {
 
 type AgentsListArgs = z.infer<typeof agentsListArgsSchema>;
 type DelegateTaskToAgentArgs = z.infer<typeof delegateTaskToAgentArgsSchema>;
+type ReadAgentConversationArgs = z.infer<typeof readAgentConversationArgsSchema>;
 
 export function createAgentsListHandler(fastify: FastifyInstance) {
   return async (args: AgentsListArgs) => {
@@ -39,10 +43,18 @@ export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
       args.projectId,
       args.specialist,
     );
+    const group =
+      (args.waitMode ?? 'after_all') === 'after_all'
+        ? await getOrCreateActiveDelegationGroup(fastify.sqlite, {
+            callerSessionId: args.callerSessionId,
+            projectId: args.projectId,
+          })
+        : null;
     const task = await workflow.patchTaskFromMcpAndMaybeExecute(
       args.taskId,
       {
         assignedProvider: args.provider,
+        parallelGroup: group?.id ?? null,
         assignedRole: delegation.resolvedRole,
         assignedSpecialistId: delegation.specialist.id,
         status: 'READY',
@@ -57,6 +69,7 @@ export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
     return {
       delegation: {
         additionalInstructions: args.additionalInstructions ?? null,
+        delegationGroupId: group?.id ?? null,
         requestedSpecialist: delegation.requested,
         resolvedRole: delegation.resolvedRole,
         resolvedSpecialist: {
@@ -67,5 +80,14 @@ export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
       },
       task,
     };
+  };
+}
+
+export function createReadAgentConversationHandler(fastify: FastifyInstance) {
+  return async (args: ReadAgentConversationArgs) => {
+    await getProjectById(fastify.sqlite, args.projectId);
+    await getProjectSession(fastify.sqlite, args.projectId, args.sessionId);
+
+    return await readAgentConversation(fastify.sqlite, args);
   };
 }

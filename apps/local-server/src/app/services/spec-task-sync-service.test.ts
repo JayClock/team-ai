@@ -7,7 +7,7 @@ import { initializeDatabase } from '../db/sqlite';
 import { ProblemError } from '../errors/problem-error';
 import { createNote } from './note-service';
 import { createProject } from './project-service';
-import { createTask } from './task-service';
+import { createTask, getTaskById } from './task-service';
 import {
   getSpecNoteTaskSyncSnapshot,
   parseSpecTaskBlocks,
@@ -96,6 +96,7 @@ Missing closing marker
       const syncResult = await syncSpecNoteToTasks(sqlite, note);
       expect(syncResult).toMatchObject({
         createdCount: 1,
+        deletedCount: 0,
         parsedCount: 1,
       });
 
@@ -168,6 +169,87 @@ Missing closing marker
         pendingCount: 2,
         status: 'conflict',
       });
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('deletes orphaned mutable spec tasks when blocks are removed from the spec', async () => {
+    const { cleanup, sqlite } = await createTestDatabase();
+
+    try {
+      const note = await createSpecNote(
+        sqlite,
+        `
+## Goal
+Ship the first routa-aligned loop.
+
+@@@task
+# Implement spec sync
+Create the first spec-to-task sync path.
+
+## Definition of Done
+- Sync exists
+@@@
+
+@@@task
+# Verify spec sync
+Check the synced task shape.
+
+## Definition of Done
+- Verification evidence exists
+@@@
+`,
+      );
+
+      const initialSync = await syncSpecNoteToTasks(sqlite, note);
+      const removedTaskId = initialSync.tasks[1]?.taskId;
+
+      expect(initialSync).toMatchObject({
+        createdCount: 2,
+        deletedCount: 0,
+      });
+
+      const updatedNote = {
+        ...note,
+        content: `
+## Goal
+Ship the first routa-aligned loop.
+
+@@@task
+# Implement spec sync
+Create the first spec-to-task sync path.
+
+## Definition of Done
+- Sync exists
+@@@
+`,
+      };
+
+      await expect(getTaskById(sqlite, removedTaskId)).resolves.toMatchObject({
+        title: 'Verify spec sync',
+      });
+
+      const secondSync = await syncSpecNoteToTasks(sqlite, updatedNote);
+
+      expect(secondSync).toMatchObject({
+        createdCount: 0,
+        deletedCount: 1,
+        parsedCount: 1,
+      });
+      expect(secondSync.tasks).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            action: 'deleted',
+            reason: 'BLOCK_REMOVED',
+            taskId: removedTaskId,
+          }),
+        ]),
+      );
+
+      await expect(getTaskById(sqlite, removedTaskId)).rejects.toBeInstanceOf(
+        ProblemError,
+      );
     } finally {
       await cleanup();
     }

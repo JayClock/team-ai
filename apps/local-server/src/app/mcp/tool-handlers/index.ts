@@ -6,9 +6,12 @@ export {
 export {
   createAgentsListHandler,
   createDelegateTaskToAgentHandler,
+  createReadAgentConversationHandler,
 } from './agent-handlers';
 export {
+  createListNotesHandler,
   createNotesAppendHandler,
+  createReadNoteHandler,
   createSetNoteContentHandler,
 } from './note-handlers';
 export { createProjectsListHandler } from './project-handlers';

@@ -625,4 +625,30 @@ export const sqliteMigrations: SqliteMigration[] = [
         DROP COLUMN default_model;
     `,
   },
+  {
+    version: '023_project_delegation_groups',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_delegation_groups (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        caller_session_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
+        completed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (caller_session_id) REFERENCES project_acp_sessions(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_delegation_groups_project_id
+        ON project_delegation_groups(project_id, updated_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_project_delegation_groups_caller_session_id
+        ON project_delegation_groups(caller_session_id, updated_at DESC);
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_delegation_groups_active_caller
+        ON project_delegation_groups(project_id, caller_session_id)
+        WHERE status = 'ACTIVE';
+    `,
+  },
 ];

@@ -5,7 +5,7 @@ import type { McpToolAccess, McpToolDefinition } from '../contracts';
 export interface LocalMcpToolRegistration<Schema extends z.ZodTypeAny = z.ZodTypeAny> {
   createHandler: (
     fastify: FastifyInstance,
-  ) => (args: z.infer<Schema>) => Promise<Record<string, unknown>>;
+  ) => (args: z.infer<Schema>) => Promise<object>;
   definition: McpToolDefinition;
   schema: Schema;
 }

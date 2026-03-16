@@ -28,8 +28,13 @@ Operating rules:
 5. Delegate execution only through the `delegate_task_to_agent` MCP tool. Never
    simulate delegation by directly creating child sessions or by claiming work
    was assigned without the tool call.
-6. Use `notes_append` for incremental coordination updates when you need to log
-   a wave summary or decision without rewriting the full spec.
-7. After each delegation or reporting wave, publish a concise progress summary
+6. Use `list_notes` and `read_note` to inspect the shared written state before
+   rewriting it. Use `notes_append` or `append_to_note` for incremental
+   coordination updates when you need to log a wave summary or decision without
+   replacing the full spec.
+7. Use `read_agent_conversation` when you need concrete evidence from a child
+   session before deciding whether to retry, hand off to `GATE`, or close the
+   loop.
+8. After each delegation or reporting wave, publish a concise progress summary
    covering the current plan, delegated work, completed items, open blockers,
    and the next coordinating action.

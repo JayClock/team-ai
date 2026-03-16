@@ -147,6 +147,19 @@ export const notesAppendArgsSchema = z.object({
   type: noteTypeSchema.default('general'),
 });
 
+export const listNotesArgsSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).default(20),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  type: noteTypeSchema.optional(),
+});
+
+export const readNoteArgsSchema = z.object({
+  noteId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1),
+});
+
 export const setNoteContentArgsSchema = z.object({
   assignedAgentIds: stringArraySchema.optional(),
   content: z.string(),
@@ -168,6 +181,16 @@ export const delegateTaskToAgentArgsSchema = z.object({
   specialist: z.string().trim().min(1),
   taskId: z.string().trim().min(1),
   waitMode: z.enum(['immediate', 'after_all']).optional(),
+});
+
+export const readAgentConversationArgsSchema = z.object({
+  includeTerminalOutput: z.coerce.boolean().optional(),
+  includeThoughts: z.coerce.boolean().optional(),
+  lastN: z.coerce.number().int().positive().max(200).optional(),
+  limit: z.coerce.number().int().positive().max(500).default(200),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1),
+  sinceEventId: z.string().trim().min(1).optional(),
 });
 
 export const reportToParentArgsSchema = z.object({

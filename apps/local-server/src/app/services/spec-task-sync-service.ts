@@ -2,7 +2,7 @@ import type { Database } from 'better-sqlite3';
 import { ProblemError } from '../errors/problem-error';
 import type { NotePayload } from '../schemas/note';
 import type { TaskKind, TaskPayload } from '../schemas/task';
-import { createTask, getTaskById, updateTask } from './task-service';
+import { createTask, deleteTask, getTaskById, updateTask } from './task-service';
 
 const specTaskSourceType = 'spec_note';
 const mutableSpecTaskStatuses = new Set([
@@ -32,13 +32,14 @@ export interface ParsedSpecTaskBlock {
 }
 
 export interface SyncSpecTaskItemResult {
-  action: 'created' | 'skipped' | 'updated';
+  action: 'created' | 'deleted' | 'skipped' | 'updated';
   reason: string | null;
   taskId: string;
 }
 
 export interface SyncSpecTasksResult {
   createdCount: number;
+  deletedCount: number;
   parsedCount: number;
   skippedCount: number;
   tasks: SyncSpecTaskItemResult[];
@@ -644,8 +645,11 @@ export async function syncSpecNoteToTasks(
   assertSpecNote(note);
 
   const parsedBlocks = parseSpecTaskBlocks(note.content);
+  const parsedIndexes = new Set(parsedBlocks.map((block) => block.index));
+  const existingTasks = listSpecNoteTasks(sqlite, note.id);
   const tasks: SyncSpecTaskItemResult[] = [];
   let createdCount = 0;
+  let deletedCount = 0;
   let skippedCount = 0;
   let updatedCount = 0;
 
@@ -706,8 +710,36 @@ export async function syncSpecNoteToTasks(
     updatedCount += 1;
   }
 
+  for (const task of existingTasks) {
+    if (
+      task.sourceEntryIndex === null ||
+      parsedIndexes.has(task.sourceEntryIndex)
+    ) {
+      continue;
+    }
+
+    if (!isMutableSpecTask(task)) {
+      tasks.push({
+        action: 'skipped',
+        reason: 'TASK_NOT_MUTABLE',
+        taskId: task.id,
+      });
+      skippedCount += 1;
+      continue;
+    }
+
+    await deleteTask(sqlite, task.id);
+    tasks.push({
+      action: 'deleted',
+      reason: 'BLOCK_REMOVED',
+      taskId: task.id,
+    });
+    deletedCount += 1;
+  }
+
   return {
     createdCount,
+    deletedCount,
     parsedCount: parsedBlocks.length,
     skippedCount,
     tasks,

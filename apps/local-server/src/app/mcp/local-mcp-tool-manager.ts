@@ -19,11 +19,11 @@ export class LocalMcpToolManager {
 
   registerTools(server: McpServer) {
     for (const toolRegistration of localMcpToolCatalog) {
-      this.registerTool(server, toolRegistration);
+      this.registerTool(server, toolRegistration as LocalMcpToolRegistration);
     }
   }
 
-  registerTool<Schema extends z.ZodTypeAny>(
+  registerTool<Schema extends z.ZodTypeAny = z.ZodTypeAny>(
     server: McpServer,
     toolRegistration: LocalMcpToolRegistration<Schema>,
   ) {
@@ -34,7 +34,13 @@ export class LocalMcpToolManager {
       return;
     }
 
-    server.registerTool(
+    const registerTool = server.registerTool as unknown as (
+      name: string,
+      definition: object,
+      callback: (args: unknown) => Promise<object>,
+    ) => void;
+
+    registerTool(
       toolDefinition.tool.name,
       {
         annotations: toolDefinition.tool.annotations,
@@ -51,7 +57,7 @@ export class LocalMcpToolManager {
         logToolAudit(this.fastify.log, 'attempt', auditContext);
 
         try {
-          const result = await handler(args);
+          const result = await handler(args as z.infer<Schema>);
           logToolAudit(this.fastify.log, 'success', auditContext);
           return buildToolResult(result);
         } catch (error) {

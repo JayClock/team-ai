@@ -39,6 +39,7 @@ export interface AutoExecuteTaskPatch {
   assignedProvider?: string | null;
   assignedRole?: string | null;
   assignedSpecialistId?: string | null;
+  parallelGroup?: string | null;
   status?: string;
 }
 

@@ -299,6 +299,7 @@ describe('mcp route', () => {
       expect.arrayContaining([
         'projects_list',
         'agents_list',
+        'read_agent_conversation',
         'tasks_list',
         'task_get',
         'task_update',
@@ -306,8 +307,11 @@ describe('mcp route', () => {
         'task_runs_list',
         'delegate_task_to_agent',
         'report_to_parent',
+        'list_notes',
+        'read_note',
         'set_note_content',
         'notes_append',
+        'append_to_note',
         'acp_session_create',
         'acp_session_prompt',
         'acp_session_cancel',
@@ -423,6 +427,188 @@ describe('mcp route', () => {
         kind: 'implement',
         labels: ['mcp'],
         projectId: project.id,
+      },
+    });
+
+    const note = await createNote(fastify.sqlite, {
+      content: '# MCP Notes\n\nTrack orchestration state.',
+      projectId: project.id,
+      sessionId: rootSessionId,
+      source: 'agent',
+      title: 'Coordinator Log',
+      type: 'general',
+    });
+    const insertHistoryEvent = fastify.sqlite.prepare(
+      `
+        INSERT INTO project_acp_session_events (
+          event_id,
+          session_id,
+          type,
+          payload_json,
+          error_json,
+          emitted_at,
+          created_at
+        )
+        VALUES (
+          @eventId,
+          @sessionId,
+          @type,
+          @payloadJson,
+          NULL,
+          @emittedAt,
+          @createdAt
+        )
+      `,
+    );
+    insertHistoryEvent.run({
+      createdAt: '2026-03-16T09:00:00.000Z',
+      emittedAt: '2026-03-16T09:00:00.000Z',
+      eventId: 'acpe_hist_1',
+      payloadJson: JSON.stringify({
+        eventType: 'agent_message',
+        message: {
+          content: 'Scoped the MCP task workflow.',
+          isChunk: false,
+          role: 'assistant',
+        },
+        provider: 'codex',
+        rawNotification: {},
+        sessionId: rootSessionId,
+        timestamp: '2026-03-16T09:00:00.000Z',
+      }),
+      sessionId: rootSessionId,
+      type: 'agent_message',
+    });
+    insertHistoryEvent.run({
+      createdAt: '2026-03-16T09:01:00.000Z',
+      emittedAt: '2026-03-16T09:01:00.000Z',
+      eventId: 'acpe_hist_2',
+      payloadJson: JSON.stringify({
+        eventType: 'tool_call',
+        provider: 'codex',
+        rawNotification: {},
+        sessionId: rootSessionId,
+        timestamp: '2026-03-16T09:01:00.000Z',
+        toolCall: {
+          input: {
+            taskId: task.id,
+          },
+          inputFinalized: true,
+          locations: [],
+          output: {
+            ok: true,
+          },
+          status: 'completed',
+          title: 'delegate_task_to_agent',
+          toolCallId: 'tool_1',
+        },
+      }),
+      sessionId: rootSessionId,
+      type: 'tool_call',
+    });
+
+    const listNotesResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-notes',
+        method: 'tools/call',
+        params: {
+          name: 'list_notes',
+          arguments: {
+            projectId: project.id,
+            sessionId: rootSessionId,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(listNotesResponse.statusCode).toBe(200);
+    expect(
+      readMcpResult<{ items: Array<Record<string, unknown>> }>(listNotesResponse)
+        .items[0],
+    ).toMatchObject({
+      id: note.id,
+      sessionId: rootSessionId,
+      title: 'Coordinator Log',
+      type: 'general',
+    });
+
+    const readNoteResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-note',
+        method: 'tools/call',
+        params: {
+          name: 'read_note',
+          arguments: {
+            noteId: note.id,
+            projectId: project.id,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(readNoteResponse.statusCode).toBe(200);
+    expect(readMcpResult<Record<string, unknown>>(readNoteResponse)).toMatchObject({
+      note: {
+        content: '# MCP Notes\n\nTrack orchestration state.',
+        id: note.id,
+        title: 'Coordinator Log',
+      },
+    });
+
+    const readConversationResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-conversation',
+        method: 'tools/call',
+        params: {
+          name: 'read_agent_conversation',
+          arguments: {
+            lastN: 10,
+            projectId: project.id,
+            sessionId: rootSessionId,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(readConversationResponse.statusCode).toBe(200);
+    expect(
+      readMcpResult<Record<string, unknown>>(readConversationResponse),
+    ).toMatchObject({
+      latest: {
+        assistantMessage: 'Scoped the MCP task workflow.',
+      },
+      projection: {
+        messages: [
+          expect.objectContaining({
+            role: 'assistant',
+          }),
+        ],
+        toolCalls: [
+          expect.objectContaining({
+            status: 'completed',
+            title: 'delegate_task_to_agent',
+          }),
+        ],
+      },
+      session: {
+        id: rootSessionId,
+        project: {
+          id: project.id,
+        },
+      },
+      totals: {
+        eventCount: 2,
+        messageCount: 1,
+        toolCallCount: 1,
       },
     });
 
@@ -753,9 +939,12 @@ describe('mcp route', () => {
       expect.arrayContaining([
         'projects_list',
         'agents_list',
+        'read_agent_conversation',
         'tasks_list',
         'task_get',
         'task_runs_list',
+        'list_notes',
+        'read_note',
       ]),
     );
     expect(toolNames).not.toContain('task_update');
@@ -764,6 +953,7 @@ describe('mcp route', () => {
     expect(toolNames).not.toContain('report_to_parent');
     expect(toolNames).not.toContain('set_note_content');
     expect(toolNames).not.toContain('notes_append');
+    expect(toolNames).not.toContain('append_to_note');
     expect(toolNames).not.toContain('acp_session_create');
     expect(toolNames).not.toContain('acp_session_prompt');
     expect(toolNames).not.toContain('acp_session_cancel');
@@ -1261,6 +1451,15 @@ Validation and review logic
       status: 'READY',
       title: 'Implement report flow',
     });
+    const followUpGateTask = await createTask(fastify.sqlite, {
+      dependencies: [implementationTask.id],
+      kind: 'verify',
+      objective: 'Auto-dispatch gate after crafter completion',
+      projectId: project.id,
+      sessionId: rootSessionId,
+      status: 'PENDING',
+      title: 'Auto verify report flow',
+    });
     const implementationSessionId = 'acps_report_impl_child';
     insertAcpSession(fastify.sqlite, {
       cwd: '/tmp/team-ai-mcp-report-project',
@@ -1306,6 +1505,13 @@ Validation and review logic
 
     expect(implementationResponse.statusCode).toBe(200);
     expect(readMcpResult<Record<string, unknown>>(implementationResponse)).toMatchObject({
+      autoHandoff: [
+        expect.objectContaining({
+          dispatched: true,
+          taskId: followUpGateTask.id,
+          title: 'Auto verify report flow',
+        }),
+      ],
       noteAction: 'created',
       note: {
         linkedTaskId: implementationTask.id,
@@ -1329,6 +1535,11 @@ Validation and review logic
         sessionId: implementationSessionId,
         status: 'COMPLETED',
         summary: 'Implemented the downstream report flow',
+      },
+      wake: {
+        delivered: true,
+        mode: 'immediate',
+        reason: null,
       },
     });
 
@@ -1406,6 +1617,11 @@ Validation and review logic
         status: 'COMPLETED',
         verificationVerdict: 'pass',
       },
+      wake: {
+        delivered: true,
+        mode: 'immediate',
+        reason: null,
+      },
     });
 
     const failingTask = await createTask(fastify.sqlite, {
@@ -1475,6 +1691,11 @@ Validation and review logic
         sessionId: failingSessionId,
         status: 'FAILED',
         verificationVerdict: 'fail',
+      },
+      wake: {
+        delivered: true,
+        mode: 'immediate',
+        reason: null,
       },
     });
   });

@@ -394,7 +394,7 @@ export async function resolveDelegationSpecialist(
   };
 }
 
-export function buildToolResult(result: Record<string, unknown>) {
+export function buildToolResult(result: object) {
   return {
     content: [
       {
@@ -402,7 +402,7 @@ export function buildToolResult(result: Record<string, unknown>) {
         text: JSON.stringify(result, null, 2),
       },
     ],
-    structuredContent: result,
+    structuredContent: result as Record<string, unknown>,
   };
 }
 

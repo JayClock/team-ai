@@ -273,6 +273,128 @@ describe('task report service', () => {
     expect(notes.items[0].content).toContain('Verification still failing after retry review');
   });
 
+  it('tracks delegation-group barrier progress until all child tasks settle', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Delegation Group Barrier',
+      repoPath: '/tmp/team-ai-task-report-group',
+    });
+    const rootSessionId = 'acps_task_report_group_root';
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-report-group',
+      id: rootSessionId,
+      projectId: project.id,
+    });
+
+    const firstTask = await createTask(sqlite, {
+      kind: 'implement',
+      objective: 'Complete the first child task',
+      parallelGroup: 'dg_test_group',
+      projectId: project.id,
+      sessionId: rootSessionId,
+      status: 'READY',
+      title: 'First grouped task',
+    });
+    const secondTask = await createTask(sqlite, {
+      kind: 'implement',
+      objective: 'Complete the second child task',
+      parallelGroup: 'dg_test_group',
+      projectId: project.id,
+      sessionId: rootSessionId,
+      status: 'READY',
+      title: 'Second grouped task',
+    });
+    sqlite
+      .prepare(
+        `
+          INSERT INTO project_delegation_groups (
+            id,
+            project_id,
+            caller_session_id,
+            status,
+            completed_at,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            'dg_test_group',
+            @projectId,
+            @callerSessionId,
+            'ACTIVE',
+            NULL,
+            @createdAt,
+            @updatedAt
+          )
+        `,
+      )
+      .run({
+        callerSessionId: rootSessionId,
+        createdAt: '2026-03-16T00:00:00.000Z',
+        projectId: project.id,
+        updatedAt: '2026-03-16T00:00:00.000Z',
+      });
+
+    const firstChildSessionId = 'acps_task_report_group_child_1';
+    const secondChildSessionId = 'acps_task_report_group_child_2';
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-report-group',
+      id: firstChildSessionId,
+      parentSessionId: rootSessionId,
+      projectId: project.id,
+      taskId: firstTask.id,
+    });
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-report-group',
+      id: secondChildSessionId,
+      parentSessionId: rootSessionId,
+      projectId: project.id,
+      taskId: secondTask.id,
+    });
+
+    await updateTask(sqlite, firstTask.id, {
+      assignedRole: 'CRAFTER',
+      executionSessionId: firstChildSessionId,
+      status: 'RUNNING',
+    });
+    await updateTask(sqlite, secondTask.id, {
+      assignedRole: 'CRAFTER',
+      executionSessionId: secondChildSessionId,
+      status: 'RUNNING',
+    });
+
+    const firstResult = await reportToParent(sqlite, {
+      projectId: project.id,
+      sessionId: firstChildSessionId,
+      summary: 'Finished the first grouped task',
+      verdict: 'completed',
+    });
+
+    expect(firstResult.delegationGroup).toMatchObject({
+      completedCount: 1,
+      groupId: 'dg_test_group',
+      pendingCount: 1,
+      settled: false,
+      status: 'ACTIVE',
+      totalCount: 2,
+    });
+
+    const secondResult = await reportToParent(sqlite, {
+      projectId: project.id,
+      sessionId: secondChildSessionId,
+      summary: 'Finished the second grouped task',
+      verdict: 'completed',
+    });
+
+    expect(secondResult.delegationGroup).toMatchObject({
+      completedCount: 2,
+      groupId: 'dg_test_group',
+      pendingCount: 0,
+      settled: true,
+      status: 'COMPLETED',
+      totalCount: 2,
+    });
+  });
+
   it('rejects reports from sessions without a parent workflow context', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {

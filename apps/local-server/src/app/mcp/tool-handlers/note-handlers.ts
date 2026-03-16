@@ -5,6 +5,7 @@ import { recordNoteEvent } from '../../services/note-event-service';
 import {
   createNote,
   findSpecNoteByScope,
+  listNotes,
   updateNote,
 } from '../../services/note-service';
 import {
@@ -12,6 +13,8 @@ import {
   syncSpecNoteToTasks,
 } from '../../services/spec-task-sync-service';
 import {
+  listNotesArgsSchema,
+  readNoteArgsSchema,
   notesAppendArgsSchema,
   setNoteContentArgsSchema,
 } from '../contracts';
@@ -25,6 +28,8 @@ import { getProjectById } from '../../services/project-service';
 
 type SetNoteContentArgs = z.infer<typeof setNoteContentArgsSchema>;
 type NotesAppendArgs = z.infer<typeof notesAppendArgsSchema>;
+type ListNotesArgs = z.infer<typeof listNotesArgsSchema>;
+type ReadNoteArgs = z.infer<typeof readNoteArgsSchema>;
 
 async function ensureNoteWriteScope(
   fastify: FastifyInstance,
@@ -120,6 +125,27 @@ export function createSetNoteContentHandler(fastify: FastifyInstance) {
       note: savedNote,
       scope: describeNoteScope(savedNote),
       taskSync,
+    };
+  };
+}
+
+export function createListNotesHandler(fastify: FastifyInstance) {
+  return async (args: ListNotesArgs) => {
+    await ensureNoteWriteScope(fastify, {
+      projectId: args.projectId,
+      sessionId: args.sessionId,
+    });
+
+    return await listNotes(fastify.sqlite, args);
+  };
+}
+
+export function createReadNoteHandler(fastify: FastifyInstance) {
+  return async (args: ReadNoteArgs) => {
+    await getProjectById(fastify.sqlite, args.projectId);
+
+    return {
+      note: await getProjectNote(fastify.sqlite, args.projectId, args.noteId),
     };
   };
 }

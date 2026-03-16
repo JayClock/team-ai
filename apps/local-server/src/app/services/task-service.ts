@@ -77,6 +77,10 @@ interface ListTasksQuery {
   status?: string;
 }
 
+interface DependentTaskRow {
+  id: string;
+}
+
 export const taskStatusValues = [
   'PENDING',
   'READY',
@@ -1155,4 +1159,29 @@ export async function deleteTask(
   if (result.changes === 0) {
     throwTaskNotFound(taskId);
   }
+}
+
+export async function listDependentTasks(
+  sqlite: Database,
+  taskId: string,
+): Promise<TaskPayload[]> {
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT id
+        FROM project_tasks
+        WHERE deleted_at IS NULL
+          AND EXISTS (
+            SELECT 1
+            FROM json_each(project_tasks.dependencies_json)
+            WHERE json_each.value = @taskId
+          )
+        ORDER BY created_at ASC, updated_at ASC
+      `,
+    )
+    .all({
+      taskId,
+    }) as DependentTaskRow[];
+
+  return await Promise.all(rows.map((row) => getTaskById(sqlite, row.id)));
 }
