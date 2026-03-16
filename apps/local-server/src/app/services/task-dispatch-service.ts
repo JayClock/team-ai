@@ -10,6 +10,11 @@ import type { SpecialistPayload } from '../schemas/specialist';
 import type { TaskPayload } from '../schemas/task';
 import { getProjectRuntimeProfile } from './project-runtime-profile-service';
 import {
+  buildTaskOrchestrationEventContext,
+  createTaskOrchestrationEvent,
+  taskOrchestrationEventNames,
+} from './task-orchestration-events';
+import {
   resolveTaskDispatchPolicy,
 } from './task-dispatch-policy-service';
 import {
@@ -172,27 +177,6 @@ async function recoverTaskForRetry(
   });
 }
 
-function buildDispatchLogContext(
-  task: Pick<
-    TaskPayload,
-    'executionSessionId' | 'id' | 'kind' | 'projectId' | 'status'
-  >,
-  input: Pick<DispatchTaskInput, 'callerSessionId'>,
-  options: DispatchTaskOptions,
-) {
-  return {
-    source: options.source ?? 'task-dispatch-service',
-    callerSessionId: input.callerSessionId ?? null,
-    taskExecutionSessionId: task.executionSessionId,
-    taskId: task.id,
-    taskKind: task.kind,
-    taskStatus: task.status,
-    triggerReason: options.triggerReason ?? null,
-    triggerSource: options.triggerSource ?? null,
-    projectId: task.projectId,
-  };
-}
-
 export async function dispatchTask(
   sqlite: Database,
   callbacks: DispatchTaskCallbacks,
@@ -207,12 +191,15 @@ export async function dispatchTask(
     logDiagnostic(
       options.logger,
       'warn',
-      {
-        event: 'task.dispatch.blocked',
-        reason: 'TASK_ALREADY_DISPATCHING',
-        retryOfRunId: input.retryOfRunId ?? null,
-        ...buildDispatchLogContext(initialTask, input, options),
-      },
+      createTaskOrchestrationEvent(
+        taskOrchestrationEventNames.dispatchBlocked,
+        buildTaskOrchestrationEventContext(initialTask, input, options, {
+          provider: initialTask.assignedProvider,
+        }),
+        {
+          reason: 'TASK_ALREADY_DISPATCHING',
+        },
+      ),
       'Task dispatch skipped because another attempt is active',
     );
 
@@ -249,15 +236,24 @@ export async function dispatchTask(
       logDiagnostic(
         options.logger,
         'info',
-        {
-          event: 'task.dispatch.blocked',
-          reason: 'TASK_NOT_DISPATCHABLE',
-          resolvedRole: dispatchability.resolvedRole,
-          retryOfRunId: input.retryOfRunId ?? null,
+        createTaskOrchestrationEvent(
+          taskOrchestrationEventNames.dispatchBlocked,
+          buildTaskOrchestrationEventContext(
+            dispatchability.task,
+            input,
+            options,
+            {
+              provider: dispatchability.task.assignedProvider,
+              role: dispatchability.resolvedRole,
+              specialistId: dispatchability.task.assignedSpecialistId,
+            },
+          ),
+          {
+            reason: 'TASK_NOT_DISPATCHABLE',
           unresolvedDependencyIds: dispatchability.unresolvedDependencyIds,
           blockReasons: dispatchability.reasons,
-          ...buildDispatchLogContext(dispatchability.task, input, options),
-        },
+          },
+        ),
         'Task dispatch blocked by current task state',
       );
 
@@ -301,14 +297,23 @@ export async function dispatchTask(
       logDiagnostic(
         options.logger,
         'info',
-        {
-          event: 'task.dispatch.provider_fallback',
-          fromProvider: preferredProvider,
-          provider,
-          retryOfRunId: input.retryOfRunId ?? null,
+        createTaskOrchestrationEvent(
+          taskOrchestrationEventNames.dispatchProviderFallback,
+          buildTaskOrchestrationEventContext(
+            dispatchability.task,
+            input,
+            options,
+            {
+              provider,
+              role: policy.resolvedRole,
+              specialistId: policy.resolvedSpecialist?.id ?? null,
+            },
+          ),
+          {
+            fromProvider: preferredProvider,
           triedProviders: providerCandidates,
-          ...buildDispatchLogContext(dispatchability.task, input, options),
-        },
+          },
+        ),
         'Task dispatch degraded to an available ACP provider',
       );
     }
@@ -330,14 +335,14 @@ export async function dispatchTask(
     logDiagnostic(
       options.logger,
       'info',
-      {
-        event: 'task.dispatch.attempt',
-        provider,
-        resolvedRole: policy.resolvedRole,
-        retryOfRunId: input.retryOfRunId ?? null,
-        specialistId: specialist.id,
-        ...buildDispatchLogContext(hydratedTask, input, options),
-      },
+      createTaskOrchestrationEvent(
+        taskOrchestrationEventNames.dispatchAttempt,
+        buildTaskOrchestrationEventContext(hydratedTask, input, options, {
+          provider,
+          role: policy.resolvedRole,
+          specialistId: specialist.id,
+        }),
+      ),
       'Dispatching task to a child ACP session',
     );
 
@@ -367,15 +372,17 @@ export async function dispatchTask(
     logDiagnostic(
       options.logger,
       'info',
-      {
-        event: 'task.dispatch.succeeded',
-        provider,
-        resolvedRole: policy.resolvedRole,
-        retryOfRunId: input.retryOfRunId ?? null,
+      createTaskOrchestrationEvent(
+        taskOrchestrationEventNames.dispatchSucceeded,
+        buildTaskOrchestrationEventContext(dispatchedTask, input, options, {
+          provider,
+          role: policy.resolvedRole,
+          specialistId: specialist.id,
+        }),
+        {
         sessionId: createdSession.id,
-        specialistId: specialist.id,
-        ...buildDispatchLogContext(dispatchedTask, input, options),
-      },
+        },
+      ),
       'Task dispatch completed successfully',
     );
 
@@ -399,12 +406,13 @@ export async function dispatchTask(
     logDiagnostic(
       options.logger,
       'error',
-      {
-        event: 'task.dispatch.failed',
-        retryOfRunId: input.retryOfRunId ?? null,
+      createTaskOrchestrationEvent(
+        taskOrchestrationEventNames.dispatchFailed,
+        buildTaskOrchestrationEventContext(initialTask, input, options),
+        {
         ...diagnostics,
-        ...buildDispatchLogContext(initialTask, input, options),
-      },
+        },
+      ),
       'Task dispatch failed',
     );
 
