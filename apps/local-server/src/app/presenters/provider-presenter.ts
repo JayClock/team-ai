@@ -1,13 +1,13 @@
-import type { ProviderModelPayload, ProviderPayload } from '../schemas/provider';
+import type {
+  ProviderModelPayload,
+  ProviderPayload,
+} from '../schemas/provider';
 
 export function presentProviders(providers: ProviderPayload[]) {
   return {
     _links: {
       self: {
         href: '/api/providers',
-      },
-      models: {
-        href: '/api/providers/models',
       },
       root: {
         href: '/api',
@@ -19,11 +19,14 @@ export function presentProviders(providers: ProviderPayload[]) {
   };
 }
 
-export function presentProviderModels(models: ProviderModelPayload[]) {
+export function presentProviderModels(
+  providerId: string,
+  models: ProviderModelPayload[],
+) {
   return {
     _links: {
       self: {
-        href: '/api/providers/models',
+        href: `/api/providers/${providerId}/models`,
       },
       providers: {
         href: '/api/providers',

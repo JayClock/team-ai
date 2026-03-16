@@ -1,4 +1,8 @@
-import type { ProviderModelPayload, ProviderPayload } from '../schemas/provider';
+import { ProblemError } from '../errors/problem-error';
+import type {
+  ProviderModelPayload,
+  ProviderPayload,
+} from '../schemas/provider';
 
 const providerCatalog: Array<{
   defaultModel: string;
@@ -42,15 +46,36 @@ const providerCatalog: Array<{
   },
 ];
 
+function getProviderById(providerId: string) {
+  const normalizedProviderId = providerId.trim();
+  return (
+    providerCatalog.find((provider) => provider.id === normalizedProviderId) ??
+    null
+  );
+}
+
 export async function listProviders(): Promise<ProviderPayload[]> {
   return providerCatalog.map((provider) => ({
     id: provider.id,
     name: provider.name,
     defaultModel: provider.defaultModel,
-    modelsHref: '/api/providers/models',
+    modelsHref: `/api/providers/${provider.id}/models`,
   }));
 }
 
-export async function listProviderModels(): Promise<ProviderModelPayload[]> {
-  return providerCatalog.flatMap((provider) => provider.models);
+export async function listProviderModels(
+  providerId: string,
+): Promise<ProviderModelPayload[]> {
+  const provider = getProviderById(providerId);
+
+  if (!provider) {
+    throw new ProblemError({
+      type: 'https://team-ai.dev/problems/provider-not-found',
+      title: 'Provider Not Found',
+      status: 404,
+      detail: `Provider ${providerId} was not found`,
+    });
+  }
+
+  return provider.models;
 }
