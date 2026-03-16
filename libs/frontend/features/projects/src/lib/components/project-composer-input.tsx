@@ -59,6 +59,10 @@ export type ProjectComposerInputProps = {
   submitPending?: boolean;
 };
 
+const DEFAULT_MODEL_PICKER_PROPS: ProjectModelPickerProps = {
+  models: [],
+};
+
 export function ProjectComposerInput(props: ProjectComposerInputProps) {
   return (
     <PromptInputProvider>
@@ -82,6 +86,7 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
     submitPending,
   } = props;
   const controller = usePromptInputController();
+  const resolvedModelPicker = modelPicker ?? DEFAULT_MODEL_PICKER_PROPS;
   const text = controller.textInput.value;
   const hasAttachments = controller.attachments.files.length > 0;
 
@@ -101,7 +106,7 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
           onSubmit({
             cwd: projectPicker?.value?.repoPath ?? undefined,
             files: message.files,
-            model: modelPicker?.value ?? undefined,
+            model: resolvedModelPicker.value ?? undefined,
             provider: providerPicker?.value ?? undefined,
             text: message.text,
           })
@@ -143,16 +148,14 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
                 }
               />
             ) : null}
-            {modelPicker ? (
-              <ProjectModelPicker
-                {...modelPicker}
-                disabled={
-                  disabled === true ||
-                  submitPending === true ||
-                  modelPicker.disabled === true
-                }
-              />
-            ) : null}
+            <ProjectModelPicker
+              {...resolvedModelPicker}
+              disabled={
+                disabled === true ||
+                submitPending === true ||
+                resolvedModelPicker.disabled === true
+              }
+            />
             {footerEnd}
 
             <PromptInputSubmit

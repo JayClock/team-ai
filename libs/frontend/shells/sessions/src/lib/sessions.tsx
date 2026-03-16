@@ -6,6 +6,7 @@ import {
   type ProjectRepositoryOption,
   type ProjectWorktreeOption,
   useAcpProviders,
+  useAcpProviderModels,
 } from '@features/projects';
 import {
   AcpSessionSummary,
@@ -27,11 +28,7 @@ import {
   toast,
 } from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
-import {
-  ArrowRightIcon,
-  Clock3Icon,
-  DownloadIcon,
-} from 'lucide-react';
+import { ArrowRightIcon, Clock3Icon, DownloadIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AgentInstallPanel } from './agent-install-panel';
@@ -168,11 +165,7 @@ export function ShellsSessions() {
     return null;
   }
 
-  return (
-    <ShellsSessionsContent
-      selectedProject={activeProject}
-    />
-  );
+  return <ShellsSessionsContent selectedProject={activeProject} />;
 }
 
 function ShellsSessionsContent(props: {
@@ -210,6 +203,11 @@ function ShellsSessionsContent(props: {
     selectedProviderId,
     setSelectedProviderId,
   } = useAcpProviders('opencode');
+  const {
+    error: providerModelsError,
+    loading: providerModelsLoading,
+    models: providerModels,
+  } = useAcpProviderModels(selectedProviderId);
   const { sessionsResource, create } = useAcpSession(projectState, {
     actorUserId: me.id,
     provider: selectedProviderId,
@@ -227,13 +225,19 @@ function ShellsSessionsContent(props: {
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
   >(null);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [startingSession, setStartingSession] = useState(false);
+
+  useEffect(() => {
+    setSelectedModelId(null);
+  }, [selectedProviderId]);
 
   useEffect(() => {
     if (
       selectedRepositoryId &&
       codebasesState.collection.some(
-        (codebase: State<Codebase>) => codebase.data.id === selectedRepositoryId,
+        (codebase: State<Codebase>) =>
+          codebase.data.id === selectedRepositoryId,
       )
     ) {
       return;
@@ -386,12 +390,14 @@ function ShellsSessionsContent(props: {
     async (input: {
       cwd?: string;
       files: unknown[];
+      model?: string | null;
       provider?: string;
       text: string;
     }) => {
       const goal = input.text.trim();
       const cwd = input.cwd?.trim() || selectedRepository.repoPath || undefined;
       const providerId = input.provider?.trim() || selectedProvider?.id;
+      const modelId = input.model?.trim() || selectedModelId || undefined;
 
       if (!goal) {
         toast.error('输入内容不能为空');
@@ -407,6 +413,7 @@ function ShellsSessionsContent(props: {
         const created = await create({
           actorUserId: me.id,
           cwd,
+          model: modelId,
           provider: providerId,
           role: agentType,
           goal,
@@ -429,6 +436,7 @@ function ShellsSessionsContent(props: {
       loadRecentSessions,
       me.id,
       navigate,
+      selectedModelId,
       selectedRepository.repoPath,
       selectedProvider,
       selectedProjectId,
@@ -454,21 +462,24 @@ function ShellsSessionsContent(props: {
           throw new Error('创建 worktree 失败');
         }
 
-        await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
-          setWorktrees(
-            worktreesState.collection.map((worktree: State<Worktree>) => ({
-              id: worktree.data.id,
-              codebaseId: worktree.data.codebaseId,
-              branch: worktree.data.branch,
-              baseBranch: worktree.data.baseBranch,
-              status: worktree.data.status,
-              worktreePath: worktree.data.worktreePath,
-              sessionId: worktree.data.sessionId,
-              label: worktree.data.label,
-              errorMessage: worktree.data.errorMessage,
-            })),
-          );
-        });
+        await selectedCodebaseState
+          ?.follow('worktrees')
+          .refresh()
+          .then((worktreesState) => {
+            setWorktrees(
+              worktreesState.collection.map((worktree: State<Worktree>) => ({
+                id: worktree.data.id,
+                codebaseId: worktree.data.codebaseId,
+                branch: worktree.data.branch,
+                baseBranch: worktree.data.baseBranch,
+                status: worktree.data.status,
+                worktreePath: worktree.data.worktreePath,
+                sessionId: worktree.data.sessionId,
+                label: worktree.data.label,
+                errorMessage: worktree.data.errorMessage,
+              })),
+            );
+          });
         toast.success('已创建新的 worktree');
       },
       onDeleteWorktree: async (input: {
@@ -488,21 +499,24 @@ function ShellsSessionsContent(props: {
           throw new Error('删除 worktree 失败');
         }
 
-        await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
-          setWorktrees(
-            worktreesState.collection.map((worktree: State<Worktree>) => ({
-              id: worktree.data.id,
-              codebaseId: worktree.data.codebaseId,
-              branch: worktree.data.branch,
-              baseBranch: worktree.data.baseBranch,
-              status: worktree.data.status,
-              worktreePath: worktree.data.worktreePath,
-              sessionId: worktree.data.sessionId,
-              label: worktree.data.label,
-              errorMessage: worktree.data.errorMessage,
-            })),
-          );
-        });
+        await selectedCodebaseState
+          ?.follow('worktrees')
+          .refresh()
+          .then((worktreesState) => {
+            setWorktrees(
+              worktreesState.collection.map((worktree: State<Worktree>) => ({
+                id: worktree.data.id,
+                codebaseId: worktree.data.codebaseId,
+                branch: worktree.data.branch,
+                baseBranch: worktree.data.baseBranch,
+                status: worktree.data.status,
+                worktreePath: worktree.data.worktreePath,
+                sessionId: worktree.data.sessionId,
+                label: worktree.data.label,
+                errorMessage: worktree.data.errorMessage,
+              })),
+            );
+          });
         toast.success(
           input.deleteBranch ? '已删除 worktree 和分支' : '已删除 worktree',
         );
@@ -523,8 +537,8 @@ function ShellsSessionsContent(props: {
                 repoPath: selectedRepository.repoPath,
                 sourceUrl: selectedRepository.sourceUrl,
                 title: selectedRepository.title,
-          },
-      ],
+              },
+            ],
       onValidateWorktree: async (input: {
         codebaseId: string;
         worktreeId: string;
@@ -544,22 +558,27 @@ function ShellsSessionsContent(props: {
           throw new Error(payload.error ?? '校验 worktree 失败');
         }
 
-        await selectedCodebaseState?.follow('worktrees').refresh().then((worktreesState) => {
-          setWorktrees(
-            worktreesState.collection.map((worktree: State<Worktree>) => ({
-              id: worktree.data.id,
-              codebaseId: worktree.data.codebaseId,
-              branch: worktree.data.branch,
-              baseBranch: worktree.data.baseBranch,
-              status: worktree.data.status,
-              worktreePath: worktree.data.worktreePath,
-              sessionId: worktree.data.sessionId,
-              label: worktree.data.label,
-              errorMessage: worktree.data.errorMessage,
-            })),
-          );
-        });
-        toast.success(payload.healthy ? 'Worktree 校验通过' : 'Worktree 校验已更新');
+        await selectedCodebaseState
+          ?.follow('worktrees')
+          .refresh()
+          .then((worktreesState) => {
+            setWorktrees(
+              worktreesState.collection.map((worktree: State<Worktree>) => ({
+                id: worktree.data.id,
+                codebaseId: worktree.data.codebaseId,
+                branch: worktree.data.branch,
+                baseBranch: worktree.data.baseBranch,
+                status: worktree.data.status,
+                worktreePath: worktree.data.worktreePath,
+                sessionId: worktree.data.sessionId,
+                label: worktree.data.label,
+                errorMessage: worktree.data.errorMessage,
+              })),
+            );
+          });
+        toast.success(
+          payload.healthy ? 'Worktree 校验通过' : 'Worktree 校验已更新',
+        );
       },
       value: {
         id: selectedRepository.id,
@@ -626,6 +645,14 @@ function ShellsSessionsContent(props: {
       onValueChange: setSelectedProviderId,
       providers,
       value: selectedProviderId,
+    },
+    modelPicker: {
+      error: providerModelsError,
+      loading: providerModelsLoading,
+      models: providerModels,
+      onValueChange: setSelectedModelId,
+      providerId: selectedProviderId,
+      value: selectedModelId,
     },
     projectPicker,
     submitDisabled: startingSession,

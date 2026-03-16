@@ -3,7 +3,10 @@ import type { AcpSession, Note } from '@shared/schema';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ProjectSessionSpecPane } from './project-session-spec-pane';
-import type { SpecSyncSnapshot, TaskPanelItem } from './project-session-workbench.shared';
+import type {
+  SpecSyncSnapshot,
+  TaskPanelItem,
+} from './project-session-workbench.shared';
 
 describe('ProjectSessionSpecPane', () => {
   it('renders parse errors and spec-derived task lineage', () => {
@@ -38,8 +41,11 @@ describe('ProjectSessionSpecPane', () => {
     expect(screen.getByText('执行会话 acps_exec_1')).toBeTruthy();
     expect(screen.getByText('结果会话 acps_result_1')).toBeTruthy();
     expect(
-      screen.getAllByText((_, element) =>
-        element?.textContent?.includes('@@@task') ?? false,
+      screen.getAllByText(
+        (_, element) =>
+          (
+            element as { textContent?: string | null } | null
+          )?.textContent?.includes('@@@task') ?? false,
       ).length,
     ).toBeGreaterThan(0);
   });
@@ -59,11 +65,11 @@ describe('ProjectSessionSpecPane', () => {
     );
 
     expect(screen.getByText('未找到 Spec')).toBeTruthy();
-    expect(
-      screen.getByRole('button', { name: '同步 Spec -> Tasks' }).getAttribute(
-        'disabled',
-      ),
-    ).not.toBeNull();
+    const syncButton = screen.getByRole('button', {
+      name: '同步 Spec -> Tasks',
+    }) as { getAttribute(name: string): string | null };
+
+    expect(syncButton.getAttribute('disabled')).not.toBeNull();
   });
 });
 
@@ -137,9 +143,7 @@ function createSyncSnapshot(
   };
 }
 
-function createTaskPanelItem(
-  overrides: Partial<TaskPanelItem>,
-): TaskPanelItem {
+function createTaskPanelItem(overrides: Partial<TaskPanelItem>): TaskPanelItem {
   return {
     id: 'task_1',
     kind: 'implement',

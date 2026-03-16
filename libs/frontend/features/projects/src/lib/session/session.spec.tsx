@@ -1,7 +1,7 @@
 import type { State } from '@hateoas-ts/resource';
-import type { AcpSession, Project } from '@shared/schema';
+import type { AcpSession, Codebase, Project } from '@shared/schema';
 import { render, waitFor } from '@testing-library/react';
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShellsSession } from './session';
 
@@ -17,7 +17,7 @@ const meResource = { id: 'me-resource' };
 const codebasesResource = { id: 'codebases-resource' };
 const codebasesState = {
   collection: [],
-} as { collection: Array<State<unknown>> };
+} as { collection: Array<State<Codebase>> };
 const clientGoMock = vi.fn((path: string) => {
   if (path === '/api') {
     return {
@@ -77,7 +77,8 @@ vi.mock('@features/project-conversations', () => ({
 }));
 
 vi.mock('@shared/ui', () => ({
-  Button: (props: { children?: unknown }) => createElement('button', null, props.children),
+  Button: (props: { children?: ReactNode }) =>
+    createElement('button', null, props.children),
   toast: {
     error: vi.fn(),
     success: vi.fn(),
@@ -183,7 +184,7 @@ vi.mock('./use-acp-providers', async () => {
 
 class EventSourceMock {
   onerror: (() => void) | null = null;
-  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
 
   addEventListener() {
     return undefined;
@@ -217,7 +218,7 @@ describe('ShellsSession', () => {
     vi.clearAllMocks();
   });
 
-  it('disables provider and model overrides for an existing session', async () => {
+  it('prefills provider and model overrides for an existing session', async () => {
     currentSelectedSession = createSessionState({
       id: 'session-1',
       model: 'gpt-5',
@@ -238,9 +239,7 @@ describe('ShellsSession', () => {
 
     await waitFor(() => {
       const props = readConversationPaneProps();
-      expect(props.providerPicker.disabled).toBe(true);
       expect(props.providerPicker.value).toBe('codex');
-      expect(props.modelPicker.disabled).toBe(true);
       expect(props.modelPicker.providerId).toBe('codex');
       expect(props.modelPicker.value).toBe('gpt-5');
     });
@@ -302,13 +301,11 @@ function createSessionState(input: {
 
 function readConversationPaneProps(): {
   modelPicker: {
-    disabled?: boolean;
     onValueChange?: (value: string | null) => void;
     providerId: string | null;
     value: string | null;
   };
   providerPicker: {
-    disabled?: boolean;
     onValueChange: (value: string) => void;
     value: string | null;
   };
@@ -319,13 +316,11 @@ function readConversationPaneProps(): {
 
   return props as {
     modelPicker: {
-      disabled?: boolean;
       onValueChange?: (value: string | null) => void;
       providerId: string | null;
       value: string | null;
     };
     providerPicker: {
-      disabled?: boolean;
       onValueChange: (value: string) => void;
       value: string | null;
     };

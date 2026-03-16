@@ -34,6 +34,39 @@ if (htmlElementPrototype) {
 }
 
 describe('ProjectComposerInput', () => {
+  it('always renders the model picker', () => {
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        onSubmit={() => undefined}
+        placeholder="输入内容"
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: '先选择 provider' });
+
+    expect(button).toBeTruthy();
+  });
+
+  it('keeps the provider picker enabled when rendered', () => {
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        onSubmit={() => undefined}
+        placeholder="输入内容"
+        providerPicker={{
+          onValueChange: () => undefined,
+          providers: [],
+          value: null,
+        }}
+      />,
+    );
+
+    const button = screen.getByRole('button', { name: '选择 provider' });
+
+    expect(button).toBeTruthy();
+  });
+
   it('renders the repository picker when configured', () => {
     render(
       <ProjectComposerInput

@@ -7,11 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@shared/ui';
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  LoaderCircleIcon,
-} from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, LoaderCircleIcon } from 'lucide-react';
 import { useMemo } from 'react';
 import type { AcpProvider } from '../session/use-acp-providers';
 
@@ -87,10 +83,10 @@ export function ProjectProviderPicker(props: ProjectProviderPickerProps) {
 
   const triggerLabel = loading
     ? '加载 provider...'
-    : selectedProvider?.name ??
+    : (selectedProvider?.name ??
       normalizedValue ??
       emptyLabel ??
-      '选择 provider';
+      '选择 provider');
   const triggerStatusClass = loading
     ? 'bg-slate-300 dark:bg-slate-600'
     : selectedProvider?.status === 'available'

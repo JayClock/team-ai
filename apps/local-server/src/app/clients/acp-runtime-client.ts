@@ -219,11 +219,11 @@ export function createAcpRuntimeClient(
 
     const response = input.timeoutMs
       ? await withPromptTimeout(
-          promptRequest,
-          input.timeoutMs,
-          session.connection,
-          session.runtimeSessionId,
-        )
+        promptRequest,
+        input.timeoutMs,
+        session.connection,
+        session.runtimeSessionId,
+      )
       : await promptRequest;
 
     return {
@@ -293,6 +293,7 @@ export function createAcpRuntimeClient(
       input.provider,
       providerCommand,
       input.cwd,
+      input.model,
     );
 
     const child = spawn(launchCommand.command, launchCommand.args, {
@@ -404,6 +405,7 @@ export function buildProviderLaunchCommand(
   provider: string,
   providerCommand: { args: string[]; command: string },
   cwd: string,
+  model?: string | null,
 ): ProviderLaunchCommand {
   const args = [...providerCommand.args];
 
@@ -413,6 +415,10 @@ export function buildProviderLaunchCommand(
     cwd.trim().length > 0
   ) {
     args.push('--cwd', cwd);
+  }
+
+  if (model && model.trim().length > 0) {
+    args.push('-m', model.trim());
   }
 
   return {

@@ -1,11 +1,8 @@
 import { State } from '@hateoas-ts/resource';
 import { AcpSessionSummary } from '@shared/schema';
+import { SessionList, type SessionTreeNode } from '@features/project-sessions';
 import { FolderTreeIcon } from 'lucide-react';
 import type { ComponentType } from 'react';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- source import keeps the local workbench prop contract aligned during the phase 7 upgrade
-import { SessionList } from '../../../../project-sessions/src/lib/session-list';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- source import keeps the local workbench prop contract aligned during the phase 7 upgrade
-import { SessionTreeNode } from '../../../../project-sessions/src/lib/session-tree';
 
 const SessionListWithAnnotations = SessionList as ComponentType<{
   loading: boolean;

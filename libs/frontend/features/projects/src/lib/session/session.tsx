@@ -161,7 +161,10 @@ function createSessionAnnotationMap(
 ): Record<string, string[]> {
   const annotationMap = new Map<string, Set<string>>();
 
-  const addAnnotation = (sessionId: string | null | undefined, label: string) => {
+  const addAnnotation = (
+    sessionId: string | null | undefined,
+    label: string,
+  ) => {
     if (!sessionId) {
       return;
     }
@@ -279,6 +282,9 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [preferredModelOverride, setPreferredModelOverride] = useState<
     string | null | undefined
   >(undefined);
+  const [preferredProviderOverride, setPreferredProviderOverride] = useState<
+    string | null | undefined
+  >(undefined);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
   const [mainPane, setMainPane] = useState<MainPane>('conversation');
   const [taskItems, setTaskItems] = useState<TaskPanelItem[]>([]);
@@ -315,7 +321,8 @@ export function ShellsSession(props: ShellsSessionProps) {
   );
   const workbenchSessionSummary = useMemo(
     () =>
-      sessions.find((session) => session.data.id === workbenchSessionId) ?? null,
+      sessions.find((session) => session.data.id === workbenchSessionId) ??
+      null,
     [sessions, workbenchSessionId],
   );
   const scopeSessionLabel = useMemo(() => {
@@ -394,7 +401,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     loading: providersLoading,
     providers,
     selectedProviderId,
-    setSelectedProviderId,
   } = useAcpProviders(sessionDefaults.providerId);
   const composerProviderId =
     selectedSession?.data.provider ?? selectedProviderId ?? null;
@@ -707,8 +713,9 @@ export function ShellsSession(props: ShellsSessionProps) {
           type: 'spec',
         },
       );
-      const sessionNotesPage =
-        await client.go<NoteCollection>(sessionNotesPath).get();
+      const sessionNotesPage = await client
+        .go<NoteCollection>(sessionNotesPath)
+        .get();
       const sessionSpecNote =
         (await loadNoteCollectionPages(sessionNotesPage))[0] ?? null;
 
@@ -716,10 +723,13 @@ export function ShellsSession(props: ShellsSessionProps) {
         ? null
         : await client
             .go<NoteCollection>(
-              buildCollectionPath(`/api/projects/${projectState.data.id}/notes`, {
-                pageSize: 1,
-                type: 'spec',
-              }),
+              buildCollectionPath(
+                `/api/projects/${projectState.data.id}/notes`,
+                {
+                  pageSize: 1,
+                  type: 'spec',
+                },
+              ),
             )
             .get();
 
@@ -776,28 +786,29 @@ export function ShellsSession(props: ShellsSessionProps) {
       },
       refreshSessions: loadSessions,
     });
-  const sessionPromptProviderPicker = selectedSession
-    ? {
-        disabled: true,
-        loading: providersLoading,
-        onValueChange: setSelectedProviderId,
-        providers,
-        value: selectedSession.data.provider,
-      }
-    : {
-        loading: providersLoading,
-        onValueChange: setSelectedProviderId,
-        providers,
-        value: selectedProviderId,
-      };
+  const sessionPromptProviderPicker = {
+    loading: providersLoading,
+    onValueChange: setPreferredProviderOverride,
+    providers,
+    value:
+      preferredProviderOverride !== undefined
+        ? preferredProviderOverride
+        : selectedSession
+          ? selectedSession.data.provider
+          : selectedProviderId,
+  };
   const sessionPromptModelPicker: ProjectModelPickerProps = {
-    disabled: selectedSession !== null,
     error: providerModelsError,
     loading: providerModelsLoading,
     models: providerModels,
     onValueChange: setPreferredModelOverride,
     providerId: composerProviderId,
-    value: selectedSession ? selectedSession.data.model : creationModel,
+    value:
+      preferredModelOverride !== undefined
+        ? preferredModelOverride
+        : selectedSession
+          ? selectedSession.data.model
+          : creationModel,
   };
   const sessionPromptProjectPicker = useMemo(() => {
     const sessionRepository = selectedSession?.data.codebase?.id
@@ -950,7 +961,11 @@ export function ShellsSession(props: ShellsSessionProps) {
         throw new Error('同步 Spec 失败');
       }
 
-      await Promise.all([refreshSpecPane(), refreshTaskItems(), loadSessions()]);
+      await Promise.all([
+        refreshSpecPane(),
+        refreshTaskItems(),
+        loadSessions(),
+      ]);
       toast.success('Spec 已同步到任务面板');
     } catch (error) {
       const message = error instanceof Error ? error.message : '同步 Spec 失败';
@@ -1385,7 +1400,9 @@ export function ShellsSession(props: ShellsSessionProps) {
                 <div className="grid grid-cols-3 gap-2">
                   <Button
                     type="button"
-                    variant={mainPane === 'conversation' ? 'default' : 'outline'}
+                    variant={
+                      mainPane === 'conversation' ? 'default' : 'outline'
+                    }
                     size="sm"
                     className="h-8 text-xs"
                     onClick={() => setMainPane('conversation')}

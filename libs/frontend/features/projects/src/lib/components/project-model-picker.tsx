@@ -7,11 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@shared/ui';
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  LoaderCircleIcon,
-} from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, LoaderCircleIcon } from 'lucide-react';
 
 export type ProjectModelOption = {
   id: string;
@@ -35,15 +31,8 @@ function normalizeModelId(value: string | null | undefined): string | null {
 }
 
 export function ProjectModelPicker(props: ProjectModelPickerProps) {
-  const {
-    disabled,
-    error,
-    loading,
-    models,
-    onValueChange,
-    providerId,
-    value,
-  } = props;
+  const { disabled, error, loading, models, onValueChange, providerId, value } =
+    props;
   const normalizedProviderId = normalizeModelId(providerId);
   const normalizedValue = normalizeModelId(value);
   const selectedModel =
@@ -56,7 +45,7 @@ export function ProjectModelPicker(props: ProjectModelPickerProps) {
 
   const triggerLabel = loading
     ? '加载 model...'
-    : selectedModel?.name ?? normalizedValue ?? emptyLabel;
+    : (selectedModel?.name ?? normalizedValue ?? emptyLabel);
 
   return (
     <DropdownMenu>

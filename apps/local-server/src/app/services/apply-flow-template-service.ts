@@ -51,7 +51,7 @@ export async function applyFlowTemplate(
     }
   }
 
-  let note =
+  const note =
     input.noteId !== undefined
       ? await getNoteById(sqlite, input.noteId)
       : template.noteType === 'spec'
