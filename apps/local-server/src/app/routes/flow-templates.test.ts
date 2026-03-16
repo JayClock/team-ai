@@ -91,12 +91,14 @@ describe('flow template routes', () => {
     ).resolves.toMatchObject({
       items: expect.arrayContaining([
         expect.objectContaining({
+          assignedRole: 'CRAFTER',
           boardId: 'workflow-default',
           columnId: 'todo',
           kind: 'implement',
           title: 'Implement scoped delivery slice',
         }),
         expect.objectContaining({
+          assignedRole: 'GATE',
           boardId: 'workflow-default',
           columnId: 'review',
           kind: 'review',

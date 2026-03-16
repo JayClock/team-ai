@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { ProblemError } from '../../errors/problem-error';
+import { applyFlowTemplate } from '../../services/apply-flow-template-service';
 import { recordNoteEvent } from '../../services/note-event-service';
 import {
   createNote,
@@ -13,6 +14,7 @@ import {
   syncSpecNoteToTasks,
 } from '../../services/spec-task-sync-service';
 import {
+  applyFlowTemplateArgsSchema,
   listNotesArgsSchema,
   readNoteArgsSchema,
   notesAppendArgsSchema,
@@ -27,6 +29,7 @@ import {
 import { getProjectById } from '../../services/project-service';
 
 type SetNoteContentArgs = z.infer<typeof setNoteContentArgsSchema>;
+type ApplyFlowTemplateArgs = z.infer<typeof applyFlowTemplateArgsSchema>;
 type NotesAppendArgs = z.infer<typeof notesAppendArgsSchema>;
 type ListNotesArgs = z.infer<typeof listNotesArgsSchema>;
 type ReadNoteArgs = z.infer<typeof readNoteArgsSchema>;
@@ -126,6 +129,22 @@ export function createSetNoteContentHandler(fastify: FastifyInstance) {
       scope: describeNoteScope(savedNote),
       taskSync,
     };
+  };
+}
+
+export function createApplyFlowTemplateHandler(fastify: FastifyInstance) {
+  return async (args: ApplyFlowTemplateArgs) => {
+    await getProjectById(fastify.sqlite, args.projectId);
+
+    if (args.sessionId) {
+      await getProjectSession(fastify.sqlite, args.projectId, args.sessionId);
+    }
+
+    if (args.noteId) {
+      await getProjectNote(fastify.sqlite, args.projectId, args.noteId);
+    }
+
+    return await applyFlowTemplate(fastify.sqlite, args);
   };
 }
 

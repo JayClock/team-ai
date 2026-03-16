@@ -7,11 +7,21 @@ noteType: spec
 ## Goal
 {{projectTitle}} should run through a spec-first ROUTA -> CRAFTER -> GATE loop.
 
+## Wave Plan
+- Wave 0: ROUTA refines the spec, keeps task blocks current, and prepares the next delegation slice.
+- Wave 1: CRAFTER implements the scoped delivery slice and reports evidence back to ROUTA.
+- Wave 2: GATE reviews the implementation result, validates verification evidence, and records the verdict.
+
 ## Tasks
 
 @@@task
 # Implement scoped delivery slice
-Deliver the implementation change for the current scope.
+Deliver the implementation change for the current scope in the first implementation wave.
+
+## Inputs
+- Wave: 1
+- Depends on: The current spec note and its synced task blocks
+- Verification owner: GATE
 
 ## Scope
 List the concrete files, modules, or surfaces that must change.
@@ -26,7 +36,12 @@ List the concrete files, modules, or surfaces that must change.
 
 @@@task
 # Review the delivery slice
-Validate the implementation outcome and record a verdict.
+Validate the completed implementation wave and record a pass or fail verdict.
+
+## Inputs
+- Wave: 2
+- Depends on: Implement scoped delivery slice
+- Verification owner: GATE
 
 ## Scope
 Review the completed implementation and its verification evidence.

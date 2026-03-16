@@ -9,6 +9,7 @@ export {
   createReadAgentConversationHandler,
 } from './agent-handlers';
 export {
+  createApplyFlowTemplateHandler,
   createListNotesHandler,
   createNotesAppendHandler,
   createReadNoteHandler,

@@ -173,6 +173,16 @@ export const setNoteContentArgsSchema = z.object({
   type: noteTypeSchema.default('general'),
 });
 
+export const applyFlowTemplateArgsSchema = z.object({
+  mergeStrategy: z.enum(['append', 'replace']).optional(),
+  noteId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  templateId: z.string().trim().min(1),
+  title: z.string().trim().min(1).optional(),
+  variables: z.record(z.string(), z.string()).default({}),
+});
+
 export const delegateTaskToAgentArgsSchema = z.object({
   additionalInstructions: z.string().trim().min(1).optional(),
   callerSessionId: z.string().trim().min(1),

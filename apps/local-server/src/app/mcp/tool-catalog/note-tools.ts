@@ -1,10 +1,12 @@
 import {
+  applyFlowTemplateArgsSchema,
   listNotesArgsSchema,
   readNoteArgsSchema,
   notesAppendArgsSchema,
   setNoteContentArgsSchema,
 } from '../contracts';
 import {
+  createApplyFlowTemplateHandler,
   createListNotesHandler,
   createReadNoteHandler,
   createNotesAppendHandler,
@@ -13,6 +15,20 @@ import {
 import { defineToolRegistration } from './types';
 
 export const noteToolCatalog = [
+  defineToolRegistration(
+    'apply_flow_template',
+    applyFlowTemplateArgsSchema,
+    {
+      access: 'write',
+      annotations: {
+        readOnlyHint: false,
+      },
+      description:
+        'Apply a reusable flow template to a project or session scope. For spec templates, this creates or updates the canonical spec note and synchronizes @@@task blocks into project tasks.',
+      title: 'Apply Flow Template',
+    },
+    createApplyFlowTemplateHandler,
+  ),
   defineToolRegistration(
     'list_notes',
     listNotesArgsSchema,
