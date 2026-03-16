@@ -61,6 +61,7 @@ export interface CreateTaskInput {
   assignedSpecialistName?: string | null;
   assignee?: string | null;
   boardId?: string | null;
+  codebaseId?: string | null;
   columnId?: string | null;
   completionSummary?: string | null;
   dependencies?: string[];
@@ -88,6 +89,7 @@ export interface CreateTaskInput {
   verificationCommands?: string[];
   verificationReport?: string | null;
   verificationVerdict?: string | null;
+  worktreeId?: string | null;
 }
 
 export interface UpdateTaskInput {
@@ -98,6 +100,7 @@ export interface UpdateTaskInput {
   assignedSpecialistName?: string | null;
   assignee?: string | null;
   boardId?: string | null;
+  codebaseId?: string | null;
   columnId?: string | null;
   completionSummary?: string | null;
   dependencies?: string[];
@@ -125,4 +128,5 @@ export interface UpdateTaskInput {
   verificationCommands?: string[];
   verificationReport?: string | null;
   verificationVerdict?: string | null;
+  worktreeId?: string | null;
 }

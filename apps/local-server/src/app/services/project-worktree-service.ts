@@ -84,7 +84,7 @@ function createWorktreeId() {
   return `wt_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
 }
 
-function buildTaskWorktreeSlug(taskId: string, title: string) {
+export function buildTaskWorktreeSlug(taskId: string, title: string) {
   const shortId = taskId.slice(0, 8);
   const normalizedTitle = title
     .toLowerCase()
@@ -94,7 +94,7 @@ function buildTaskWorktreeSlug(taskId: string, title: string) {
   return normalizedTitle ? `${shortId}-${normalizedTitle}` : shortId;
 }
 
-function buildTaskWorktreeBranch(taskId: string, title: string) {
+export function buildTaskWorktreeBranch(taskId: string, title: string) {
   return `issue/${buildTaskWorktreeSlug(taskId, title)}`;
 }
 
@@ -115,7 +115,7 @@ function mapWorktreeRow(row: WorktreeRow): WorktreePayload {
   };
 }
 
-function branchToSafeDirName(branch: string): string {
+export function branchToSafeDirName(branch: string): string {
   return branch
     .trim()
     .replace(/[^a-zA-Z0-9._-]+/g, '-')

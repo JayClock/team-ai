@@ -20,6 +20,7 @@ import {
   resolveTaskDispatchPolicy,
   type TaskDispatchability,
 } from './task-dispatch-policy-service';
+import { getProjectWorktreeById } from './project-worktree-service';
 import {
   getTaskById,
   updateTask,
@@ -28,6 +29,8 @@ import {
 export interface DispatchTaskCallbacks {
   createSession(input: {
     actorUserId: string;
+    codebaseId?: string | null;
+    cwd?: string | null;
     goal?: string;
     parentSessionId?: string | null;
     projectId: string;
@@ -36,6 +39,7 @@ export interface DispatchTaskCallbacks {
     role?: string | null;
     specialistId?: string;
     taskId?: string | null;
+    worktreeId?: string | null;
   }): Promise<{ id: string }>;
   isProviderAvailable?(provider: string): Promise<boolean> | boolean;
   promptSession(input: {
@@ -175,6 +179,31 @@ async function recoverTaskForRetry(
     verificationReport: message,
     verificationVerdict: 'fail',
   });
+}
+
+async function resolveTaskDispatchWorkspace(
+  sqlite: Database,
+  task: TaskPayload,
+) {
+  if (!task.worktreeId) {
+    return {
+      codebaseId: task.codebaseId,
+      cwd: null,
+      worktreeId: null,
+    };
+  }
+
+  const worktree = await getProjectWorktreeById(
+    sqlite,
+    task.projectId,
+    task.worktreeId,
+  );
+
+  return {
+    codebaseId: worktree.codebaseId,
+    cwd: worktree.worktreePath,
+    worktreeId: worktree.id,
+  };
 }
 
 export async function dispatchTask(
@@ -330,6 +359,7 @@ export async function dispatchTask(
       specialist,
       provider,
     );
+    const workspace = await resolveTaskDispatchWorkspace(sqlite, hydratedTask);
     const prompt = buildTaskDispatchPrompt(hydratedTask);
 
     logDiagnostic(
@@ -349,6 +379,8 @@ export async function dispatchTask(
     dispatchPhase = 'create_session';
     const createdSession = await callbacks.createSession({
       actorUserId: dispatchContext.actorUserId,
+      codebaseId: workspace.codebaseId,
+      cwd: workspace.cwd,
       goal: hydratedTask.title,
       parentSessionId: dispatchContext.parentSessionId,
       projectId: hydratedTask.projectId,
@@ -357,6 +389,7 @@ export async function dispatchTask(
       role: policy.resolvedRole,
       specialistId: specialist.id,
       taskId: hydratedTask.id,
+      worktreeId: workspace.worktreeId,
     });
     const dispatchedTask = await updateTask(sqlite, hydratedTask.id, {
       triggerSessionId: createdSession.id,

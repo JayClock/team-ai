@@ -44,6 +44,7 @@ const taskBodySchema = z.object({
   assignedSpecialistName: nullableStringSchema.optional(),
   assignee: nullableStringSchema.optional(),
   boardId: nullableStringSchema.optional(),
+  codebaseId: nullableStringSchema.optional(),
   columnId: nullableStringSchema.optional(),
   completionSummary: nullableStringSchema.optional(),
   dependencies: stringArraySchema.optional(),
@@ -68,6 +69,7 @@ const taskBodySchema = z.object({
   verificationCommands: stringArraySchema.optional(),
   verificationReport: nullableStringSchema.optional(),
   verificationVerdict: nullableStringSchema.optional(),
+  worktreeId: nullableStringSchema.optional(),
 });
 
 const taskPatchSchema = z
@@ -79,6 +81,7 @@ const taskPatchSchema = z
     assignedSpecialistName: nullableStringSchema.optional(),
     assignee: nullableStringSchema.optional(),
     boardId: nullableStringSchema.optional(),
+    codebaseId: nullableStringSchema.optional(),
     columnId: nullableStringSchema.optional(),
     completionSummary: nullableStringSchema.optional(),
     dependencies: stringArraySchema.optional(),
@@ -102,6 +105,7 @@ const taskPatchSchema = z
     verificationCommands: stringArraySchema.optional(),
     verificationReport: nullableStringSchema.optional(),
     verificationVerdict: nullableStringSchema.optional(),
+    worktreeId: nullableStringSchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field must be provided',

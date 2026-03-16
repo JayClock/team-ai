@@ -1,10 +1,13 @@
+import { execFile } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createProject } from './project-service';
+import { listProjectCodebases } from './project-codebase-service';
 import {
   failTaskRun,
   MAX_TASK_RUN_RETRY_COUNT,
@@ -25,6 +28,8 @@ import {
   updateTask,
   updateTaskFromMcp,
 } from './task-service';
+
+const execFileAsync = promisify(execFile);
 
 describe('task service', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];
@@ -82,6 +87,45 @@ describe('task service', () => {
     });
     expect(byProject.items.map((item) => item.id)).toContain(task.id);
     expect(bySession.items.map((item) => item.id)).toContain(task.id);
+  });
+
+  it('binds tasks to codebases and rejects foreign worktree ids', async () => {
+    const sqlite = await createTestDatabase();
+    const repoPath = await createGitRepository();
+    const project = await createProject(sqlite, {
+      title: 'Bound Tasks',
+      repoPath,
+    });
+    const [codebase] = (await listProjectCodebases(sqlite, project.id)).items;
+
+    const task = await createTask(sqlite, {
+      codebaseId: codebase.id,
+      objective: 'Track worktree-backed execution',
+      projectId: project.id,
+      title: 'Bound task',
+    });
+
+    expect(task).toMatchObject({
+      codebaseId: codebase.id,
+      worktreeId: null,
+    });
+
+    const otherProject = await createProject(sqlite, {
+      title: 'Foreign Bound Tasks',
+      repoPath: await createGitRepository(),
+    });
+    const [foreignCodebase] = (
+      await listProjectCodebases(sqlite, otherProject.id)
+    ).items;
+
+    await expect(
+      updateTask(sqlite, task.id, {
+        worktreeId: `wt_${foreignCodebase.id}`,
+      }),
+    ).rejects.toMatchObject({
+      status: 404,
+      type: 'https://team-ai.dev/problems/worktree-not-found',
+    });
   });
 
   it('updates task assignment and verification fields', async () => {
@@ -506,6 +550,124 @@ describe('task service', () => {
     });
   });
 
+  it('auto-creates a task worktree before dispatching implementation work', async () => {
+    const sqlite = await createTestDatabase();
+    const repoPath = await createGitRepository();
+    const project = await createProject(sqlite, {
+      title: 'Task Execute Worktree Project',
+      repoPath,
+    });
+    const [codebase] = (await listProjectCodebases(sqlite, project.id)).items;
+    const rootSessionId = 'acps_execute_worktree_root';
+    insertAcpSession(sqlite, {
+      cwd: repoPath,
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const task = await createTask(sqlite, {
+      codebaseId: codebase.id,
+      objective: 'Execute against a dedicated worktree',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Worktree task',
+      sessionId: rootSessionId,
+    });
+
+    const createSession = vi.fn(async (input) => {
+      insertAcpSession(sqlite, {
+        cwd: input.cwd ?? repoPath,
+        id: 'acps_execute_worktree_child',
+        projectId: project.id,
+        provider: input.provider,
+        taskId: task.id,
+      });
+      return { id: 'acps_execute_worktree_child' };
+    });
+    const promptSession = vi.fn(async () => undefined);
+
+    const result = await executeTask(sqlite, task.id, {
+      callbacks: {
+        createSession,
+        promptSession,
+      },
+      callerSessionId: rootSessionId,
+    });
+
+    expect(result.dispatch).toMatchObject({
+      attempted: true,
+      errorMessage: null,
+    });
+    expect(result.task.codebaseId).toBe(codebase.id);
+    expect(result.task.worktreeId).toMatch(/^wt_/);
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        codebaseId: codebase.id,
+        cwd: expect.stringContaining('/Worktree-task'),
+        taskId: task.id,
+        worktreeId: result.task.worktreeId,
+      }),
+    );
+  });
+
+  it('records a retryable task failure when worktree preparation fails', async () => {
+    const sqlite = await createTestDatabase();
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-task-bad-repo-'));
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+
+    const project = await createProject(sqlite, {
+      title: 'Task Execute Worktree Failure Project',
+      repoPath,
+    });
+    const [codebase] = (await listProjectCodebases(sqlite, project.id)).items;
+    const rootSessionId = 'acps_execute_worktree_fail_root';
+    insertAcpSession(sqlite, {
+      cwd: repoPath,
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const task = await createTask(sqlite, {
+      codebaseId: codebase.id,
+      objective: 'Fail before dispatch when the repo is not a git worktree source',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Broken worktree task',
+      sessionId: rootSessionId,
+    });
+
+    const createSession = vi.fn(async () => ({
+      id: 'acps_should_not_exist',
+    }));
+    const promptSession = vi.fn(async () => undefined);
+
+    const result = await executeTask(sqlite, task.id, {
+      callbacks: {
+        createSession,
+        promptSession,
+      },
+      callerSessionId: rootSessionId,
+    });
+
+    expect(result.dispatch).toMatchObject({
+      attempted: false,
+      errorMessage: expect.stringContaining('git'),
+      result: null,
+    });
+    expect(result.task).toMatchObject({
+      codebaseId: codebase.id,
+      status: 'WAITING_RETRY',
+      verificationVerdict: 'fail',
+      worktreeId: null,
+    });
+    expect(createSession).not.toHaveBeenCalled();
+    expect(promptSession).not.toHaveBeenCalled();
+  });
+
   it('blocks explicit retries after the maximum retry boundary', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
@@ -746,5 +908,25 @@ describe('task service', () => {
     });
 
     return sqlite;
+  }
+
+  async function createGitRepository() {
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-task-service-repo-'));
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+
+    await mkdir(repoPath, { recursive: true });
+    await execFileAsync('git', ['init', '--initial-branch=main'], { cwd: repoPath });
+    await execFileAsync('git', ['config', 'user.name', 'Team AI Test'], {
+      cwd: repoPath,
+    });
+    await execFileAsync('git', ['config', 'user.email', 'team-ai@example.test'], {
+      cwd: repoPath,
+    });
+    await writeFile(join(repoPath, 'README.md'), '# test\n');
+    await execFileAsync('git', ['add', 'README.md'], { cwd: repoPath });
+    await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: repoPath });
+    return repoPath;
   }
 });

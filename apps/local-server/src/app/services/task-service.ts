@@ -10,6 +10,8 @@ import type {
 } from '../schemas/task';
 import { getProjectById } from './project-service';
 import { getAcpSessionById } from './acp-service';
+import { getProjectCodebaseById } from './project-codebase-service';
+import { getProjectWorktreeById } from './project-worktree-service';
 import {
   ensureRoleValue,
   getSpecialistById,
@@ -178,6 +180,25 @@ function throwTaskStatusTransitionNotAllowed(
       currentStatus,
       nextStatus,
       taskId,
+    },
+  });
+}
+
+function throwTaskWorktreeCodebaseMismatch(
+  projectId: string,
+  codebaseId: string,
+  worktreeId: string,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/task-worktree-codebase-mismatch',
+    title: 'Task Worktree Codebase Mismatch',
+    status: 409,
+    detail:
+      `Worktree ${worktreeId} does not belong to codebase ${codebaseId} in project ${projectId}`,
+    context: {
+      codebaseId,
+      projectId,
+      worktreeId,
     },
   });
 }
@@ -478,6 +499,63 @@ async function validateTaskReference(
   return taskId;
 }
 
+async function resolveTaskWorkspaceBinding(
+  sqlite: Database,
+  projectId: string,
+  input: {
+    codebaseId?: string | null;
+    worktreeId?: string | null;
+  },
+  current?: {
+    codebaseId: string | null;
+    worktreeId: string | null;
+  },
+) {
+  let codebaseId =
+    input.codebaseId === undefined
+      ? (current?.codebaseId ?? null)
+      : input.codebaseId;
+  let worktreeId =
+    input.worktreeId === undefined
+      ? (current?.worktreeId ?? null)
+      : input.worktreeId;
+
+  if (input.codebaseId !== undefined && input.worktreeId === undefined) {
+    if (input.codebaseId === null) {
+      worktreeId = null;
+    } else if (current?.worktreeId) {
+      const currentWorktree = await getProjectWorktreeById(
+        sqlite,
+        projectId,
+        current.worktreeId,
+      ).catch(() => null);
+
+      if (currentWorktree && currentWorktree.codebaseId !== input.codebaseId) {
+        worktreeId = null;
+      }
+    }
+  }
+
+  if (worktreeId) {
+    const worktree = await getProjectWorktreeById(sqlite, projectId, worktreeId);
+
+    if (codebaseId && codebaseId !== worktree.codebaseId) {
+      throwTaskWorktreeCodebaseMismatch(projectId, codebaseId, worktreeId);
+    }
+
+    codebaseId = worktree.codebaseId;
+  }
+
+  if (codebaseId) {
+    await getProjectCodebaseById(sqlite, projectId, codebaseId);
+  }
+
+  return {
+    codebaseId,
+    worktreeId,
+  };
+}
+
 export async function createTask(
   sqlite: Database,
   input: CreateTaskInput,
@@ -509,6 +587,14 @@ export async function createTask(
     input.projectId,
     input.resultSessionId,
   );
+  const workspaceBinding = await resolveTaskWorkspaceBinding(
+    sqlite,
+    input.projectId,
+    {
+      codebaseId: input.codebaseId,
+      worktreeId: input.worktreeId,
+    },
+  );
   const kind = ensureTaskKind(input.kind, assignment.assignedRole);
   const status = ensureTaskStatus(input.status, 'PENDING');
   const now = new Date().toISOString();
@@ -522,6 +608,8 @@ export async function createTask(
           project_id,
           session_id,
           trigger_session_id,
+          codebase_id,
+          worktree_id,
           title,
           objective,
           scope,
@@ -566,6 +654,8 @@ export async function createTask(
           @projectId,
           @sessionId,
           @triggerSessionId,
+          @codebaseId,
+          @worktreeId,
           @title,
           @objective,
           @scope,
@@ -615,6 +705,7 @@ export async function createTask(
       assignedSpecialistName: assignment.assignedSpecialistName,
       assignee: input.assignee ?? null,
       boardId: input.boardId ?? null,
+      codebaseId: workspaceBinding.codebaseId,
       columnId: input.columnId ?? null,
       completionSummary: input.completionSummary ?? null,
       createdAt: now,
@@ -651,6 +742,7 @@ export async function createTask(
       ),
       verificationReport: input.verificationReport ?? null,
       verificationVerdict: input.verificationVerdict ?? null,
+      worktreeId: workspaceBinding.worktreeId,
     });
 
   return getTaskById(sqlite, taskId);
@@ -825,6 +917,18 @@ export async function updateTask(
           current.project_id,
           input.resultSessionId,
         );
+  const workspaceBinding = await resolveTaskWorkspaceBinding(
+    sqlite,
+    current.project_id,
+    {
+      codebaseId: input.codebaseId,
+      worktreeId: input.worktreeId,
+    },
+    {
+      codebaseId: current.codebase_id,
+      worktreeId: current.worktree_id,
+    },
+  );
   const assignment = await resolveTaskAssignment(sqlite, {
     assignedRole:
       input.assignedRole === undefined
@@ -867,6 +971,7 @@ export async function updateTask(
     assignedSpecialistName: assignment.assignedSpecialistName,
     assignee: input.assignee === undefined ? current.assignee : input.assignee,
     boardId: input.boardId === undefined ? current.board_id : input.boardId,
+    codebaseId: workspaceBinding.codebaseId,
     columnId: input.columnId === undefined ? current.column_id : input.columnId,
     completionSummary:
       input.completionSummary === undefined
@@ -931,6 +1036,7 @@ export async function updateTask(
       input.verificationVerdict === undefined
         ? current.verification_verdict
         : input.verificationVerdict,
+    worktreeId: workspaceBinding.worktreeId,
   };
 
   sqlite
@@ -945,6 +1051,7 @@ export async function updateTask(
           scope = @scope,
           status = @status,
           board_id = @boardId,
+          codebase_id = @codebaseId,
           column_id = @columnId,
           position = @position,
           priority = @priority,
@@ -972,6 +1079,7 @@ export async function updateTask(
           parent_task_id = @parentTaskId,
           execution_session_id = @executionSessionId,
           result_session_id = @resultSessionId,
+          worktree_id = @worktreeId,
           updated_at = @updatedAt
         WHERE id = @id AND deleted_at IS NULL
       `,

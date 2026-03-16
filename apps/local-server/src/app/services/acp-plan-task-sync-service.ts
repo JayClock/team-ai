@@ -4,6 +4,8 @@ import type { DiagnosticLogger } from '../diagnostics';
 interface PlanTaskDispatchCallbacks {
   createSession(input: {
     actorUserId: string;
+    codebaseId?: string | null;
+    cwd?: string | null;
     goal?: string;
     parentSessionId?: string | null;
     projectId: string;
@@ -11,6 +13,7 @@ interface PlanTaskDispatchCallbacks {
     role?: string | null;
     specialistId?: string;
     taskId?: string | null;
+    worktreeId?: string | null;
   }): Promise<{ id: string }>;
   isProviderAvailable?(provider: string): Promise<boolean> | boolean;
   promptSession(input: {

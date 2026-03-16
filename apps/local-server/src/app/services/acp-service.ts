@@ -92,6 +92,7 @@ interface ListSessionsQuery {
 
 interface CreateSessionInput {
   actorUserId: string;
+  codebaseId?: string | null;
   cwd?: string | null;
   goal?: string;
   parentSessionId?: string | null;
@@ -101,6 +102,7 @@ interface CreateSessionInput {
   role?: string | null;
   specialistId?: string;
   taskId?: string | null;
+  worktreeId?: string | null;
 }
 
 interface TaskExecutionRow {

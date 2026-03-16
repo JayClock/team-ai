@@ -1,11 +1,19 @@
 import type { Database } from 'better-sqlite3';
-import type { DiagnosticLogger } from '../diagnostics';
+import {
+  getErrorDiagnostics,
+  logDiagnostic,
+  type DiagnosticLogger,
+} from '../diagnostics';
 import { ProblemError } from '../errors/problem-error';
 import type { TaskPayload } from '../schemas/task';
 import type {
   DispatchTaskCallbacks,
   DispatchTaskResult,
 } from './task-dispatch-service';
+import {
+  buildTaskWorktreeBranch,
+  createProjectWorktree,
+} from './project-worktree-service';
 import { getTaskById, updateTask, updateTaskFromMcp } from './task-service';
 
 export interface ExecuteTaskDispatchAttempt {
@@ -95,6 +103,65 @@ function throwTaskExecutionNotAllowed(taskId: string, status: string): never {
   });
 }
 
+async function ensureTaskExecutionWorktree(
+  sqlite: Database,
+  task: TaskPayload,
+  logger?: DiagnosticLogger,
+) {
+  if (task.kind !== 'implement' || !task.codebaseId || task.worktreeId) {
+    return {
+      errorMessage: null,
+      task,
+    };
+  }
+
+  try {
+    const worktree = await createProjectWorktree(
+      sqlite,
+      task.projectId,
+      task.codebaseId,
+      {
+        branch: buildTaskWorktreeBranch(task.id, task.title),
+        label: task.title,
+      },
+    );
+
+    return {
+      errorMessage: null,
+      task: await updateTask(sqlite, task.id, {
+        codebaseId: worktree.codebaseId,
+        worktreeId: worktree.id,
+      }),
+    };
+  } catch (error) {
+    const diagnostics = getErrorDiagnostics(error, 'TASK_WORKTREE_CREATE_FAILED');
+    const detail =
+      diagnostics.errorMessage || `Task ${task.id} worktree creation failed`;
+    const failedTask = await updateTask(sqlite, task.id, {
+      completionSummary: detail,
+      status: 'WAITING_RETRY',
+      verificationReport: detail,
+      verificationVerdict: 'fail',
+    });
+
+    logDiagnostic(
+      logger,
+      'error',
+      {
+        ...diagnostics,
+        projectId: task.projectId,
+        taskId: task.id,
+      },
+      'Task execution blocked because worktree preparation failed',
+    );
+
+    return {
+      errorMessage: detail,
+      task: failedTask,
+    };
+  }
+}
+
 export async function executeTask(
   sqlite: Database,
   taskId: string,
@@ -121,6 +188,23 @@ export async function executeTask(
     await updateTask(sqlite, taskId, {
       status: 'READY',
     });
+  }
+
+  const prepared = await ensureTaskExecutionWorktree(
+    sqlite,
+    await getTaskById(sqlite, taskId),
+    options.logger,
+  );
+
+  if (prepared.errorMessage) {
+    return {
+      dispatch: {
+        attempted: false,
+        errorMessage: prepared.errorMessage,
+        result: null,
+      },
+      task: prepared.task,
+    };
   }
 
   try {
