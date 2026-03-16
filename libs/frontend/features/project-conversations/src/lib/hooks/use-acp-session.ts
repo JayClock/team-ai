@@ -55,6 +55,7 @@ export type AcpSessionRpcFailure = JsonRpcError;
 export type CreateAcpSessionInput = {
   actorUserId?: string;
   cwd?: string;
+  model?: string | null;
   provider?: string;
   role?: AcpSessionRole;
   parentSessionId?: string;
@@ -102,6 +103,7 @@ export type DeleteAcpSessionInput = {
 
 export type UseAcpSessionOptions = {
   actorUserId?: string;
+  model?: string | null;
   provider?: string;
   role?: AcpSessionRole;
   historyLimit?: number;
@@ -285,6 +287,7 @@ export function useAcpSession(
           projectId: projectState.data.id,
           actorUserId,
           cwd: input.cwd,
+          model: input.model ?? options.model ?? null,
           provider: input.provider ?? options.provider ?? 'codex',
           role: input.role ?? options.role,
           parentSessionId: input.parentSessionId,

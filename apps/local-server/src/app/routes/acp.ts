@@ -268,9 +268,20 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
               projectId: z.string().min(1).parse(params.projectId),
               actorUserId: z.string().min(1).parse(params.actorUserId),
               cwd: z.string().trim().min(1).optional().parse(params.cwd),
-              provider:
-                z.string().trim().min(1).optional().parse(params.provider) ??
-                'codex',
+              model: z
+                .string()
+                .trim()
+                .min(1)
+                .nullable()
+                .optional()
+                .parse(params.model),
+              provider: z
+                .string()
+                .trim()
+                .min(1)
+                .nullable()
+                .optional()
+                .parse(params.provider),
               role: z.string().trim().min(1).optional().parse(params.role),
               parentSessionId: z
                 .string()

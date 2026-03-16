@@ -20,6 +20,7 @@ import {
   createProjectWorktree,
 } from '../services/project-worktree-service';
 import { listProjectCodebases } from '../services/project-codebase-service';
+import { updateProjectRuntimeProfile } from '../services/project-runtime-profile-service';
 import { createProject } from '../services/project-service';
 import { listTaskRuns } from '../services/task-run-service';
 import { createTask, getTaskById } from '../services/task-service';
@@ -223,9 +224,7 @@ describe('acp route', () => {
         .history.map(
           (event: { update: { eventType: string } }) => event.update.eventType,
         ),
-    ).toEqual(
-      expect.arrayContaining(['user_message', 'turn_complete']),
-    );
+    ).toEqual(expect.arrayContaining(['user_message', 'turn_complete']));
 
     const rootResponse = await fastify.inject({
       method: 'GET',
@@ -428,6 +427,202 @@ describe('acp route', () => {
     const sessionId = createResponse.json().result.session.id as string;
     const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
     expect(storedSession.provider).toBe('codex');
+    expect(storedSession.model).toBeNull();
+  });
+
+  it('persists and returns the requested session model', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-model-test-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Model Project',
+      repoPath: '/tmp/team-ai-desktop-model-project',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-model',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          model: 'gpt-5',
+          projectId: project.id,
+          provider: 'codex',
+          role: 'DEVELOPER',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+
+    const sessionId = createResponse.json().result.session.id as string;
+    const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
+    expect(storedSession.model).toBe('gpt-5');
+
+    const sessionResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/acp-sessions/${sessionId}`,
+    });
+
+    expect(sessionResponse.statusCode).toBe(200);
+    expect(sessionResponse.json()).toMatchObject({
+      id: sessionId,
+      model: 'gpt-5',
+      provider: 'codex',
+    });
+  });
+
+  it('resolves provider and model from the project runtime profile when session/new omits them', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-profile-defaults-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Runtime Profile Defaults',
+      repoPath: '/tmp/team-ai-desktop-runtime-profile-defaults',
+    });
+
+    await updateProjectRuntimeProfile(fastify.sqlite, project.id, {
+      defaultModel: 'gpt-5-mini',
+      defaultProviderId: 'opencode',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-runtime-profile-defaults',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          role: 'DEVELOPER',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    expect(fastify.acpRuntime.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'opencode',
+      }),
+    );
+
+    const sessionId = createResponse.json().result.session.id as string;
+    const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
+    expect(storedSession.provider).toBe('opencode');
+    expect(storedSession.model).toBe('gpt-5-mini');
+  });
+
+  it('fails explicitly when neither an input provider nor a runtime profile default provider exists', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-missing-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Missing Provider',
+      repoPath: '/tmp/team-ai-desktop-missing-provider',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-provider-missing',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          projectId: project.id,
+          role: 'DEVELOPER',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    expect(createResponse.json()).toMatchObject({
+      error: {
+        message:
+          `Project ${project.id} does not have a provider for ACP session creation. ` +
+          'Set runtime profile defaultProviderId or pass provider explicitly.',
+      },
+      result: null,
+    });
+    expect(fastify.acpRuntime.createSession).not.toHaveBeenCalled();
   });
 
   it('creates task-bound child sessions and syncs execution state back to project_tasks', async () => {
@@ -736,7 +931,8 @@ describe('acp route', () => {
       title: 'ACP Worktree Session Project',
       repoPath,
     });
-    const [codebase] = (await listProjectCodebases(fastify.sqlite, project.id)).items;
+    const [codebase] = (await listProjectCodebases(fastify.sqlite, project.id))
+      .items;
     const worktree = await createProjectWorktree(
       fastify.sqlite,
       project.id,
@@ -1742,17 +1938,25 @@ describe('acp route', () => {
   }
 
   async function createGitRepository() {
-    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-acp-worktree-repo-'));
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-acp-worktree-repo-'),
+    );
     tempRepoPaths.push(repoPath);
 
     await mkdir(repoPath, { recursive: true });
-    await execFileAsync('git', ['init', '--initial-branch=main'], { cwd: repoPath });
+    await execFileAsync('git', ['init', '--initial-branch=main'], {
+      cwd: repoPath,
+    });
     await execFileAsync('git', ['config', 'user.name', 'Team AI Test'], {
       cwd: repoPath,
     });
-    await execFileAsync('git', ['config', 'user.email', 'team-ai@example.test'], {
-      cwd: repoPath,
-    });
+    await execFileAsync(
+      'git',
+      ['config', 'user.email', 'team-ai@example.test'],
+      {
+        cwd: repoPath,
+      },
+    );
     await writeFile(join(repoPath, 'README.md'), '# test\n');
     await execFileAsync('git', ['add', 'README.md'], { cwd: repoPath });
     await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: repoPath });

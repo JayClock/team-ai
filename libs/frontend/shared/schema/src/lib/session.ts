@@ -8,16 +8,9 @@ export type AcpRef = {
   id: string;
 };
 
-export type AcpSessionState =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'FAILED'
-  | 'CANCELLED';
+export type AcpSessionState = 'PENDING' | 'RUNNING' | 'FAILED' | 'CANCELLED';
 
-export type AcpSessionStatus =
-  | 'connecting'
-  | 'ready'
-  | 'error';
+export type AcpSessionStatus = 'connecting' | 'ready' | 'error';
 
 export type AcpSessionData = {
   acpError: string | null;
@@ -28,6 +21,7 @@ export type AcpSessionData = {
   actor: AcpRef;
   codebase: AcpRef | null;
   parentSession: AcpRef | null;
+  model: string | null;
   name: string | null;
   provider: string;
   specialistId: string | null;

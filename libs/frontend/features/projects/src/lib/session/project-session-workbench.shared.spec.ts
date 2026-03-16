@@ -365,6 +365,7 @@ function createSessionState(
       id: 'acps_default',
       lastActivityAt: '2026-03-13T12:00:00.000Z',
       lastEventId: null,
+      model: null,
       name: '主控会话',
       parentSession: null,
       project: { id: 'proj_123' },

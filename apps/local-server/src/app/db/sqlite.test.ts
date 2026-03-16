@@ -139,6 +139,7 @@ describe('sqlite initialization', () => {
       'acp_error',
       'codebase_id',
       'worktree_id',
+      'model',
     ]);
     expect(agentColumns.map(({ name }) => name)).toEqual([
       'id',

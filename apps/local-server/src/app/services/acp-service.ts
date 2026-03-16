@@ -1,10 +1,7 @@
 import type { Database } from 'better-sqlite3';
 import { isAbsolute } from 'node:path';
 import { customAlphabet } from 'nanoid';
-import type {
-  McpServer,
-  PromptResponse,
-} from '@agentclientprotocol/sdk';
+import type { McpServer, PromptResponse } from '@agentclientprotocol/sdk';
 import type {
   AcpRuntimeClient,
   AcpRuntimeSessionHooks,
@@ -26,9 +23,7 @@ import type {
   AcpSessionState,
 } from '../schemas/acp';
 import { normalizeAcpProviderId } from './acp-provider-service';
-import {
-  type NormalizedSessionUpdate,
-} from './normalized-session-update';
+import { type NormalizedSessionUpdate } from './normalized-session-update';
 import { createAgent } from './agent-service';
 import { getProjectCodebaseById } from './project-codebase-service';
 import { getProjectById } from './project-service';
@@ -67,6 +62,7 @@ interface AcpSessionRow {
   id: string;
   last_activity_at: string | null;
   last_event_id: string | null;
+  model: string | null;
   name: string | null;
   parent_session_id: string | null;
   project_id: string;
@@ -97,6 +93,7 @@ interface CreateSessionInput {
   codebaseId?: string | null;
   cwd?: string | null;
   goal?: string;
+  model?: string | null;
   parentSessionId?: string | null;
   projectId: string;
   provider: string;
@@ -171,6 +168,13 @@ function createEventId() {
   return `acpe_${eventIdGenerator()}`;
 }
 
+function normalizeOptionalText(
+  value: string | null | undefined,
+): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 function throwSessionNotFound(sessionId: string): never {
   throw new ProblemError({
     type: 'https://team-ai.dev/problems/acp-session-not-found',
@@ -220,8 +224,7 @@ function throwSessionWorktreeCodebaseMismatch(
     type: 'https://team-ai.dev/problems/session-worktree-codebase-mismatch',
     title: 'Session Worktree Codebase Mismatch',
     status: 409,
-    detail:
-      `Worktree ${worktreeId} does not belong to codebase ${codebaseId} in project ${projectId}`,
+    detail: `Worktree ${worktreeId} does not belong to codebase ${codebaseId} in project ${projectId}`,
     context: {
       codebaseId,
       projectId,
@@ -240,8 +243,7 @@ function throwTaskWorkspaceMismatch(
     type: 'https://team-ai.dev/problems/task-session-workspace-mismatch',
     title: 'Task Session Workspace Mismatch',
     status: 409,
-    detail:
-      `Task ${taskId} requires ${field} ${expected}, but session creation requested ${received}`,
+    detail: `Task ${taskId} requires ${field} ${expected}, but session creation requested ${received}`,
     context: {
       expected,
       field,
@@ -353,7 +355,11 @@ async function resolveSessionWorkspaceBinding(
     worktreeId?: string | null;
   },
 ) {
-  if (input.task?.codebase_id && input.codebaseId && input.codebaseId !== input.task.codebase_id) {
+  if (
+    input.task?.codebase_id &&
+    input.codebaseId &&
+    input.codebaseId !== input.task.codebase_id
+  ) {
     throwTaskWorkspaceMismatch(
       input.task.id,
       'codebaseId',
@@ -362,7 +368,11 @@ async function resolveSessionWorkspaceBinding(
     );
   }
 
-  if (input.task?.worktree_id && input.worktreeId && input.worktreeId !== input.task.worktree_id) {
+  if (
+    input.task?.worktree_id &&
+    input.worktreeId &&
+    input.worktreeId !== input.task.worktree_id
+  ) {
     throwTaskWorkspaceMismatch(
       input.task.id,
       'worktreeId',
@@ -376,7 +386,11 @@ async function resolveSessionWorkspaceBinding(
   let worktreePath: string | null = null;
 
   if (worktreeId) {
-    const worktree = await getProjectWorktreeById(sqlite, projectId, worktreeId);
+    const worktree = await getProjectWorktreeById(
+      sqlite,
+      projectId,
+      worktreeId,
+    );
 
     if (codebaseId && codebaseId !== worktree.codebaseId) {
       throwSessionWorktreeCodebaseMismatch(projectId, codebaseId, worktreeId);
@@ -623,7 +637,9 @@ function buildTaskExecutionOutcome(
   let cancelReason: string | null = null;
 
   for (const row of rows) {
-    const payload = parseEventRecord(row.payload_json) as unknown as AcpEventUpdatePayload;
+    const payload = parseEventRecord(
+      row.payload_json,
+    ) as unknown as AcpEventUpdatePayload;
     const error = parseEventRecord(row.error_json);
 
     if (row.type === 'agent_message' && payload.message?.role === 'assistant') {
@@ -796,6 +812,7 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     actor: { id: row.actor_id },
     codebase: row.codebase_id ? { id: row.codebase_id } : null,
     parentSession: row.parent_session_id ? { id: row.parent_session_id } : null,
+    model: row.model,
     name: row.name,
     provider: row.provider,
     specialistId: row.specialist_id,
@@ -833,6 +850,7 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           codebase_id,
           parent_session_id,
           name,
+          model,
           provider,
           cwd,
           acp_status,
@@ -1171,7 +1189,9 @@ function createRuntimeHooks(
       const metadata = extractSessionMetadataFromNormalizedUpdate(normalized);
       updateSessionRuntime(sqlite, localSessionId, {
         acpError:
-          state === 'FAILED' ? emitted.error?.message ?? current.acp_error : null,
+          state === 'FAILED'
+            ? (emitted.error?.message ?? current.acp_error)
+            : null,
         acpStatus: state === 'FAILED' ? 'error' : 'ready',
         state,
         lastActivityAt: metadata.updatedAt ?? emitted.emittedAt,
@@ -1189,10 +1209,7 @@ function createRuntimeHooks(
         return;
       }
 
-      if (
-        current.state === 'CANCELLED' ||
-        current.state === 'FAILED'
-      ) {
+      if (current.state === 'CANCELLED' || current.state === 'FAILED') {
         return;
       }
 
@@ -1277,14 +1294,19 @@ async function updateSessionFromPromptResponse(
   const completedAt = new Date().toISOString();
   appendLocalEvent(sqlite, broker, {
     sessionId,
-    update: createCanonicalUpdate(sessionId, getSessionRow(sqlite, sessionId).provider, 'turn_complete', {
-      turnComplete: {
-        stopReason: response.stopReason,
-        usage: response.usage ?? null,
-        userMessageId: response.userMessageId ?? null,
-        ...(state === 'CANCELLED' ? { state } : {}),
+    update: createCanonicalUpdate(
+      sessionId,
+      getSessionRow(sqlite, sessionId).provider,
+      'turn_complete',
+      {
+        turnComplete: {
+          stopReason: response.stopReason,
+          usage: response.usage ?? null,
+          userMessageId: response.userMessageId ?? null,
+          ...(state === 'CANCELLED' ? { state } : {}),
+        },
       },
-    }),
+    ),
   });
 
   updateSessionRuntime(sqlite, sessionId, {
@@ -1412,6 +1434,7 @@ export async function createAcpSession(
   );
   const now = new Date().toISOString();
   const sessionId = createSessionId();
+  const model = normalizeOptionalText(input.model);
   const agent = specialist
     ? await createAgent(sqlite, {
         projectId: input.projectId,
@@ -1437,6 +1460,7 @@ export async function createAcpSession(
           parent_session_id,
           specialist_id,
           name,
+          model,
           provider,
           cwd,
           worktree_id,
@@ -1463,6 +1487,7 @@ export async function createAcpSession(
           @parentSessionId,
           @specialistId,
           @name,
+          @model,
           @provider,
           @cwd,
           @worktreeId,
@@ -1491,6 +1516,7 @@ export async function createAcpSession(
       parentSessionId: input.parentSessionId ?? null,
       specialistId: specialist?.id ?? null,
       name: input.goal?.trim() || null,
+      model,
       provider,
       cwd: workspaceBinding.cwd,
       worktreeId: workspaceBinding.worktreeId,
@@ -1650,6 +1676,7 @@ export async function listAcpSessionsByProject(
           parent_session_id,
           specialist_id,
           name,
+          model,
           provider,
           cwd,
           acp_status,
@@ -1964,14 +1991,19 @@ export async function cancelAcpSession(
 
   appendLocalEvent(sqlite, broker, {
     sessionId,
-    update: createCanonicalUpdate(sessionId, session.provider, 'turn_complete', {
-      turnComplete: {
-        stopReason: 'cancelled',
-        usage: null,
-        userMessageId: null,
-        state: 'CANCELLED',
+    update: createCanonicalUpdate(
+      sessionId,
+      session.provider,
+      'turn_complete',
+      {
+        turnComplete: {
+          stopReason: 'cancelled',
+          usage: null,
+          userMessageId: null,
+          state: 'CANCELLED',
+        },
       },
-    }),
+    ),
   });
   updateSessionRuntime(sqlite, sessionId, {
     acpStatus: 'ready',

@@ -30,6 +30,7 @@ export function ProjectSessionConversationPane(props: {
   onSubmit: (input: {
     cwd?: string;
     files: unknown[];
+    model?: string | null;
     provider?: string;
     text: string;
   }) => Promise<void>;

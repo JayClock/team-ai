@@ -1,9 +1,6 @@
 import { useChat } from '@ai-sdk/react';
 import { State } from '@hateoas-ts/resource';
-import {
-  AcpEventEnvelope,
-  AcpSession,
-} from '@shared/schema';
+import { AcpEventEnvelope, AcpSession } from '@shared/schema';
 import { toast } from '@shared/ui';
 import type { DynamicToolUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,14 +14,17 @@ type SessionTerminalData = {
   terminalId: string;
 };
 
-export type SessionChatMessage = UIMessage<{
-  chunkKey?: string;
-  emittedAt: string;
-  optimistic?: boolean;
-  pending?: boolean;
-}, {
-  terminal: SessionTerminalData;
-}>;
+export type SessionChatMessage = UIMessage<
+  {
+    chunkKey?: string;
+    emittedAt: string;
+    optimistic?: boolean;
+    pending?: boolean;
+  },
+  {
+    terminal: SessionTerminalData;
+  }
+>;
 
 type SessionTerminalPart = Extract<
   SessionChatMessage['parts'][number],
@@ -34,6 +34,7 @@ type SessionTerminalPart = Extract<
 type PromptSubmitInput = {
   cwd?: string;
   files: unknown[];
+  model?: string | null;
   provider?: string;
   text: string;
 };
@@ -41,6 +42,7 @@ type PromptSubmitInput = {
 type UseProjectSessionChatOptions = {
   createSession: (input?: {
     cwd?: string;
+    model?: string | null;
     provider?: string;
   }) => Promise<State<AcpSession>>;
   history: AcpEventEnvelope[];
@@ -241,8 +243,7 @@ function buildTerminalPart(
 
   if (event.update.eventType === 'terminal_exited') {
     nextData.exitCode = terminal?.exitCode ?? null;
-    nextData.status =
-      (terminal?.exitCode ?? 0) === 0 ? 'completed' : 'failed';
+    nextData.status = (terminal?.exitCode ?? 0) === 0 ? 'completed' : 'failed';
   }
 
   return {
@@ -587,7 +588,12 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
   );
 
   const runPrompt = useCallback(
-    async (text: string, provider?: string, cwd?: string) => {
+    async (
+      text: string,
+      provider?: string,
+      cwd?: string,
+      model?: string | null,
+    ) => {
       const trimmed = text.trim();
       if (!trimmed) {
         toast.error('输入内容不能为空');
@@ -612,7 +618,7 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
         pendingAssistantId = appendPendingAssistantMessage(targetSessionKey);
 
         const targetSession =
-          selectedSession ?? (await createSession({ cwd, provider }));
+          selectedSession ?? (await createSession({ cwd, model, provider }));
         rebindTransientMessages(targetSessionKey, targetSession.data.id);
         targetSessionKey = targetSession.data.id;
 
@@ -643,8 +649,8 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
   );
 
   const handlePromptSubmit = useCallback(
-    async ({ cwd, provider, text }: PromptSubmitInput) => {
-      await runPrompt(text, provider, cwd);
+    async ({ cwd, model, provider, text }: PromptSubmitInput) => {
+      await runPrompt(text, provider, cwd, model);
     },
     [runPrompt],
   );

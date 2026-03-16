@@ -608,4 +608,11 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '021_project_acp_sessions_model',
+    sql: `
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN model TEXT;
+    `,
+  },
 ];

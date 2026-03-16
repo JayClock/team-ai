@@ -1,13 +1,6 @@
-export type AcpSessionState =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'FAILED'
-  | 'CANCELLED';
+export type AcpSessionState = 'PENDING' | 'RUNNING' | 'FAILED' | 'CANCELLED';
 
-export type AcpSessionStatus =
-  | 'connecting'
-  | 'ready'
-  | 'error';
+export type AcpSessionStatus = 'connecting' | 'ready' | 'error';
 
 export interface AcpRefPayload {
   id: string;
@@ -126,6 +119,7 @@ export interface AcpSessionPayload {
   id: string;
   lastActivityAt: string | null;
   lastEventId: AcpRefPayload | null;
+  model: string | null;
   name: string | null;
   parentSession: AcpRefPayload | null;
   project: AcpRefPayload;

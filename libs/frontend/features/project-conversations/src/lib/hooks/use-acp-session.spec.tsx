@@ -56,6 +56,7 @@ function createFixture() {
     agent: { id: 'agent-1' },
     actor: { id: 'u-1' },
     parentSession: null,
+    model: null,
     name: 'Session 1',
     provider: 'codex',
     specialistId: 'routa-coordinator',
@@ -279,6 +280,7 @@ describe('useAcpSession', () => {
         projectId: 'p-1',
         actorUserId: 'u-1',
         cwd: undefined,
+        model: null,
         provider: 'codex',
         role: 'DEVELOPER',
         parentSessionId: undefined,
@@ -307,6 +309,36 @@ describe('useAcpSession', () => {
         projectId: 'p-1',
         actorUserId: 'u-1',
         cwd: '/tmp/alternate-repo',
+        model: null,
+        provider: 'codex',
+        role: undefined,
+        parentSessionId: undefined,
+        idempotencyKey: undefined,
+        goal: undefined,
+      },
+    });
+  });
+
+  it('passes model override when creating a session', async () => {
+    const fixture = createFixture();
+    useClientMock.mockReturnValue(fixture.client);
+
+    const { result } = renderHook(() => useAcpSession(fixture.projectState));
+
+    await act(async () => {
+      await result.current.create({
+        actorUserId: 'u-1',
+        model: 'gpt-5',
+      });
+    });
+
+    expect(fixture.rpcInvocations[0]).toEqual({
+      method: 'session/new',
+      params: {
+        projectId: 'p-1',
+        actorUserId: 'u-1',
+        cwd: undefined,
+        model: 'gpt-5',
         provider: 'codex',
         role: undefined,
         parentSessionId: undefined,

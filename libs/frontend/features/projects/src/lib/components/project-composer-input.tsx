@@ -32,6 +32,7 @@ export type {
 export type ProjectComposerSubmitInput = {
   cwd?: string;
   files: unknown[];
+  model?: string | null;
   provider?: string;
   text: string;
 };
@@ -114,7 +115,9 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
 
         <PromptInputFooter className="w-full items-center gap-2 border-t border-slate-100 px-4 py-3 md:px-5 dark:border-[#1c1f2e]">
           <PromptInputTools className="min-w-0 flex-1 flex-wrap items-center gap-2">
-            {projectPicker ? <ProjectRepositoryPicker {...projectPicker} /> : null}
+            {projectPicker ? (
+              <ProjectRepositoryPicker {...projectPicker} />
+            ) : null}
             {footerStart}
           </PromptInputTools>
 
