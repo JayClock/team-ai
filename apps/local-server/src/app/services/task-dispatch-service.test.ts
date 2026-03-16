@@ -226,6 +226,102 @@ describe('task dispatch service', () => {
     );
   });
 
+  it('dispatches review tasks to the gate reviewer specialist', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Gate Dispatch Project',
+      repoPath: '/Users/example/gate-dispatch',
+    });
+
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/gate-dispatch',
+      id: 'acps_gate_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const task = await createTask(sqlite, {
+      acceptanceCriteria: [
+        'Each acceptance criterion is reviewed against concrete evidence',
+      ],
+      kind: 'review',
+      objective: 'Review the crafter implementation and decide whether it passes',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Review delegated implementation',
+      sessionId: 'acps_gate_parent',
+      verificationCommands: [
+        'npx nx test local-server -- --runTestsByPath task-report-service',
+      ],
+    });
+
+    const createSession = vi.fn(async (input) => {
+      insertAcpSession(sqlite, {
+        actorId: input.actorUserId,
+        cwd: '/Users/example/gate-dispatch',
+        id: 'acps_gate_child',
+        parentSessionId: input.parentSessionId,
+        projectId: project.id,
+        provider: input.provider,
+        taskId: task.id,
+      });
+      return { id: 'acps_gate_child' };
+    });
+    const promptSession = vi.fn(async () => undefined);
+
+    const result = await dispatchTask(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        callerSessionId: 'acps_gate_parent',
+        taskId: task.id,
+      },
+    );
+    const updatedTask = await getTaskById(sqlite, task.id);
+
+    expect(result).toMatchObject({
+      dispatched: true,
+      provider: 'codex',
+      role: 'GATE',
+      sessionId: 'acps_gate_child',
+      specialistId: 'gate-reviewer',
+      task: {
+        id: task.id,
+        triggerSessionId: 'acps_gate_child',
+      },
+    });
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: 'desktop-user',
+        parentSessionId: 'acps_gate_parent',
+        projectId: project.id,
+        provider: 'codex',
+        role: 'GATE',
+        specialistId: 'gate-reviewer',
+        taskId: task.id,
+      }),
+    );
+    expect(promptSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: project.id,
+        sessionId: 'acps_gate_child',
+      }),
+    );
+    expect(result.prompt).toContain('Acceptance Criteria');
+    expect(result.prompt).toContain('Verification Commands');
+    expect(updatedTask).toMatchObject({
+      assignedProvider: 'codex',
+      assignedRole: 'GATE',
+      assignedSpecialistId: 'gate-reviewer',
+      assignedSpecialistName: 'Gate Reviewer',
+      triggerSessionId: 'acps_gate_child',
+    });
+  });
+
   it('prevents duplicate concurrent dispatch attempts for the same task', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
