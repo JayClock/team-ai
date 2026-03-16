@@ -63,6 +63,9 @@ describe('sqlite initialization', () => {
     const agentColumns = sqlite
       .prepare('PRAGMA table_info(project_agents)')
       .all() as Array<{ name: string }>;
+    const worktreeColumns = sqlite
+      .prepare('PRAGMA table_info(project_worktrees)')
+      .all() as Array<{ name: string }>;
     const taskColumns = sqlite
       .prepare('PRAGMA table_info(project_tasks)')
       .all() as Array<{ name: string }>;
@@ -81,6 +84,7 @@ describe('sqlite initialization', () => {
       'project_runtime_profiles',
       'project_task_runs',
       'project_tasks',
+      'project_worktrees',
       'projects',
       'schema_migrations',
       'settings',
@@ -124,6 +128,8 @@ describe('sqlite initialization', () => {
       'task_id',
       'acp_status',
       'acp_error',
+      'codebase_id',
+      'worktree_id',
     ]);
     expect(agentColumns.map(({ name }) => name)).toEqual([
       'id',
@@ -138,6 +144,21 @@ describe('sqlite initialization', () => {
       'deleted_at',
       'parent_agent_id',
       'specialist_id',
+    ]);
+    expect(worktreeColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'project_id',
+      'codebase_id',
+      'worktree_path',
+      'branch',
+      'base_branch',
+      'status',
+      'session_id',
+      'label',
+      'error_message',
+      'created_at',
+      'updated_at',
+      'deleted_at',
     ]);
     expect(taskColumns.map(({ name }) => name)).toEqual([
       'id',
@@ -182,6 +203,8 @@ describe('sqlite initialization', () => {
       'source_event_id',
       'source_entry_index',
       'session_id',
+      'codebase_id',
+      'worktree_id',
     ]);
     expect(runtimeProfileColumns.map(({ name }) => name)).toEqual([
       'id',

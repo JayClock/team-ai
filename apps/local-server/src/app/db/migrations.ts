@@ -537,4 +537,75 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '020_project_worktrees',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_worktrees (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        codebase_id TEXT NOT NULL,
+        worktree_path TEXT NOT NULL,
+        branch TEXT NOT NULL,
+        base_branch TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'creating',
+        session_id TEXT,
+        label TEXT,
+        error_message TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (codebase_id) REFERENCES project_codebases(id),
+        FOREIGN KEY (session_id) REFERENCES project_acp_sessions(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_worktrees_project_id
+        ON project_worktrees(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_worktrees_codebase_id
+        ON project_worktrees(codebase_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_worktrees_session_id
+        ON project_worktrees(session_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_worktrees_codebase_branch_active
+        ON project_worktrees(codebase_id, branch)
+        WHERE deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_worktrees_path_active
+        ON project_worktrees(worktree_path)
+        WHERE deleted_at IS NULL;
+
+      ALTER TABLE project_tasks
+        ADD COLUMN codebase_id TEXT REFERENCES project_codebases(id);
+
+      ALTER TABLE project_tasks
+        ADD COLUMN worktree_id TEXT REFERENCES project_worktrees(id);
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_codebase_id
+        ON project_tasks(codebase_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_worktree_id
+        ON project_tasks(worktree_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN codebase_id TEXT REFERENCES project_codebases(id);
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN worktree_id TEXT REFERENCES project_worktrees(id);
+
+      CREATE INDEX IF NOT EXISTS idx_project_acp_sessions_codebase_id
+        ON project_acp_sessions(codebase_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_acp_sessions_worktree_id
+        ON project_acp_sessions(worktree_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];
