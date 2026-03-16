@@ -15,14 +15,14 @@ import {
   taskOrchestrationEventNames,
 } from './task-orchestration-events';
 import {
+  getTaskDispatchability,
+  listDispatchableTasks,
   resolveTaskDispatchPolicy,
+  type TaskDispatchability,
 } from './task-dispatch-policy-service';
 import {
   getTaskById,
-  getTaskDispatchability,
-  listDispatchableTasks,
   updateTask,
-  type TaskDispatchability,
 } from './task-service';
 
 export interface DispatchTaskCallbacks {

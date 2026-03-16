@@ -8,8 +8,6 @@ import type {
   TaskPayload,
   UpdateTaskInput,
 } from '../schemas/task';
-import type { ProjectOrchestrationMode } from '../schemas/runtime-profile';
-import type { RoleValue } from '../schemas/role';
 import { getProjectById } from './project-service';
 import { getAcpSessionById } from './acp-service';
 import {
@@ -75,24 +73,6 @@ interface ListTasksQuery {
   status?: string;
 }
 
-interface ListDispatchableTasksQuery {
-  projectId: string;
-  sessionId?: string;
-}
-
-interface TaskDependencyStatusRow {
-  id: string;
-  status: string;
-}
-
-export type TaskDispatchBlockReason =
-  | 'TASK_DEVELOPER_MODE_STAYS_IN_SESSION'
-  | 'TASK_DEPENDENCIES_INCOMPLETE'
-  | 'TASK_EXECUTION_ALREADY_ACTIVE'
-  | 'TASK_KIND_NOT_DISPATCHABLE'
-  | 'TASK_ROLE_NOT_RESOLVED'
-  | 'TASK_STATUS_NOT_DISPATCHABLE';
-
 export const taskStatusValues = [
   'PENDING',
   'READY',
@@ -105,29 +85,11 @@ export const taskStatusValues = [
 
 export type TaskStatus = (typeof taskStatusValues)[number];
 
-export interface TaskDispatchability {
-  dispatchable: boolean;
-  reasons: TaskDispatchBlockReason[];
-  resolvedRole: RoleValue | null;
-  task: TaskPayload;
-  unresolvedDependencyIds: string[];
-}
-
-interface TaskDispatchabilityOptions {
-  orchestrationMode?: ProjectOrchestrationMode;
-}
-
 function createTaskId() {
   return `task_${taskIdGenerator()}`;
 }
 
 const taskKindValues = ['plan', 'implement', 'review', 'verify'] as const;
-const dispatchableTaskStatuses = new Set<TaskStatus>([
-  'PENDING',
-  'READY',
-  'RUNNING',
-  'WAITING_RETRY',
-]);
 const mcpWritableTaskStatuses = new Set<TaskStatus>([
   'PENDING',
   'READY',
@@ -273,14 +235,6 @@ function ensureTaskKind(
   return kind;
 }
 
-function isTaskKindDispatchable(kind: TaskKind | null): boolean {
-  return kind === 'implement' || kind === 'review' || kind === 'verify';
-}
-
-function isTaskStatusDispatchable(status: string): boolean {
-  return isTaskStatus(status) ? dispatchableTaskStatuses.has(status) : false;
-}
-
 function ensureTaskStatusWritableViaMcp(
   taskId: string,
   currentStatus: TaskStatus,
@@ -296,35 +250,6 @@ function ensureTaskStatusWritableViaMcp(
 
   if (!mcpTaskStatusTransitions[currentStatus].includes(nextStatus)) {
     throwTaskStatusTransitionNotAllowed(taskId, currentStatus, nextStatus);
-  }
-}
-
-export function resolveDefaultTaskRole(
-  kind: TaskKind | null,
-  options: TaskDispatchabilityOptions = {},
-): RoleValue | null {
-  if (options.orchestrationMode === 'DEVELOPER') {
-    switch (kind) {
-      case 'plan':
-      case 'implement':
-      case 'review':
-      case 'verify':
-        return 'DEVELOPER';
-      default:
-        return null;
-    }
-  }
-
-  switch (kind) {
-    case 'plan':
-      return 'ROUTA';
-    case 'review':
-    case 'verify':
-      return 'GATE';
-    case 'implement':
-      return 'CRAFTER';
-    default:
-      return null;
   }
 }
 
@@ -545,190 +470,6 @@ async function validateTaskReference(
   }
 
   return taskId;
-}
-
-async function resolveUnresolvedDependencyIds(
-  sqlite: Database,
-  task: Pick<TaskPayload, 'dependencies' | 'projectId'>,
-): Promise<string[]> {
-  const dependencyIds = [
-    ...new Set(task.dependencies.map((id) => id.trim())),
-  ].filter((id) => id.length > 0);
-
-  if (dependencyIds.length === 0) {
-    return [];
-  }
-
-  const placeholders = dependencyIds.map(() => '?').join(', ');
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, status
-        FROM project_tasks
-        WHERE project_id = ?
-          AND deleted_at IS NULL
-          AND id IN (${placeholders})
-      `,
-    )
-    .all(task.projectId, ...dependencyIds) as TaskDependencyStatusRow[];
-  const statusById = new Map(rows.map((row) => [row.id, row.status]));
-
-  return dependencyIds.filter((dependencyId) => {
-    return statusById.get(dependencyId) !== 'COMPLETED';
-  });
-}
-
-async function getTaskDispatchabilityForTask(
-  sqlite: Database,
-  task: TaskPayload,
-  options: TaskDispatchabilityOptions = {},
-): Promise<TaskDispatchability> {
-  const reasons: TaskDispatchBlockReason[] = [];
-
-  if (!isTaskKindDispatchable(task.kind)) {
-    reasons.push('TASK_KIND_NOT_DISPATCHABLE');
-  }
-
-  if (!isTaskStatusDispatchable(task.status)) {
-    reasons.push('TASK_STATUS_NOT_DISPATCHABLE');
-  }
-
-  if (task.executionSessionId) {
-    reasons.push('TASK_EXECUTION_ALREADY_ACTIVE');
-  }
-
-  const unresolvedDependencyIds = await resolveUnresolvedDependencyIds(
-    sqlite,
-    task,
-  );
-  if (unresolvedDependencyIds.length > 0) {
-    reasons.push('TASK_DEPENDENCIES_INCOMPLETE');
-  }
-
-  const resolvedRole =
-    ensureRoleValue(task.assignedRole) ??
-    resolveDefaultTaskRole(task.kind, {
-      orchestrationMode: options.orchestrationMode,
-    });
-
-  if (
-    options.orchestrationMode === 'DEVELOPER' &&
-    isTaskKindDispatchable(task.kind) &&
-    resolvedRole === 'DEVELOPER'
-  ) {
-    reasons.push('TASK_DEVELOPER_MODE_STAYS_IN_SESSION');
-  }
-
-  if (!resolvedRole && isTaskKindDispatchable(task.kind)) {
-    reasons.push('TASK_ROLE_NOT_RESOLVED');
-  }
-
-  return {
-    dispatchable: reasons.length === 0 && resolvedRole !== null,
-    reasons,
-    resolvedRole,
-    task,
-    unresolvedDependencyIds,
-  };
-}
-
-export async function getTaskDispatchability(
-  sqlite: Database,
-  taskId: string,
-  options: TaskDispatchabilityOptions = {},
-): Promise<TaskDispatchability> {
-  const task = await getTaskById(sqlite, taskId);
-  return getTaskDispatchabilityForTask(sqlite, task, options);
-}
-
-export async function listDispatchableTasks(
-  sqlite: Database,
-  query: ListDispatchableTasksQuery,
-  options: TaskDispatchabilityOptions = {},
-): Promise<TaskDispatchability[]> {
-  await getProjectById(sqlite, query.projectId);
-
-  if (query.sessionId) {
-    const session = await getAcpSessionById(sqlite, query.sessionId);
-    if (session.project.id !== query.projectId) {
-      throwTaskSessionProjectMismatch(query.projectId, query.sessionId);
-    }
-  }
-
-  const filters = ['project_id = @projectId', 'deleted_at IS NULL'];
-  const parameters: Record<string, unknown> = {
-    projectId: query.projectId,
-  };
-
-  if (query.sessionId) {
-    filters.push('session_id = @sessionId');
-    parameters.sessionId = query.sessionId;
-  }
-
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          trigger_session_id,
-          title,
-          objective,
-          scope,
-          status,
-          board_id,
-          column_id,
-          position,
-          priority,
-          labels_json,
-          assignee,
-          assigned_provider,
-          assigned_role,
-          assigned_specialist_id,
-          assigned_specialist_name,
-          dependencies_json,
-          parallel_group,
-          acceptance_criteria_json,
-          verification_commands_json,
-          completion_summary,
-          verification_verdict,
-          verification_report,
-          github_id,
-          github_number,
-          github_url,
-          github_repo,
-          github_state,
-          github_synced_at,
-          last_sync_error,
-          kind,
-          parent_task_id,
-          execution_session_id,
-          result_session_id,
-          session_id,
-          created_at,
-          updated_at
-        FROM project_tasks
-        WHERE ${filters.join(' AND ')}
-        ORDER BY
-          CASE priority
-            WHEN 'high' THEN 0
-            WHEN 'medium' THEN 1
-            WHEN 'low' THEN 2
-            ELSE 3
-          END,
-          created_at ASC,
-          updated_at ASC
-      `,
-    )
-    .all(parameters) as TaskRow[];
-
-  const evaluations = await Promise.all(
-    rows.map((row) =>
-      getTaskDispatchabilityForTask(sqlite, mapTaskRow(row), options),
-    ),
-  );
-
-  return evaluations.filter((evaluation) => evaluation.dispatchable);
 }
 
 export async function createTask(

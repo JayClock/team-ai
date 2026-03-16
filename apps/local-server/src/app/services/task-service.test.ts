@@ -11,15 +11,17 @@ import {
   startTaskRun,
 } from './task-run-service';
 import { executeTask } from './task-orchestration-service';
+import {
+  getTaskDispatchability,
+  listDispatchableTasks,
+  resolveDefaultTaskRole,
+} from './task-dispatch-policy-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import {
   createTask,
   deleteTask,
-  getTaskDispatchability,
   getTaskById,
   listTasks,
-  listDispatchableTasks,
-  resolveDefaultTaskRole,
   updateTask,
   updateTaskFromMcp,
 } from './task-service';
