@@ -22,6 +22,8 @@ export type TaskPanelItem = {
   assignedRole?: string | null;
   assignedSpecialistId?: string | null;
   assignedSpecialistName?: string | null;
+  boardId?: string | null;
+  columnId?: string | null;
   codebaseId?: string | null;
   description?: string;
   executionSessionId?: string | null;
@@ -254,7 +256,9 @@ export function buildTaskPanelItem(task: State<Task>): TaskPanelItem {
     assignedProvider: taskData.assignedProvider,
     assignedSpecialistId: taskData.assignedSpecialistId,
     assignedSpecialistName: taskData.assignedSpecialistName,
+    boardId: taskData.boardId,
     codebaseId: taskData.codebaseId,
+    columnId: taskData.columnId,
     executionSessionId: taskData.executionSessionId,
     resultSessionId: taskData.resultSessionId,
     sourceEntryIndex: taskData.sourceEntryIndex,
@@ -302,6 +306,27 @@ export function formatVerificationVerdictLabel(
       return '待验证';
     default:
       return verdict?.trim() || '未产出';
+  }
+}
+
+export function formatTaskWorkflowColumnLabel(
+  columnId: string | null | undefined,
+): string {
+  switch (columnId) {
+    case 'backlog':
+      return 'Backlog';
+    case 'todo':
+      return 'Todo';
+    case 'dev':
+      return 'In Progress';
+    case 'review':
+      return 'Review';
+    case 'blocked':
+      return 'Blocked';
+    case 'done':
+      return 'Done';
+    default:
+      return columnId?.trim() || 'Unassigned';
   }
 }
 

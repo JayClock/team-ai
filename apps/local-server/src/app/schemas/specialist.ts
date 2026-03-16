@@ -7,8 +7,9 @@ export interface SpecialistPayload {
   name: string;
   role: RoleValue;
   source: {
+    libraryId?: string | null;
     path: string;
-    scope: 'builtin' | 'user' | 'workspace';
+    scope: 'builtin' | 'library' | 'user' | 'workspace';
   };
   systemPrompt: string;
 }

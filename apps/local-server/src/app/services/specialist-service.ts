@@ -61,6 +61,14 @@ function getUserSpecialistsDirectory() {
   return join(resolveDataDirectory(), 'specialists');
 }
 
+function getUserLibrariesDirectory() {
+  return join(resolveDataDirectory(), 'libraries');
+}
+
+function getWorkspaceLibrariesDirectory(projectRepoPath: string) {
+  return join(projectRepoPath, 'resources', 'libraries');
+}
+
 async function canReadDirectory(directoryPath: string) {
   try {
     await access(directoryPath, fsConstants.R_OK);
@@ -184,6 +192,7 @@ async function readSpecialistFile(
 async function loadDirectorySpecialists(
   directoryPath: string,
   scope: SpecialistSourceScope,
+  libraryId: string | null = null,
 ) {
   if (!(await canReadDirectory(directoryPath))) {
     return [] as SpecialistPayload[];
@@ -208,8 +217,41 @@ async function loadDirectorySpecialists(
     const specialist = await readSpecialistFile(join(directoryPath, entry.name), scope);
 
     if (specialist) {
-      specialists.push(specialist);
+      specialists.push({
+        ...specialist,
+        source: {
+          ...specialist.source,
+          libraryId,
+        },
+      });
     }
+  }
+
+  return specialists;
+}
+
+async function loadLibrarySpecialists(librariesDirectory: string) {
+  if (!(await canReadDirectory(librariesDirectory))) {
+    return [] as SpecialistPayload[];
+  }
+
+  const entries = await readdir(librariesDirectory, {
+    withFileTypes: true,
+  });
+  const specialists: SpecialistPayload[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    specialists.push(
+      ...(await loadDirectorySpecialists(
+        join(librariesDirectory, entry.name, 'specialists'),
+        'library',
+        entry.name,
+      )),
+    );
   }
 
   return specialists;
@@ -239,6 +281,10 @@ async function listResolvedSpecialists(projectRepoPath?: string | null) {
     getBuiltInSpecialistsDirectory(),
     'builtin',
   );
+  const sharedLibraries = await loadLibrarySpecialists(getUserLibrariesDirectory());
+  const workspaceLibraries = projectRepoPath
+    ? await loadLibrarySpecialists(getWorkspaceLibrariesDirectory(projectRepoPath))
+    : [];
   const workspace = projectRepoPath
     ? await loadDirectorySpecialists(
         join(projectRepoPath, 'resources', 'specialists'),
@@ -247,7 +293,13 @@ async function listResolvedSpecialists(projectRepoPath?: string | null) {
     : [];
   const user = await loadDirectorySpecialists(getUserSpecialistsDirectory(), 'user');
 
-  return mergeSpecialists([builtIn, workspace, user]);
+  return mergeSpecialists([
+    builtIn,
+    sharedLibraries,
+    workspaceLibraries,
+    workspace,
+    user,
+  ]);
 }
 
 export async function listSpecialists(

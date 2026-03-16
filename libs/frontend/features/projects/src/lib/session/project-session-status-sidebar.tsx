@@ -22,6 +22,7 @@ import {
   formatDateTime,
   formatOrchestrationModeLabel,
   formatStatusLabel,
+  formatTaskWorkflowColumnLabel,
   formatTaskSourceLabel,
   formatTaskKindLabel,
   formatVerificationVerdictLabel,
@@ -174,46 +175,49 @@ export function ProjectSessionStatusSidebar(props: {
                   description="当会话产生 plan、任务或工具调用时，这里会显示任务概览与执行链路。"
                 />
               ) : (
-                taskItems.map((item) => (
-                  <Card
-                    key={item.id}
-                    className="rounded-xl border-border/70 shadow-none"
-                  >
-                    <CardContent className="space-y-3 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`size-2 shrink-0 rounded-full ${statusTone(item.status)}`}
-                            />
-                            <div className="truncate text-sm font-semibold">
-                              {item.title}
+                <>
+                  <WorkflowSummaryCard taskItems={taskItems} />
+                  {taskItems.map((item) => (
+                    <Card
+                      key={item.id}
+                      className="rounded-xl border-border/70 shadow-none"
+                    >
+                      <CardContent className="space-y-3 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`size-2 shrink-0 rounded-full ${statusTone(item.status)}`}
+                              />
+                              <div className="truncate text-sm font-semibold">
+                                {item.title}
+                              </div>
                             </div>
+                            {item.description ? (
+                              <p className="mt-2 text-sm text-muted-foreground">
+                                {item.description}
+                              </p>
+                            ) : null}
+                            {item.source === 'task' ? (
+                              <TaskExecutionDetails
+                                currentSessionId={selectedSession?.data.id}
+                                item={item}
+                                onOpenSession={onOpenSession}
+                                onTaskAction={onTaskAction}
+                                pendingTaskAction={pendingTaskAction}
+                              />
+                            ) : null}
                           </div>
-                          {item.description ? (
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              {item.description}
-                            </p>
-                          ) : null}
-                          {item.source === 'task' ? (
-                            <TaskExecutionDetails
-                              currentSessionId={selectedSession?.data.id}
-                              item={item}
-                              onOpenSession={onOpenSession}
-                              onTaskAction={onTaskAction}
-                              pendingTaskAction={pendingTaskAction}
-                            />
-                          ) : null}
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(item.status)}`}
+                          >
+                            {formatStatusLabel(item.status)}
+                          </span>
                         </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(item.status)}`}
-                        >
-                          {formatStatusLabel(item.status)}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                      </CardContent>
+                    </Card>
+                  ))}
+                </>
               )}
             </div>
           </ScrollArea>
@@ -324,6 +328,50 @@ export function ProjectSessionStatusSidebar(props: {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function WorkflowSummaryCard(props: { taskItems: TaskPanelItem[] }) {
+  const { taskItems } = props;
+  const laneCounts = new Map<string, number>();
+
+  for (const item of taskItems) {
+    const lane = formatTaskWorkflowColumnLabel(item.columnId);
+    laneCounts.set(lane, (laneCounts.get(lane) ?? 0) + 1);
+  }
+
+  const lanes = [...laneCounts.entries()].sort((left, right) =>
+    left[0].localeCompare(right[0], 'en'),
+  );
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-none">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+            <div>
+            <div className="text-sm font-semibold">Workflow Board</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              当前任务按 workflow lane 归位，直接对应 spec -&gt; task -&gt;
+              child session 的执行流。
+            </p>
+          </div>
+          <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
+            {taskItems.length} 张卡片
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+          {lanes.map(([lane, count]) => (
+            <span
+              key={lane}
+              className="rounded-full border border-border/60 bg-background px-2 py-1"
+            >
+              {lane} · {count}
+            </span>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -439,6 +487,16 @@ function TaskExecutionDetails(props: {
         {item.assignedProvider ? (
           <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
             {item.assignedProvider}
+          </span>
+        ) : null}
+        {item.boardId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            board {item.boardId}
+          </span>
+        ) : null}
+        {item.columnId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+            lane {formatTaskWorkflowColumnLabel(item.columnId)}
           </span>
         ) : null}
         {item.codebaseId ? (

@@ -117,6 +117,88 @@ describe('specialist service', () => {
     });
   });
 
+  it('loads shared library specialists before workspace overrides', async () => {
+    const sqlite = await createTestDatabase();
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-specialist-library-workspace-'),
+    );
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+
+    const libraryDir = join(
+      process.env.TEAMAI_DATA_DIR as string,
+      'libraries',
+      'shared-ops',
+      'specialists',
+    );
+    await mkdir(libraryDir, {
+      recursive: true,
+    });
+    await writeFile(
+      join(libraryDir, 'routa-coordinator.md'),
+      [
+        '---',
+        'id: routa-coordinator',
+        'name: Shared Routa',
+        'role: ROUTA',
+        'description: Shared library override',
+        '---',
+        'Use the shared routing prompt.',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const project = await createProject(sqlite, {
+      repoPath,
+      title: 'Library Specialists',
+    });
+
+    const librarySpecialist = await getSpecialistById(
+      sqlite,
+      project.id,
+      'routa-coordinator',
+    );
+
+    expect(librarySpecialist).toMatchObject({
+      name: 'Shared Routa',
+      source: {
+        libraryId: 'shared-ops',
+        scope: 'library',
+      },
+    });
+
+    await mkdir(join(repoPath, 'resources', 'specialists'), {
+      recursive: true,
+    });
+    await writeFile(
+      join(repoPath, 'resources', 'specialists', 'routa-coordinator.md'),
+      [
+        '---',
+        'id: routa-coordinator',
+        'name: Workspace Routa',
+        'role: ROUTA',
+        'description: Workspace override wins',
+        '---',
+        'Use the workspace routing prompt.',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const workspaceSpecialist = await getSpecialistById(
+      sqlite,
+      project.id,
+      'routa-coordinator',
+    );
+
+    expect(workspaceSpecialist).toMatchObject({
+      name: 'Workspace Routa',
+      source: {
+        scope: 'workspace',
+      },
+    });
+  });
+
   it('keeps the built-in coordinator prompt focused on planning and dispatch', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {

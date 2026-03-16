@@ -890,6 +890,45 @@ describe('task service', () => {
     });
   });
 
+  it('assigns default workflow board and lane context from task kind and status', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Workflow Context',
+      repoPath: '/Users/example/workflow-context',
+    });
+
+    const implementTask = await createTask(sqlite, {
+      kind: 'implement',
+      objective: 'Implement workflow UI',
+      projectId: project.id,
+      status: 'READY',
+      title: 'Workflow UI',
+    });
+    const reviewTask = await createTask(sqlite, {
+      kind: 'review',
+      objective: 'Review workflow UI',
+      projectId: project.id,
+      status: 'PENDING',
+      title: 'Workflow Review',
+    });
+    const runningTask = await updateTask(sqlite, implementTask.id, {
+      status: 'RUNNING',
+    });
+
+    expect(implementTask).toMatchObject({
+      boardId: 'workflow-default',
+      columnId: 'todo',
+    });
+    expect(reviewTask).toMatchObject({
+      boardId: 'workflow-default',
+      columnId: 'review',
+    });
+    expect(runningTask).toMatchObject({
+      boardId: 'workflow-default',
+      columnId: 'dev',
+    });
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-task-service-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;

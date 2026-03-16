@@ -6,6 +6,7 @@ import {
   AcpSessionSummary,
   Codebase,
   Note,
+  NoteEvent,
   NoteCollection,
   Project,
   Root,
@@ -293,9 +294,13 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [specSyncLoading, setSpecSyncLoading] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
+  const noteEventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
+  const noteReconnectTimerRef = useRef<number | null>(null);
   const allowReconnectRef = useRef(true);
+  const allowNoteReconnectRef = useRef(true);
   const latestEventIdRef = useRef<string | undefined>(undefined);
+  const latestNoteEventIdRef = useRef<string | undefined>(undefined);
   const initialSelectionAppliedRef = useRef<string | null>(null);
   const leftResizeStartRef = useRef({ width: 320, x: 0 });
 
@@ -1036,6 +1041,18 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
   }, []);
 
+  const stopNoteStream = useCallback((manual: boolean) => {
+    allowNoteReconnectRef.current = !manual;
+    if (noteReconnectTimerRef.current !== null) {
+      window.clearTimeout(noteReconnectTimerRef.current);
+      noteReconnectTimerRef.current = null;
+    }
+    if (noteEventSourceRef.current) {
+      noteEventSourceRef.current.close();
+      noteEventSourceRef.current = null;
+    }
+  }, []);
+
   const startStream = useCallback(() => {
     if (!selectedSession) {
       return;
@@ -1102,6 +1119,96 @@ export function ShellsSession(props: ShellsSessionProps) {
     startStream();
     return () => stopStream(true);
   }, [selectedSessionId, startStream, stopStream]);
+
+  const startNoteStream = useCallback(() => {
+    if (!workbenchSessionId) {
+      return;
+    }
+
+    stopNoteStream(false);
+    allowNoteReconnectRef.current = true;
+
+    const url = new URL(
+      resolveRuntimeApiUrl(
+        `/api/projects/${projectState.data.id}/note-events/stream`,
+      ),
+    );
+    const desktopRuntimeConfig = getCurrentDesktopRuntimeConfig();
+    if (desktopRuntimeConfig) {
+      url.searchParams.set(
+        'desktopSessionToken',
+        desktopRuntimeConfig.desktopSessionToken,
+      );
+    }
+    const latest = latestNoteEventIdRef.current;
+    if (latest) {
+      url.searchParams.set('sinceEventId', latest);
+    }
+
+    const source = new EventSource(url.toString(), { withCredentials: true });
+    const onEvent = (raw: string) => {
+      try {
+        const parsed = JSON.parse(raw) as Pick<
+          NoteEvent['data'],
+          'data' | 'eventId' | 'noteId' | 'projectId' | 'sessionId' | 'type'
+        >;
+        latestNoteEventIdRef.current = parsed.eventId;
+        const isSpecEvent = parsed.data.note.type === 'spec';
+        const isTaskLinkedEvent = Boolean(parsed.data.note.linkedTaskId);
+        const isWorkbenchScoped =
+          parsed.data.note.sessionId === null ||
+          parsed.data.note.sessionId === workbenchSessionId;
+
+        if (!isWorkbenchScoped && !isTaskLinkedEvent) {
+          return;
+        }
+
+        if (isSpecEvent) {
+          void refreshSpecPane();
+        }
+
+        if (isSpecEvent || isTaskLinkedEvent) {
+          void refreshTaskItems();
+        }
+      } catch {
+        // ignore non-json payloads
+      }
+    };
+
+    source.addEventListener('note-event', (event) => {
+      onEvent((event as MessageEvent<string>).data);
+    });
+    source.onmessage = (event) => {
+      onEvent(event.data);
+    };
+    source.onerror = () => {
+      source.close();
+      noteEventSourceRef.current = null;
+      if (!allowNoteReconnectRef.current) {
+        return;
+      }
+      noteReconnectTimerRef.current = window.setTimeout(() => {
+        startNoteStream();
+      }, STREAM_RETRY_DELAY_MS);
+    };
+    noteEventSourceRef.current = source;
+  }, [
+    projectState.data.id,
+    refreshSpecPane,
+    refreshTaskItems,
+    stopNoteStream,
+    workbenchSessionId,
+  ]);
+
+  useEffect(() => {
+    if (!workbenchSessionId) {
+      stopNoteStream(true);
+      return;
+    }
+
+    startNoteStream();
+    return () => stopNoteStream(true);
+  }, [startNoteStream, stopNoteStream, workbenchSessionId]);
 
   const selectSessionFromList = useCallback(
     async (session: State<AcpSessionSummary>, navigateToSession = true) => {

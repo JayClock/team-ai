@@ -17,6 +17,7 @@ import {
   getSpecialistById,
   throwSpecialistRoleMismatch,
 } from './specialist-service';
+import { resolveTaskWorkflowContext } from './task-workflow-service';
 
 const taskIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -607,6 +608,12 @@ export async function createTask(
   );
   const kind = ensureTaskKind(input.kind, assignment.assignedRole);
   const status = ensureTaskStatus(input.status, 'PENDING');
+  const workflowContext = resolveTaskWorkflowContext({
+    boardId: input.boardId,
+    columnId: input.columnId,
+    kind,
+    status,
+  });
   const now = new Date().toISOString();
   const taskId = createTaskId();
 
@@ -714,9 +721,9 @@ export async function createTask(
       assignedSpecialistId: assignment.assignedSpecialistId,
       assignedSpecialistName: assignment.assignedSpecialistName,
       assignee: input.assignee ?? null,
-      boardId: input.boardId ?? null,
+      boardId: workflowContext.boardId,
       codebaseId: workspaceBinding.codebaseId,
-      columnId: input.columnId ?? null,
+      columnId: workflowContext.columnId,
       completionSummary: input.completionSummary ?? null,
       createdAt: now,
       dependenciesJson: JSON.stringify(input.dependencies ?? []),
@@ -969,6 +976,13 @@ export async function updateTask(
     input.kind === undefined ? current.kind : input.kind,
     assignment.assignedRole,
   );
+  const status = ensureTaskStatus(input.status, currentStatus);
+  const workflowContext = resolveTaskWorkflowContext({
+    boardId: input.boardId === undefined ? current.board_id : input.boardId,
+    columnId: input.columnId,
+    kind,
+    status,
+  });
 
   const next = {
     acceptanceCriteriaJson:
@@ -983,9 +997,9 @@ export async function updateTask(
     assignedSpecialistId: assignment.assignedSpecialistId,
     assignedSpecialistName: assignment.assignedSpecialistName,
     assignee: input.assignee === undefined ? current.assignee : input.assignee,
-    boardId: input.boardId === undefined ? current.board_id : input.boardId,
+    boardId: workflowContext.boardId,
     codebaseId: workspaceBinding.codebaseId,
-    columnId: input.columnId === undefined ? current.column_id : input.columnId,
+    columnId: workflowContext.columnId,
     completionSummary:
       input.completionSummary === undefined
         ? current.completion_summary
@@ -1045,7 +1059,7 @@ export async function updateTask(
       input.sourceType === undefined
         ? current.source_type
         : input.sourceType ?? 'manual',
-    status: ensureTaskStatus(input.status, currentStatus),
+    status,
     title: input.title ?? current.title,
     triggerSessionId,
     updatedAt: new Date().toISOString(),

@@ -21,6 +21,7 @@ interface NoteEventRow {
   note_id: string;
   payload_json: string;
   project_id: string;
+  sequence?: number;
   session_id: string | null;
   source: 'user' | 'agent' | 'system';
   type: NoteEventType;
@@ -33,6 +34,69 @@ interface ListNoteEventsQuery {
   projectId: string;
   sessionId?: string;
   type?: NoteEventType;
+}
+
+interface ListNoteEventsSinceQuery {
+  limit?: number;
+  noteId?: string;
+  projectId: string;
+  sessionId?: string;
+  sinceEventId?: string;
+  type?: NoteEventType;
+}
+
+type NoteEventListener = (event: NoteEventEnvelopePayload) => void;
+
+type NoteEventSubscriptionFilter = {
+  noteId?: string;
+  projectId: string;
+  sessionId?: string;
+  type?: NoteEventType;
+};
+
+export class NoteEventStreamBroker {
+  private readonly listeners = new Set<{
+    filter: NoteEventSubscriptionFilter;
+    listener: NoteEventListener;
+  }>();
+
+  publish(event: NoteEventEnvelopePayload) {
+    for (const entry of this.listeners) {
+      if (entry.filter.projectId !== event.projectId) {
+        continue;
+      }
+      if (entry.filter.sessionId && entry.filter.sessionId !== event.sessionId) {
+        continue;
+      }
+      if (entry.filter.noteId && entry.filter.noteId !== event.noteId) {
+        continue;
+      }
+      if (entry.filter.type && entry.filter.type !== event.type) {
+        continue;
+      }
+
+      entry.listener(event);
+    }
+  }
+
+  subscribe(filter: NoteEventSubscriptionFilter, listener: NoteEventListener) {
+    const entry = {
+      filter,
+      listener,
+    };
+
+    this.listeners.add(entry);
+
+    return () => {
+      this.listeners.delete(entry);
+    };
+  }
+}
+
+const globalNoteEventStreamBroker = new NoteEventStreamBroker();
+
+export function getNoteEventStreamBroker() {
+  return globalNoteEventStreamBroker;
 }
 
 function createNoteEventId() {
@@ -136,6 +200,8 @@ export async function recordNoteEvent(
       type: event.type,
     });
 
+  getNoteEventStreamBroker().publish(event);
+
   return event;
 }
 
@@ -217,4 +283,93 @@ export async function listNoteEvents(
     total: total.count,
     type,
   };
+}
+
+function resolveSinceSequence(
+  sqlite: Database,
+  sinceEventId: string | undefined,
+) {
+  if (!sinceEventId) {
+    return 0;
+  }
+
+  const row = sqlite
+    .prepare(
+      `
+        SELECT sequence
+        FROM project_note_events
+        WHERE event_id = ?
+      `,
+    )
+    .get(sinceEventId) as { sequence: number } | undefined;
+
+  return row?.sequence ?? 0;
+}
+
+export async function listNoteEventsSince(
+  sqlite: Database,
+  query: ListNoteEventsSinceQuery,
+) {
+  const {
+    limit = 200,
+    noteId,
+    projectId,
+    sessionId,
+    sinceEventId,
+    type,
+  } = query;
+  await getProjectById(sqlite, projectId);
+
+  if (sessionId) {
+    const session = await getAcpSessionById(sqlite, sessionId);
+    if (session.project.id !== projectId) {
+      throwNoteEventSessionProjectMismatch(projectId, sessionId);
+    }
+  }
+
+  const filters = ['project_id = @projectId', 'sequence > @sinceSequence'];
+  const parameters: Record<string, unknown> = {
+    limit,
+    projectId,
+    sinceSequence: resolveSinceSequence(sqlite, sinceEventId),
+  };
+
+  if (sessionId) {
+    filters.push('session_id = @sessionId');
+    parameters.sessionId = sessionId;
+  }
+
+  if (noteId) {
+    filters.push('note_id = @noteId');
+    parameters.noteId = noteId;
+  }
+
+  if (type) {
+    filters.push('type = @type');
+    parameters.type = type;
+  }
+
+  const whereClause = filters.join(' AND ');
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT
+          sequence,
+          event_id,
+          project_id,
+          note_id,
+          session_id,
+          type,
+          source,
+          payload_json,
+          emitted_at
+        FROM project_note_events
+        WHERE ${whereClause}
+        ORDER BY sequence ASC
+        LIMIT @limit
+      `,
+    )
+    .all(parameters) as NoteEventRow[];
+
+  return rows.map(mapNoteEventRow);
 }

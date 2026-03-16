@@ -11,6 +11,7 @@ import {
   formatDateTime,
   formatSpecSyncStateLabel,
   formatTaskKindLabel,
+  formatTaskWorkflowColumnLabel,
   formatTaskSourceLabel,
   specSyncStateChipClasses,
   type SpecSyncSnapshot,
@@ -197,6 +198,11 @@ export function ProjectSessionSpecPane(props: {
                         {item.sourceEntryIndex !== null &&
                         item.sourceEntryIndex !== undefined ? (
                           <Badge label={`block #${item.sourceEntryIndex + 1}`} />
+                        ) : null}
+                        {item.columnId ? (
+                          <Badge
+                            label={`lane ${formatTaskWorkflowColumnLabel(item.columnId)}`}
+                          />
                         ) : null}
                         {item.executionSessionId ? (
                           <Badge label={`执行会话 ${item.executionSessionId}`} />
