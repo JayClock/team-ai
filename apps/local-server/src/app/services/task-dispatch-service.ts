@@ -14,6 +14,7 @@ import {
   createTaskOrchestrationEvent,
   taskOrchestrationEventNames,
 } from './task-orchestration-events';
+import { registerDelegationGroupSession } from './delegation-group-service';
 import {
   getTaskDispatchability,
   listDispatchableTasks,
@@ -394,6 +395,13 @@ export async function dispatchTask(
     const dispatchedTask = await updateTask(sqlite, hydratedTask.id, {
       triggerSessionId: createdSession.id,
     });
+    if (dispatchedTask.parallelGroup) {
+      await registerDelegationGroupSession(sqlite, {
+        groupId: dispatchedTask.parallelGroup,
+        sessionId: createdSession.id,
+        taskId: dispatchedTask.id,
+      });
+    }
 
     dispatchPhase = 'prompt_session';
     await callbacks.promptSession({

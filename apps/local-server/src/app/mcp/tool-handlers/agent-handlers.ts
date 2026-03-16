@@ -2,7 +2,10 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { listAgents } from '../../services/agent-service';
 import { readAgentConversation } from '../../services/acp-conversation-service';
-import { getOrCreateActiveDelegationGroup } from '../../services/delegation-group-service';
+import {
+  getOrCreateActiveDelegationGroup,
+  registerDelegationGroupTask,
+} from '../../services/delegation-group-service';
 import { getProjectById } from '../../services/project-service';
 import {
   agentsListArgsSchema,
@@ -47,6 +50,7 @@ export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
       (args.waitMode ?? 'after_all') === 'after_all'
         ? await getOrCreateActiveDelegationGroup(fastify.sqlite, {
             callerSessionId: args.callerSessionId,
+            parentSessionId: args.callerSessionId,
             projectId: args.projectId,
           })
         : null;
@@ -65,11 +69,18 @@ export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
         source: 'mcp_delegate_task_to_agent',
       },
     );
+    const registeredGroup =
+      group === null
+        ? null
+        : await registerDelegationGroupTask(fastify.sqlite, {
+            groupId: group.id,
+            taskId: task.id,
+          });
 
     return {
       delegation: {
         additionalInstructions: args.additionalInstructions ?? null,
-        delegationGroupId: group?.id ?? null,
+        delegationGroupId: registeredGroup?.id ?? null,
         requestedSpecialist: delegation.requested,
         resolvedRole: delegation.resolvedRole,
         resolvedSpecialist: {

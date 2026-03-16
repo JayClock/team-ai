@@ -651,4 +651,36 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE status = 'ACTIVE';
     `,
   },
+  {
+    version: '024_project_delegation_groups_membership',
+    sql: `
+      ALTER TABLE project_delegation_groups
+        ADD COLUMN parent_session_id TEXT REFERENCES project_acp_sessions(id);
+
+      ALTER TABLE project_delegation_groups
+        ADD COLUMN task_ids_json TEXT NOT NULL DEFAULT '[]';
+
+      ALTER TABLE project_delegation_groups
+        ADD COLUMN session_ids_json TEXT NOT NULL DEFAULT '[]';
+
+      ALTER TABLE project_delegation_groups
+        ADD COLUMN failure_reason TEXT;
+
+      UPDATE project_delegation_groups
+      SET
+        parent_session_id = COALESCE(parent_session_id, caller_session_id),
+        status = CASE
+          WHEN status = 'ACTIVE' THEN 'RUNNING'
+          ELSE status
+        END,
+        task_ids_json = COALESCE(task_ids_json, '[]'),
+        session_ids_json = COALESCE(session_ids_json, '[]');
+
+      DROP INDEX IF EXISTS idx_project_delegation_groups_active_caller;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_delegation_groups_open_caller
+        ON project_delegation_groups(project_id, caller_session_id)
+        WHERE status IN ('OPEN', 'RUNNING');
+    `,
+  },
 ];

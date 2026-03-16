@@ -183,7 +183,7 @@ function buildWakeMessage(input: {
   childSessionId: string;
   delegationGroup: {
     groupId: string;
-    status: 'ACTIVE' | 'COMPLETED';
+    status: 'OPEN' | 'RUNNING' | 'COMPLETED' | 'FAILED';
   } | null;
   noteId: string;
   task: Awaited<ReturnType<typeof getProjectTask>>;
@@ -234,10 +234,14 @@ async function maybeWakeParentSession(
     childSessionId: string;
     delegationGroup: {
       completedCount: number;
+      failureCount: number;
       groupId: string;
+      parentSessionId: string | null;
       pendingCount: number;
+      sessionIds: string[];
       settled: boolean;
-      status: 'ACTIVE' | 'COMPLETED';
+      status: 'OPEN' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+      taskIds: string[];
       totalCount: number;
     } | null;
     noteId: string;

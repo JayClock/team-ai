@@ -75,6 +75,9 @@ describe('sqlite initialization', () => {
     const runtimeProfileColumns = sqlite
       .prepare('PRAGMA table_info(project_runtime_profiles)')
       .all() as Array<{ name: string }>;
+    const delegationGroupColumns = sqlite
+      .prepare('PRAGMA table_info(project_delegation_groups)')
+      .all() as Array<{ name: string }>;
     const worktreeIndexes = sqlite
       .prepare('PRAGMA index_list(project_worktrees)')
       .all() as Array<{ name: string }>;
@@ -83,6 +86,9 @@ describe('sqlite initialization', () => {
       .all() as Array<{ name: string }>;
     const acpSessionIndexes = sqlite
       .prepare('PRAGMA index_list(project_acp_sessions)')
+      .all() as Array<{ name: string }>;
+    const delegationGroupIndexes = sqlite
+      .prepare('PRAGMA index_list(project_delegation_groups)')
       .all() as Array<{ name: string }>;
 
     expect(tables.map(({ name }) => name)).toEqual([
@@ -240,6 +246,19 @@ describe('sqlite initialization', () => {
       'skill_configs_json',
       'mcp_server_configs_json',
     ]);
+    expect(delegationGroupColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'project_id',
+      'caller_session_id',
+      'status',
+      'completed_at',
+      'created_at',
+      'updated_at',
+      'parent_session_id',
+      'task_ids_json',
+      'session_ids_json',
+      'failure_reason',
+    ]);
     expect(worktreeIndexes.map(({ name }) => name)).toEqual(
       expect.arrayContaining([
         'idx_project_worktrees_project_id',
@@ -259,6 +278,13 @@ describe('sqlite initialization', () => {
       expect.arrayContaining([
         'idx_project_acp_sessions_codebase_id',
         'idx_project_acp_sessions_worktree_id',
+      ]),
+    );
+    expect(delegationGroupIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_delegation_groups_project_id',
+        'idx_project_delegation_groups_caller_session_id',
+        'idx_project_delegation_groups_open_caller',
       ]),
     );
 

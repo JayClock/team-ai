@@ -4,8 +4,8 @@ import type { NotePayload, NoteType } from '../schemas/note';
 import type { TaskRunPayload } from '../schemas/task-run';
 import type { TaskPayload } from '../schemas/task';
 import {
-  completeDelegationGroup,
   getDelegationGroupProgress,
+  synchronizeDelegationGroupState,
 } from './delegation-group-service';
 import { recordNoteEvent } from './note-event-service';
 import {
@@ -41,10 +41,14 @@ interface ReportToParentInput {
 export interface ReportToParentResult {
   delegationGroup: {
     completedCount: number;
+    failureCount: number;
     groupId: string;
+    parentSessionId: string | null;
     pendingCount: number;
+    sessionIds: string[];
     settled: boolean;
-    status: 'ACTIVE' | 'COMPLETED';
+    status: 'OPEN' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+    taskIds: string[];
     totalCount: number;
   } | null;
   note: NotePayload;
@@ -419,14 +423,21 @@ export async function reportToParent(
           projectId: updatedTask.projectId,
         });
 
-  if (delegationGroup?.settled && delegationGroup.status !== 'COMPLETED') {
-    const completedGroup = await completeDelegationGroup(
-      sqlite,
-      delegationGroup.groupId,
-    );
+  if (
+    delegationGroup?.settled &&
+    delegationGroup.status !== 'COMPLETED' &&
+    delegationGroup.status !== 'FAILED'
+  ) {
+    const completedGroup = await synchronizeDelegationGroupState(sqlite, {
+      groupId: delegationGroup.groupId,
+      projectId: updatedTask.projectId,
+    });
     delegationGroup = {
       ...delegationGroup,
       status: completedGroup.status,
+      parentSessionId: completedGroup.parentSessionId,
+      sessionIds: completedGroup.sessionIds,
+      taskIds: completedGroup.taskIds,
     };
   }
 
@@ -434,10 +445,14 @@ export async function reportToParent(
     delegationGroup: delegationGroup
       ? {
           completedCount: delegationGroup.completedCount,
+          failureCount: delegationGroup.failureCount,
           groupId: delegationGroup.groupId,
+          parentSessionId: delegationGroup.parentSessionId,
           pendingCount: delegationGroup.pendingCount,
+          sessionIds: delegationGroup.sessionIds,
           settled: delegationGroup.settled,
           status: delegationGroup.status,
+          taskIds: delegationGroup.taskIds,
           totalCount: delegationGroup.totalCount,
         }
       : null,

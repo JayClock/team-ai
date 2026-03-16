@@ -311,26 +311,37 @@ describe('task report service', () => {
             id,
             project_id,
             caller_session_id,
+            parent_session_id,
             status,
             completed_at,
             created_at,
-            updated_at
+            updated_at,
+            task_ids_json,
+            session_ids_json,
+            failure_reason
           )
           VALUES (
             'dg_test_group',
             @projectId,
             @callerSessionId,
-            'ACTIVE',
+            @parentSessionId,
+            'RUNNING',
             NULL,
             @createdAt,
-            @updatedAt
+            @updatedAt,
+            @taskIdsJson,
+            @sessionIdsJson,
+            NULL
           )
         `,
       )
       .run({
         callerSessionId: rootSessionId,
         createdAt: '2026-03-16T00:00:00.000Z',
+        parentSessionId: rootSessionId,
         projectId: project.id,
+        sessionIdsJson: '[]',
+        taskIdsJson: JSON.stringify([firstTask.id, secondTask.id]),
         updatedAt: '2026-03-16T00:00:00.000Z',
       });
 
@@ -371,10 +382,14 @@ describe('task report service', () => {
 
     expect(firstResult.delegationGroup).toMatchObject({
       completedCount: 1,
+      failureCount: 0,
       groupId: 'dg_test_group',
+      parentSessionId: rootSessionId,
       pendingCount: 1,
+      sessionIds: expect.arrayContaining([]),
       settled: false,
-      status: 'ACTIVE',
+      status: 'RUNNING',
+      taskIds: expect.arrayContaining([firstTask.id, secondTask.id]),
       totalCount: 2,
     });
 
@@ -387,10 +402,14 @@ describe('task report service', () => {
 
     expect(secondResult.delegationGroup).toMatchObject({
       completedCount: 2,
+      failureCount: 0,
       groupId: 'dg_test_group',
+      parentSessionId: rootSessionId,
       pendingCount: 0,
+      sessionIds: expect.arrayContaining([]),
       settled: true,
       status: 'COMPLETED',
+      taskIds: expect.arrayContaining([firstTask.id, secondTask.id]),
       totalCount: 2,
     });
   });
