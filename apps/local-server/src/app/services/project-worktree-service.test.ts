@@ -10,6 +10,7 @@ import { ProblemError } from '../errors/problem-error';
 import { createProject } from './project-service';
 import { listProjectCodebases } from './project-codebase-service';
 import {
+  __worktreeTestUtils,
   createProjectWorktree,
   getProjectWorktreeById,
   listProjectWorktrees,
@@ -45,7 +46,9 @@ describe('project worktree service', () => {
       projectId: project.id,
       codebaseId: codebase.id,
       status: 'active',
+      branch: 'wt/Feature-Branch',
     });
+    expect(created.worktreePath).toContain('/Worktree-Project/Feature-Branch');
 
     const loaded = await getProjectWorktreeById(sqlite, project.id, created.id);
     expect(loaded.id).toBe(created.id);
@@ -85,6 +88,15 @@ describe('project worktree service', () => {
       status: 409,
       title: 'Worktree Conflict',
     });
+  });
+
+  it('builds task worktree branches with routa-style issue prefixes', () => {
+    expect(
+      __worktreeTestUtils.buildTaskWorktreeBranch(
+        'task_1234567890',
+        'Fix flaky worktree cleanup',
+      ),
+    ).toBe('issue/task_123-fix-flaky-worktree-cleanup');
   });
 
   async function createTestDatabase(): Promise<{ sqlite: Database }> {

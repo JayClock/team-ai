@@ -48,7 +48,7 @@ interface WorktreeRow {
 interface GitWorktreeServiceDependencies {
   ensureDirectory(path: string): Promise<void>;
   pathExists(path: string): Promise<boolean>;
-  resolveDefaultWorktreeRoot(projectId: string, codebaseId: string): string;
+  resolveDefaultWorktreeRoot(projectId: string): string;
   runGit(
     args: string[],
     cwd: string,
@@ -67,8 +67,8 @@ const defaultDependencies: GitWorktreeServiceDependencies = {
       return false;
     }
   },
-  resolveDefaultWorktreeRoot(projectId, codebaseId) {
-    return join(resolveDataDirectory(), 'worktrees', projectId, codebaseId);
+  resolveDefaultWorktreeRoot(projectId) {
+    return join(resolveDataDirectory(), 'worktrees', projectId);
   },
   async runGit(args, cwd) {
     return execFileAsync('git', args, {
@@ -82,6 +82,20 @@ const repoLocks = new Map<string, Promise<void>>();
 
 function createWorktreeId() {
   return `wt_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+}
+
+function buildTaskWorktreeSlug(taskId: string, title: string) {
+  const shortId = taskId.slice(0, 8);
+  const normalizedTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+  return normalizedTitle ? `${shortId}-${normalizedTitle}` : shortId;
+}
+
+function buildTaskWorktreeBranch(taskId: string, title: string) {
+  return `issue/${buildTaskWorktreeSlug(taskId, title)}`;
 }
 
 function mapWorktreeRow(row: WorktreeRow): WorktreePayload {
@@ -355,9 +369,10 @@ export async function createProjectWorktree(
 
     const worktreeRoot =
       input.worktreeRoot?.trim() ||
-      dependencies.resolveDefaultWorktreeRoot(projectId, codebaseId);
+      dependencies.resolveDefaultWorktreeRoot(projectId);
+    const codebaseLabel = branchToSafeDirName(codebase.title || codebase.id) || codebase.id;
     const worktreeDir = branchToSafeDirName(label ?? branch) || suffix;
-    const worktreePath = join(worktreeRoot, worktreeDir);
+    const worktreePath = join(worktreeRoot, codebaseLabel, worktreeDir);
     const id = createWorktreeId();
     const now = new Date().toISOString();
 
@@ -508,5 +523,7 @@ export async function validateProjectWorktree(
 
 export const __worktreeTestUtils = {
   branchToSafeDirName,
+  buildTaskWorktreeBranch,
+  buildTaskWorktreeSlug,
   withRepoLock,
 };
