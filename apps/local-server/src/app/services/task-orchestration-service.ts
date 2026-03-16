@@ -6,7 +6,7 @@ import type {
   DispatchTaskCallbacks,
   DispatchTaskResult,
 } from './task-dispatch-service';
-import { getTaskById, updateTask } from './task-service';
+import { getTaskById, updateTask, updateTaskFromMcp } from './task-service';
 
 export interface ExecuteTaskDispatchAttempt {
   attempted: boolean;
@@ -32,6 +32,10 @@ export interface AutoExecuteTaskPatch {
   assignedRole?: string | null;
   assignedSpecialistId?: string | null;
   status?: string;
+}
+
+export interface PatchTaskOptions extends ExecuteTaskOptions {
+  taskId: string;
 }
 
 const executableTaskStatuses = new Set([
@@ -167,4 +171,24 @@ export async function maybeAutoExecutePatchedTask(
   }
 
   return (await executeTask(sqlite, task.id, options)).task;
+}
+
+export async function patchTaskAndMaybeExecute(
+  sqlite: Database,
+  options: PatchTaskOptions,
+  patch: AutoExecuteTaskPatch,
+): Promise<TaskPayload> {
+  const task = await updateTask(sqlite, options.taskId, patch);
+
+  return await maybeAutoExecutePatchedTask(sqlite, task, patch, options);
+}
+
+export async function patchTaskFromMcpAndMaybeExecute(
+  sqlite: Database,
+  options: PatchTaskOptions,
+  patch: AutoExecuteTaskPatch,
+): Promise<TaskPayload> {
+  const task = await updateTaskFromMcp(sqlite, options.taskId, patch);
+
+  return await maybeAutoExecutePatchedTask(sqlite, task, patch, options);
 }

@@ -18,7 +18,6 @@ import {
   getTaskById,
   listTasks,
   taskStatusValues,
-  updateTaskFromMcp,
 } from '../services/task-service';
 
 const mcpAccessModeHeader = 'x-teamai-mcp-access-mode';
@@ -1096,8 +1095,8 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 request,
                 id,
                 {
-                  task: await workflow.maybeAutoExecutePatchedTask(
-                    await updateTaskFromMcp(fastify.sqlite, taskId, patch),
+                  task: await workflow.patchTaskFromMcpAndMaybeExecute(
+                    taskId,
                     patch,
                     {
                       logger: request.log,

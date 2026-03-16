@@ -8,6 +8,8 @@ import type { TaskExecutionRuntime } from './task-execution-runtime-service';
 import {
   type ExecuteTaskResult,
   executeTask as executeTaskWithCallbacks,
+  patchTaskAndMaybeExecute as patchTaskAndMaybeExecuteWithCallbacks,
+  patchTaskFromMcpAndMaybeExecute as patchTaskFromMcpAndMaybeExecuteWithCallbacks,
   maybeAutoExecutePatchedTask as maybeAutoExecutePatchedTaskWithCallbacks,
   type AutoExecuteTaskPatch,
 } from './task-orchestration-service';
@@ -39,6 +41,16 @@ export interface TaskWorkflowOrchestrator {
     taskId: string,
     options?: TaskWorkflowExecutionOptions,
   ): Promise<ExecuteTaskResult>;
+  patchTaskAndMaybeExecute(
+    taskId: string,
+    patch: AutoExecuteTaskPatch,
+    options?: TaskWorkflowExecutionOptions,
+  ): Promise<TaskPayload>;
+  patchTaskFromMcpAndMaybeExecute(
+    taskId: string,
+    patch: AutoExecuteTaskPatch,
+    options?: TaskWorkflowExecutionOptions,
+  ): Promise<TaskPayload>;
   maybeAutoExecutePatchedTask(
     task: TaskPayload,
     patch: AutoExecuteTaskPatch,
@@ -132,6 +144,42 @@ export function createTaskWorkflowOrchestrator(
           retryOfRunId: options.retryOfRunId,
           source: options.source,
         },
+      );
+    },
+    async patchTaskAndMaybeExecute(
+      taskId: string,
+      patch: AutoExecuteTaskPatch,
+      options: TaskWorkflowExecutionOptions = {},
+    ) {
+      return await patchTaskAndMaybeExecuteWithCallbacks(
+        dependencies.sqlite,
+        {
+          callbacks,
+          callerSessionId: options.callerSessionId,
+          logger: options.logger ?? dependencies.logger,
+          retryOfRunId: options.retryOfRunId,
+          source: options.source,
+          taskId,
+        },
+        patch,
+      );
+    },
+    async patchTaskFromMcpAndMaybeExecute(
+      taskId: string,
+      patch: AutoExecuteTaskPatch,
+      options: TaskWorkflowExecutionOptions = {},
+    ) {
+      return await patchTaskFromMcpAndMaybeExecuteWithCallbacks(
+        dependencies.sqlite,
+        {
+          callbacks,
+          callerSessionId: options.callerSessionId,
+          logger: options.logger ?? dependencies.logger,
+          retryOfRunId: options.retryOfRunId,
+          source: options.source,
+          taskId,
+        },
+        patch,
       );
     },
     async retryTaskRun(

@@ -6,7 +6,6 @@ import {
   deleteTask,
   getTaskById,
   listTasks,
-  updateTask,
 } from '../services/task-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
@@ -164,9 +163,8 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.patch('/tasks/:taskId', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
-    const task = await updateTask(fastify.sqlite, taskId, body);
-    const executedTask = await workflow.maybeAutoExecutePatchedTask(
-      task,
+    const executedTask = await workflow.patchTaskAndMaybeExecute(
+      taskId,
       body,
       {
         logger: request.log,
