@@ -1,15 +1,21 @@
+import { execFile } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import Fastify from 'fastify';
 import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import { createProject } from '../services/project-service';
+import { listProjectCodebases } from '../services/project-codebase-service';
+import { createProjectWorktree } from '../services/project-worktree-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import codebasesRoute from './codebases';
+
+const execFileAsync = promisify(execFile);
 
 describe('codebases route', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];
@@ -114,6 +120,48 @@ describe('codebases route', () => {
     });
   });
 
+  it('deletes codebases and cleans up attached worktrees first', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+    fastify.decorate('sqlite', sqlite);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(codebasesRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const repoPath = await createGitRepository();
+    const project = await createProject(sqlite, {
+      title: 'Delete Codebase Route',
+      repoPath,
+    });
+    const [codebase] = (await listProjectCodebases(sqlite, project.id)).items;
+
+    await createProjectWorktree(sqlite, project.id, codebase.id, {
+      label: 'Delete Route Worktree',
+    });
+
+    const response = await fastify.inject({
+      method: 'DELETE',
+      url: `/api/projects/${project.id}/codebases/${codebase.id}`,
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(
+      (
+        sqlite
+          .prepare(
+            `
+              SELECT COUNT(*) AS count
+              FROM project_worktrees
+              WHERE codebase_id = ? AND deleted_at IS NULL
+            `,
+          )
+          .get(codebase.id) as { count: number }
+      ).count,
+    ).toBe(0);
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-codebase-route-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
@@ -132,5 +180,24 @@ describe('codebases route', () => {
     });
 
     return sqlite;
+  }
+
+  async function createGitRepository() {
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-codebase-route-repo-'));
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+
+    await execFileAsync('git', ['init', '--initial-branch=main'], { cwd: repoPath });
+    await execFileAsync('git', ['config', 'user.name', 'Team AI Test'], {
+      cwd: repoPath,
+    });
+    await execFileAsync('git', ['config', 'user.email', 'team-ai@example.test'], {
+      cwd: repoPath,
+    });
+    await execFileAsync('git', ['commit', '--allow-empty', '-m', 'initial'], {
+      cwd: repoPath,
+    });
+    return repoPath;
   }
 });

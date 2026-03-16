@@ -6,6 +6,7 @@ import {
 } from '../presenters/codebase-presenter';
 import {
   cloneProjectCodebase,
+  deleteProjectCodebaseById,
   getProjectCodebaseById,
   listProjectCodebases,
 } from '../services/project-codebase-service';
@@ -23,6 +24,10 @@ const codebaseParamsSchema = z.object({
 const cloneProjectCodebaseBodySchema = z.object({
   repositoryUrl: z.string().trim().min(1),
   title: z.string().trim().min(1).optional(),
+});
+
+const deleteCodebaseQuerySchema = z.object({
+  deleteBranches: z.coerce.boolean().optional(),
 });
 
 const codebasesRoute: FastifyPluginAsync = async (fastify) => {
@@ -69,7 +74,24 @@ const codebasesRoute: FastifyPluginAsync = async (fastify) => {
       codebase: presentCodebase(result.codebase),
     };
   });
+
+  fastify.delete(
+    '/projects/:projectId/codebases/:codebaseId',
+    async (request, reply) => {
+      const { codebaseId, projectId } = codebaseParamsSchema.parse(
+        request.params,
+      );
+      const query = deleteCodebaseQuerySchema.parse(request.query);
+
+      await deleteProjectCodebaseById(
+        fastify.sqlite,
+        projectId,
+        codebaseId,
+        query,
+      );
+      reply.code(204).send();
+    },
+  );
 };
 
 export default codebasesRoute;
-

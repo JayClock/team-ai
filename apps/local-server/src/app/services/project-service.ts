@@ -382,6 +382,8 @@ export async function deleteProject(
   sqlite: Database,
   projectId: string,
 ): Promise<void> {
+  await deleteProjectCodebases(sqlite, projectId);
+
   const result = sqlite
     .prepare(
       `
@@ -401,6 +403,4 @@ export async function deleteProject(
   if (result.changes === 0) {
     throwProjectNotFound(projectId);
   }
-
-  await deleteProjectCodebases(sqlite, projectId);
 }

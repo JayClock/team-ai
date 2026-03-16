@@ -11,6 +11,10 @@ import {
   ensureManagedRepository,
   type ManagedRepositoryServiceDependencies,
 } from './managed-repository-service';
+import {
+  listProjectWorktrees,
+  removeProjectWorktree,
+} from './project-worktree-service';
 
 const codebaseIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -325,8 +329,34 @@ export async function syncProjectDefaultCodebase(
 export async function deleteProjectCodebases(
   sqlite: Database,
   projectId: string,
+  input: {
+    deleteBranches?: boolean;
+  } = {},
 ): Promise<void> {
+  const codebases = await listProjectCodebases(sqlite, projectId);
+
+  for (const codebase of codebases.items) {
+    await deleteProjectCodebaseById(sqlite, projectId, codebase.id, input);
+  }
+}
+
+export async function deleteProjectCodebaseById(
+  sqlite: Database,
+  projectId: string,
+  codebaseId: string,
+  input: {
+    deleteBranches?: boolean;
+  } = {},
+): Promise<void> {
+  await getProjectCodebaseById(sqlite, projectId, codebaseId);
   const now = new Date().toISOString();
+  const worktrees = await listProjectWorktrees(sqlite, projectId, codebaseId);
+
+  for (const worktree of worktrees.items) {
+    await removeProjectWorktree(sqlite, projectId, worktree.id, {
+      deleteBranch: input.deleteBranches,
+    });
+  }
 
   sqlite
     .prepare(
@@ -335,11 +365,13 @@ export async function deleteProjectCodebases(
         SET
           deleted_at = @deletedAt,
           updated_at = @updatedAt
-        WHERE project_id = @projectId
+        WHERE id = @codebaseId
+          AND project_id = @projectId
           AND deleted_at IS NULL
       `,
     )
     .run({
+      codebaseId,
       projectId,
       deletedAt: now,
       updatedAt: now,
