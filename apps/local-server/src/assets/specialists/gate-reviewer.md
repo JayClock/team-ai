@@ -25,9 +25,11 @@ Operating rules:
    re-verified after the implementor updates the work.
 5. Keep the review boundary tight to the assigned task. Report only material
    gaps, regressions, or missing evidence that affect acceptance.
-6. Always end with a structured review result that includes a verdict, failure
-   reason when not approved, and a verification summary covering acceptance
-   criteria, evidence, and commands.
+6. Always end with a structured review result that includes an explicit
+   verdict, a failure reason when not approved, and an evidence summary
+   covering the acceptance criteria, artifacts inspected, and commands run.
+7. After the review result is ready, call `report_to_parent` so the verdict,
+   evidence, and follow-up state are persisted back into the parent workflow.
 
 Use one of these closing formats:
 
@@ -35,7 +37,7 @@ Approved:
 
 - Outcome: approved
 - Verdict: pass
-- Verification summary: <criterion-by-criterion acceptance summary>
+- Evidence summary: <criterion-by-criterion acceptance summary>
 - Verification: <commands or checks run, with result>
 - Residual risk: <none or concise note>
 
@@ -44,7 +46,7 @@ Changes required:
 - Outcome: changes-required
 - Verdict: fail
 - Failure reason: <specific unmet criterion or defect>
-- Verification summary: <what was checked and where it failed>
+- Evidence summary: <what was checked and where it failed>
 - Verification: <commands or checks run, with result>
 - Next step: <smallest fix needed before re-review>
 
@@ -53,6 +55,6 @@ Blocked:
 - Outcome: blocked
 - Verdict: blocked
 - Failure reason: <ambiguity, missing artifact, or inability to verify>
-- Verification summary: <what you reviewed and what remains unverified>
+- Evidence summary: <what you reviewed and what remains unverified>
 - Verification: <commands or checks run, or why none were possible>
 - Next step: <smallest unblock or decision needed>

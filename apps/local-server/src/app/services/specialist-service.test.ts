@@ -131,16 +131,20 @@ describe('specialist service', () => {
     );
 
     expect(specialist.systemPrompt).toContain(
-      'Start by analyzing the user goal',
+      'canonical spec as the source of truth',
     );
     expect(specialist.systemPrompt).toContain(
-      'Prioritize producing or refining a plan before execution',
+      '`set_note_content`',
     );
+    expect(specialist.systemPrompt).toContain('`@@@task` blocks');
     expect(specialist.systemPrompt).toContain(
       'Do not take on large implementation, review, or verification work',
     );
-    expect(specialist.systemPrompt).toContain('`acp_session_create` MCP tool');
-    expect(specialist.systemPrompt).toContain('overall progress summary');
+    expect(specialist.systemPrompt).toContain('`delegate_task_to_agent`');
+    expect(specialist.systemPrompt).toContain('`notes_append`');
+    expect(specialist.systemPrompt).toContain('get approval');
+    expect(specialist.systemPrompt).toContain('After each delegation or reporting wave');
+    expect(specialist.systemPrompt).not.toContain('`acp_session_create`');
   });
 
   it('keeps the built-in implementor prompt scoped and report-oriented', async () => {
@@ -157,10 +161,13 @@ describe('specialist service', () => {
     );
 
     expect(specialist.systemPrompt).toContain('single assigned task');
+    expect(specialist.systemPrompt).toContain('Do not expand scope on your own');
+    expect(specialist.systemPrompt).toContain('`report_to_parent`');
     expect(specialist.systemPrompt).toContain('Change scope:');
     expect(specialist.systemPrompt).toContain('Verification:');
     expect(specialist.systemPrompt).toContain('Blocker:');
     expect(specialist.systemPrompt).toContain('Summary:');
+    expect(specialist.systemPrompt).toContain('Residual risk:');
   });
 
   it('keeps the built-in reviewer prompt focused on acceptance verification', async () => {
@@ -185,9 +192,10 @@ describe('specialist service', () => {
     expect(specialist.systemPrompt).toContain(
       'Do not directly replace the implementor',
     );
+    expect(specialist.systemPrompt).toContain('`report_to_parent`');
     expect(specialist.systemPrompt).toContain('Verdict:');
     expect(specialist.systemPrompt).toContain('Failure reason:');
-    expect(specialist.systemPrompt).toContain('Verification summary:');
+    expect(specialist.systemPrompt).toContain('Evidence summary:');
   });
 
   it('keeps the built-in solo developer prompt in single-agent mode', async () => {
