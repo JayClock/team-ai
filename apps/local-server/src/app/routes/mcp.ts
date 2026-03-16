@@ -4,7 +4,16 @@ import { getErrorDiagnostics } from '../diagnostics';
 import type { ProblemDetails } from '../errors/problem-error';
 import { ProblemError, problemTypeToCode } from '../errors/problem-error';
 import { recordNoteEvent } from '../services/note-event-service';
-import { createNote, getNoteById } from '../services/note-service';
+import {
+  createNote,
+  findSpecNoteByScope,
+  getNoteById,
+  updateNote,
+} from '../services/note-service';
+import {
+  parseSpecTaskBlocks,
+  syncSpecNoteToTasks,
+} from '../services/spec-task-sync-service';
 import {
   cancelAcpSession,
   getAcpSessionById,
@@ -163,6 +172,19 @@ const notesAppendArgsSchema = z.object({
   source: noteSourceSchema.default('agent'),
   taskId: z.string().trim().min(1).optional(),
   title: z.string().trim().min(1),
+  type: noteTypeSchema.default('general'),
+});
+
+const setNoteContentArgsSchema = z.object({
+  assignedAgentIds: stringArraySchema.optional(),
+  content: z.string(),
+  noteId: z.string().trim().min(1).optional(),
+  parentNoteId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  source: noteSourceSchema.default('agent'),
+  taskId: z.string().trim().min(1).optional(),
+  title: z.string().trim().min(1).optional(),
   type: noteTypeSchema.default('general'),
 });
 
@@ -379,6 +401,45 @@ const mcpToolDefinitions: readonly McpToolDefinition[] = [
           },
           page: { type: 'number', minimum: 1, default: 1 },
           pageSize: { type: 'number', minimum: 1, maximum: 100, default: 20 },
+        },
+      },
+    },
+  },
+  {
+    access: 'write',
+    tool: {
+      annotations: {
+        readOnlyHint: false,
+      },
+      name: 'set_note_content',
+      title: 'Set Note Content',
+      description:
+        'Create or replace a note. For spec notes, this also synchronizes structured @@@task blocks into project tasks.',
+      inputSchema: {
+        type: 'object',
+        required: ['projectId', 'content'],
+        properties: {
+          projectId: { type: 'string' },
+          noteId: { type: 'string' },
+          sessionId: { type: 'string' },
+          taskId: { type: 'string' },
+          parentNoteId: { type: 'string' },
+          title: { type: 'string' },
+          content: { type: 'string' },
+          type: {
+            type: 'string',
+            enum: ['spec', 'task', 'general'],
+            default: 'general',
+          },
+          source: {
+            type: 'string',
+            enum: ['user', 'agent', 'system'],
+            default: 'agent',
+          },
+          assignedAgentIds: {
+            type: 'array',
+            items: { type: 'string' },
+          },
         },
       },
     },
@@ -1146,6 +1207,117 @@ const mcpRoute: FastifyPluginAsync = async (fastify) => {
                 request,
                 id,
                 await listTaskRuns(fastify.sqlite, args),
+                auditContext,
+              );
+            }
+            case 'set_note_content': {
+              const args = setNoteContentArgsSchema.parse(toolCall.arguments);
+              await getProjectById(fastify.sqlite, args.projectId);
+              if (args.taskId) {
+                await getProjectTask(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.taskId,
+                );
+              }
+              if (args.sessionId) {
+                await getProjectSession(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.sessionId,
+                );
+              }
+              if (args.parentNoteId) {
+                await getProjectNote(
+                  fastify.sqlite,
+                  args.projectId,
+                  args.parentNoteId,
+                );
+              }
+
+              if (args.type === 'spec') {
+                parseSpecTaskBlocks(args.content);
+              }
+
+              let note = args.noteId
+                ? await getProjectNote(
+                    fastify.sqlite,
+                    args.projectId,
+                    args.noteId,
+                  )
+                : null;
+              if (!note && args.type === 'spec') {
+                note = await findSpecNoteByScope(fastify.sqlite, {
+                  projectId: args.projectId,
+                  sessionId: args.sessionId,
+                });
+              }
+
+              if (!note && !args.title) {
+                throw new ProblemError({
+                  type: 'https://team-ai.dev/problems/mcp-note-title-required',
+                  title: 'MCP Note Title Required',
+                  status: 400,
+                  detail:
+                    'set_note_content requires title when creating a new note',
+                });
+              }
+
+              const nextTitle =
+                args.title ??
+                note?.title ??
+                (args.type === 'spec' ? 'Spec' : null);
+              if (!nextTitle) {
+                throw new ProblemError({
+                  type: 'https://team-ai.dev/problems/mcp-note-title-required',
+                  title: 'MCP Note Title Required',
+                  status: 400,
+                  detail:
+                    'set_note_content requires title when creating a new note',
+                });
+              }
+
+              const savedNote = note
+                ? await updateNote(fastify.sqlite, note.id, {
+                    assignedAgentIds: args.assignedAgentIds,
+                    content: args.content,
+                    linkedTaskId: args.taskId,
+                    parentNoteId: args.parentNoteId,
+                    sessionId: args.sessionId,
+                    source: args.source,
+                    title: nextTitle,
+                    type: args.type,
+                  })
+                : await createNote(fastify.sqlite, {
+                    assignedAgentIds: args.assignedAgentIds,
+                    content: args.content,
+                    linkedTaskId: args.taskId,
+                    parentNoteId: args.parentNoteId,
+                    projectId: args.projectId,
+                    sessionId: args.sessionId,
+                    source: args.source,
+                    title: nextTitle,
+                    type: args.type,
+                  });
+
+              await recordNoteEvent(fastify.sqlite, {
+                note: savedNote,
+                type: note ? 'updated' : 'created',
+              });
+
+              const taskSync =
+                savedNote.type === 'spec'
+                  ? await syncSpecNoteToTasks(fastify.sqlite, savedNote)
+                  : null;
+
+              return toolResult(
+                request,
+                id,
+                {
+                  note: savedNote,
+                  scope: describeNoteScope(savedNote),
+                  taskSync,
+                },
                 auditContext,
               );
             }

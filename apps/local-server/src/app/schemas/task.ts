@@ -84,6 +84,9 @@ export interface CreateTaskInput {
   resultSessionId?: string | null;
   sessionId?: string | null;
   scope?: string | null;
+  sourceEntryIndex?: number | null;
+  sourceEventId?: string | null;
+  sourceType?: string | null;
   status?: string;
   title: string;
   verificationCommands?: string[];
@@ -122,6 +125,9 @@ export interface UpdateTaskInput {
   scope?: string | null;
   resultSessionId?: string | null;
   sessionId?: string | null;
+  sourceEntryIndex?: number | null;
+  sourceEventId?: string | null;
+  sourceType?: string | null;
   status?: string;
   title?: string;
   triggerSessionId?: string | null;

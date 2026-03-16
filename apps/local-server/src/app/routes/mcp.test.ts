@@ -9,7 +9,7 @@ import taskWorkflowOrchestratorPlugin from '../plugins/task-workflow-orchestrato
 import { createAgent } from '../services/agent-service';
 import { createNote, getNoteById } from '../services/note-service';
 import { createProject } from '../services/project-service';
-import { createTask } from '../services/task-service';
+import { createTask, listTasks } from '../services/task-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import acpRoute from './acp';
 import mcpRoute from './mcp';
@@ -174,6 +174,7 @@ describe('mcp route', () => {
         'task_update',
         'task_execute',
         'task_runs_list',
+        'set_note_content',
         'notes_append',
         'acp_session_create',
         'acp_session_prompt',
@@ -644,6 +645,7 @@ describe('mcp route', () => {
     );
     expect(toolNames).not.toContain('task_update');
     expect(toolNames).not.toContain('task_execute');
+    expect(toolNames).not.toContain('set_note_content');
     expect(toolNames).not.toContain('notes_append');
     expect(toolNames).not.toContain('acp_session_create');
     expect(toolNames).not.toContain('acp_session_prompt');
@@ -787,6 +789,227 @@ describe('mcp route', () => {
         toolName: 'task_update',
       }),
       'MCP tool audit failure',
+    );
+  });
+
+  it('sets canonical spec note content and syncs task blocks idempotently', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-spec-sync-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.provider}`,
+        provider: input.provider,
+      })),
+      deleteSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-spec-sync',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(taskWorkflowOrchestratorPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Spec Sync Project',
+      repoPath: '/tmp/team-ai-mcp-spec-sync-project',
+    });
+    const rootSessionId = 'acps_spec_sync_root';
+    insertAcpSession(fastify.sqlite, {
+      cwd: '/tmp/team-ai-mcp-spec-sync-project',
+      id: rootSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const initialContent = `
+## Goal
+Ship a routa-style workflow.
+
+@@@task
+# Implement spec sync
+Build the first spec-to-task sync path.
+
+## Scope
+apps/local-server sync path
+
+## Definition of Done
+- Spec notes create tasks
+- Task sync is idempotent
+
+## Verification
+- npx vitest run apps/local-server/src/app/routes/mcp.test.ts
+@@@
+
+@@@task
+# Review spec sync
+Verify the generated tasks and note state.
+
+## Scope
+Validation and review logic
+
+## Definition of Done
+- Review output is persisted
+
+## Verification
+- npx vitest run apps/local-server/src/app/services/spec-task-sync-service.test.ts
+@@@
+`;
+
+    const firstResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-set-spec-first',
+        method: 'tools/call',
+        params: {
+          name: 'set_note_content',
+          arguments: {
+            content: initialContent,
+            projectId: project.id,
+            sessionId: rootSessionId,
+            title: 'Execution Spec',
+            type: 'spec',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(firstResponse.statusCode).toBe(200);
+    expect(firstResponse.json().result.content[0].json).toMatchObject({
+      note: {
+        projectId: project.id,
+        sessionId: rootSessionId,
+        title: 'Execution Spec',
+        type: 'spec',
+      },
+      taskSync: {
+        createdCount: 2,
+        parsedCount: 2,
+        skippedCount: 0,
+        updatedCount: 0,
+      },
+    });
+
+    const firstPayload = firstResponse.json().result.content[0].json as {
+      note: { id: string };
+      taskSync: { tasks: Array<{ taskId: string }> };
+    };
+    const firstTaskIds = firstPayload.taskSync.tasks.map((task) => task.taskId);
+
+    const updatedContent = `
+## Goal
+Ship a routa-style workflow.
+
+@@@task
+# Implement canonical spec sync
+Build the first spec-to-task sync path with canonical note updates.
+
+## Scope
+apps/local-server sync path
+
+## Definition of Done
+- Spec notes create tasks
+- Task sync is idempotent
+
+## Verification
+- npx vitest run apps/local-server/src/app/routes/mcp.test.ts
+@@@
+
+@@@task
+# Review spec sync
+Verify the generated tasks and note state.
+
+## Scope
+Validation and review logic
+
+## Definition of Done
+- Review output is persisted
+
+## Verification
+- npx vitest run apps/local-server/src/app/services/spec-task-sync-service.test.ts
+@@@
+`;
+
+    const secondResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-set-spec-second',
+        method: 'tools/call',
+        params: {
+          name: 'set_note_content',
+          arguments: {
+            content: updatedContent,
+            projectId: project.id,
+            sessionId: rootSessionId,
+            type: 'spec',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(secondResponse.statusCode).toBe(200);
+    expect(secondResponse.json().result.content[0].json).toMatchObject({
+      note: {
+        id: firstPayload.note.id,
+        projectId: project.id,
+        sessionId: rootSessionId,
+        type: 'spec',
+      },
+      taskSync: {
+        createdCount: 0,
+        parsedCount: 2,
+        skippedCount: 0,
+        updatedCount: 2,
+      },
+    });
+
+    const syncedTasks = await listTasks(fastify.sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+      sessionId: rootSessionId,
+    });
+
+    expect(syncedTasks.total).toBe(2);
+    expect(syncedTasks.items.map((task) => task.id).sort()).toEqual(
+      firstTaskIds.sort(),
+    );
+    expect(syncedTasks.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'implement',
+          title: 'Implement canonical spec sync',
+        }),
+        expect.objectContaining({
+          kind: 'review',
+          title: 'Review spec sync',
+        }),
+      ]),
     );
   });
 

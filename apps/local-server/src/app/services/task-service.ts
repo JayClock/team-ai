@@ -433,6 +433,9 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
           parent_task_id,
           execution_session_id,
           result_session_id,
+          source_type,
+          source_event_id,
+          source_entry_index,
           session_id,
           codebase_id,
           worktree_id,
@@ -731,9 +734,9 @@ export async function createTask(
       sessionId,
       scope: input.scope ?? null,
       status,
-      sourceEntryIndex: null,
-      sourceEventId: null,
-      sourceType: 'manual',
+      sourceEntryIndex: input.sourceEntryIndex ?? null,
+      sourceEventId: input.sourceEventId ?? null,
+      sourceType: input.sourceType ?? 'manual',
       title: input.title,
       triggerSessionId: null,
       updatedAt: now,
@@ -829,6 +832,9 @@ export async function listTasks(
           parent_task_id,
           execution_session_id,
           result_session_id,
+          source_type,
+          source_event_id,
+          source_entry_index,
           session_id,
           codebase_id,
           worktree_id,
@@ -1020,6 +1026,18 @@ export async function updateTask(
     scope: input.scope === undefined ? current.scope : input.scope,
     resultSessionId,
     sessionId,
+    sourceEntryIndex:
+      input.sourceEntryIndex === undefined
+        ? current.source_entry_index
+        : input.sourceEntryIndex,
+    sourceEventId:
+      input.sourceEventId === undefined
+        ? current.source_event_id
+        : input.sourceEventId,
+    sourceType:
+      input.sourceType === undefined
+        ? current.source_type
+        : input.sourceType ?? 'manual',
     status: ensureTaskStatus(input.status, currentStatus),
     title: input.title ?? current.title,
     triggerSessionId,
@@ -1079,6 +1097,9 @@ export async function updateTask(
           parent_task_id = @parentTaskId,
           execution_session_id = @executionSessionId,
           result_session_id = @resultSessionId,
+          source_type = @sourceType,
+          source_event_id = @sourceEventId,
+          source_entry_index = @sourceEntryIndex,
           worktree_id = @worktreeId,
           updated_at = @updatedAt
         WHERE id = @id AND deleted_at IS NULL

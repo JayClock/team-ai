@@ -299,6 +299,53 @@ export async function getNoteById(
   return mapNoteRow(getNoteRow(sqlite, noteId));
 }
 
+export async function findSpecNoteByScope(
+  sqlite: Database,
+  input: {
+    projectId: string;
+    sessionId?: string | null;
+  },
+): Promise<NotePayload | null> {
+  await getProjectById(sqlite, input.projectId);
+  await ensureSessionProjectMatch(sqlite, input.projectId, input.sessionId);
+
+  const row = sqlite
+    .prepare(
+      `
+        SELECT
+          id,
+          project_id,
+          session_id,
+          type,
+          title,
+          content,
+          format,
+          parent_note_id,
+          linked_task_id,
+          assigned_agent_ids_json,
+          source,
+          created_at,
+          updated_at
+        FROM project_notes
+        WHERE project_id = @projectId
+          AND type = 'spec'
+          AND deleted_at IS NULL
+          AND (
+            (@sessionId IS NULL AND session_id IS NULL)
+            OR session_id = @sessionId
+          )
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT 1
+      `,
+    )
+    .get({
+      projectId: input.projectId,
+      sessionId: input.sessionId ?? null,
+    }) as NoteRow | undefined;
+
+  return row ? mapNoteRow(row) : null;
+}
+
 export async function createNote(
   sqlite: Database,
   input: CreateNoteInput,
