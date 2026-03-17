@@ -20,6 +20,7 @@ import {
   listRecentWorkflowRuns,
   listRunningWorkflowRunIds,
 } from '../services/workflow-service';
+import type { TracePayload } from '../schemas/trace';
 import { listTasks } from '../services/task-service';
 import type {
   TaskLaneHandoffPayload,
@@ -99,6 +100,24 @@ function getLatestLaneHandoff(
         ),
       )[0] ?? null
   );
+}
+
+function getOrchestrationEventName(
+  trace: Pick<TracePayload, 'payload'>,
+): string | null {
+  const orchestration = trace.payload.orchestration;
+
+  if (!orchestration || typeof orchestration !== 'object') {
+    return null;
+  }
+
+  if (!('eventName' in orchestration)) {
+    return null;
+  }
+
+  return typeof orchestration.eventName === 'string'
+    ? orchestration.eventName
+    : null;
 }
 
 const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
@@ -235,12 +254,7 @@ const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
         byEventType: traceStats.byEventType,
         recentOrchestrationTraces: recentOrchestrationTraces.map((trace) => ({
           createdAt: trace.createdAt,
-          eventName:
-            typeof trace.payload.orchestration === 'object' &&
-            trace.payload.orchestration &&
-            typeof trace.payload.orchestration.eventName === 'string'
-              ? trace.payload.orchestration.eventName
-              : null,
+          eventName: getOrchestrationEventName(trace),
           id: trace.id,
           sessionId: trace.sessionId,
           summary: trace.summary,

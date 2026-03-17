@@ -2,10 +2,10 @@ import type { Database } from 'better-sqlite3';
 import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
 import type { DiagnosticLogger } from '../diagnostics';
 import type { AcpStreamBroker } from '../plugins/acp-stream';
-import type { PromptSessionInput } from '../schemas/acp';
 import {
   createAcpSession,
   promptAcpSession,
+  type PromptSessionInput,
 } from './acp-service';
 import type { TaskSessionDispatchCallbacks } from './task-session-dispatch-service';
 
@@ -85,8 +85,7 @@ export function createTaskSessionDispatchCallbacks(
     async createSession(input) {
       const session = await boundary.createSession(input, {
         source:
-          sources.createSessionSource ??
-          'task_session_runtime_create_session',
+          sources.createSessionSource ?? 'task_session_runtime_create_session',
       });
 
       return {

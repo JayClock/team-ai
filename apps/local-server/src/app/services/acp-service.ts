@@ -140,7 +140,7 @@ interface SessionHistorySummaryRow {
   type: AcpEventUpdatePayload['eventType'];
 }
 
-interface PromptSessionInput {
+export interface PromptSessionInput {
   eventId?: string;
   prompt: string;
   timeoutMs?: number;
@@ -823,12 +823,12 @@ async function syncTaskExecutionOutcome(
         verificationReport:
           currentTask.verification_report ?? computedOutcome.verificationReport,
         verificationVerdict:
-          currentTask.verification_verdict ?? computedOutcome.verificationVerdict,
+          currentTask.verification_verdict ??
+          computedOutcome.verificationVerdict,
       }
     : computedOutcome;
   const nextTaskStatus =
-    taskStatusOverride ??
-    (hasManualReportOutcome ? currentTask.status : state);
+    taskStatusOverride ?? (hasManualReportOutcome ? currentTask.status : state);
 
   updateTaskExecutionState(sqlite, {
     taskId: taskRun.task_id,
@@ -1122,10 +1122,7 @@ function appendLocalEvent(
   return event;
 }
 
-export function hasAcpSessionEvent(
-  sqlite: Database,
-  eventId: string,
-) {
+export function hasAcpSessionEvent(sqlite: Database, eventId: string) {
   const row = sqlite
     .prepare(
       `
@@ -1523,11 +1520,8 @@ export async function createAcpSession(
   input: CreateSessionInput,
   options: AcpServiceOptions = {},
 ): Promise<AcpSessionPayload> {
-  const {
-    model,
-    orchestrationMode,
-    provider,
-  } = await resolveAcpSessionDefaults(sqlite, input);
+  const { model, orchestrationMode, provider } =
+    await resolveAcpSessionDefaults(sqlite, input);
   const project = await getProjectById(sqlite, input.projectId);
   const parentSession = input.parentSessionId
     ? getSessionRow(sqlite, input.parentSessionId)

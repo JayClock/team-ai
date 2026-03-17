@@ -9,6 +9,7 @@ import type { RoleValue } from '../schemas/role';
 import type { SpecialistPayload } from '../schemas/specialist';
 import type { TaskPayload } from '../schemas/task';
 import { getProjectRuntimeProfile } from './project-runtime-profile-service';
+import { ensureRoleValue } from './specialist-service';
 import {
   buildTaskOrchestrationEventContext,
   createTaskOrchestrationEvent,
@@ -584,37 +585,39 @@ export async function dispatchTaskSessions(
   );
 
   if (duplicateWaveDispatch && taskIds) {
-    const claimedResults = await Promise.all(
-      taskIds.slice(0, limit ?? taskIds.length).map(async (taskId) => {
-        const task = await getTaskById(sqlite, taskId);
-        const metadata = resolveDispatchMetadata(
-          {
-            callerSessionId: input.callerSessionId,
-            delegationGroupId: input.delegationGroupId,
-            parentTaskId: input.parentTaskId,
-            taskId,
-            waveId: input.waveId,
-          },
-          task,
-        );
+    const claimedResults: TaskSessionDispatchResult[] = await Promise.all(
+      taskIds
+        .slice(0, limit ?? taskIds.length)
+        .map(async (taskId): Promise<TaskSessionDispatchResult> => {
+          const task = await getTaskById(sqlite, taskId);
+          const metadata = resolveDispatchMetadata(
+            {
+              callerSessionId: input.callerSessionId,
+              delegationGroupId: input.delegationGroupId,
+              parentTaskId: input.parentTaskId,
+              taskId,
+              waveId: input.waveId,
+            },
+            task,
+          );
 
-        return {
-          delegationGroupId: metadata.delegationGroupId,
-          dispatchability: await getTaskSessionAssignment(sqlite, task.id, {
-            orchestrationMode: runtimeProfile.orchestrationMode,
-          }),
-          dispatched: false,
-          parentTaskId: metadata.parentTaskId,
-          prompt: null,
-          provider: task.assignedProvider,
-          reason: 'TASK_ALREADY_DISPATCHING' as const,
-          role: task.assignedRole,
-          sessionId: null,
-          specialistId: task.assignedSpecialistId,
-          task,
-          waveId: metadata.waveId,
-        };
-      }),
+          return {
+            delegationGroupId: metadata.delegationGroupId,
+            dispatchability: await getTaskSessionAssignment(sqlite, task.id, {
+              orchestrationMode: runtimeProfile.orchestrationMode,
+            }),
+            dispatched: false,
+            parentTaskId: metadata.parentTaskId,
+            prompt: null,
+            provider: task.assignedProvider,
+            reason: 'TASK_ALREADY_DISPATCHING' as const,
+            role: ensureRoleValue(task.assignedRole),
+            sessionId: null,
+            specialistId: task.assignedSpecialistId,
+            task,
+            waveId: metadata.waveId,
+          };
+        }),
     );
 
     return {

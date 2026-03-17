@@ -13,7 +13,9 @@ const handoffIdGenerator = customAlphabet(
   10,
 );
 
-function ensureLaneArrays(task: Pick<TaskPayload, 'laneHandoffs' | 'laneSessions'>) {
+function ensureLaneArrays(
+  task: Pick<TaskPayload, 'laneHandoffs' | 'laneSessions'>,
+) {
   if (!task.laneSessions) {
     task.laneSessions = [];
   }
@@ -37,7 +39,8 @@ export function upsertTaskLaneSession(
   );
   if (existing) {
     Object.assign(existing, session);
-    existing.startedAt = existing.startedAt || session.startedAt || new Date().toISOString();
+    existing.startedAt =
+      existing.startedAt || session.startedAt || new Date().toISOString();
     existing.status = existing.status || session.status || 'running';
     return existing;
   }
@@ -116,7 +119,11 @@ export function prepareTaskForColumnTransition(
   }
 
   archiveActiveTaskSession(task);
-  markTaskLaneSessionStatus(task, task.triggerSessionId ?? undefined, 'transitioned');
+  markTaskLaneSessionStatus(
+    task,
+    task.triggerSessionId ?? undefined,
+    'transitioned',
+  );
   task.triggerSessionId = null;
   task.lastSyncError = null;
   return true;
@@ -159,7 +166,9 @@ export function getTaskLaneHandoff(
   return task.laneHandoffs.find((entry) => entry.id === handoffId) ?? null;
 }
 
-function formatHandoffRequestType(requestType: TaskLaneHandoffRequestType): string {
+function formatHandoffRequestType(
+  requestType: TaskLaneHandoffRequestType,
+): string {
   switch (requestType) {
     case 'environment_preparation':
       return 'Environment preparation';
@@ -190,7 +199,10 @@ export function buildPreviousLaneHandoffPrompt(params: {
     `Request type: ${formatHandoffRequestType(params.requestType)}`,
     `Request: ${params.request}`,
     ...(params.artifactHints && params.artifactHints.length > 0
-      ? ['', `Artifact expectations:\n${params.artifactHints.map((item) => `- ${item}`).join('\n')}`]
+      ? [
+          '',
+          `Artifact expectations:\n${params.artifactHints.map((item) => `- ${item}`).join('\n')}`,
+        ]
       : []),
     '',
     'Complete only the requested support work for this task.',
@@ -205,7 +217,12 @@ export function buildLaneHandoffResponsePrompt(
   task: Pick<TaskPayload, 'id' | 'title'>,
   handoff: Pick<
     TaskLaneHandoffPayload,
-    'request' | 'requestType' | 'responseSummary' | 'status'
+    | 'request'
+    | 'requestType'
+    | 'responseSummary'
+    | 'status'
+    | 'artifactHints'
+    | 'artifactEvidence'
   >,
 ) {
   return [
@@ -221,7 +238,9 @@ export function buildLaneHandoffResponsePrompt(
       ? `Response: ${handoff.responseSummary}`
       : 'Response: no summary provided',
     ...(handoff.artifactEvidence && handoff.artifactEvidence.length > 0
-      ? [`Artifacts:\n${handoff.artifactEvidence.map((item) => `- ${item}`).join('\n')}`]
+      ? [
+          `Artifacts:\n${handoff.artifactEvidence.map((item) => `- ${item}`).join('\n')}`,
+        ]
       : []),
     '',
     'Continue your current lane work using this updated runtime context.',
