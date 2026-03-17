@@ -6,9 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import type { TaskExecutionRuntime } from './task-execution-runtime-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
-import { applyFlowTemplate } from './apply-flow-template-service';
+import { createNote } from './note-service';
 import { createProject } from './project-service';
-import { listTasks, updateTask } from './task-service';
+import { createTask, listTasks, updateTask } from './task-service';
 import { dispatchGateTasksForCompletedWave } from './task-wave-service';
 
 describe('task wave service', () => {
@@ -39,24 +39,38 @@ describe('task wave service', () => {
       provider: 'codex',
     });
 
-    const applied = await applyFlowTemplate(sqlite, {
+    const note = await createNote(sqlite, {
+      content: '## Goal\nDrive a spec-derived gate wave.',
       projectId: project.id,
       sessionId: parentSessionId,
-      templateId: 'routa-spec-loop',
+      source: 'system',
+      title: 'Spec',
+      type: 'spec',
     });
-
-    const tasks = await listTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
+    const implementTask = await createTask(sqlite, {
+      assignedRole: 'CRAFTER',
+      kind: 'implement',
+      objective: 'Implement the spec-derived change',
       projectId: project.id,
       sessionId: parentSessionId,
+      sourceEntryIndex: 0,
+      sourceEventId: note.id,
+      sourceType: 'spec_note',
+      status: 'COMPLETED',
+      title: 'Implement spec wave',
     });
-    const implementTask = tasks.items.find((task) => task.kind === 'implement');
-    const reviewTask = tasks.items.find((task) => task.kind === 'review');
-
-    if (!implementTask || !reviewTask) {
-      throw new Error('Expected both implement and review spec tasks');
-    }
+    const reviewTask = await createTask(sqlite, {
+      assignedRole: 'GATE',
+      kind: 'review',
+      objective: 'Review the spec-derived change',
+      projectId: project.id,
+      sessionId: parentSessionId,
+      sourceEntryIndex: 1,
+      sourceEventId: note.id,
+      sourceType: 'spec_note',
+      status: 'PENDING',
+      title: 'Review spec wave',
+    });
 
     await updateTask(sqlite, implementTask.id, {
       completionSummary: 'Implemented and reported back to ROUTA',
@@ -75,7 +89,7 @@ describe('task wave service', () => {
       runtime,
       {
         callerSessionId: parentSessionId,
-        noteId: applied.note.id,
+        noteId: note.id,
         projectId: project.id,
         sessionId: parentSessionId,
       },
@@ -86,7 +100,7 @@ describe('task wave service', () => {
       dispatchedTaskIds: [reviewTask.id],
       gateTaskIds: [reviewTask.id],
       requiresGate: true,
-      waveId: `twfg_${applied.note.id}:gate`,
+      waveId: `twfg_${note.id}:gate`,
       waveKind: 'gate',
     });
 
