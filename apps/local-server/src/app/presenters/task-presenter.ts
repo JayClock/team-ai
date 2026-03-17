@@ -1,23 +1,5 @@
 import type { TaskListPayload, TaskPayload } from '../schemas/task';
 
-const executableTaskStatuses = new Set([
-  'PENDING',
-  'READY',
-  'WAITING_RETRY',
-  'FAILED',
-  'CANCELLED',
-]);
-
-function shouldExposeExecuteLink(task: TaskPayload): boolean {
-  return (
-    (task.kind === 'implement' ||
-      task.kind === 'review' ||
-      task.kind === 'verify') &&
-    !task.executionSessionId &&
-    executableTaskStatuses.has(task.status)
-  );
-}
-
 function createTaskLinks(task: TaskPayload) {
   return {
     self: {
@@ -28,9 +10,6 @@ function createTaskLinks(task: TaskPayload) {
     },
     project: {
       href: `/api/projects/${task.projectId}`,
-    },
-    'orchestration-summary': {
-      href: `/api/projects/${task.projectId}/orchestration-summary`,
     },
     ...(task.codebaseId
       ? {
@@ -64,16 +43,6 @@ function createTaskLinks(task: TaskPayload) {
       ? {
           result: {
             href: `/api/projects/${task.projectId}/acp-sessions/${task.resultSessionId}`,
-          },
-        }
-      : {}),
-    runs: {
-      href: `/api/tasks/${task.id}/runs`,
-    },
-    ...(shouldExposeExecuteLink(task)
-      ? {
-          execute: {
-            href: `/api/tasks/${task.id}/execute`,
           },
         }
       : {}),

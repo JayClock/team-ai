@@ -3,22 +3,11 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import Fastify from 'fastify';
 import type { Database } from 'better-sqlite3';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
-import '../plugins/acp-runtime';
-import acpStreamPlugin from '../plugins/acp-stream';
+import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
-import taskWorkflowOrchestratorPlugin from '../plugins/task-workflow-orchestrator';
-import {
-  getOrCreateActiveDelegationGroup,
-  registerDelegationGroupSession,
-  registerDelegationGroupTask,
-} from '../services/delegation-group-service';
 import { createProject } from '../services/project-service';
-import { createTaskRun } from '../services/task-run-service';
-import { updateTask } from '../services/task-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -88,14 +77,15 @@ describe('tasks routes', () => {
     expect(detailResponse.json()).toMatchObject({
       id: task.id,
       _links: {
-        execute: {
-          href: `/api/tasks/${task.id}/execute`,
-        },
         collection: {
           href: `/api/projects/${project.id}/tasks`,
         },
+        self: {
+          href: `/api/tasks/${task.id}`,
+        },
       },
     });
+    expect(detailResponse.json()._links.execute).toBeUndefined();
 
     const sessionTasksResponse = await fastify.inject({
       method: 'GET',
@@ -126,140 +116,6 @@ describe('tasks routes', () => {
       total: 1,
       _embedded: {
         tasks: [expect.objectContaining({ id: task.id })],
-      },
-    });
-  });
-
-  it('returns a focused orchestration summary with sessions, tasks, runs, and delegation groups', async () => {
-    const sqlite = await createTestDatabase();
-    const fastify = await createTestServer(sqlite);
-    const project = await createProject(sqlite, {
-      title: 'Orchestration Summary Project',
-      repoPath: '/tmp/team-ai-orchestration-summary',
-    });
-    const rootSessionId = createAcpSession(sqlite, project.id, 'Root session');
-    const childSessionId = createAcpSession(sqlite, project.id, 'Crafter child');
-
-    sqlite
-      .prepare(
-        `
-          UPDATE project_acp_sessions
-          SET parent_session_id = ?, task_id = ?
-          WHERE id = ?
-        `,
-      )
-      .run(rootSessionId, null, childSessionId);
-
-    const taskId = await createTask(fastify, project.id, rootSessionId, {
-      objective: 'Ship an orchestrated implementation slice',
-      title: 'Implement orchestrated slice',
-    });
-    const group = await getOrCreateActiveDelegationGroup(sqlite, {
-      callerSessionId: rootSessionId,
-      parentSessionId: rootSessionId,
-      projectId: project.id,
-    });
-
-    await updateTask(sqlite, taskId, {
-      executionSessionId: childSessionId,
-      parallelGroup: group.id,
-      resultSessionId: childSessionId,
-      status: 'RUNNING',
-    });
-    sqlite
-      .prepare(
-        `
-          UPDATE project_acp_sessions
-          SET task_id = ?
-          WHERE id = ?
-        `,
-      )
-      .run(taskId, childSessionId);
-    await registerDelegationGroupTask(sqlite, {
-      groupId: group.id,
-      taskId,
-    });
-    await registerDelegationGroupSession(sqlite, {
-      groupId: group.id,
-      sessionId: childSessionId,
-      taskId,
-    });
-    await createTaskRun(
-      sqlite,
-      {
-        kind: 'implement',
-        projectId: project.id,
-        provider: 'codex',
-        role: 'CRAFTER',
-        sessionId: childSessionId,
-        specialistId: 'crafter-implementor',
-        status: 'RUNNING',
-        summary: 'Working through the orchestrated slice',
-        taskId,
-      },
-      {
-        source: 'tasks-route-orchestration-summary-test',
-      },
-    );
-
-    const response = await fastify.inject({
-      method: 'GET',
-      url: `/api/projects/${project.id}/orchestration-summary?sessionId=${rootSessionId}`,
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(responseContentType(response)).toBe(
-      VENDOR_MEDIA_TYPES.orchestrationSummary,
-    );
-    expect(response.json()).toMatchObject({
-      focusSessionId: rootSessionId,
-      projectId: project.id,
-      rootSessionId,
-      sessionTree: expect.arrayContaining([
-        expect.objectContaining({
-          childSessionIds: [childSessionId],
-          parentSessionId: null,
-          sessionId: rootSessionId,
-        }),
-        expect.objectContaining({
-          childSessionIds: [],
-          parentSessionId: rootSessionId,
-          sessionId: childSessionId,
-          taskId,
-        }),
-      ]),
-      _embedded: {
-        delegationGroups: [
-          expect.objectContaining({
-            groupId: group.id,
-            sessionIds: [childSessionId],
-            taskIds: [taskId],
-            totalCount: 1,
-          }),
-        ],
-        sessions: expect.arrayContaining([
-          expect.objectContaining({ id: rootSessionId }),
-          expect.objectContaining({
-            id: childSessionId,
-            task: { id: taskId },
-          }),
-        ]),
-        taskRuns: [
-          expect.objectContaining({
-            role: 'CRAFTER',
-            sessionId: childSessionId,
-            status: 'RUNNING',
-            taskId,
-          }),
-        ],
-        tasks: [
-          expect.objectContaining({
-            executionSessionId: childSessionId,
-            id: taskId,
-            parallelGroup: group.id,
-            resultSessionId: childSessionId,
-          }),
-        ],
       },
     });
   });
@@ -315,96 +171,40 @@ describe('tasks routes', () => {
     });
   });
 
-  it('auto-executes a task when a patch moves it into the ready state', async () => {
+  it('removes the old explicit execute and orchestration-summary routes from the main HTTP path', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
-      title: 'Task Dispatch Route',
-      repoPath: '/tmp/team-ai-task-dispatch-route',
+      title: 'Task Cutover',
+      repoPath: '/tmp/team-ai-task-cutover',
     });
-    const sessionId = createAcpSession(sqlite, project.id, 'Dispatch session');
+    const sessionId = createAcpSession(sqlite, project.id, 'Task cutover session');
     const taskId = await createTask(fastify, project.id, sessionId, {
-      objective: 'Dispatch after a manual retry',
-      title: 'Retry-ready task',
-    });
-
-    const patchResponse = await fastify.inject({
-      method: 'PATCH',
-      url: `/api/tasks/${taskId}`,
-      payload: {
-        status: 'READY',
-      },
-    });
-
-    expect(patchResponse.statusCode).toBe(200);
-    expect(responseContentType(patchResponse)).toBe(VENDOR_MEDIA_TYPES.task);
-    expect(patchResponse.json()).toMatchObject({
-      assignedProvider: 'codex',
-      assignedRole: 'CRAFTER',
-      assignedSpecialistId: 'crafter-implementor',
-      id: taskId,
-      status: 'COMPLETED',
-      triggerSessionId: expect.stringMatching(/^acps_/),
-    });
-    expect(fastify.acpRuntime.createSession).toHaveBeenCalledTimes(1);
-    expect(fastify.acpRuntime.promptSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        localSessionId: expect.any(String),
-        prompt: expect.stringContaining('Task: Retry-ready task'),
-      }),
-    );
-  });
-
-  it('executes a task through the explicit task action route', async () => {
-    const sqlite = await createTestDatabase();
-    const fastify = await createTestServer(sqlite);
-    const project = await createProject(sqlite, {
-      title: 'Task Execute Route',
-      repoPath: '/tmp/team-ai-task-execute-route',
-    });
-    const sessionId = createAcpSession(sqlite, project.id, 'Execute session');
-    const taskId = await createTask(fastify, project.id, sessionId, {
-      objective: 'Kick off execution from the task card',
-      title: 'Actionable task',
+      objective: 'Verify removed routes',
+      title: 'Removed routes task',
     });
 
     const executeResponse = await fastify.inject({
       method: 'POST',
       url: `/api/tasks/${taskId}/execute`,
     });
+    expect(executeResponse.statusCode).toBe(404);
 
-    expect(executeResponse.statusCode).toBe(200);
-    expect(responseContentType(executeResponse)).toBe(VENDOR_MEDIA_TYPES.task);
-    expect(executeResponse.json()).toMatchObject({
-      assignedProvider: 'codex',
-      assignedRole: 'CRAFTER',
-      assignedSpecialistId: 'crafter-implementor',
-      id: taskId,
-      resultSessionId: expect.stringMatching(/^acps_/),
-      status: 'COMPLETED',
-      triggerSessionId: expect.stringMatching(/^acps_/),
+    const summaryResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/orchestration-summary?sessionId=${sessionId}`,
     });
-    expect(fastify.acpRuntime.createSession).toHaveBeenCalledTimes(1);
-    expect(fastify.acpRuntime.promptSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        localSessionId: expect.any(String),
-        prompt: expect.stringContaining('Task: Actionable task'),
-      }),
-    );
+    expect(summaryResponse.statusCode).toBe(404);
   });
 
-  it('rejects empty task patches, missing trigger sessions, and removed session-scoped task routes', async () => {
+  it('rejects empty task patches and missing trigger sessions', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
       title: 'Task Errors',
       repoPath: '/tmp/team-ai-task-errors',
     });
-    const sessionId = createAcpSession(
-      sqlite,
-      project.id,
-      'Task error session',
-    );
+    const sessionId = createAcpSession(sqlite, project.id, 'Task error session');
     const taskId = await createTask(fastify, project.id, sessionId, {
       objective: 'Initial objective',
       title: 'Initial task',
@@ -433,13 +233,6 @@ describe('tasks routes', () => {
       title: 'ACP Session Not Found',
       type: 'https://team-ai.dev/problems/acp-session-not-found',
     });
-
-    const removedSessionRouteResponse = await fastify.inject({
-      method: 'GET',
-      url: `/api/projects/${project.id}/acp-sessions/${sessionId}/tasks`,
-    });
-
-    expect(removedSessionRouteResponse.statusCode).toBe(404);
   });
 
   it('resolves assigned specialists from workspace directories', async () => {
@@ -471,11 +264,7 @@ describe('tasks routes', () => {
       title: 'Specialist Project',
       repoPath,
     });
-    const sessionId = createAcpSession(
-      sqlite,
-      project.id,
-      'Specialist task session',
-    );
+    const sessionId = createAcpSession(sqlite, project.id, 'Specialist task session');
 
     const response = await fastify.inject({
       method: 'POST',
@@ -503,11 +292,7 @@ describe('tasks routes', () => {
       title: 'Invalid Role Project',
       repoPath: '/tmp/team-ai-task-invalid-role',
     });
-    const sessionId = createAcpSession(
-      sqlite,
-      project.id,
-      'Invalid role session',
-    );
+    const sessionId = createAcpSession(sqlite, project.id, 'Invalid role session');
 
     const response = await fastify.inject({
       method: 'POST',
@@ -551,32 +336,9 @@ describe('tasks routes', () => {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
     fastify.decorate('sqlite', sqlite);
-    fastify.decorate('acpRuntime', {
-      cancelSession: vi.fn(async () => undefined),
-      close: vi.fn(async () => undefined),
-      createSession: vi.fn(async (input) => ({
-        provider: input.provider,
-        runtimeSessionId: 'runtime-1',
-      })),
-      deleteSession: vi.fn(async () => undefined),
-      isConfigured: vi.fn(() => true),
-      isSessionActive: vi.fn(() => true),
-      loadSession: vi.fn(async (input) => ({
-        provider: input.provider,
-        runtimeSessionId: input.runtimeSessionId,
-      })),
-      promptSession: vi.fn(async () => ({
-        response: {
-          stopReason: 'end_turn' as const,
-        },
-        runtimeSessionId: 'runtime-1',
-      })),
-    } satisfies AcpRuntimeClient);
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);
-    await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(tasksRoute, { prefix: '/api' });
     await fastify.ready();
 

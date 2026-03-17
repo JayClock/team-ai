@@ -71,14 +71,14 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 ### Cutover
 
-- [ ] Deprecate and remove `/api/tasks/:taskId/execute`
-- [ ] Deprecate and remove `/api/task-runs/*`
-- [ ] Deprecate and remove `/api/projects/:projectId/orchestration-summary`
+- [x] Deprecate and remove `/api/tasks/:taskId/execute`
+- [x] Deprecate and remove `/api/task-runs/*`
+- [x] Deprecate and remove `/api/projects/:projectId/orchestration-summary`
 - [ ] Stop treating `spec-task-sync` as the main orchestration entrypoint: [`apps/local-server/src/app/services/spec-task-sync-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/spec-task-sync-service.ts)
 - [ ] Remove ACP plan to task compatibility path: [`apps/local-server/src/app/services/acp-plan-task-sync-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/acp-plan-task-sync-service.ts)
 - [ ] Replace task creation semantics so creating a task creates a board card
 - [ ] Replace task update semantics so column transitions drive orchestration
-- [ ] Remove `task-run` as a first-class execution API
+- [x] Remove `task-run` as a first-class execution API
 - [ ] Add a minimal Kanban UI as the new task orchestration home
 - [ ] Remove old task-run and orchestration-summary UI entrypoints
 
@@ -167,8 +167,8 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 ### Stage 6: Routes
 
-- [ ] Replace task route semantics: [`apps/local-server/src/app/routes/tasks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/tasks.ts)
-- [ ] Remove task-run routes: [`apps/local-server/src/app/routes/task-runs.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/task-runs.ts)
+- [x] Replace task route semantics: [`apps/local-server/src/app/routes/tasks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/tasks.ts)
+- [x] Remove task-run routes: [`apps/local-server/src/app/routes/task-runs.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/task-runs.ts)
 - [x] Add `kanban.ts`: [`apps/local-server/src/app/routes/kanban.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/kanban.ts)
 - [x] Add `background-tasks.ts`: [`apps/local-server/src/app/routes/background-tasks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/background-tasks.ts)
 - [ ] Add `workflows.ts`: [`apps/local-server/src/app/routes/workflows.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/workflows.ts)
@@ -217,3 +217,14 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [ ] Remove [`apps/local-server/src/app/services/task-orchestration-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-orchestration-service.ts)
 - [ ] Remove [`apps/local-server/src/app/services/task-execution-runtime-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-execution-runtime-service.ts)
 - [ ] Remove old `task-run` routes, schemas, presenters, and tests
+
+## Progress Notes
+
+### Phase 2
+
+- [x] Read `routa` task route and Kanban transition implementations before the cutover
+- [x] Rewrite [`apps/local-server/src/app/routes/tasks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/tasks.ts) to keep task HTTP semantics limited to CRUD/card operations
+- [x] Remove task presenter links that exposed execute, run, and orchestration-summary actions
+- [x] Delete [`apps/local-server/src/app/routes/task-runs.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/task-runs.ts) and its route tests
+- [x] Validate focused route and presenter coverage with `npx vitest run src/app/routes/tasks.test.ts src/app/routes/projects.test.ts src/app/routes/kanban.test.ts src/app/routes/background-tasks.test.ts src/app/presenters/task-presenter.test.ts`
+- [ ] Clear the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)

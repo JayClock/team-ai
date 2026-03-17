@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { presentTask } from './task-presenter';
 
 describe('task presenter', () => {
-  it('includes codebase and worktree links when available', () => {
+  it('includes codebase and worktree links when available without old orchestration links', () => {
     const task = presentTask({
       id: 'task_123',
       projectId: 'proj_123',
@@ -54,9 +54,6 @@ describe('task presenter', () => {
       sourceEventId: 'note_spec_123',
       sourceType: 'spec_note',
       _links: {
-        'orchestration-summary': {
-          href: '/api/projects/proj_123/orchestration-summary',
-        },
         codebase: {
           href: '/api/projects/proj_123/codebases/cdb_123',
         },
@@ -65,5 +62,8 @@ describe('task presenter', () => {
         },
       },
     });
+    expect(task._links).not.toHaveProperty('execute');
+    expect(task._links).not.toHaveProperty('runs');
+    expect(task._links).not.toHaveProperty('orchestration-summary');
   });
 });

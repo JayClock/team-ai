@@ -23,9 +23,6 @@ function createProjectLinks(project: ProjectPayload) {
     'background-tasks': {
       href: `/api/projects/${project.id}/background-tasks`,
     },
-    'task-runs': {
-      href: `/api/projects/${project.id}/task-runs`,
-    },
     'runtime-profile': {
       href: `/api/projects/${project.id}/runtime-profile`,
     },
