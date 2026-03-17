@@ -3,13 +3,16 @@ import { z } from 'zod';
 import { listAgents } from '../../services/agent-service';
 import { readAgentConversation } from '../../services/acp-conversation-service';
 import {
+  getDelegationGroupProgress,
   getOrCreateActiveDelegationGroup,
   registerDelegationGroupTask,
 } from '../../services/delegation-group-service';
 import { getProjectById } from '../../services/project-service';
 import {
   agentsListArgsSchema,
+  delegateTaskToAgentParentResumeSchema,
   delegateTaskToAgentArgsSchema,
+  delegateTaskToAgentWaveStateSchema,
   readAgentConversationArgsSchema,
 } from '../contracts';
 import {
@@ -21,6 +24,72 @@ import {
 type AgentsListArgs = z.infer<typeof agentsListArgsSchema>;
 type DelegateTaskToAgentArgs = z.infer<typeof delegateTaskToAgentArgsSchema>;
 type ReadAgentConversationArgs = z.infer<typeof readAgentConversationArgsSchema>;
+
+function resolveWaveKind(task: {
+  kind: string | null;
+}): z.infer<typeof delegateTaskToAgentWaveStateSchema>['waveKind'] {
+  if (task.kind === 'review' || task.kind === 'verify') {
+    return 'gate';
+  }
+
+  if (task.kind === 'implement' || task.kind === 'plan') {
+    return 'implement';
+  }
+
+  return null;
+}
+
+function buildWaveState(input: {
+  groupId: string | null;
+  progress: Awaited<ReturnType<typeof getDelegationGroupProgress>> | null;
+  task: {
+    id: string;
+    kind: string | null;
+  };
+}) {
+  const waveKind = resolveWaveKind(input.task);
+  const taskIds =
+    input.progress?.taskIds.length
+      ? input.progress.taskIds
+      : [input.task.id];
+
+  return delegateTaskToAgentWaveStateSchema.parse({
+    completedCount: input.progress?.completedCount ?? 0,
+    failureCount: input.progress?.failureCount ?? 0,
+    groupId: input.groupId,
+    pendingCount:
+      input.progress?.pendingCount ?? 1,
+    settled: input.progress?.settled ?? false,
+    status: input.progress?.status ?? null,
+    taskIds,
+    totalCount: input.progress?.totalCount ?? taskIds.length,
+    waveId:
+      input.groupId && waveKind
+        ? `${input.groupId}:${waveKind}`
+        : null,
+    waveKind,
+  });
+}
+
+function buildParentResumeWhen(input: {
+  groupId: string | null;
+  progress: Awaited<ReturnType<typeof getDelegationGroupProgress>> | null;
+  taskId: string;
+  waitMode: 'after_all' | 'immediate';
+}) {
+  return delegateTaskToAgentParentResumeSchema.parse({
+    condition:
+      input.waitMode === 'after_all'
+        ? 'after_delegation_group_settled'
+        : 'after_child_session_report',
+    groupId: input.groupId,
+    pendingTaskCount: input.progress?.pendingCount ?? 1,
+    taskIds: input.progress?.taskIds.length
+      ? input.progress.taskIds
+      : [input.taskId],
+    waitMode: input.waitMode,
+  });
+}
 
 export function createAgentsListHandler(fastify: FastifyInstance) {
   return async (args: AgentsListArgs) => {
@@ -46,8 +115,9 @@ export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
       args.projectId,
       args.specialist,
     );
+    const waitMode = args.waitMode ?? 'after_all';
     const group =
-      (args.waitMode ?? 'after_all') === 'after_all'
+      waitMode === 'after_all'
         ? await getOrCreateActiveDelegationGroup(fastify.sqlite, {
             callerSessionId: args.callerSessionId,
             parentSessionId: args.callerSessionId,
@@ -76,18 +146,40 @@ export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
             groupId: group.id,
             taskId: task.id,
           });
+    const groupProgress =
+      registeredGroup === null
+        ? null
+        : await getDelegationGroupProgress(fastify.sqlite, {
+            groupId: registeredGroup.id,
+            projectId: args.projectId,
+          });
+    const groupId = registeredGroup?.id ?? null;
+    const waveState = buildWaveState({
+      groupId,
+      progress: groupProgress,
+      task,
+    });
+    const parentWillResumeWhen = buildParentResumeWhen({
+      groupId,
+      progress: groupProgress,
+      taskId: task.id,
+      waitMode,
+    });
 
     return {
       delegation: {
         additionalInstructions: args.additionalInstructions ?? null,
         delegationGroupId: registeredGroup?.id ?? null,
+        groupId,
+        parentWillResumeWhen,
         requestedSpecialist: delegation.requested,
         resolvedRole: delegation.resolvedRole,
         resolvedSpecialist: {
           id: delegation.specialist.id,
           name: delegation.specialist.name,
         },
-        waitMode: args.waitMode ?? 'after_all',
+        waitMode,
+        waveState,
       },
       task,
     };

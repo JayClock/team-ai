@@ -1374,6 +1374,14 @@ Validation and review logic
     expect(response.statusCode).toBe(200);
     expect(readMcpResult<Record<string, unknown>>(response)).toMatchObject({
       delegation: {
+        groupId: expect.any(String),
+        parentWillResumeWhen: {
+          condition: 'after_delegation_group_settled',
+          groupId: expect.any(String),
+          pendingTaskCount: 1,
+          taskIds: [task.id],
+          waitMode: 'after_all',
+        },
         requestedSpecialist: 'CRAFTER',
         resolvedRole: 'CRAFTER',
         resolvedSpecialist: {
@@ -1381,6 +1389,18 @@ Validation and review logic
           name: 'Crafter Implementor',
         },
         waitMode: 'after_all',
+        waveState: {
+          completedCount: 0,
+          failureCount: 0,
+          groupId: expect.any(String),
+          pendingCount: 1,
+          settled: false,
+          status: 'RUNNING',
+          taskIds: [task.id],
+          totalCount: 1,
+          waveId: expect.any(String),
+          waveKind: 'implement',
+        },
       },
       task: {
         id: task.id,

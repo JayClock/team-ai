@@ -193,6 +193,39 @@ export const delegateTaskToAgentArgsSchema = z.object({
   waitMode: z.enum(['immediate', 'after_all']).optional(),
 });
 
+const delegationGroupStatusSchema = z.enum([
+  'OPEN',
+  'RUNNING',
+  'COMPLETED',
+  'FAILED',
+]);
+const delegationWaveKindSchema = z.enum(['implement', 'gate']);
+
+export const delegateTaskToAgentWaveStateSchema = z.object({
+  completedCount: z.coerce.number().int().nonnegative(),
+  failureCount: z.coerce.number().int().nonnegative(),
+  groupId: nullableStringSchema,
+  pendingCount: z.coerce.number().int().nonnegative(),
+  settled: z.boolean(),
+  status: delegationGroupStatusSchema.nullable(),
+  taskIds: stringArraySchema,
+  totalCount: z.coerce.number().int().nonnegative(),
+  waveId: nullableStringSchema,
+  waveKind: delegationWaveKindSchema.nullable(),
+});
+
+export const delegateTaskToAgentParentResumeSchema = z.object({
+  condition: z.enum([
+    'after_child_session_report',
+    'after_delegation_group_settled',
+    'manual_follow_up',
+  ]),
+  groupId: nullableStringSchema,
+  pendingTaskCount: z.coerce.number().int().nonnegative(),
+  taskIds: stringArraySchema,
+  waitMode: z.enum(['immediate', 'after_all']),
+});
+
 export const readAgentConversationArgsSchema = z.object({
   includeTerminalOutput: z.coerce.boolean().optional(),
   includeThoughts: z.coerce.boolean().optional(),
