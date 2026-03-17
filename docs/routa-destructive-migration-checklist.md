@@ -108,7 +108,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 ### Trace And Context
 
-- [ ] Add trace storage and trace API
+- [x] Add trace storage and trace API
 - [ ] Add session context, lane handoff, artifact, and worktree views
 - [ ] Add settings surfaces for workflows, schedules, and webhooks
 
@@ -206,7 +206,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [ ] Add `workflow-executor-service.ts`: [`apps/local-server/src/app/services/workflow-executor-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/workflow-executor-service.ts)
 - [x] Add `scheduler-service.ts`: [`apps/local-server/src/app/services/scheduler-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/scheduler-service.ts)
 - [x] Add `webhook-service.ts`: [`apps/local-server/src/app/services/webhook-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/webhook-service.ts)
-- [ ] Add `trace-service.ts`: [`apps/local-server/src/app/services/trace-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/trace-service.ts)
+- [x] Add `trace-service.ts`: [`apps/local-server/src/app/services/trace-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/trace-service.ts)
 
 ## Final Deletions
 
@@ -292,4 +292,14 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add [`apps/local-server/src/app/services/webhook-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/webhook-service.ts) to persist GitHub webhook configs, verify signatures, append audit logs, and trigger workflows
 - [x] Add [`apps/local-server/src/app/routes/webhooks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/webhooks.ts) with config CRUD, log listing, GitHub health, and GitHub receive endpoints
 - [x] Validate webhook schema, service, and route coverage with `npx vitest run src/app/db/sqlite.test.ts src/app/services/webhook-service.test.ts src/app/routes/webhooks.test.ts`
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 10
+
+- [x] Read `routa` trace API, trace reader, and trace type implementations before coding
+- [x] Add trace schema, SQLite table, and vendor media types for stored ACP traces
+- [x] Add [`apps/local-server/src/app/services/trace-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/trace-service.ts) to persist ACP event traces, query trace records, and compute trace stats
+- [x] Add [`apps/local-server/src/app/routes/traces.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/traces.ts) with list/detail/stats endpoints
+- [x] Hook [`apps/local-server/src/app/services/acp-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/acp-service.ts) so persisted ACP events also append trace records
+- [x] Validate trace schema, service, and route coverage with `npx vitest run src/app/db/sqlite.test.ts src/app/services/trace-service.test.ts src/app/routes/traces.test.ts`
 - [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)

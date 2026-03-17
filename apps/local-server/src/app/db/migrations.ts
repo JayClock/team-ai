@@ -946,4 +946,33 @@ export const sqliteMigrations: SqliteMigration[] = [
         ON project_webhook_logs(config_id, created_at DESC);
     `,
   },
+  {
+    version: '030_project_traces',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_traces (
+        id TEXT PRIMARY KEY,
+        event_id TEXT NOT NULL UNIQUE,
+        project_id TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT,
+        event_type TEXT NOT NULL,
+        source_trace_id TEXT,
+        summary TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (session_id) REFERENCES project_acp_sessions(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_traces_project_id
+        ON project_traces(project_id, created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_project_traces_session_id
+        ON project_traces(session_id, created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_project_traces_event_type
+        ON project_traces(event_type, created_at DESC);
+    `,
+  },
 ];

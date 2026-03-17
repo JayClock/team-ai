@@ -42,6 +42,7 @@ import {
   failTaskRun,
   startTaskRun,
 } from './task-run-service';
+import { recordAcpTrace } from './trace-service';
 
 const sessionIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -1108,6 +1109,13 @@ function appendLocalEvent(
   updateSessionRuntime(sqlite, input.sessionId, {
     lastActivityAt: emittedAt,
     lastEventId: event.eventId,
+  });
+
+  recordAcpTrace(sqlite, {
+    createdAt: emittedAt,
+    eventId: event.eventId,
+    sessionId: input.sessionId,
+    update,
   });
 
   broker.publish(event);

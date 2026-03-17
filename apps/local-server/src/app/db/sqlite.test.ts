@@ -87,6 +87,9 @@ describe('sqlite initialization', () => {
     const scheduleColumns = sqlite
       .prepare('PRAGMA table_info(project_schedules)')
       .all() as Array<{ name: string }>;
+    const traceColumns = sqlite
+      .prepare('PRAGMA table_info(project_traces)')
+      .all() as Array<{ name: string }>;
     const webhookConfigColumns = sqlite
       .prepare('PRAGMA table_info(project_webhook_configs)')
       .all() as Array<{ name: string }>;
@@ -114,6 +117,9 @@ describe('sqlite initialization', () => {
     const scheduleIndexes = sqlite
       .prepare('PRAGMA index_list(project_schedules)')
       .all() as Array<{ name: string }>;
+    const traceIndexes = sqlite
+      .prepare('PRAGMA index_list(project_traces)')
+      .all() as Array<{ name: string }>;
     const webhookConfigIndexes = sqlite
       .prepare('PRAGMA index_list(project_webhook_configs)')
       .all() as Array<{ name: string }>;
@@ -137,6 +143,7 @@ describe('sqlite initialization', () => {
       'project_schedules',
       'project_task_runs',
       'project_tasks',
+      'project_traces',
       'project_webhook_configs',
       'project_webhook_logs',
       'project_workflow_definitions',
@@ -346,6 +353,19 @@ describe('sqlite initialization', () => {
       'updated_at',
       'deleted_at',
     ]);
+    expect(traceColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'event_id',
+      'project_id',
+      'session_id',
+      'provider',
+      'model',
+      'event_type',
+      'source_trace_id',
+      'summary',
+      'payload_json',
+      'created_at',
+    ]);
     expect(webhookConfigColumns.map(({ name }) => name)).toEqual([
       'id',
       'project_id',
@@ -419,6 +439,13 @@ describe('sqlite initialization', () => {
       expect.arrayContaining([
         'idx_project_schedules_project_id',
         'idx_project_schedules_due',
+      ]),
+    );
+    expect(traceIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_traces_project_id',
+        'idx_project_traces_session_id',
+        'idx_project_traces_event_type',
       ]),
     );
     expect(webhookConfigIndexes.map(({ name }) => name)).toEqual(
