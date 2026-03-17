@@ -41,6 +41,10 @@ const rootRoute: FastifyPluginAsync = async (fastify) => {
           href: '/api/projects/{projectId}/agents{?page,pageSize}',
           templated: true,
         },
+        flows: {
+          href: '/api/projects/{projectId}/flows',
+          templated: true,
+        },
         providers: {
           href: '/api/providers',
         },

@@ -52,6 +52,10 @@ describe('root route', () => {
           href: '/api/projects/{projectId}/agents{?page,pageSize}',
           templated: true,
         },
+        flows: {
+          href: '/api/projects/{projectId}/flows',
+          templated: true,
+        },
         acp: {
           href: '/api/acp',
         },

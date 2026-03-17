@@ -18,6 +18,8 @@ export const VENDOR_MEDIA_TYPES = {
   backgroundTasks: vendorMediaType('background-tasks'),
   codebase: vendorMediaType('codebase'),
   codebases: vendorMediaType('codebases'),
+  flow: vendorMediaType('flow'),
+  flows: vendorMediaType('flows'),
   installedAcpProvider: vendorMediaType('installed-acp-provider'),
   kanbanBoard: vendorMediaType('kanban-board'),
   kanbanBoards: vendorMediaType('kanban-boards'),

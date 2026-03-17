@@ -35,6 +35,9 @@ function createProjectLinks(project: ProjectPayload) {
     specialists: {
       href: `/api/projects/${project.id}/specialists`,
     },
+    flows: {
+      href: `/api/projects/${project.id}/flows`,
+    },
     roles: {
       href: '/api/roles',
     },
