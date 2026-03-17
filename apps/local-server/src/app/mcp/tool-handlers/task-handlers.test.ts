@@ -10,6 +10,11 @@ import type { AcpStreamBroker } from '../../plugins/acp-stream';
 import { insertAcpSession } from '../../test-support/acp-session-fixture';
 import { readAgentConversation } from '../../services/acp-conversation-service';
 import { applyFlowTemplate } from '../../services/apply-flow-template-service';
+import {
+  getOrCreateActiveDelegationGroup,
+  registerDelegationGroupSession,
+  registerDelegationGroupTask,
+} from '../../services/delegation-group-service';
 import { createProject } from '../../services/project-service';
 import { createTask, listTasks, updateTask } from '../../services/task-service';
 import { startTaskRun } from '../../services/task-run-service';
@@ -401,6 +406,195 @@ describe('createReportToParentHandler', () => {
         title: 'Fix: Review the delivery slice',
       },
     });
+  });
+
+  it('waits for an after_all delegation group barrier before waking the parent session', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-task-handler-after-all',
+      title: 'Task Handler After All',
+    });
+    const parentSessionId = 'acps_handler_after_all_parent';
+    const childSessionA = 'acps_handler_after_all_child_a';
+    const childSessionB = 'acps_handler_after_all_child_b';
+
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-handler-after-all',
+      id: parentSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const firstTask = await createTask(sqlite, {
+      kind: 'implement',
+      objective: 'Implement the first grouped slice',
+      projectId: project.id,
+      sessionId: parentSessionId,
+      status: 'READY',
+      title: 'Implement grouped slice A',
+    });
+    const secondTask = await createTask(sqlite, {
+      kind: 'implement',
+      objective: 'Implement the second grouped slice',
+      projectId: project.id,
+      sessionId: parentSessionId,
+      status: 'READY',
+      title: 'Implement grouped slice B',
+    });
+
+    const delegationGroup = await getOrCreateActiveDelegationGroup(sqlite, {
+      callerSessionId: parentSessionId,
+      projectId: project.id,
+    });
+
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-handler-after-all',
+      id: childSessionA,
+      parentSessionId,
+      projectId: project.id,
+      provider: 'codex',
+      taskId: firstTask.id,
+    });
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-handler-after-all',
+      id: childSessionB,
+      parentSessionId,
+      projectId: project.id,
+      provider: 'codex',
+      taskId: secondTask.id,
+    });
+
+    await updateTask(sqlite, firstTask.id, {
+      assignedRole: 'CRAFTER',
+      executionSessionId: childSessionA,
+      parallelGroup: delegationGroup.id,
+      status: 'RUNNING',
+    });
+    await updateTask(sqlite, secondTask.id, {
+      assignedRole: 'CRAFTER',
+      executionSessionId: childSessionB,
+      parallelGroup: delegationGroup.id,
+      status: 'RUNNING',
+    });
+    await registerDelegationGroupTask(sqlite, {
+      groupId: delegationGroup.id,
+      taskId: firstTask.id,
+    });
+    await registerDelegationGroupTask(sqlite, {
+      groupId: delegationGroup.id,
+      taskId: secondTask.id,
+    });
+    await registerDelegationGroupSession(sqlite, {
+      groupId: delegationGroup.id,
+      sessionId: childSessionA,
+      taskId: firstTask.id,
+    });
+    await registerDelegationGroupSession(sqlite, {
+      groupId: delegationGroup.id,
+      sessionId: childSessionB,
+      taskId: secondTask.id,
+    });
+    await startTaskRun(sqlite, {
+      projectId: project.id,
+      role: 'CRAFTER',
+      sessionId: childSessionA,
+      status: 'RUNNING',
+      taskId: firstTask.id,
+    });
+    await startTaskRun(sqlite, {
+      projectId: project.id,
+      role: 'CRAFTER',
+      sessionId: childSessionB,
+      status: 'RUNNING',
+      taskId: secondTask.id,
+    });
+
+    const promptSession = vi.fn(async () => ({
+      response: { stopReason: 'end_turn' as const },
+      runtimeSessionId: 'runtime-after-all',
+    }));
+    const handler = createReportToParentHandler(
+      {
+        acpRuntime: {
+          isSessionActive: vi.fn(() => true),
+          promptSession,
+        } as Pick<AcpRuntimeClient, 'isSessionActive' | 'promptSession'>,
+        acpStreamBroker: {
+          publish: vi.fn(),
+        } as unknown as AcpStreamBroker,
+        log: {
+          error: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+        } as unknown as FastifyBaseLogger,
+        sqlite,
+        taskWorkflowOrchestrator: {
+          dispatchGateTasksForCompletedWave: vi.fn(async () => {
+            throw new Error('dispatchGateTasksForCompletedWave should not run');
+          }),
+          executeTask: vi.fn(async () => {
+            throw new Error('executeTask should not run');
+          }),
+        },
+      } as FastifyInstance,
+    );
+
+    const firstResult = await handler({
+      projectId: project.id,
+      sessionId: childSessionA,
+      summary: 'Completed grouped slice A',
+      verdict: 'completed',
+    });
+
+    expect(firstResult.wake).toMatchObject({
+      delivered: false,
+      mode: 'after_all',
+      reason: 'waiting_for_group_barrier',
+    });
+    expect(promptSession).not.toHaveBeenCalled();
+
+    const secondResult = await handler({
+      projectId: project.id,
+      sessionId: childSessionB,
+      summary: 'Completed grouped slice B',
+      verdict: 'completed',
+    });
+
+    expect(secondResult.wake).toMatchObject({
+      delivered: true,
+      mode: 'after_all',
+      reason: null,
+    });
+    expect(promptSession).toHaveBeenCalledTimes(1);
+    expect(promptSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localSessionId: parentSessionId,
+        prompt: expect.stringContaining('Delegation Group Complete'),
+      }),
+    );
+
+    const parentConversation = await readAgentConversation(sqlite, {
+      projectId: project.id,
+      sessionId: parentSessionId,
+    });
+
+    expect(parentConversation.projection.orchestrationEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          delegationGroupId: delegationGroup.id,
+          eventName: 'delegation_group_completed',
+          parentSessionId,
+          taskIds: expect.arrayContaining([firstTask.id, secondTask.id]),
+        }),
+        expect.objectContaining({
+          delegationGroupId: delegationGroup.id,
+          eventName: 'parent_session_resume_requested',
+          parentSessionId,
+          taskIds: expect.arrayContaining([firstTask.id, secondTask.id]),
+          wakeDelivered: true,
+        }),
+      ]),
+    );
   });
 });
 

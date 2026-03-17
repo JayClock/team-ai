@@ -203,6 +203,121 @@ describe('task workflow orchestrator service', () => {
     });
   });
 
+  it('covers the spec sync, implement wave, and gate wave lifecycle in a single flow', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-task-workflow-full-chain',
+      title: 'Task Workflow Full Chain',
+    });
+    const parentSessionId = 'acps_workflow_full_parent';
+
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-workflow-full-chain',
+      id: parentSessionId,
+      name: 'Workflow full parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const applied = await applyFlowTemplate(sqlite, {
+      projectId: project.id,
+      sessionId: parentSessionId,
+      templateId: 'routa-spec-loop',
+    });
+
+    let childSessionCount = 0;
+    const runtime = createTestRuntime(sqlite, project.id, parentSessionId, () => {
+      childSessionCount += 1;
+      return `acps_workflow_full_child_${childSessionCount}`;
+    });
+    const orchestrator = createTaskWorkflowOrchestrator({
+      executionRuntime: runtime,
+      sqlite,
+    });
+
+    const implementWave = await orchestrator.syncSpecAndDispatchReadyTasks({
+      callerSessionId: parentSessionId,
+      noteId: applied.note.id,
+      projectId: project.id,
+      sessionId: parentSessionId,
+    });
+
+    const syncedTasks = await listTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+      sessionId: parentSessionId,
+    });
+    const implementTask = syncedTasks.items.find((task) => task.kind === 'implement');
+    const reviewTask = syncedTasks.items.find((task) => task.kind === 'review');
+
+    if (!implementTask || !reviewTask) {
+      throw new Error('Expected spec-derived implement and review tasks');
+    }
+
+    expect(implementWave).toMatchObject({
+      dispatchedTaskIds: [implementTask.id],
+      gateTaskIds: [reviewTask.id],
+      requiresGate: false,
+      waveId: `twfg_${applied.note.id}:implement`,
+      waveKind: 'implement',
+    });
+    expect(implementTask.triggerSessionId).toBe('acps_workflow_full_child_1');
+    expect(reviewTask.status).toBe('PENDING');
+
+    await updateTask(sqlite, implementTask.id, {
+      completionSummary: 'Implemented in the full spec workflow',
+      resultSessionId: implementTask.triggerSessionId,
+      status: 'COMPLETED',
+      verificationVerdict: 'pass',
+    });
+
+    const resumedWave = await orchestrator.resumeDelegationGroup({
+      noteId: applied.note.id,
+      projectId: project.id,
+      sessionId: parentSessionId,
+    });
+
+    expect(resumedWave).toMatchObject({
+      gateTaskIds: [reviewTask.id],
+      pendingTaskIds: [reviewTask.id],
+      readyTaskIds: [],
+      requiresGate: true,
+      waveId: `twfg_${applied.note.id}:gate`,
+      waveKind: 'gate',
+    });
+
+    const gateWave = await orchestrator.dispatchGateTasksForCompletedWave({
+      callerSessionId: parentSessionId,
+      noteId: applied.note.id,
+      projectId: project.id,
+      sessionId: parentSessionId,
+    });
+
+    expect(gateWave).toMatchObject({
+      blockedTaskIds: [],
+      dispatchedTaskIds: [reviewTask.id],
+      gateTaskIds: [reviewTask.id],
+      requiresGate: true,
+      waveId: `twfg_${applied.note.id}:gate`,
+      waveKind: 'gate',
+    });
+
+    const finalTasks = await listTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+      sessionId: parentSessionId,
+    });
+    const finalReviewTask = finalTasks.items.find((task) => task.id === reviewTask.id);
+
+    expect(finalReviewTask).toMatchObject({
+      assignedRole: 'GATE',
+      status: 'READY',
+      triggerSessionId: 'acps_workflow_full_child_2',
+    });
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-task-workflow-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
