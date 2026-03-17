@@ -72,4 +72,38 @@ describe('acp-runtime-client provider configuration', () => {
       args: ['acp', '--cwd', '/tmp/workspace'],
     });
   });
+
+  it('does not pass -m to the opencode acp subprocess', () => {
+    expect(
+      buildProviderLaunchCommand(
+        'opencode',
+        {
+          command: 'opencode',
+          args: ['acp'],
+        },
+        '/tmp/workspace',
+        'opencode/minimax-m2.5-free',
+      ),
+    ).toEqual({
+      command: 'opencode',
+      args: ['acp', '--cwd', '/tmp/workspace'],
+    });
+  });
+
+  it('still passes -m for non-opencode providers', () => {
+    expect(
+      buildProviderLaunchCommand(
+        'custom-provider',
+        {
+          command: 'custom-agent',
+          args: ['acp'],
+        },
+        '/tmp/workspace',
+        'custom/model-1',
+      ),
+    ).toEqual({
+      command: 'custom-agent',
+      args: ['acp', '-m', 'custom/model-1'],
+    });
+  });
 });

@@ -15,6 +15,12 @@ describe('provider service', () => {
     await expect(listProviders()).resolves.toEqual([
       {
         defaultModel: null,
+        id: 'codex',
+        modelsHref: '/api/providers/codex/models',
+        name: 'Codex',
+      },
+      {
+        defaultModel: null,
         id: 'opencode',
         modelsHref: '/api/providers/opencode/models',
         name: 'OpenCode',
@@ -47,6 +53,58 @@ describe('provider service', () => {
         providerId: 'opencode',
       },
     ]);
+  });
+
+  it('returns statically configured models for codex', async () => {
+    const runCommand = vi.fn();
+
+    const models = await listProviderModels('codex', {
+      runCommand,
+    });
+
+    expect(models).toEqual([
+      {
+        id: 'gpt-5.4',
+        name: 'gpt-5.4',
+        providerId: 'codex',
+      },
+      {
+        id: 'gpt-5.3-codex',
+        name: 'gpt-5.3-codex',
+        providerId: 'codex',
+      },
+      {
+        id: 'gpt-5.2-codex',
+        name: 'gpt-5.2-codex',
+        providerId: 'codex',
+      },
+      {
+        id: 'gpt-5.1-codex',
+        name: 'gpt-5.1-codex',
+        providerId: 'codex',
+      },
+      {
+        id: 'gpt-5.1-codex-max',
+        name: 'gpt-5.1-codex-max',
+        providerId: 'codex',
+      },
+      {
+        id: 'gpt-5.1-codex-mini',
+        name: 'gpt-5.1-codex-mini',
+        providerId: 'codex',
+      },
+      {
+        id: 'gpt-5-codex',
+        name: 'gpt-5-codex',
+        providerId: 'codex',
+      },
+      {
+        id: 'codex-mini-latest',
+        name: 'codex-mini-latest',
+        providerId: 'codex',
+      },
+    ]);
+    expect(runCommand).not.toHaveBeenCalled();
   });
 
   it('caches runtime model discovery for a short ttl', async () => {

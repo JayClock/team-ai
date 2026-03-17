@@ -592,6 +592,21 @@ describe('acp route', () => {
     const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
     expect(storedSession.provider).toBe('opencode');
     expect(storedSession.model).toBe('openai/gpt-5-mini');
+
+    const agentsResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/agents`,
+    });
+
+    expect(agentsResponse.statusCode).toBe(200);
+    expect(agentsResponse.json()._embedded.agents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          model: 'openai/gpt-5-mini',
+          specialistId: 'solo-developer',
+        }),
+      ]),
+    );
   });
 
   it('defaults role-less root sessions to the routa coordinator in multi-agent mode', async () => {

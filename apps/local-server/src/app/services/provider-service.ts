@@ -1,6 +1,10 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { ProblemError } from '../errors/problem-error';
+import {
+  getAcpProviderDefinition,
+  listModelSelectableProviderDefinitions,
+} from './acp-provider-definitions';
 import type {
   ProviderModelPayload,
   ProviderPayload,
@@ -8,20 +12,6 @@ import type {
 
 const execFileAsync = promisify(execFile);
 const PROVIDER_MODEL_CACHE_TTL_MS = 60 * 1000;
-
-type ProviderCatalogEntry = {
-  defaultModel: string | null;
-  id: string;
-  modelListing?: ProviderModelListingConfig;
-  models?: ProviderModelPayload[];
-  name: string;
-};
-
-type ProviderModelListingConfig = {
-  args: string[];
-  command: string;
-  parse: (stdout: string, providerId: string) => ProviderModelPayload[];
-};
 
 type ProviderModelCacheEntry = {
   fetchedAt: number;
@@ -51,19 +41,6 @@ export interface ListProviderModelsDeps {
   runCommand?: ProviderModelCommandRunner;
 }
 
-const providerCatalog: ProviderCatalogEntry[] = [
-  {
-    id: 'opencode',
-    name: 'OpenCode',
-    defaultModel: null,
-    modelListing: {
-      command: 'opencode',
-      args: ['models'],
-      parse: parseOpencodeModels,
-    },
-  },
-];
-
 const providerModelCache = new Map<string, ProviderModelCacheEntry>();
 
 export function clearProviderModelCache(): void {
@@ -71,15 +48,11 @@ export function clearProviderModelCache(): void {
 }
 
 function getProviderById(providerId: string) {
-  const normalizedProviderId = providerId.trim();
-  return (
-    providerCatalog.find((provider) => provider.id === normalizedProviderId) ??
-    null
-  );
+  return getAcpProviderDefinition(providerId);
 }
 
 export async function listProviders(): Promise<ProviderPayload[]> {
-  return providerCatalog.map((provider) => ({
+  return listModelSelectableProviderDefinitions().map((provider) => ({
     id: provider.id,
     name: provider.name,
     defaultModel: provider.defaultModel,
@@ -119,7 +92,7 @@ export async function listProviderModels(
 }
 
 async function listRuntimeProviderModels(
-  provider: ProviderCatalogEntry,
+  provider: NonNullable<ReturnType<typeof getProviderById>>,
   deps: ListProviderModelsDeps,
 ): Promise<ProviderModelPayload[]> {
   const now = deps.now ?? Date.now;
@@ -205,30 +178,6 @@ function normalizeProviderModelCommandError(
     detail: `Provider ${providerId} model listing failed: ${detail}`,
   });
 }
-
-function parseOpencodeModels(
-  stdout: string,
-  providerId: string,
-): ProviderModelPayload[] {
-  const seen = new Set<string>();
-  const models: ProviderModelPayload[] = [];
-
-  for (const rawLine of stdout.split(/\r?\n/u)) {
-    const id = rawLine.trim();
-    if (!id || !id.includes('/') || seen.has(id)) {
-      continue;
-    }
-    seen.add(id);
-    models.push({
-      id,
-      name: id,
-      providerId,
-    });
-  }
-
-  return models;
-}
-
 function normalizeOptionalText(
   value: string | null | undefined,
 ): string | null {

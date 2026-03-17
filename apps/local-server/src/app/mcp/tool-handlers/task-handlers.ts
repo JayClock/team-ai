@@ -647,6 +647,7 @@ async function maybeWakeParentSession(
       task: input.task,
       tasks,
     }),
+    provider: input.task.assignedProvider ?? 'codex',
   });
   recordAcpOrchestrationEvent(fastify.sqlite, fastify.acpStreamBroker, {
     childSessionId: input.childSessionId,

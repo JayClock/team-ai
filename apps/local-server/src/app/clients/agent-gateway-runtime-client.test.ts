@@ -172,6 +172,7 @@ describe('agent-gateway-runtime-client', () => {
     const result = await client.promptSession({
       localSessionId: 'local-1',
       prompt: 'hello',
+      provider: 'opencode',
       timeoutMs: 2_000,
       traceId: 'trace-1',
     });
@@ -394,6 +395,7 @@ describe('agent-gateway-runtime-client', () => {
     await client.promptSession({
       localSessionId: 'local-rawless',
       prompt: 'hello',
+      provider: 'codex',
       timeoutMs: 2_000,
     });
 

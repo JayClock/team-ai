@@ -46,6 +46,11 @@ describe('providers route', () => {
         providers: [
           expect.objectContaining({
             defaultModel: null,
+            id: 'codex',
+            modelsHref: '/api/providers/codex/models',
+          }),
+          expect.objectContaining({
+            defaultModel: null,
             id: 'opencode',
             modelsHref: '/api/providers/opencode/models',
           }),
@@ -89,6 +94,41 @@ describe('providers route', () => {
       _links: {
         self: {
           href: '/api/providers/opencode/models',
+        },
+      },
+    });
+  });
+
+  it('lists statically configured models for codex', async () => {
+    const fastify = await createTestServer();
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/api/providers/codex/models',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(
+      VENDOR_MEDIA_TYPES.providerModels,
+    );
+    expect(response.json()).toMatchObject({
+      _embedded: {
+        models: expect.arrayContaining([
+          {
+            id: 'gpt-5.4',
+            name: 'gpt-5.4',
+            providerId: 'codex',
+          },
+          {
+            id: 'gpt-5.3-codex',
+            name: 'gpt-5.3-codex',
+            providerId: 'codex',
+          },
+        ]),
+      },
+      _links: {
+        self: {
+          href: '/api/providers/codex/models',
         },
       },
     });

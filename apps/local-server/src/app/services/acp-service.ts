@@ -1590,7 +1590,7 @@ export async function createAcpSession(
         name: specialist.name,
         role: specialist.role,
         provider,
-        model: specialist.modelTier ?? 'default',
+        model: model ?? specialist.modelTier ?? 'default',
         systemPrompt: specialist.systemPrompt,
         specialistId: specialist.id,
         parentAgentId: parentSession?.agent_id ?? null,
@@ -2062,6 +2062,7 @@ export async function promptAcpSession(
     const runtimeResult = await runtime.promptSession({
       localSessionId: sessionId,
       prompt: effectivePrompt,
+      provider: session.provider,
       eventId: input.eventId,
       timeoutMs: input.timeoutMs,
       traceId: input.traceId,

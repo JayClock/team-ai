@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import { resolveDataDirectory } from '../db/sqlite';
+import { listStaticRuntimeProviderDefinitions } from './acp-provider-definitions';
 
 const execFileAsync = promisify(execFile);
 
@@ -11,12 +12,6 @@ export interface ProviderCommand {
   args: string[];
   command: string;
 }
-
-type StaticProviderPreset = {
-  args: string[];
-  command: string;
-  id: string;
-};
 
 type RegistryAgentDistribution = {
   binary?: Record<string, unknown>;
@@ -62,54 +57,6 @@ const ACP_REGISTRY_URL =
   'https://cdn.agentclientprotocol.com/registry/v1/latest/registry.json';
 const REGISTRY_TTL_MS = 5 * 60 * 1000;
 
-const STATIC_PROVIDER_PRESETS: StaticProviderPreset[] = [
-  {
-    id: 'codex',
-    command: 'codex-acp',
-    args: [],
-  },
-  {
-    id: 'opencode',
-    command: 'opencode',
-    args: ['acp'],
-  },
-  {
-    id: 'gemini',
-    command: 'gemini',
-    args: ['--experimental-acp'],
-  },
-  {
-    id: 'copilot',
-    command: 'copilot',
-    args: ['--acp', '--allow-all-tools', '--no-ask-user'],
-  },
-  {
-    id: 'auggie',
-    command: 'auggie',
-    args: ['--acp'],
-  },
-  {
-    id: 'kimi',
-    command: 'kimi',
-    args: ['acp'],
-  },
-  {
-    id: 'kiro',
-    command: 'kiro-cli',
-    args: ['acp'],
-  },
-  {
-    id: 'qoder',
-    command: 'qodercli',
-    args: ['--acp', '--yolo'],
-  },
-  {
-    id: 'claude',
-    command: 'claude',
-    args: [],
-  },
-];
-
 const ACP_PROVIDER_ALIASES: Record<string, string> = {
   'codex-acp': 'codex',
 };
@@ -144,9 +91,9 @@ export async function resolveAcpRuntimeProviderCommand(
     };
   }
 
-  const preset = STATIC_PROVIDER_PRESETS.find(
+  const preset = listStaticRuntimeProviderDefinitions().find(
     (candidate) => candidate.id === providerId,
-  );
+  )?.runtimeCommandPreset;
   if (preset && (await commandExists(preset.command))) {
     return {
       command: preset.command,

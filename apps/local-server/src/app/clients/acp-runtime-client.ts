@@ -28,6 +28,7 @@ import {
   resolveAcpRuntimeProviderCommand,
   resolveEnvProviderCommand,
 } from '../services/acp-provider-service';
+import { resolveProviderRuntimeLaunchConfig } from '../services/acp-provider-definitions';
 
 const terminalIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -64,6 +65,7 @@ export interface PromptAcpRuntimeSessionInput {
   eventId?: string;
   localSessionId: string;
   prompt: string;
+  provider: string;
   timeoutMs?: number;
   traceId?: string;
 }
@@ -414,17 +416,23 @@ export function buildProviderLaunchCommand(
   model?: string | null,
 ): ProviderLaunchCommand {
   const args = [...providerCommand.args];
+  const normalizedProvider = normalizeAcpProviderId(provider);
+  const launchConfig = resolveProviderRuntimeLaunchConfig(normalizedProvider);
 
   if (
-    provider.trim() === 'opencode' &&
+    launchConfig.appendCwd &&
     !args.includes('--cwd') &&
     cwd.trim().length > 0
   ) {
     args.push('--cwd', cwd);
   }
 
-  if (model && model.trim().length > 0) {
-    args.push('-m', model.trim());
+  if (
+    launchConfig.passModelToLaunch &&
+    model &&
+    model.trim().length > 0
+  ) {
+    args.push(launchConfig.modelArgFlag, model.trim());
   }
 
   return {
