@@ -44,8 +44,13 @@ describe('task presenter', () => {
       githubState: null,
       githubSyncedAt: null,
       lastSyncError: null,
+      laneHandoffs: [],
+      laneSessions: [],
       createdAt: '2026-03-16T00:00:00.000Z',
+      codebaseIds: ['cdb_123'],
+      sessionIds: [],
       updatedAt: '2026-03-16T00:00:00.000Z',
+      workspaceId: 'proj_123',
       worktreeId: 'wt_123',
     });
 

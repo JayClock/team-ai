@@ -767,4 +767,41 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '026_project_tasks_routa_metadata',
+    sql: `
+      ALTER TABLE project_tasks
+        ADD COLUMN workspace_id TEXT;
+
+      ALTER TABLE project_tasks
+        ADD COLUMN session_ids_json TEXT NOT NULL DEFAULT '[]';
+
+      ALTER TABLE project_tasks
+        ADD COLUMN lane_sessions_json TEXT NOT NULL DEFAULT '[]';
+
+      ALTER TABLE project_tasks
+        ADD COLUMN lane_handoffs_json TEXT NOT NULL DEFAULT '[]';
+
+      ALTER TABLE project_tasks
+        ADD COLUMN codebase_ids_json TEXT NOT NULL DEFAULT '[]';
+
+      UPDATE project_tasks
+      SET
+        workspace_id = COALESCE(workspace_id, project_id),
+        session_ids_json = CASE
+          WHEN session_id IS NULL THEN COALESCE(session_ids_json, '[]')
+          ELSE json_array(session_id)
+        END,
+        lane_sessions_json = COALESCE(lane_sessions_json, '[]'),
+        lane_handoffs_json = COALESCE(lane_handoffs_json, '[]'),
+        codebase_ids_json = CASE
+          WHEN codebase_id IS NULL THEN COALESCE(codebase_ids_json, '[]')
+          ELSE json_array(codebase_id)
+        END;
+
+      CREATE INDEX IF NOT EXISTS idx_project_tasks_workspace_id
+        ON project_tasks(workspace_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

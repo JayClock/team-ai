@@ -4,6 +4,8 @@ import { ProblemError } from '../errors/problem-error';
 import type {
   CreateTaskInput,
   TaskKind,
+  TaskLaneHandoffPayload,
+  TaskLaneSessionPayload,
   TaskListPayload,
   TaskPayload,
   UpdateTaskInput,
@@ -57,6 +59,7 @@ interface TaskRow {
   result_session_id: string | null;
   session_id: string | null;
   scope: string | null;
+  session_ids_json: string;
   source_entry_index: number | null;
   source_event_id: string | null;
   source_type: string;
@@ -67,7 +70,11 @@ interface TaskRow {
   verification_commands_json: string;
   verification_report: string | null;
   verification_verdict: string | null;
+  lane_handoffs_json: string;
+  lane_sessions_json: string;
   worktree_id: string | null;
+  workspace_id: string | null;
+  codebase_ids_json: string;
 }
 
 interface ListTasksQuery {
@@ -292,6 +299,24 @@ function parseStringArray(value: string): string[] {
   }
 }
 
+function parseObjectArray<T>(value: string): T[] {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item): item is T =>
+            typeof item === 'object' && item !== null && !Array.isArray(item),
+        )
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function dedupeStrings(values: Iterable<string>): string[] {
+  return Array.from(new Set(values));
+}
+
 function mapTaskRow(row: TaskRow): TaskPayload {
   return {
     acceptanceCriteria: parseStringArray(row.acceptance_criteria_json),
@@ -314,6 +339,12 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     githubUrl: row.github_url,
     id: row.id,
     kind: row.kind,
+    laneHandoffs: parseObjectArray<TaskLaneHandoffPayload>(
+      row.lane_handoffs_json,
+    ),
+    laneSessions: parseObjectArray<TaskLaneSessionPayload>(
+      row.lane_sessions_json,
+    ),
     labels: parseStringArray(row.labels_json),
     lastSyncError: row.last_sync_error,
     objective: row.objective,
@@ -324,6 +355,7 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     priority: row.priority,
     projectId: row.project_id,
     resultSessionId: row.result_session_id,
+    sessionIds: parseStringArray(row.session_ids_json),
     sessionId: row.session_id,
     scope: row.scope,
     sourceEntryIndex: row.source_entry_index,
@@ -336,6 +368,11 @@ function mapTaskRow(row: TaskRow): TaskPayload {
     verificationCommands: parseStringArray(row.verification_commands_json),
     verificationReport: row.verification_report,
     verificationVerdict: row.verification_verdict,
+    workspaceId: row.workspace_id ?? row.project_id,
+    codebaseIds: dedupeStrings([
+      ...parseStringArray(row.codebase_ids_json),
+      ...(row.codebase_id ? [row.codebase_id] : []),
+    ]),
     worktreeId: row.worktree_id,
   };
 }
@@ -445,8 +482,13 @@ function getTaskRow(sqlite: Database, taskId: string): TaskRow {
           source_event_id,
           source_entry_index,
           session_id,
+          session_ids_json,
           codebase_id,
+          codebase_ids_json,
           worktree_id,
+          workspace_id,
+          lane_sessions_json,
+          lane_handoffs_json,
           created_at,
           updated_at
         FROM project_tasks
@@ -515,21 +557,42 @@ async function resolveTaskWorkspaceBinding(
   projectId: string,
   input: {
     codebaseId?: string | null;
+    codebaseIds?: string[];
     worktreeId?: string | null;
   },
   current?: {
     codebaseId: string | null;
+    codebaseIds?: string[];
     worktreeId: string | null;
   },
 ) {
+  let codebaseIds =
+    input.codebaseIds === undefined
+      ? dedupeStrings(current?.codebaseIds ?? [])
+      : dedupeStrings(input.codebaseIds);
   let codebaseId =
     input.codebaseId === undefined
-      ? (current?.codebaseId ?? null)
+      ? (codebaseIds[0] ?? current?.codebaseId ?? null)
       : input.codebaseId;
   let worktreeId =
     input.worktreeId === undefined
       ? (current?.worktreeId ?? null)
       : input.worktreeId;
+
+  if (input.codebaseId !== undefined) {
+    codebaseIds =
+      input.codebaseId === null
+        ? []
+        : dedupeStrings([input.codebaseId, ...codebaseIds]);
+  }
+
+  if (input.codebaseIds !== undefined && input.codebaseIds.length === 0) {
+    codebaseId = input.codebaseId === undefined ? null : codebaseId;
+
+    if (input.worktreeId === undefined) {
+      worktreeId = null;
+    }
+  }
 
   if (input.codebaseId !== undefined && input.worktreeId === undefined) {
     if (input.codebaseId === null) {
@@ -555,14 +618,22 @@ async function resolveTaskWorkspaceBinding(
     }
 
     codebaseId = worktree.codebaseId;
+    codebaseIds = dedupeStrings([worktree.codebaseId, ...codebaseIds]);
   }
 
-  if (codebaseId) {
-    await getProjectCodebaseById(sqlite, projectId, codebaseId);
+  if (codebaseIds.length === 0 && codebaseId) {
+    codebaseIds = [codebaseId];
   }
+
+  for (const candidateCodebaseId of codebaseIds) {
+    await getProjectCodebaseById(sqlite, projectId, candidateCodebaseId);
+  }
+
+  codebaseId = codebaseIds[0] ?? null;
 
   return {
     codebaseId,
+    codebaseIds,
     worktreeId,
   };
 }
@@ -603,6 +674,7 @@ export async function createTask(
     input.projectId,
     {
       codebaseId: input.codebaseId,
+      codebaseIds: input.codebaseIds,
       worktreeId: input.worktreeId,
     },
   );
@@ -614,6 +686,9 @@ export async function createTask(
     kind,
     status,
   });
+  const sessionIds = dedupeStrings(
+    input.sessionIds ?? (sessionId ? [sessionId] : []),
+  );
   const now = new Date().toISOString();
   const taskId = createTaskId();
 
@@ -624,8 +699,11 @@ export async function createTask(
           id,
           project_id,
           session_id,
+          session_ids_json,
           trigger_session_id,
+          workspace_id,
           codebase_id,
+          codebase_ids_json,
           worktree_id,
           title,
           objective,
@@ -662,6 +740,8 @@ export async function createTask(
           source_type,
           source_event_id,
           source_entry_index,
+          lane_sessions_json,
+          lane_handoffs_json,
           created_at,
           updated_at,
           deleted_at
@@ -670,8 +750,11 @@ export async function createTask(
           @id,
           @projectId,
           @sessionId,
+          @sessionIdsJson,
           @triggerSessionId,
+          @workspaceId,
           @codebaseId,
+          @codebaseIdsJson,
           @worktreeId,
           @title,
           @objective,
@@ -708,6 +791,8 @@ export async function createTask(
           @sourceType,
           @sourceEventId,
           @sourceEntryIndex,
+          @laneSessionsJson,
+          @laneHandoffsJson,
           @createdAt,
           @updatedAt,
           NULL
@@ -735,6 +820,8 @@ export async function createTask(
       githubUrl: input.githubUrl ?? null,
       id: taskId,
       kind,
+      laneHandoffsJson: JSON.stringify(input.laneHandoffs ?? []),
+      laneSessionsJson: JSON.stringify(input.laneSessions ?? []),
       labelsJson: JSON.stringify(input.labels ?? []),
       lastSyncError: input.lastSyncError ?? null,
       objective: input.objective,
@@ -745,6 +832,7 @@ export async function createTask(
       priority: input.priority ?? null,
       projectId: input.projectId,
       resultSessionId,
+      sessionIdsJson: JSON.stringify(sessionIds),
       sessionId,
       scope: input.scope ?? null,
       status,
@@ -759,6 +847,8 @@ export async function createTask(
       ),
       verificationReport: input.verificationReport ?? null,
       verificationVerdict: input.verificationVerdict ?? null,
+      workspaceId: input.projectId,
+      codebaseIdsJson: JSON.stringify(workspaceBinding.codebaseIds),
       worktreeId: workspaceBinding.worktreeId,
     });
 
@@ -850,8 +940,13 @@ export async function listTasks(
           source_event_id,
           source_entry_index,
           session_id,
+          session_ids_json,
           codebase_id,
+          codebase_ids_json,
           worktree_id,
+          workspace_id,
+          lane_sessions_json,
+          lane_handoffs_json,
           created_at,
           updated_at
         FROM project_tasks
@@ -942,10 +1037,15 @@ export async function updateTask(
     current.project_id,
     {
       codebaseId: input.codebaseId,
+      codebaseIds: input.codebaseIds,
       worktreeId: input.worktreeId,
     },
     {
       codebaseId: current.codebase_id,
+      codebaseIds: dedupeStrings([
+        ...parseStringArray(current.codebase_ids_json),
+        ...(current.codebase_id ? [current.codebase_id] : []),
+      ]),
       worktreeId: current.worktree_id,
     },
   );
@@ -983,6 +1083,11 @@ export async function updateTask(
     kind,
     status,
   });
+  const nextSessionIds = dedupeStrings([
+    ...(input.sessionIds ?? parseStringArray(current.session_ids_json)),
+    ...(sessionId ? [sessionId] : []),
+    ...(triggerSessionId ? [triggerSessionId] : []),
+  ]);
 
   const next = {
     acceptanceCriteriaJson:
@@ -1037,6 +1142,14 @@ export async function updateTask(
         : input.lastSyncError,
     objective: input.objective ?? current.objective,
     executionSessionId,
+    laneHandoffsJson:
+      input.laneHandoffs === undefined
+        ? current.lane_handoffs_json
+        : JSON.stringify(input.laneHandoffs),
+    laneSessionsJson:
+      input.laneSessions === undefined
+        ? current.lane_sessions_json
+        : JSON.stringify(input.laneSessions),
     parallelGroup:
       input.parallelGroup === undefined
         ? current.parallel_group
@@ -1046,6 +1159,7 @@ export async function updateTask(
     priority: input.priority === undefined ? current.priority : input.priority,
     scope: input.scope === undefined ? current.scope : input.scope,
     resultSessionId,
+    sessionIdsJson: JSON.stringify(nextSessionIds),
     sessionId,
     sourceEntryIndex:
       input.sourceEntryIndex === undefined
@@ -1075,6 +1189,8 @@ export async function updateTask(
       input.verificationVerdict === undefined
         ? current.verification_verdict
         : input.verificationVerdict,
+    workspaceId: current.workspace_id ?? current.project_id,
+    codebaseIdsJson: JSON.stringify(workspaceBinding.codebaseIds),
     worktreeId: workspaceBinding.worktreeId,
   };
 
@@ -1084,13 +1200,16 @@ export async function updateTask(
         UPDATE project_tasks
         SET
           session_id = @sessionId,
+          session_ids_json = @sessionIdsJson,
           trigger_session_id = @triggerSessionId,
           title = @title,
           objective = @objective,
           scope = @scope,
           status = @status,
           board_id = @boardId,
+          workspace_id = @workspaceId,
           codebase_id = @codebaseId,
+          codebase_ids_json = @codebaseIdsJson,
           column_id = @columnId,
           position = @position,
           priority = @priority,
@@ -1121,6 +1240,8 @@ export async function updateTask(
           source_type = @sourceType,
           source_event_id = @sourceEventId,
           source_entry_index = @sourceEntryIndex,
+          lane_sessions_json = @laneSessionsJson,
+          lane_handoffs_json = @laneHandoffsJson,
           worktree_id = @worktreeId,
           updated_at = @updatedAt
         WHERE id = @id AND deleted_at IS NULL

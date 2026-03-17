@@ -436,6 +436,8 @@ function mapSpecTaskRow(row: {
     githubUrl: row.github_url,
     id: row.id,
     kind: row.kind,
+    laneHandoffs: [],
+    laneSessions: [],
     labels: parseStringArray(row.labels_json),
     lastSyncError: row.last_sync_error,
     objective: row.objective,
@@ -445,6 +447,7 @@ function mapSpecTaskRow(row: {
     priority: row.priority,
     projectId: row.project_id,
     resultSessionId: row.result_session_id,
+    sessionIds: row.session_id ? [row.session_id] : [],
     sessionId: row.session_id,
     scope: row.scope,
     sourceEntryIndex: row.source_entry_index,
@@ -457,6 +460,8 @@ function mapSpecTaskRow(row: {
     verificationCommands: parseStringArray(row.verification_commands_json),
     verificationReport: row.verification_report,
     verificationVerdict: row.verification_verdict,
+    workspaceId: row.project_id,
+    codebaseIds: row.codebase_id ? [row.codebase_id] : [],
     worktreeId: row.worktree_id,
   };
 }

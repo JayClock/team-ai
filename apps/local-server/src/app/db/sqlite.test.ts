@@ -96,8 +96,11 @@ describe('sqlite initialization', () => {
       'project_acp_session_events',
       'project_acp_sessions',
       'project_agents',
+      'project_background_tasks',
       'project_codebases',
       'project_delegation_groups',
+      'project_kanban_boards',
+      'project_kanban_columns',
       'project_note_events',
       'project_notes',
       'project_runtime_profiles',
@@ -231,6 +234,11 @@ describe('sqlite initialization', () => {
       'session_id',
       'codebase_id',
       'worktree_id',
+      'workspace_id',
+      'session_ids_json',
+      'lane_sessions_json',
+      'lane_handoffs_json',
+      'codebase_ids_json',
     ]);
     expect(runtimeProfileColumns.map(({ name }) => name)).toEqual([
       'id',
@@ -272,6 +280,7 @@ describe('sqlite initialization', () => {
       expect.arrayContaining([
         'idx_project_tasks_codebase_id',
         'idx_project_tasks_worktree_id',
+        'idx_project_tasks_workspace_id',
       ]),
     );
     expect(acpSessionIndexes.map(({ name }) => name)).toEqual(

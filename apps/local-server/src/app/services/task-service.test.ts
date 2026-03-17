@@ -82,8 +82,12 @@ describe('task service', () => {
 
     expect(task.acceptanceCriteria).toEqual(['Expose route']);
     expect(task).toMatchObject({
+      laneHandoffs: [],
+      laneSessions: [],
       sessionId: session.id,
+      sessionIds: [session.id],
       triggerSessionId: null,
+      workspaceId: project.id,
     });
     expect(byProject.items.map((item) => item.id)).toContain(task.id);
     expect(bySession.items.map((item) => item.id)).toContain(task.id);
@@ -107,6 +111,7 @@ describe('task service', () => {
 
     expect(task).toMatchObject({
       codebaseId: codebase.id,
+      codebaseIds: [codebase.id],
       worktreeId: null,
     });
 

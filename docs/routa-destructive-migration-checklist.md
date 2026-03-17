@@ -126,11 +126,11 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Rework SQLite schema bootstrap via migrations: [`apps/local-server/src/app/db/migrations.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/db/migrations.ts)
 - [ ] Rework SQLite bootstrap policy if/when destructive reset is introduced: [`apps/local-server/src/app/db/sqlite.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/db/sqlite.ts)
 - [ ] Update migration/bootstrap support if still used: [`apps/local-server/src/app/db/migrations.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/db/migrations.ts)
-- [ ] Update schema tests: [`apps/local-server/src/app/db/sqlite.test.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/db/sqlite.test.ts)
+- [x] Update schema tests: [`apps/local-server/src/app/db/sqlite.test.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/db/sqlite.test.ts)
 
 ### Stage 2: Schemas
 
-- [ ] Replace task schema: [`apps/local-server/src/app/schemas/task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/task.ts)
+- [x] Replace task schema: [`apps/local-server/src/app/schemas/task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/task.ts)
 - [x] Add `kanban.ts`: [`apps/local-server/src/app/schemas/kanban.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/kanban.ts)
 - [x] Add `background-task.ts`: [`apps/local-server/src/app/schemas/background-task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/background-task.ts)
 - [ ] Add `workflow.ts`: [`apps/local-server/src/app/schemas/workflow.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/workflow.ts)
@@ -140,9 +140,9 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 ### Stage 3: Task And Kanban Services
 
-- [ ] Rewrite task persistence and query logic: [`apps/local-server/src/app/services/task-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-service.ts)
+- [x] Rewrite task persistence and query logic: [`apps/local-server/src/app/services/task-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-service.ts)
 - [ ] Replace old workflow context helper: [`apps/local-server/src/app/services/task-workflow-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-workflow-service.ts)
-- [ ] Rewrite task service tests: [`apps/local-server/src/app/services/task-service.test.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-service.test.ts)
+- [x] Rewrite task service tests: [`apps/local-server/src/app/services/task-service.test.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-service.test.ts)
 - [x] Add `kanban-board-service.ts`: [`apps/local-server/src/app/services/kanban-board-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-board-service.ts)
 - [ ] Add `task-lane-service.ts`: [`apps/local-server/src/app/services/task-lane-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-lane-service.ts)
 - [ ] Add `kanban-event-service.ts`: [`apps/local-server/src/app/services/kanban-event-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-event-service.ts)
@@ -228,3 +228,12 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Delete [`apps/local-server/src/app/routes/task-runs.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/task-runs.ts) and its route tests
 - [x] Validate focused route and presenter coverage with `npx vitest run src/app/routes/tasks.test.ts src/app/routes/projects.test.ts src/app/routes/kanban.test.ts src/app/routes/background-tasks.test.ts src/app/presenters/task-presenter.test.ts`
 - [ ] Clear the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 3
+
+- [x] Read `routa` task model, `TaskStore`, and SQLite task store implementations before changing local persistence
+- [x] Add a new migration to persist Routa-style task metadata on `project_tasks`
+- [x] Expand [`apps/local-server/src/app/schemas/task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/task.ts) with `workspaceId`, `sessionIds`, `laneSessions`, `laneHandoffs`, and `codebaseIds`
+- [x] Dual-write Routa task metadata in [`apps/local-server/src/app/services/task-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-service.ts) while preserving legacy fields needed by unfinished orchestration services
+- [x] Update schema, service, route, and presenter tests with `npx vitest run src/app/db/sqlite.test.ts src/app/services/task-service.test.ts src/app/routes/tasks.test.ts src/app/presenters/task-presenter.test.ts`
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)

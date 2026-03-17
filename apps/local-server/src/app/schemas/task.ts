@@ -1,4 +1,49 @@
 export type TaskKind = 'plan' | 'implement' | 'review' | 'verify';
+export type TaskLaneSessionStatus =
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'timed_out'
+  | 'transitioned';
+export type TaskLaneHandoffRequestType =
+  | 'environment_preparation'
+  | 'runtime_context'
+  | 'clarification'
+  | 'rerun_command';
+export type TaskLaneHandoffStatus =
+  | 'requested'
+  | 'delivered'
+  | 'completed'
+  | 'blocked'
+  | 'failed';
+
+export interface TaskLaneSessionPayload {
+  columnId?: string;
+  columnName?: string;
+  completedAt?: string;
+  provider?: string;
+  role?: string;
+  routaAgentId?: string;
+  sessionId: string;
+  specialistId?: string;
+  specialistName?: string;
+  startedAt: string;
+  status: TaskLaneSessionStatus;
+}
+
+export interface TaskLaneHandoffPayload {
+  fromColumnId?: string;
+  fromSessionId: string;
+  id: string;
+  request: string;
+  requestType: TaskLaneHandoffRequestType;
+  requestedAt: string;
+  respondedAt?: string;
+  responseSummary?: string;
+  status: TaskLaneHandoffStatus;
+  toColumnId?: string;
+  toSessionId: string;
+}
 
 export interface TaskPayload {
   acceptanceCriteria: string[];
@@ -21,6 +66,8 @@ export interface TaskPayload {
   githubUrl: string | null;
   id: string;
   kind: TaskKind | null;
+  laneHandoffs: TaskLaneHandoffPayload[];
+  laneSessions: TaskLaneSessionPayload[];
   labels: string[];
   lastSyncError: string | null;
   objective: string;
@@ -31,6 +78,7 @@ export interface TaskPayload {
   priority: string | null;
   projectId: string;
   resultSessionId: string | null;
+  sessionIds: string[];
   sessionId: string | null;
   scope: string | null;
   sourceEntryIndex: number | null;
@@ -43,6 +91,8 @@ export interface TaskPayload {
   verificationCommands: string[];
   verificationReport: string | null;
   verificationVerdict: string | null;
+  workspaceId: string;
+  codebaseIds: string[];
   worktreeId: string | null;
 }
 
@@ -65,6 +115,7 @@ export interface CreateTaskInput {
   assignee?: string | null;
   boardId?: string | null;
   codebaseId?: string | null;
+  codebaseIds?: string[];
   columnId?: string | null;
   completionSummary?: string | null;
   dependencies?: string[];
@@ -76,6 +127,8 @@ export interface CreateTaskInput {
   githubUrl?: string | null;
   kind?: TaskKind | null;
   labels?: string[];
+  laneHandoffs?: TaskLaneHandoffPayload[];
+  laneSessions?: TaskLaneSessionPayload[];
   lastSyncError?: string | null;
   objective: string;
   executionSessionId?: string | null;
@@ -85,6 +138,7 @@ export interface CreateTaskInput {
   priority?: string | null;
   projectId: string;
   resultSessionId?: string | null;
+  sessionIds?: string[];
   sessionId?: string | null;
   scope?: string | null;
   sourceEntryIndex?: number | null;
@@ -107,6 +161,7 @@ export interface UpdateTaskInput {
   assignee?: string | null;
   boardId?: string | null;
   codebaseId?: string | null;
+  codebaseIds?: string[];
   columnId?: string | null;
   completionSummary?: string | null;
   dependencies?: string[];
@@ -118,6 +173,8 @@ export interface UpdateTaskInput {
   githubUrl?: string | null;
   kind?: TaskKind | null;
   labels?: string[];
+  laneHandoffs?: TaskLaneHandoffPayload[];
+  laneSessions?: TaskLaneSessionPayload[];
   lastSyncError?: string | null;
   objective?: string;
   executionSessionId?: string | null;
@@ -127,6 +184,7 @@ export interface UpdateTaskInput {
   priority?: string | null;
   scope?: string | null;
   resultSessionId?: string | null;
+  sessionIds?: string[];
   sessionId?: string | null;
   sourceEntryIndex?: number | null;
   sourceEventId?: string | null;
