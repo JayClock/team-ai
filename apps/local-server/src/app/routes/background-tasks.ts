@@ -43,6 +43,18 @@ const createBackgroundTaskBodySchema = z.object({
 });
 
 const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
+  fastify.post('/background-tasks/process', async () => {
+    const result = await fastify.backgroundWorkerHostService.tickNow();
+
+    return {
+      completedCount: result.completed.length,
+      completedTaskIds: result.completed.map((task) => task.id),
+      dispatchedCount: result.dispatched.length,
+      dispatchedTaskIds: result.dispatched.map((task) => task.id),
+      running: fastify.backgroundWorkerHostService.isRunning(),
+    };
+  });
+
   fastify.get(
     '/projects/:projectId/background-tasks',
     async (request, reply) => {

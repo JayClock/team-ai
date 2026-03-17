@@ -26,7 +26,7 @@ describe('background worker service', () => {
     }
   });
 
-  it('dispatches only ready pending tasks and records their session ids', async () => {
+  it('dispatches only ready pending tasks and completes them when prompting succeeds', async () => {
     const sqlite = await createTestDatabase(cleanupTasks);
     const project = await createProject(sqlite, {
       repoPath: '/tmp/team-ai-background-worker',
@@ -74,7 +74,7 @@ describe('background worker service', () => {
     expect(dispatched[0]).toMatchObject({
       id: dependency.id,
       resultSessionId: `acps_${dependency.id}`,
-      status: 'RUNNING',
+      status: 'COMPLETED',
     });
     expect(createSession).toHaveBeenCalledTimes(1);
     expect(promptSession).toHaveBeenCalledTimes(1);
@@ -82,7 +82,7 @@ describe('background worker service', () => {
     const persistedDependency = await getBackgroundTaskById(sqlite, dependency.id);
     expect(persistedDependency).toMatchObject({
       resultSessionId: `acps_${dependency.id}`,
-      status: 'RUNNING',
+      status: 'COMPLETED',
     });
   });
 

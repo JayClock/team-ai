@@ -7,6 +7,7 @@ import acpStreamPlugin from './plugins/acp-stream';
 import desktopAuthPlugin from './plugins/desktop-auth';
 import desktopCorsPlugin from './plugins/desktop-cors';
 import executionRuntimePlugin from './plugins/execution-runtime';
+import backgroundWorkerPlugin from './plugins/background-worker';
 import problemJsonPlugin from './plugins/problem-json';
 import schedulerPlugin from './plugins/scheduler';
 import sensiblePlugin from './plugins/sensible';
@@ -15,6 +16,8 @@ import taskWorkflowOrchestratorPlugin from './plugins/task-workflow-orchestrator
 
 export interface AppOptions extends FastifyPluginOptions {
   agentGatewayBaseUrl?: string;
+  backgroundWorkerEnabled?: boolean;
+  backgroundWorkerIntervalMs?: number;
   desktopSessionToken?: string;
   schedulerEnabled?: boolean;
   schedulerTickIntervalMs?: number;
@@ -32,6 +35,10 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
     agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
   });
   fastify.register(acpRuntimePlugin);
+  fastify.register(backgroundWorkerPlugin, {
+    enabled: opts.backgroundWorkerEnabled,
+    intervalMs: opts.backgroundWorkerIntervalMs,
+  });
   fastify.register(taskWorkflowOrchestratorPlugin);
   fastify.register(schedulerPlugin, {
     enabled: opts.schedulerEnabled,

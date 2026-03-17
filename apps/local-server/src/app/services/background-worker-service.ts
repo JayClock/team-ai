@@ -30,6 +30,23 @@ interface CreateBackgroundWorkerInput {
 export function createBackgroundWorkerService(
   input: CreateBackgroundWorkerInput,
 ): BackgroundWorkerService {
+  async function emitCompletionEvent(
+    task: BackgroundTaskPayload,
+    success: boolean,
+  ) {
+    if (!task.taskId) {
+      return;
+    }
+
+    await input.events.emit({
+      backgroundTaskId: task.id,
+      projectId: task.projectId,
+      success,
+      taskId: task.taskId,
+      type: 'background-task.completed',
+    });
+  }
+
   async function dispatchTask(task: BackgroundTaskPayload) {
     const startedTask = await updateBackgroundTaskStatus(
       input.sqlite,
@@ -40,11 +57,13 @@ export function createBackgroundWorkerService(
       },
     );
 
-    try {
-      const { sessionId } = await input.callbacks.createSession(startedTask);
-      await input.callbacks.promptSession(startedTask, sessionId);
+    let sessionId: string | null = null;
 
-      return await updateBackgroundTaskStatus(
+    try {
+      const createdSession = await input.callbacks.createSession(startedTask);
+      sessionId = createdSession.sessionId;
+
+      const runningTask = await updateBackgroundTaskStatus(
         input.sqlite,
         task.id,
         'RUNNING',
@@ -54,6 +73,23 @@ export function createBackgroundWorkerService(
           startedAt: startedTask.startedAt,
         },
       );
+
+      await input.callbacks.promptSession(runningTask, sessionId);
+
+      const completedTask = await updateBackgroundTaskStatus(
+        input.sqlite,
+        task.id,
+        'COMPLETED',
+        {
+          completedAt: new Date().toISOString(),
+          lastActivityAt: new Date().toISOString(),
+          resultSessionId: sessionId,
+          startedAt: startedTask.startedAt,
+        },
+      );
+
+      await emitCompletionEvent(completedTask, true);
+      return completedTask;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -65,15 +101,20 @@ export function createBackgroundWorkerService(
         'Background task dispatch failed',
       );
 
-      return await updateBackgroundTaskStatus(
+      const failedTask = await updateBackgroundTaskStatus(
         input.sqlite,
         task.id,
         'FAILED',
         {
           completedAt: new Date().toISOString(),
           errorMessage,
+          resultSessionId: sessionId,
+          startedAt: startedTask.startedAt,
         },
       );
+
+      await emitCompletionEvent(failedTask, false);
+      return failedTask;
     }
   }
 
@@ -120,16 +161,7 @@ export function createBackgroundWorkerService(
           },
         );
         completed.push(completedTask);
-
-        if (completedTask.taskId) {
-          await input.events.emit({
-            backgroundTaskId: completedTask.id,
-            projectId: completedTask.projectId,
-            success: true,
-            taskId: completedTask.taskId,
-            type: 'background-task.completed',
-          });
-        }
+        await emitCompletionEvent(completedTask, true);
       }
 
       return completed;

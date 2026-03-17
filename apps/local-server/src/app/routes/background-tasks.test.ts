@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import { createProject } from '../services/project-service';
+import type { BackgroundWorkerHostService } from '../services/background-worker-host-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import backgroundTasksRoute from './background-tasks';
@@ -128,6 +129,48 @@ describe('background tasks route', () => {
       id: backgroundTaskId,
       projectId: project.id,
       status: 'PENDING',
+    });
+  });
+
+  it('manually triggers one background worker cycle', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+    fastify.decorate('sqlite', sqlite);
+    fastify.decorate('backgroundWorkerHostService', {
+      isRunning: () => true,
+      start: () => undefined,
+      stop: () => undefined,
+      tickNow: async () => ({
+        completed: [
+          {
+            id: 'bgt_completed',
+          },
+        ],
+        dispatched: [
+          {
+            id: 'bgt_dispatched',
+          },
+        ],
+      }),
+    } satisfies BackgroundWorkerHostService);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(backgroundTasksRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: '/api/background-tasks/process',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      completedCount: 1,
+      completedTaskIds: ['bgt_completed'],
+      dispatchedCount: 1,
+      dispatchedTaskIds: ['bgt_dispatched'],
+      running: true,
     });
   });
 
