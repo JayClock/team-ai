@@ -108,20 +108,20 @@ export type DispatchTasksInput = TaskSessionDispatchBatchInput;
 export type DispatchTasksResult = TaskSessionDispatchBatchResult;
 export type DispatchTaskOptions = TaskSessionDispatchOptions;
 
-const activeDispatchClaims = new Set<string>();
-const activeDispatchWaveClaims = new Set<string>();
+const activeTaskSessionClaims = new Set<string>();
+const activeTaskSessionBatchClaims = new Set<string>();
 
-function tryClaimTaskDispatch(taskId: string) {
-  if (activeDispatchClaims.has(taskId)) {
+function tryClaimTaskSession(taskId: string) {
+  if (activeTaskSessionClaims.has(taskId)) {
     return false;
   }
 
-  activeDispatchClaims.add(taskId);
+  activeTaskSessionClaims.add(taskId);
   return true;
 }
 
-function releaseTaskDispatchClaim(taskId: string) {
-  activeDispatchClaims.delete(taskId);
+function releaseTaskSessionClaim(taskId: string) {
+  activeTaskSessionClaims.delete(taskId);
 }
 
 function resolveDispatchMetadata(
@@ -135,7 +135,7 @@ function resolveDispatchMetadata(
   };
 }
 
-function buildWaveClaimKey(input: TaskSessionDispatchBatchInput) {
+function buildTaskSessionBatchClaimKey(input: TaskSessionDispatchBatchInput) {
   if (input.waveId?.trim()) {
     return input.waveId.trim();
   }
@@ -147,28 +147,28 @@ function buildWaveClaimKey(input: TaskSessionDispatchBatchInput) {
   return null;
 }
 
-function tryClaimWaveDispatch(claimKey: string | null) {
+function tryClaimTaskSessionBatch(claimKey: string | null) {
   if (!claimKey) {
     return false;
   }
 
-  if (activeDispatchWaveClaims.has(claimKey)) {
+  if (activeTaskSessionBatchClaims.has(claimKey)) {
     return true;
   }
 
-  activeDispatchWaveClaims.add(claimKey);
+  activeTaskSessionBatchClaims.add(claimKey);
   return false;
 }
 
-function releaseWaveDispatchClaim(claimKey: string | null) {
+function releaseTaskSessionBatchClaim(claimKey: string | null) {
   if (!claimKey) {
     return;
   }
 
-  activeDispatchWaveClaims.delete(claimKey);
+  activeTaskSessionBatchClaims.delete(claimKey);
 }
 
-function buildTaskDispatchPrompt(task: TaskPayload) {
+function buildTaskSessionPrompt(task: TaskPayload) {
   const sections = [`Task: ${task.title}`, `Objective:\n${task.objective}`];
 
   if (task.scope?.trim()) {
@@ -249,7 +249,7 @@ async function recoverTaskForRetry(
   });
 }
 
-async function resolveTaskDispatchWorkspace(
+async function resolveTaskSessionWorkspace(
   sqlite: Database,
   task: TaskPayload,
 ) {
@@ -274,7 +274,7 @@ async function resolveTaskDispatchWorkspace(
   };
 }
 
-export async function dispatchTask(
+export async function dispatchTaskSession(
   sqlite: Database,
   callbacks: TaskSessionDispatchCallbacks,
   input: TaskSessionDispatchInput,
@@ -284,7 +284,7 @@ export async function dispatchTask(
   let dispatchPhase: 'prepare' | 'create_session' | 'prompt_session' =
     'prepare';
 
-  if (!tryClaimTaskDispatch(initialTask.id)) {
+  if (!tryClaimTaskSession(initialTask.id)) {
     const metadata = resolveDispatchMetadata(input, initialTask);
 
     logDiagnostic(
@@ -437,8 +437,8 @@ export async function dispatchTask(
       specialist,
       provider,
     );
-    const workspace = await resolveTaskDispatchWorkspace(sqlite, hydratedTask);
-    const prompt = buildTaskDispatchPrompt(hydratedTask);
+    const workspace = await resolveTaskSessionWorkspace(sqlite, hydratedTask);
+    const prompt = buildTaskSessionPrompt(hydratedTask);
     const metadata = resolveDispatchMetadata(input, hydratedTask);
 
     logDiagnostic(
@@ -562,18 +562,18 @@ export async function dispatchTask(
 
     throw error;
   } finally {
-    releaseTaskDispatchClaim(initialTask.id);
+    releaseTaskSessionClaim(initialTask.id);
   }
 }
 
-export async function dispatchTasks(
+export async function dispatchTaskSessions(
   sqlite: Database,
   callbacks: TaskSessionDispatchCallbacks,
   input: TaskSessionDispatchBatchInput,
   options: TaskSessionDispatchOptions = {},
 ): Promise<TaskSessionDispatchBatchResult> {
-  const waveClaimKey = buildWaveClaimKey(input);
-  const duplicateWaveDispatch = tryClaimWaveDispatch(waveClaimKey);
+  const waveClaimKey = buildTaskSessionBatchClaimKey(input);
+  const duplicateWaveDispatch = tryClaimTaskSessionBatch(waveClaimKey);
   const limit = input.limit;
   const taskIds = input.taskIds
     ? [...new Set(input.taskIds.map((taskId) => taskId.trim()))].filter(Boolean)
@@ -665,7 +665,7 @@ export async function dispatchTasks(
 
     for (const candidate of boundedCandidates) {
       results.push(
-        await dispatchTask(
+        await dispatchTaskSession(
           sqlite,
           callbacks,
           {
@@ -689,11 +689,14 @@ export async function dispatchTasks(
       waveId: input.waveId ?? null,
     };
   } finally {
-    releaseWaveDispatchClaim(waveClaimKey);
+    releaseTaskSessionBatchClaim(waveClaimKey);
   }
 }
 
 export function resetTaskDispatchClaimsForTest() {
-  activeDispatchClaims.clear();
-  activeDispatchWaveClaims.clear();
+  activeTaskSessionClaims.clear();
+  activeTaskSessionBatchClaims.clear();
 }
+
+export const dispatchTask = dispatchTaskSession;
+export const dispatchTasks = dispatchTaskSessions;
