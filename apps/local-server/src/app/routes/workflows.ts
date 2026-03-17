@@ -7,11 +7,13 @@ import {
   presentWorkflowRunList,
 } from '../presenters/workflow-presenter';
 import {
+  cancelWorkflowRunById,
   createWorkflow,
   getWorkflowById,
   getWorkflowRunById,
   listProjectWorkflows,
   listWorkflowRuns,
+  reconcileWorkflowRunById,
   triggerWorkflow,
 } from '../services/workflow-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -111,6 +113,24 @@ const workflowsRoute: FastifyPluginAsync = async (fastify) => {
 
     return presentWorkflowRun(
       getWorkflowRunById(fastify.sqlite, workflowRunId),
+    );
+  });
+
+  fastify.post('/workflow-runs/:workflowRunId/reconcile', async (request, reply) => {
+    const { workflowRunId } = workflowRunParamsSchema.parse(request.params);
+
+    reply.code(202).type(VENDOR_MEDIA_TYPES.workflowRun);
+    return presentWorkflowRun(
+      reconcileWorkflowRunById(fastify.sqlite, workflowRunId),
+    );
+  });
+
+  fastify.post('/workflow-runs/:workflowRunId/cancel', async (request, reply) => {
+    const { workflowRunId } = workflowRunParamsSchema.parse(request.params);
+
+    reply.code(202).type(VENDOR_MEDIA_TYPES.workflowRun);
+    return presentWorkflowRun(
+      await cancelWorkflowRunById(fastify.sqlite, workflowRunId),
     );
   });
 };

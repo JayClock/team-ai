@@ -7,6 +7,7 @@ import { initializeDatabase } from '../db/sqlite';
 import { listBackgroundTasks } from './background-task-service';
 import { createProject } from './project-service';
 import {
+  cancelWorkflowRunById,
   createWorkflow,
   getWorkflowRunById,
   listProjectWorkflows,
@@ -165,6 +166,64 @@ describe('workflow service', () => {
     });
     expect(review?.dependsOnTaskIds.sort()).toEqual(
       [implementApi?.id, implementUi?.id].sort(),
+    );
+  });
+
+  it('cancels a running workflow run and its unfinished background tasks', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-workflow-cancel',
+      title: 'Workflow Cancel',
+    });
+
+    const workflow = await createWorkflow(sqlite, {
+      name: 'Cancelable flow',
+      projectId: project.id,
+      steps: [
+        {
+          name: 'Implement',
+          parallelGroup: null,
+          prompt: 'Implement ${trigger.payload}',
+          specialistId: 'backend-crafter',
+        },
+        {
+          name: 'Review',
+          parallelGroup: null,
+          prompt: 'Review ${workflow.name}',
+          specialistId: 'gate-reviewer',
+        },
+      ],
+    });
+
+    const triggered = await triggerWorkflow(sqlite, workflow.id, {
+      triggerPayload: 'cancel me',
+    });
+
+    const cancelled = await cancelWorkflowRunById(sqlite, triggered.workflowRun.id);
+    expect(cancelled).toMatchObject({
+      currentStepName: null,
+      status: 'CANCELLED',
+      steps: [
+        expect.objectContaining({
+          name: 'Implement',
+          status: 'CANCELLED',
+        }),
+        expect.objectContaining({
+          name: 'Review',
+          status: 'CANCELLED',
+        }),
+      ],
+    });
+
+    const backgroundTasks = await listBackgroundTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+
+    expect(backgroundTasks.items).toHaveLength(2);
+    expect(backgroundTasks.items.every((task) => task.status === 'CANCELLED')).toBe(
+      true,
     );
   });
 });

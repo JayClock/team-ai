@@ -14,6 +14,7 @@ import type {
   WorkflowStepPayload,
 } from '../schemas/workflow';
 import { getProjectById } from './project-service';
+import { updateBackgroundTaskStatus } from './background-task-service';
 import { triggerWorkflowRun } from './workflow-runtime-service';
 
 const workflowIdGenerator = customAlphabet(
@@ -64,6 +65,7 @@ interface WorkflowRunTaskRow {
 
 interface WorkflowRunProgress {
   blockedSteps: number;
+  cancelledSteps: number;
   completedAt: string | null;
   completedSteps: number;
   currentStepName: string | null;
@@ -212,9 +214,8 @@ function resolveWorkflowRunProgress(
   );
 
   const completedSteps = tasks.filter((task) => task.status === 'COMPLETED').length;
-  const failedSteps = tasks.filter(
-    (task) => task.status === 'FAILED' || task.status === 'CANCELLED',
-  ).length;
+  const failedSteps = tasks.filter((task) => task.status === 'FAILED').length;
+  const cancelledSteps = tasks.filter((task) => task.status === 'CANCELLED').length;
   const runningSteps = tasks.filter((task) => task.status === 'RUNNING').length;
   const currentStep =
     workflow.steps.find((step) => {
@@ -257,7 +258,9 @@ function resolveWorkflowRunProgress(
   const pendingSteps = steps.filter((step) => step.status === 'PENDING').length;
 
   const status =
-    failedSteps > 0
+    row.status === 'CANCELLED'
+      ? 'CANCELLED'
+      : failedSteps > 0
       ? 'FAILED'
       : completedSteps === row.total_steps && row.total_steps > 0
         ? 'COMPLETED'
@@ -265,12 +268,16 @@ function resolveWorkflowRunProgress(
 
   return {
     blockedSteps,
+    cancelledSteps,
     completedAt:
-      status === 'COMPLETED' || status === 'FAILED'
+      status === 'COMPLETED' || status === 'FAILED' || status === 'CANCELLED'
         ? row.completed_at ?? new Date().toISOString()
         : null,
     completedSteps,
-    currentStepName: status === 'COMPLETED' ? null : currentStep?.name ?? row.current_step_name,
+    currentStepName:
+      status === 'COMPLETED' || status === 'CANCELLED'
+        ? null
+        : currentStep?.name ?? row.current_step_name,
     failedSteps,
     pendingSteps,
     runningSteps,
@@ -468,6 +475,56 @@ export function reconcileWorkflowRunById(
   const row = getWorkflowRunRow(sqlite, workflowRunId);
   const progress = resolveWorkflowRunProgress(sqlite, row);
   updateWorkflowRunRow(sqlite, workflowRunId, progress);
+  return getWorkflowRunById(sqlite, workflowRunId);
+}
+
+export async function cancelWorkflowRunById(
+  sqlite: Database,
+  workflowRunId: string,
+): Promise<WorkflowRunPayload> {
+  const row = getWorkflowRunRow(sqlite, workflowRunId);
+  if (
+    row.status === 'CANCELLED' ||
+    row.status === 'COMPLETED' ||
+    row.status === 'FAILED'
+  ) {
+    return getWorkflowRunById(sqlite, workflowRunId);
+  }
+
+  const now = new Date().toISOString();
+  const tasks = listWorkflowRunTaskRows(sqlite, workflowRunId);
+
+  for (const task of tasks) {
+    if (task.status !== 'PENDING' && task.status !== 'RUNNING') {
+      continue;
+    }
+
+    await updateBackgroundTaskStatus(sqlite, task.id, 'CANCELLED', {
+      completedAt: now,
+      currentActivity: 'Workflow run cancelled',
+      errorMessage: task.error_message ?? 'Workflow run cancelled',
+      lastActivityAt: now,
+    });
+  }
+
+  sqlite
+    .prepare(
+      `
+        UPDATE project_workflow_runs
+        SET
+          status = 'CANCELLED',
+          current_step_name = NULL,
+          completed_at = @completedAt,
+          updated_at = @updatedAt
+        WHERE id = @workflowRunId AND deleted_at IS NULL
+      `,
+    )
+    .run({
+      completedAt: now,
+      updatedAt: now,
+      workflowRunId,
+    });
+
   return getWorkflowRunById(sqlite, workflowRunId);
 }
 

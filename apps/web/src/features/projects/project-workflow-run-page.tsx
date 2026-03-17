@@ -71,6 +71,9 @@ export default function ProjectWorkflowRunPage() {
   const currentProjectId = projectState?.data.id;
   const [workflowRun, setWorkflowRun] = useState<WorkflowRunDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingAction, setPendingAction] = useState<'cancel' | 'reconcile' | null>(
+    null,
+  );
 
   const loadWorkflowRun = useCallback(async () => {
     if (!workflowRunId) {
@@ -93,6 +96,32 @@ export default function ProjectWorkflowRunPage() {
   useEffect(() => {
     void loadWorkflowRun();
   }, [loadWorkflowRun]);
+
+  const performWorkflowAction = useCallback(
+    async (action: 'cancel' | 'reconcile') => {
+      if (!workflowRunId) {
+        return;
+      }
+
+      setPendingAction(action);
+      try {
+        const response = await runtimeFetch(
+          `/api/workflow-runs/${workflowRunId}/${action}`,
+          {
+            method: 'POST',
+          },
+        );
+        if (!response.ok) {
+          throw new Error(`执行 workflow run ${action} 失败`);
+        }
+
+        setWorkflowRun((await response.json()) as WorkflowRunDetail);
+      } finally {
+        setPendingAction(null);
+      }
+    },
+    [workflowRunId],
+  );
 
   if (projects.length === 0) {
     return (
@@ -137,7 +166,31 @@ export default function ProjectWorkflowRunPage() {
             <Button variant="outline" onClick={() => navigate(-1)}>
               返回上一页
             </Button>
-            <Button variant="outline" onClick={() => void loadWorkflowRun()}>
+            <Button
+              disabled={pendingAction !== null}
+              variant="outline"
+              onClick={() => void performWorkflowAction('reconcile')}
+            >
+              {pendingAction === 'reconcile' ? '处理中...' : 'Reconcile'}
+            </Button>
+            <Button
+              disabled={
+                pendingAction !== null ||
+                workflowRun === null ||
+                workflowRun.status === 'COMPLETED' ||
+                workflowRun.status === 'FAILED' ||
+                workflowRun.status === 'CANCELLED'
+              }
+              variant="outline"
+              onClick={() => void performWorkflowAction('cancel')}
+            >
+              {pendingAction === 'cancel' ? '取消中...' : 'Cancel Run'}
+            </Button>
+            <Button
+              disabled={pendingAction !== null}
+              variant="outline"
+              onClick={() => void loadWorkflowRun()}
+            >
               刷新
             </Button>
           </div>

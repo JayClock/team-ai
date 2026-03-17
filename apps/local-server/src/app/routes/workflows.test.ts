@@ -146,6 +146,82 @@ describe('workflow routes', () => {
     });
   });
 
+  it('reconciles and cancels a workflow run', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-workflow-routes-actions',
+      title: 'Workflow Route Actions',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      payload: {
+        name: 'Actionable flow',
+        steps: [
+          {
+            name: 'Implement',
+            prompt: 'Implement ${trigger.payload}',
+            specialistId: 'backend-crafter',
+          },
+          {
+            name: 'Review',
+            prompt: 'Review the slice',
+            specialistId: 'gate-reviewer',
+          },
+        ],
+      },
+      url: `/api/projects/${project.id}/workflows`,
+    });
+    const workflow = createResponse.json() as { id: string };
+
+    const triggerResponse = await fastify.inject({
+      method: 'POST',
+      payload: {
+        triggerPayload: 'the route action slice',
+      },
+      url: `/api/workflows/${workflow.id}/trigger`,
+    });
+    const workflowRun = triggerResponse.json() as { id: string };
+
+    const reconcileResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/workflow-runs/${workflowRun.id}/reconcile`,
+    });
+
+    expect(reconcileResponse.statusCode).toBe(202);
+    expect(responseContentType(reconcileResponse)).toBe(
+      VENDOR_MEDIA_TYPES.workflowRun,
+    );
+    expect(reconcileResponse.json()).toMatchObject({
+      id: workflowRun.id,
+      status: 'RUNNING',
+    });
+
+    const cancelResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/workflow-runs/${workflowRun.id}/cancel`,
+    });
+
+    expect(cancelResponse.statusCode).toBe(202);
+    expect(responseContentType(cancelResponse)).toBe(VENDOR_MEDIA_TYPES.workflowRun);
+    expect(cancelResponse.json()).toMatchObject({
+      currentStepName: null,
+      id: workflowRun.id,
+      status: 'CANCELLED',
+      steps: [
+        expect.objectContaining({
+          name: 'Implement',
+          status: 'CANCELLED',
+        }),
+        expect.objectContaining({
+          name: 'Review',
+          status: 'CANCELLED',
+        }),
+      ],
+    });
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-workflows-route-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
