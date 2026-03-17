@@ -5,8 +5,8 @@ export type {
   DispatchTaskResult as TaskSessionDispatchResult,
   DispatchTasksInput as TaskSessionDispatchesInput,
   DispatchTasksResult as TaskSessionDispatchesResult,
-} from './task-dispatch-service';
+} from './task-session-dispatch-core-service';
 export {
   dispatchTask as dispatchTaskSession,
   dispatchTasks as dispatchTaskSessions,
-} from './task-dispatch-service';
+} from './task-session-dispatch-core-service';
