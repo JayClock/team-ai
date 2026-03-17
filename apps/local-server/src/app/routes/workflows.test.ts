@@ -220,6 +220,22 @@ describe('workflow routes', () => {
         }),
       ],
     });
+
+    const retryResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/workflow-runs/${workflowRun.id}/retry`,
+    });
+
+    expect(retryResponse.statusCode).toBe(202);
+    expect(responseContentType(retryResponse)).toBe(VENDOR_MEDIA_TYPES.workflowRun);
+    expect(retryResponse.json()).toMatchObject({
+      id: expect.any(String),
+      status: 'RUNNING',
+      triggerPayload: 'the route action slice',
+      workflowId: workflow.id,
+      workflowName: 'Actionable flow',
+    });
+    expect((retryResponse.json() as { id: string }).id).not.toBe(workflowRun.id);
   });
 
   async function createTestDatabase(): Promise<Database> {

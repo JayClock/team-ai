@@ -528,6 +528,25 @@ export async function cancelWorkflowRunById(
   return getWorkflowRunById(sqlite, workflowRunId);
 }
 
+export async function retryWorkflowRunById(
+  sqlite: Database,
+  workflowRunId: string,
+): Promise<{
+  taskIds: string[];
+  workflowRun: WorkflowRunPayload;
+}> {
+  const row = getWorkflowRunRow(sqlite, workflowRunId);
+  const retriggered = await triggerWorkflowRun(sqlite, row.workflow_id, {
+    triggerPayload: row.trigger_payload,
+    triggerSource: row.trigger_source,
+  });
+
+  return {
+    taskIds: retriggered.taskIds,
+    workflowRun: getWorkflowRunById(sqlite, retriggered.workflowRunId),
+  };
+}
+
 export function listRunningWorkflowRunIds(sqlite: Database): string[] {
   return (
     sqlite

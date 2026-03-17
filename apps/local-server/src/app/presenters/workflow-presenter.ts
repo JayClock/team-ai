@@ -25,6 +25,15 @@ function presentWorkflowResource(workflow: WorkflowDefinitionPayload) {
 function presentWorkflowRunResource(workflowRun: WorkflowRunPayload) {
   return {
     _links: {
+      cancel: {
+        href: `/api/workflow-runs/${workflowRun.id}/cancel`,
+      },
+      reconcile: {
+        href: `/api/workflow-runs/${workflowRun.id}/reconcile`,
+      },
+      retry: {
+        href: `/api/workflow-runs/${workflowRun.id}/retry`,
+      },
       self: {
         href: `/api/workflow-runs/${workflowRun.id}`,
       },

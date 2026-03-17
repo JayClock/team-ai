@@ -71,9 +71,9 @@ export default function ProjectWorkflowRunPage() {
   const currentProjectId = projectState?.data.id;
   const [workflowRun, setWorkflowRun] = useState<WorkflowRunDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pendingAction, setPendingAction] = useState<'cancel' | 'reconcile' | null>(
-    null,
-  );
+  const [pendingAction, setPendingAction] = useState<
+    'cancel' | 'reconcile' | 'retry' | null
+  >(null);
 
   const loadWorkflowRun = useCallback(async () => {
     if (!workflowRunId) {
@@ -98,8 +98,8 @@ export default function ProjectWorkflowRunPage() {
   }, [loadWorkflowRun]);
 
   const performWorkflowAction = useCallback(
-    async (action: 'cancel' | 'reconcile') => {
-      if (!workflowRunId) {
+    async (action: 'cancel' | 'reconcile' | 'retry') => {
+      if (!workflowRunId || !projectId) {
         return;
       }
 
@@ -115,12 +115,16 @@ export default function ProjectWorkflowRunPage() {
           throw new Error(`执行 workflow run ${action} 失败`);
         }
 
-        setWorkflowRun((await response.json()) as WorkflowRunDetail);
+        const nextWorkflowRun = (await response.json()) as WorkflowRunDetail;
+        setWorkflowRun(nextWorkflowRun);
+        if (action === 'retry' && nextWorkflowRun.id !== workflowRunId) {
+          navigate(`/projects/${projectId}/workflow-runs/${nextWorkflowRun.id}`);
+        }
       } finally {
         setPendingAction(null);
       }
     },
-    [workflowRunId],
+    [navigate, projectId, workflowRunId],
   );
 
   if (projects.length === 0) {
@@ -185,6 +189,19 @@ export default function ProjectWorkflowRunPage() {
               onClick={() => void performWorkflowAction('cancel')}
             >
               {pendingAction === 'cancel' ? '取消中...' : 'Cancel Run'}
+            </Button>
+            <Button
+              disabled={
+                pendingAction !== null ||
+                workflowRun === null ||
+                (workflowRun.status !== 'FAILED' &&
+                  workflowRun.status !== 'CANCELLED' &&
+                  workflowRun.status !== 'COMPLETED')
+              }
+              variant="outline"
+              onClick={() => void performWorkflowAction('retry')}
+            >
+              {pendingAction === 'retry' ? '重试中...' : 'Retry Run'}
             </Button>
             <Button
               disabled={pendingAction !== null}

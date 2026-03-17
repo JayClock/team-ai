@@ -12,6 +12,7 @@ import {
   getWorkflowRunById,
   listProjectWorkflows,
   listWorkflowRuns,
+  retryWorkflowRunById,
   triggerWorkflow,
 } from './workflow-service';
 
@@ -225,6 +226,47 @@ describe('workflow service', () => {
     expect(backgroundTasks.items.every((task) => task.status === 'CANCELLED')).toBe(
       true,
     );
+  });
+
+  it('retries a workflow run with the same trigger payload', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-workflow-retry',
+      title: 'Workflow Retry',
+    });
+
+    const workflow = await createWorkflow(sqlite, {
+      name: 'Retryable flow',
+      projectId: project.id,
+      steps: [
+        {
+          name: 'Implement',
+          parallelGroup: null,
+          prompt: 'Implement ${trigger.payload}',
+          specialistId: 'backend-crafter',
+        },
+      ],
+    });
+
+    const triggered = await triggerWorkflow(sqlite, workflow.id, {
+      triggerPayload: 'retry me',
+      triggerSource: 'webhook',
+    });
+    await cancelWorkflowRunById(sqlite, triggered.workflowRun.id);
+
+    const retried = await retryWorkflowRunById(sqlite, triggered.workflowRun.id);
+    expect(retried.taskIds).toHaveLength(1);
+    expect(retried.workflowRun).toMatchObject({
+      projectId: project.id,
+      status: 'RUNNING',
+      triggerPayload: 'retry me',
+      triggerSource: 'webhook',
+      workflowId: workflow.id,
+    });
+    expect(retried.workflowRun.id).not.toBe(triggered.workflowRun.id);
+
+    const runs = await listWorkflowRuns(sqlite, workflow.id);
+    expect(runs.items).toHaveLength(2);
   });
 });
 
