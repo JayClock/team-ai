@@ -8,7 +8,10 @@ import {
   createBackgroundTask,
   getBackgroundTaskById,
   listBackgroundTasks,
+  listReadyBackgroundTasks,
+  listRunningBackgroundTasks,
 } from '../services/background-task-service';
+import { listRunningWorkflowRunIds } from '../services/workflow-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const projectParamsSchema = z.object({
@@ -43,6 +46,40 @@ const createBackgroundTaskBodySchema = z.object({
 });
 
 const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
+  fastify.get('/background-tasks/status', async () => {
+    const readyTasks = await listReadyBackgroundTasks(fastify.sqlite);
+    const runningTasks = await listRunningBackgroundTasks(fastify.sqlite);
+    const activeAutomations = fastify.hasDecorator('kanbanWorkflowOrchestrator')
+      ? fastify.kanbanWorkflowOrchestrator.getActiveAutomations()
+      : [];
+    const queuedAutomations = fastify.hasDecorator('kanbanWorkflowOrchestrator')
+      ? fastify.kanbanWorkflowOrchestrator.getQueuedAutomations()
+      : [];
+    const runningWorkflowRunIds = listRunningWorkflowRunIds(fastify.sqlite);
+
+    return {
+      backgroundWorker: {
+        readyTaskCount: readyTasks.length,
+        readyTaskIds: readyTasks.map((task) => task.id),
+        running: fastify.hasDecorator('backgroundWorkerHostService')
+          ? fastify.backgroundWorkerHostService.isRunning()
+          : false,
+        runningTaskCount: runningTasks.length,
+        runningTaskIds: runningTasks.map((task) => task.id),
+      },
+      kanban: {
+        activeAutomationCount: activeAutomations.length,
+        activeTaskIds: activeAutomations.map((automation) => automation.taskId),
+        queuedAutomationCount: queuedAutomations.length,
+        queuedTaskIds: queuedAutomations.map((automation) => automation.taskId),
+      },
+      workflows: {
+        runningRunCount: runningWorkflowRunIds.length,
+        runningRunIds: runningWorkflowRunIds,
+      },
+    };
+  });
+
   fastify.post('/background-tasks/process', async () => {
     const result = await fastify.backgroundWorkerHostService.tickNow();
 
