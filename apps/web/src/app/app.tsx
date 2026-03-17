@@ -5,6 +5,7 @@ import { Signup } from '../features/auth/signup';
 import ProjectHome from '../features/projects/project-home';
 import ProjectOrchestrationPage from '../features/projects/project-orchestration-page';
 import ProjectSessionPage from '../features/projects/project-session-page';
+import ProjectWorkflowRunPage from '../features/projects/project-workflow-run-page';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { layoutRoutes } from '@shells/layout';
 import { apiPrefixGuardLoader } from './api-prefix-guard';
@@ -50,6 +51,11 @@ function createAppRouter() {
       path: '/projects/:projectId/orchestration',
       loader: protectedRouteLoader,
       element: <ProjectOrchestrationPage />,
+    },
+    {
+      path: '/projects/:projectId/workflow-runs/:workflowRunId',
+      loader: protectedRouteLoader,
+      element: <ProjectWorkflowRunPage />,
     },
     {
       path: '/login',

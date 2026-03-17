@@ -497,7 +497,12 @@ export default function ProjectOrchestrationPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <div className="text-sm font-medium">{run.workflowName}</div>
+                        <Link
+                          className="text-sm font-medium underline-offset-4 hover:underline"
+                          to={`/projects/${projectId}/workflow-runs/${run.id}`}
+                        >
+                          {run.workflowName}
+                        </Link>
                         <div className="mt-1 text-xs text-muted-foreground">
                           {run.currentStepName
                             ? `当前步骤 ${run.currentStepName}`
