@@ -10,7 +10,11 @@ import type { KanbanWorkflowOrchestrator } from '../services/kanban-workflow-orc
 import { createBackgroundTask, updateBackgroundTaskStatus } from '../services/background-task-service';
 import { createProject } from '../services/project-service';
 import { createTask, updateTask } from '../services/task-service';
-import { createWorkflow, triggerWorkflow } from '../services/workflow-service';
+import {
+  cancelWorkflowRunById,
+  createWorkflow,
+  triggerWorkflow,
+} from '../services/workflow-service';
 import type { BackgroundWorkerHostService } from '../services/background-worker-host-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -213,6 +217,10 @@ describe('background tasks route', () => {
       ],
     });
     const triggered = await triggerWorkflow(sqlite, workflow.id);
+    const finished = await triggerWorkflow(sqlite, workflow.id, {
+      triggerPayload: 'completed history',
+    });
+    await cancelWorkflowRunById(sqlite, finished.workflowRun.id);
     const gatedTask = await createTask(sqlite, {
       columnId: 'review',
       objective: 'Wait for artifact evidence before auto-advancing review work',
@@ -383,6 +391,20 @@ describe('background tasks route', () => {
         uniqueSessions: 0,
       },
       workflows: {
+        recentRunCount: 2,
+        recentRuns: expect.arrayContaining([
+          expect.objectContaining({
+            id: triggered.workflowRun.id,
+            projectId: project.id,
+            status: 'RUNNING',
+          }),
+          expect.objectContaining({
+            id: finished.workflowRun.id,
+            projectId: project.id,
+            status: 'CANCELLED',
+            triggerPayload: 'completed history',
+          }),
+        ]),
         runningRunCount: 1,
         runningRunIds: [triggered.workflowRun.id],
         runningRuns: [

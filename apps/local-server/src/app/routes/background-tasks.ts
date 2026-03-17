@@ -17,6 +17,7 @@ import {
 } from '../services/trace-service';
 import {
   getWorkflowRunById,
+  listRecentWorkflowRuns,
   listRunningWorkflowRunIds,
 } from '../services/workflow-service';
 import { listTasks } from '../services/task-service';
@@ -131,6 +132,10 @@ const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
         (workflowRun) =>
           !query.projectId || workflowRun.projectId === query.projectId,
       );
+    const recentWorkflowRuns = listRecentWorkflowRuns(fastify.sqlite, {
+      limit: 8,
+      projectId: query.projectId,
+    });
     const artifactGateTasks = (
       await listTasks(fastify.sqlite, {
         page: 1,
@@ -244,6 +249,8 @@ const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
         uniqueSessions: traceStats.uniqueSessions,
       },
       workflows: {
+        recentRunCount: recentWorkflowRuns.length,
+        recentRuns: recentWorkflowRuns,
         runningRunCount: runningWorkflowRuns.length,
         runningRunIds: runningWorkflowRuns.map((workflowRun) => workflowRun.id),
         runningRuns: runningWorkflowRuns,

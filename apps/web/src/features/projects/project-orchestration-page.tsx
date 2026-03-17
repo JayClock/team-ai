@@ -96,6 +96,22 @@ interface OrchestrationSnapshot {
     uniqueSessions: number;
   };
   workflows: {
+    recentRunCount: number;
+    recentRuns: Array<{
+      completedSteps: number;
+      currentStepName: string | null;
+      failedSteps: number;
+      id: string;
+      pendingSteps: number;
+      runningSteps: number;
+      status: string;
+      totalSteps: number;
+      triggerSource: string;
+      updatedAt: string;
+      workflowId: string;
+      workflowName: string;
+      workflowVersion: number;
+    }>;
     runningRunCount: number;
     runningRuns: Array<{
       completedSteps: number;
@@ -610,6 +626,67 @@ export default function ProjectOrchestrationPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="rounded-2xl shadow-none">
+          <CardHeader>
+            <CardTitle>Recent Workflow History</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {snapshot?.workflows.recentRuns.length ? (
+              snapshot.workflows.recentRuns.map((run) => (
+                <div
+                  key={`recent-${run.id}`}
+                  className="rounded-xl border border-border/60 bg-muted/20 p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <Link
+                        className="text-sm font-medium underline-offset-4 hover:underline"
+                        to={`/projects/${projectId}/workflow-runs/${run.id}`}
+                      >
+                        {run.workflowName}
+                      </Link>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {run.triggerSource} · {formatDateTime(run.updatedAt)}
+                      </div>
+                    </div>
+                    <Badge variant="outline">{run.status}</Badge>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                    <SummaryCard
+                      compact
+                      label="Done"
+                      value={String(run.completedSteps)}
+                      meta={`of ${run.totalSteps}`}
+                    />
+                    <SummaryCard
+                      compact
+                      label="Running"
+                      value={String(run.runningSteps)}
+                      meta={`pending ${run.pendingSteps}`}
+                    />
+                    <SummaryCard
+                      compact
+                      label="Failed"
+                      value={String(run.failedSteps)}
+                      meta={`v${run.workflowVersion}`}
+                    />
+                    <SummaryCard
+                      compact
+                      label="Current"
+                      value={run.currentStepName ?? 'none'}
+                      meta={run.workflowId}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                当前项目还没有 workflow run 历史。
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card className="rounded-2xl shadow-none">
           <CardHeader>

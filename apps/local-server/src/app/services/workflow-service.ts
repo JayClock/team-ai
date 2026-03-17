@@ -561,3 +561,42 @@ export function listRunningWorkflowRunIds(sqlite: Database): string[] {
       .all() as Array<{ id: string }>
   ).map((row) => row.id);
 }
+
+export function listRecentWorkflowRuns(
+  sqlite: Database,
+  input: {
+    limit?: number;
+    projectId?: string;
+  } = {},
+): WorkflowRunPayload[] {
+  const limit = Math.max(1, input.limit ?? 8);
+  const rows = input.projectId
+    ? (sqlite
+        .prepare(
+          `
+            SELECT id, workflow_id, project_id, workflow_name, workflow_version,
+                   status, trigger_source, trigger_payload, current_step_name,
+                   total_steps, started_at, completed_at, created_at, updated_at
+            FROM project_workflow_runs
+            WHERE project_id = ? AND deleted_at IS NULL
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT ?
+          `,
+        )
+        .all(input.projectId, limit) as WorkflowRunRow[])
+    : (sqlite
+        .prepare(
+          `
+            SELECT id, workflow_id, project_id, workflow_name, workflow_version,
+                   status, trigger_source, trigger_payload, current_step_name,
+                   total_steps, started_at, completed_at, created_at, updated_at
+            FROM project_workflow_runs
+            WHERE deleted_at IS NULL
+            ORDER BY updated_at DESC, created_at DESC
+            LIMIT ?
+          `,
+        )
+        .all(limit) as WorkflowRunRow[]);
+
+  return rows.map((row) => mapWorkflowRunRow(row, resolveWorkflowRunProgress(sqlite, row)));
+}
