@@ -1,6 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { AcpEventEnvelope, AcpSession } from '@shared/schema';
 import {
+  Badge,
   Button,
   Card,
   CardContent,
@@ -10,7 +11,15 @@ import {
   TabsList,
   TabsTrigger,
 } from '@shared/ui';
-import { ActivityIcon, ArrowUpRightIcon, ListChecksIcon } from 'lucide-react';
+import {
+  ActivityIcon,
+  ArrowUpRightIcon,
+  GitBranchIcon,
+  ListChecksIcon,
+  PlayIcon,
+  RefreshCwIcon,
+  WorkflowIcon,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import {
   buildWorkbenchWalkthroughScenarios,
@@ -42,12 +51,106 @@ import {
 } from './project-session-workbench.shared';
 import type { WorkbenchSessionRuntimeProfile } from './session-runtime-profile';
 
+export type OrchestrationSnapshot = {
+  backgroundWorker: {
+    readyTaskCount: number;
+    readyTaskIds: string[];
+    readyTasks: Array<{
+      id: string;
+      projectId: string;
+      status: string;
+      taskId: string | null;
+      title: string;
+      triggerSource: string | null;
+    }>;
+    running: boolean;
+    runningTaskCount: number;
+    runningTaskIds: string[];
+    runningTasks: Array<{
+      id: string;
+      projectId: string;
+      resultSessionId: string | null;
+      startedAt: string | null;
+      status: string;
+      taskId: string | null;
+      title: string;
+      triggerSource: string | null;
+    }>;
+  };
+  kanban: {
+    activeAutomationCount: number;
+    activeAutomations: Array<{
+      autoAdvanceOnSuccess: boolean;
+      boardId: string;
+      columnId: string;
+      projectId: string;
+      sessionId: string | null;
+      taskId: string;
+      taskTitle: string;
+      triggerSessionId: string | null;
+    }>;
+    activeTaskIds: string[];
+    queuedAutomationCount: number;
+    queuedAutomations: Array<{
+      autoAdvanceOnSuccess: boolean;
+      boardId: string;
+      columnId: string;
+      enqueuedAt: string;
+      projectId: string;
+      taskId: string;
+      taskTitle: string;
+    }>;
+    queuedTaskIds: string[];
+  };
+  traces: {
+    byEventType: Record<string, number>;
+    recentOrchestrationTraces: Array<{
+      createdAt: string;
+      eventName: string | null;
+      id: string;
+      sessionId: string;
+      summary: string;
+    }>;
+    totalCount: number;
+    uniqueSessions: number;
+  };
+  workflows: {
+    runningRunCount: number;
+    runningRunIds: string[];
+    runningRuns: Array<{
+      completedAt: string | null;
+      completedSteps: number;
+      createdAt: string;
+      currentStepName: string | null;
+      failedSteps: number;
+      id: string;
+      pendingSteps: number;
+      projectId: string;
+      runningSteps: number;
+      startedAt: string | null;
+      status: string;
+      totalSteps: number;
+      triggerPayload: string | null;
+      triggerSource: string;
+      updatedAt: string;
+      workflowId: string;
+      workflowName: string;
+      workflowVersion: number;
+    }>;
+  };
+};
+
 export function ProjectSessionStatusSidebar(props: {
-  activeTab?: 'activity' | 'checklist' | 'tasks';
+  activeTab?: 'activity' | 'checklist' | 'orchestration' | 'tasks';
   events: AcpEventEnvelope[];
   onOpenSession: (sessionId: string) => void;
-  onTabChange?: (tab: 'activity' | 'checklist' | 'tasks') => void;
+  onProcessOrchestrationQueue?: () => void;
+  onRefreshOrchestration?: () => void;
+  onTabChange?: (tab: 'activity' | 'checklist' | 'orchestration' | 'tasks') => void;
   onTaskAction: (item: TaskPanelItem, action: TaskPanelAction) => void;
+  orchestrationActionPending?: 'processing' | 'refreshing' | null;
+  orchestrationLoading?: boolean;
+  orchestrationSnapshot?: OrchestrationSnapshot | null;
   pendingTaskAction: {
     action: TaskPanelAction;
     taskId: string;
@@ -63,8 +166,13 @@ export function ProjectSessionStatusSidebar(props: {
     activeTab,
     events,
     onOpenSession,
+    onProcessOrchestrationQueue,
+    onRefreshOrchestration,
     onTabChange,
     onTaskAction,
+    orchestrationActionPending,
+    orchestrationLoading,
+    orchestrationSnapshot,
     pendingTaskAction,
     providerFallbackLabel,
     runtimeProfile,
@@ -97,6 +205,34 @@ export function ProjectSessionStatusSidebar(props: {
   const walkthroughCoveredCount = walkthroughScenarios.filter(
     (scenario) => scenario.status === 'covered',
   ).length;
+  const laneSessions = taskItems
+    .filter((item) => item.source === 'task')
+    .flatMap((item) =>
+      (item.laneSessions ?? []).map((laneSession) => ({
+        ...laneSession,
+        taskId: item.taskId ?? item.id,
+        taskTitle: item.title,
+      })),
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(right.completedAt ?? right.startedAt) -
+        Date.parse(left.completedAt ?? left.startedAt),
+    );
+  const laneHandoffs = taskItems
+    .filter((item) => item.source === 'task')
+    .flatMap((item) =>
+      (item.laneHandoffs ?? []).map((handoff) => ({
+        ...handoff,
+        taskId: item.taskId ?? item.id,
+        taskTitle: item.title,
+      })),
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(right.respondedAt ?? right.requestedAt) -
+        Date.parse(left.respondedAt ?? left.requestedAt),
+    );
   const runtimeModeLabel = runtimeProfile
     ? formatOrchestrationModeLabel(runtimeProfile.orchestrationMode)
     : '未加载模式';
@@ -138,17 +274,22 @@ export function ProjectSessionStatusSidebar(props: {
       <Tabs
         value={resolvedTab}
         onValueChange={(value) =>
-          onTabChange?.(value as 'activity' | 'checklist' | 'tasks')
+          onTabChange?.(
+            value as 'activity' | 'checklist' | 'orchestration' | 'tasks',
+          )
         }
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="border-b border-border/60 px-3 py-2">
-          <TabsList className="grid h-9 w-full grid-cols-3 rounded-lg bg-muted/70">
+          <TabsList className="grid h-9 w-full grid-cols-4 rounded-lg bg-muted/70">
             <TabsTrigger value="tasks" className="rounded-md text-xs">
               Tasks
             </TabsTrigger>
             <TabsTrigger value="activity" className="rounded-md text-xs">
               Activity
+            </TabsTrigger>
+            <TabsTrigger value="orchestration" className="rounded-md text-xs">
+              Ops
             </TabsTrigger>
             <TabsTrigger value="checklist" className="rounded-md text-xs">
               Checklist
@@ -266,6 +407,33 @@ export function ProjectSessionStatusSidebar(props: {
                   </Card>
                 ))
               )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="orchestration" className="mt-0 min-h-0 flex-1">
+          <ScrollArea className="h-full">
+            <div className="space-y-3 p-4">
+              <OrchestrationOverviewCard
+                actionPending={orchestrationActionPending ?? null}
+                loading={orchestrationLoading ?? false}
+                onProcessQueue={onProcessOrchestrationQueue}
+                onRefresh={onRefreshOrchestration}
+                snapshot={orchestrationSnapshot ?? null}
+              />
+              <OrchestrationQueueCard
+                snapshot={orchestrationSnapshot ?? null}
+              />
+              <WorkflowRunsCard snapshot={orchestrationSnapshot ?? null} />
+              <LaneSessionsCard
+                laneSessions={laneSessions}
+                onOpenSession={onOpenSession}
+              />
+              <LaneHandoffsCard laneHandoffs={laneHandoffs} />
+              <OrchestrationTraceCard
+                onOpenSession={onOpenSession}
+                snapshot={orchestrationSnapshot ?? null}
+              />
             </div>
           </ScrollArea>
         </TabsContent>
@@ -1140,6 +1308,490 @@ function TaskSessionLinkCard(props: {
         ) : null}
       </div>
     </div>
+  );
+}
+
+function OrchestrationOverviewCard(props: {
+  actionPending: 'processing' | 'refreshing' | null;
+  loading: boolean;
+  onProcessQueue?: () => void;
+  onRefresh?: () => void;
+  snapshot: OrchestrationSnapshot | null;
+}) {
+  const { actionPending, loading, onProcessQueue, onRefresh, snapshot } = props;
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-none">
+      <CardContent className="space-y-4 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Orchestration Home</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              统一查看 queue、Kanban automation、workflow run 和 orchestration trace。
+            </div>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              disabled={actionPending === 'processing'}
+              onClick={onRefresh}
+            >
+              <RefreshCwIcon className="size-3.5" />
+              {actionPending === 'refreshing' ? '刷新中...' : '刷新'}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              disabled={actionPending === 'refreshing'}
+              onClick={onProcessQueue}
+            >
+              <PlayIcon className="size-3.5" />
+              {actionPending === 'processing' ? '处理中...' : '处理队列'}
+            </Button>
+          </div>
+        </div>
+
+        {loading && !snapshot ? (
+          <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground">
+            正在加载 orchestration snapshot...
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MetricCard
+              icon={<ActivityIcon className="size-3.5" />}
+              label="Worker"
+              value={
+                snapshot?.backgroundWorker.running
+                  ? `${snapshot.backgroundWorker.runningTaskCount} running`
+                  : 'stopped'
+              }
+              meta={`${snapshot?.backgroundWorker.readyTaskCount ?? 0} ready`}
+            />
+            <MetricCard
+              icon={<GitBranchIcon className="size-3.5" />}
+              label="Kanban Queue"
+              value={`${snapshot?.kanban.activeAutomationCount ?? 0} active`}
+              meta={`${snapshot?.kanban.queuedAutomationCount ?? 0} queued`}
+            />
+            <MetricCard
+              icon={<WorkflowIcon className="size-3.5" />}
+              label="Workflow Runs"
+              value={`${snapshot?.workflows.runningRunCount ?? 0} running`}
+              meta={
+                snapshot
+                  ? `${snapshot.workflows.runningRuns.reduce(
+                      (count, run) => count + run.runningSteps,
+                      0,
+                    )} active steps`
+                  : '0 active steps'
+              }
+            />
+            <MetricCard
+              icon={<ListChecksIcon className="size-3.5" />}
+              label="Traces"
+              value={`${snapshot?.traces.totalCount ?? 0} events`}
+              meta={`${snapshot?.traces.uniqueSessions ?? 0} sessions`}
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetricCard(props: {
+  icon: ReactNode;
+  label: string;
+  meta: string;
+  value: string;
+}) {
+  const { icon, label, meta, value } = props;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+      <div className="mt-2 text-sm font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{meta}</div>
+    </div>
+  );
+}
+
+function OrchestrationQueueCard(props: {
+  snapshot: OrchestrationSnapshot | null;
+}) {
+  const { snapshot } = props;
+  const activeAutomations = snapshot?.kanban.activeAutomations ?? [];
+  const queuedAutomations = snapshot?.kanban.queuedAutomations ?? [];
+  const runningTasks = snapshot?.backgroundWorker.runningTasks ?? [];
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-none">
+      <CardContent className="space-y-3 p-4">
+        <div className="text-sm font-semibold">Queue Snapshot</div>
+        {activeAutomations.length === 0 &&
+        queuedAutomations.length === 0 &&
+        runningTasks.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            当前没有 active queue、Kanban automation 或 background task。
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {activeAutomations.map((automation) => (
+              <QueueEntryCard
+                key={`active-${automation.taskId}`}
+                badges={[
+                  `board ${automation.boardId}`,
+                  `column ${automation.columnId}`,
+                  automation.autoAdvanceOnSuccess ? 'auto-advance' : 'manual',
+                ]}
+                status="active"
+                subtitle={automation.sessionId ?? automation.triggerSessionId ?? 'waiting session'}
+                title={automation.taskTitle}
+              />
+            ))}
+            {queuedAutomations.map((automation) => (
+              <QueueEntryCard
+                key={`queued-${automation.taskId}`}
+                badges={[
+                  `board ${automation.boardId}`,
+                  `column ${automation.columnId}`,
+                  automation.autoAdvanceOnSuccess ? 'auto-advance' : 'manual',
+                ]}
+                status="queued"
+                subtitle={formatDateTime(automation.enqueuedAt)}
+                title={automation.taskTitle}
+              />
+            ))}
+            {runningTasks.map((task) => (
+              <QueueEntryCard
+                key={`worker-${task.id}`}
+                badges={[
+                  task.triggerSource ?? 'background',
+                  task.taskId ? `task ${task.taskId}` : 'unbound',
+                ]}
+                status="running"
+                subtitle={task.startedAt ? formatDateTime(task.startedAt) : 'started'}
+                title={task.title}
+              />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function QueueEntryCard(props: {
+  badges: string[];
+  status: 'active' | 'queued' | 'running';
+  subtitle: string;
+  title: string;
+}) {
+  const { badges, status, subtitle, title } = props;
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">{title}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{subtitle}</div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {badges.map((badge) => (
+              <Badge key={`${title}-${badge}`} variant="secondary" className="text-[10px]">
+                {badge}
+              </Badge>
+            ))}
+          </div>
+        </div>
+        <Badge variant="outline" className="shrink-0 text-[10px] uppercase">
+          {status}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+function WorkflowRunsCard(props: {
+  snapshot: OrchestrationSnapshot | null;
+}) {
+  const runs = props.snapshot?.workflows.runningRuns ?? [];
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-none">
+      <CardContent className="space-y-3 p-4">
+        <div className="text-sm font-semibold">Workflow Runtime</div>
+        {runs.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            当前没有 running workflow run。
+          </div>
+        ) : (
+          runs.map((run) => (
+            <div
+              key={run.id}
+              className="rounded-xl border border-border/60 bg-muted/20 p-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">
+                    {run.workflowName}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {run.currentStepName
+                      ? `当前步骤 ${run.currentStepName}`
+                      : '等待步骤调度'}
+                  </div>
+                </div>
+                <Badge variant="outline" className="shrink-0 text-[10px]">
+                  {formatStatusLabel(run.status)}
+                </Badge>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                <MetricCard
+                  icon={<WorkflowIcon className="size-3.5" />}
+                  label="Completed"
+                  value={String(run.completedSteps)}
+                  meta={`of ${run.totalSteps}`}
+                />
+                <MetricCard
+                  icon={<WorkflowIcon className="size-3.5" />}
+                  label="Running"
+                  value={String(run.runningSteps)}
+                  meta={`pending ${run.pendingSteps}`}
+                />
+                <MetricCard
+                  icon={<WorkflowIcon className="size-3.5" />}
+                  label="Failed"
+                  value={String(run.failedSteps)}
+                  meta={run.triggerSource}
+                />
+                <MetricCard
+                  icon={<WorkflowIcon className="size-3.5" />}
+                  label="Updated"
+                  value={formatDateTime(run.updatedAt)}
+                  meta={`v${run.workflowVersion}`}
+                />
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function LaneSessionsCard(props: {
+  laneSessions: Array<{
+    columnId?: string;
+    columnName?: string;
+    completedAt?: string;
+    provider?: string;
+    role?: string;
+    sessionId: string;
+    specialistId?: string;
+    specialistName?: string;
+    startedAt: string;
+    status: string;
+    taskId: string;
+    taskTitle: string;
+  }>;
+  onOpenSession: (sessionId: string) => void;
+}) {
+  const { laneSessions, onOpenSession } = props;
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-none">
+      <CardContent className="space-y-3 p-4">
+        <div className="text-sm font-semibold">Lane Session History</div>
+        {laneSessions.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            当前任务还没有 lane session 历史。
+          </div>
+        ) : (
+          laneSessions.slice(0, 8).map((laneSession) => (
+            <div
+              key={`${laneSession.taskId}-${laneSession.sessionId}`}
+              className="rounded-xl border border-border/60 bg-muted/20 p-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">
+                    {laneSession.taskTitle}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {(laneSession.columnName ?? laneSession.columnId ?? 'lane') +
+                      ' · ' +
+                      formatDateTime(laneSession.completedAt ?? laneSession.startedAt)}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+                  onClick={() => onOpenSession(laneSession.sessionId)}
+                >
+                  打开会话
+                  <ArrowUpRightIcon className="size-3.5" />
+                </Button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <Badge variant="secondary" className="text-[10px]">
+                  {laneSession.status}
+                </Badge>
+                {laneSession.role ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    {laneSession.role}
+                  </Badge>
+                ) : null}
+                {laneSession.provider ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    {laneSession.provider}
+                  </Badge>
+                ) : null}
+                {laneSession.specialistName ?? laneSession.specialistId ? (
+                  <Badge variant="secondary" className="text-[10px]">
+                    {laneSession.specialistName ?? laneSession.specialistId}
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function LaneHandoffsCard(props: {
+  laneHandoffs: Array<{
+    fromColumnId?: string;
+    fromSessionId: string;
+    id: string;
+    request: string;
+    requestType: string;
+    requestedAt: string;
+    respondedAt?: string;
+    responseSummary?: string;
+    status: string;
+    taskId: string;
+    taskTitle: string;
+    toColumnId?: string;
+    toSessionId: string;
+  }>;
+}) {
+  const { laneHandoffs } = props;
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-none">
+      <CardContent className="space-y-3 p-4">
+        <div className="text-sm font-semibold">Lane Handoffs</div>
+        {laneHandoffs.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            当前任务还没有 lane handoff 记录。
+          </div>
+        ) : (
+          laneHandoffs.slice(0, 8).map((handoff) => (
+            <div
+              key={handoff.id}
+              className="rounded-xl border border-border/60 bg-muted/20 p-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">
+                    {handoff.taskTitle}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {handoff.fromColumnId ?? 'unknown'} →{' '}
+                    {handoff.toColumnId ?? 'unknown'}
+                  </div>
+                </div>
+                <Badge variant="outline" className="shrink-0 text-[10px]">
+                  {handoff.status}
+                </Badge>
+              </div>
+              <div className="mt-3 text-sm text-foreground">{handoff.request}</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <Badge variant="secondary" className="text-[10px]">
+                  {handoff.requestType}
+                </Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {formatDateTime(handoff.respondedAt ?? handoff.requestedAt)}
+                </Badge>
+              </div>
+              {handoff.responseSummary ? (
+                <div className="mt-3 rounded-xl border border-border/60 bg-background/80 p-3 text-xs text-muted-foreground">
+                  {handoff.responseSummary}
+                </div>
+              ) : null}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function OrchestrationTraceCard(props: {
+  onOpenSession: (sessionId: string) => void;
+  snapshot: OrchestrationSnapshot | null;
+}) {
+  const { onOpenSession, snapshot } = props;
+  const traces = snapshot?.traces.recentOrchestrationTraces ?? [];
+
+  return (
+    <Card className="rounded-xl border-border/70 shadow-none">
+      <CardContent className="space-y-3 p-4">
+        <div className="text-sm font-semibold">Recent Orchestration Traces</div>
+        {traces.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            当前还没有 orchestration trace。
+          </div>
+        ) : (
+          traces.map((trace) => (
+            <div
+              key={trace.id}
+              className="rounded-xl border border-border/60 bg-muted/20 p-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">
+                    {trace.eventName ?? 'orchestration_update'}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {trace.summary}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 shrink-0 gap-1.5 px-2 text-xs"
+                  onClick={() => onOpenSession(trace.sessionId)}
+                >
+                  会话
+                  <ArrowUpRightIcon className="size-3.5" />
+                </Button>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <Badge variant="secondary" className="text-[10px]">
+                  {formatDateTime(trace.createdAt)}
+                </Badge>
+                <Badge variant="secondary" className="text-[10px]">
+                  {trace.sessionId}
+                </Badge>
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

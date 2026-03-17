@@ -11,7 +11,14 @@ import {
   listReadyBackgroundTasks,
   listRunningBackgroundTasks,
 } from '../services/background-task-service';
-import { listRunningWorkflowRunIds } from '../services/workflow-service';
+import {
+  getTraceStats,
+  listTraces,
+} from '../services/trace-service';
+import {
+  getWorkflowRunById,
+  listRunningWorkflowRunIds,
+} from '../services/workflow-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const projectParamsSchema = z.object({
@@ -30,6 +37,11 @@ const listBackgroundTasksQuerySchema = z.object({
     .optional(),
 });
 
+const orchestrationStatusQuerySchema = z.object({
+  projectId: z.string().trim().min(1).optional(),
+  sessionId: z.string().trim().min(1).optional(),
+});
+
 const createBackgroundTaskBodySchema = z.object({
   agentId: z.string().trim().min(1),
   maxAttempts: z.number().int().positive().optional(),
@@ -46,36 +58,106 @@ const createBackgroundTaskBodySchema = z.object({
 });
 
 const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/background-tasks/status', async () => {
-    const readyTasks = await listReadyBackgroundTasks(fastify.sqlite);
-    const runningTasks = await listRunningBackgroundTasks(fastify.sqlite);
+  fastify.get('/background-tasks/status', async (request) => {
+    const query = orchestrationStatusQuerySchema.parse(request.query);
+    const readyTasks = (await listReadyBackgroundTasks(fastify.sqlite)).filter(
+      (task) => !query.projectId || task.projectId === query.projectId,
+    );
+    const runningTasks = (
+      await listRunningBackgroundTasks(fastify.sqlite)
+    ).filter((task) => !query.projectId || task.projectId === query.projectId);
     const activeAutomations = fastify.hasDecorator('kanbanWorkflowOrchestrator')
-      ? fastify.kanbanWorkflowOrchestrator.getActiveAutomations()
+      ? fastify.kanbanWorkflowOrchestrator
+          .getActiveAutomations()
+          .filter(
+            (automation) =>
+              !query.projectId || automation.projectId === query.projectId,
+          )
       : [];
     const queuedAutomations = fastify.hasDecorator('kanbanWorkflowOrchestrator')
-      ? fastify.kanbanWorkflowOrchestrator.getQueuedAutomations()
+      ? fastify.kanbanWorkflowOrchestrator
+          .getQueuedAutomations()
+          .filter(
+            (automation) =>
+              !query.projectId || automation.projectId === query.projectId,
+          )
       : [];
-    const runningWorkflowRunIds = listRunningWorkflowRunIds(fastify.sqlite);
+    const runningWorkflowRuns = listRunningWorkflowRunIds(fastify.sqlite)
+      .map((workflowRunId) => getWorkflowRunById(fastify.sqlite, workflowRunId))
+      .filter(
+        (workflowRun) =>
+          !query.projectId || workflowRun.projectId === query.projectId,
+      );
+    const traceStats = await getTraceStats(fastify.sqlite, {
+      projectId: query.projectId,
+      sessionId: query.sessionId,
+    });
+    const recentOrchestrationTraces = (
+      await listTraces(fastify.sqlite, {
+        eventType: 'orchestration_update',
+        limit: 8,
+        projectId: query.projectId,
+        sessionId: query.sessionId,
+      })
+    ).items;
 
     return {
       backgroundWorker: {
+        readyTasks: readyTasks.map((task) => ({
+          id: task.id,
+          projectId: task.projectId,
+          status: task.status,
+          taskId: task.taskId,
+          title: task.title,
+          triggerSource: task.triggerSource,
+        })),
         readyTaskCount: readyTasks.length,
         readyTaskIds: readyTasks.map((task) => task.id),
         running: fastify.hasDecorator('backgroundWorkerHostService')
           ? fastify.backgroundWorkerHostService.isRunning()
           : false,
+        runningTasks: runningTasks.map((task) => ({
+          id: task.id,
+          projectId: task.projectId,
+          resultSessionId: task.resultSessionId,
+          startedAt: task.startedAt,
+          status: task.status,
+          taskId: task.taskId,
+          title: task.title,
+          triggerSource: task.triggerSource,
+        })),
         runningTaskCount: runningTasks.length,
         runningTaskIds: runningTasks.map((task) => task.id),
       },
       kanban: {
         activeAutomationCount: activeAutomations.length,
+        activeAutomations,
         activeTaskIds: activeAutomations.map((automation) => automation.taskId),
+        queuedAutomations,
         queuedAutomationCount: queuedAutomations.length,
         queuedTaskIds: queuedAutomations.map((automation) => automation.taskId),
       },
+      traces: {
+        byEventType: traceStats.byEventType,
+        recentOrchestrationTraces: recentOrchestrationTraces.map((trace) => ({
+          createdAt: trace.createdAt,
+          eventName:
+            typeof trace.payload.orchestration === 'object' &&
+            trace.payload.orchestration &&
+            typeof trace.payload.orchestration.eventName === 'string'
+              ? trace.payload.orchestration.eventName
+              : null,
+          id: trace.id,
+          sessionId: trace.sessionId,
+          summary: trace.summary,
+        })),
+        totalCount: traceStats.total,
+        uniqueSessions: traceStats.uniqueSessions,
+      },
       workflows: {
-        runningRunCount: runningWorkflowRunIds.length,
-        runningRunIds: runningWorkflowRunIds,
+        runningRunCount: runningWorkflowRuns.length,
+        runningRunIds: runningWorkflowRuns.map((workflowRun) => workflowRun.id),
+        runningRuns: runningWorkflowRuns,
       },
     };
   });

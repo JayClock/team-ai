@@ -9,6 +9,8 @@ import {
   AcpEventEnvelope,
   type AcpSession,
   type Task,
+  type TaskLaneHandoff,
+  type TaskLaneSession,
   type TaskRun,
 } from '@shared/schema';
 import { SparklesIcon, WrenchIcon } from 'lucide-react';
@@ -29,6 +31,8 @@ export type TaskPanelItem = {
   executionSessionId?: string | null;
   id: string;
   kind?: string | null;
+  laneHandoffs?: TaskLaneHandoff[];
+  laneSessions?: TaskLaneSession[];
   parallelGroup?: string | null;
   parentTaskId?: string | null;
   resultSessionId?: string | null;
@@ -257,6 +261,8 @@ export function buildTaskPanelItem(task: State<Task>): TaskPanelItem {
     description,
     source: 'task',
     kind: taskData.kind,
+    laneHandoffs: taskData.laneHandoffs,
+    laneSessions: taskData.laneSessions,
     assignedRole: taskData.assignedRole,
     assignedProvider: taskData.assignedProvider,
     assignedSpecialistId: taskData.assignedSpecialistId,

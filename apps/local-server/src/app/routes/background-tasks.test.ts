@@ -264,21 +264,71 @@ describe('background tasks route', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       backgroundWorker: {
+        readyTasks: expect.arrayContaining([
+          expect.objectContaining({
+            id: readyTask.id,
+            projectId: project.id,
+            status: 'PENDING',
+            title: 'Ready task',
+          }),
+          expect.objectContaining({
+            id: triggered.taskIds[0],
+            projectId: project.id,
+            status: 'PENDING',
+          }),
+        ]),
         readyTaskCount: 2,
         readyTaskIds: expect.arrayContaining([readyTask.id, triggered.taskIds[0]]),
         running: true,
+        runningTasks: [
+          expect.objectContaining({
+            id: runningTask.id,
+            projectId: project.id,
+            startedAt: '2026-03-17T00:00:00.000Z',
+            status: 'RUNNING',
+            title: 'Running task',
+          }),
+        ],
         runningTaskCount: 1,
         runningTaskIds: [runningTask.id],
       },
       kanban: {
         activeAutomationCount: 1,
+        activeAutomations: [
+          expect.objectContaining({
+            projectId: project.id,
+            sessionId: 'acps_active',
+            taskId: 'task_active',
+          }),
+        ],
         activeTaskIds: ['task_active'],
+        queuedAutomations: [
+          expect.objectContaining({
+            projectId: project.id,
+            taskId: 'task_queued',
+          }),
+        ],
         queuedAutomationCount: 1,
         queuedTaskIds: ['task_queued'],
+      },
+      traces: {
+        byEventType: expect.any(Object),
+        recentOrchestrationTraces: [],
+        totalCount: 0,
+        uniqueSessions: 0,
       },
       workflows: {
         runningRunCount: 1,
         runningRunIds: [triggered.workflowRun.id],
+        runningRuns: [
+          expect.objectContaining({
+            id: triggered.workflowRun.id,
+            projectId: project.id,
+            status: 'RUNNING',
+            workflowId: workflow.id,
+            workflowName: 'Status Workflow',
+          }),
+        ],
       },
     });
   });

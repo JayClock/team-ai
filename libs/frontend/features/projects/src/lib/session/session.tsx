@@ -33,7 +33,10 @@ import {
 import { ProjectSessionConversationPane } from './project-session-conversation-pane';
 import { ProjectSessionHistorySidebar } from './project-session-history-sidebar';
 import { ProjectSessionSpecPane } from './project-session-spec-pane';
-import { ProjectSessionStatusSidebar } from './project-session-status-sidebar';
+import {
+  ProjectSessionStatusSidebar,
+  type OrchestrationSnapshot,
+} from './project-session-status-sidebar';
 import { useProjectSessionChat } from './use-project-session-chat';
 import {
   buildSessionTree,
@@ -126,6 +129,24 @@ async function loadNoteCollectionPages(
   }
 
   return items;
+}
+
+async function loadOrchestrationSnapshot(
+  projectId: string,
+  sessionId: string | undefined,
+): Promise<OrchestrationSnapshot> {
+  const response = await runtimeFetch(
+    buildCollectionPath('/api/background-tasks/status', {
+      projectId,
+      sessionId,
+    }),
+  );
+
+  if (!response.ok) {
+    throw new Error('加载 orchestration snapshot 失败');
+  }
+
+  return (await response.json()) as OrchestrationSnapshot;
 }
 
 function resolveRootSessionId(
@@ -320,6 +341,12 @@ export function ShellsSession(props: ShellsSessionProps) {
   } | null>(null);
   const [specNote, setSpecNote] = useState<State<Note> | null>(null);
   const [specLoading, setSpecLoading] = useState(false);
+  const [orchestrationSnapshot, setOrchestrationSnapshot] =
+    useState<OrchestrationSnapshot | null>(null);
+  const [orchestrationLoading, setOrchestrationLoading] = useState(false);
+  const [orchestrationActionPending, setOrchestrationActionPending] = useState<
+    'processing' | 'refreshing' | null
+  >(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const noteEventSourceRef = useRef<EventSource | null>(null);
@@ -774,10 +801,36 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
   }, [client, projectState.data.id, workbenchSessionId]);
 
+  const refreshOrchestration = useCallback(async () => {
+    setOrchestrationLoading(true);
+
+    try {
+      const snapshot = await loadOrchestrationSnapshot(
+        projectState.data.id,
+        workbenchSessionId,
+      );
+      setOrchestrationSnapshot(snapshot);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '加载 orchestration snapshot 失败';
+      toast.error(message);
+    } finally {
+      setOrchestrationLoading(false);
+    }
+  }, [projectState.data.id, workbenchSessionId]);
+
   useEffect(() => {
     void refreshTaskItems();
     void refreshSpecPane();
   }, [refreshSpecPane, refreshTaskItems]);
+
+  useEffect(() => {
+    if (mainPane !== 'ops') {
+      return;
+    }
+
+    void refreshOrchestration();
+  }, [mainPane, refreshOrchestration]);
 
   const { chatMessages, handlePromptSubmit, hasPendingAssistantMessage } =
     useProjectSessionChat({
@@ -998,7 +1051,11 @@ export function ShellsSession(props: ShellsSessionProps) {
           }
         }
 
-        await Promise.all([refreshTaskItems(), loadSessions()]);
+        await Promise.all([
+          refreshTaskItems(),
+          loadSessions(),
+          refreshOrchestration(),
+        ]);
         toast.success(action === 'retry' ? '任务已重新排队' : '任务已分发');
       } catch (error) {
         const message = error instanceof Error ? error.message : '任务操作失败';
@@ -1009,11 +1066,55 @@ export function ShellsSession(props: ShellsSessionProps) {
     },
     [
       loadSessions,
+      refreshOrchestration,
       refreshTaskItems,
       selectedSession?.data.id,
       workbenchSessionId,
     ],
   );
+
+  const handleRefreshOrchestration = useCallback(async () => {
+    setOrchestrationActionPending('refreshing');
+
+    try {
+      await refreshOrchestration();
+    } finally {
+      setOrchestrationActionPending(null);
+    }
+  }, [refreshOrchestration]);
+
+  const handleProcessOrchestrationQueue = useCallback(async () => {
+    setOrchestrationActionPending('processing');
+
+    try {
+      const response = await runtimeFetch('/api/background-tasks/process', {
+        method: 'POST',
+      });
+      const payload = (await response.json()) as {
+        completedCount?: number;
+        dispatchedCount?: number;
+      };
+
+      if (!response.ok) {
+        throw new Error('处理 orchestration 队列失败');
+      }
+
+      await Promise.all([
+        refreshTaskItems(),
+        loadSessions(),
+        refreshOrchestration(),
+      ]);
+      toast.success(
+        `已推进 orchestration 队列，dispatch ${payload.dispatchedCount ?? 0}，complete ${payload.completedCount ?? 0}`,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '处理 orchestration 队列失败';
+      toast.error(message);
+    } finally {
+      setOrchestrationActionPending(null);
+    }
+  }, [loadSessions, refreshOrchestration, refreshTaskItems]);
 
   const stopStream = useCallback((manual: boolean) => {
     allowReconnectRef.current = !manual;
@@ -1318,7 +1419,12 @@ export function ShellsSession(props: ShellsSessionProps) {
     <ProjectSessionStatusSidebar
       events={history}
       onOpenSession={handleOpenSession}
+      onProcessOrchestrationQueue={handleProcessOrchestrationQueue}
+      onRefreshOrchestration={handleRefreshOrchestration}
       onTaskAction={handleTaskAction}
+      orchestrationActionPending={orchestrationActionPending}
+      orchestrationLoading={orchestrationLoading}
+      orchestrationSnapshot={orchestrationSnapshot}
       pendingTaskAction={pendingTaskAction}
       providerFallbackLabel={providerFallbackLabel}
       runtimeProfile={runtimeProfile}

@@ -62,6 +62,11 @@ export type {
   Task,
   TaskCollection,
   TaskKind,
+  TaskLaneHandoff,
+  TaskLaneHandoffRequestType,
+  TaskLaneHandoffStatus,
+  TaskLaneSession,
+  TaskLaneSessionStatus,
   TaskStatus,
   VerificationVerdict,
 } from './lib/task.js';

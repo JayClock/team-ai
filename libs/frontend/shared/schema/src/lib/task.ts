@@ -24,6 +24,57 @@ export type VerificationVerdict =
   | 'blocked'
   | (string & {});
 
+export type TaskLaneSessionStatus =
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'timed_out'
+  | 'transitioned'
+  | (string & {});
+
+export type TaskLaneHandoffRequestType =
+  | 'environment_preparation'
+  | 'runtime_context'
+  | 'clarification'
+  | 'rerun_command'
+  | (string & {});
+
+export type TaskLaneHandoffStatus =
+  | 'requested'
+  | 'delivered'
+  | 'completed'
+  | 'blocked'
+  | 'failed'
+  | (string & {});
+
+export type TaskLaneSession = {
+  columnId?: string;
+  columnName?: string;
+  completedAt?: string;
+  provider?: string;
+  role?: string;
+  routaAgentId?: string;
+  sessionId: string;
+  specialistId?: string;
+  specialistName?: string;
+  startedAt: string;
+  status: TaskLaneSessionStatus;
+};
+
+export type TaskLaneHandoff = {
+  fromColumnId?: string;
+  fromSessionId: string;
+  id: string;
+  request: string;
+  requestType: TaskLaneHandoffRequestType;
+  requestedAt: string;
+  respondedAt?: string;
+  responseSummary?: string;
+  status: TaskLaneHandoffStatus;
+  toColumnId?: string;
+  toSessionId: string;
+};
+
 export type Task = Entity<
   {
     id: string;
@@ -32,6 +83,8 @@ export type Task = Entity<
     scope: string | null;
     status: TaskStatus;
     kind: TaskKind | null;
+    laneHandoffs: TaskLaneHandoff[];
+    laneSessions: TaskLaneSession[];
     boardId: string | null;
     columnId: string | null;
     position: number | null;
