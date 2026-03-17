@@ -16,11 +16,11 @@ import {
 } from './task-orchestration-events';
 import { registerDelegationGroupSession } from './delegation-group-service';
 import {
-  getTaskDispatchability,
-  listDispatchableTasks,
-  resolveTaskDispatchPolicy,
-  type TaskDispatchability,
-} from './task-dispatch-policy-service';
+  getTaskSessionAssignment,
+  listDispatchableTaskSessions,
+  resolveTaskSessionAssignment,
+  type TaskSessionAssignment,
+} from './task-session-assignment-service';
 import { getProjectWorktreeById } from './project-worktree-service';
 import {
   getTaskById,
@@ -64,7 +64,7 @@ export interface DispatchTaskInput {
 
 export interface DispatchTaskResult {
   delegationGroupId: string | null;
-  dispatchability: TaskDispatchability;
+  dispatchability: TaskSessionAssignment;
   dispatched: boolean;
   parentTaskId: string | null;
   prompt: string | null;
@@ -294,7 +294,7 @@ export async function dispatchTask(
 
     return {
       delegationGroupId: metadata.delegationGroupId,
-      dispatchability: await getTaskDispatchability(sqlite, initialTask.id),
+      dispatchability: await getTaskSessionAssignment(sqlite, initialTask.id),
       dispatched: false,
       parentTaskId: metadata.parentTaskId,
       prompt: null,
@@ -313,7 +313,7 @@ export async function dispatchTask(
       sqlite,
       initialTask.projectId,
     );
-    const policy = await resolveTaskDispatchPolicy(
+    const policy = await resolveTaskSessionAssignment(
       sqlite,
       {
         callbacks,
@@ -590,7 +590,7 @@ export async function dispatchTasks(
 
         return {
           delegationGroupId: metadata.delegationGroupId,
-          dispatchability: await getTaskDispatchability(sqlite, task.id, {
+          dispatchability: await getTaskSessionAssignment(sqlite, task.id, {
             orchestrationMode: runtimeProfile.orchestrationMode,
           }),
           dispatched: false,
@@ -633,7 +633,7 @@ export async function dispatchTasks(
               }
 
               return {
-                dispatchable: await getTaskDispatchability(sqlite, task.id, {
+                dispatchable: await getTaskSessionAssignment(sqlite, task.id, {
                   orchestrationMode: runtimeProfile.orchestrationMode,
                 }),
                 task,
@@ -641,7 +641,7 @@ export async function dispatchTasks(
             }),
           )
         ).map((entry) => entry.dispatchable)
-      : await listDispatchableTasks(
+      : await listDispatchableTaskSessions(
           sqlite,
           {
             projectId: input.projectId,

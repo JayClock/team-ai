@@ -14,7 +14,7 @@ import {
 import {
   getTaskById,
 } from './task-service';
-import type { DispatchTaskCallbacks } from './task-dispatch-service';
+import type { TaskSessionDispatchCallbacks } from './task-session-dispatch-service';
 
 interface TaskCallerSessionRow {
   actor_id: string;
@@ -32,7 +32,7 @@ export interface TaskDispatchContext {
 
 interface ResolveTaskDispatchPolicyInput {
   callerSessionId?: string;
-  callbacks: Pick<DispatchTaskCallbacks, 'isProviderAvailable'>;
+  callbacks: Pick<TaskSessionDispatchCallbacks, 'isProviderAvailable'>;
   runtimeProfile: Pick<
     ProjectRuntimeProfilePayload,
     'defaultProviderId' | 'orchestrationMode'
@@ -374,7 +374,7 @@ function resolveDispatchProviderCandidates(
 }
 
 async function resolveAvailableDispatchProvider(
-  callbacks: Pick<DispatchTaskCallbacks, 'isProviderAvailable'>,
+  callbacks: Pick<TaskSessionDispatchCallbacks, 'isProviderAvailable'>,
   providers: string[],
 ): Promise<string | null> {
   for (const provider of providers) {
