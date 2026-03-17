@@ -144,9 +144,9 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [ ] Replace old workflow context helper: [`apps/local-server/src/app/services/task-workflow-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-workflow-service.ts)
 - [x] Rewrite task service tests: [`apps/local-server/src/app/services/task-service.test.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-service.test.ts)
 - [x] Add `kanban-board-service.ts`: [`apps/local-server/src/app/services/kanban-board-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-board-service.ts)
-- [ ] Add `task-lane-service.ts`: [`apps/local-server/src/app/services/task-lane-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-lane-service.ts)
-- [ ] Add `kanban-event-service.ts`: [`apps/local-server/src/app/services/kanban-event-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-event-service.ts)
-- [ ] Add `kanban-workflow-orchestrator-service.ts`: [`apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts)
+- [x] Add `task-lane-service.ts`: [`apps/local-server/src/app/services/task-lane-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-lane-service.ts)
+- [x] Add `kanban-event-service.ts`: [`apps/local-server/src/app/services/kanban-event-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-event-service.ts)
+- [x] Add `kanban-workflow-orchestrator-service.ts`: [`apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts)
 - [ ] Reuse worktree support from [`apps/local-server/src/app/services/project-worktree-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/project-worktree-service.ts)
 
 ### Stage 4: Background Execution
@@ -236,4 +236,13 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Expand [`apps/local-server/src/app/schemas/task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/task.ts) with `workspaceId`, `sessionIds`, `laneSessions`, `laneHandoffs`, and `codebaseIds`
 - [x] Dual-write Routa task metadata in [`apps/local-server/src/app/services/task-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-service.ts) while preserving legacy fields needed by unfinished orchestration services
 - [x] Update schema, service, route, and presenter tests with `npx vitest run src/app/db/sqlite.test.ts src/app/services/task-service.test.ts src/app/routes/tasks.test.ts src/app/presenters/task-presenter.test.ts`
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 4
+
+- [x] Read `routa` lane history, Kanban session queue, and workflow orchestrator implementations before coding
+- [x] Add [`apps/local-server/src/app/services/task-lane-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-lane-service.ts) for Routa-style lane session and handoff history mutations
+- [x] Add [`apps/local-server/src/app/services/kanban-event-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-event-service.ts) as the local event bus for task column transitions and background task completion
+- [x] Add [`apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts) to queue background tasks for automated columns and auto-advance successful review lanes
+- [x] Validate the new services with `npx vitest run src/app/services/task-lane-service.test.ts src/app/services/kanban-workflow-orchestrator-service.test.ts`
 - [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
