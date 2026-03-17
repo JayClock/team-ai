@@ -1,8 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { logDiagnostic } from '../../diagnostics';
+import {
+  hasAcpSessionEvent,
+  recordAcpOrchestrationEvent,
+} from '../../services/acp-service';
 import { listDelegationGroupTasks } from '../../services/delegation-group-service';
 import { getProjectById } from '../../services/project-service';
 import { reportToParent } from '../../services/task-report-service';
+import { taskOrchestrationEventNames } from '../../services/task-orchestration-events';
 import { listTaskRuns } from '../../services/task-run-service';
 import { listDependentTasks, listTasks } from '../../services/task-service';
 import {
@@ -113,6 +119,13 @@ export function createReportToParentHandler(fastify: FastifyInstance) {
       result.report.mode === 'implementation' && result.report.verdict === 'completed'
         ? await autoDispatchGateFollowUps(fastify, result.task)
         : [];
+    await emitReportOrchestrationEvents(fastify, {
+      autoHandoff,
+      childSessionId: childSession.id,
+      delegationGroup: result.delegationGroup,
+      parentSessionId: result.report.parentSessionId,
+      task: result.task,
+    });
     const wake = await maybeWakeParentSession(fastify, {
       childSessionId: childSession.id,
       delegationGroup: result.delegationGroup,
@@ -128,6 +141,106 @@ export function createReportToParentHandler(fastify: FastifyInstance) {
       wake,
     };
   };
+}
+
+async function emitReportOrchestrationEvents(
+  fastify: FastifyInstance,
+  input: {
+    autoHandoff: Array<{
+      dispatched: boolean;
+      error: string | null;
+      status: string;
+      taskId: string;
+      title: string;
+    }>;
+    childSessionId: string;
+    delegationGroup: {
+      completedCount: number;
+      failureCount: number;
+      groupId: string;
+      parentSessionId: string | null;
+      pendingCount: number;
+      sessionIds: string[];
+      settled: boolean;
+      status: 'OPEN' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+      taskIds: string[];
+      totalCount: number;
+    } | null;
+    parentSessionId: string | null;
+    task: Awaited<ReturnType<typeof getProjectTask>>;
+  },
+) {
+  recordAcpOrchestrationEvent(fastify.sqlite, fastify.acpStreamBroker, {
+    childSessionId: input.childSessionId,
+    eventId: `orch_child_complete_${input.childSessionId}`,
+    eventName: 'child_session_completed',
+    parentSessionId: input.parentSessionId,
+    sessionId: input.childSessionId,
+    taskId: input.task.id,
+    taskIds: [input.task.id],
+  });
+
+  logDiagnostic(
+    fastify.log,
+    'info',
+    {
+      childSessionId: input.childSessionId,
+      event: taskOrchestrationEventNames.childSessionCompleted,
+      parentSessionId: input.parentSessionId,
+      taskId: input.task.id,
+    },
+    'Recorded child session completion orchestration event',
+  );
+
+  if (input.parentSessionId && input.delegationGroup?.settled) {
+    recordAcpOrchestrationEvent(fastify.sqlite, fastify.acpStreamBroker, {
+      childSessionId: input.childSessionId,
+      delegationGroupId: input.delegationGroup.groupId,
+      eventId: `orch_group_complete_${input.delegationGroup.groupId}`,
+      eventName: 'delegation_group_completed',
+      parentSessionId: input.parentSessionId,
+      sessionId: input.parentSessionId,
+      taskId: input.task.id,
+      taskIds: input.delegationGroup.taskIds,
+    });
+
+    logDiagnostic(
+      fastify.log,
+      'info',
+      {
+        event: taskOrchestrationEventNames.delegationGroupCompleted,
+        groupId: input.delegationGroup.groupId,
+        parentSessionId: input.parentSessionId,
+      },
+      'Recorded delegation group completion orchestration event',
+    );
+  }
+
+  const gateTaskIds = input.autoHandoff.map((item) => item.taskId);
+  if (input.parentSessionId && gateTaskIds.length > 0) {
+    recordAcpOrchestrationEvent(fastify.sqlite, fastify.acpStreamBroker, {
+      childSessionId: input.childSessionId,
+      delegationGroupId: input.delegationGroup?.groupId ?? null,
+      eventId: `orch_gate_required_${input.task.id}`,
+      eventName: 'gate_required',
+      parentSessionId: input.parentSessionId,
+      sessionId: input.parentSessionId,
+      taskId: input.task.id,
+      taskIds: gateTaskIds,
+    });
+
+    logDiagnostic(
+      fastify.log,
+      'info',
+      {
+        event: taskOrchestrationEventNames.gateRequired,
+        parentSessionId: input.parentSessionId,
+        taskId: input.task.id,
+        taskIds: gateTaskIds,
+      },
+      'Recorded gate handoff orchestration event',
+    );
+  }
 }
 
 async function autoDispatchGateFollowUps(
@@ -275,12 +388,25 @@ async function maybeWakeParentSession(
   }
 
   const tasks =
-    input.delegationGroup?.status === 'COMPLETED'
+    input.delegationGroup &&
+    (input.delegationGroup.status === 'COMPLETED' ||
+      input.delegationGroup.status === 'FAILED')
       ? await listDelegationGroupTasks(fastify.sqlite, {
           groupId: input.delegationGroup.groupId,
           projectId: input.projectId,
         })
       : [input.task];
+
+  const wakeEventId = input.delegationGroup?.groupId
+    ? `orch_resume_group_${input.delegationGroup.groupId}`
+    : `orch_resume_child_${input.childSessionId}`;
+  if (hasAcpSessionEvent(fastify.sqlite, wakeEventId)) {
+    return {
+      delivered: false,
+      mode: input.delegationGroup ? 'after_all' : 'immediate',
+      reason: 'resume_already_requested',
+    };
+  }
 
   await fastify.acpRuntime.promptSession({
     localSessionId: input.parentSessionId,
@@ -297,6 +423,30 @@ async function maybeWakeParentSession(
       tasks,
     }),
   });
+  recordAcpOrchestrationEvent(fastify.sqlite, fastify.acpStreamBroker, {
+    childSessionId: input.childSessionId,
+    delegationGroupId: input.delegationGroup?.groupId ?? null,
+    eventId: wakeEventId,
+    eventName: 'parent_session_resume_requested',
+    parentSessionId: input.parentSessionId,
+    sessionId: input.parentSessionId,
+    taskId: input.task.id,
+    taskIds: tasks.map((task) => task.id),
+    wakeDelivered: true,
+  });
+
+  logDiagnostic(
+    fastify.log,
+    'info',
+    {
+      childSessionId: input.childSessionId,
+      event: taskOrchestrationEventNames.parentSessionResumeRequested,
+      groupId: input.delegationGroup?.groupId ?? null,
+      parentSessionId: input.parentSessionId,
+      taskId: input.task.id,
+    },
+    'Prompted parent session to resume after child completion',
+  );
 
   return {
     delivered: true,

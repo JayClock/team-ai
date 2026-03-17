@@ -28,6 +28,17 @@ export interface ReadAgentConversationResult {
       eventId: string;
       role: 'assistant' | 'thought' | 'user';
     }>;
+    orchestrationEvents: Array<{
+      childSessionId: string | null;
+      delegationGroupId: string | null;
+      emittedAt: string;
+      eventId: string;
+      eventName: string;
+      parentSessionId: string | null;
+      taskId: string | null;
+      taskIds: string[];
+      wakeDelivered: boolean | null;
+    }>;
     planUpdates: Array<{
       emittedAt: string;
       eventId: string;
@@ -70,6 +81,7 @@ export interface ReadAgentConversationResult {
   totals: {
     eventCount: number;
     messageCount: number;
+    orchestrationEventCount: number;
     planUpdateCount: number;
     terminalCommandCount: number;
     toolCallCount: number;
@@ -171,8 +183,25 @@ export async function readAgentConversation(
       eventId: event.eventId,
       items: event.update.planItems ?? [],
     }));
+  const orchestrationEvents = history
+    .filter((event) => event.update.orchestration)
+    .map((event) => ({
+      childSessionId: event.update.orchestration?.childSessionId ?? null,
+      delegationGroupId: event.update.orchestration?.delegationGroupId ?? null,
+      emittedAt: event.emittedAt,
+      eventId: event.eventId,
+      eventName: event.update.orchestration?.eventName ?? 'child_session_completed',
+      parentSessionId: event.update.orchestration?.parentSessionId ?? null,
+      taskId: event.update.orchestration?.taskId ?? null,
+      taskIds: event.update.orchestration?.taskIds ?? [],
+      wakeDelivered:
+        event.update.orchestration?.wakeDelivered === undefined
+          ? null
+          : event.update.orchestration.wakeDelivered,
+    }));
 
   const projectedMessages = sliceTail(messages, input.lastN);
+  const projectedOrchestrationEvents = sliceTail(orchestrationEvents, input.lastN);
   const projectedToolCalls = sliceTail(toolCalls, input.lastN);
   const projectedTerminalCommands = sliceTail(terminalCommands, input.lastN);
   const projectedPlanUpdates = sliceTail(planUpdates, input.lastN);
@@ -184,6 +213,7 @@ export async function readAgentConversation(
     },
     projection: {
       messages: projectedMessages,
+      orchestrationEvents: projectedOrchestrationEvents,
       planUpdates: projectedPlanUpdates,
       terminalCommands: projectedTerminalCommands,
       toolCalls: projectedToolCalls,
@@ -203,6 +233,7 @@ export async function readAgentConversation(
     totals: {
       eventCount: history.length,
       messageCount: messages.length,
+      orchestrationEventCount: orchestrationEvents.length,
       planUpdateCount: planUpdates.length,
       terminalCommandCount: terminalCommands.length,
       toolCallCount: toolCalls.length,

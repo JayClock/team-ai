@@ -29,7 +29,14 @@ export type AcpEventTypePayload =
   | 'config_option_update'
   | 'usage_update'
   | 'available_commands_update'
+  | 'orchestration_update'
   | 'error';
+
+export type AcpOrchestrationEventName =
+  | 'child_session_completed'
+  | 'delegation_group_completed'
+  | 'gate_required'
+  | 'parent_session_resume_requested';
 
 export interface AcpEventToolCallPayload {
   content: unknown[];
@@ -69,6 +76,15 @@ export interface AcpEventUpdatePayload {
   };
   mode?: {
     currentModeId?: string;
+  };
+  orchestration?: {
+    childSessionId?: string | null;
+    delegationGroupId?: string | null;
+    eventName: AcpOrchestrationEventName;
+    parentSessionId?: string | null;
+    taskId?: string | null;
+    taskIds?: string[];
+    wakeDelivered?: boolean;
   };
   planItems?: Array<{
     description: string;

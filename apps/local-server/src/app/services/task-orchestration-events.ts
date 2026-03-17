@@ -1,5 +1,6 @@
 import type { RoleValue } from '../schemas/role';
 import type { TaskPayload } from '../schemas/task';
+import type { AcpOrchestrationEventName } from '../schemas/acp';
 import type { DispatchTaskInput, DispatchTaskOptions } from './task-dispatch-service';
 
 export type TaskOrchestrationEventName =
@@ -7,7 +8,8 @@ export type TaskOrchestrationEventName =
   | 'task.dispatch.blocked'
   | 'task.dispatch.failed'
   | 'task.dispatch.provider_fallback'
-  | 'task.dispatch.succeeded';
+  | 'task.dispatch.succeeded'
+  | `task.orchestration.${AcpOrchestrationEventName}`;
 
 export interface TaskOrchestrationEventContext {
   callerSessionId: string | null;
@@ -37,6 +39,10 @@ export const taskOrchestrationEventNames = {
   dispatchFailed: 'task.dispatch.failed',
   dispatchProviderFallback: 'task.dispatch.provider_fallback',
   dispatchSucceeded: 'task.dispatch.succeeded',
+  childSessionCompleted: 'task.orchestration.child_session_completed',
+  delegationGroupCompleted: 'task.orchestration.delegation_group_completed',
+  gateRequired: 'task.orchestration.gate_required',
+  parentSessionResumeRequested: 'task.orchestration.parent_session_resume_requested',
 } as const;
 
 export function buildTaskOrchestrationEventContext(

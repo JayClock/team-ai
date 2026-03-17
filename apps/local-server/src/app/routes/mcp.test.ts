@@ -1397,6 +1397,12 @@ Validation and review logic
 
     const fastify = Fastify();
     fastifyInstances.push(fastify);
+    const promptSessionMock = vi.fn(async () => ({
+      runtimeSessionId: 'runtime-report',
+      response: {
+        stopReason: 'end_turn' as const,
+      },
+    }));
 
     fastify.decorate('acpRuntime', {
       cancelSession: vi.fn(async () => undefined),
@@ -1412,12 +1418,7 @@ Validation and review logic
         runtimeSessionId: input.runtimeSessionId,
         provider: input.provider,
       })),
-      promptSession: vi.fn(async () => ({
-        runtimeSessionId: 'runtime-report',
-        response: {
-          stopReason: 'end_turn' as const,
-        },
-      })),
+      promptSession: promptSessionMock,
     } satisfies AcpRuntimeClient);
 
     await fastify.register(problemJsonPlugin);
@@ -1542,6 +1543,84 @@ Validation and review logic
         reason: null,
       },
     });
+    expect(promptSessionMock).toHaveBeenCalled();
+
+    const parentConversationResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-report-parent-conversation',
+        method: 'tools/call',
+        params: {
+          name: 'read_agent_conversation',
+          arguments: {
+            projectId: project.id,
+            sessionId: rootSessionId,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(parentConversationResponse.statusCode).toBe(200);
+    expect(
+      readMcpResult<Record<string, unknown>>(parentConversationResponse),
+    ).toMatchObject({
+      projection: {
+        orchestrationEvents: expect.arrayContaining([
+          expect.objectContaining({
+            eventName: 'gate_required',
+            parentSessionId: rootSessionId,
+            taskId: implementationTask.id,
+          }),
+          expect.objectContaining({
+            eventName: 'parent_session_resume_requested',
+            parentSessionId: rootSessionId,
+            taskId: implementationTask.id,
+            wakeDelivered: true,
+          }),
+        ]),
+      },
+      totals: {
+        orchestrationEventCount: 2,
+      },
+    });
+
+    const childConversationResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-report-child-conversation',
+        method: 'tools/call',
+        params: {
+          name: 'read_agent_conversation',
+          arguments: {
+            projectId: project.id,
+            sessionId: implementationSessionId,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(childConversationResponse.statusCode).toBe(200);
+    expect(
+      readMcpResult<Record<string, unknown>>(childConversationResponse),
+    ).toMatchObject({
+      projection: {
+        orchestrationEvents: [
+          expect.objectContaining({
+            childSessionId: implementationSessionId,
+            eventName: 'child_session_completed',
+            parentSessionId: rootSessionId,
+            taskId: implementationTask.id,
+          }),
+        ],
+      },
+      totals: {
+        orchestrationEventCount: 1,
+      },
+    });
 
     const verificationTask = await createTask(fastify.sqlite, {
       kind: 'verify',
@@ -1621,6 +1700,36 @@ Validation and review logic
         delivered: true,
         mode: 'immediate',
         reason: null,
+      },
+    });
+
+    const duplicateGatePassResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-report-gate-pass-duplicate',
+        method: 'tools/call',
+        params: {
+          name: 'report_to_parent',
+          arguments: {
+            projectId: project.id,
+            sessionId: verificationSessionId,
+            summary: 'Gate approved the report flow again',
+            verdict: 'pass',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(duplicateGatePassResponse.statusCode).toBe(200);
+    expect(
+      readMcpResult<Record<string, unknown>>(duplicateGatePassResponse),
+    ).toMatchObject({
+      wake: {
+        delivered: false,
+        mode: 'immediate',
+        reason: 'resume_already_requested',
       },
     });
 

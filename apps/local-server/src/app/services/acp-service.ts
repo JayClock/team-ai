@@ -16,6 +16,7 @@ import type { AcpStreamBroker } from '../plugins/acp-stream';
 import type {
   AcpEventEnvelopePayload,
   AcpEventErrorPayload,
+  AcpOrchestrationEventName,
   AcpEventUpdatePayload,
   AcpSessionListPayload,
   AcpSessionPayload,
@@ -1105,6 +1106,63 @@ function appendLocalEvent(
 
   broker.publish(event);
   return event;
+}
+
+export function hasAcpSessionEvent(
+  sqlite: Database,
+  eventId: string,
+) {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT 1 AS present
+        FROM project_acp_session_events
+        WHERE event_id = ?
+        LIMIT 1
+      `,
+    )
+    .get(eventId) as { present: number } | undefined;
+
+  return row?.present === 1;
+}
+
+export function recordAcpOrchestrationEvent(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  input: {
+    childSessionId?: string | null;
+    delegationGroupId?: string | null;
+    eventId?: string;
+    eventName: AcpOrchestrationEventName;
+    parentSessionId?: string | null;
+    sessionId: string;
+    taskId?: string | null;
+    taskIds?: string[];
+    wakeDelivered?: boolean;
+  },
+) {
+  const session = getSessionRow(sqlite, input.sessionId);
+
+  return appendLocalEvent(sqlite, broker, {
+    eventId: input.eventId,
+    sessionId: input.sessionId,
+    update: createCanonicalUpdate(
+      input.sessionId,
+      session.provider,
+      'orchestration_update',
+      {
+        orchestration: {
+          childSessionId: input.childSessionId ?? null,
+          delegationGroupId: input.delegationGroupId ?? null,
+          eventName: input.eventName,
+          parentSessionId: input.parentSessionId ?? null,
+          taskId: input.taskId ?? null,
+          taskIds: input.taskIds ?? [],
+          wakeDelivered: input.wakeDelivered,
+        },
+      },
+    ),
+  });
 }
 
 function getSessionAgentPrompt(
