@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 import { createAcpSession, promptAcpSession } from '../services/acp-service';
+import { getTaskById } from '../services/task-service';
 import { createKanbanEventService, type KanbanEventService } from '../services/kanban-event-service';
 import {
   createBackgroundWorkerHostService,
@@ -31,6 +32,9 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
   const backgroundWorkerService = createBackgroundWorkerService({
     callbacks: {
       async createSession(task) {
+        const linkedTask = task.taskId
+          ? await getTaskById(fastify.sqlite, task.taskId).catch(() => null)
+          : null;
         const useProvider = fastify.acpRuntime.isConfigured(task.agentId);
         const session = await createAcpSession(
           fastify.sqlite,
@@ -38,11 +42,16 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
           fastify.acpRuntime,
           {
             actorUserId: 'desktop-user',
+            codebaseId: linkedTask?.codebaseId ?? null,
             goal: task.title,
+            role: linkedTask?.assignedRole ?? null,
             projectId: task.projectId,
             provider: useProvider ? task.agentId : null,
-            specialistId: useProvider ? undefined : task.agentId,
+            specialistId: linkedTask?.assignedSpecialistId ?? (
+              useProvider ? undefined : task.agentId
+            ),
             taskId: task.taskId,
+            worktreeId: linkedTask?.worktreeId ?? null,
           },
           {
             logger: fastify.log,

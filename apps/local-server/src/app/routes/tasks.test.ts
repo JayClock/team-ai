@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
+import { ensureDefaultKanbanBoard } from '../services/kanban-board-service';
 import { createProject } from '../services/project-service';
+import { createKanbanEventService } from '../services/kanban-event-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -312,6 +314,79 @@ describe('tasks routes', () => {
     });
   });
 
+  it('emits kanban transition events when a task is created or moved across columns', async () => {
+    const sqlite = await createTestDatabase();
+    const events = createKanbanEventService();
+    const emitted: Array<{
+      fromColumnId: string | null;
+      taskId: string;
+      toColumnId: string;
+      type: string;
+    }> = [];
+
+    events.subscribe(async (event) => {
+      emitted.push({
+        fromColumnId:
+          event.type === 'task.column-transition' ? event.fromColumnId : null,
+        taskId: event.taskId,
+        toColumnId:
+          event.type === 'task.column-transition' ? event.toColumnId : '',
+        type: event.type,
+      });
+    });
+    const fastify = await createTestServer(sqlite, {
+      kanbanEventService: events,
+    });
+
+    const project = await createProject(sqlite, {
+      title: 'Kanban Event Project',
+      repoPath: '/tmp/team-ai-task-kanban-events',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const sessionId = createAcpSession(sqlite, project.id, 'Kanban session');
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/projects/${project.id}/tasks`,
+      payload: {
+        boardId: board.id,
+        columnId: todoColumn?.id ?? null,
+        objective: 'Create in kanban',
+        sessionId,
+        title: 'Kanban task',
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const taskId = (createResponse.json() as { id: string }).id;
+
+    const patchResponse = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/tasks/${taskId}`,
+      payload: {
+        columnId: devColumn?.id ?? null,
+      },
+    });
+
+    expect(patchResponse.statusCode).toBe(200);
+    expect(emitted).toEqual([
+      {
+        fromColumnId: null,
+        taskId,
+        toColumnId: todoColumn?.id ?? '',
+        type: 'task.column-transition',
+      },
+      {
+        fromColumnId: todoColumn?.id ?? '',
+        taskId,
+        toColumnId: devColumn?.id ?? '',
+        type: 'task.column-transition',
+      },
+    ]);
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-tasks-route-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
@@ -332,10 +407,18 @@ describe('tasks routes', () => {
     return sqlite;
   }
 
-  async function createTestServer(sqlite: Database) {
+  async function createTestServer(
+    sqlite: Database,
+    options?: {
+      kanbanEventService?: ReturnType<typeof createKanbanEventService>;
+    },
+  ) {
     const fastify = Fastify();
     fastifyInstances.push(fastify);
     fastify.decorate('sqlite', sqlite);
+    if (options?.kanbanEventService) {
+      fastify.decorate('kanbanEventService', options.kanbanEventService);
+    }
 
     await fastify.register(problemJsonPlugin);
     await fastify.register(sensiblePlugin);

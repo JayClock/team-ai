@@ -141,6 +141,22 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
       sessionId,
     });
 
+    if (
+      fastify.hasDecorator('kanbanEventService') &&
+      task.boardId &&
+      task.columnId
+    ) {
+      await fastify.kanbanEventService.emit({
+        boardId: task.boardId,
+        fromColumnId: null,
+        projectId: task.projectId,
+        taskId: task.id,
+        taskTitle: task.title,
+        toColumnId: task.columnId,
+        type: 'task.column-transition',
+      });
+    }
+
     reply
       .code(201)
       .header('Location', `/api/tasks/${task.id}`)
@@ -159,10 +175,30 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.patch('/tasks/:taskId', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
+    const previous = await getTaskById(fastify.sqlite, taskId);
+    const updated = await updateTask(fastify.sqlite, taskId, body);
+
+    if (
+      fastify.hasDecorator('kanbanEventService') &&
+      updated.boardId &&
+      updated.columnId &&
+      (previous.boardId !== updated.boardId ||
+        previous.columnId !== updated.columnId)
+    ) {
+      await fastify.kanbanEventService.emit({
+        boardId: updated.boardId,
+        fromColumnId: previous.columnId,
+        projectId: updated.projectId,
+        taskId: updated.id,
+        taskTitle: updated.title,
+        toColumnId: updated.columnId,
+        type: 'task.column-transition',
+      });
+    }
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
 
-    return presentTask(await updateTask(fastify.sqlite, taskId, body));
+    return presentTask(updated);
   });
 
   fastify.delete('/tasks/:taskId', async (request, reply) => {
