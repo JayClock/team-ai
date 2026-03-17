@@ -25,11 +25,26 @@ interface CreateBackgroundWorkerInput {
   events: KanbanEventService;
   logger?: DiagnosticLogger;
   sqlite: Database;
+  staleAfterMs?: number;
 }
 
 export function createBackgroundWorkerService(
   input: CreateBackgroundWorkerInput,
 ): BackgroundWorkerService {
+  const staleAfterMs = input.staleAfterMs ?? 15 * 60 * 1000;
+
+  function isTaskStale(task: BackgroundTaskPayload) {
+    const referenceTime =
+      task.lastActivityAt ?? task.startedAt ?? task.createdAt;
+    const referenceTimestamp = new Date(referenceTime).getTime();
+
+    if (!Number.isFinite(referenceTimestamp)) {
+      return false;
+    }
+
+    return Date.now() - referenceTimestamp >= staleAfterMs;
+  }
+
   async function emitCompletionEvent(
     task: BackgroundTaskPayload,
     success: boolean,
@@ -143,6 +158,23 @@ export function createBackgroundWorkerService(
 
       for (const task of runningTasks) {
         if (!task.resultSessionId) {
+          if (!isTaskStale(task)) {
+            continue;
+          }
+
+          const orphanedTask = await updateBackgroundTaskStatus(
+            input.sqlite,
+            task.id,
+            'FAILED',
+            {
+              completedAt: new Date().toISOString(),
+              errorMessage:
+                task.errorMessage ??
+                'Background task lost its execution session binding',
+            },
+          );
+          completed.push(orphanedTask);
+          await emitCompletionEvent(orphanedTask, false);
           continue;
         }
 
@@ -150,6 +182,23 @@ export function createBackgroundWorkerService(
           task.resultSessionId,
         );
         if (sessionActive) {
+          if (!isTaskStale(task)) {
+            continue;
+          }
+
+          const staleTask = await updateBackgroundTaskStatus(
+            input.sqlite,
+            task.id,
+            'FAILED',
+            {
+              completedAt: new Date().toISOString(),
+              errorMessage:
+                task.errorMessage ??
+                'Background task exceeded the stale execution threshold',
+            },
+          );
+          completed.push(staleTask);
+          await emitCompletionEvent(staleTask, false);
           continue;
         }
 

@@ -142,6 +142,87 @@ describe('background worker service', () => {
     const persisted = await getBackgroundTaskById(sqlite, backgroundTask.id);
     expect(persisted.status).toBe('COMPLETED');
   });
+
+  it('fails stale running tasks when their session binding is missing or stalled', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-background-stale',
+      title: 'Background Stale Recovery',
+    });
+    const staleOrphanTask = await createBackgroundTask(sqlite, {
+      agentId: 'codex',
+      projectId: project.id,
+      prompt: 'Recover orphaned background work',
+      title: 'Orphaned task',
+    });
+    const staleBoundTask = await createBackgroundTask(sqlite, {
+      agentId: 'codex',
+      projectId: project.id,
+      prompt: 'Recover stalled background work',
+      title: 'Stalled task',
+    });
+    insertAcpSession(sqlite, {
+      id: 'acps_stale_running_1',
+      projectId: project.id,
+    });
+    await updateBackgroundTaskStatus(sqlite, staleOrphanTask.id, 'RUNNING', {
+      lastActivityAt: '2026-03-17T00:00:00.000Z',
+      startedAt: '2026-03-17T00:00:00.000Z',
+    });
+    await updateBackgroundTaskStatus(sqlite, staleBoundTask.id, 'RUNNING', {
+      lastActivityAt: '2026-03-17T00:00:00.000Z',
+      resultSessionId: 'acps_stale_running_1',
+      startedAt: '2026-03-17T00:00:00.000Z',
+    });
+
+    const events = createKanbanEventService();
+    const emitted: Array<{ success: boolean; taskId: string }> = [];
+    events.subscribe(async (event) => {
+      if (event.type === 'background-task.completed') {
+        emitted.push({
+          success: event.success,
+          taskId: event.taskId,
+        });
+      }
+    });
+
+    const worker = createBackgroundWorkerService({
+      callbacks: {
+        createSession: async () => ({ sessionId: 'unused' }),
+        isSessionActive: async () => true,
+        promptSession: async () => undefined,
+      },
+      events,
+      sqlite,
+      staleAfterMs: 1,
+    });
+
+    const completed = await worker.checkCompletions();
+
+    expect(completed).toHaveLength(2);
+    expect(completed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: staleOrphanTask.id,
+          status: 'FAILED',
+        }),
+        expect.objectContaining({
+          id: staleBoundTask.id,
+          status: 'FAILED',
+        }),
+      ]),
+    );
+    expect(emitted).toEqual([]);
+
+    await expect(getBackgroundTaskById(sqlite, staleOrphanTask.id)).resolves.toMatchObject({
+      errorMessage: 'Background task lost its execution session binding',
+      status: 'FAILED',
+    });
+    await expect(getBackgroundTaskById(sqlite, staleBoundTask.id)).resolves.toMatchObject({
+      errorMessage: 'Background task exceeded the stale execution threshold',
+      status: 'FAILED',
+    });
+  });
 });
 
 async function createTestDatabase(cleanupTasks: Array<() => Promise<void>>) {
