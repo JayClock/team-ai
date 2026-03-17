@@ -8,6 +8,7 @@ import {
   buildWorkbenchWalkthroughScenarios,
   buildTaskRunPanelItem,
   canRetryTask,
+  deriveTaskWaveId,
   formatStatusLabel,
   formatVerificationVerdictLabel,
   getTaskPrimaryAction,
@@ -91,9 +92,11 @@ describe('project session workbench task actions', () => {
       data: {
         completedAt: '2026-03-13T12:05:00.000Z',
         createdAt: '2026-03-13T12:00:00.000Z',
+        delegationGroupId: 'dg_wave_1',
         id: 'trun_latest',
         isLatest: true,
         kind: 'review',
+        parentTaskId: 'task_parent',
         projectId: 'proj_123',
         provider: 'opencode',
         retryOfRunId: 'trun_prev',
@@ -107,12 +110,15 @@ describe('project session workbench task actions', () => {
         updatedAt: '2026-03-13T12:05:00.000Z',
         verificationReport: '  tests did not pass  ',
         verificationVerdict: 'fail',
+        waveId: 'dg_wave_1:gate',
       },
     } as Parameters<typeof buildTaskRunPanelItem>[0]);
 
     expect(runItem).toMatchObject({
       id: 'trun_latest',
+      delegationGroupId: 'dg_wave_1',
       isLatest: true,
+      parentTaskId: 'task_parent',
       retryOfRunId: 'trun_prev',
       role: 'REVIEWER',
       sessionId: 'acps_123',
@@ -121,10 +127,30 @@ describe('project session workbench task actions', () => {
       summary: 'review failed on regression',
       verificationReport: 'tests did not pass',
       verificationVerdict: 'fail',
+      waveId: 'dg_wave_1:gate',
     });
     expect(formatVerificationVerdictLabel(runItem.verificationVerdict)).toBe(
       '失败',
     );
+  });
+
+  it('derives wave ids from delegation groups and task kind', () => {
+    expect(
+      deriveTaskWaveId(
+        createTaskPanelItem({
+          kind: 'implement',
+          parallelGroup: 'dg_wave_2',
+        }),
+      ),
+    ).toBe('dg_wave_2:implement');
+    expect(
+      deriveTaskWaveId(
+        createTaskPanelItem({
+          kind: 'review',
+          parallelGroup: 'dg_wave_2',
+        }),
+      ),
+    ).toBe('dg_wave_2:gate');
   });
 
   it('keeps the walkthrough checklist pending until the flow is exercised', () => {

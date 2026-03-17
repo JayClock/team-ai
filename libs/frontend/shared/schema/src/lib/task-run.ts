@@ -17,6 +17,9 @@ export type TaskRun = Entity<
     isLatest: boolean;
     sessionId: string | null;
     kind: TaskRunKind;
+    delegationGroupId?: string | null;
+    waveId?: string | null;
+    parentTaskId?: string | null;
     role: string | null;
     provider: string | null;
     specialistId: string | null;

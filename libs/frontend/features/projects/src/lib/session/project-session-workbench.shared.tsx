@@ -29,6 +29,8 @@ export type TaskPanelItem = {
   executionSessionId?: string | null;
   id: string;
   kind?: string | null;
+  parallelGroup?: string | null;
+  parentTaskId?: string | null;
   resultSessionId?: string | null;
   source: 'plan' | 'task' | 'tool';
   status: string;
@@ -45,9 +47,11 @@ export type TaskPanelItem = {
 export type TaskRunPanelItem = {
   completedAt: string | null;
   createdAt: string;
+  delegationGroupId?: string | null;
   id: string;
   isLatest: boolean;
   kind: TaskRun['data']['kind'];
+  parentTaskId?: string | null;
   provider: string | null;
   retryOfRunId: string | null;
   role: string | null;
@@ -59,6 +63,7 @@ export type TaskRunPanelItem = {
   updatedAt: string;
   verificationReport: string | null;
   verificationVerdict: string | null;
+  waveId?: string | null;
 };
 
 export type TaskPanelAction = 'execute' | 'review' | 'retry';
@@ -260,6 +265,8 @@ export function buildTaskPanelItem(task: State<Task>): TaskPanelItem {
     codebaseId: taskData.codebaseId,
     columnId: taskData.columnId,
     executionSessionId: taskData.executionSessionId,
+    parallelGroup: taskData.parallelGroup,
+    parentTaskId: taskData.parentTaskId,
     resultSessionId: taskData.resultSessionId,
     sourceEntryIndex: taskData.sourceEntryIndex,
     sourceEventId: taskData.sourceEventId,
@@ -273,9 +280,11 @@ export function buildTaskRunPanelItem(run: State<TaskRun>): TaskRunPanelItem {
   return {
     completedAt: run.data.completedAt,
     createdAt: run.data.createdAt,
+    delegationGroupId: run.data.delegationGroupId ?? null,
     id: run.data.id,
     isLatest: run.data.isLatest,
     kind: run.data.kind,
+    parentTaskId: run.data.parentTaskId ?? null,
     provider: run.data.provider,
     retryOfRunId: run.data.retryOfRunId,
     role: run.data.role,
@@ -289,7 +298,24 @@ export function buildTaskRunPanelItem(run: State<TaskRun>): TaskRunPanelItem {
       normalizeOptionalText(run.data.verificationReport) ?? null,
     verificationVerdict:
       normalizeOptionalText(run.data.verificationVerdict) ?? null,
+    waveId: run.data.waveId ?? null,
   };
+}
+
+export function deriveTaskWaveId(item: Pick<TaskPanelItem, 'kind' | 'parallelGroup'>) {
+  if (!item.parallelGroup) {
+    return null;
+  }
+
+  if (item.kind === 'review' || item.kind === 'verify') {
+    return `${item.parallelGroup}:gate`;
+  }
+
+  if (item.kind === 'implement' || item.kind === 'plan') {
+    return `${item.parallelGroup}:implement`;
+  }
+
+  return null;
 }
 
 export function formatVerificationVerdictLabel(

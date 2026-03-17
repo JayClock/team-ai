@@ -25,6 +25,9 @@ export type AcpSessionData = {
   name: string | null;
   provider: string;
   specialistId: string | null;
+  task?: AcpRef | null;
+  delegationGroupId?: string | null;
+  waveId?: string | null;
   cwd: string;
   startedAt: string | null;
   lastActivityAt: string | null;

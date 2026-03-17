@@ -1,6 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AcpSessionSummary } from '@shared/schema';
+import { describe, expect, it, vi } from 'vitest';
 import { SessionList } from './session-list';
 import { buildSessionTree } from './session-tree';
 
@@ -25,9 +26,12 @@ describe('SessionList', () => {
     fireEvent.click(screen.getByRole('button', { name: '展开子会话' }));
 
     expect(screen.getByText('实现搜索索引')).toBeTruthy();
-    expect(screen.getByText('Child')).toBeTruthy();
+    expect(screen.getAllByText('Child').length).toBeGreaterThan(0);
     expect(screen.getByText('GATE')).toBeTruthy();
     expect(screen.getByText('gate-reviewer')).toBeTruthy();
+    expect(screen.getByText('task task_search')).toBeTruthy();
+    expect(screen.getByText('dg_search_wave')).toBeTruthy();
+    expect(screen.getByText('dg_search_wave:gate')).toBeTruthy();
     expect(screen.getByText('执行 task_search')).toBeTruthy();
   });
 
@@ -43,9 +47,9 @@ describe('SessionList', () => {
       />,
     );
 
-    expect(screen.getByText('实现搜索索引')).toBeTruthy();
-    expect(screen.getByText('Child')).toBeTruthy();
-    expect(screen.getByText('ROUTA')).toBeTruthy();
+    expect(screen.getAllByText('实现搜索索引').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Child').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ROUTA').length).toBeGreaterThan(0);
   });
 });
 
@@ -56,10 +60,13 @@ function createSessionFixtures() {
     specialistId: 'routa-coordinator',
   });
   const childSession = createSessionSummary({
+    delegationGroupId: 'dg_search_wave',
     id: 'acps_child',
     name: '实现搜索索引',
     parentSession: { id: 'acps_root' },
     specialistId: 'gate-reviewer',
+    task: { id: 'task_search' },
+    waveId: 'dg_search_wave:gate',
   });
 
   return { childSession, rootSession };

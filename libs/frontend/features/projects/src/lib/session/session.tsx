@@ -39,6 +39,8 @@ import {
   buildSessionTree,
   buildTaskPanelItem,
   buildTaskRunPanelItem,
+  formatStatusLabel,
+  formatVerificationVerdictLabel,
   type SpecSyncSnapshot,
   type TaskPanelAction,
   type TaskPanelItem,
@@ -179,12 +181,36 @@ function createSessionAnnotationMap(
       continue;
     }
 
+    const latestRun = item.taskRuns?.find((run) => run.isLatest) ?? null;
+    const executionLabel = [
+      item.assignedRole ?? null,
+      item.assignedProvider ?? null,
+      item.parallelGroup ? `group ${item.parallelGroup}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    const resultLabel = [
+      latestRun?.verificationVerdict
+        ? `结论 ${formatVerificationVerdictLabel(latestRun.verificationVerdict)}`
+        : null,
+      latestRun?.summary ?? null,
+      formatStatusLabel(item.status),
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
     if (item.executionSessionId) {
-      addAnnotation(item.executionSessionId, `执行 ${item.taskId ?? item.id}`);
+      addAnnotation(
+        item.executionSessionId,
+        executionLabel || `执行 ${item.taskId ?? item.id}`,
+      );
     }
 
     if (item.resultSessionId) {
-      addAnnotation(item.resultSessionId, `回写 ${item.taskId ?? item.id}`);
+      addAnnotation(
+        item.resultSessionId,
+        resultLabel || `回写 ${item.taskId ?? item.id}`,
+      );
     }
   }
 

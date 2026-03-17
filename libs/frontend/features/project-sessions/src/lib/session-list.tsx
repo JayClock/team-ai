@@ -154,6 +154,9 @@ function SessionTreeItem(props: {
   const roleLabel = sessionRoleLabel(node.session);
   const sessionAnnotations = sessionAnnotationsById?.[sessionId] ?? [];
   const specialistId = node.session.data.specialistId?.trim() || null;
+  const sessionTaskId = node.session.data.task?.id ?? null;
+  const delegationGroupId = node.session.data.delegationGroupId?.trim() || null;
+  const waveId = node.session.data.waveId?.trim() || null;
 
   return (
     <div className="space-y-2">
@@ -237,6 +240,25 @@ function SessionTreeItem(props: {
                   {specialistId ? (
                     <div className="mt-1 break-all font-mono text-[10px] leading-4 text-muted-foreground">
                       {specialistId}
+                    </div>
+                  ) : null}
+                  {sessionTaskId || delegationGroupId || waveId ? (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {sessionTaskId ? (
+                        <span className="rounded-full border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                          task {sessionTaskId}
+                        </span>
+                      ) : null}
+                      {delegationGroupId ? (
+                        <span className="rounded-full border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                          {delegationGroupId}
+                        </span>
+                      ) : null}
+                      {waveId ? (
+                        <span className="rounded-full border border-border/60 bg-muted/40 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                          {waveId}
+                        </span>
+                      ) : null}
                     </div>
                   ) : null}
                   {sessionAnnotations.length > 0 ? (

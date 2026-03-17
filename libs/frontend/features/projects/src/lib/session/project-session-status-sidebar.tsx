@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 import {
   buildWorkbenchWalkthroughScenarios,
   canRetryTask,
+  deriveTaskWaveId,
   describeTaskExecutionStatus,
   eventHeadline,
   eventIcon,
@@ -334,10 +335,21 @@ export function ProjectSessionStatusSidebar(props: {
 function WorkflowSummaryCard(props: { taskItems: TaskPanelItem[] }) {
   const { taskItems } = props;
   const laneCounts = new Map<string, number>();
+  const delegationGroupIds = new Set<string>();
+  const childSessionIds = new Set<string>();
 
   for (const item of taskItems) {
     const lane = formatTaskWorkflowColumnLabel(item.columnId);
     laneCounts.set(lane, (laneCounts.get(lane) ?? 0) + 1);
+    if (item.parallelGroup) {
+      delegationGroupIds.add(item.parallelGroup);
+    }
+    if (item.executionSessionId) {
+      childSessionIds.add(item.executionSessionId);
+    }
+    if (item.resultSessionId) {
+      childSessionIds.add(item.resultSessionId);
+    }
   }
 
   const lanes = [...laneCounts.entries()].sort((left, right) =>
@@ -369,6 +381,16 @@ function WorkflowSummaryCard(props: { taskItems: TaskPanelItem[] }) {
               {lane} · {count}
             </span>
           ))}
+          {delegationGroupIds.size > 0 ? (
+            <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+              delegation groups · {delegationGroupIds.size}
+            </span>
+          ) : null}
+          {childSessionIds.size > 0 ? (
+            <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+              child sessions · {childSessionIds.size}
+            </span>
+          ) : null}
         </div>
       </CardContent>
     </Card>
@@ -520,6 +542,13 @@ function TaskExecutionDetails(props: {
         <TaskMetaBlock label="当前执行状态" value={executionStatus} />
       ) : null}
 
+      <DelegationWaveBlock item={item} />
+
+      <DelegatedAgentSnapshot
+        item={item}
+        latestRun={item.taskRuns?.find((run) => run.isLatest) ?? null}
+      />
+
       {item.sourceType ? (
         <TaskSourceBlock
           sourceEntryIndex={item.sourceEntryIndex ?? null}
@@ -584,6 +613,105 @@ function TaskSourceBlock(props: {
           </span>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function DelegationWaveBlock(props: { item: TaskPanelItem }) {
+  const { item } = props;
+  const waveId = deriveTaskWaveId(item);
+
+  if (!item.parallelGroup && !item.parentTaskId && !waveId) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+        Delegation Wave
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+        {item.parallelGroup ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            group {item.parallelGroup}
+          </span>
+        ) : null}
+        {waveId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            wave {waveId}
+          </span>
+        ) : null}
+        {item.parentTaskId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            parent {item.parentTaskId}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function DelegatedAgentSnapshot(props: {
+  item: TaskPanelItem;
+  latestRun: TaskRunPanelItem | null;
+}) {
+  const { item, latestRun } = props;
+  const specialist =
+    item.assignedSpecialistName ??
+    item.assignedSpecialistId ??
+    latestRun?.specialistId ??
+    null;
+  const provider = item.assignedProvider ?? latestRun?.provider ?? null;
+  const summary =
+    latestRun?.summary ??
+    latestRun?.verificationReport ??
+    item.description ??
+    null;
+  const status = latestRun?.status ?? item.status;
+
+  if (!specialist && !provider && !summary && !item.executionSessionId) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Delegated Agent
+          </div>
+          <div className="mt-1 text-sm font-medium">child specialist 与执行摘要</div>
+        </div>
+        <span
+          className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(status)}`}
+        >
+          {formatStatusLabel(status)}
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+        {specialist ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1">
+            {specialist}
+          </span>
+        ) : null}
+        {provider ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            {provider}
+          </span>
+        ) : null}
+        {item.executionSessionId ? (
+          <span className="rounded-full border border-border/60 bg-background px-2 py-1 font-mono">
+            child {item.executionSessionId}
+          </span>
+        ) : null}
+      </div>
+
+      {summary ? (
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          {summary}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -722,6 +850,16 @@ function TaskRunTimelineItem(props: {
           <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1">
             {formatTaskKindLabel(run.kind)}
           </span>
+          {run.delegationGroupId ? (
+            <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 font-mono">
+              {run.delegationGroupId}
+            </span>
+          ) : null}
+          {run.waveId ? (
+            <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 font-mono">
+              {run.waveId}
+            </span>
+          ) : null}
           {run.role ? (
             <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 font-mono">
               {run.role}
@@ -775,6 +913,17 @@ function TaskRunTimelineItem(props: {
                   </div>
                   <div className="mt-1 break-all font-mono text-xs text-foreground">
                     {run.retryOfRunId}
+                  </div>
+                </div>
+              ) : null}
+
+              {run.parentTaskId ? (
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    parentTaskId
+                  </div>
+                  <div className="mt-1 break-all font-mono text-xs text-foreground">
+                    {run.parentTaskId}
                   </div>
                 </div>
               ) : null}
