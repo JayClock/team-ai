@@ -1077,9 +1077,14 @@ export async function updateTask(
     assignment.assignedRole,
   );
   const status = ensureTaskStatus(input.status, currentStatus);
+  const preservesWorkflowColumn =
+    input.boardId === undefined &&
+    input.columnId === undefined &&
+    input.kind === undefined &&
+    input.status === undefined;
   const workflowContext = resolveTaskWorkflowContext({
     boardId: input.boardId === undefined ? current.board_id : input.boardId,
-    columnId: input.columnId,
+    columnId: preservesWorkflowColumn ? current.column_id : input.columnId,
     kind,
     status,
   });

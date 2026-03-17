@@ -10,6 +10,7 @@ import { ensureDefaultKanbanBoard } from './kanban-board-service';
 import { createKanbanEventService } from './kanban-event-service';
 import { listProjectCodebases } from './project-codebase-service';
 import { createProject } from './project-service';
+import { createTaskLaneHandoff, upsertTaskLaneHandoff } from './task-lane-service';
 import { createTask, getTaskById, updateTask } from './task-service';
 
 const execFileAsync = promisify(execFile);
@@ -359,6 +360,159 @@ describe('kanban workflow orchestrator service', () => {
     orchestrator.stop();
   });
 
+  it('blocks review auto-advance when required artifacts are missing', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Artifact Gate',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const doneColumn = board.columns.find((column) => column.name === 'Done');
+    if (!reviewColumn) {
+      throw new Error('Review column is required for the test');
+    }
+
+    setColumnRequiredArtifacts(sqlite, reviewColumn.id, ['local URL']);
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: reviewColumn.id,
+      objective: 'Do not move review work forward without concrete evidence',
+      projectId: project.id,
+      title: 'Artifact gate review task',
+    });
+
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession: vi.fn(async () => ({
+          sessionId: 'acps_artifact_gate_review',
+        })),
+      },
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await updateTask(sqlite, task.id, {
+      boardId: board.id,
+      columnId: reviewColumn.id,
+    });
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: reviewColumn.id,
+      type: 'task.column-transition',
+    });
+
+    await events.emit({
+      projectId: project.id,
+      sessionId: 'acps_artifact_gate_review',
+      success: true,
+      taskId: task.id,
+      type: 'task.session-completed',
+    });
+
+    const gatedTask = await getTaskById(sqlite, task.id);
+    expect(gatedTask).toMatchObject({
+      columnId: reviewColumn.id,
+      lastSyncError: expect.stringContaining('missing local URL'),
+      status: 'PENDING',
+      verificationReport: expect.stringContaining('missing local URL'),
+      verificationVerdict: 'fail',
+    });
+    expect(gatedTask.columnId).not.toBe(doneColumn?.id ?? null);
+
+    orchestrator.stop();
+  });
+
+  it('auto-advances review work after artifact evidence is attached to the lane handoff', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Artifact Gate Pass',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const doneColumn = board.columns.find((column) => column.name === 'Done');
+    if (!reviewColumn) {
+      throw new Error('Review column is required for the test');
+    }
+
+    setColumnRequiredArtifacts(sqlite, reviewColumn.id, ['local URL']);
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: reviewColumn.id,
+      objective: 'Advance once runtime evidence exists',
+      projectId: project.id,
+      title: 'Artifact-ready review task',
+    });
+
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession: vi.fn(async () => ({
+          sessionId: 'acps_artifact_gate_ready',
+        })),
+      },
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await updateTask(sqlite, task.id, {
+      boardId: board.id,
+      columnId: reviewColumn.id,
+    });
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: reviewColumn.id,
+      type: 'task.column-transition',
+    });
+
+    upsertTaskLaneHandoff(
+      task,
+      createTaskLaneHandoff({
+        artifactHints: ['local URL'],
+        fromColumnId: reviewColumn.id,
+        fromSessionId: 'acps_artifact_gate_ready',
+        id: 'handoff_artifact_ready',
+        request: 'Share the running local URL.',
+        requestType: 'runtime_context',
+        status: 'completed',
+        toColumnId: board.columns.find((column) => column.name === 'Dev')?.id,
+        toSessionId: 'acps_dev_previous',
+      }),
+    );
+    task.laneHandoffs[0].artifactEvidence = ['http://127.0.0.1:3000'];
+    task.laneHandoffs[0].responseSummary = 'App is available on http://127.0.0.1:3000.';
+    await updateTask(sqlite, task.id, {
+      laneHandoffs: task.laneHandoffs,
+    });
+
+    await events.emit({
+      projectId: project.id,
+      sessionId: 'acps_artifact_gate_ready',
+      success: true,
+      taskId: task.id,
+      type: 'task.session-completed',
+    });
+
+    const advancedTask = await getTaskById(sqlite, task.id);
+    expect(advancedTask).toMatchObject({
+      columnId: doneColumn?.id,
+      lastSyncError: null,
+      status: 'COMPLETED',
+    });
+
+    orchestrator.stop();
+  });
+
   it('ignores duplicate completion events for the same task session', async () => {
     const sqlite = await createTestDatabase(cleanupTasks);
     const project = await createProject(sqlite, {
@@ -535,4 +689,48 @@ async function createGitRepository(cleanupTasks: Array<() => Promise<void>>) {
   await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: repoPath });
 
   return repoPath;
+}
+
+function setColumnRequiredArtifacts(
+  sqlite: ReturnType<typeof initializeDatabase>,
+  columnId: string,
+  requiredArtifacts: string[],
+) {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT automation_json
+        FROM project_kanban_columns
+        WHERE id = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(columnId) as { automation_json: string | null } | undefined;
+  if (!row?.automation_json) {
+    throw new Error(`Column ${columnId} does not have automation metadata`);
+  }
+
+  const automation = JSON.parse(row.automation_json) as {
+    autoAdvanceOnSuccess: boolean;
+    enabled: boolean;
+    provider: string | null;
+    requiredArtifacts: string[];
+    specialistId: string | null;
+    transitionType: 'both' | 'entry' | 'exit';
+  };
+
+  sqlite
+    .prepare(
+      `
+        UPDATE project_kanban_columns
+        SET automation_json = @automationJson
+        WHERE id = @columnId AND deleted_at IS NULL
+      `,
+    )
+    .run({
+      automationJson: JSON.stringify({
+        ...automation,
+        requiredArtifacts,
+      }),
+      columnId,
+    });
 }

@@ -15,6 +15,7 @@ import {
 } from './kanban-session-queue-service';
 import { getProjectKanbanBoardById } from './kanban-board-service';
 import { listProjectCodebases } from './project-codebase-service';
+import { evaluateTaskArtifactGate } from './task-artifact-gate-service';
 import { ensureTaskExecutionWorktree } from './task-session-runtime-service';
 import { getTaskById, updateTask } from './task-service';
 
@@ -292,14 +293,39 @@ export function createKanbanWorkflowOrchestrator(
     const currentIndex = orderedColumns.findIndex(
       (column) => column.id === automation.columnId,
     );
+    const currentColumn = orderedColumns[currentIndex];
     const nextColumn = orderedColumns[currentIndex + 1];
-    if (!nextColumn) {
+    if (!currentColumn || !nextColumn) {
+      return;
+    }
+
+    const artifactGate = evaluateTaskArtifactGate(
+      task,
+      currentColumn,
+      automation.sessionId ?? task.triggerSessionId,
+    );
+    if (artifactGate.gated) {
+      await updateTask(input.sqlite, automation.taskId, {
+        lastSyncError: artifactGate.message,
+        verificationReport: artifactGate.message,
+        verificationVerdict: 'fail',
+      });
+      input.logger?.warn?.(
+        {
+          columnId: currentColumn.id,
+          missingArtifacts: artifactGate.missingArtifacts,
+          sessionId: automation.sessionId,
+          taskId: automation.taskId,
+        },
+        'Blocked Kanban auto-advance because artifact gate requirements were not satisfied',
+      );
       return;
     }
 
     const updatedTask = await updateTask(input.sqlite, automation.taskId, {
       boardId: board.id,
       columnId: nextColumn.id,
+      lastSyncError: null,
       status: deriveStatusForColumn(nextColumn, task),
     });
 

@@ -934,6 +934,43 @@ describe('task service', () => {
     });
   });
 
+  it('preserves the current board and column when updating non-workflow task fields', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Workflow Context Preservation',
+      repoPath: '/Users/example/workflow-context-preservation',
+    });
+    const task = await createTask(sqlite, {
+      boardId: 'workflow-default',
+      columnId: 'review',
+      kind: 'review',
+      objective: 'Keep review lane while updating runtime metadata',
+      projectId: project.id,
+      title: 'Review metadata task',
+    });
+
+    const updated = await updateTask(sqlite, task.id, {
+      laneHandoffs: [
+        {
+          fromSessionId: 'acps_review',
+          id: 'handoff_preserve_lane',
+          request: 'Share the review evidence',
+          requestType: 'runtime_context',
+          requestedAt: new Date().toISOString(),
+          status: 'requested',
+          toSessionId: 'acps_dev',
+        },
+      ],
+      lastSyncError: 'waiting for runtime evidence',
+    });
+
+    expect(updated).toMatchObject({
+      boardId: 'workflow-default',
+      columnId: 'review',
+      lastSyncError: 'waiting for runtime evidence',
+    });
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-task-service-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
