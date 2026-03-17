@@ -29,6 +29,9 @@ function createTaskLinks(task: TaskPayload) {
     project: {
       href: `/api/projects/${task.projectId}`,
     },
+    'orchestration-summary': {
+      href: `/api/projects/${task.projectId}/orchestration-summary`,
+    },
     ...(task.codebaseId
       ? {
           codebase: {

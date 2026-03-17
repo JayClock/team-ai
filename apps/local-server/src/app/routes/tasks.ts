@@ -1,6 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { presentOrchestrationSummary } from '../presenters/orchestration-presenter';
 import { presentTask, presentTaskList } from '../presenters/task-presenter';
+import { listAcpSessionsByProject } from '../services/acp-service';
+import { getDelegationGroupProgress } from '../services/delegation-group-service';
+import { listTaskRuns } from '../services/task-run-service';
 import {
   createTask,
   deleteTask,
@@ -15,6 +19,10 @@ const listTasksQuerySchema = z.object({
   projectId: z.string().trim().min(1).optional(),
   sessionId: z.string().trim().min(1).optional(),
   status: z.string().trim().min(1).optional(),
+});
+
+const orchestrationSummaryQuerySchema = z.object({
+  sessionId: z.string().trim().min(1).optional(),
 });
 
 const projectParamsSchema = z.object({
@@ -111,6 +119,117 @@ const taskPatchSchema = z
     message: 'At least one field must be provided',
   });
 
+function resolveRootSessionId(
+  sessions: Array<{
+    id: string;
+    parentSession: { id: string } | null;
+  }>,
+  focusSessionId: string | null,
+) {
+  if (!focusSessionId) {
+    return sessions.find((session) => !session.parentSession)?.id ?? null;
+  }
+
+  const parentById = new Map(
+    sessions.map((session) => [session.id, session.parentSession?.id ?? null]),
+  );
+  const visited = new Set<string>();
+  let currentId: string | null = focusSessionId;
+
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const parentId = parentById.get(currentId) ?? null;
+
+    if (!parentId) {
+      return currentId;
+    }
+
+    currentId = parentId;
+  }
+
+  return focusSessionId;
+}
+
+function collectSessionSubtreeIds(
+  sessions: Array<{
+    id: string;
+    parentSession: { id: string } | null;
+  }>,
+  rootSessionId: string | null,
+) {
+  if (!rootSessionId) {
+    return new Set(sessions.map((session) => session.id));
+  }
+
+  const childrenByParent = new Map<string | null, string[]>();
+
+  for (const session of sessions) {
+    const parentId = session.parentSession?.id ?? null;
+    const siblings = childrenByParent.get(parentId) ?? [];
+    siblings.push(session.id);
+    childrenByParent.set(parentId, siblings);
+  }
+
+  const included = new Set<string>();
+  const queue = [rootSessionId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId || included.has(currentId)) {
+      continue;
+    }
+
+    included.add(currentId);
+    for (const childId of childrenByParent.get(currentId) ?? []) {
+      queue.push(childId);
+    }
+  }
+
+  return included;
+}
+
+function buildSessionTreeSummary(
+  sessions: Array<{
+    id: string;
+    parentSession: { id: string } | null;
+    task: { id: string } | null;
+  }>,
+) {
+  const childrenByParent = new Map<string | null, string[]>();
+
+  for (const session of sessions) {
+    const parentId = session.parentSession?.id ?? null;
+    const siblings = childrenByParent.get(parentId) ?? [];
+    siblings.push(session.id);
+    childrenByParent.set(parentId, siblings);
+  }
+
+  return sessions.map((session) => ({
+    childSessionIds: childrenByParent.get(session.id) ?? [],
+    parentSessionId: session.parentSession?.id ?? null,
+    sessionId: session.id,
+    taskId: session.task?.id ?? null,
+  }));
+}
+
+function listProjectDelegationGroupIds(
+  sqlite: Parameters<typeof listTasks>[0],
+  projectId: string,
+) {
+  return (
+    sqlite
+      .prepare(
+        `
+          SELECT id
+          FROM project_delegation_groups
+          WHERE project_id = ?
+          ORDER BY created_at ASC
+        `,
+      )
+      .all(projectId) as Array<{ id: string }>
+  ).map((row) => row.id);
+}
+
 const tasksRoute: FastifyPluginAsync = async (fastify) => {
   const workflow = fastify.taskWorkflowOrchestrator;
 
@@ -135,6 +254,98 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
       }),
     );
   });
+
+  fastify.get(
+    '/projects/:projectId/orchestration-summary',
+    async (request, reply) => {
+      const { projectId } = projectParamsSchema.parse(request.params);
+      const query = orchestrationSummaryQuerySchema.parse(request.query);
+      const focusSessionId = query.sessionId ?? null;
+      const sessionList = await listAcpSessionsByProject(fastify.sqlite, projectId, {
+        page: 1,
+        pageSize: 500,
+      });
+      const rootSessionId = resolveRootSessionId(
+        sessionList.items,
+        focusSessionId,
+      );
+      const includedSessionIds = collectSessionSubtreeIds(
+        sessionList.items,
+        rootSessionId,
+      );
+      const sessions = sessionList.items.filter((session) =>
+        includedSessionIds.has(session.id),
+      );
+      const taskList = await listTasks(fastify.sqlite, {
+        page: 1,
+        pageSize: 500,
+        projectId,
+      });
+      const tasks = taskList.items.filter((task) => {
+        if (!focusSessionId) {
+          return true;
+        }
+
+        return (
+          (task.sessionId && includedSessionIds.has(task.sessionId)) ||
+          (task.executionSessionId &&
+            includedSessionIds.has(task.executionSessionId)) ||
+          (task.resultSessionId && includedSessionIds.has(task.resultSessionId))
+        );
+      });
+      const taskIds = new Set(tasks.map((task) => task.id));
+      const taskRunList = await listTaskRuns(fastify.sqlite, {
+        page: 1,
+        pageSize: 500,
+        projectId,
+      });
+      const taskRuns = taskRunList.items.filter((taskRun) => {
+        if (!focusSessionId) {
+          return true;
+        }
+
+        return (
+          taskIds.has(taskRun.taskId) ||
+          (taskRun.sessionId && includedSessionIds.has(taskRun.sessionId))
+        );
+      });
+      const delegationGroups = (
+        await Promise.all(
+          listProjectDelegationGroupIds(fastify.sqlite, projectId).map(
+            async (groupId) =>
+              await getDelegationGroupProgress(fastify.sqlite, {
+                groupId,
+                projectId,
+              }),
+          ),
+        )
+      ).filter((group) => {
+        if (!focusSessionId) {
+          return true;
+        }
+
+        return (
+          group.taskIds.some((taskId) => taskIds.has(taskId)) ||
+          group.sessionIds.some((sessionId) => includedSessionIds.has(sessionId)) ||
+          (group.parentSessionId &&
+            includedSessionIds.has(group.parentSessionId))
+        );
+      });
+
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.orchestrationSummary);
+
+      return presentOrchestrationSummary({
+        delegationGroups,
+        focusSessionId,
+        projectId,
+        rootSessionId,
+        sessionTree: buildSessionTreeSummary(sessions),
+        sessions,
+        taskRuns,
+        tasks,
+      });
+    },
+  );
 
   fastify.post(
     '/projects/:projectId/tasks',

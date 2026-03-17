@@ -141,6 +141,7 @@ export interface AcpSessionPayload {
   project: AcpRefPayload;
   provider: string;
   specialistId: string | null;
+  task: AcpRefPayload | null;
   startedAt: string | null;
   worktree: AcpRefPayload | null;
 }

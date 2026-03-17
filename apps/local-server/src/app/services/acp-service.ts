@@ -73,6 +73,7 @@ interface AcpSessionRow {
   specialist_id: string | null;
   started_at: string | null;
   state: AcpSessionState;
+  task_id: string | null;
   worktree_id: string | null;
 }
 
@@ -893,6 +894,7 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     name: row.name,
     provider: row.provider,
     specialistId: row.specialist_id,
+    task: row.task_id ? { id: row.task_id } : null,
     cwd: row.cwd ?? '',
     startedAt: row.started_at,
     lastActivityAt: row.last_activity_at,
@@ -940,6 +942,7 @@ function getSessionRow(sqlite: Database, sessionId: string): AcpSessionRow {
           started_at,
           last_activity_at,
           completed_at,
+          task_id,
           worktree_id
         FROM project_acp_sessions
         WHERE id = ? AND deleted_at IS NULL
@@ -1830,6 +1833,7 @@ export async function listAcpSessionsByProject(
           started_at,
           last_activity_at,
           completed_at,
+          task_id,
           worktree_id
         FROM project_acp_sessions
         WHERE project_id = @projectId AND deleted_at IS NULL

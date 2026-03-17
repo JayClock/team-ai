@@ -54,6 +54,9 @@ describe('task presenter', () => {
       sourceEventId: 'note_spec_123',
       sourceType: 'spec_note',
       _links: {
+        'orchestration-summary': {
+          href: '/api/projects/proj_123/orchestration-summary',
+        },
         codebase: {
           href: '/api/projects/proj_123/codebases/cdb_123',
         },

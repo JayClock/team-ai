@@ -13,6 +13,7 @@ describe('acp presenter', () => {
       name: 'Implement feature',
       provider: 'codex',
       specialistId: null,
+      task: { id: 'task_123' },
       cwd: '/tmp/worktrees/feature',
       startedAt: null,
       lastActivityAt: null,

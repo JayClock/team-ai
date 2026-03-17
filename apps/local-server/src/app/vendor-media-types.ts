@@ -19,6 +19,7 @@ export const VENDOR_MEDIA_TYPES = {
   note: vendorMediaType('note'),
   noteEvents: vendorMediaType('note-events'),
   notes: vendorMediaType('notes'),
+  orchestrationSummary: vendorMediaType('orchestration-summary'),
   project: vendorMediaType('project'),
   projectRuntimeProfile: vendorMediaType('project-runtime-profile'),
   projects: vendorMediaType('projects'),

@@ -11,7 +11,14 @@ import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import taskWorkflowOrchestratorPlugin from '../plugins/task-workflow-orchestrator';
+import {
+  getOrCreateActiveDelegationGroup,
+  registerDelegationGroupSession,
+  registerDelegationGroupTask,
+} from '../services/delegation-group-service';
 import { createProject } from '../services/project-service';
+import { createTaskRun } from '../services/task-run-service';
+import { updateTask } from '../services/task-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -119,6 +126,140 @@ describe('tasks routes', () => {
       total: 1,
       _embedded: {
         tasks: [expect.objectContaining({ id: task.id })],
+      },
+    });
+  });
+
+  it('returns a focused orchestration summary with sessions, tasks, runs, and delegation groups', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Orchestration Summary Project',
+      repoPath: '/tmp/team-ai-orchestration-summary',
+    });
+    const rootSessionId = createAcpSession(sqlite, project.id, 'Root session');
+    const childSessionId = createAcpSession(sqlite, project.id, 'Crafter child');
+
+    sqlite
+      .prepare(
+        `
+          UPDATE project_acp_sessions
+          SET parent_session_id = ?, task_id = ?
+          WHERE id = ?
+        `,
+      )
+      .run(rootSessionId, null, childSessionId);
+
+    const taskId = await createTask(fastify, project.id, rootSessionId, {
+      objective: 'Ship an orchestrated implementation slice',
+      title: 'Implement orchestrated slice',
+    });
+    const group = await getOrCreateActiveDelegationGroup(sqlite, {
+      callerSessionId: rootSessionId,
+      parentSessionId: rootSessionId,
+      projectId: project.id,
+    });
+
+    await updateTask(sqlite, taskId, {
+      executionSessionId: childSessionId,
+      parallelGroup: group.id,
+      resultSessionId: childSessionId,
+      status: 'RUNNING',
+    });
+    sqlite
+      .prepare(
+        `
+          UPDATE project_acp_sessions
+          SET task_id = ?
+          WHERE id = ?
+        `,
+      )
+      .run(taskId, childSessionId);
+    await registerDelegationGroupTask(sqlite, {
+      groupId: group.id,
+      taskId,
+    });
+    await registerDelegationGroupSession(sqlite, {
+      groupId: group.id,
+      sessionId: childSessionId,
+      taskId,
+    });
+    await createTaskRun(
+      sqlite,
+      {
+        kind: 'implement',
+        projectId: project.id,
+        provider: 'codex',
+        role: 'CRAFTER',
+        sessionId: childSessionId,
+        specialistId: 'crafter-implementor',
+        status: 'RUNNING',
+        summary: 'Working through the orchestrated slice',
+        taskId,
+      },
+      {
+        source: 'tasks-route-orchestration-summary-test',
+      },
+    );
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/orchestration-summary?sessionId=${rootSessionId}`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(
+      VENDOR_MEDIA_TYPES.orchestrationSummary,
+    );
+    expect(response.json()).toMatchObject({
+      focusSessionId: rootSessionId,
+      projectId: project.id,
+      rootSessionId,
+      sessionTree: expect.arrayContaining([
+        expect.objectContaining({
+          childSessionIds: [childSessionId],
+          parentSessionId: null,
+          sessionId: rootSessionId,
+        }),
+        expect.objectContaining({
+          childSessionIds: [],
+          parentSessionId: rootSessionId,
+          sessionId: childSessionId,
+          taskId,
+        }),
+      ]),
+      _embedded: {
+        delegationGroups: [
+          expect.objectContaining({
+            groupId: group.id,
+            sessionIds: [childSessionId],
+            taskIds: [taskId],
+            totalCount: 1,
+          }),
+        ],
+        sessions: expect.arrayContaining([
+          expect.objectContaining({ id: rootSessionId }),
+          expect.objectContaining({
+            id: childSessionId,
+            task: { id: taskId },
+          }),
+        ]),
+        taskRuns: [
+          expect.objectContaining({
+            role: 'CRAFTER',
+            sessionId: childSessionId,
+            status: 'RUNNING',
+            taskId,
+          }),
+        ],
+        tasks: [
+          expect.objectContaining({
+            executionSessionId: childSessionId,
+            id: taskId,
+            parallelGroup: group.id,
+            resultSessionId: childSessionId,
+          }),
+        ],
       },
     });
   });
