@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
   createAcpSessionExecutionBoundary,
-  createDispatchTaskCallbacks,
+  createTaskSessionDispatchCallbacks,
 } from '../services/acp-session-execution-boundary-service';
 import {
   patchTaskFromMcpAndMaybeExecute,
@@ -35,7 +35,7 @@ export function getTaskWorkflowRuntime(
     return existing;
   }
 
-  const runtime = createDispatchTaskCallbacks(
+  const runtime = createTaskSessionDispatchCallbacks(
     createAcpSessionExecutionBoundary({
       broker: fastify.acpStreamBroker,
       logger: fastify.log,
@@ -43,8 +43,8 @@ export function getTaskWorkflowRuntime(
       sqlite: fastify.sqlite,
     }),
     {
-      createSessionSource: 'task_execution_runtime_create_session',
-      promptSessionSource: 'task_execution_runtime_prompt_session',
+      createSessionSource: 'task_session_runtime_create_session',
+      promptSessionSource: 'task_session_runtime_prompt_session',
     },
   );
   const workflow: TaskWorkflowRuntime = {

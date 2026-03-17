@@ -86,7 +86,7 @@ export function createTaskSessionDispatchCallbacks(
       const session = await boundary.createSession(input, {
         source:
           sources.createSessionSource ??
-          'task_execution_runtime_create_session',
+          'task_session_runtime_create_session',
       });
 
       return {
@@ -108,7 +108,7 @@ export function createTaskSessionDispatchCallbacks(
         {
           source:
             sources.promptSessionSource ??
-            'task_execution_runtime_prompt_session',
+            'task_session_runtime_prompt_session',
         },
       );
     },

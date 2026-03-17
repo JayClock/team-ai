@@ -67,7 +67,7 @@ export function buildTaskOrchestrationEventContext(
     resolvedProvider: resolved.provider ?? null,
     resolvedRole: resolved.role ?? null,
     retryOfRunId: input.retryOfRunId ?? null,
-    source: options.source ?? 'task-session-dispatch-service',
+    source: options.source ?? 'task-session-runtime',
     specialistId: resolved.specialistId ?? null,
     taskExecutionSessionId: task.executionSessionId,
     taskId: task.id,
