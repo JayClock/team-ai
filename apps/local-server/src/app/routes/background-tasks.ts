@@ -20,6 +20,11 @@ import {
   listRunningWorkflowRunIds,
 } from '../services/workflow-service';
 import { listTasks } from '../services/task-service';
+import type {
+  TaskLaneHandoffPayload,
+  TaskLaneSessionPayload,
+  TaskPayload,
+} from '../schemas/task';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const projectParamsSchema = z.object({
@@ -57,6 +62,43 @@ const createBackgroundTaskBodySchema = z.object({
   workflowRunId: z.union([z.string().trim().min(1), z.null()]).optional(),
   workflowStepName: z.union([z.string().trim().min(1), z.null()]).optional(),
 });
+
+function getLatestLaneSession(
+  task: Pick<TaskPayload, 'laneSessions' | 'triggerSessionId'>,
+): TaskLaneSessionPayload | null {
+  if (task.triggerSessionId) {
+    const triggered = task.laneSessions.find(
+      (entry) => entry.sessionId === task.triggerSessionId,
+    );
+    if (triggered) {
+      return triggered;
+    }
+  }
+
+  return (
+    task.laneSessions
+      .slice()
+      .sort((left, right) =>
+        (right.completedAt ?? right.startedAt).localeCompare(
+          left.completedAt ?? left.startedAt,
+        ),
+      )[0] ?? null
+  );
+}
+
+function getLatestLaneHandoff(
+  task: Pick<TaskPayload, 'laneHandoffs'>,
+): TaskLaneHandoffPayload | null {
+  return (
+    task.laneHandoffs
+      .slice()
+      .sort((left, right) =>
+        (right.respondedAt ?? right.requestedAt).localeCompare(
+          left.respondedAt ?? left.requestedAt,
+        ),
+      )[0] ?? null
+  );
+}
 
 const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/background-tasks/status', async (request) => {
@@ -149,13 +191,40 @@ const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
       },
       artifactGates: {
         blockedTaskCount: artifactGateTasks.length,
-        blockedTasks: artifactGateTasks.map((task) => ({
-          columnId: task.columnId,
-          id: task.id,
-          lastSyncError: task.lastSyncError,
-          title: task.title,
-          verificationVerdict: task.verificationVerdict,
-        })),
+        blockedTasks: artifactGateTasks.map((task) => {
+          const latestLaneSession = getLatestLaneSession(task);
+          const latestLaneHandoff = getLatestLaneHandoff(task);
+
+          return {
+            columnId: task.columnId,
+            id: task.id,
+            lastSyncError: task.lastSyncError,
+            latestLaneHandoff: latestLaneHandoff
+              ? {
+                  fromSessionId: latestLaneHandoff.fromSessionId,
+                  id: latestLaneHandoff.id,
+                  requestType: latestLaneHandoff.requestType,
+                  respondedAt: latestLaneHandoff.respondedAt ?? null,
+                  responseSummary: latestLaneHandoff.responseSummary ?? null,
+                  status: latestLaneHandoff.status,
+                  toSessionId: latestLaneHandoff.toSessionId,
+                }
+              : null,
+            latestLaneSession: latestLaneSession
+              ? {
+                  columnId: latestLaneSession.columnId ?? null,
+                  role: latestLaneSession.role ?? null,
+                  sessionId: latestLaneSession.sessionId,
+                  specialistId: latestLaneSession.specialistId ?? null,
+                  startedAt: latestLaneSession.startedAt,
+                  status: latestLaneSession.status,
+                }
+              : null,
+            title: task.title,
+            triggerSessionId: task.triggerSessionId,
+            verificationVerdict: task.verificationVerdict,
+          };
+        }),
       },
       traces: {
         byEventType: traceStats.byEventType,

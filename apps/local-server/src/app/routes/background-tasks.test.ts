@@ -220,6 +220,29 @@ describe('background tasks route', () => {
       title: 'Artifact gated task',
     });
     await updateTask(sqlite, gatedTask.id, {
+      laneHandoffs: [
+        {
+          fromSessionId: 'acps_review',
+          id: 'handoff_review',
+          request: 'Need a local URL before review can pass.',
+          requestType: 'environment_preparation',
+          requestedAt: '2026-03-17T00:01:00.000Z',
+          responseSummary: 'Server still needs to be started.',
+          respondedAt: '2026-03-17T00:02:00.000Z',
+          status: 'blocked',
+          toSessionId: 'acps_dev',
+        },
+      ],
+      laneSessions: [
+        {
+          columnId: 'review',
+          role: 'GATE',
+          sessionId: 'acps_review',
+          specialistId: 'gate-reviewer',
+          startedAt: '2026-03-17T00:00:00.000Z',
+          status: 'running',
+        },
+      ],
       lastSyncError:
         'Artifact gate blocked auto-advance from Review: missing local URL',
       verificationReport:
@@ -285,7 +308,22 @@ describe('background tasks route', () => {
             id: gatedTask.id,
             lastSyncError:
               'Artifact gate blocked auto-advance from Review: missing local URL',
+            latestLaneHandoff: expect.objectContaining({
+              fromSessionId: 'acps_review',
+              id: 'handoff_review',
+              requestType: 'environment_preparation',
+              status: 'blocked',
+              toSessionId: 'acps_dev',
+            }),
+            latestLaneSession: expect.objectContaining({
+              columnId: 'review',
+              role: 'GATE',
+              sessionId: 'acps_review',
+              specialistId: 'gate-reviewer',
+              status: 'running',
+            }),
             title: 'Artifact gated task',
+            triggerSessionId: null,
             verificationVerdict: 'fail',
           }),
         ],

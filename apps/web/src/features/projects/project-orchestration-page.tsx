@@ -13,7 +13,25 @@ interface OrchestrationSnapshot {
       columnId: string | null;
       id: string;
       lastSyncError: string | null;
+      latestLaneHandoff: {
+        fromSessionId: string;
+        id: string;
+        requestType: string;
+        respondedAt: string | null;
+        responseSummary: string | null;
+        status: string;
+        toSessionId: string;
+      } | null;
+      latestLaneSession: {
+        columnId: string | null;
+        role: string | null;
+        sessionId: string;
+        specialistId: string | null;
+        startedAt: string;
+        status: string;
+      } | null;
       title: string;
+      triggerSessionId: string | null;
       verificationVerdict: string | null;
     }>;
   };
@@ -194,6 +212,16 @@ function formatWebhookLogMeta(log: WebhookLogSummary) {
   return `${log.configId} · ${formatDateTime(log.createdAt)} · ${execution}${
     log.errorMessage ? ` · ${log.errorMessage}` : ''
   }`;
+}
+
+function artifactGateSessionLink(projectId: string, task: OrchestrationSnapshot['artifactGates']['blockedTasks'][number]) {
+  const sessionId =
+    task.triggerSessionId ?? task.latestLaneSession?.sessionId ?? task.latestLaneHandoff?.fromSessionId;
+  if (!sessionId) {
+    return null;
+  }
+
+  return `/projects/${projectId}/sessions/${sessionId}`;
 }
 
 export default function ProjectOrchestrationPage() {
@@ -737,12 +765,74 @@ export default function ProjectOrchestrationPage() {
           <CardContent className="space-y-3">
             {snapshot?.artifactGates.blockedTasks.length ? (
               snapshot.artifactGates.blockedTasks.map((task) => (
-                <QueueRow
+                <div
                   key={task.id}
-                  label={task.verificationVerdict ?? 'blocked'}
-                  title={task.title}
-                  meta={`${task.columnId ?? 'unknown column'} · ${task.lastSyncError ?? 'Artifact gate blocked'}`}
-                />
+                  className="rounded-xl border border-border/60 bg-muted/20 p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium">{task.title}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {task.columnId ?? 'unknown column'} ·{' '}
+                        {task.lastSyncError ?? 'Artifact gate blocked'}
+                      </div>
+                    </div>
+                    <Badge variant="outline">
+                      {task.verificationVerdict ?? 'blocked'}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 md:grid-cols-3">
+                    <SummaryCard
+                      compact
+                      label="Lane Session"
+                      value={task.latestLaneSession?.sessionId ?? 'none'}
+                      meta={
+                        task.latestLaneSession
+                          ? `${task.latestLaneSession.role ?? 'unknown role'} · ${task.latestLaneSession.status}`
+                          : 'no linked session'
+                      }
+                    />
+                    <SummaryCard
+                      compact
+                      label="Latest Handoff"
+                      value={task.latestLaneHandoff?.id ?? 'none'}
+                      meta={
+                        task.latestLaneHandoff
+                          ? `${task.latestLaneHandoff.requestType} · ${task.latestLaneHandoff.status}`
+                          : 'no handoff'
+                      }
+                    />
+                    <SummaryCard
+                      compact
+                      label="Recovery"
+                      value={task.triggerSessionId ?? 'no trigger session'}
+                      meta={
+                        task.latestLaneHandoff?.responseSummary ??
+                        'open the active session to provide the missing artifact'
+                      }
+                    />
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {artifactGateSessionLink(projectId, task) ? (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={artifactGateSessionLink(projectId, task) ?? '#'}>
+                          Open Session
+                        </Link>
+                      </Button>
+                    ) : null}
+                    {task.latestLaneHandoff?.toSessionId ? (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link
+                          to={`/projects/${projectId}/sessions/${task.latestLaneHandoff.toSessionId}`}
+                        >
+                          Open Handoff Target
+                        </Link>
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
               ))
             ) : (
               <div className="text-sm text-muted-foreground">
