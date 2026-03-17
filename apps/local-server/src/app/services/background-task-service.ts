@@ -127,6 +127,32 @@ function ensureBackgroundTaskStatus(
   return status as BackgroundTaskStatus;
 }
 
+function getBackgroundTaskRow(
+  sqlite: Database,
+  backgroundTaskId: string,
+): BackgroundTaskRow {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT id, project_id, task_id, title, prompt, agent_id, status,
+               triggered_by, trigger_source, priority, result_session_id,
+               error_message, attempts, max_attempts, last_activity_at,
+               current_activity, tool_call_count, input_tokens, output_tokens,
+               workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+               task_output, started_at, completed_at, created_at, updated_at
+        FROM project_background_tasks
+        WHERE id = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(backgroundTaskId) as BackgroundTaskRow | undefined;
+
+  if (!row) {
+    throwBackgroundTaskNotFound(backgroundTaskId);
+  }
+
+  return row;
+}
+
 export async function createBackgroundTask(
   sqlite: Database,
   input: CreateBackgroundTaskInput,
@@ -148,7 +174,7 @@ export async function createBackgroundTask(
         ) VALUES (
           @id, @projectId, @taskId, @title, @prompt, @agentId, 'PENDING',
           @triggeredBy, @triggerSource, @priority, 0, @maxAttempts,
-          @workflowRunId, @workflowStepName, '[]',
+          @workflowRunId, @workflowStepName, @dependsOnTaskIdsJson,
           @createdAt, @updatedAt, NULL
         )
       `,
@@ -156,6 +182,7 @@ export async function createBackgroundTask(
     .run({
       agentId: input.agentId,
       createdAt: now,
+      dependsOnTaskIdsJson: JSON.stringify(input.dependsOnTaskIds ?? []),
       id,
       maxAttempts: input.maxAttempts ?? 1,
       priority: input.priority ?? 'NORMAL',
@@ -234,6 +261,83 @@ export async function getBackgroundTaskById(
   sqlite: Database,
   backgroundTaskId: string,
 ): Promise<BackgroundTaskPayload> {
+  return mapBackgroundTaskRow(getBackgroundTaskRow(sqlite, backgroundTaskId));
+}
+
+export async function listReadyBackgroundTasks(
+  sqlite: Database,
+): Promise<BackgroundTaskPayload[]> {
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT id, project_id, task_id, title, prompt, agent_id, status,
+               triggered_by, trigger_source, priority, result_session_id,
+               error_message, attempts, max_attempts, last_activity_at,
+               current_activity, tool_call_count, input_tokens, output_tokens,
+               workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+               task_output, started_at, completed_at, created_at, updated_at
+        FROM project_background_tasks
+        WHERE status = 'PENDING'
+          AND deleted_at IS NULL
+        ORDER BY
+          CASE priority
+            WHEN 'HIGH' THEN 0
+            WHEN 'NORMAL' THEN 1
+            ELSE 2
+          END ASC,
+          created_at ASC
+      `,
+    )
+    .all() as BackgroundTaskRow[];
+
+  const tasksById = new Map(rows.map((row) => [row.id, mapBackgroundTaskRow(row)]));
+
+  const dependencies = sqlite
+    .prepare(
+      `
+        SELECT id, status
+        FROM project_background_tasks
+        WHERE deleted_at IS NULL
+      `,
+    )
+    .all() as Array<{ id: string; status: BackgroundTaskStatus }>;
+  const dependencyStatusById = new Map(
+    dependencies.map((row) => [row.id, row.status]),
+  );
+
+  return Array.from(tasksById.values()).filter((task) =>
+    task.dependsOnTaskIds.every(
+      (dependencyId) => dependencyStatusById.get(dependencyId) === 'COMPLETED',
+    ),
+  );
+}
+
+export async function listRunningBackgroundTasks(
+  sqlite: Database,
+): Promise<BackgroundTaskPayload[]> {
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT id, project_id, task_id, title, prompt, agent_id, status,
+               triggered_by, trigger_source, priority, result_session_id,
+               error_message, attempts, max_attempts, last_activity_at,
+               current_activity, tool_call_count, input_tokens, output_tokens,
+               workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+               task_output, started_at, completed_at, created_at, updated_at
+        FROM project_background_tasks
+        WHERE status = 'RUNNING' AND deleted_at IS NULL
+        ORDER BY created_at ASC
+      `,
+    )
+    .all() as BackgroundTaskRow[];
+
+  return rows.map(mapBackgroundTaskRow);
+}
+
+export async function findBackgroundTaskBySessionId(
+  sqlite: Database,
+  sessionId: string,
+): Promise<BackgroundTaskPayload | null> {
   const row = sqlite
     .prepare(
       `
@@ -244,14 +348,97 @@ export async function getBackgroundTaskById(
                workflow_run_id, workflow_step_name, depends_on_task_ids_json,
                task_output, started_at, completed_at, created_at, updated_at
         FROM project_background_tasks
-        WHERE id = ? AND deleted_at IS NULL
+        WHERE result_session_id = ? AND deleted_at IS NULL
       `,
     )
-    .get(backgroundTaskId) as BackgroundTaskRow | undefined;
+    .get(sessionId) as BackgroundTaskRow | undefined;
 
-  if (!row) {
-    throwBackgroundTaskNotFound(backgroundTaskId);
-  }
+  return row ? mapBackgroundTaskRow(row) : null;
+}
 
-  return mapBackgroundTaskRow(row);
+export async function updateBackgroundTaskStatus(
+  sqlite: Database,
+  backgroundTaskId: string,
+  status: BackgroundTaskStatus,
+  input?: {
+    completedAt?: string | null;
+    currentActivity?: string | null;
+    errorMessage?: string | null;
+    inputTokens?: number | null;
+    lastActivityAt?: string | null;
+    outputTokens?: number | null;
+    resultSessionId?: string | null;
+    startedAt?: string | null;
+    taskOutput?: string | null;
+    toolCallCount?: number | null;
+  },
+): Promise<BackgroundTaskPayload> {
+  ensureBackgroundTaskStatus(status);
+  const current = getBackgroundTaskRow(sqlite, backgroundTaskId);
+
+  sqlite
+    .prepare(
+      `
+        UPDATE project_background_tasks
+        SET
+          status = @status,
+          result_session_id = @resultSessionId,
+          error_message = @errorMessage,
+          last_activity_at = @lastActivityAt,
+          current_activity = @currentActivity,
+          tool_call_count = @toolCallCount,
+          input_tokens = @inputTokens,
+          output_tokens = @outputTokens,
+          task_output = @taskOutput,
+          started_at = @startedAt,
+          completed_at = @completedAt,
+          attempts = CASE
+            WHEN @status = 'RUNNING' AND status != 'RUNNING' THEN attempts + 1
+            ELSE attempts
+          END,
+          updated_at = @updatedAt
+        WHERE id = @id AND deleted_at IS NULL
+      `,
+    )
+    .run({
+      completedAt:
+        input?.completedAt === undefined
+          ? current.completed_at
+          : input.completedAt,
+      currentActivity:
+        input?.currentActivity === undefined
+          ? current.current_activity
+          : input.currentActivity,
+      errorMessage:
+        input?.errorMessage === undefined
+          ? current.error_message
+          : input.errorMessage,
+      id: backgroundTaskId,
+      inputTokens:
+        input?.inputTokens === undefined ? current.input_tokens : input.inputTokens,
+      lastActivityAt:
+        input?.lastActivityAt === undefined
+          ? current.last_activity_at
+          : input.lastActivityAt,
+      outputTokens:
+        input?.outputTokens === undefined
+          ? current.output_tokens
+          : input.outputTokens,
+      resultSessionId:
+        input?.resultSessionId === undefined
+          ? current.result_session_id
+          : input.resultSessionId,
+      startedAt:
+        input?.startedAt === undefined ? current.started_at : input.startedAt,
+      status,
+      taskOutput:
+        input?.taskOutput === undefined ? current.task_output : input.taskOutput,
+      toolCallCount:
+        input?.toolCallCount === undefined
+          ? current.tool_call_count
+          : input.toolCallCount,
+      updatedAt: new Date().toISOString(),
+    });
+
+  return getBackgroundTaskById(sqlite, backgroundTaskId);
 }

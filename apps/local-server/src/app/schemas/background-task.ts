@@ -54,6 +54,7 @@ export interface BackgroundTaskListPayload {
 
 export interface CreateBackgroundTaskInput {
   agentId: string;
+  dependsOnTaskIds?: string[];
   maxAttempts?: number;
   priority?: BackgroundTaskPriority;
   projectId: string;

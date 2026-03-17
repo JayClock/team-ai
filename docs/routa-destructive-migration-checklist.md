@@ -152,7 +152,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 ### Stage 4: Background Execution
 
 - [x] Add `background-task-service.ts`: [`apps/local-server/src/app/services/background-task-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/background-task-service.ts)
-- [ ] Add `background-worker-service.ts`: [`apps/local-server/src/app/services/background-worker-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/background-worker-service.ts)
+- [x] Add `background-worker-service.ts`: [`apps/local-server/src/app/services/background-worker-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/background-worker-service.ts)
 - [ ] Reuse ACP session integration from [`apps/local-server/src/app/services/acp-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/acp-service.ts)
 - [ ] Keep runtime client boundary intact: [`apps/local-server/src/app/clients/acp-runtime-client.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/clients/acp-runtime-client.ts)
 - [ ] Retire old task execution runtime: [`apps/local-server/src/app/services/task-execution-runtime-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-execution-runtime-service.ts)
@@ -245,4 +245,13 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add [`apps/local-server/src/app/services/kanban-event-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-event-service.ts) as the local event bus for task column transitions and background task completion
 - [x] Add [`apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts) to queue background tasks for automated columns and auto-advance successful review lanes
 - [x] Validate the new services with `npx vitest run src/app/services/task-lane-service.test.ts src/app/services/kanban-workflow-orchestrator-service.test.ts`
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 5
+
+- [x] Read `routa` background worker and background-task store implementations before coding
+- [x] Extend [`apps/local-server/src/app/services/background-task-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/background-task-service.ts) with ready/running/session lookup and status update helpers for worker execution
+- [x] Add [`apps/local-server/src/app/services/background-worker-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/background-worker-service.ts) with `dispatchPending` and `checkCompletions`
+- [x] Validate the worker path with `npx vitest run src/app/services/background-worker-service.test.ts src/app/routes/background-tasks.test.ts`
+- [ ] Reuse ACP session integration from [`apps/local-server/src/app/services/acp-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/acp-service.ts)
 - [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
