@@ -1145,7 +1145,7 @@ Validation and review logic
 - Review output is persisted
 
 ## Verification
-- npx vitest run apps/local-server/src/app/services/spec-task-sync-service.test.ts
+- npx vitest run apps/local-server/src/app/routes/notes.test.ts
 @@@
 `;
 
@@ -1212,7 +1212,7 @@ Validation and review logic
 - Review output is persisted
 
 ## Verification
-- npx vitest run apps/local-server/src/app/services/spec-task-sync-service.test.ts
+- npx vitest run apps/local-server/src/app/routes/notes.test.ts
 @@@
 `;
 
