@@ -232,6 +232,7 @@ export function createSubmitLaneHandoffHandler(fastify: FastifyInstance) {
     }
 
     const updatedHandoff = updateTaskLaneHandoff(task, {
+      artifactEvidence: args.artifacts,
       handoffId: args.handoffId,
       responseSummary: args.summary,
       status: args.status,

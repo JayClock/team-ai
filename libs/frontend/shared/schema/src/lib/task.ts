@@ -62,6 +62,8 @@ export type TaskLaneSession = {
 };
 
 export type TaskLaneHandoff = {
+  artifactEvidence?: string[];
+  artifactHints?: string[];
   fromColumnId?: string;
   fromSessionId: string;
   id: string;

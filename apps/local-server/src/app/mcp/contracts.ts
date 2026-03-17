@@ -121,6 +121,7 @@ export const taskUpdateArgsSchema = z
   }, 'At least one task field must be provided');
 
 export const requestPreviousLaneHandoffArgsSchema = z.object({
+  artifactHints: stringArraySchema.optional(),
   projectId: z.string().trim().min(1),
   request: z.string().trim().min(1),
   requestType: z.enum([
@@ -134,6 +135,7 @@ export const requestPreviousLaneHandoffArgsSchema = z.object({
 });
 
 export const submitLaneHandoffArgsSchema = z.object({
+  artifacts: stringArraySchema.optional(),
   handoffId: z.string().trim().min(1),
   projectId: z.string().trim().min(1),
   sessionId: z.string().trim().min(1),

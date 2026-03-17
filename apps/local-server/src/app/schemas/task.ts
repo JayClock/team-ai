@@ -32,6 +32,8 @@ export interface TaskLaneSessionPayload {
 }
 
 export interface TaskLaneHandoffPayload {
+  artifactEvidence?: string[];
+  artifactHints?: string[];
   fromColumnId?: string;
   fromSessionId: string;
   id: string;

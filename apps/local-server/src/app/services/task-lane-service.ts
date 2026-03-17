@@ -123,6 +123,7 @@ export function prepareTaskForColumnTransition(
 }
 
 export function createTaskLaneHandoff(params: {
+  artifactHints?: string[];
   fromColumnId?: string;
   fromSessionId: string;
   id: string;
@@ -133,6 +134,8 @@ export function createTaskLaneHandoff(params: {
   toSessionId: string;
 }): TaskLaneHandoffPayload {
   return {
+    artifactEvidence: [],
+    artifactHints: params.artifactHints ?? [],
     fromColumnId: params.fromColumnId,
     fromSessionId: params.fromSessionId,
     id: params.id,
@@ -172,6 +175,7 @@ function formatHandoffRequestType(requestType: TaskLaneHandoffRequestType): stri
 }
 
 export function buildPreviousLaneHandoffPrompt(params: {
+  artifactHints?: string[];
   handoffId: string;
   request: string;
   requestType: TaskLaneHandoffRequestType;
@@ -185,10 +189,14 @@ export function buildPreviousLaneHandoffPrompt(params: {
     `Requesting lane: ${params.requestingColumnId ?? 'unknown'}`,
     `Request type: ${formatHandoffRequestType(params.requestType)}`,
     `Request: ${params.request}`,
+    ...(params.artifactHints && params.artifactHints.length > 0
+      ? ['', `Artifact expectations:\n${params.artifactHints.map((item) => `- ${item}`).join('\n')}`]
+      : []),
     '',
     'Complete only the requested support work for this task.',
     'If runtime setup or environment preparation is needed, perform it in this session.',
     `When done or blocked, call submit_lane_handoff with taskId: "${params.task.id}", handoffId: "${params.handoffId}", and a concise summary.`,
+    'Include artifacts when you have concrete evidence such as commands, URLs, screenshots, or generated files.',
     `This request originated from session ${params.requestingSessionId.slice(0, 8)}.`,
   ].join('\n');
 }
@@ -206,9 +214,15 @@ export function buildLaneHandoffResponsePrompt(
     `Request type: ${formatHandoffRequestType(handoff.requestType)}`,
     `Status: ${handoff.status}`,
     `Original request: ${handoff.request}`,
+    ...(handoff.artifactHints && handoff.artifactHints.length > 0
+      ? [`Expected artifacts: ${handoff.artifactHints.join(', ')}`]
+      : []),
     handoff.responseSummary
       ? `Response: ${handoff.responseSummary}`
       : 'Response: no summary provided',
+    ...(handoff.artifactEvidence && handoff.artifactEvidence.length > 0
+      ? [`Artifacts:\n${handoff.artifactEvidence.map((item) => `- ${item}`).join('\n')}`]
+      : []),
     '',
     'Continue your current lane work using this updated runtime context.',
   ].join('\n');
@@ -233,6 +247,7 @@ export function upsertTaskLaneHandoff(
 export function updateTaskLaneHandoff(
   task: TaskPayload,
   params: {
+    artifactEvidence?: string[];
     handoffId: string;
     responseSummary: string;
     status: Exclude<TaskLaneHandoffStatus, 'requested'>;
@@ -246,6 +261,7 @@ export function updateTaskLaneHandoff(
   }
 
   existing.respondedAt = new Date().toISOString();
+  existing.artifactEvidence = params.artifactEvidence ?? [];
   existing.responseSummary = params.responseSummary;
   existing.status = params.status;
   return existing;

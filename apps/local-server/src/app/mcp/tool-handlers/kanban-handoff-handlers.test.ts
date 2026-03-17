@@ -110,6 +110,7 @@ describe('kanban handoff MCP handlers', () => {
       createFastifyStub(sqlite),
     );
     const result = await handler({
+      artifactHints: ['local URL', 'startup command'],
       projectId: project.id,
       request: 'Start the app and share the local URL.',
       requestType: 'environment_preparation',
@@ -125,7 +126,7 @@ describe('kanban handoff MCP handlers', () => {
       project.id,
       devSessionId,
       expect.objectContaining({
-        prompt: expect.stringContaining('Start the app and share the local URL.'),
+        prompt: expect.stringContaining('Artifact expectations:\n- local URL\n- startup command'),
       }),
       expect.objectContaining({
         source: 'mcp_request_previous_lane_handoff',
@@ -135,6 +136,7 @@ describe('kanban handoff MCP handlers', () => {
     const updatedTask = await getTaskById(sqlite, task.id);
     expect(updatedTask.laneHandoffs).toEqual([
       expect.objectContaining({
+        artifactHints: ['local URL', 'startup command'],
         fromSessionId: reviewSessionId,
         requestType: 'environment_preparation',
         status: 'delivered',
@@ -208,6 +210,7 @@ describe('kanban handoff MCP handlers', () => {
 
     const handler = createSubmitLaneHandoffHandler(createFastifyStub(sqlite));
     const result = await handler({
+      artifacts: ['pnpm dev', 'http://127.0.0.1:3000'],
       handoffId: 'handoff_runtime_1',
       projectId: project.id,
       sessionId: devSessionId,
@@ -224,7 +227,7 @@ describe('kanban handoff MCP handlers', () => {
       project.id,
       reviewSessionId,
       expect.objectContaining({
-        prompt: expect.stringContaining('Service is running on http://127.0.0.1:3000 with seeded demo data.'),
+        prompt: expect.stringContaining('Artifacts:\n- pnpm dev\n- http://127.0.0.1:3000'),
       }),
       expect.objectContaining({
         source: 'mcp_submit_lane_handoff',
@@ -234,6 +237,7 @@ describe('kanban handoff MCP handlers', () => {
     const updatedTask = await getTaskById(sqlite, task.id);
     expect(updatedTask.laneHandoffs).toEqual([
       expect.objectContaining({
+        artifactEvidence: ['pnpm dev', 'http://127.0.0.1:3000'],
         id: 'handoff_runtime_1',
         responseSummary:
           'Service is running on http://127.0.0.1:3000 with seeded demo data.',

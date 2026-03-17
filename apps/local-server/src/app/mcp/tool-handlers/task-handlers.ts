@@ -146,6 +146,7 @@ export function createRequestPreviousLaneHandoffHandler(
     const handoff = upsertTaskLaneHandoff(
       task,
       createTaskLaneHandoff({
+        artifactHints: args.artifactHints,
         fromColumnId: currentLaneSession.columnId,
         fromSessionId: args.sessionId,
         id: createTaskLaneHandoffId(),
@@ -168,6 +169,7 @@ export function createRequestPreviousLaneHandoffHandler(
         previousLaneSession.sessionId,
         {
           prompt: buildPreviousLaneHandoffPrompt({
+            artifactHints: handoff.artifactHints,
             handoffId: handoff.id,
             request: handoff.request,
             requestType: handoff.requestType,
