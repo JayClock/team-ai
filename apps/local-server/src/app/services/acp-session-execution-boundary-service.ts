@@ -7,7 +7,7 @@ import {
   createAcpSession,
   promptAcpSession,
 } from './acp-service';
-import type { DispatchTaskCallbacks } from './task-dispatch-service';
+import type { TaskSessionDispatchCallbacks } from './task-session-dispatch-service';
 
 interface AcpSessionExecutionBoundaryDependencies {
   broker: AcpStreamBroker;
@@ -80,7 +80,7 @@ export function createAcpSessionExecutionBoundary(
 export function createDispatchTaskCallbacks(
   boundary: AcpSessionExecutionBoundary,
   sources: DispatchTaskCallbackSources = {},
-): DispatchTaskCallbacks {
+): TaskSessionDispatchCallbacks {
   return {
     async createSession(input) {
       const session = await boundary.createSession(input, {

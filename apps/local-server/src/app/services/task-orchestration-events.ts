@@ -1,7 +1,10 @@
 import type { RoleValue } from '../schemas/role';
 import type { TaskPayload } from '../schemas/task';
 import type { AcpOrchestrationEventName } from '../schemas/acp';
-import type { DispatchTaskInput, DispatchTaskOptions } from './task-dispatch-service';
+import type {
+  TaskSessionDispatchInput,
+  TaskSessionDispatchOptions,
+} from './task-session-dispatch-service';
 
 export type TaskOrchestrationEventName =
   | 'task.dispatch.attempt'
@@ -50,8 +53,8 @@ export function buildTaskOrchestrationEventContext(
     TaskPayload,
     'executionSessionId' | 'id' | 'kind' | 'projectId' | 'status'
   >,
-  input: Pick<DispatchTaskInput, 'callerSessionId' | 'retryOfRunId'>,
-  options: DispatchTaskOptions,
+  input: Pick<TaskSessionDispatchInput, 'callerSessionId' | 'retryOfRunId'>,
+  options: TaskSessionDispatchOptions,
   resolved: {
     provider?: string | null;
     role?: RoleValue | null;
@@ -64,7 +67,7 @@ export function buildTaskOrchestrationEventContext(
     resolvedProvider: resolved.provider ?? null,
     resolvedRole: resolved.role ?? null,
     retryOfRunId: input.retryOfRunId ?? null,
-    source: options.source ?? 'task-dispatch-service',
+    source: options.source ?? 'task-session-dispatch-service',
     specialistId: resolved.specialistId ?? null,
     taskExecutionSessionId: task.executionSessionId,
     taskId: task.id,

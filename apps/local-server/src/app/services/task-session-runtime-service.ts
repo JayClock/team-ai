@@ -7,9 +7,9 @@ import {
 import { ProblemError } from '../errors/problem-error';
 import type { TaskPayload } from '../schemas/task';
 import type {
-  DispatchTaskCallbacks,
-  DispatchTaskResult,
-} from './task-dispatch-service';
+  TaskSessionDispatchCallbacks,
+  TaskSessionDispatchResult,
+} from './task-session-dispatch-service';
 import {
   buildTaskWorktreeBranch,
   createProjectWorktree,
@@ -19,11 +19,11 @@ import { getTaskById, updateTask, updateTaskFromMcp } from './task-service';
 export interface ExecuteTaskDispatchAttempt {
   attempted: boolean;
   errorMessage: string | null;
-  result: DispatchTaskResult | null;
+  result: TaskSessionDispatchResult | null;
 }
 
 export interface ExecuteTaskOptions {
-  callbacks: DispatchTaskCallbacks;
+  callbacks: TaskSessionDispatchCallbacks;
   callerSessionId?: string;
   logger?: DiagnosticLogger;
   retryOfRunId?: string | null;
@@ -211,8 +211,8 @@ export async function executeTaskSession(
   }
 
   try {
-    const { dispatchTask } = await import('./task-dispatch-service.js');
-    const result = await dispatchTask(
+    const { dispatchTaskSession } = await import('./task-session-dispatch-service.js');
+    const result = await dispatchTaskSession(
       sqlite,
       options.callbacks,
       {

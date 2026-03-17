@@ -4,10 +4,10 @@ import type { NotePayload } from '../schemas/note';
 import type { TaskKind, TaskPayload } from '../schemas/task';
 import type { DiagnosticLogger } from '../diagnostics';
 import type {
-  DispatchTaskCallbacks,
-  DispatchTaskResult,
-} from './task-dispatch-service';
-import { dispatchTasks } from './task-dispatch-service';
+  TaskSessionDispatchCallbacks,
+  TaskSessionDispatchResult,
+} from './task-session-dispatch-service';
+import { dispatchTaskSessions } from './task-session-dispatch-service';
 import { findSpecNoteByScope, getNoteById } from './note-service';
 import { getTaskById, updateTask } from './task-service';
 
@@ -23,7 +23,7 @@ export interface TaskWorkflowWaveResult {
   blockedTaskIds: string[];
   completedTaskIds: string[];
   delegationGroupId: string;
-  dispatchResults: DispatchTaskResult[];
+  dispatchResults: TaskSessionDispatchResult[];
   dispatchedTaskIds: string[];
   gateTaskIds: string[];
   pendingTaskIds: string[];
@@ -176,7 +176,7 @@ async function readyWaveTasks(sqlite: Database, tasks: TaskPayload[]) {
 
 async function dispatchWaveTasks(
   sqlite: Database,
-  callbacks: DispatchTaskCallbacks,
+  callbacks: TaskSessionDispatchCallbacks,
   note: NotePayload,
   tasks: TaskPayload[],
   waveKind: TaskWorkflowWaveKind,
@@ -190,7 +190,7 @@ async function dispatchWaveTasks(
     return [];
   }
 
-  const result = await dispatchTasks(
+  const result = await dispatchTaskSessions(
     sqlite,
     callbacks,
     {
@@ -211,7 +211,7 @@ async function dispatchWaveTasks(
 }
 
 function buildWaveResult(input: {
-  dispatchResults?: DispatchTaskResult[];
+  dispatchResults?: TaskSessionDispatchResult[];
   note: NotePayload;
   tasks: TaskPayload[];
   waveKind: TaskWorkflowWaveKind;
