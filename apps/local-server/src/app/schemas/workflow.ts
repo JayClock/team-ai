@@ -5,6 +5,13 @@ export type WorkflowRunStatus =
   | 'COMPLETED'
   | 'FAILED'
   | 'CANCELLED';
+export type WorkflowRunStepStatus =
+  | 'PENDING'
+  | 'BLOCKED'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
 
 export interface WorkflowStepPayload {
   name: string;
@@ -14,13 +21,15 @@ export interface WorkflowStepPayload {
 }
 
 export interface WorkflowRunStepPayload {
+  blockedByStepNames: string[];
   completedAt: string | null;
+  dependsOnStepNames: string[];
   errorMessage: string | null;
   name: string;
   parallelGroup: string | null;
   resultSessionId: string | null;
   startedAt: string | null;
-  status: string;
+  status: WorkflowRunStepStatus;
   taskId: string | null;
   taskOutput: string | null;
   specialistId: string;
@@ -38,6 +47,7 @@ export interface WorkflowDefinitionPayload {
 }
 
 export interface WorkflowRunPayload {
+  blockedSteps: number;
   completedAt: string | null;
   completedSteps: number;
   createdAt: string;

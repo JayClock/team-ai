@@ -9,6 +9,7 @@ import type {
   WorkflowRunListPayload,
   WorkflowRunPayload,
   WorkflowRunStepPayload,
+  WorkflowRunStepStatus,
   WorkflowRunStatus,
   WorkflowStepPayload,
 } from '../schemas/workflow';
@@ -51,6 +52,7 @@ interface WorkflowRunRow {
 interface WorkflowRunTaskRow {
   completed_at: string | null;
   created_at: string;
+  depends_on_task_ids_json: string;
   error_message: string | null;
   id: string;
   result_session_id: string | null;
@@ -61,6 +63,7 @@ interface WorkflowRunTaskRow {
 }
 
 interface WorkflowRunProgress {
+  blockedSteps: number;
   completedAt: string | null;
   completedSteps: number;
   currentStepName: string | null;
@@ -113,6 +116,7 @@ function mapWorkflowRunRow(
   progress: WorkflowRunProgress,
 ): WorkflowRunPayload {
   return {
+    blockedSteps: progress.blockedSteps,
     completedAt: progress.completedAt,
     completedSteps: progress.completedSteps,
     createdAt: row.created_at,
@@ -182,7 +186,7 @@ function listWorkflowRunTaskRows(
     .prepare(
       `
         SELECT id, workflow_step_name, status, started_at, completed_at, created_at,
-               result_session_id, error_message, task_output
+               result_session_id, error_message, task_output, depends_on_task_ids_json
         FROM project_background_tasks
         WHERE workflow_run_id = ? AND deleted_at IS NULL
         ORDER BY created_at ASC
@@ -199,8 +203,12 @@ function resolveWorkflowRunProgress(
   const workflow = mapWorkflowDefinitionRow(
     getWorkflowDefinitionRow(sqlite, row.workflow_id),
   );
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
   const stepTaskByName = new Map(
     tasks.map((task) => [task.workflow_step_name ?? task.id, task]),
+  );
+  const stepNameByTaskId = new Map(
+    tasks.map((task) => [task.id, task.workflow_step_name ?? task.id]),
   );
 
   const completedSteps = tasks.filter((task) => task.status === 'COMPLETED').length;
@@ -208,8 +216,6 @@ function resolveWorkflowRunProgress(
     (task) => task.status === 'FAILED' || task.status === 'CANCELLED',
   ).length;
   const runningSteps = tasks.filter((task) => task.status === 'RUNNING').length;
-  const pendingSteps = tasks.filter((task) => task.status === 'PENDING').length;
-
   const currentStep =
     workflow.steps.find((step) => {
       const task = stepTaskByName.get(step.name);
@@ -217,20 +223,38 @@ function resolveWorkflowRunProgress(
     }) ?? null;
   const steps = workflow.steps.map((step) => {
     const task = stepTaskByName.get(step.name);
+    const dependsOnTaskIds = task
+      ? (JSON.parse(task.depends_on_task_ids_json) as string[])
+      : [];
+    const dependsOnStepNames = dependsOnTaskIds
+      .map((taskId) => stepNameByTaskId.get(taskId) ?? null)
+      .filter((stepName): stepName is string => stepName !== null);
+    const blockedByStepNames = dependsOnTaskIds
+      .filter((taskId) => taskById.get(taskId)?.status !== 'COMPLETED')
+      .map((taskId) => stepNameByTaskId.get(taskId) ?? null)
+      .filter((stepName): stepName is string => stepName !== null);
+    const status: WorkflowRunStepStatus =
+      task?.status === 'PENDING' && blockedByStepNames.length > 0
+        ? 'BLOCKED'
+        : (task?.status as WorkflowRunStepStatus | undefined) ?? 'PENDING';
 
     return {
+      blockedByStepNames,
       completedAt: task?.completed_at ?? null,
+      dependsOnStepNames,
       errorMessage: task?.error_message ?? null,
       name: step.name,
       parallelGroup: step.parallelGroup,
       resultSessionId: task?.result_session_id ?? null,
       startedAt: task?.started_at ?? null,
       specialistId: step.specialistId,
-      status: task?.status ?? 'PENDING',
+      status,
       taskId: task?.id ?? null,
       taskOutput: task?.task_output ?? null,
     } satisfies WorkflowRunStepPayload;
   });
+  const blockedSteps = steps.filter((step) => step.status === 'BLOCKED').length;
+  const pendingSteps = steps.filter((step) => step.status === 'PENDING').length;
 
   const status =
     failedSteps > 0
@@ -240,6 +264,7 @@ function resolveWorkflowRunProgress(
         : 'RUNNING';
 
   return {
+    blockedSteps,
     completedAt:
       status === 'COMPLETED' || status === 'FAILED'
         ? row.completed_at ?? new Date().toISOString()

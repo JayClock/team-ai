@@ -99,9 +99,30 @@ describe('workflow service', () => {
     });
 
     expect(result.workflowRun).toMatchObject({
+      blockedSteps: 1,
       currentStepName: 'Implement API',
       projectId: project.id,
       status: 'RUNNING',
+      steps: [
+        expect.objectContaining({
+          blockedByStepNames: [],
+          dependsOnStepNames: [],
+          name: 'Implement API',
+          status: 'PENDING',
+        }),
+        expect.objectContaining({
+          blockedByStepNames: [],
+          dependsOnStepNames: [],
+          name: 'Implement UI',
+          status: 'PENDING',
+        }),
+        expect.objectContaining({
+          blockedByStepNames: ['Implement API', 'Implement UI'],
+          dependsOnStepNames: ['Implement API', 'Implement UI'],
+          name: 'Review',
+          status: 'BLOCKED',
+        }),
+      ],
       totalSteps: 3,
       triggerPayload: 'the feature slice',
       triggerSource: 'manual',

@@ -87,6 +87,7 @@ describe('workflow executor service', () => {
     await worker.dispatchPending(2);
 
     expect(getWorkflowRunById(sqlite, triggered.workflowRun.id)).toMatchObject({
+      blockedSteps: 0,
       completedSteps: 2,
       currentStepName: 'Review',
       failedSteps: 0,
@@ -98,6 +99,7 @@ describe('workflow executor service', () => {
     await worker.dispatchPending(2);
 
     expect(getWorkflowRunById(sqlite, triggered.workflowRun.id)).toMatchObject({
+      blockedSteps: 0,
       completedAt: expect.any(String),
       completedSteps: 3,
       currentStepName: null,
@@ -161,6 +163,7 @@ describe('workflow executor service', () => {
     await worker.dispatchPending(1);
 
     expect(getWorkflowRunById(sqlite, triggered.workflowRun.id)).toMatchObject({
+      blockedSteps: 0,
       completedAt: expect.any(String),
       completedSteps: 0,
       currentStepName: 'Implement',

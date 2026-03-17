@@ -89,16 +89,21 @@ describe('workflow routes', () => {
     expect(triggerResponse.statusCode).toBe(202);
     expect(responseContentType(triggerResponse)).toBe(VENDOR_MEDIA_TYPES.workflowRun);
     expect(triggerResponse.json()).toMatchObject({
+      blockedSteps: 1,
       steps: [
         expect.objectContaining({
+          blockedByStepNames: [],
+          dependsOnStepNames: [],
           name: 'Implement',
           specialistId: 'backend-crafter',
           status: 'PENDING',
         }),
         expect.objectContaining({
+          blockedByStepNames: ['Implement'],
+          dependsOnStepNames: ['Implement'],
           name: 'Review',
           specialistId: 'gate-reviewer',
-          status: 'PENDING',
+          status: 'BLOCKED',
         }),
       ],
       status: 'RUNNING',
@@ -120,14 +125,19 @@ describe('workflow routes', () => {
         workflowRuns: [
           expect.objectContaining({
             workflowId: workflow.id,
+            blockedSteps: 1,
             steps: [
               expect.objectContaining({
+                blockedByStepNames: [],
+                dependsOnStepNames: [],
                 name: 'Implement',
                 status: 'PENDING',
               }),
               expect.objectContaining({
+                blockedByStepNames: ['Implement'],
+                dependsOnStepNames: ['Implement'],
                 name: 'Review',
-                status: 'PENDING',
+                status: 'BLOCKED',
               }),
             ],
           }),
