@@ -171,6 +171,7 @@ describe('createDelegateTaskToAgentHandler', () => {
 
 function createFastifyStub(sqlite: Database) {
   return {
+    hasDecorator: vi.fn((name: string) => name === 'taskWorkflowOrchestrator'),
     log: {
       child: vi.fn(),
       debug: vi.fn(),

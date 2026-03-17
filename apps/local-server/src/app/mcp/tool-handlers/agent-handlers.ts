@@ -25,6 +25,16 @@ type AgentsListArgs = z.infer<typeof agentsListArgsSchema>;
 type DelegateTaskToAgentArgs = z.infer<typeof delegateTaskToAgentArgsSchema>;
 type ReadAgentConversationArgs = z.infer<typeof readAgentConversationArgsSchema>;
 
+function requireTaskWorkflowOrchestrator(fastify: FastifyInstance) {
+  if (!fastify.hasDecorator('taskWorkflowOrchestrator')) {
+    throw new Error(
+      'Legacy task workflow orchestration is disabled in the main runtime',
+    );
+  }
+
+  return fastify.taskWorkflowOrchestrator;
+}
+
 function resolveWaveKind(task: {
   kind: string | null;
 }): z.infer<typeof delegateTaskToAgentWaveStateSchema>['waveKind'] {
@@ -100,7 +110,7 @@ export function createAgentsListHandler(fastify: FastifyInstance) {
 
 export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
   return async (args: DelegateTaskToAgentArgs) => {
-    const workflow = fastify.taskWorkflowOrchestrator;
+    const workflow = requireTaskWorkflowOrchestrator(fastify);
 
     await getProjectById(fastify.sqlite, args.projectId);
     await getProjectSession(

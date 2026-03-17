@@ -14,7 +14,6 @@ import problemJsonPlugin from './plugins/problem-json';
 import schedulerPlugin from './plugins/scheduler';
 import sensiblePlugin from './plugins/sensible';
 import sqlitePlugin from './plugins/sqlite';
-import taskWorkflowOrchestratorPlugin from './plugins/task-workflow-orchestrator';
 
 export interface AppOptions extends FastifyPluginOptions {
   agentGatewayBaseUrl?: string;
@@ -43,7 +42,6 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
   });
   fastify.register(kanbanWorkflowOrchestratorPlugin);
   fastify.register(workflowExecutorPlugin);
-  fastify.register(taskWorkflowOrchestratorPlugin);
   fastify.register(schedulerPlugin, {
     enabled: opts.schedulerEnabled,
     intervalMs: opts.schedulerTickIntervalMs,

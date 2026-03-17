@@ -38,6 +38,16 @@ type TaskExecuteArgs = z.infer<typeof taskExecuteArgsSchema>;
 type TaskRunsListArgs = z.infer<typeof taskRunsListArgsSchema>;
 type ReportToParentArgs = z.infer<typeof reportToParentArgsSchema>;
 
+function requireTaskWorkflowOrchestrator(fastify: FastifyInstance) {
+  if (!fastify.hasDecorator('taskWorkflowOrchestrator')) {
+    throw new Error(
+      'Legacy task workflow orchestration is disabled in the main runtime',
+    );
+  }
+
+  return fastify.taskWorkflowOrchestrator;
+}
+
 export function createTasksListHandler(fastify: FastifyInstance) {
   return async (args: TasksListArgs) => {
     await getProjectById(fastify.sqlite, args.projectId);
@@ -61,7 +71,7 @@ export function createTaskGetHandler(fastify: FastifyInstance) {
 
 export function createTaskUpdateHandler(fastify: FastifyInstance) {
   return async (args: TaskUpdateArgs) => {
-    const workflow = fastify.taskWorkflowOrchestrator;
+    const workflow = requireTaskWorkflowOrchestrator(fastify);
 
     await getProjectById(fastify.sqlite, args.projectId);
     await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
@@ -85,7 +95,7 @@ export function createTaskUpdateHandler(fastify: FastifyInstance) {
 
 export function createTaskExecuteHandler(fastify: FastifyInstance) {
   return async (args: TaskExecuteArgs) => {
-    const workflow = fastify.taskWorkflowOrchestrator;
+    const workflow = requireTaskWorkflowOrchestrator(fastify);
 
     await getProjectById(fastify.sqlite, args.projectId);
     await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
@@ -279,7 +289,7 @@ async function autoDispatchGateFollowUps(
   for (const task of gateCandidates) {
     seenTaskIds.add(task.id);
     try {
-      const execution = await fastify.taskWorkflowOrchestrator.executeTask(task.id, {
+      const execution = await requireTaskWorkflowOrchestrator(fastify).executeTask(task.id, {
         callerSessionId: completedTask.sessionId ?? undefined,
         logger: fastify.log,
         source: 'mcp_report_to_parent_auto_gate_handoff',
@@ -304,13 +314,16 @@ async function autoDispatchGateFollowUps(
 
   if (completedTask.sourceType === 'spec_note' && completedTask.sourceEventId) {
     try {
-      const gateWave = await fastify.taskWorkflowOrchestrator.dispatchGateTasksForCompletedWave({
-        callerSessionId: completedTask.sessionId ?? undefined,
-        noteId: completedTask.sourceEventId,
-        projectId: completedTask.projectId,
-        sessionId: completedTask.sessionId,
-        source: 'mcp_report_to_parent_auto_gate_wave',
-      });
+      const gateWave =
+        await requireTaskWorkflowOrchestrator(
+          fastify,
+        ).dispatchGateTasksForCompletedWave({
+          callerSessionId: completedTask.sessionId ?? undefined,
+          noteId: completedTask.sourceEventId,
+          projectId: completedTask.projectId,
+          sessionId: completedTask.sessionId,
+          source: 'mcp_report_to_parent_auto_gate_wave',
+        });
 
       for (const dispatch of gateWave.dispatchResults) {
         if (seenTaskIds.has(dispatch.task.id)) {

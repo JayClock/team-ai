@@ -133,6 +133,7 @@ describe('createReportToParentHandler', () => {
         acpStreamBroker: {
           publish: vi.fn(),
         } as unknown as AcpStreamBroker,
+        hasDecorator: vi.fn((name: string) => name === 'taskWorkflowOrchestrator'),
         log: {
           error: vi.fn(),
           info: vi.fn(),
@@ -328,6 +329,7 @@ describe('createReportToParentHandler', () => {
         acpStreamBroker: {
           publish: vi.fn(),
         } as unknown as AcpStreamBroker,
+        hasDecorator: vi.fn((name: string) => name === 'taskWorkflowOrchestrator'),
         log: {
           error: vi.fn(),
           info: vi.fn(),
@@ -522,6 +524,7 @@ describe('createReportToParentHandler', () => {
         acpStreamBroker: {
           publish: vi.fn(),
         } as unknown as AcpStreamBroker,
+        hasDecorator: vi.fn((name: string) => name === 'taskWorkflowOrchestrator'),
         log: {
           error: vi.fn(),
           info: vi.fn(),
