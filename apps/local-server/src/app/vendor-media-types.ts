@@ -49,6 +49,9 @@ export const VENDOR_MEDIA_TYPES = {
   workflowRun: vendorMediaType('workflow-run'),
   workflowRuns: vendorMediaType('workflow-runs'),
   workflows: vendorMediaType('workflows'),
+  webhookConfig: vendorMediaType('webhook-config'),
+  webhookConfigs: vendorMediaType('webhook-configs'),
+  webhookLogs: vendorMediaType('webhook-logs'),
   worktree: vendorMediaType('worktree'),
   worktrees: vendorMediaType('worktrees'),
 } as const;

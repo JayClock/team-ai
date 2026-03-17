@@ -87,6 +87,12 @@ describe('sqlite initialization', () => {
     const scheduleColumns = sqlite
       .prepare('PRAGMA table_info(project_schedules)')
       .all() as Array<{ name: string }>;
+    const webhookConfigColumns = sqlite
+      .prepare('PRAGMA table_info(project_webhook_configs)')
+      .all() as Array<{ name: string }>;
+    const webhookLogColumns = sqlite
+      .prepare('PRAGMA table_info(project_webhook_logs)')
+      .all() as Array<{ name: string }>;
     const worktreeIndexes = sqlite
       .prepare('PRAGMA index_list(project_worktrees)')
       .all() as Array<{ name: string }>;
@@ -108,6 +114,12 @@ describe('sqlite initialization', () => {
     const scheduleIndexes = sqlite
       .prepare('PRAGMA index_list(project_schedules)')
       .all() as Array<{ name: string }>;
+    const webhookConfigIndexes = sqlite
+      .prepare('PRAGMA index_list(project_webhook_configs)')
+      .all() as Array<{ name: string }>;
+    const webhookLogIndexes = sqlite
+      .prepare('PRAGMA index_list(project_webhook_logs)')
+      .all() as Array<{ name: string }>;
 
     expect(tables.map(({ name }) => name)).toEqual([
       'agents',
@@ -125,6 +137,8 @@ describe('sqlite initialization', () => {
       'project_schedules',
       'project_task_runs',
       'project_tasks',
+      'project_webhook_configs',
+      'project_webhook_logs',
       'project_workflow_definitions',
       'project_workflow_runs',
       'project_worktrees',
@@ -332,6 +346,34 @@ describe('sqlite initialization', () => {
       'updated_at',
       'deleted_at',
     ]);
+    expect(webhookConfigColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'project_id',
+      'name',
+      'source',
+      'repo',
+      'event_types_json',
+      'workflow_id',
+      'webhook_secret',
+      'enabled',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ]);
+    expect(webhookLogColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'project_id',
+      'config_id',
+      'delivery_id',
+      'event_type',
+      'event_action',
+      'payload_json',
+      'signature_valid',
+      'outcome',
+      'error_message',
+      'workflow_run_id',
+      'created_at',
+    ]);
     expect(worktreeIndexes.map(({ name }) => name)).toEqual(
       expect.arrayContaining([
         'idx_project_worktrees_project_id',
@@ -377,6 +419,19 @@ describe('sqlite initialization', () => {
       expect.arrayContaining([
         'idx_project_schedules_project_id',
         'idx_project_schedules_due',
+      ]),
+    );
+    expect(webhookConfigIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_webhook_configs_project_id',
+        'idx_project_webhook_configs_project_name',
+        'idx_project_webhook_configs_repo',
+      ]),
+    );
+    expect(webhookLogIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_webhook_logs_project_id',
+        'idx_project_webhook_logs_config_id',
       ]),
     );
 

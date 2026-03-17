@@ -889,4 +889,61 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '029_project_webhooks',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_webhook_configs (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'github',
+        repo TEXT NOT NULL,
+        event_types_json TEXT NOT NULL DEFAULT '[]',
+        workflow_id TEXT NOT NULL,
+        webhook_secret TEXT NOT NULL DEFAULT '',
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (workflow_id) REFERENCES project_workflow_definitions(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_webhook_configs_project_id
+        ON project_webhook_configs(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_webhook_configs_repo
+        ON project_webhook_configs(repo, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_webhook_configs_project_name
+        ON project_webhook_configs(project_id, name)
+        WHERE deleted_at IS NULL;
+
+      CREATE TABLE IF NOT EXISTS project_webhook_logs (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        config_id TEXT NOT NULL,
+        delivery_id TEXT,
+        event_type TEXT NOT NULL,
+        event_action TEXT,
+        payload_json TEXT NOT NULL,
+        signature_valid INTEGER NOT NULL DEFAULT 0,
+        outcome TEXT NOT NULL,
+        error_message TEXT,
+        workflow_run_id TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (config_id) REFERENCES project_webhook_configs(id),
+        FOREIGN KEY (workflow_run_id) REFERENCES project_workflow_runs(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_webhook_logs_project_id
+        ON project_webhook_logs(project_id, created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_project_webhook_logs_config_id
+        ON project_webhook_logs(config_id, created_at DESC);
+    `,
+  },
 ];

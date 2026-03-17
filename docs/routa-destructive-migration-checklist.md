@@ -100,11 +100,11 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 ### Webhook
 
-- [ ] Add webhook configuration and logs
-- [ ] Add `/api/webhooks/configs`
-- [ ] Add `/api/webhooks/github`
-- [ ] Add `/api/webhooks/webhook-logs`
-- [ ] Ensure webhooks trigger workflows or background tasks, not ACP sessions directly
+- [x] Add webhook configuration and logs
+- [x] Add `/api/webhooks/configs`
+- [x] Add `/api/webhooks/github`
+- [x] Add `/api/webhooks/webhook-logs`
+- [x] Ensure webhooks trigger workflows or background tasks, not ACP sessions directly
 
 ### Trace And Context
 
@@ -116,7 +116,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 - [ ] Workflows can create and advance background tasks
 - [ ] Schedules can trigger workflows automatically
-- [ ] Webhooks can trigger workflows automatically
+- [x] Webhooks can trigger workflows automatically
 - [ ] UI can inspect board, workflow, schedule, webhook, and trace objects
 
 ## File-Level Execution Order
@@ -135,7 +135,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add `background-task.ts`: [`apps/local-server/src/app/schemas/background-task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/background-task.ts)
 - [x] Add `workflow.ts`: [`apps/local-server/src/app/schemas/workflow.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/workflow.ts)
 - [x] Add `schedule.ts`: [`apps/local-server/src/app/schemas/schedule.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/schedule.ts)
-- [ ] Add `webhook.ts`: [`apps/local-server/src/app/schemas/webhook.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/webhook.ts)
+- [x] Add `webhook.ts`: [`apps/local-server/src/app/schemas/webhook.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/webhook.ts)
 - [ ] Remove or retire `task-run.ts`: [`apps/local-server/src/app/schemas/task-run.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/task-run.ts)
 
 ### Stage 3: Task And Kanban Services
@@ -173,7 +173,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add `background-tasks.ts`: [`apps/local-server/src/app/routes/background-tasks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/background-tasks.ts)
 - [x] Add `workflows.ts`: [`apps/local-server/src/app/routes/workflows.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/workflows.ts)
 - [x] Add `schedules.ts`: [`apps/local-server/src/app/routes/schedules.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/schedules.ts)
-- [ ] Add `webhooks.ts`: [`apps/local-server/src/app/routes/webhooks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/webhooks.ts)
+- [x] Add `webhooks.ts`: [`apps/local-server/src/app/routes/webhooks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/webhooks.ts)
 - [ ] Register new routes in [`apps/local-server/src/app/app.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/app.ts)
 
 ### Stage 7: MCP Tooling
@@ -205,7 +205,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [ ] Add `workflow-loader-service.ts`: [`apps/local-server/src/app/services/workflow-loader-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/workflow-loader-service.ts)
 - [ ] Add `workflow-executor-service.ts`: [`apps/local-server/src/app/services/workflow-executor-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/workflow-executor-service.ts)
 - [x] Add `scheduler-service.ts`: [`apps/local-server/src/app/services/scheduler-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/scheduler-service.ts)
-- [ ] Add `webhook-service.ts`: [`apps/local-server/src/app/services/webhook-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/webhook-service.ts)
+- [x] Add `webhook-service.ts`: [`apps/local-server/src/app/services/webhook-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/webhook-service.ts)
 - [ ] Add `trace-service.ts`: [`apps/local-server/src/app/services/trace-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/trace-service.ts)
 
 ## Final Deletions
@@ -283,4 +283,13 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add [`apps/local-server/src/app/plugins/scheduler.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/plugins/scheduler.ts) and register it in [`apps/local-server/src/app/app.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/app.ts)
 - [x] Validate scheduler service and plugin coverage with `npx vitest run src/app/services/scheduler-service.test.ts src/app/plugins/scheduler.test.ts`
 - [ ] Wire the scheduler to explicit desktop/runtime settings if runtime configurability becomes necessary
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 9
+
+- [x] Read `routa` GitHub webhook store, handler, and route implementations before coding
+- [x] Add webhook schema, SQLite tables, and vendor media types for webhook configs and logs
+- [x] Add [`apps/local-server/src/app/services/webhook-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/webhook-service.ts) to persist GitHub webhook configs, verify signatures, append audit logs, and trigger workflows
+- [x] Add [`apps/local-server/src/app/routes/webhooks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/webhooks.ts) with config CRUD, log listing, GitHub health, and GitHub receive endpoints
+- [x] Validate webhook schema, service, and route coverage with `npx vitest run src/app/db/sqlite.test.ts src/app/services/webhook-service.test.ts src/app/routes/webhooks.test.ts`
 - [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
