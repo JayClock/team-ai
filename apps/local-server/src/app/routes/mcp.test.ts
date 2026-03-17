@@ -301,7 +301,6 @@ describe('mcp route', () => {
         'tasks_list',
         'task_get',
         'task_update',
-        'task_execute',
         'task_runs_list',
         'delegate_task_to_agent',
         'request_previous_lane_handoff',
@@ -702,7 +701,9 @@ describe('mcp route', () => {
     );
 
     expect(taskExecuteResponse.statusCode).toBe(200);
-    expect(readMcpToolErrorText(taskExecuteResponse)).toContain('COMPLETED');
+    expect(readMcpToolErrorText(taskExecuteResponse)).toContain(
+      'Tool task_execute not found',
+    );
 
     const taskRunsResponse = await callMcp(
       fastify,
@@ -809,23 +810,10 @@ describe('mcp route', () => {
     );
 
     expect(explicitTaskExecuteResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(explicitTaskExecuteResponse))
-      .toMatchObject({
-        dispatch: {
-          attempted: true,
-          errorMessage: null,
-          result: {
-            dispatched: true,
-            reason: null,
-            role: 'CRAFTER',
-          },
-        },
-        task: {
-          id: explicitTask.id,
-          status: 'COMPLETED',
-        },
-      });
-    expect(promptMock).toHaveBeenCalledTimes(2);
+    expect(readMcpToolErrorText(explicitTaskExecuteResponse)).toContain(
+      'Tool task_execute not found',
+    );
+    expect(promptMock).toHaveBeenCalledTimes(1);
 
     const createAcpResponse = await callMcp(
       fastify,
@@ -870,7 +858,7 @@ describe('mcp route', () => {
     );
 
     expect(promptAcpResponse.statusCode).toBe(200);
-    expect(promptMock).toHaveBeenCalledTimes(3);
+    expect(promptMock).toHaveBeenCalledTimes(2);
   });
 
   it('defaults MCP access to read-only and returns problem details for denied writes', async () => {

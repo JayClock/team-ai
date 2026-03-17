@@ -120,12 +120,6 @@ export const taskUpdateArgsSchema = z
     return Object.keys(patch).length > 0;
   }, 'At least one task field must be provided');
 
-export const taskExecuteArgsSchema = z.object({
-  callerSessionId: z.string().trim().min(1).optional(),
-  projectId: z.string().trim().min(1),
-  taskId: z.string().trim().min(1),
-});
-
 export const requestPreviousLaneHandoffArgsSchema = z.object({
   projectId: z.string().trim().min(1),
   request: z.string().trim().min(1),

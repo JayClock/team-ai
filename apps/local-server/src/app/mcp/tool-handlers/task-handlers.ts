@@ -30,7 +30,6 @@ import {
 import {
   reportToParentArgsSchema,
   requestPreviousLaneHandoffArgsSchema,
-  taskExecuteArgsSchema,
   taskGetArgsSchema,
   taskRunsListArgsSchema,
   tasksListArgsSchema,
@@ -45,7 +44,6 @@ import {
 type TasksListArgs = z.infer<typeof tasksListArgsSchema>;
 type TaskGetArgs = z.infer<typeof taskGetArgsSchema>;
 type TaskUpdateArgs = z.infer<typeof taskUpdateArgsSchema>;
-type TaskExecuteArgs = z.infer<typeof taskExecuteArgsSchema>;
 type TaskRunsListArgs = z.infer<typeof taskRunsListArgsSchema>;
 type ReportToParentArgs = z.infer<typeof reportToParentArgsSchema>;
 type RequestPreviousLaneHandoffArgs = z.infer<
@@ -94,21 +92,6 @@ export function createTaskUpdateHandler(fastify: FastifyInstance) {
         source: 'mcp_task_update_auto_execute',
       }),
     };
-  };
-}
-
-export function createTaskExecuteHandler(fastify: FastifyInstance) {
-  return async (args: TaskExecuteArgs) => {
-    const workflow = getTaskWorkflowRuntime(fastify);
-
-    await getProjectById(fastify.sqlite, args.projectId);
-    await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
-
-    return workflow.executeTask(args.taskId, {
-      callerSessionId: args.callerSessionId,
-      logger: fastify.log,
-      source: 'mcp_task_execute',
-    });
   };
 }
 

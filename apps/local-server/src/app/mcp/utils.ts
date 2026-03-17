@@ -181,10 +181,6 @@ function extractMutationKeys(
   toolName: string,
   argumentsRecord: Record<string, unknown>,
 ) {
-  if (toolName === 'task_execute') {
-    return ['execute'];
-  }
-
   const ignoredKeys = new Set([
     'actorUserId',
     'parentNoteId',

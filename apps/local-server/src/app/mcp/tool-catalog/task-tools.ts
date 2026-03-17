@@ -1,6 +1,5 @@
 import {
   reportToParentArgsSchema,
-  taskExecuteArgsSchema,
   taskGetArgsSchema,
   taskRunsListArgsSchema,
   tasksListArgsSchema,
@@ -8,7 +7,6 @@ import {
 } from '../contracts';
 import {
   createReportToParentHandler,
-  createTaskExecuteHandler,
   createTaskGetHandler,
   createTaskRunsListHandler,
   createTasksListHandler,
@@ -58,20 +56,6 @@ export const taskToolCatalog = [
       title: 'Update Task',
     },
     createTaskUpdateHandler,
-  ),
-  defineToolRegistration(
-    'task_execute',
-    taskExecuteArgsSchema,
-    {
-      access: 'write',
-      annotations: {
-        readOnlyHint: false,
-      },
-      description:
-        'Move a task into execution and trigger dispatch in the local desktop runtime.',
-      title: 'Execute Task',
-    },
-    createTaskExecuteHandler,
   ),
   defineToolRegistration(
     'task_runs_list',

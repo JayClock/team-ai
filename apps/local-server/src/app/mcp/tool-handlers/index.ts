@@ -20,7 +20,6 @@ export { createProjectsListHandler } from './project-handlers';
 export {
   createReportToParentHandler,
   createRequestPreviousLaneHandoffHandler,
-  createTaskExecuteHandler,
   createTaskGetHandler,
   createTaskRunsListHandler,
   createTasksListHandler,
