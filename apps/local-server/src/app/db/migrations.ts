@@ -683,4 +683,88 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE status IN ('OPEN', 'RUNNING');
     `,
   },
+  {
+    version: '025_project_kanban_background_tasks',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_kanban_boards (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_kanban_boards_project_id
+        ON project_kanban_boards(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_kanban_boards_project_name
+        ON project_kanban_boards(project_id, name)
+        WHERE deleted_at IS NULL;
+
+      CREATE TABLE IF NOT EXISTS project_kanban_columns (
+        id TEXT PRIMARY KEY,
+        board_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        automation_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (board_id) REFERENCES project_kanban_boards(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_kanban_columns_board_id
+        ON project_kanban_columns(board_id, position ASC)
+        WHERE deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_kanban_columns_board_name
+        ON project_kanban_columns(board_id, name)
+        WHERE deleted_at IS NULL;
+
+      CREATE TABLE IF NOT EXISTS project_background_tasks (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        task_id TEXT,
+        title TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        agent_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        triggered_by TEXT NOT NULL,
+        trigger_source TEXT NOT NULL,
+        priority TEXT NOT NULL,
+        result_session_id TEXT,
+        error_message TEXT,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        max_attempts INTEGER NOT NULL DEFAULT 1,
+        last_activity_at TEXT,
+        current_activity TEXT,
+        tool_call_count INTEGER,
+        input_tokens INTEGER,
+        output_tokens INTEGER,
+        workflow_run_id TEXT,
+        workflow_step_name TEXT,
+        depends_on_task_ids_json TEXT NOT NULL DEFAULT '[]',
+        task_output TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (task_id) REFERENCES project_tasks(id),
+        FOREIGN KEY (result_session_id) REFERENCES project_acp_sessions(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_background_tasks_project_id
+        ON project_background_tasks(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_background_tasks_status
+        ON project_background_tasks(status, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

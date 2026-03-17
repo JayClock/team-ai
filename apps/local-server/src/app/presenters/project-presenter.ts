@@ -17,6 +17,12 @@ function createProjectLinks(project: ProjectPayload) {
     'note-events': {
       href: `/api/projects/${project.id}/note-events`,
     },
+    'kanban-boards': {
+      href: `/api/projects/${project.id}/kanban/boards`,
+    },
+    'background-tasks': {
+      href: `/api/projects/${project.id}/background-tasks`,
+    },
     'task-runs': {
       href: `/api/projects/${project.id}/task-runs`,
     },
