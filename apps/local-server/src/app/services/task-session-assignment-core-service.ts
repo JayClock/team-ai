@@ -87,7 +87,7 @@ export type TaskDispatchBlockReason = TaskSessionAssignmentBlockReason;
 export type TaskDispatchability = TaskSessionAssignment;
 export type TaskDispatchPolicyDecision = TaskSessionAssignmentDecision;
 
-const defaultTaskDispatchActorId = 'desktop-user';
+const defaultTaskSessionActorId = 'desktop-user';
 const dispatchableTaskStatuses = new Set([
   'PENDING',
   'READY',
@@ -103,7 +103,7 @@ function isTaskStatusDispatchable(status: string): boolean {
   return dispatchableTaskStatuses.has(status);
 }
 
-export function resolveDefaultTaskRole(
+export function resolveDefaultTaskSessionRole(
   kind: TaskKind | null,
   options: TaskSessionAssignmentOptions = {},
 ): RoleValue | null {
@@ -163,7 +163,7 @@ async function resolveUnresolvedDependencyIds(
   });
 }
 
-async function evaluateTaskDispatchability(
+async function evaluateTaskSessionAssignment(
   sqlite: Database,
   task: TaskPayload,
   options: TaskSessionAssignmentOptions = {},
@@ -192,7 +192,7 @@ async function evaluateTaskDispatchability(
 
   const resolvedRole =
     ensureRoleValue(task.assignedRole) ??
-    resolveDefaultTaskRole(task.kind, {
+    resolveDefaultTaskSessionRole(task.kind, {
       orchestrationMode: options.orchestrationMode,
     });
 
@@ -217,17 +217,17 @@ async function evaluateTaskDispatchability(
   };
 }
 
-export async function getTaskDispatchability(
+export async function getTaskSessionAssignment(
   sqlite: Database,
   taskId: string,
   options: TaskSessionAssignmentOptions = {},
 ): Promise<TaskSessionAssignment> {
   const task = await getTaskById(sqlite, taskId);
 
-  return await evaluateTaskDispatchability(sqlite, task, options);
+  return await evaluateTaskSessionAssignment(sqlite, task, options);
 }
 
-export async function listDispatchableTasks(
+export async function listDispatchableTaskSessions(
   sqlite: Database,
   query: ListDispatchableTasksQuery,
   options: TaskSessionAssignmentOptions = {},
@@ -280,7 +280,7 @@ export async function listDispatchableTasks(
     .all(parameters) as Array<{ id: string }>;
 
   const evaluations = await Promise.all(
-    rows.map((row) => getTaskDispatchability(sqlite, row.id, options)),
+    rows.map((row) => getTaskSessionAssignment(sqlite, row.id, options)),
   );
 
   return evaluations.filter((evaluation) => evaluation.dispatchable);
@@ -324,7 +324,7 @@ function getCallerSessionRow(
   return row;
 }
 
-function resolveTaskDispatchContext(
+function resolveTaskSessionContext(
   sqlite: Database,
   task: Pick<TaskPayload, 'projectId' | 'sessionId'>,
   callerSessionId?: string,
@@ -352,14 +352,14 @@ function resolveTaskDispatchContext(
   }
 
   return {
-    actorUserId: defaultTaskDispatchActorId,
+    actorUserId: defaultTaskSessionActorId,
     callerSessionId: null,
     parentSessionId: null,
     provider: null,
   };
 }
 
-function resolveDispatchProviderCandidates(
+function resolveTaskSessionProviderCandidates(
   task: Pick<TaskPayload, 'assignedProvider'>,
   dispatchContext: Pick<TaskSessionContext, 'provider'>,
   defaultProviderId: string | null,
@@ -411,7 +411,7 @@ export async function resolveTaskSessionAssignment(
   sqlite: Database,
   input: ResolveTaskSessionAssignmentInput,
 ): Promise<TaskSessionAssignmentDecision> {
-  const dispatchability = await getTaskDispatchability(sqlite, input.task.id, {
+  const dispatchability = await getTaskSessionAssignment(sqlite, input.task.id, {
     orchestrationMode: input.runtimeProfile.orchestrationMode,
   });
 
@@ -429,7 +429,7 @@ export async function resolveTaskSessionAssignment(
     };
   }
 
-  const dispatchContext = resolveTaskDispatchContext(
+  const dispatchContext = resolveTaskSessionContext(
     sqlite,
     dispatchability.task,
     input.callerSessionId,
@@ -456,7 +456,7 @@ export async function resolveTaskSessionAssignment(
     });
   }
 
-  const providerCandidates = resolveDispatchProviderCandidates(
+  const providerCandidates = resolveTaskSessionProviderCandidates(
     dispatchability.task,
     dispatchContext,
     input.runtimeProfile.defaultProviderId,
@@ -486,6 +486,6 @@ export async function resolveTaskSessionAssignment(
 }
 
 export const resolveTaskDispatchPolicy = resolveTaskSessionAssignment;
-export const getTaskSessionAssignment = getTaskDispatchability;
-export const listDispatchableTaskSessions = listDispatchableTasks;
-export const resolveDefaultTaskSessionRole = resolveDefaultTaskRole;
+export const getTaskDispatchability = getTaskSessionAssignment;
+export const listDispatchableTasks = listDispatchableTaskSessions;
+export const resolveDefaultTaskRole = resolveDefaultTaskSessionRole;
