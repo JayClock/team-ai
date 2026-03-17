@@ -95,7 +95,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add `schedules`
 - [x] Implement a schedule service
 - [x] Add `/api/schedules`
-- [ ] Add local cron tick support or equivalent scheduler
+- [x] Add local cron tick support or equivalent scheduler
 - [x] Ensure schedules trigger workflows or background tasks, not ACP sessions directly
 
 ### Webhook
@@ -204,7 +204,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 - [ ] Add `workflow-loader-service.ts`: [`apps/local-server/src/app/services/workflow-loader-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/workflow-loader-service.ts)
 - [ ] Add `workflow-executor-service.ts`: [`apps/local-server/src/app/services/workflow-executor-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/workflow-executor-service.ts)
-- [ ] Add `scheduler-service.ts`: [`apps/local-server/src/app/services/scheduler-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/scheduler-service.ts)
+- [x] Add `scheduler-service.ts`: [`apps/local-server/src/app/services/scheduler-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/scheduler-service.ts)
 - [ ] Add `webhook-service.ts`: [`apps/local-server/src/app/services/webhook-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/webhook-service.ts)
 - [ ] Add `trace-service.ts`: [`apps/local-server/src/app/services/trace-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/trace-service.ts)
 
@@ -274,4 +274,13 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add [`apps/local-server/src/app/routes/schedules.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/schedules.ts) with list/create/detail/tick endpoints
 - [x] Validate schedule schema, service, and route coverage with `npx vitest run src/app/db/sqlite.test.ts src/app/services/schedule-service.test.ts src/app/routes/schedules.test.ts`
 - [ ] Add a local scheduler service that calls the tick endpoint or service periodically
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 8
+
+- [x] Read `routa` in-process scheduler service and current Fastify plugin wiring before coding
+- [x] Add [`apps/local-server/src/app/services/scheduler-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/scheduler-service.ts) to manage periodic schedule ticks without overlapping runs
+- [x] Add [`apps/local-server/src/app/plugins/scheduler.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/plugins/scheduler.ts) and register it in [`apps/local-server/src/app/app.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/app.ts)
+- [x] Validate scheduler service and plugin coverage with `npx vitest run src/app/services/scheduler-service.test.ts src/app/plugins/scheduler.test.ts`
+- [ ] Wire the scheduler to explicit desktop/runtime settings if runtime configurability becomes necessary
 - [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)

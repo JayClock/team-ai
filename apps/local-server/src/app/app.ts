@@ -8,6 +8,7 @@ import desktopAuthPlugin from './plugins/desktop-auth';
 import desktopCorsPlugin from './plugins/desktop-cors';
 import executionRuntimePlugin from './plugins/execution-runtime';
 import problemJsonPlugin from './plugins/problem-json';
+import schedulerPlugin from './plugins/scheduler';
 import sensiblePlugin from './plugins/sensible';
 import sqlitePlugin from './plugins/sqlite';
 import taskWorkflowOrchestratorPlugin from './plugins/task-workflow-orchestrator';
@@ -15,6 +16,8 @@ import taskWorkflowOrchestratorPlugin from './plugins/task-workflow-orchestrator
 export interface AppOptions extends FastifyPluginOptions {
   agentGatewayBaseUrl?: string;
   desktopSessionToken?: string;
+  schedulerEnabled?: boolean;
+  schedulerTickIntervalMs?: number;
 }
 
 export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
@@ -30,6 +33,10 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
   });
   fastify.register(acpRuntimePlugin);
   fastify.register(taskWorkflowOrchestratorPlugin);
+  fastify.register(schedulerPlugin, {
+    enabled: opts.schedulerEnabled,
+    intervalMs: opts.schedulerTickIntervalMs,
+  });
   fastify.register(desktopCorsPlugin);
   fastify.register(desktopAuthPlugin, {
     desktopSessionToken: opts.desktopSessionToken,
