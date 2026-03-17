@@ -10,6 +10,7 @@ import {
   presentAcpSession,
   presentAcpSessionList,
 } from '../presenters/acp-presenter';
+import { presentAcpSessionContext } from '../presenters/session-context-presenter';
 import {
   cancelAcpSession,
   createAcpSession,
@@ -21,6 +22,7 @@ import {
   promptAcpSession,
   renameAcpSession,
 } from '../services/acp-service';
+import { getAcpSessionContext } from '../services/session-context-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listSessionsQuerySchema = z.object({
@@ -169,6 +171,21 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           query.limit,
           query.since ?? query.sinceEventId,
         ),
+      );
+    },
+  );
+
+  fastify.get(
+    '/projects/:projectId/acp-sessions/:sessionId/context',
+    async (request, reply) => {
+      const { projectId, sessionId } = sessionParamsSchema.parse(
+        request.params,
+      );
+
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.acpSessionContext);
+
+      return presentAcpSessionContext(
+        await getAcpSessionContext(fastify.sqlite, projectId, sessionId),
       );
     },
   );

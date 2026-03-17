@@ -10,6 +10,7 @@ export const VENDOR_MEDIA_TYPES = {
   acpHistory: vendorMediaType('acp-history'),
   acpProviders: vendorMediaType('acp-providers'),
   acpSession: vendorMediaType('acp-session'),
+  acpSessionContext: vendorMediaType('acp-session-context'),
   acpSessions: vendorMediaType('acp-sessions'),
   agent: vendorMediaType('agent'),
   agents: vendorMediaType('agents'),

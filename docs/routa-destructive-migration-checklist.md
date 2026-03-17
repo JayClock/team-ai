@@ -303,3 +303,13 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Hook [`apps/local-server/src/app/services/acp-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/acp-service.ts) so persisted ACP events also append trace records
 - [x] Validate trace schema, service, and route coverage with `npx vitest run src/app/db/sqlite.test.ts src/app/services/trace-service.test.ts src/app/routes/traces.test.ts`
 - [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 11
+
+- [x] Read `routa` session context route and session-kanban-context implementation before coding
+- [x] Add [`apps/local-server/src/app/services/session-context-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/session-context-service.ts) to resolve the most relevant task for a session and assemble lane history, handoffs, board metadata, and worktree bindings
+- [x] Add [`apps/local-server/src/app/presenters/session-context-presenter.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/presenters/session-context-presenter.ts) and expose ACP session context links from [`apps/local-server/src/app/presenters/acp-presenter.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/presenters/acp-presenter.ts)
+- [x] Extend [`apps/local-server/src/app/routes/acp.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/acp.ts) with `GET /api/projects/:projectId/acp-sessions/:sessionId/context`
+- [x] Validate session context service and route coverage with `npx vitest run src/app/services/session-context-service.test.ts src/app/routes/acp-session-context.test.ts`
+- [ ] Add artifact-backed context and artifact views to the session context payload
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
