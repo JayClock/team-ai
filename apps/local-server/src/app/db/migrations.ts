@@ -857,4 +857,36 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '028_project_schedules',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_schedules (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        workflow_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        cron_expr TEXT NOT NULL,
+        trigger_target TEXT NOT NULL DEFAULT 'workflow',
+        trigger_payload_template TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        last_run_at TEXT,
+        next_run_at TEXT,
+        last_workflow_run_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id),
+        FOREIGN KEY (workflow_id) REFERENCES project_workflow_definitions(id),
+        FOREIGN KEY (last_workflow_run_id) REFERENCES project_workflow_runs(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_schedules_project_id
+        ON project_schedules(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_schedules_due
+        ON project_schedules(enabled, next_run_at)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

@@ -92,11 +92,11 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 ### Schedule
 
-- [ ] Add `schedules`
-- [ ] Implement a schedule service
-- [ ] Add `/api/schedules`
+- [x] Add `schedules`
+- [x] Implement a schedule service
+- [x] Add `/api/schedules`
 - [ ] Add local cron tick support or equivalent scheduler
-- [ ] Ensure schedules trigger workflows or background tasks, not ACP sessions directly
+- [x] Ensure schedules trigger workflows or background tasks, not ACP sessions directly
 
 ### Webhook
 
@@ -134,7 +134,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add `kanban.ts`: [`apps/local-server/src/app/schemas/kanban.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/kanban.ts)
 - [x] Add `background-task.ts`: [`apps/local-server/src/app/schemas/background-task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/background-task.ts)
 - [x] Add `workflow.ts`: [`apps/local-server/src/app/schemas/workflow.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/workflow.ts)
-- [ ] Add `schedule.ts`: [`apps/local-server/src/app/schemas/schedule.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/schedule.ts)
+- [x] Add `schedule.ts`: [`apps/local-server/src/app/schemas/schedule.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/schedule.ts)
 - [ ] Add `webhook.ts`: [`apps/local-server/src/app/schemas/webhook.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/webhook.ts)
 - [ ] Remove or retire `task-run.ts`: [`apps/local-server/src/app/schemas/task-run.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/task-run.ts)
 
@@ -172,7 +172,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add `kanban.ts`: [`apps/local-server/src/app/routes/kanban.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/kanban.ts)
 - [x] Add `background-tasks.ts`: [`apps/local-server/src/app/routes/background-tasks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/background-tasks.ts)
 - [x] Add `workflows.ts`: [`apps/local-server/src/app/routes/workflows.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/workflows.ts)
-- [ ] Add `schedules.ts`: [`apps/local-server/src/app/routes/schedules.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/schedules.ts)
+- [x] Add `schedules.ts`: [`apps/local-server/src/app/routes/schedules.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/schedules.ts)
 - [ ] Add `webhooks.ts`: [`apps/local-server/src/app/routes/webhooks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/webhooks.ts)
 - [ ] Register new routes in [`apps/local-server/src/app/app.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/app.ts)
 
@@ -264,4 +264,14 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add [`apps/local-server/src/app/routes/workflows.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/workflows.ts) for workflow CRUD-lite and trigger endpoints
 - [x] Validate workflow schema, service, and route coverage with `npx vitest run src/app/db/sqlite.test.ts src/app/services/workflow-service.test.ts src/app/routes/workflows.test.ts`
 - [ ] Implement a dedicated workflow loader service
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 7
+
+- [x] Read `routa` schedule route, store, and cron utility implementations before coding
+- [x] Add schedule schema, SQLite table, and presenter support for workflow-backed schedules
+- [x] Add [`apps/local-server/src/app/services/schedule-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/schedule-service.ts) to persist schedules and turn due schedules into workflow runs
+- [x] Add [`apps/local-server/src/app/routes/schedules.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/schedules.ts) with list/create/detail/tick endpoints
+- [x] Validate schedule schema, service, and route coverage with `npx vitest run src/app/db/sqlite.test.ts src/app/services/schedule-service.test.ts src/app/routes/schedules.test.ts`
+- [ ] Add a local scheduler service that calls the tick endpoint or service periodically
 - [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)

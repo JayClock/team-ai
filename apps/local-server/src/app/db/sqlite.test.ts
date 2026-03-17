@@ -84,6 +84,9 @@ describe('sqlite initialization', () => {
     const workflowRunColumns = sqlite
       .prepare('PRAGMA table_info(project_workflow_runs)')
       .all() as Array<{ name: string }>;
+    const scheduleColumns = sqlite
+      .prepare('PRAGMA table_info(project_schedules)')
+      .all() as Array<{ name: string }>;
     const worktreeIndexes = sqlite
       .prepare('PRAGMA index_list(project_worktrees)')
       .all() as Array<{ name: string }>;
@@ -102,6 +105,9 @@ describe('sqlite initialization', () => {
     const workflowRunIndexes = sqlite
       .prepare('PRAGMA index_list(project_workflow_runs)')
       .all() as Array<{ name: string }>;
+    const scheduleIndexes = sqlite
+      .prepare('PRAGMA index_list(project_schedules)')
+      .all() as Array<{ name: string }>;
 
     expect(tables.map(({ name }) => name)).toEqual([
       'agents',
@@ -116,6 +122,7 @@ describe('sqlite initialization', () => {
       'project_note_events',
       'project_notes',
       'project_runtime_profiles',
+      'project_schedules',
       'project_task_runs',
       'project_tasks',
       'project_workflow_definitions',
@@ -309,6 +316,22 @@ describe('sqlite initialization', () => {
       'updated_at',
       'deleted_at',
     ]);
+    expect(scheduleColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'project_id',
+      'workflow_id',
+      'name',
+      'cron_expr',
+      'trigger_target',
+      'trigger_payload_template',
+      'enabled',
+      'last_run_at',
+      'next_run_at',
+      'last_workflow_run_id',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ]);
     expect(worktreeIndexes.map(({ name }) => name)).toEqual(
       expect.arrayContaining([
         'idx_project_worktrees_project_id',
@@ -348,6 +371,12 @@ describe('sqlite initialization', () => {
       expect.arrayContaining([
         'idx_project_workflow_runs_workflow_id',
         'idx_project_workflow_runs_project_id',
+      ]),
+    );
+    expect(scheduleIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_schedules_project_id',
+        'idx_project_schedules_due',
       ]),
     );
 

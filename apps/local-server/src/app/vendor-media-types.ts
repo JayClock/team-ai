@@ -32,6 +32,8 @@ export const VENDOR_MEDIA_TYPES = {
   role: vendorMediaType('role'),
   roles: vendorMediaType('roles'),
   root: vendorMediaType('root'),
+  schedule: vendorMediaType('schedule'),
+  schedules: vendorMediaType('schedules'),
   settings: vendorMediaType('settings'),
   specialist: vendorMediaType('specialist'),
   specialists: vendorMediaType('specialists'),
