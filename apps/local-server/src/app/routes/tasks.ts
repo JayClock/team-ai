@@ -8,6 +8,7 @@ import {
   listTasks,
   updateTask,
 } from '../services/task-service';
+import { prepareTaskForColumnTransition } from '../services/task-lane-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTasksQuerySchema = z.object({
@@ -176,7 +177,37 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = taskPatchSchema.parse(request.body);
     const previous = await getTaskById(fastify.sqlite, taskId);
-    const updated = await updateTask(fastify.sqlite, taskId, body);
+    const nextBoardId =
+      body.boardId === undefined ? previous.boardId : body.boardId;
+    const nextColumnId =
+      body.columnId === undefined ? previous.columnId : body.columnId;
+    const nextPatch: Parameters<typeof updateTask>[2] = { ...body };
+    const transitionState = {
+      boardId: previous.boardId,
+      columnId: previous.columnId,
+      laneHandoffs: previous.laneHandoffs,
+      laneSessions: previous.laneSessions,
+      lastSyncError: previous.lastSyncError,
+      sessionIds: previous.sessionIds,
+      triggerSessionId: previous.triggerSessionId,
+    };
+
+    if (
+      prepareTaskForColumnTransition(
+        transitionState,
+        {
+          boardId: nextBoardId,
+          columnId: nextColumnId,
+        },
+      )
+    ) {
+      nextPatch.laneSessions = transitionState.laneSessions;
+      nextPatch.lastSyncError = transitionState.lastSyncError;
+      nextPatch.sessionIds = transitionState.sessionIds;
+      nextPatch.triggerSessionId = transitionState.triggerSessionId;
+    }
+
+    const updated = await updateTask(fastify.sqlite, taskId, nextPatch);
 
     if (
       fastify.hasDecorator('kanbanEventService') &&

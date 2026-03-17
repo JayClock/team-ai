@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { TaskPayload } from '../schemas/task';
 import {
+  archiveActiveTaskSession,
   createTaskLaneHandoff,
   markTaskLaneSessionStatus,
+  prepareTaskForColumnTransition,
   upsertTaskLaneHandoff,
   upsertTaskLaneSession,
 } from './task-lane-service';
@@ -125,5 +127,41 @@ describe('task lane service', () => {
         status: 'delivered',
       }),
     ]);
+  });
+
+  it('archives the active trigger session when a card moves columns', () => {
+    const task = createTask();
+    upsertTaskLaneSession(task, {
+      columnId: 'workflow-default_dev',
+      columnName: 'Dev',
+      sessionId: 'acps_lane_transition',
+    });
+    task.triggerSessionId = 'acps_lane_transition';
+
+    const changed = prepareTaskForColumnTransition(task, {
+      boardId: task.boardId,
+      columnId: 'workflow-default_review',
+    });
+
+    expect(changed).toBe(true);
+    expect(task.sessionIds).toEqual(['acps_lane_transition']);
+    expect(task.triggerSessionId).toBeNull();
+    expect(task.lastSyncError).toBeNull();
+    expect(task.laneSessions).toEqual([
+      expect.objectContaining({
+        sessionId: 'acps_lane_transition',
+        status: 'transitioned',
+      }),
+    ]);
+  });
+
+  it('does not duplicate archived trigger sessions', () => {
+    const task = createTask();
+    task.triggerSessionId = 'acps_existing';
+    task.sessionIds = ['acps_existing'];
+
+    archiveActiveTaskSession(task);
+
+    expect(task.sessionIds).toEqual(['acps_existing']);
   });
 });

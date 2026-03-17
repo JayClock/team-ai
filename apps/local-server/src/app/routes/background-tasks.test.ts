@@ -229,10 +229,10 @@ describe('background tasks route', () => {
       getActiveAutomations: () => [
         {
           autoAdvanceOnSuccess: false,
-          backgroundTaskId: 'bgt_active',
           boardId: 'brd_status',
           columnId: 'col_dev',
           projectId: project.id,
+          sessionId: 'acps_active',
           taskId: 'task_active',
           taskTitle: 'Active task',
           triggerSessionId: 'acps_active',

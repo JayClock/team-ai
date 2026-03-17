@@ -7,7 +7,7 @@ import type {
   TaskPayload,
 } from '../schemas/task';
 
-function ensureLaneArrays(task: TaskPayload) {
+function ensureLaneArrays(task: Pick<TaskPayload, 'laneHandoffs' | 'laneSessions'>) {
   if (!task.laneSessions) {
     task.laneSessions = [];
   }
@@ -55,7 +55,7 @@ export function upsertTaskLaneSession(
 }
 
 export function markTaskLaneSessionStatus(
-  task: TaskPayload,
+  task: Pick<TaskPayload, 'laneHandoffs' | 'laneSessions'>,
   sessionId: string | undefined,
   status: TaskLaneSessionStatus,
 ): TaskLaneSessionPayload | undefined {
@@ -75,6 +75,45 @@ export function markTaskLaneSessionStatus(
   }
 
   return entry;
+}
+
+export function archiveActiveTaskSession(
+  task: Pick<TaskPayload, 'sessionIds' | 'triggerSessionId'>,
+): void {
+  if (!task.triggerSessionId) {
+    return;
+  }
+
+  if (!task.sessionIds.includes(task.triggerSessionId)) {
+    task.sessionIds.push(task.triggerSessionId);
+  }
+}
+
+export function prepareTaskForColumnTransition(
+  task: Pick<
+    TaskPayload,
+    | 'boardId'
+    | 'columnId'
+    | 'laneHandoffs'
+    | 'laneSessions'
+    | 'lastSyncError'
+    | 'sessionIds'
+    | 'triggerSessionId'
+  >,
+  next: {
+    boardId: string | null;
+    columnId: string | null;
+  },
+): boolean {
+  if (task.boardId === next.boardId && task.columnId === next.columnId) {
+    return false;
+  }
+
+  archiveActiveTaskSession(task);
+  markTaskLaneSessionStatus(task, task.triggerSessionId ?? undefined, 'transitioned');
+  task.triggerSessionId = null;
+  task.lastSyncError = null;
+  return true;
 }
 
 export function createTaskLaneHandoff(params: {

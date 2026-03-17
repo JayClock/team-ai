@@ -3,10 +3,9 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createKanbanWorkflowOrchestrator } from './kanban-workflow-orchestrator-service';
-import { listBackgroundTasks } from './background-task-service';
 import { ensureDefaultKanbanBoard } from './kanban-board-service';
 import { createKanbanEventService } from './kanban-event-service';
 import { listProjectCodebases } from './project-codebase-service';
@@ -27,7 +26,7 @@ describe('kanban workflow orchestrator service', () => {
     }
   });
 
-  it('queues a background task when a card enters an automated column', async () => {
+  it('starts one task session when a card enters an automated column', async () => {
     const sqlite = await createTestDatabase(cleanupTasks);
     const project = await createProject(sqlite, {
       title: 'Kanban Orchestrator',
@@ -35,9 +34,6 @@ describe('kanban workflow orchestrator service', () => {
     const board = await ensureDefaultKanbanBoard(sqlite, project.id);
     const todoColumn = board.columns.find((column) => column.name === 'Todo');
     const devColumn = board.columns.find((column) => column.name === 'Dev');
-    expect(todoColumn).toBeDefined();
-    expect(devColumn).toBeDefined();
-
     const task = await createTask(sqlite, {
       boardId: board.id,
       columnId: todoColumn?.id ?? null,
@@ -46,8 +42,14 @@ describe('kanban workflow orchestrator service', () => {
       title: 'Dev lane task',
     });
 
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_dev_lane_task',
+    }));
     const events = createKanbanEventService();
     const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession,
+      },
       events,
       sqlite,
     });
@@ -68,26 +70,13 @@ describe('kanban workflow orchestrator service', () => {
       type: 'task.column-transition',
     });
 
-    const backgroundTasks = await listBackgroundTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
-      projectId: project.id,
-    });
-
-    expect(backgroundTasks.items).toHaveLength(1);
-    expect(backgroundTasks.items[0]).toMatchObject({
-      projectId: project.id,
-      taskId: task.id,
-      title: expect.stringContaining('Dev'),
-      triggerSource: 'workflow',
-      triggeredBy: 'kanban-workflow-orchestrator',
-    });
+    expect(startTaskSession).toHaveBeenCalledTimes(1);
     expect(orchestrator.getActiveAutomations()).toEqual([
       expect.objectContaining({
-        backgroundTaskId: backgroundTasks.items[0].id,
         columnId: devColumn?.id,
+        sessionId: 'acps_dev_lane_task',
         taskId: task.id,
-        triggerSessionId: null,
+        triggerSessionId: 'acps_dev_lane_task',
       }),
     ]);
     expect(orchestrator.getQueuedAutomations()).toEqual([]);
@@ -118,14 +107,24 @@ describe('kanban workflow orchestrator service', () => {
       title: 'Second queued task',
     });
 
+    const sessionIds = ['acps_queue_first', 'acps_queue_second'];
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: sessionIds.shift(),
+    }));
     const events = createKanbanEventService();
     const orchestrator = createKanbanWorkflowOrchestrator({
       boardConcurrency: 1,
+      callbacks: {
+        startTaskSession,
+      },
       events,
       sqlite,
     });
     orchestrator.start();
 
+    await updateTask(sqlite, firstTask.id, {
+      columnId: reviewColumn?.id ?? null,
+    });
     await events.emit({
       boardId: board.id,
       fromColumnId: todoColumn?.id ?? null,
@@ -134,6 +133,9 @@ describe('kanban workflow orchestrator service', () => {
       taskTitle: firstTask.title,
       toColumnId: reviewColumn?.id ?? '',
       type: 'task.column-transition',
+    });
+    await updateTask(sqlite, secondTask.id, {
+      columnId: reviewColumn?.id ?? null,
     });
     await events.emit({
       boardId: board.id,
@@ -145,14 +147,13 @@ describe('kanban workflow orchestrator service', () => {
       type: 'task.column-transition',
     });
 
-    const firstPassBackgroundTasks = await listBackgroundTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
-      projectId: project.id,
-    });
-
-    expect(firstPassBackgroundTasks.items).toHaveLength(1);
-    expect(orchestrator.getActiveAutomations()).toHaveLength(1);
+    expect(startTaskSession).toHaveBeenCalledTimes(1);
+    expect(orchestrator.getActiveAutomations()).toEqual([
+      expect.objectContaining({
+        sessionId: 'acps_queue_first',
+        taskId: firstTask.id,
+      }),
+    ]);
     expect(orchestrator.getQueuedAutomations()).toEqual([
       expect.objectContaining({
         boardId: board.id,
@@ -162,30 +163,26 @@ describe('kanban workflow orchestrator service', () => {
     ]);
 
     await events.emit({
-      backgroundTaskId: firstPassBackgroundTasks.items[0].id,
       projectId: project.id,
       sessionId: 'acps_queue_first',
       success: true,
       taskId: firstTask.id,
-      type: 'background-task.completed',
+      type: 'task.session-completed',
     });
 
-    const secondPassBackgroundTasks = await listBackgroundTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
-      projectId: project.id,
-    });
-
-    expect(secondPassBackgroundTasks.items).toHaveLength(2);
-    expect(
-      secondPassBackgroundTasks.items.some((item) => item.taskId === secondTask.id),
-    ).toBe(true);
+    expect(startTaskSession).toHaveBeenCalledTimes(2);
+    expect(orchestrator.getActiveAutomations()).toEqual([
+      expect.objectContaining({
+        sessionId: 'acps_queue_second',
+        taskId: secondTask.id,
+      }),
+    ]);
     expect(orchestrator.getQueuedAutomations()).toEqual([]);
 
     orchestrator.stop();
   });
 
-  it('prepares a worktree-backed crafter task before queuing dev automation', async () => {
+  it('prepares a worktree-backed crafter task before starting dev automation', async () => {
     const sqlite = await createTestDatabase(cleanupTasks);
     const repoPath = await createGitRepository(cleanupTasks);
     const project = await createProject(sqlite, {
@@ -204,13 +201,22 @@ describe('kanban workflow orchestrator service', () => {
       title: 'Dev worktree task',
     });
 
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_dev_worktree_task',
+    }));
     const events = createKanbanEventService();
     const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession,
+      },
       events,
       sqlite,
     });
     orchestrator.start();
 
+    await updateTask(sqlite, task.id, {
+      columnId: devColumn?.id ?? null,
+    });
     await events.emit({
       boardId: board.id,
       fromColumnId: todoColumn?.id ?? null,
@@ -222,19 +228,13 @@ describe('kanban workflow orchestrator service', () => {
     });
 
     const preparedTask = await getTaskById(sqlite, task.id);
-    const backgroundTasks = await listBackgroundTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
-      projectId: project.id,
-    });
-
     expect(preparedTask).toMatchObject({
       assignedRole: 'CRAFTER',
       codebaseId: codebase.id,
       status: 'READY',
     });
     expect(preparedTask.worktreeId).toMatch(/^wt_/);
-    expect(backgroundTasks.items).toHaveLength(1);
+    expect(startTaskSession).toHaveBeenCalledTimes(1);
 
     orchestrator.stop();
   });
@@ -260,13 +260,22 @@ describe('kanban workflow orchestrator service', () => {
       title: 'Dev worktree failure task',
     });
 
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_should_not_start',
+    }));
     const events = createKanbanEventService();
     const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession,
+      },
       events,
       sqlite,
     });
     orchestrator.start();
 
+    await updateTask(sqlite, task.id, {
+      columnId: devColumn?.id ?? null,
+    });
     await events.emit({
       boardId: board.id,
       fromColumnId: todoColumn?.id ?? null,
@@ -278,19 +287,14 @@ describe('kanban workflow orchestrator service', () => {
     });
 
     const failedTask = await getTaskById(sqlite, task.id);
-    const backgroundTasks = await listBackgroundTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
-      projectId: project.id,
-    });
-
     expect(failedTask).toMatchObject({
       assignedRole: 'CRAFTER',
       status: 'WAITING_RETRY',
       verificationVerdict: 'fail',
       worktreeId: null,
     });
-    expect(backgroundTasks.items).toHaveLength(0);
+    expect(startTaskSession).not.toHaveBeenCalled();
+    expect(orchestrator.getActiveAutomations()).toEqual([]);
 
     orchestrator.stop();
   });
@@ -303,9 +307,6 @@ describe('kanban workflow orchestrator service', () => {
     const board = await ensureDefaultKanbanBoard(sqlite, project.id);
     const reviewColumn = board.columns.find((column) => column.name === 'Review');
     const doneColumn = board.columns.find((column) => column.name === 'Done');
-    expect(reviewColumn).toBeDefined();
-    expect(doneColumn).toBeDefined();
-
     const task = await createTask(sqlite, {
       boardId: board.id,
       columnId: reviewColumn?.id ?? null,
@@ -314,13 +315,22 @@ describe('kanban workflow orchestrator service', () => {
       title: 'Review lane task',
     });
 
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_review_lane',
+    }));
     const events = createKanbanEventService();
     const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession,
+      },
       events,
       sqlite,
     });
     orchestrator.start();
 
+    await updateTask(sqlite, task.id, {
+      columnId: reviewColumn?.id ?? null,
+    });
     await events.emit({
       boardId: board.id,
       fromColumnId: null,
@@ -331,20 +341,12 @@ describe('kanban workflow orchestrator service', () => {
       type: 'task.column-transition',
     });
 
-    const backgroundTasks = await listBackgroundTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
-      projectId: project.id,
-    });
-    expect(backgroundTasks.items).toHaveLength(1);
-
     await events.emit({
-      backgroundTaskId: backgroundTasks.items[0].id,
       projectId: project.id,
       sessionId: 'acps_review_lane',
       success: true,
       taskId: task.id,
-      type: 'background-task.completed',
+      type: 'task.session-completed',
     });
 
     const advancedTask = await getTaskById(sqlite, task.id);
@@ -357,7 +359,7 @@ describe('kanban workflow orchestrator service', () => {
     orchestrator.stop();
   });
 
-  it('binds active automation to the trigger session and ignores duplicate completion events', async () => {
+  it('ignores duplicate completion events for the same task session', async () => {
     const sqlite = await createTestDatabase(cleanupTasks);
     const project = await createProject(sqlite, {
       title: 'Kanban Session Binding',
@@ -373,13 +375,22 @@ describe('kanban workflow orchestrator service', () => {
       title: 'Session-bound review task',
     });
 
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_bound_review',
+    }));
     const events = createKanbanEventService();
     const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession,
+      },
       events,
       sqlite,
     });
     orchestrator.start();
 
+    await updateTask(sqlite, task.id, {
+      columnId: reviewColumn?.id ?? null,
+    });
     await events.emit({
       boardId: board.id,
       fromColumnId: null,
@@ -390,44 +401,19 @@ describe('kanban workflow orchestrator service', () => {
       type: 'task.column-transition',
     });
 
-    const backgroundTasks = await listBackgroundTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
-      projectId: project.id,
-    });
-    const backgroundTaskId = backgroundTasks.items[0].id;
-
     await events.emit({
-      backgroundTaskId,
-      projectId: project.id,
-      sessionId: 'acps_bound_review',
-      taskId: task.id,
-      type: 'background-task.session-started',
-    });
-
-    expect(orchestrator.getActiveAutomations()).toEqual([
-      expect.objectContaining({
-        backgroundTaskId,
-        taskId: task.id,
-        triggerSessionId: 'acps_bound_review',
-      }),
-    ]);
-
-    await events.emit({
-      backgroundTaskId,
       projectId: project.id,
       sessionId: 'acps_bound_review',
       success: true,
       taskId: task.id,
-      type: 'background-task.completed',
+      type: 'task.session-completed',
     });
     await events.emit({
-      backgroundTaskId,
       projectId: project.id,
       sessionId: 'acps_bound_review',
       success: true,
       taskId: task.id,
-      type: 'background-task.completed',
+      type: 'task.session-completed',
     });
 
     const advancedTask = await getTaskById(sqlite, task.id);
@@ -435,6 +421,75 @@ describe('kanban workflow orchestrator service', () => {
       columnId: doneColumn?.id,
       status: 'COMPLETED',
     });
+    expect(orchestrator.getActiveAutomations()).toEqual([]);
+
+    orchestrator.stop();
+  });
+
+  it('cancels the running task session when a card leaves the automation column', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Cancel Session',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const doneColumn = board.columns.find((column) => column.name === 'Done');
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Cancel the running session when the card moves away',
+      projectId: project.id,
+      title: 'Session cancellation task',
+    });
+
+    const cancelTaskSession = vi.fn(async () => undefined);
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_cancel_me',
+    }));
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        cancelTaskSession,
+        startTaskSession,
+      },
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await updateTask(sqlite, task.id, {
+      columnId: reviewColumn?.id ?? null,
+    });
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: todoColumn?.id ?? null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: reviewColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+
+    await updateTask(sqlite, task.id, {
+      columnId: doneColumn?.id ?? null,
+    });
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: reviewColumn?.id ?? null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: doneColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+
+    expect(cancelTaskSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: task.id,
+      }),
+      'acps_cancel_me',
+    );
     expect(orchestrator.getActiveAutomations()).toEqual([]);
 
     orchestrator.stop();

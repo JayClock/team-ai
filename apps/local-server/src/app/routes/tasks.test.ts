@@ -10,6 +10,8 @@ import sensiblePlugin from '../plugins/sensible';
 import { ensureDefaultKanbanBoard } from '../services/kanban-board-service';
 import { createProject } from '../services/project-service';
 import { createKanbanEventService } from '../services/kanban-event-service';
+import { getTaskById, updateTask } from '../services/task-service';
+import { upsertTaskLaneSession } from '../services/task-lane-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -384,6 +386,58 @@ describe('tasks routes', () => {
         toColumnId: devColumn?.id ?? '',
         type: 'task.column-transition',
       },
+    ]);
+  });
+
+  it('archives the active trigger session when a card moves to a new column', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Task Transition Session Archive',
+      repoPath: '/tmp/team-ai-task-transition-session-archive',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const sessionId = createAcpSession(sqlite, project.id, 'Transition session');
+    const taskId = await createTask(fastify, project.id, sessionId, {
+      objective: 'Archive the active trigger session',
+      title: 'Archive session task',
+    });
+
+    const task = await updateTask(sqlite, taskId, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      triggerSessionId: sessionId,
+    });
+    upsertTaskLaneSession(task, {
+      columnId: todoColumn?.id ?? undefined,
+      columnName: todoColumn?.name,
+      sessionId,
+    });
+    await updateTask(sqlite, taskId, {
+      laneSessions: task.laneSessions,
+      triggerSessionId: sessionId,
+    });
+
+    const patchResponse = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/tasks/${taskId}`,
+      payload: {
+        boardId: board.id,
+        columnId: devColumn?.id ?? null,
+      },
+    });
+
+    expect(patchResponse.statusCode).toBe(200);
+    const updatedTask = await getTaskById(sqlite, taskId);
+    expect(updatedTask.triggerSessionId).toBeNull();
+    expect(updatedTask.sessionIds).toContain(sessionId);
+    expect(updatedTask.laneSessions).toEqual([
+      expect.objectContaining({
+        sessionId,
+        status: 'transitioned',
+      }),
     ]);
   });
 
