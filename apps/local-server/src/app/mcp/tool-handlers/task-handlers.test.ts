@@ -9,8 +9,9 @@ import type { AcpRuntimeClient } from '../../clients/acp-runtime-client';
 import type { AcpStreamBroker } from '../../plugins/acp-stream';
 import { insertAcpSession } from '../../test-support/acp-session-fixture';
 import { readAgentConversation } from '../../services/acp-conversation-service';
+import { applyFlowTemplate } from '../../services/apply-flow-template-service';
 import { createProject } from '../../services/project-service';
-import { createTask, updateTask } from '../../services/task-service';
+import { createTask, listTasks, updateTask } from '../../services/task-service';
 import { startTaskRun } from '../../services/task-run-service';
 import { createReportToParentHandler } from './task-handlers';
 
@@ -208,6 +209,198 @@ describe('createReportToParentHandler', () => {
       reason: 'resume_already_requested',
     });
     expect(promptSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto-dispatches a spec gate wave and creates a fix task after gate failure', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-task-handler-spec-wave',
+      title: 'Task Handler Spec Wave',
+    });
+    const parentSessionId = 'acps_handler_spec_parent';
+
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-handler-spec-wave',
+      id: parentSessionId,
+      projectId: project.id,
+      provider: 'codex',
+    });
+
+    const applied = await applyFlowTemplate(sqlite, {
+      projectId: project.id,
+      sessionId: parentSessionId,
+      templateId: 'routa-spec-loop',
+    });
+    const initialTasks = await listTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+      sessionId: parentSessionId,
+    });
+    const implementTask = initialTasks.items.find((task) => task.kind === 'implement');
+    const reviewTask = initialTasks.items.find((task) => task.kind === 'review');
+
+    if (!implementTask || !reviewTask) {
+      throw new Error('Expected spec-derived implement and review tasks');
+    }
+
+    const implementationSessionId = 'acps_handler_spec_impl_child';
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-handler-spec-wave',
+      id: implementationSessionId,
+      parentSessionId,
+      projectId: project.id,
+      provider: 'codex',
+      taskId: implementTask.id,
+    });
+    await updateTask(sqlite, implementTask.id, {
+      assignedRole: 'CRAFTER',
+      executionSessionId: implementationSessionId,
+      status: 'RUNNING',
+    });
+    await startTaskRun(sqlite, {
+      projectId: project.id,
+      role: 'CRAFTER',
+      sessionId: implementationSessionId,
+      status: 'RUNNING',
+      taskId: implementTask.id,
+    });
+
+    const promptSession = vi.fn(async () => ({
+      response: { stopReason: 'end_turn' as const },
+      runtimeSessionId: 'runtime-spec-wave',
+    }));
+    const dispatchGateTasksForCompletedWave = vi.fn(async () => ({
+      blockedTaskIds: [],
+      completedTaskIds: [],
+      delegationGroupId: `twfg_${applied.note.id}`,
+      dispatchResults: [
+        {
+          dispatchability: {
+            dispatchable: true,
+            reasons: [],
+            resolvedRole: 'GATE' as const,
+            task: await updateTask(sqlite, reviewTask.id, {
+              assignedRole: 'GATE',
+              status: 'READY',
+            }),
+            unresolvedDependencyIds: [],
+          },
+          dispatched: true,
+          prompt: 'Review the delivery slice',
+          provider: 'codex',
+          reason: null,
+          role: 'GATE' as const,
+          sessionId: 'acps_handler_spec_gate_child',
+          specialistId: 'gate-reviewer',
+          task: await updateTask(sqlite, reviewTask.id, {
+            assignedRole: 'GATE',
+            status: 'READY',
+          }),
+        },
+      ],
+      dispatchedTaskIds: [reviewTask.id],
+      gateTaskIds: [reviewTask.id],
+      pendingTaskIds: [],
+      readyTaskIds: [reviewTask.id],
+      requiresGate: true,
+      scope: {
+        noteId: applied.note.id,
+        projectId: project.id,
+        sessionId: parentSessionId,
+      },
+      syncedTaskIds: [implementTask.id, reviewTask.id],
+      waveId: `twfg_${applied.note.id}:gate`,
+      waveKind: 'gate' as const,
+    }));
+
+    const handler = createReportToParentHandler(
+      {
+        acpRuntime: {
+          isSessionActive: vi.fn(() => true),
+          promptSession,
+        } as Pick<AcpRuntimeClient, 'isSessionActive' | 'promptSession'>,
+        acpStreamBroker: {
+          publish: vi.fn(),
+        } as unknown as AcpStreamBroker,
+        log: {
+          error: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+        } as unknown as FastifyBaseLogger,
+        sqlite,
+        taskWorkflowOrchestrator: {
+          dispatchGateTasksForCompletedWave,
+          executeTask: vi.fn(async () => {
+            throw new Error('executeTask should not be used for spec gate wave handoff');
+          }),
+        },
+      } as FastifyInstance,
+    );
+
+    const implementationResult = await handler({
+      projectId: project.id,
+      sessionId: implementationSessionId,
+      summary: 'Implementation completed for the spec wave',
+      verdict: 'completed',
+    });
+
+    expect(implementationResult.autoHandoff).toEqual([
+      expect.objectContaining({
+        dispatched: true,
+        taskId: reviewTask.id,
+        title: 'Review the delivery slice',
+      }),
+    ]);
+    expect(dispatchGateTasksForCompletedWave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        callerSessionId: parentSessionId,
+        noteId: applied.note.id,
+        projectId: project.id,
+        sessionId: parentSessionId,
+      }),
+    );
+
+    const reviewSessionId = 'acps_handler_spec_gate_child';
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-handler-spec-wave',
+      id: reviewSessionId,
+      parentSessionId,
+      projectId: project.id,
+      provider: 'codex',
+      taskId: reviewTask.id,
+    });
+    await updateTask(sqlite, reviewTask.id, {
+      assignedRole: 'GATE',
+      executionSessionId: reviewSessionId,
+      status: 'RUNNING',
+    });
+    await startTaskRun(sqlite, {
+      projectId: project.id,
+      role: 'GATE',
+      sessionId: reviewSessionId,
+      status: 'RUNNING',
+      taskId: reviewTask.id,
+    });
+
+    const gateFailureResult = await handler({
+      projectId: project.id,
+      sessionId: reviewSessionId,
+      summary: 'Gate found a regression that needs a follow-up fix',
+      verdict: 'fail',
+    });
+
+    expect(gateFailureResult.autoFix).toMatchObject({
+      created: true,
+      task: {
+        assignedRole: 'CRAFTER',
+        kind: 'implement',
+        parentTaskId: reviewTask.id,
+        sessionId: parentSessionId,
+        status: 'READY',
+        title: 'Fix: Review the delivery slice',
+      },
+    });
   });
 });
 

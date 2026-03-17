@@ -10,7 +10,13 @@ import { getProjectById } from '../../services/project-service';
 import { reportToParent } from '../../services/task-report-service';
 import { taskOrchestrationEventNames } from '../../services/task-orchestration-events';
 import { listTaskRuns } from '../../services/task-run-service';
-import { listDependentTasks, listTasks } from '../../services/task-service';
+import {
+  createTask,
+  getTaskById,
+  listDependentTasks,
+  listTasks,
+  updateTask,
+} from '../../services/task-service';
 import {
   reportToParentArgsSchema,
   taskExecuteArgsSchema,
@@ -119,6 +125,10 @@ export function createReportToParentHandler(fastify: FastifyInstance) {
       result.report.mode === 'implementation' && result.report.verdict === 'completed'
         ? await autoDispatchGateFollowUps(fastify, result.task)
         : [];
+    const autoFix =
+      result.report.mode === 'verification' && result.report.verdict === 'fail'
+        ? await ensureFixFollowUpTask(fastify, result.task, args.summary)
+        : null;
     await emitReportOrchestrationEvents(fastify, {
       autoHandoff,
       childSessionId: childSession.id,
@@ -138,6 +148,7 @@ export function createReportToParentHandler(fastify: FastifyInstance) {
     return {
       ...result,
       autoHandoff,
+      autoFix,
       wake,
     };
   };
@@ -263,8 +274,10 @@ async function autoDispatchGateFollowUps(
     taskId: string;
     title: string;
   }> = [];
+  const seenTaskIds = new Set<string>();
 
   for (const task of gateCandidates) {
+    seenTaskIds.add(task.id);
     try {
       const execution = await fastify.taskWorkflowOrchestrator.executeTask(task.id, {
         callerSessionId: completedTask.sessionId ?? undefined,
@@ -289,7 +302,113 @@ async function autoDispatchGateFollowUps(
     }
   }
 
+  if (completedTask.sourceType === 'spec_note' && completedTask.sourceEventId) {
+    try {
+      const gateWave = await fastify.taskWorkflowOrchestrator.dispatchGateTasksForCompletedWave({
+        callerSessionId: completedTask.sessionId ?? undefined,
+        noteId: completedTask.sourceEventId,
+        projectId: completedTask.projectId,
+        sessionId: completedTask.sessionId,
+        source: 'mcp_report_to_parent_auto_gate_wave',
+      });
+
+      for (const dispatch of gateWave.dispatchResults) {
+        if (seenTaskIds.has(dispatch.task.id)) {
+          continue;
+        }
+
+        seenTaskIds.add(dispatch.task.id);
+        results.push({
+          dispatched: dispatch.dispatched,
+          error: dispatch.reason ?? null,
+          status: dispatch.task.status,
+          taskId: dispatch.task.id,
+          title: dispatch.task.title,
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Gate wave handoff failed';
+      logDiagnostic(
+        fastify.log,
+        'warn',
+        {
+          event: taskOrchestrationEventNames.gateRequired,
+          noteId: completedTask.sourceEventId,
+          projectId: completedTask.projectId,
+          taskId: completedTask.id,
+        },
+        message,
+      );
+    }
+  }
+
   return results;
+}
+
+async function ensureFixFollowUpTask(
+  fastify: FastifyInstance,
+  failedGateTask: Awaited<ReturnType<typeof getProjectTask>>,
+  summary: string,
+) {
+  const existingFixTaskId = (
+    fastify.sqlite
+      .prepare(
+        `
+          SELECT id
+          FROM project_tasks
+          WHERE project_id = @projectId
+            AND parent_task_id = @parentTaskId
+            AND kind = 'implement'
+            AND deleted_at IS NULL
+            AND status IN ('PENDING', 'READY', 'RUNNING', 'WAITING_RETRY')
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+      )
+      .get({
+        parentTaskId: failedGateTask.id,
+        projectId: failedGateTask.projectId,
+      }) as { id: string } | undefined
+  )?.id;
+
+  const objective =
+    `Address the gate feedback for "${failedGateTask.title}". ` +
+    `Latest failure summary: ${summary}`;
+
+  const fixTask = existingFixTaskId
+    ? await updateTask(fastify.sqlite, existingFixTaskId, {
+        assignedRole: 'CRAFTER',
+        completionSummary: null,
+        objective,
+        parentTaskId: failedGateTask.id,
+        sessionId: failedGateTask.sessionId,
+        status: 'READY',
+        title: `Fix: ${failedGateTask.title}`,
+        verificationCommands: failedGateTask.verificationCommands,
+      })
+    : await createTask(fastify.sqlite, {
+        acceptanceCriteria: [
+          `Resolve the gate failure for "${failedGateTask.title}"`,
+          'Report the fix outcome back to the parent coordinator',
+        ],
+        assignedRole: 'CRAFTER',
+        kind: 'implement',
+        objective,
+        parentTaskId: failedGateTask.id,
+        projectId: failedGateTask.projectId,
+        sessionId: failedGateTask.sessionId,
+        sourceEventId: failedGateTask.id,
+        sourceType: 'gate_fix_loop',
+        status: 'READY',
+        title: `Fix: ${failedGateTask.title}`,
+        verificationCommands: failedGateTask.verificationCommands,
+      });
+
+  return {
+    created: fixTask.id !== existingFixTaskId,
+    task: await getTaskById(fastify.sqlite, fixTask.id),
+  };
 }
 
 function buildWakeMessage(input: {
