@@ -47,6 +47,12 @@ export interface CreateAcpRuntimeSessionInput {
   localSessionId: string;
   mcpServers: McpServer[];
   model?: string | null;
+  orchestration?: {
+    delegationGroupId?: string | null;
+    parentTaskId?: string | null;
+    taskId?: string | null;
+    waveId?: string | null;
+  } | null;
   provider: string;
 }
 

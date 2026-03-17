@@ -95,15 +95,18 @@ interface CreateSessionInput {
   actorUserId: string;
   codebaseId?: string | null;
   cwd?: string | null;
+  delegationGroupId?: string | null;
   goal?: string;
   model?: string | null;
   parentSessionId?: string | null;
+  parentTaskId?: string | null;
   projectId: string;
   provider?: string | null;
   retryOfRunId?: string | null;
   role?: string | null;
   specialistId?: string;
   taskId?: string | null;
+  waveId?: string | null;
   worktreeId?: string | null;
 }
 
@@ -1687,6 +1690,12 @@ export async function createAcpSession(
     const runtimeSession = await runtime.createSession({
       localSessionId: sessionId,
       model,
+      orchestration: {
+        delegationGroupId: input.delegationGroupId ?? null,
+        parentTaskId: input.parentTaskId ?? null,
+        taskId: task?.id ?? input.taskId ?? null,
+        waveId: input.waveId ?? null,
+      },
       provider,
       cwd: workspaceBinding.cwd,
       mcpServers: resolveLocalMcpServers(),

@@ -70,6 +70,7 @@ export function createAgentGatewayRuntimeClient(
       metadata: {
         cwd: input.cwd,
         localSessionId: input.localSessionId,
+        orchestration: input.orchestration ?? null,
       },
     });
 

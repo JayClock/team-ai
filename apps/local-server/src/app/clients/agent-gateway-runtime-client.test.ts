@@ -142,6 +142,12 @@ describe('agent-gateway-runtime-client', () => {
     await client.createSession({
       localSessionId: 'local-1',
       model: 'openai/gpt-5',
+      orchestration: {
+        delegationGroupId: 'dg_wave_1',
+        parentTaskId: 'task_parent',
+        taskId: 'task_child',
+        waveId: 'dg_wave_1:implement',
+      },
       provider: 'opencode',
       cwd: '/tmp/project',
       mcpServers,
@@ -154,6 +160,12 @@ describe('agent-gateway-runtime-client', () => {
       metadata: {
         cwd: '/tmp/project',
         localSessionId: 'local-1',
+        orchestration: {
+          delegationGroupId: 'dg_wave_1',
+          parentTaskId: 'task_parent',
+          taskId: 'task_child',
+          waveId: 'dg_wave_1:implement',
+        },
       },
     });
 
@@ -285,6 +297,7 @@ describe('agent-gateway-runtime-client', () => {
       metadata: {
         cwd: '/tmp/project',
         localSessionId: 'local-2',
+        orchestration: null,
       },
     });
   });
