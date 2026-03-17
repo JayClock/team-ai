@@ -17,7 +17,7 @@ import {
   registerDelegationGroupTask,
 } from '../../services/delegation-group-service';
 import { createProject } from '../../services/project-service';
-import { createTask, listTasks, updateTask } from '../../services/task-service';
+import { createTask, updateTask } from '../../services/task-service';
 import { startTaskRun } from '../../services/task-run-service';
 import { createReportToParentHandler } from './task-handlers';
 
@@ -97,42 +97,25 @@ describe('createReportToParentHandler', () => {
       response: { stopReason: 'end_turn' as const },
       runtimeSessionId: 'runtime-report',
     }));
-    const executeTask = vi.fn(async () => ({
-      dispatch: {
-        attempted: true,
-        errorMessage: null,
-        result: {
-          dispatchability: {
-            dispatchable: true,
-            reasons: [],
-            resolvedRole: 'GATE' as const,
-            task: await updateTask(sqlite, gateTask.id, {
-              assignedRole: 'GATE',
-              status: 'READY',
-            }),
-            unresolvedDependencyIds: [],
-          },
-          dispatched: true,
-          prompt: 'Review report flow',
-          provider: 'codex',
-          reason: null,
-          role: 'GATE' as const,
-          sessionId: 'acps_gate_auto',
-          specialistId: 'gate-reviewer',
-          task: await updateTask(sqlite, gateTask.id, {
-            assignedRole: 'GATE',
-            status: 'READY',
-          }),
-        },
-      },
-      task: await updateTask(sqlite, gateTask.id, {
+    const patchTaskFromMcpAndMaybeExecute = vi.fn(async () => {
+      insertAcpSession(sqlite, {
+        cwd: '/tmp/team-ai-task-handler-report',
+        id: 'acps_gate_auto',
+        parentSessionId,
+        projectId: project.id,
+        provider: 'codex',
+        taskId: gateTask.id,
+      });
+
+      return await updateTask(sqlite, gateTask.id, {
         assignedRole: 'GATE',
         status: 'READY',
-      }),
-    }));
+        triggerSessionId: 'acps_gate_auto',
+      });
+    });
 
     vi.mocked(getTaskWorkflowRuntime).mockReturnValue({
-      executeTask,
+      patchTaskFromMcpAndMaybeExecute,
     } as ReturnType<typeof getTaskWorkflowRuntime>);
 
     const handler = createReportToParentHandler(
@@ -244,18 +227,31 @@ describe('createReportToParentHandler', () => {
       sessionId: parentSessionId,
       templateId: 'routa-spec-loop',
     });
-    const initialTasks = await listTasks(sqlite, {
-      page: 1,
-      pageSize: 20,
+    const implementTask = await createTask(sqlite, {
+      assignedRole: 'CRAFTER',
+      kind: 'implement',
+      objective: 'Implement the delivery slice',
       projectId: project.id,
       sessionId: parentSessionId,
+      sourceEntryIndex: 0,
+      sourceEventId: applied.note.id,
+      sourceType: 'spec_note',
+      status: 'READY',
+      title: 'Implement the delivery slice',
     });
-    const implementTask = initialTasks.items.find((task) => task.kind === 'implement');
-    const reviewTask = initialTasks.items.find((task) => task.kind === 'review');
-
-    if (!implementTask || !reviewTask) {
-      throw new Error('Expected spec-derived implement and review tasks');
-    }
+    const reviewTask = await createTask(sqlite, {
+      assignedRole: 'GATE',
+      dependencies: [implementTask.id],
+      kind: 'review',
+      objective: 'Review the delivery slice',
+      projectId: project.id,
+      sessionId: parentSessionId,
+      sourceEntryIndex: 1,
+      sourceEventId: applied.note.id,
+      sourceType: 'spec_note',
+      status: 'PENDING',
+      title: 'Review the delivery slice',
+    });
 
     const implementationSessionId = 'acps_handler_spec_impl_child';
     insertAcpSession(sqlite, {
@@ -329,8 +325,10 @@ describe('createReportToParentHandler', () => {
 
     vi.mocked(getTaskWorkflowRuntime).mockReturnValue({
       dispatchGateTasksForCompletedWave,
-      executeTask: vi.fn(async () => {
-        throw new Error('executeTask should not be used for spec gate wave handoff');
+      patchTaskFromMcpAndMaybeExecute: vi.fn(async () => {
+        throw new Error(
+          'patchTaskFromMcpAndMaybeExecute should not be used for spec gate wave handoff',
+        );
       }),
     } as ReturnType<typeof getTaskWorkflowRuntime>);
 
@@ -526,8 +524,8 @@ describe('createReportToParentHandler', () => {
       dispatchGateTasksForCompletedWave: vi.fn(async () => {
         throw new Error('dispatchGateTasksForCompletedWave should not run');
       }),
-      executeTask: vi.fn(async () => {
-        throw new Error('executeTask should not run');
+      patchTaskFromMcpAndMaybeExecute: vi.fn(async () => {
+        throw new Error('patchTaskFromMcpAndMaybeExecute should not run');
       }),
     } as ReturnType<typeof getTaskWorkflowRuntime>);
 

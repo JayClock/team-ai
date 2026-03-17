@@ -1,9 +1,11 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
-import { createAcpSession, promptAcpSession } from '../services/acp-service';
 import { getBackgroundTaskById } from '../services/background-task-service';
 import { getProjectKanbanBoardById } from '../services/kanban-board-service';
 import { createKanbanEventService, type KanbanEventService } from '../services/kanban-event-service';
+import {
+  createAcpSessionExecutionBoundary,
+} from '../services/acp-session-execution-boundary-service';
 import {
   markTaskLaneSessionStatus,
   upsertTaskLaneSession,
@@ -35,8 +37,17 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
   BackgroundWorkerPluginOptions
 > = async (fastify, options) => {
   const kanbanEventService = createKanbanEventService();
+  const executionBoundary = createAcpSessionExecutionBoundary({
+    broker: fastify.acpStreamBroker,
+    logger: fastify.log,
+    runtime: fastify.acpRuntime,
+    sqlite: fastify.sqlite,
+  });
 
-  async function syncTaskLaneSessionStart(taskId: string, session: Awaited<ReturnType<typeof createAcpSession>>) {
+  async function syncTaskLaneSessionStart(
+    taskId: string,
+    session: Awaited<ReturnType<typeof executionBoundary.createSession>>,
+  ) {
     const linkedTask = await getTaskById(fastify.sqlite, taskId).catch(() => null);
     if (!linkedTask) {
       return;
@@ -133,11 +144,8 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
         const linkedTask = task.taskId
           ? await getTaskById(fastify.sqlite, task.taskId).catch(() => null)
           : null;
-        const useProvider = fastify.acpRuntime.isConfigured(task.agentId);
-        const session = await createAcpSession(
-          fastify.sqlite,
-          fastify.acpStreamBroker,
-          fastify.acpRuntime,
+        const useProvider = await executionBoundary.isProviderAvailable(task.agentId);
+        const session = await executionBoundary.createSession(
           {
             actorUserId: 'desktop-user',
             codebaseId: linkedTask?.codebaseId ?? null,
@@ -152,7 +160,6 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
             worktreeId: linkedTask?.worktreeId ?? null,
           },
           {
-            logger: fastify.log,
             source: 'background_worker_create_session',
           },
         );
@@ -187,17 +194,13 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
         return fastify.acpRuntime.isSessionActive(sessionId);
       },
       async promptSession(task, sessionId) {
-        await promptAcpSession(
-          fastify.sqlite,
-          fastify.acpStreamBroker,
-          fastify.acpRuntime,
+        await executionBoundary.promptSession(
           task.projectId,
           sessionId,
           {
             prompt: task.prompt,
           },
           {
-            logger: fastify.log,
             source: 'background_worker_prompt_session',
           },
         );

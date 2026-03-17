@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import { createTaskExecutionRuntime } from '../services/task-execution-runtime-service';
 import {
-  executeTask,
+  createAcpSessionExecutionBoundary,
+  createDispatchTaskCallbacks,
+} from '../services/acp-session-execution-boundary-service';
+import {
   patchTaskFromMcpAndMaybeExecute,
   type AutoExecuteTaskPatch,
   type ExecuteTaskOptions,
-  type ExecuteTaskResult,
 } from '../services/task-orchestration-service';
 import {
   dispatchGateTasksForCompletedWave,
@@ -17,10 +18,6 @@ export interface TaskWorkflowRuntime {
   dispatchGateTasksForCompletedWave(
     options: TaskWaveExecutionOptions,
   ): Promise<TaskWorkflowWaveResult>;
-  executeTask(
-    taskId: string,
-    options?: Omit<ExecuteTaskOptions, 'callbacks'>,
-  ): Promise<ExecuteTaskResult>;
   patchTaskFromMcpAndMaybeExecute(
     taskId: string,
     patch: AutoExecuteTaskPatch,
@@ -38,12 +35,18 @@ export function getTaskWorkflowRuntime(
     return existing;
   }
 
-  const runtime = createTaskExecutionRuntime({
-    broker: fastify.acpStreamBroker,
-    logger: fastify.log,
-    runtime: fastify.acpRuntime,
-    sqlite: fastify.sqlite,
-  });
+  const runtime = createDispatchTaskCallbacks(
+    createAcpSessionExecutionBoundary({
+      broker: fastify.acpStreamBroker,
+      logger: fastify.log,
+      runtime: fastify.acpRuntime,
+      sqlite: fastify.sqlite,
+    }),
+    {
+      createSessionSource: 'task_execution_runtime_create_session',
+      promptSessionSource: 'task_execution_runtime_prompt_session',
+    },
+  );
   const workflow: TaskWorkflowRuntime = {
     async dispatchGateTasksForCompletedWave(options) {
       return await dispatchGateTasksForCompletedWave(
@@ -51,12 +54,6 @@ export function getTaskWorkflowRuntime(
         runtime,
         options,
       );
-    },
-    async executeTask(taskId, options = {}) {
-      return await executeTask(fastify.sqlite, taskId, {
-        ...options,
-        callbacks: runtime,
-      });
     },
     async patchTaskFromMcpAndMaybeExecute(taskId, patch, options = {}) {
       return await patchTaskFromMcpAndMaybeExecute(

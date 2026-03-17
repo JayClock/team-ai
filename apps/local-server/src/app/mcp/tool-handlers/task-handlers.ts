@@ -350,15 +350,6 @@ async function autoDispatchGateFollowUps(
   fastify: FastifyInstance,
   completedTask: Awaited<ReturnType<typeof getProjectTask>>,
 ) {
-  const dependentTasks = await listDependentTasks(fastify.sqlite, completedTask.id);
-  const gateCandidates = dependentTasks.filter(
-    (task) =>
-      task.projectId === completedTask.projectId &&
-      task.sessionId === completedTask.sessionId &&
-      (task.assignedRole === 'GATE' ||
-        task.kind === 'review' ||
-        task.kind === 'verify'),
-  );
   const results: Array<{
     dispatched: boolean;
     error: string | null;
@@ -367,34 +358,53 @@ async function autoDispatchGateFollowUps(
     title: string;
   }> = [];
   const seenTaskIds = new Set<string>();
+  const isSpecWaveTask =
+    completedTask.sourceType === 'spec_note' && Boolean(completedTask.sourceEventId);
 
-  for (const task of gateCandidates) {
-    seenTaskIds.add(task.id);
-    try {
-      const execution = await getTaskWorkflowRuntime(fastify).executeTask(task.id, {
-        callerSessionId: completedTask.sessionId ?? undefined,
-        logger: fastify.log,
-        source: 'mcp_report_to_parent_auto_gate_handoff',
-      });
-      results.push({
-        dispatched: execution.dispatch.result?.dispatched ?? false,
-        error: execution.dispatch.errorMessage,
-        status: execution.task.status,
-        taskId: task.id,
-        title: task.title,
-      });
-    } catch (error) {
-      results.push({
-        dispatched: false,
-        error: error instanceof Error ? error.message : 'Gate handoff failed',
-        status: task.status,
-        taskId: task.id,
-        title: task.title,
-      });
+  if (!isSpecWaveTask) {
+    const dependentTasks = await listDependentTasks(fastify.sqlite, completedTask.id);
+    const gateCandidates = dependentTasks.filter(
+      (task) =>
+        task.projectId === completedTask.projectId &&
+        task.sessionId === completedTask.sessionId &&
+        (task.assignedRole === 'GATE' ||
+          task.kind === 'review' ||
+          task.kind === 'verify'),
+    );
+
+    for (const task of gateCandidates) {
+      seenTaskIds.add(task.id);
+      try {
+        const nextTask = await getTaskWorkflowRuntime(
+          fastify,
+        ).patchTaskFromMcpAndMaybeExecute(task.id, {
+          assignedRole: task.assignedRole ?? 'GATE',
+          status: 'READY',
+        }, {
+          callerSessionId: completedTask.sessionId ?? undefined,
+          logger: fastify.log,
+          source: 'mcp_report_to_parent_auto_gate_handoff',
+        });
+        results.push({
+          dispatched: Boolean(nextTask.triggerSessionId || nextTask.executionSessionId),
+          error: nextTask.lastSyncError,
+          status: nextTask.status,
+          taskId: task.id,
+          title: task.title,
+        });
+      } catch (error) {
+        results.push({
+          dispatched: false,
+          error: error instanceof Error ? error.message : 'Gate handoff failed',
+          status: task.status,
+          taskId: task.id,
+          title: task.title,
+        });
+      }
     }
   }
 
-  if (completedTask.sourceType === 'spec_note' && completedTask.sourceEventId) {
+  if (isSpecWaveTask && completedTask.sourceEventId) {
     try {
       const gateWave = await getTaskWorkflowRuntime(
         fastify,

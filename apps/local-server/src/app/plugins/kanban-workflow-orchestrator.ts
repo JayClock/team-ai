@@ -1,10 +1,9 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
+import { cancelAcpSession } from '../services/acp-service';
 import {
-  cancelAcpSession,
-  createAcpSession,
-  promptAcpSession,
-} from '../services/acp-service';
+  createAcpSessionExecutionBoundary,
+} from '../services/acp-session-execution-boundary-service';
 import {
   createKanbanWorkflowOrchestrator,
   type KanbanWorkflowOrchestrator,
@@ -65,6 +64,12 @@ function buildKanbanTaskPrompt(
 const kanbanWorkflowOrchestratorPlugin: FastifyPluginAsync = async (
   fastify,
 ) => {
+  const executionBoundary = createAcpSessionExecutionBoundary({
+    broker: fastify.acpStreamBroker,
+    logger: fastify.log,
+    runtime: fastify.acpRuntime,
+    sqlite: fastify.sqlite,
+  });
   const orchestrator = createKanbanWorkflowOrchestrator({
     callbacks: {
       async cancelTaskSession(task, sessionId) {
@@ -82,13 +87,10 @@ const kanbanWorkflowOrchestratorPlugin: FastifyPluginAsync = async (
         );
       },
       async startTaskSession(task, column) {
-        const useProvider = fastify.acpRuntime.isConfigured(
+        const useProvider = await executionBoundary.isProviderAvailable(
           task.assignedProvider ?? '',
         );
-        const session = await createAcpSession(
-          fastify.sqlite,
-          fastify.acpStreamBroker,
-          fastify.acpRuntime,
+        const session = await executionBoundary.createSession(
           {
             actorUserId: 'desktop-user',
             codebaseId: task.codebaseId,
@@ -103,7 +105,6 @@ const kanbanWorkflowOrchestratorPlugin: FastifyPluginAsync = async (
             worktreeId: task.worktreeId,
           },
           {
-            logger: fastify.log,
             source: 'kanban_start_task_session',
           },
         );
@@ -138,17 +139,13 @@ const kanbanWorkflowOrchestratorPlugin: FastifyPluginAsync = async (
           triggerSessionId: session.id,
         });
 
-        void promptAcpSession(
-          fastify.sqlite,
-          fastify.acpStreamBroker,
-          fastify.acpRuntime,
+        void executionBoundary.promptSession(
           task.projectId,
           session.id,
           {
             prompt: buildKanbanTaskPrompt(task, column),
           },
           {
-            logger: fastify.log,
             source: 'kanban_prompt_task_session',
           },
         )
