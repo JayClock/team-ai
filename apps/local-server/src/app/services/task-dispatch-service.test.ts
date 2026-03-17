@@ -7,6 +7,7 @@ import { initializeDatabase } from '../db/sqlite';
 import { createProject } from './project-service';
 import { updateProjectRuntimeProfile } from './project-runtime-profile-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
+import { getOrCreateActiveDelegationGroup } from './delegation-group-service';
 import { createTask, getTaskById } from './task-service';
 import {
   dispatchTask,
@@ -412,6 +413,229 @@ describe('task dispatch service', () => {
       dispatched: true,
       reason: null,
       sessionId: 'acps_duplicate_child',
+    });
+    expect(createSession).toHaveBeenCalledTimes(1);
+    expect(promptSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates delegation group and wave metadata during batch dispatch', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Wave Dispatch Metadata Project',
+      repoPath: '/Users/example/wave-dispatch-metadata',
+    });
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/wave-dispatch-metadata',
+      id: 'acps_wave_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+    const group = await getOrCreateActiveDelegationGroup(sqlite, {
+      callerSessionId: 'acps_wave_parent',
+      parentSessionId: 'acps_wave_parent',
+      projectId: project.id,
+    });
+    const groupId = group.id;
+    const waveId = `${groupId}:implement`;
+    const firstTask = await createTask(sqlite, {
+      objective: 'Implement the first wave task',
+      parallelGroup: groupId,
+      projectId: project.id,
+      status: 'READY',
+      title: 'Wave task one',
+      sessionId: 'acps_wave_parent',
+    });
+    const secondTask = await createTask(sqlite, {
+      objective: 'Implement the second wave task',
+      parallelGroup: groupId,
+      parentTaskId: firstTask.id,
+      projectId: project.id,
+      status: 'READY',
+      title: 'Wave task two',
+      sessionId: 'acps_wave_parent',
+    });
+
+    let sessionCount = 0;
+    const createSession = vi.fn(async (input) => {
+      const id = `acps_wave_child_${++sessionCount}`;
+      insertAcpSession(sqlite, {
+        actorId: input.actorUserId,
+        cwd: '/Users/example/wave-dispatch-metadata',
+        id,
+        parentSessionId: input.parentSessionId,
+        projectId: project.id,
+        provider: input.provider,
+        taskId: input.taskId ?? undefined,
+      });
+      return { id };
+    });
+    const promptSession = vi.fn(async () => undefined);
+
+    const result = await dispatchTasks(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        callerSessionId: 'acps_wave_parent',
+        delegationGroupId: groupId,
+        projectId: project.id,
+        taskIds: [firstTask.id, secondTask.id],
+        waveId,
+      },
+    );
+
+    expect(result).toMatchObject({
+      delegationGroupId: groupId,
+      dispatchedCount: 2,
+      waveId,
+    });
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0]).toMatchObject({
+      delegationGroupId: groupId,
+      parentTaskId: null,
+      task: { id: firstTask.id },
+      waveId,
+    });
+    expect(result.results[1]).toMatchObject({
+      delegationGroupId: groupId,
+      parentTaskId: firstTask.id,
+      task: { id: secondTask.id },
+      waveId,
+    });
+    expect(createSession).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        delegationGroupId: groupId,
+        parentTaskId: null,
+        taskId: firstTask.id,
+        waveId,
+      }),
+    );
+    expect(createSession).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        delegationGroupId: groupId,
+        parentTaskId: firstTask.id,
+        taskId: secondTask.id,
+        waveId,
+      }),
+    );
+  });
+
+  it('blocks duplicate wave batch dispatches while the active wave is still running', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Wave Dispatch Claim Project',
+      repoPath: '/Users/example/wave-dispatch-claim',
+    });
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/wave-dispatch-claim',
+      id: 'acps_wave_claim_parent',
+      projectId: project.id,
+      provider: 'codex',
+    });
+    const group = await getOrCreateActiveDelegationGroup(sqlite, {
+      callerSessionId: 'acps_wave_claim_parent',
+      parentSessionId: 'acps_wave_claim_parent',
+      projectId: project.id,
+    });
+    const groupId = group.id;
+    const waveId = `${groupId}:implement`;
+    const task = await createTask(sqlite, {
+      objective: 'Dispatch exactly once for this wave',
+      parallelGroup: groupId,
+      projectId: project.id,
+      status: 'READY',
+      title: 'Claimed wave task',
+      sessionId: 'acps_wave_claim_parent',
+    });
+
+    let releaseCreateSession:
+      | ((value: { id: string }) => void)
+      | undefined;
+    const createSession = vi.fn(
+      async () =>
+        await new Promise<{ id: string }>((resolve) => {
+          releaseCreateSession = resolve;
+        }),
+    );
+    const promptSession = vi.fn(async () => undefined);
+
+    const firstDispatch = dispatchTasks(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        callerSessionId: 'acps_wave_claim_parent',
+        delegationGroupId: groupId,
+        projectId: project.id,
+        taskIds: [task.id],
+        waveId,
+      },
+    );
+
+    await vi.waitFor(() => {
+      expect(createSession).toHaveBeenCalledTimes(1);
+    });
+
+    const duplicateDispatch = await dispatchTasks(
+      sqlite,
+      {
+        createSession,
+        promptSession,
+      },
+      {
+        callerSessionId: 'acps_wave_claim_parent',
+        delegationGroupId: groupId,
+        projectId: project.id,
+        taskIds: [task.id],
+        waveId,
+      },
+    );
+
+    expect(duplicateDispatch).toMatchObject({
+      delegationGroupId: groupId,
+      dispatchedCount: 0,
+      waveId,
+    });
+    expect(duplicateDispatch.results).toHaveLength(1);
+    expect(duplicateDispatch.results[0]).toMatchObject({
+      delegationGroupId: groupId,
+      dispatched: false,
+      reason: 'TASK_ALREADY_DISPATCHING',
+      task: { id: task.id },
+      waveId,
+    });
+
+    if (!releaseCreateSession) {
+      throw new Error('Expected createSession to be waiting for resolution');
+    }
+
+    insertAcpSession(sqlite, {
+      actorId: 'desktop-user',
+      cwd: '/Users/example/wave-dispatch-claim',
+      id: 'acps_wave_claim_child',
+      parentSessionId: 'acps_wave_claim_parent',
+      projectId: project.id,
+      provider: 'codex',
+      taskId: task.id,
+    });
+    releaseCreateSession({
+      id: 'acps_wave_claim_child',
+    });
+
+    const firstResult = await firstDispatch;
+
+    expect(firstResult).toMatchObject({
+      delegationGroupId: groupId,
+      dispatchedCount: 1,
+      waveId,
     });
     expect(createSession).toHaveBeenCalledTimes(1);
     expect(promptSession).toHaveBeenCalledTimes(1);

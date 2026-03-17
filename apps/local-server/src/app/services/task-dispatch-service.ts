@@ -32,14 +32,17 @@ export interface DispatchTaskCallbacks {
     actorUserId: string;
     codebaseId?: string | null;
     cwd?: string | null;
+    delegationGroupId?: string | null;
     goal?: string;
     parentSessionId?: string | null;
+    parentTaskId?: string | null;
     projectId: string;
     provider: string;
     retryOfRunId?: string | null;
     role?: string | null;
     specialistId?: string;
     taskId?: string | null;
+    waveId?: string | null;
     worktreeId?: string | null;
   }): Promise<{ id: string }>;
   isProviderAvailable?(provider: string): Promise<boolean> | boolean;
@@ -52,13 +55,18 @@ export interface DispatchTaskCallbacks {
 
 export interface DispatchTaskInput {
   callerSessionId?: string;
+  delegationGroupId?: string | null;
+  parentTaskId?: string | null;
   retryOfRunId?: string | null;
   taskId: string;
+  waveId?: string | null;
 }
 
 export interface DispatchTaskResult {
+  delegationGroupId: string | null;
   dispatchability: TaskDispatchability;
   dispatched: boolean;
+  parentTaskId: string | null;
   prompt: string | null;
   provider: string | null;
   reason: 'TASK_ALREADY_DISPATCHING' | 'TASK_NOT_DISPATCHABLE' | null;
@@ -66,17 +74,24 @@ export interface DispatchTaskResult {
   sessionId: string | null;
   specialistId: string | null;
   task: TaskPayload;
+  waveId: string | null;
 }
 
 export interface DispatchTasksInput {
   callerSessionId?: string;
+  delegationGroupId?: string | null;
   limit?: number;
+  parentTaskId?: string | null;
   projectId: string;
+  taskIds?: string[];
+  waveId?: string | null;
 }
 
 export interface DispatchTasksResult {
+  delegationGroupId: string | null;
   dispatchedCount: number;
   results: DispatchTaskResult[];
+  waveId: string | null;
 }
 
 export interface DispatchTaskOptions {
@@ -87,6 +102,7 @@ export interface DispatchTaskOptions {
 }
 
 const activeDispatchClaims = new Set<string>();
+const activeDispatchWaveClaims = new Set<string>();
 
 function tryClaimTaskDispatch(taskId: string) {
   if (activeDispatchClaims.has(taskId)) {
@@ -99,6 +115,47 @@ function tryClaimTaskDispatch(taskId: string) {
 
 function releaseTaskDispatchClaim(taskId: string) {
   activeDispatchClaims.delete(taskId);
+}
+
+function resolveDispatchMetadata(input: DispatchTaskInput, task: TaskPayload) {
+  return {
+    delegationGroupId: input.delegationGroupId ?? task.parallelGroup ?? null,
+    parentTaskId: input.parentTaskId ?? task.parentTaskId ?? null,
+    waveId: input.waveId ?? null,
+  };
+}
+
+function buildWaveClaimKey(input: DispatchTasksInput) {
+  if (input.waveId?.trim()) {
+    return input.waveId.trim();
+  }
+
+  if (input.delegationGroupId?.trim()) {
+    return input.delegationGroupId.trim();
+  }
+
+  return null;
+}
+
+function tryClaimWaveDispatch(claimKey: string | null) {
+  if (!claimKey) {
+    return false;
+  }
+
+  if (activeDispatchWaveClaims.has(claimKey)) {
+    return true;
+  }
+
+  activeDispatchWaveClaims.add(claimKey);
+  return false;
+}
+
+function releaseWaveDispatchClaim(claimKey: string | null) {
+  if (!claimKey) {
+    return;
+  }
+
+  activeDispatchWaveClaims.delete(claimKey);
 }
 
 function buildTaskDispatchPrompt(task: TaskPayload) {
@@ -218,6 +275,8 @@ export async function dispatchTask(
     'prepare';
 
   if (!tryClaimTaskDispatch(initialTask.id)) {
+    const metadata = resolveDispatchMetadata(input, initialTask);
+
     logDiagnostic(
       options.logger,
       'warn',
@@ -234,8 +293,10 @@ export async function dispatchTask(
     );
 
     return {
+      delegationGroupId: metadata.delegationGroupId,
       dispatchability: await getTaskDispatchability(sqlite, initialTask.id),
       dispatched: false,
+      parentTaskId: metadata.parentTaskId,
       prompt: null,
       provider: initialTask.assignedProvider,
       reason: 'TASK_ALREADY_DISPATCHING',
@@ -243,6 +304,7 @@ export async function dispatchTask(
       sessionId: null,
       specialistId: null,
       task: initialTask,
+      waveId: metadata.waveId,
     };
   }
 
@@ -263,6 +325,8 @@ export async function dispatchTask(
     const dispatchability = policy.dispatchability;
 
     if (!policy.dispatchable || !policy.resolvedRole) {
+      const metadata = resolveDispatchMetadata(input, dispatchability.task);
+
       logDiagnostic(
         options.logger,
         'info',
@@ -288,8 +352,10 @@ export async function dispatchTask(
       );
 
       return {
+        delegationGroupId: metadata.delegationGroupId,
         dispatchability,
         dispatched: false,
+        parentTaskId: metadata.parentTaskId,
         prompt: null,
         provider: dispatchability.task.assignedProvider,
         reason: 'TASK_NOT_DISPATCHABLE',
@@ -297,6 +363,7 @@ export async function dispatchTask(
         sessionId: null,
         specialistId: dispatchability.task.assignedSpecialistId,
         task: dispatchability.task,
+        waveId: metadata.waveId,
       };
     }
     const dispatchContext = policy.dispatchContext;
@@ -362,6 +429,7 @@ export async function dispatchTask(
     );
     const workspace = await resolveTaskDispatchWorkspace(sqlite, hydratedTask);
     const prompt = buildTaskDispatchPrompt(hydratedTask);
+    const metadata = resolveDispatchMetadata(input, hydratedTask);
 
     logDiagnostic(
       options.logger,
@@ -382,14 +450,17 @@ export async function dispatchTask(
       actorUserId: dispatchContext.actorUserId,
       codebaseId: workspace.codebaseId,
       cwd: workspace.cwd,
+      delegationGroupId: metadata.delegationGroupId,
       goal: hydratedTask.title,
       parentSessionId: dispatchContext.parentSessionId,
+      parentTaskId: metadata.parentTaskId,
       projectId: hydratedTask.projectId,
       provider,
       retryOfRunId: input.retryOfRunId,
       role: policy.resolvedRole,
       specialistId: specialist.id,
       taskId: hydratedTask.id,
+      waveId: metadata.waveId,
       worktreeId: workspace.worktreeId,
     });
     const dispatchedTask = await updateTask(sqlite, hydratedTask.id, {
@@ -428,11 +499,13 @@ export async function dispatchTask(
     );
 
     return {
+      delegationGroupId: metadata.delegationGroupId,
       dispatchability: {
         ...dispatchability,
         task: dispatchedTask,
       },
       dispatched: true,
+      parentTaskId: metadata.parentTaskId,
       prompt,
       provider,
       reason: null,
@@ -440,6 +513,7 @@ export async function dispatchTask(
       sessionId: createdSession.id,
       specialistId: specialist.id,
       task: dispatchedTask,
+      waveId: metadata.waveId,
     };
   } catch (error) {
     const diagnostics = getErrorDiagnostics(error, 'TASK_DISPATCH_FAILED');
@@ -488,42 +562,128 @@ export async function dispatchTasks(
   input: DispatchTasksInput,
   options: DispatchTaskOptions = {},
 ): Promise<DispatchTasksResult> {
+  const waveClaimKey = buildWaveClaimKey(input);
+  const duplicateWaveDispatch = tryClaimWaveDispatch(waveClaimKey);
+  const limit = input.limit;
+  const taskIds = input.taskIds
+    ? [...new Set(input.taskIds.map((taskId) => taskId.trim()))].filter(Boolean)
+    : null;
   const runtimeProfile = await getProjectRuntimeProfile(
     sqlite,
     input.projectId,
   );
-  const candidates = await listDispatchableTasks(
-    sqlite,
-    {
-      projectId: input.projectId,
-    },
-    {
-      orchestrationMode: runtimeProfile.orchestrationMode,
-    },
-  );
-  const limit = input.limit ?? candidates.length;
-  const results: DispatchTaskResult[] = [];
 
-  for (const candidate of candidates.slice(0, limit)) {
-    results.push(
-      await dispatchTask(
-        sqlite,
-        callbacks,
-        {
-          callerSessionId: input.callerSessionId,
-          taskId: candidate.task.id,
-        },
-        options,
-      ),
+  if (duplicateWaveDispatch && taskIds) {
+    const claimedResults = await Promise.all(
+      taskIds.slice(0, limit ?? taskIds.length).map(async (taskId) => {
+        const task = await getTaskById(sqlite, taskId);
+        const metadata = resolveDispatchMetadata(
+          {
+            callerSessionId: input.callerSessionId,
+            delegationGroupId: input.delegationGroupId,
+            parentTaskId: input.parentTaskId,
+            taskId,
+            waveId: input.waveId,
+          },
+          task,
+        );
+
+        return {
+          delegationGroupId: metadata.delegationGroupId,
+          dispatchability: await getTaskDispatchability(sqlite, task.id, {
+            orchestrationMode: runtimeProfile.orchestrationMode,
+          }),
+          dispatched: false,
+          parentTaskId: metadata.parentTaskId,
+          prompt: null,
+          provider: task.assignedProvider,
+          reason: 'TASK_ALREADY_DISPATCHING' as const,
+          role: task.assignedRole,
+          sessionId: null,
+          specialistId: task.assignedSpecialistId,
+          task,
+          waveId: metadata.waveId,
+        };
+      }),
     );
+
+    return {
+      delegationGroupId: input.delegationGroupId ?? null,
+      dispatchedCount: 0,
+      results: claimedResults,
+      waveId: input.waveId ?? null,
+    };
   }
 
-  return {
-    dispatchedCount: results.filter((result) => result.dispatched).length,
-    results,
-  };
+  try {
+    const candidates = taskIds
+      ? (
+          await Promise.all(
+            taskIds.map(async (taskId) => {
+              const task = await getTaskById(sqlite, taskId);
+
+              if (task.projectId !== input.projectId) {
+                throw new ProblemError({
+                  type: 'https://team-ai.dev/problems/task-project-mismatch',
+                  title: 'Task Project Mismatch',
+                  status: 409,
+                  detail:
+                    `Task ${task.id} does not belong to project ${input.projectId}`,
+                });
+              }
+
+              return {
+                dispatchable: await getTaskDispatchability(sqlite, task.id, {
+                  orchestrationMode: runtimeProfile.orchestrationMode,
+                }),
+                task,
+              };
+            }),
+          )
+        ).map((entry) => entry.dispatchable)
+      : await listDispatchableTasks(
+          sqlite,
+          {
+            projectId: input.projectId,
+          },
+          {
+            orchestrationMode: runtimeProfile.orchestrationMode,
+          },
+        );
+    const boundedCandidates = candidates.slice(0, limit ?? candidates.length);
+    const results: DispatchTaskResult[] = [];
+
+    for (const candidate of boundedCandidates) {
+      results.push(
+        await dispatchTask(
+          sqlite,
+          callbacks,
+          {
+            callerSessionId: input.callerSessionId,
+            delegationGroupId:
+              input.delegationGroupId ?? candidate.task.parallelGroup ?? null,
+            parentTaskId:
+              input.parentTaskId ?? candidate.task.parentTaskId ?? null,
+            taskId: candidate.task.id,
+            waveId: input.waveId,
+          },
+          options,
+        ),
+      );
+    }
+
+    return {
+      delegationGroupId: input.delegationGroupId ?? null,
+      dispatchedCount: results.filter((result) => result.dispatched).length,
+      results,
+      waveId: input.waveId ?? null,
+    };
+  } finally {
+    releaseWaveDispatchClaim(waveClaimKey);
+  }
 }
 
 export function resetTaskDispatchClaimsForTest() {
   activeDispatchClaims.clear();
+  activeDispatchWaveClaims.clear();
 }

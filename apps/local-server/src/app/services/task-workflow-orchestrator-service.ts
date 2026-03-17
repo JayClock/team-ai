@@ -18,7 +18,7 @@ import type {
   DispatchTaskResult,
   DispatchTasksResult,
 } from './task-dispatch-service';
-import { dispatchTask } from './task-dispatch-service';
+import { dispatchTasks } from './task-dispatch-service';
 import {
   findSpecNoteByScope,
   getNoteById,
@@ -299,33 +299,37 @@ async function readyWaveTasks(
 async function dispatchWaveTasks(
   sqlite: Database,
   callbacks: TaskExecutionRuntime,
+  note: NotePayload,
   tasks: TaskPayload[],
+  waveKind: TaskWorkflowWaveKind,
   options: SyncSpecAndDispatchReadyTasksOptions,
 ) {
-  const dispatchResults: DispatchTaskResult[] = [];
+  const readyTaskIds = tasks
+    .filter((task) => task.status === 'READY')
+    .map((task) => task.id);
 
-  for (const task of tasks) {
-    if (task.status !== 'READY') {
-      continue;
-    }
-
-    dispatchResults.push(
-      await dispatchTask(
-        sqlite,
-        callbacks,
-        {
-          callerSessionId: options.callerSessionId,
-          taskId: task.id,
-        },
-        {
-          logger: options.logger,
-          source: options.source,
-        },
-      ),
-    );
+  if (readyTaskIds.length === 0) {
+    return [];
   }
 
-  return dispatchResults;
+  const result = await dispatchTasks(
+    sqlite,
+    callbacks,
+    {
+      callerSessionId: options.callerSessionId,
+      delegationGroupId: buildDelegationGroupId(note.id),
+      limit: options.limit,
+      projectId: note.projectId,
+      taskIds: readyTaskIds,
+      waveId: buildWaveId(note.id, waveKind),
+    },
+    {
+      logger: options.logger,
+      source: options.source,
+    },
+  );
+
+  return result.results;
 }
 
 function buildWaveResult(input: {
@@ -395,8 +399,6 @@ export function createTaskWorkflowOrchestrator(
       projectId: string,
       options: DispatchReadyTasksOptions = {},
     ) {
-      const { dispatchTasks } = await import('./task-dispatch-service.js');
-
       return await dispatchTasks(
         dependencies.sqlite,
         callbacks,
@@ -428,7 +430,9 @@ export function createTaskWorkflowOrchestrator(
       const dispatchResults = await dispatchWaveTasks(
         dependencies.sqlite,
         callbacks,
+        note,
         readyTasks.slice(0, options.limit ?? readyTasks.length),
+        'implement',
         options,
       );
       const refreshedTasks = await listSpecNoteTasks(dependencies.sqlite, note.id);
@@ -484,7 +488,9 @@ export function createTaskWorkflowOrchestrator(
       const dispatchResults = await dispatchWaveTasks(
         dependencies.sqlite,
         callbacks,
+        note,
         readyTasks.slice(0, options.limit ?? readyTasks.length),
+        'gate',
         options,
       );
       const refreshedTasks = await listSpecNoteTasks(dependencies.sqlite, note.id);
