@@ -11,14 +11,10 @@ import type {
   WorkflowRunStatus,
   WorkflowStepPayload,
 } from '../schemas/workflow';
-import { createBackgroundTask } from './background-task-service';
 import { getProjectById } from './project-service';
+import { triggerWorkflowRun } from './workflow-runtime-service';
 
 const workflowIdGenerator = customAlphabet(
-  '0123456789abcdefghijklmnopqrstuvwxyz',
-  12,
-);
-const workflowRunIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
   12,
 );
@@ -72,10 +68,6 @@ interface WorkflowRunProgress {
 
 function createWorkflowId() {
   return `wf_${workflowIdGenerator()}`;
-}
-
-function createWorkflowRunId() {
-  return `wfr_${workflowRunIdGenerator()}`;
 }
 
 function parseWorkflowSteps(value: string): WorkflowStepPayload[] {
@@ -394,52 +386,6 @@ export async function listWorkflowRuns(
   };
 }
 
-function groupStepsByParallel(steps: WorkflowStepPayload[]) {
-  const groups: WorkflowStepPayload[][] = [];
-  let currentGroup: WorkflowStepPayload[] = [];
-  let currentParallelGroup: string | null = null;
-
-  for (const step of steps) {
-    if (step.parallelGroup) {
-      if (step.parallelGroup === currentParallelGroup) {
-        currentGroup.push(step);
-      } else {
-        if (currentGroup.length > 0) {
-          groups.push(currentGroup);
-        }
-        currentGroup = [step];
-        currentParallelGroup = step.parallelGroup;
-      }
-    } else {
-      if (currentGroup.length > 0) {
-        groups.push(currentGroup);
-      }
-      groups.push([step]);
-      currentGroup = [];
-      currentParallelGroup = null;
-    }
-  }
-
-  if (currentGroup.length > 0) {
-    groups.push(currentGroup);
-  }
-
-  return groups;
-}
-
-function buildStepPrompt(
-  step: WorkflowStepPayload,
-  input: {
-    triggerPayload?: string | null;
-    workflowName: string;
-  },
-) {
-  return step.prompt.replaceAll('${trigger.payload}', input.triggerPayload ?? '').replaceAll(
-    '${workflow.name}',
-    input.workflowName,
-  );
-}
-
 export async function triggerWorkflow(
   sqlite: Database,
   workflowId: string,
@@ -449,72 +395,12 @@ export async function triggerWorkflow(
   workflow: WorkflowDefinitionPayload;
   workflowRun: WorkflowRunPayload;
 }> {
-  const workflow = await getWorkflowById(sqlite, workflowId);
-  const now = new Date().toISOString();
-  const workflowRunId = createWorkflowRunId();
-
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_workflow_runs (
-          id, workflow_id, project_id, workflow_name, workflow_version, status,
-          trigger_source, trigger_payload, current_step_name, total_steps,
-          started_at, completed_at, created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @workflowId, @projectId, @workflowName, @workflowVersion, 'RUNNING',
-          @triggerSource, @triggerPayload, @currentStepName, @totalSteps,
-          @startedAt, NULL, @createdAt, @updatedAt, NULL
-        )
-      `,
-    )
-    .run({
-      createdAt: now,
-      currentStepName: workflow.steps[0]?.name ?? null,
-      id: workflowRunId,
-      projectId: workflow.projectId,
-      startedAt: now,
-      totalSteps: workflow.steps.length,
-      triggerPayload: input.triggerPayload ?? null,
-      triggerSource: input.triggerSource ?? 'manual',
-      updatedAt: now,
-      workflowId: workflow.id,
-      workflowName: workflow.name,
-      workflowVersion: workflow.version,
-    });
-
-  const taskIds: string[] = [];
-  let previousTaskIds: string[] = [];
-
-  for (const group of groupStepsByParallel(workflow.steps)) {
-    const groupTaskIds: string[] = [];
-
-    for (const step of group) {
-      const task = await createBackgroundTask(sqlite, {
-        agentId: step.specialistId,
-        dependsOnTaskIds: previousTaskIds,
-        projectId: workflow.projectId,
-        prompt: buildStepPrompt(step, {
-          triggerPayload: input.triggerPayload,
-          workflowName: workflow.name,
-        }),
-        title: `[${workflow.name}] ${step.name}`,
-        triggerSource: 'workflow',
-        triggeredBy: `workflow:${workflow.name}`,
-        workflowRunId,
-        workflowStepName: step.name,
-      });
-
-      groupTaskIds.push(task.id);
-      taskIds.push(task.id);
-    }
-
-    previousTaskIds = groupTaskIds;
-  }
+  const triggered = await triggerWorkflowRun(sqlite, workflowId, input);
 
   return {
-    taskIds,
-    workflow,
-    workflowRun: getWorkflowRunById(sqlite, workflowRunId),
+    taskIds: triggered.taskIds,
+    workflow: triggered.workflow,
+    workflowRun: getWorkflowRunById(sqlite, triggered.workflowRunId),
   };
 }
 
