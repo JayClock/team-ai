@@ -104,6 +104,57 @@ interface WorkflowDefinitionSummary {
   }>;
 }
 
+interface ScheduleList {
+  _embedded?: {
+    schedules?: ScheduleSummary[];
+  };
+}
+
+interface ScheduleSummary {
+  cronExpr: string;
+  enabled: boolean;
+  id: string;
+  lastRunAt: string | null;
+  lastWorkflowRunId: string | null;
+  name: string;
+  nextRunAt: string | null;
+  workflowId: string;
+}
+
+interface WebhookConfigList {
+  _embedded?: {
+    webhookConfigs?: WebhookConfigSummary[];
+  };
+}
+
+interface WebhookConfigSummary {
+  enabled: boolean;
+  eventTypes: string[];
+  id: string;
+  name: string;
+  repo: string;
+  webhookSecretConfigured: boolean;
+  workflowId: string;
+}
+
+interface WebhookLogList {
+  _embedded?: {
+    webhookLogs?: WebhookLogSummary[];
+  };
+}
+
+interface WebhookLogSummary {
+  configId: string;
+  createdAt: string;
+  errorMessage: string | null;
+  eventAction: string | null;
+  eventType: string;
+  id: string;
+  outcome: 'error' | 'skipped' | 'triggered';
+  signatureValid: boolean;
+  workflowRunId: string | null;
+}
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return 'N/A';
@@ -123,6 +174,18 @@ function formatDateTime(value: string | null | undefined) {
   });
 }
 
+function formatWebhookLogMeta(log: WebhookLogSummary) {
+  const execution = log.workflowRunId
+    ? log.workflowRunId
+    : log.signatureValid
+      ? 'no workflow run'
+      : 'invalid signature';
+
+  return `${log.configId} · ${formatDateTime(log.createdAt)} · ${execution}${
+    log.errorMessage ? ` · ${log.errorMessage}` : ''
+  }`;
+}
+
 export default function ProjectOrchestrationPage() {
   const navigate = useNavigate();
   const { projectId } = useParams();
@@ -133,10 +196,15 @@ export default function ProjectOrchestrationPage() {
   const [workflowDefinitions, setWorkflowDefinitions] = useState<
     WorkflowDefinitionSummary[]
   >([]);
-  const [loading, setLoading] = useState(true);
-  const [pendingAction, setPendingAction] = useState<'process' | 'refresh' | null>(
-    null,
+  const [schedules, setSchedules] = useState<ScheduleSummary[]>([]);
+  const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfigSummary[]>(
+    [],
   );
+  const [webhookLogs, setWebhookLogs] = useState<WebhookLogSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingAction, setPendingAction] = useState<
+    'process' | 'refresh' | 'tickSchedules' | null
+  >(null);
 
   const loadData = useCallback(async () => {
     if (!projectId) {
@@ -146,9 +214,18 @@ export default function ProjectOrchestrationPage() {
     setLoading(true);
 
     try {
-      const [snapshotResponse, workflowsResponse] = await Promise.all([
+      const [
+        snapshotResponse,
+        workflowsResponse,
+        schedulesResponse,
+        webhookConfigsResponse,
+        webhookLogsResponse,
+      ] = await Promise.all([
         runtimeFetch(`/api/background-tasks/status?projectId=${projectId}`),
         runtimeFetch(`/api/projects/${projectId}/workflows`),
+        runtimeFetch(`/api/projects/${projectId}/schedules`),
+        runtimeFetch(`/api/webhooks/configs?projectId=${projectId}`),
+        runtimeFetch(`/api/webhooks/webhook-logs?projectId=${projectId}&limit=20`),
       ]);
 
       if (!snapshotResponse.ok) {
@@ -157,11 +234,28 @@ export default function ProjectOrchestrationPage() {
       if (!workflowsResponse.ok) {
         throw new Error('加载 workflows 失败');
       }
+      if (!schedulesResponse.ok) {
+        throw new Error('加载 schedules 失败');
+      }
+      if (!webhookConfigsResponse.ok) {
+        throw new Error('加载 webhook configs 失败');
+      }
+      if (!webhookLogsResponse.ok) {
+        throw new Error('加载 webhook logs 失败');
+      }
 
       const snapshotPayload = (await snapshotResponse.json()) as OrchestrationSnapshot;
       const workflowsPayload = (await workflowsResponse.json()) as WorkflowDefinitionList;
+      const schedulesPayload = (await schedulesResponse.json()) as ScheduleList;
+      const webhookConfigsPayload =
+        (await webhookConfigsResponse.json()) as WebhookConfigList;
+      const webhookLogsPayload = (await webhookLogsResponse.json()) as WebhookLogList;
+
       setSnapshot(snapshotPayload);
       setWorkflowDefinitions(workflowsPayload._embedded?.workflows ?? []);
+      setSchedules(schedulesPayload._embedded?.schedules ?? []);
+      setWebhookConfigs(webhookConfigsPayload._embedded?.webhookConfigs ?? []);
+      setWebhookLogs(webhookLogsPayload._embedded?.webhookLogs ?? []);
     } finally {
       setLoading(false);
     }
@@ -189,6 +283,21 @@ export default function ProjectOrchestrationPage() {
   const handleRefresh = useCallback(async () => {
     setPendingAction('refresh');
     try {
+      await loadData();
+    } finally {
+      setPendingAction(null);
+    }
+  }, [loadData]);
+
+  const handleTickSchedules = useCallback(async () => {
+    setPendingAction('tickSchedules');
+    try {
+      const response = await runtimeFetch('/api/schedules/tick', {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error('触发 schedules tick 失败');
+      }
       await loadData();
     } finally {
       setPendingAction(null);
@@ -226,7 +335,7 @@ export default function ProjectOrchestrationPage() {
               {projectTitle(projectState)}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              项目级 queue、workflow、trace 与 Kanban automation 总览。
+              项目级 queue、workflow、trace、schedule 与 webhook 运行态总览。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -238,13 +347,20 @@ export default function ProjectOrchestrationPage() {
             </Button>
             <Button
               variant="outline"
-              disabled={pendingAction === 'process'}
+              disabled={pendingAction === 'process' || pendingAction === 'tickSchedules'}
               onClick={() => void handleRefresh()}
             >
               {pendingAction === 'refresh' ? '刷新中...' : '刷新'}
             </Button>
             <Button
-              disabled={pendingAction === 'refresh'}
+              variant="outline"
+              disabled={pendingAction === 'process' || pendingAction === 'refresh'}
+              onClick={() => void handleTickSchedules()}
+            >
+              {pendingAction === 'tickSchedules' ? 'Tick 中...' : 'Tick Schedules'}
+            </Button>
+            <Button
+              disabled={pendingAction === 'refresh' || pendingAction === 'tickSchedules'}
               onClick={() => void handleProcessQueue()}
             >
               {pendingAction === 'process' ? '处理中...' : '处理队列'}
@@ -252,7 +368,7 @@ export default function ProjectOrchestrationPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           <SummaryCard
             label="Worker"
             value={
@@ -272,12 +388,22 @@ export default function ProjectOrchestrationPage() {
           <SummaryCard
             label="Workflow"
             value={`${snapshot?.workflows.runningRunCount ?? 0} running`}
-            meta={`${workflowDefinitions?.length ?? 0} definitions`}
+            meta={`${workflowDefinitions.length} definitions`}
           />
           <SummaryCard
             label="Trace"
             value={`${snapshot?.traces.totalCount ?? 0} events`}
             meta={`${snapshot?.traces.uniqueSessions ?? 0} sessions`}
+          />
+          <SummaryCard
+            label="Schedules"
+            value={`${schedules.filter((schedule) => schedule.enabled).length} enabled`}
+            meta={`${schedules.length} total`}
+          />
+          <SummaryCard
+            label="Webhooks"
+            value={`${webhookConfigs.filter((config) => config.enabled).length} enabled`}
+            meta={`${webhookLogs.length} recent logs`}
           />
         </div>
 
@@ -429,7 +555,7 @@ export default function ProjectOrchestrationPage() {
             <CardTitle>Workflow Definitions</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
-            {workflowDefinitions?.length ? (
+            {workflowDefinitions.length ? (
               workflowDefinitions.map((workflow) => (
                 <div
                   key={workflow.id}
@@ -456,6 +582,129 @@ export default function ProjectOrchestrationPage() {
             ) : (
               <div className="text-sm text-muted-foreground">
                 当前项目还没有 workflow definition。
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+          <Card className="rounded-2xl shadow-none">
+            <CardHeader>
+              <CardTitle>Schedules</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {schedules.length ? (
+                schedules.map((schedule) => (
+                  <div
+                    key={schedule.id}
+                    className="rounded-xl border border-border/60 bg-muted/20 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium">{schedule.name}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {schedule.cronExpr}
+                        </div>
+                      </div>
+                      <Badge variant={schedule.enabled ? 'secondary' : 'outline'}>
+                        {schedule.enabled ? 'enabled' : 'disabled'}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <SummaryCard
+                        compact
+                        label="Next"
+                        value={formatDateTime(schedule.nextRunAt)}
+                        meta={schedule.workflowId}
+                      />
+                      <SummaryCard
+                        compact
+                        label="Last"
+                        value={formatDateTime(schedule.lastRunAt)}
+                        meta={schedule.lastWorkflowRunId ?? 'no run'}
+                      />
+                      <SummaryCard
+                        compact
+                        label="Status"
+                        value={schedule.enabled ? 'active' : 'paused'}
+                        meta={schedule.id}
+                      />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  当前项目还没有 schedule。
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl shadow-none">
+            <CardHeader>
+              <CardTitle>Webhook Configs</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {webhookConfigs.length ? (
+                webhookConfigs.map((config) => (
+                  <div
+                    key={config.id}
+                    className="rounded-xl border border-border/60 bg-muted/20 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium">{config.name}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {config.repo}
+                        </div>
+                      </div>
+                      <Badge variant={config.enabled ? 'secondary' : 'outline'}>
+                        {config.enabled ? 'enabled' : 'disabled'}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {config.eventTypes.map((eventType) => (
+                        <Badge key={`${config.id}-${eventType}`} variant="outline">
+                          {eventType}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="mt-3 text-xs text-muted-foreground">
+                      {config.webhookSecretConfigured
+                        ? 'secret configured'
+                        : 'secret missing'}{' '}
+                      · {config.workflowId}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  当前项目还没有 webhook config。
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="rounded-2xl shadow-none">
+          <CardHeader>
+            <CardTitle>Recent Webhook Logs</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {webhookLogs.length ? (
+              webhookLogs.map((log) => (
+                <QueueRow
+                  key={log.id}
+                  label={log.outcome}
+                  title={`${log.eventType}${
+                    log.eventAction ? ` · ${log.eventAction}` : ''
+                  }`}
+                  meta={formatWebhookLogMeta(log)}
+                />
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                当前项目还没有 webhook log。
               </div>
             )}
           </CardContent>
