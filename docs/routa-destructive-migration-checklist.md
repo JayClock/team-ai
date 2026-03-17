@@ -84,11 +84,11 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 
 ### Workflow
 
-- [ ] Add `workflow_definitions` and `workflow_runs`
+- [x] Add `workflow_definitions` and `workflow_runs`
 - [ ] Implement a workflow loader
 - [ ] Implement a workflow executor aligned to [`routa/src/core/workflows/workflow-executor.ts`](/Users/zhongjie/Documents/GitHub/team-ai/routa/src/core/workflows/workflow-executor.ts)
-- [ ] Support `parallel_group` and step dependency execution
-- [ ] Add `/api/workflows`
+- [x] Support `parallel_group` and step dependency execution
+- [x] Add `/api/workflows`
 
 ### Schedule
 
@@ -133,7 +133,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Replace task schema: [`apps/local-server/src/app/schemas/task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/task.ts)
 - [x] Add `kanban.ts`: [`apps/local-server/src/app/schemas/kanban.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/kanban.ts)
 - [x] Add `background-task.ts`: [`apps/local-server/src/app/schemas/background-task.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/background-task.ts)
-- [ ] Add `workflow.ts`: [`apps/local-server/src/app/schemas/workflow.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/workflow.ts)
+- [x] Add `workflow.ts`: [`apps/local-server/src/app/schemas/workflow.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/workflow.ts)
 - [ ] Add `schedule.ts`: [`apps/local-server/src/app/schemas/schedule.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/schedule.ts)
 - [ ] Add `webhook.ts`: [`apps/local-server/src/app/schemas/webhook.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/webhook.ts)
 - [ ] Remove or retire `task-run.ts`: [`apps/local-server/src/app/schemas/task-run.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/schemas/task-run.ts)
@@ -171,7 +171,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Remove task-run routes: [`apps/local-server/src/app/routes/task-runs.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/task-runs.ts)
 - [x] Add `kanban.ts`: [`apps/local-server/src/app/routes/kanban.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/kanban.ts)
 - [x] Add `background-tasks.ts`: [`apps/local-server/src/app/routes/background-tasks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/background-tasks.ts)
-- [ ] Add `workflows.ts`: [`apps/local-server/src/app/routes/workflows.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/workflows.ts)
+- [x] Add `workflows.ts`: [`apps/local-server/src/app/routes/workflows.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/workflows.ts)
 - [ ] Add `schedules.ts`: [`apps/local-server/src/app/routes/schedules.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/schedules.ts)
 - [ ] Add `webhooks.ts`: [`apps/local-server/src/app/routes/webhooks.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/webhooks.ts)
 - [ ] Register new routes in [`apps/local-server/src/app/app.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/app.ts)
@@ -188,7 +188,7 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [ ] Remove `task-run-presenter.ts`: [`apps/local-server/src/app/presenters/task-run-presenter.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/presenters/task-run-presenter.ts)
 - [x] Add `kanban-presenter.ts`: [`apps/local-server/src/app/presenters/kanban-presenter.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/presenters/kanban-presenter.ts)
 - [x] Add `background-task-presenter.ts`: [`apps/local-server/src/app/presenters/background-task-presenter.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/presenters/background-task-presenter.ts)
-- [ ] Add `workflow-presenter.ts`: [`apps/local-server/src/app/presenters/workflow-presenter.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/presenters/workflow-presenter.ts)
+- [x] Add `workflow-presenter.ts`: [`apps/local-server/src/app/presenters/workflow-presenter.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/presenters/workflow-presenter.ts)
 - [ ] Clean old media types in [`apps/local-server/src/app/vendor-media-types.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/vendor-media-types.ts)
 
 ### Stage 9: Frontend
@@ -254,4 +254,14 @@ Goal: cut the application over from the old task orchestrator to the new foundat
 - [x] Add [`apps/local-server/src/app/services/background-worker-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/background-worker-service.ts) with `dispatchPending` and `checkCompletions`
 - [x] Validate the worker path with `npx vitest run src/app/services/background-worker-service.test.ts src/app/routes/background-tasks.test.ts`
 - [ ] Reuse ACP session integration from [`apps/local-server/src/app/services/acp-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/acp-service.ts)
+- [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)
+
+### Phase 6
+
+- [x] Read `routa` workflow executor and workflow/schedule route implementations before coding
+- [x] Add workflow schema, SQLite tables, and presenter support for definitions and runs
+- [x] Add [`apps/local-server/src/app/services/workflow-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/workflow-service.ts) to create workflow definitions, create runs, and expand workflow steps into background tasks
+- [x] Add [`apps/local-server/src/app/routes/workflows.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/routes/workflows.ts) for workflow CRUD-lite and trigger endpoints
+- [x] Validate workflow schema, service, and route coverage with `npx vitest run src/app/db/sqlite.test.ts src/app/services/workflow-service.test.ts src/app/routes/workflows.test.ts`
+- [ ] Implement a dedicated workflow loader service
 - [ ] Remove the remaining pre-existing TypeScript error in [`apps/local-server/src/app/services/task-dispatch-service.ts`](/Users/zhongjie/Documents/GitHub/team-ai/apps/local-server/src/app/services/task-dispatch-service.ts)

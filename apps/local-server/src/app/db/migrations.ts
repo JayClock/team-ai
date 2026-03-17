@@ -804,4 +804,57 @@ export const sqliteMigrations: SqliteMigration[] = [
         WHERE deleted_at IS NULL;
     `,
   },
+  {
+    version: '027_project_workflows',
+    sql: `
+      CREATE TABLE IF NOT EXISTS project_workflow_definitions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        version INTEGER NOT NULL DEFAULT 1,
+        steps_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_workflow_definitions_project_id
+        ON project_workflow_definitions(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_project_workflow_definitions_project_name
+        ON project_workflow_definitions(project_id, name)
+        WHERE deleted_at IS NULL;
+
+      CREATE TABLE IF NOT EXISTS project_workflow_runs (
+        id TEXT PRIMARY KEY,
+        workflow_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        workflow_name TEXT NOT NULL,
+        workflow_version INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        trigger_source TEXT NOT NULL,
+        trigger_payload TEXT,
+        current_step_name TEXT,
+        total_steps INTEGER NOT NULL DEFAULT 0,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deleted_at TEXT,
+        FOREIGN KEY (workflow_id) REFERENCES project_workflow_definitions(id),
+        FOREIGN KEY (project_id) REFERENCES projects(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_project_workflow_runs_workflow_id
+        ON project_workflow_runs(workflow_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_workflow_runs_project_id
+        ON project_workflow_runs(project_id, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

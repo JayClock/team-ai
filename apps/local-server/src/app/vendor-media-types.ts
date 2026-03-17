@@ -43,6 +43,10 @@ export const VENDOR_MEDIA_TYPES = {
   taskRuns: vendorMediaType('task-runs'),
   tasks: vendorMediaType('tasks'),
   user: vendorMediaType('user'),
+  workflow: vendorMediaType('workflow'),
+  workflowRun: vendorMediaType('workflow-run'),
+  workflowRuns: vendorMediaType('workflow-runs'),
+  workflows: vendorMediaType('workflows'),
   worktree: vendorMediaType('worktree'),
   worktrees: vendorMediaType('worktrees'),
 } as const;

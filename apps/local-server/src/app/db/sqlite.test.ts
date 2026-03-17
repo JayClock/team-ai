@@ -78,6 +78,12 @@ describe('sqlite initialization', () => {
     const delegationGroupColumns = sqlite
       .prepare('PRAGMA table_info(project_delegation_groups)')
       .all() as Array<{ name: string }>;
+    const workflowDefinitionColumns = sqlite
+      .prepare('PRAGMA table_info(project_workflow_definitions)')
+      .all() as Array<{ name: string }>;
+    const workflowRunColumns = sqlite
+      .prepare('PRAGMA table_info(project_workflow_runs)')
+      .all() as Array<{ name: string }>;
     const worktreeIndexes = sqlite
       .prepare('PRAGMA index_list(project_worktrees)')
       .all() as Array<{ name: string }>;
@@ -89,6 +95,12 @@ describe('sqlite initialization', () => {
       .all() as Array<{ name: string }>;
     const delegationGroupIndexes = sqlite
       .prepare('PRAGMA index_list(project_delegation_groups)')
+      .all() as Array<{ name: string }>;
+    const workflowDefinitionIndexes = sqlite
+      .prepare('PRAGMA index_list(project_workflow_definitions)')
+      .all() as Array<{ name: string }>;
+    const workflowRunIndexes = sqlite
+      .prepare('PRAGMA index_list(project_workflow_runs)')
       .all() as Array<{ name: string }>;
 
     expect(tables.map(({ name }) => name)).toEqual([
@@ -106,6 +118,8 @@ describe('sqlite initialization', () => {
       'project_runtime_profiles',
       'project_task_runs',
       'project_tasks',
+      'project_workflow_definitions',
+      'project_workflow_runs',
       'project_worktrees',
       'projects',
       'schema_migrations',
@@ -267,6 +281,34 @@ describe('sqlite initialization', () => {
       'session_ids_json',
       'failure_reason',
     ]);
+    expect(workflowDefinitionColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'project_id',
+      'name',
+      'description',
+      'version',
+      'steps_json',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ]);
+    expect(workflowRunColumns.map(({ name }) => name)).toEqual([
+      'id',
+      'workflow_id',
+      'project_id',
+      'workflow_name',
+      'workflow_version',
+      'status',
+      'trigger_source',
+      'trigger_payload',
+      'current_step_name',
+      'total_steps',
+      'started_at',
+      'completed_at',
+      'created_at',
+      'updated_at',
+      'deleted_at',
+    ]);
     expect(worktreeIndexes.map(({ name }) => name)).toEqual(
       expect.arrayContaining([
         'idx_project_worktrees_project_id',
@@ -294,6 +336,18 @@ describe('sqlite initialization', () => {
         'idx_project_delegation_groups_project_id',
         'idx_project_delegation_groups_caller_session_id',
         'idx_project_delegation_groups_open_caller',
+      ]),
+    );
+    expect(workflowDefinitionIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_workflow_definitions_project_id',
+        'idx_project_workflow_definitions_project_name',
+      ]),
+    );
+    expect(workflowRunIndexes.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'idx_project_workflow_runs_workflow_id',
+        'idx_project_workflow_runs_project_id',
       ]),
     );
 
