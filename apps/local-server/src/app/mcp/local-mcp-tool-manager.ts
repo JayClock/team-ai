@@ -34,13 +34,14 @@ export class LocalMcpToolManager {
       return;
     }
 
-    const registerTool = server.registerTool as unknown as (
-      name: string,
-      definition: object,
-      callback: (args: unknown) => Promise<object>,
-    ) => void;
-
-    registerTool(
+    (
+      server.registerTool as unknown as (
+        name: string,
+        definition: object,
+        callback: (args: unknown) => Promise<object>,
+      ) => void
+    ).call(
+      server,
       toolDefinition.tool.name,
       {
         annotations: toolDefinition.tool.annotations,

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../../db/sqlite';
 import type { AcpRuntimeClient } from '../../clients/acp-runtime-client';
 import type { AcpStreamBroker } from '../../plugins/acp-stream';
+import { getTaskWorkflowRuntime } from '../task-workflow-runtime';
 import { insertAcpSession } from '../../test-support/acp-session-fixture';
 import { readAgentConversation } from '../../services/acp-conversation-service';
 import { applyFlowTemplate } from '../../services/apply-flow-template-service';
@@ -20,10 +21,16 @@ import { createTask, listTasks, updateTask } from '../../services/task-service';
 import { startTaskRun } from '../../services/task-run-service';
 import { createReportToParentHandler } from './task-handlers';
 
+vi.mock('../task-workflow-runtime', () => ({
+  getTaskWorkflowRuntime: vi.fn(),
+}));
+
 describe('createReportToParentHandler', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];
 
   afterEach(async () => {
+    vi.mocked(getTaskWorkflowRuntime).mockReset();
+
     while (cleanupTasks.length > 0) {
       const cleanup = cleanupTasks.pop();
       if (cleanup) {
@@ -124,6 +131,10 @@ describe('createReportToParentHandler', () => {
       }),
     }));
 
+    vi.mocked(getTaskWorkflowRuntime).mockReturnValue({
+      executeTask,
+    } as ReturnType<typeof getTaskWorkflowRuntime>);
+
     const handler = createReportToParentHandler(
       {
         acpRuntime: {
@@ -133,16 +144,12 @@ describe('createReportToParentHandler', () => {
         acpStreamBroker: {
           publish: vi.fn(),
         } as unknown as AcpStreamBroker,
-        hasDecorator: vi.fn((name: string) => name === 'taskWorkflowOrchestrator'),
         log: {
           error: vi.fn(),
           info: vi.fn(),
           warn: vi.fn(),
         } as unknown as FastifyBaseLogger,
         sqlite,
-        taskWorkflowOrchestrator: {
-          executeTask,
-        },
       } as FastifyInstance,
     );
 
@@ -320,6 +327,13 @@ describe('createReportToParentHandler', () => {
       waveKind: 'gate' as const,
     }));
 
+    vi.mocked(getTaskWorkflowRuntime).mockReturnValue({
+      dispatchGateTasksForCompletedWave,
+      executeTask: vi.fn(async () => {
+        throw new Error('executeTask should not be used for spec gate wave handoff');
+      }),
+    } as ReturnType<typeof getTaskWorkflowRuntime>);
+
     const handler = createReportToParentHandler(
       {
         acpRuntime: {
@@ -329,19 +343,12 @@ describe('createReportToParentHandler', () => {
         acpStreamBroker: {
           publish: vi.fn(),
         } as unknown as AcpStreamBroker,
-        hasDecorator: vi.fn((name: string) => name === 'taskWorkflowOrchestrator'),
         log: {
           error: vi.fn(),
           info: vi.fn(),
           warn: vi.fn(),
         } as unknown as FastifyBaseLogger,
         sqlite,
-        taskWorkflowOrchestrator: {
-          dispatchGateTasksForCompletedWave,
-          executeTask: vi.fn(async () => {
-            throw new Error('executeTask should not be used for spec gate wave handoff');
-          }),
-        },
       } as FastifyInstance,
     );
 
@@ -515,6 +522,15 @@ describe('createReportToParentHandler', () => {
       response: { stopReason: 'end_turn' as const },
       runtimeSessionId: 'runtime-after-all',
     }));
+    vi.mocked(getTaskWorkflowRuntime).mockReturnValue({
+      dispatchGateTasksForCompletedWave: vi.fn(async () => {
+        throw new Error('dispatchGateTasksForCompletedWave should not run');
+      }),
+      executeTask: vi.fn(async () => {
+        throw new Error('executeTask should not run');
+      }),
+    } as ReturnType<typeof getTaskWorkflowRuntime>);
+
     const handler = createReportToParentHandler(
       {
         acpRuntime: {
@@ -524,21 +540,12 @@ describe('createReportToParentHandler', () => {
         acpStreamBroker: {
           publish: vi.fn(),
         } as unknown as AcpStreamBroker,
-        hasDecorator: vi.fn((name: string) => name === 'taskWorkflowOrchestrator'),
         log: {
           error: vi.fn(),
           info: vi.fn(),
           warn: vi.fn(),
         } as unknown as FastifyBaseLogger,
         sqlite,
-        taskWorkflowOrchestrator: {
-          dispatchGateTasksForCompletedWave: vi.fn(async () => {
-            throw new Error('dispatchGateTasksForCompletedWave should not run');
-          }),
-          executeTask: vi.fn(async () => {
-            throw new Error('executeTask should not run');
-          }),
-        },
       } as FastifyInstance,
     );
 

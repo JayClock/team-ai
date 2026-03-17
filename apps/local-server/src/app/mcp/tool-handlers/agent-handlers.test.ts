@@ -5,11 +5,16 @@ import type { Database } from 'better-sqlite3';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../../db/sqlite';
+import { getTaskWorkflowRuntime } from '../task-workflow-runtime';
 import { createProject } from '../../services/project-service';
 import { getTaskById, updateTask } from '../../services/task-service';
 import { insertAcpSession } from '../../test-support/acp-session-fixture';
 import { createTask } from '../../services/task-service';
 import { createDelegateTaskToAgentHandler } from './agent-handlers';
+
+vi.mock('../task-workflow-runtime', () => ({
+  getTaskWorkflowRuntime: vi.fn(),
+}));
 
 describe('createDelegateTaskToAgentHandler', () => {
   it('returns structured group, wave, and parent resume metadata for after_all delegation', async () => {
@@ -170,8 +175,32 @@ describe('createDelegateTaskToAgentHandler', () => {
 });
 
 function createFastifyStub(sqlite: Database) {
+  vi.mocked(getTaskWorkflowRuntime).mockReturnValue({
+    patchTaskFromMcpAndMaybeExecute: vi.fn(
+      async (
+        taskId: string,
+        patch: {
+          assignedProvider?: string | null;
+          assignedRole?: string | null;
+          assignedSpecialistId?: string | null;
+          parallelGroup?: string | null;
+          status?: string;
+        },
+      ) => {
+        await updateTask(sqlite, taskId, {
+          assignedProvider: patch.assignedProvider,
+          assignedRole: patch.assignedRole,
+          assignedSpecialistId: patch.assignedSpecialistId,
+          parallelGroup: patch.parallelGroup,
+          status: patch.status,
+        });
+
+        return await getTaskById(sqlite, taskId);
+      },
+    ),
+  } as ReturnType<typeof getTaskWorkflowRuntime>);
+
   return {
-    hasDecorator: vi.fn((name: string) => name === 'taskWorkflowOrchestrator'),
     log: {
       child: vi.fn(),
       debug: vi.fn(),
@@ -182,30 +211,6 @@ function createFastifyStub(sqlite: Database) {
       warn: vi.fn(),
     } as unknown as FastifyBaseLogger,
     sqlite,
-    taskWorkflowOrchestrator: {
-      patchTaskFromMcpAndMaybeExecute: vi.fn(
-        async (
-          taskId: string,
-          patch: {
-            assignedProvider?: string | null;
-            assignedRole?: string | null;
-            assignedSpecialistId?: string | null;
-            parallelGroup?: string | null;
-            status?: string;
-          },
-        ) => {
-          await updateTask(sqlite, taskId, {
-            assignedProvider: patch.assignedProvider,
-            assignedRole: patch.assignedRole,
-            assignedSpecialistId: patch.assignedSpecialistId,
-            parallelGroup: patch.parallelGroup,
-            status: patch.status,
-          });
-
-          return await getTaskById(sqlite, taskId);
-        },
-      ),
-    },
   } as unknown as FastifyInstance;
 }
 

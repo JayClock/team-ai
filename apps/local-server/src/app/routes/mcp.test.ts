@@ -5,7 +5,6 @@ import acpStreamPlugin from '../plugins/acp-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
-import taskWorkflowOrchestratorPlugin from '../plugins/task-workflow-orchestrator';
 import { createAgent } from '../services/agent-service';
 import { createNote, getNoteById } from '../services/note-service';
 import { createProject } from '../services/project-service';
@@ -227,7 +226,6 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -905,7 +903,6 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -1011,7 +1008,6 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(mcpRoute, { prefix: '/api' });
     await fastify.ready();
 
@@ -1101,7 +1097,6 @@ describe('mcp route', () => {
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -1324,7 +1319,6 @@ Validation and review logic
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -1378,7 +1372,7 @@ Validation and review logic
         parentWillResumeWhen: {
           condition: 'after_delegation_group_settled',
           groupId: expect.any(String),
-          pendingTaskCount: 1,
+          pendingTaskCount: 0,
           taskIds: [task.id],
           waitMode: 'after_all',
         },
@@ -1390,12 +1384,12 @@ Validation and review logic
         },
         waitMode: 'after_all',
         waveState: {
-          completedCount: 0,
+          completedCount: 1,
           failureCount: 0,
           groupId: expect.any(String),
-          pendingCount: 1,
-          settled: false,
-          status: 'RUNNING',
+          pendingCount: 0,
+          settled: true,
+          status: 'COMPLETED',
           taskIds: [task.id],
           totalCount: 1,
           waveId: expect.any(String),
@@ -1445,7 +1439,6 @@ Validation and review logic
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -1861,7 +1854,6 @@ Validation and review logic
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -1937,7 +1929,6 @@ Validation and review logic
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });
@@ -2096,7 +2087,6 @@ Validation and review logic
     await fastify.register(sensiblePlugin);
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
-    await fastify.register(taskWorkflowOrchestratorPlugin);
     await fastify.register(rootRoute, { prefix: '/api' });
     await fastify.register(projectsRoute, { prefix: '/api' });
     await fastify.register(acpRoute, { prefix: '/api' });

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { getTaskWorkflowRuntime } from '../task-workflow-runtime';
 import { listAgents } from '../../services/agent-service';
 import { readAgentConversation } from '../../services/acp-conversation-service';
 import {
@@ -24,16 +25,6 @@ import {
 type AgentsListArgs = z.infer<typeof agentsListArgsSchema>;
 type DelegateTaskToAgentArgs = z.infer<typeof delegateTaskToAgentArgsSchema>;
 type ReadAgentConversationArgs = z.infer<typeof readAgentConversationArgsSchema>;
-
-function requireTaskWorkflowOrchestrator(fastify: FastifyInstance) {
-  if (!fastify.hasDecorator('taskWorkflowOrchestrator')) {
-    throw new Error(
-      'Legacy task workflow orchestration is disabled in the main runtime',
-    );
-  }
-
-  return fastify.taskWorkflowOrchestrator;
-}
 
 function resolveWaveKind(task: {
   kind: string | null;
@@ -110,7 +101,7 @@ export function createAgentsListHandler(fastify: FastifyInstance) {
 
 export function createDelegateTaskToAgentHandler(fastify: FastifyInstance) {
   return async (args: DelegateTaskToAgentArgs) => {
-    const workflow = requireTaskWorkflowOrchestrator(fastify);
+    const workflow = getTaskWorkflowRuntime(fastify);
 
     await getProjectById(fastify.sqlite, args.projectId);
     await getProjectSession(
