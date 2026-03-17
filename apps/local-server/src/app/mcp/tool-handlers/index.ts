@@ -7,6 +7,7 @@ export {
   createAgentsListHandler,
   createDelegateTaskToAgentHandler,
   createReadAgentConversationHandler,
+  createSubmitLaneHandoffHandler,
 } from './agent-handlers';
 export {
   createApplyFlowTemplateHandler,
@@ -18,6 +19,7 @@ export {
 export { createProjectsListHandler } from './project-handlers';
 export {
   createReportToParentHandler,
+  createRequestPreviousLaneHandoffHandler,
   createTaskExecuteHandler,
   createTaskGetHandler,
   createTaskRunsListHandler,

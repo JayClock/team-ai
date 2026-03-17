@@ -1,14 +1,23 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { logDiagnostic } from '../../diagnostics';
+import { ProblemError } from '../../errors/problem-error';
 import { getTaskWorkflowRuntime } from '../task-workflow-runtime';
 import {
   hasAcpSessionEvent,
+  promptAcpSession,
   recordAcpOrchestrationEvent,
 } from '../../services/acp-service';
 import { listDelegationGroupTasks } from '../../services/delegation-group-service';
 import { getProjectById } from '../../services/project-service';
 import { reportToParent } from '../../services/task-report-service';
+import { getAcpSessionContext } from '../../services/session-context-service';
+import {
+  buildPreviousLaneHandoffPrompt,
+  createTaskLaneHandoff,
+  createTaskLaneHandoffId,
+  upsertTaskLaneHandoff,
+} from '../../services/task-lane-service';
 import { taskOrchestrationEventNames } from '../../services/task-orchestration-events';
 import { listTaskRuns } from '../../services/task-run-service';
 import {
@@ -20,6 +29,7 @@ import {
 } from '../../services/task-service';
 import {
   reportToParentArgsSchema,
+  requestPreviousLaneHandoffArgsSchema,
   taskExecuteArgsSchema,
   taskGetArgsSchema,
   taskRunsListArgsSchema,
@@ -38,6 +48,9 @@ type TaskUpdateArgs = z.infer<typeof taskUpdateArgsSchema>;
 type TaskExecuteArgs = z.infer<typeof taskExecuteArgsSchema>;
 type TaskRunsListArgs = z.infer<typeof taskRunsListArgsSchema>;
 type ReportToParentArgs = z.infer<typeof reportToParentArgsSchema>;
+type RequestPreviousLaneHandoffArgs = z.infer<
+  typeof requestPreviousLaneHandoffArgsSchema
+>;
 
 export function createTasksListHandler(fastify: FastifyInstance) {
   return async (args: TasksListArgs) => {
@@ -110,6 +123,101 @@ export function createTaskRunsListHandler(fastify: FastifyInstance) {
     }
 
     return listTaskRuns(fastify.sqlite, args);
+  };
+}
+
+export function createRequestPreviousLaneHandoffHandler(
+  fastify: FastifyInstance,
+) {
+  return async (args: RequestPreviousLaneHandoffArgs) => {
+    await getProjectById(fastify.sqlite, args.projectId);
+    await getProjectSession(fastify.sqlite, args.projectId, args.sessionId);
+    const task = await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
+    const sessionContext = await getAcpSessionContext(
+      fastify.sqlite,
+      args.projectId,
+      args.sessionId,
+    );
+    const kanban = sessionContext.kanban;
+    const currentLaneSession = kanban?.currentLaneSession;
+    const previousLaneSession = kanban?.previousLaneSession;
+
+    if (!kanban || kanban.taskId !== task.id || !currentLaneSession) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/lane-handoff-context-unavailable',
+        title: 'Lane Handoff Context Unavailable',
+        status: 409,
+        detail: `Task ${task.id} is not currently bound to a Kanban lane session for ${args.sessionId}`,
+      });
+    }
+
+    if (!previousLaneSession) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/previous-lane-session-not-found',
+        title: 'Previous Lane Session Not Found',
+        status: 409,
+        detail: `Task ${task.id} does not have a previous-lane session available for handoff`,
+      });
+    }
+
+    const handoff = upsertTaskLaneHandoff(
+      task,
+      createTaskLaneHandoff({
+        fromColumnId: currentLaneSession.columnId,
+        fromSessionId: args.sessionId,
+        id: createTaskLaneHandoffId(),
+        request: args.request,
+        requestType: args.requestType,
+        toColumnId: previousLaneSession.columnId,
+        toSessionId: previousLaneSession.sessionId,
+      }),
+    );
+    await updateTask(fastify.sqlite, task.id, {
+      laneHandoffs: task.laneHandoffs,
+    });
+
+    try {
+      await promptAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        args.projectId,
+        previousLaneSession.sessionId,
+        {
+          prompt: buildPreviousLaneHandoffPrompt({
+            handoffId: handoff.id,
+            request: handoff.request,
+            requestType: handoff.requestType,
+            requestingColumnId: currentLaneSession.columnId,
+            requestingSessionId: args.sessionId,
+            task,
+          }),
+        },
+        {
+          logger: fastify.log,
+          source: 'mcp_request_previous_lane_handoff',
+        },
+      );
+
+      handoff.status = 'delivered';
+      await updateTask(fastify.sqlite, task.id, {
+        laneHandoffs: task.laneHandoffs,
+      });
+    } catch (error) {
+      handoff.respondedAt = new Date().toISOString();
+      handoff.responseSummary =
+        error instanceof Error ? error.message : String(error);
+      handoff.status = 'failed';
+      await updateTask(fastify.sqlite, task.id, {
+        laneHandoffs: task.laneHandoffs,
+      });
+    }
+
+    return {
+      delivered: handoff.status === 'delivered',
+      handoff,
+      task: await getTaskById(fastify.sqlite, task.id),
+    };
   };
 }
 

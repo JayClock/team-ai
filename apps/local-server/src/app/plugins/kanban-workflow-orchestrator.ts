@@ -22,6 +22,46 @@ declare module 'fastify' {
   }
 }
 
+function buildKanbanTaskPrompt(
+  task: {
+    acceptanceCriteria: string[];
+    objective: string;
+    scope: string | null;
+    title: string;
+  },
+  column: {
+    name: string;
+  },
+) {
+  const normalizedColumn = column.name.toLowerCase();
+  const collaborationInstructions =
+    normalizedColumn.includes('review') || normalizedColumn.includes('verify')
+      ? [
+          'If runtime setup from the previous lane is needed, call request_previous_lane_handoff instead of guessing the environment.',
+          'Continue once the previous lane replies with submit_lane_handoff.',
+        ]
+      : normalizedColumn.includes('dev')
+        ? [
+            'If another lane requests runtime or environment help for this task, complete only the requested support work.',
+            'When you finish that support work, call submit_lane_handoff with the handoff id and a concise summary.',
+          ]
+        : [];
+
+  return [
+    `Run the ${column.name} column automation for task "${task.title}".`,
+    `Objective: ${task.objective}`,
+    task.scope ? `Scope: ${task.scope}` : null,
+    task.acceptanceCriteria.length > 0
+      ? `Acceptance Criteria:\n- ${task.acceptanceCriteria.join('\n- ')}`
+      : null,
+    collaborationInstructions.length > 0
+      ? `Lane Collaboration:\n- ${collaborationInstructions.join('\n- ')}`
+      : null,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join('\n\n');
+}
+
 const kanbanWorkflowOrchestratorPlugin: FastifyPluginAsync = async (
   fastify,
 ) => {
@@ -105,16 +145,7 @@ const kanbanWorkflowOrchestratorPlugin: FastifyPluginAsync = async (
           task.projectId,
           session.id,
           {
-            prompt: [
-              `Run the ${column.name} column automation for task "${task.title}".`,
-              `Objective: ${task.objective}`,
-              task.scope ? `Scope: ${task.scope}` : null,
-              task.acceptanceCriteria.length > 0
-                ? `Acceptance Criteria:\n- ${task.acceptanceCriteria.join('\n- ')}`
-                : null,
-            ]
-              .filter((value): value is string => Boolean(value))
-              .join('\n\n'),
+            prompt: buildKanbanTaskPrompt(task, column),
           },
           {
             logger: fastify.log,

@@ -1,3 +1,4 @@
+import { customAlphabet } from 'nanoid';
 import type {
   TaskLaneHandoffPayload,
   TaskLaneHandoffRequestType,
@@ -6,6 +7,11 @@ import type {
   TaskLaneSessionStatus,
   TaskPayload,
 } from '../schemas/task';
+
+const handoffIdGenerator = customAlphabet(
+  '0123456789abcdefghijklmnopqrstuvwxyz',
+  10,
+);
 
 function ensureLaneArrays(task: Pick<TaskPayload, 'laneHandoffs' | 'laneSessions'>) {
   if (!task.laneSessions) {
@@ -139,6 +145,75 @@ export function createTaskLaneHandoff(params: {
   };
 }
 
+export function createTaskLaneHandoffId() {
+  return `handoff_${handoffIdGenerator()}`;
+}
+
+export function getTaskLaneHandoff(
+  task: Pick<TaskPayload, 'laneHandoffs'>,
+  handoffId: string,
+): TaskLaneHandoffPayload | null {
+  return task.laneHandoffs.find((entry) => entry.id === handoffId) ?? null;
+}
+
+function formatHandoffRequestType(requestType: TaskLaneHandoffRequestType): string {
+  switch (requestType) {
+    case 'environment_preparation':
+      return 'Environment preparation';
+    case 'runtime_context':
+      return 'Runtime context';
+    case 'clarification':
+      return 'Clarification';
+    case 'rerun_command':
+      return 'Rerun command';
+    default:
+      return requestType;
+  }
+}
+
+export function buildPreviousLaneHandoffPrompt(params: {
+  handoffId: string;
+  request: string;
+  requestType: TaskLaneHandoffRequestType;
+  requestingColumnId?: string;
+  requestingSessionId: string;
+  task: Pick<TaskPayload, 'id' | 'title'>;
+}) {
+  return [
+    `You have received a lane handoff request for task ${params.task.id}: ${params.task.title}.`,
+    '',
+    `Requesting lane: ${params.requestingColumnId ?? 'unknown'}`,
+    `Request type: ${formatHandoffRequestType(params.requestType)}`,
+    `Request: ${params.request}`,
+    '',
+    'Complete only the requested support work for this task.',
+    'If runtime setup or environment preparation is needed, perform it in this session.',
+    `When done or blocked, call submit_lane_handoff with taskId: "${params.task.id}", handoffId: "${params.handoffId}", and a concise summary.`,
+    `This request originated from session ${params.requestingSessionId.slice(0, 8)}.`,
+  ].join('\n');
+}
+
+export function buildLaneHandoffResponsePrompt(
+  task: Pick<TaskPayload, 'id' | 'title'>,
+  handoff: Pick<
+    TaskLaneHandoffPayload,
+    'request' | 'requestType' | 'responseSummary' | 'status'
+  >,
+) {
+  return [
+    `Lane handoff update for task ${task.id}: ${task.title}.`,
+    '',
+    `Request type: ${formatHandoffRequestType(handoff.requestType)}`,
+    `Status: ${handoff.status}`,
+    `Original request: ${handoff.request}`,
+    handoff.responseSummary
+      ? `Response: ${handoff.responseSummary}`
+      : 'Response: no summary provided',
+    '',
+    'Continue your current lane work using this updated runtime context.',
+  ].join('\n');
+}
+
 export function upsertTaskLaneHandoff(
   task: TaskPayload,
   handoff: TaskLaneHandoffPayload,
@@ -153,4 +228,25 @@ export function upsertTaskLaneHandoff(
 
   task.laneHandoffs.push(handoff);
   return handoff;
+}
+
+export function updateTaskLaneHandoff(
+  task: TaskPayload,
+  params: {
+    handoffId: string;
+    responseSummary: string;
+    status: Exclude<TaskLaneHandoffStatus, 'requested'>;
+  },
+): TaskLaneHandoffPayload | null {
+  ensureLaneArrays(task);
+
+  const existing = getTaskLaneHandoff(task, params.handoffId);
+  if (!existing) {
+    return null;
+  }
+
+  existing.respondedAt = new Date().toISOString();
+  existing.responseSummary = params.responseSummary;
+  existing.status = params.status;
+  return existing;
 }

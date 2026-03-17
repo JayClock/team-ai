@@ -126,6 +126,28 @@ export const taskExecuteArgsSchema = z.object({
   taskId: z.string().trim().min(1),
 });
 
+export const requestPreviousLaneHandoffArgsSchema = z.object({
+  projectId: z.string().trim().min(1),
+  request: z.string().trim().min(1),
+  requestType: z.enum([
+    'environment_preparation',
+    'runtime_context',
+    'clarification',
+    'rerun_command',
+  ]),
+  sessionId: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+});
+
+export const submitLaneHandoffArgsSchema = z.object({
+  handoffId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1),
+  status: z.enum(['completed', 'blocked', 'failed']),
+  summary: z.string().trim().min(1),
+  taskId: z.string().trim().min(1),
+});
+
 export const taskRunsListArgsSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(100).default(20),

@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { ProblemError } from '../../errors/problem-error';
+import { promptAcpSession } from '../../services/acp-service';
 import { getTaskWorkflowRuntime } from '../task-workflow-runtime';
 import { listAgents } from '../../services/agent-service';
 import { readAgentConversation } from '../../services/acp-conversation-service';
@@ -10,11 +12,18 @@ import {
 } from '../../services/delegation-group-service';
 import { getProjectById } from '../../services/project-service';
 import {
+  buildLaneHandoffResponsePrompt,
+  getTaskLaneHandoff,
+  updateTaskLaneHandoff,
+} from '../../services/task-lane-service';
+import { updateTask } from '../../services/task-service';
+import {
   agentsListArgsSchema,
   delegateTaskToAgentParentResumeSchema,
   delegateTaskToAgentArgsSchema,
   delegateTaskToAgentWaveStateSchema,
   readAgentConversationArgsSchema,
+  submitLaneHandoffArgsSchema,
 } from '../contracts';
 import {
   getProjectSession,
@@ -25,6 +34,7 @@ import {
 type AgentsListArgs = z.infer<typeof agentsListArgsSchema>;
 type DelegateTaskToAgentArgs = z.infer<typeof delegateTaskToAgentArgsSchema>;
 type ReadAgentConversationArgs = z.infer<typeof readAgentConversationArgsSchema>;
+type SubmitLaneHandoffArgs = z.infer<typeof submitLaneHandoffArgsSchema>;
 
 function resolveWaveKind(task: {
   kind: string | null;
@@ -193,5 +203,76 @@ export function createReadAgentConversationHandler(fastify: FastifyInstance) {
     await getProjectSession(fastify.sqlite, args.projectId, args.sessionId);
 
     return await readAgentConversation(fastify.sqlite, args);
+  };
+}
+
+export function createSubmitLaneHandoffHandler(fastify: FastifyInstance) {
+  return async (args: SubmitLaneHandoffArgs) => {
+    await getProjectById(fastify.sqlite, args.projectId);
+    await getProjectSession(fastify.sqlite, args.projectId, args.sessionId);
+    const task = await getProjectTask(fastify.sqlite, args.projectId, args.taskId);
+    const handoff = getTaskLaneHandoff(task, args.handoffId);
+
+    if (!handoff) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/lane-handoff-not-found',
+        title: 'Lane Handoff Not Found',
+        status: 404,
+        detail: `Lane handoff ${args.handoffId} was not found on task ${task.id}`,
+      });
+    }
+
+    if (handoff.toSessionId !== args.sessionId) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/lane-handoff-session-mismatch',
+        title: 'Lane Handoff Session Mismatch',
+        status: 409,
+        detail: `Lane handoff ${handoff.id} is not assigned to session ${args.sessionId}`,
+      });
+    }
+
+    const updatedHandoff = updateTaskLaneHandoff(task, {
+      handoffId: args.handoffId,
+      responseSummary: args.summary,
+      status: args.status,
+    });
+    if (!updatedHandoff) {
+      throw new ProblemError({
+        type: 'https://team-ai.dev/problems/lane-handoff-not-found',
+        title: 'Lane Handoff Not Found',
+        status: 404,
+        detail: `Lane handoff ${args.handoffId} was not found on task ${task.id}`,
+      });
+    }
+
+    await updateTask(fastify.sqlite, task.id, {
+      laneHandoffs: task.laneHandoffs,
+    });
+
+    let notified = true;
+    try {
+      await promptAcpSession(
+        fastify.sqlite,
+        fastify.acpStreamBroker,
+        fastify.acpRuntime,
+        args.projectId,
+        updatedHandoff.fromSessionId,
+        {
+          prompt: buildLaneHandoffResponsePrompt(task, updatedHandoff),
+        },
+        {
+          logger: fastify.log,
+          source: 'mcp_submit_lane_handoff',
+        },
+      );
+    } catch {
+      notified = false;
+    }
+
+    return {
+      handoff: updatedHandoff,
+      notified,
+      task: await getProjectTask(fastify.sqlite, args.projectId, args.taskId),
+    };
   };
 }

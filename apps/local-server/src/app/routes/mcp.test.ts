@@ -304,6 +304,8 @@ describe('mcp route', () => {
         'task_execute',
         'task_runs_list',
         'delegate_task_to_agent',
+        'request_previous_lane_handoff',
+        'submit_lane_handoff',
         'report_to_parent',
         'list_notes',
         'read_note',
@@ -947,6 +949,8 @@ describe('mcp route', () => {
     expect(toolNames).not.toContain('task_update');
     expect(toolNames).not.toContain('task_execute');
     expect(toolNames).not.toContain('delegate_task_to_agent');
+    expect(toolNames).not.toContain('request_previous_lane_handoff');
+    expect(toolNames).not.toContain('submit_lane_handoff');
     expect(toolNames).not.toContain('report_to_parent');
     expect(toolNames).not.toContain('set_note_content');
     expect(toolNames).not.toContain('notes_append');
