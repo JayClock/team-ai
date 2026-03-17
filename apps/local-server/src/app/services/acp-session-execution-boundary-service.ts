@@ -34,7 +34,7 @@ export interface AcpSessionExecutionBoundary {
   ): ReturnType<typeof promptAcpSession>;
 }
 
-interface DispatchTaskCallbackSources {
+interface TaskSessionDispatchCallbackSources {
   createSessionSource?: string;
   promptSessionSource?: string;
 }
@@ -77,9 +77,9 @@ export function createAcpSessionExecutionBoundary(
   };
 }
 
-export function createDispatchTaskCallbacks(
+export function createTaskSessionDispatchCallbacks(
   boundary: AcpSessionExecutionBoundary,
-  sources: DispatchTaskCallbackSources = {},
+  sources: TaskSessionDispatchCallbackSources = {},
 ): TaskSessionDispatchCallbacks {
   return {
     async createSession(input) {
@@ -114,3 +114,5 @@ export function createDispatchTaskCallbacks(
     },
   };
 }
+
+export const createDispatchTaskCallbacks = createTaskSessionDispatchCallbacks;

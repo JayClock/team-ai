@@ -268,7 +268,7 @@ function buildWaveResult(input: {
 
 export async function dispatchGateTasksForCompletedWave(
   sqlite: Database,
-  callbacks: DispatchTaskCallbacks,
+  callbacks: TaskSessionDispatchCallbacks,
   options: TaskWaveExecutionOptions,
 ) {
   const note = await resolveWorkflowSpecNote(sqlite, options);

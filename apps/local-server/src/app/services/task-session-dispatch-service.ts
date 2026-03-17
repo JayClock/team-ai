@@ -1,10 +1,10 @@
 export type {
-  DispatchTaskCallbacks as TaskSessionDispatchCallbacks,
-  DispatchTaskInput as TaskSessionDispatchInput,
-  DispatchTaskOptions as TaskSessionDispatchOptions,
-  DispatchTaskResult as TaskSessionDispatchResult,
-  DispatchTasksInput as TaskSessionDispatchesInput,
-  DispatchTasksResult as TaskSessionDispatchesResult,
+  TaskSessionDispatchBatchInput as TaskSessionDispatchesInput,
+  TaskSessionDispatchBatchResult as TaskSessionDispatchesResult,
+  TaskSessionDispatchCallbacks,
+  TaskSessionDispatchInput,
+  TaskSessionDispatchOptions,
+  TaskSessionDispatchResult,
 } from './task-session-dispatch-core-service';
 export {
   dispatchTask as dispatchTaskSession,

@@ -27,7 +27,7 @@ import {
   updateTask,
 } from './task-service';
 
-export interface DispatchTaskCallbacks {
+export interface TaskSessionDispatchCallbacks {
   createSession(input: {
     actorUserId: string;
     codebaseId?: string | null;
@@ -53,7 +53,7 @@ export interface DispatchTaskCallbacks {
   }): Promise<unknown>;
 }
 
-export interface DispatchTaskInput {
+export interface TaskSessionDispatchInput {
   callerSessionId?: string;
   delegationGroupId?: string | null;
   parentTaskId?: string | null;
@@ -62,7 +62,7 @@ export interface DispatchTaskInput {
   waveId?: string | null;
 }
 
-export interface DispatchTaskResult {
+export interface TaskSessionDispatchResult {
   delegationGroupId: string | null;
   dispatchability: TaskSessionAssignment;
   dispatched: boolean;
@@ -77,7 +77,7 @@ export interface DispatchTaskResult {
   waveId: string | null;
 }
 
-export interface DispatchTasksInput {
+export interface TaskSessionDispatchBatchInput {
   callerSessionId?: string;
   delegationGroupId?: string | null;
   limit?: number;
@@ -87,19 +87,26 @@ export interface DispatchTasksInput {
   waveId?: string | null;
 }
 
-export interface DispatchTasksResult {
+export interface TaskSessionDispatchBatchResult {
   delegationGroupId: string | null;
   dispatchedCount: number;
-  results: DispatchTaskResult[];
+  results: TaskSessionDispatchResult[];
   waveId: string | null;
 }
 
-export interface DispatchTaskOptions {
+export interface TaskSessionDispatchOptions {
   logger?: DiagnosticLogger;
   source?: string;
   triggerReason?: string | null;
   triggerSource?: string | null;
 }
+
+export type DispatchTaskCallbacks = TaskSessionDispatchCallbacks;
+export type DispatchTaskInput = TaskSessionDispatchInput;
+export type DispatchTaskResult = TaskSessionDispatchResult;
+export type DispatchTasksInput = TaskSessionDispatchBatchInput;
+export type DispatchTasksResult = TaskSessionDispatchBatchResult;
+export type DispatchTaskOptions = TaskSessionDispatchOptions;
 
 const activeDispatchClaims = new Set<string>();
 const activeDispatchWaveClaims = new Set<string>();
@@ -117,7 +124,10 @@ function releaseTaskDispatchClaim(taskId: string) {
   activeDispatchClaims.delete(taskId);
 }
 
-function resolveDispatchMetadata(input: DispatchTaskInput, task: TaskPayload) {
+function resolveDispatchMetadata(
+  input: TaskSessionDispatchInput,
+  task: TaskPayload,
+) {
   return {
     delegationGroupId: input.delegationGroupId ?? task.parallelGroup ?? null,
     parentTaskId: input.parentTaskId ?? task.parentTaskId ?? null,
@@ -125,7 +135,7 @@ function resolveDispatchMetadata(input: DispatchTaskInput, task: TaskPayload) {
   };
 }
 
-function buildWaveClaimKey(input: DispatchTasksInput) {
+function buildWaveClaimKey(input: TaskSessionDispatchBatchInput) {
   if (input.waveId?.trim()) {
     return input.waveId.trim();
   }
@@ -266,10 +276,10 @@ async function resolveTaskDispatchWorkspace(
 
 export async function dispatchTask(
   sqlite: Database,
-  callbacks: DispatchTaskCallbacks,
-  input: DispatchTaskInput,
-  options: DispatchTaskOptions = {},
-): Promise<DispatchTaskResult> {
+  callbacks: TaskSessionDispatchCallbacks,
+  input: TaskSessionDispatchInput,
+  options: TaskSessionDispatchOptions = {},
+): Promise<TaskSessionDispatchResult> {
   const initialTask = await getTaskById(sqlite, input.taskId);
   let dispatchPhase: 'prepare' | 'create_session' | 'prompt_session' =
     'prepare';
@@ -558,10 +568,10 @@ export async function dispatchTask(
 
 export async function dispatchTasks(
   sqlite: Database,
-  callbacks: DispatchTaskCallbacks,
-  input: DispatchTasksInput,
-  options: DispatchTaskOptions = {},
-): Promise<DispatchTasksResult> {
+  callbacks: TaskSessionDispatchCallbacks,
+  input: TaskSessionDispatchBatchInput,
+  options: TaskSessionDispatchOptions = {},
+): Promise<TaskSessionDispatchBatchResult> {
   const waveClaimKey = buildWaveClaimKey(input);
   const duplicateWaveDispatch = tryClaimWaveDispatch(waveClaimKey);
   const limit = input.limit;
@@ -651,7 +661,7 @@ export async function dispatchTasks(
           },
         );
     const boundedCandidates = candidates.slice(0, limit ?? candidates.length);
-    const results: DispatchTaskResult[] = [];
+    const results: TaskSessionDispatchResult[] = [];
 
     for (const candidate of boundedCandidates) {
       results.push(
