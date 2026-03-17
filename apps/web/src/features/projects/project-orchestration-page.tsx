@@ -465,6 +465,13 @@ export default function ProjectOrchestrationPage() {
                       label="active"
                       title={automation.taskTitle}
                       meta={`${automation.boardId} · ${automation.columnId}`}
+                      to={
+                        automation.sessionId
+                          ? `/projects/${projectId}/sessions/${automation.sessionId}`
+                          : automation.triggerSessionId
+                            ? `/projects/${projectId}/sessions/${automation.triggerSessionId}`
+                            : undefined
+                      }
                     />
                   ))}
                   {snapshot?.kanban.queuedAutomations.map((automation) => (
@@ -500,6 +507,11 @@ export default function ProjectOrchestrationPage() {
                     meta={`${task.triggerSource ?? 'background'} · ${formatDateTime(
                       task.startedAt,
                     )}`}
+                    to={
+                      task.resultSessionId
+                        ? `/projects/${projectId}/sessions/${task.resultSessionId}`
+                        : undefined
+                    }
                   />
                 ))
               ) : (
@@ -587,6 +599,7 @@ export default function ProjectOrchestrationPage() {
                     label={trace.eventName ?? 'trace'}
                     title={trace.summary}
                     meta={`${trace.sessionId} · ${formatDateTime(trace.createdAt)}`}
+                    to={`/projects/${projectId}/sessions/${trace.sessionId}`}
                   />
                 ))
               ) : (
@@ -678,6 +691,17 @@ export default function ProjectOrchestrationPage() {
                         meta={schedule.id}
                       />
                     </div>
+                    {schedule.lastWorkflowRunId ? (
+                      <div className="mt-3">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link
+                            to={`/projects/${projectId}/workflow-runs/${schedule.lastWorkflowRunId}`}
+                          >
+                            Open Last Run
+                          </Link>
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 ))
               ) : (
@@ -748,6 +772,11 @@ export default function ProjectOrchestrationPage() {
                     log.eventAction ? ` · ${log.eventAction}` : ''
                   }`}
                   meta={formatWebhookLogMeta(log)}
+                  to={
+                    log.workflowRunId
+                      ? `/projects/${projectId}/workflow-runs/${log.workflowRunId}`
+                      : undefined
+                  }
                 />
               ))
             ) : (
@@ -872,15 +901,25 @@ function SummaryCard(props: {
 function QueueRow(props: {
   label: string;
   meta: string;
+  to?: string;
   title: string;
 }) {
-  const { label, meta, title } = props;
+  const { label, meta, title, to } = props;
 
   return (
     <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium">{title}</div>
+          {to ? (
+            <Link
+              className="truncate text-sm font-medium underline-offset-4 hover:underline"
+              to={to}
+            >
+              {title}
+            </Link>
+          ) : (
+            <div className="truncate text-sm font-medium">{title}</div>
+          )}
           <div className="mt-1 text-xs text-muted-foreground">{meta}</div>
         </div>
         <Badge variant="outline">{label}</Badge>
