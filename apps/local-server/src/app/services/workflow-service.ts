@@ -396,7 +396,7 @@ export async function listProjectWorkflows(
       `
         SELECT id, project_id, name, description, version, steps_json, created_at, updated_at
         FROM project_workflow_definitions
-        WHERE project_id = ? AND deleted_at IS NULL
+        WHERE project_id = ? AND deleted_at IS NULL AND id NOT LIKE 'wff_%'
         ORDER BY updated_at DESC, created_at DESC
       `,
     )

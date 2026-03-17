@@ -6,8 +6,14 @@ function presentFlowResource(flow: FlowPayload, projectId: string) {
       collection: {
         href: `/api/projects/${projectId}/flows`,
       },
+      runs: {
+        href: `/api/projects/${projectId}/flows/${flow.id}/runs`,
+      },
       self: {
         href: `/api/projects/${projectId}/flows/${flow.id}`,
+      },
+      trigger: {
+        href: `/api/projects/${projectId}/flows/${flow.id}/trigger`,
       },
     },
     ...flow,

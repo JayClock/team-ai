@@ -32,7 +32,7 @@ describe('flows route', () => {
     }
   });
 
-  it('lists built-in flows and fetches a flow resource', async () => {
+  it('lists built-in flows, fetches a flow resource, and triggers runs', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -67,6 +67,14 @@ describe('flows route', () => {
     expect(responseContentType(getResponse)).toBe(VENDOR_MEDIA_TYPES.flow);
     expect(getResponse.json()).toMatchObject({
       id: 'simple-dev',
+      _links: {
+        runs: {
+          href: `/api/projects/${project.id}/flows/simple-dev/runs`,
+        },
+        trigger: {
+          href: `/api/projects/${project.id}/flows/simple-dev/trigger`,
+        },
+      },
       steps: [
         expect.objectContaining({
           name: 'Execute Task',
@@ -75,6 +83,43 @@ describe('flows route', () => {
       ],
       trigger: {
         type: 'manual',
+      },
+    });
+
+    const triggerResponse = await fastify.inject({
+      method: 'POST',
+      payload: {
+        triggerPayload: 'Run the developer flow',
+      },
+      url: `/api/projects/${project.id}/flows/simple-dev/trigger`,
+    });
+
+    expect(triggerResponse.statusCode).toBe(202);
+    expect(responseContentType(triggerResponse)).toBe(
+      VENDOR_MEDIA_TYPES.workflowRun,
+    );
+    expect(triggerResponse.json()).toMatchObject({
+      triggerPayload: 'Run the developer flow',
+      workflowName: 'Flow · Simple Developer Task',
+    });
+
+    const runsResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/flows/simple-dev/runs`,
+    });
+
+    expect(runsResponse.statusCode).toBe(200);
+    expect(responseContentType(runsResponse)).toBe(
+      VENDOR_MEDIA_TYPES.workflowRuns,
+    );
+    expect(runsResponse.json()).toMatchObject({
+      _embedded: {
+        workflowRuns: [
+          expect.objectContaining({
+            triggerPayload: 'Run the developer flow',
+            workflowName: 'Flow · Simple Developer Task',
+          }),
+        ],
       },
     });
   });
