@@ -13,7 +13,7 @@ import {
   MAX_TASK_RUN_RETRY_COUNT,
   startTaskRun,
 } from './task-run-service';
-import { executeTask } from './task-orchestration-service';
+import { executeTaskSession } from './task-session-runtime-service';
 import {
   getTaskDispatchability,
   listDispatchableTasks,
@@ -506,7 +506,7 @@ describe('task service', () => {
       promptSession,
     };
 
-    const readyResult = await executeTask(sqlite, readyTask.id, {
+    const readyResult = await executeTaskSession(sqlite, readyTask.id, {
       callbacks,
       callerSessionId: rootSessionId,
     });
@@ -525,7 +525,7 @@ describe('task service', () => {
       sessionId: 'acps_execute_1',
     });
 
-    const failedResult = await executeTask(sqlite, failedTask.id, {
+    const failedResult = await executeTaskSession(sqlite, failedTask.id, {
       callbacks,
       callerSessionId: rootSessionId,
     });
@@ -545,7 +545,7 @@ describe('task service', () => {
     expect(promptSession).toHaveBeenCalledTimes(2);
 
     await expect(
-      executeTask(sqlite, completedTask.id, {
+      executeTaskSession(sqlite, completedTask.id, {
         callbacks,
         callerSessionId: rootSessionId,
       }),
@@ -592,7 +592,7 @@ describe('task service', () => {
     });
     const promptSession = vi.fn(async () => undefined);
 
-    const result = await executeTask(sqlite, task.id, {
+    const result = await executeTaskSession(sqlite, task.id, {
       callbacks: {
         createSession,
         promptSession,
@@ -650,7 +650,7 @@ describe('task service', () => {
     }));
     const promptSession = vi.fn(async () => undefined);
 
-    const result = await executeTask(sqlite, task.id, {
+    const result = await executeTaskSession(sqlite, task.id, {
       callbacks: {
         createSession,
         promptSession,
@@ -730,7 +730,7 @@ describe('task service', () => {
     const promptSession = vi.fn(async () => undefined);
 
     await expect(
-      executeTask(sqlite, task.id, {
+      executeTaskSession(sqlite, task.id, {
         callbacks: {
           createSession,
           promptSession,

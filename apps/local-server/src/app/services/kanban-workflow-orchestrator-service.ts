@@ -15,7 +15,7 @@ import {
 } from './kanban-session-queue-service';
 import { getProjectKanbanBoardById } from './kanban-board-service';
 import { listProjectCodebases } from './project-codebase-service';
-import { ensureTaskExecutionWorktree } from './task-orchestration-service';
+import { ensureTaskExecutionWorktree } from './task-session-runtime-service';
 import { getTaskById, updateTask } from './task-service';
 
 export type {

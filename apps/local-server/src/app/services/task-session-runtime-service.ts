@@ -165,7 +165,7 @@ export async function ensureTaskExecutionWorktree(
   }
 }
 
-export async function executeTask(
+export async function executeTaskSession(
   sqlite: Database,
   taskId: string,
   options: ExecuteTaskOptions,
@@ -257,7 +257,7 @@ export async function maybeAutoExecutePatchedTask(
     return task;
   }
 
-  return (await executeTask(sqlite, task.id, options)).task;
+  return (await executeTaskSession(sqlite, task.id, options)).task;
 }
 
 export async function patchTaskAndMaybeExecute(

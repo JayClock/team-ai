@@ -7,7 +7,7 @@ import {
   patchTaskFromMcpAndMaybeExecute,
   type AutoExecuteTaskPatch,
   type ExecuteTaskOptions,
-} from '../services/task-orchestration-service';
+} from '../services/task-session-runtime-service';
 import {
   dispatchGateTasksForCompletedWave,
   type TaskWaveExecutionOptions,
