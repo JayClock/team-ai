@@ -8,6 +8,7 @@ import type {
   WorkflowListPayload,
   WorkflowRunListPayload,
   WorkflowRunPayload,
+  WorkflowRunStepPayload,
   WorkflowRunStatus,
   WorkflowStepPayload,
 } from '../schemas/workflow';
@@ -50,9 +51,12 @@ interface WorkflowRunRow {
 interface WorkflowRunTaskRow {
   completed_at: string | null;
   created_at: string;
+  error_message: string | null;
   id: string;
+  result_session_id: string | null;
   started_at: string | null;
   status: string;
+  task_output: string | null;
   workflow_step_name: string | null;
 }
 
@@ -63,6 +67,7 @@ interface WorkflowRunProgress {
   failedSteps: number;
   pendingSteps: number;
   runningSteps: number;
+  steps: WorkflowRunStepPayload[];
   status: WorkflowRunStatus;
 }
 
@@ -117,6 +122,7 @@ function mapWorkflowRunRow(
     pendingSteps: progress.pendingSteps,
     projectId: row.project_id,
     runningSteps: progress.runningSteps,
+    steps: progress.steps,
     startedAt: row.started_at,
     status: progress.status,
     totalSteps: row.total_steps,
@@ -175,7 +181,8 @@ function listWorkflowRunTaskRows(
   return sqlite
     .prepare(
       `
-        SELECT id, workflow_step_name, status, started_at, completed_at, created_at
+        SELECT id, workflow_step_name, status, started_at, completed_at, created_at,
+               result_session_id, error_message, task_output
         FROM project_background_tasks
         WHERE workflow_run_id = ? AND deleted_at IS NULL
         ORDER BY created_at ASC
@@ -208,6 +215,22 @@ function resolveWorkflowRunProgress(
       const task = stepTaskByName.get(step.name);
       return task ? task.status !== 'COMPLETED' : true;
     }) ?? null;
+  const steps = workflow.steps.map((step) => {
+    const task = stepTaskByName.get(step.name);
+
+    return {
+      completedAt: task?.completed_at ?? null,
+      errorMessage: task?.error_message ?? null,
+      name: step.name,
+      parallelGroup: step.parallelGroup,
+      resultSessionId: task?.result_session_id ?? null,
+      startedAt: task?.started_at ?? null,
+      specialistId: step.specialistId,
+      status: task?.status ?? 'PENDING',
+      taskId: task?.id ?? null,
+      taskOutput: task?.task_output ?? null,
+    } satisfies WorkflowRunStepPayload;
+  });
 
   const status =
     failedSteps > 0
@@ -226,6 +249,7 @@ function resolveWorkflowRunProgress(
     failedSteps,
     pendingSteps,
     runningSteps,
+    steps,
     status,
   };
 }

@@ -89,6 +89,18 @@ describe('workflow routes', () => {
     expect(triggerResponse.statusCode).toBe(202);
     expect(responseContentType(triggerResponse)).toBe(VENDOR_MEDIA_TYPES.workflowRun);
     expect(triggerResponse.json()).toMatchObject({
+      steps: [
+        expect.objectContaining({
+          name: 'Implement',
+          specialistId: 'backend-crafter',
+          status: 'PENDING',
+        }),
+        expect.objectContaining({
+          name: 'Review',
+          specialistId: 'gate-reviewer',
+          status: 'PENDING',
+        }),
+      ],
       status: 'RUNNING',
       totalSteps: 2,
       triggerPayload: 'the delivery slice',
@@ -105,7 +117,21 @@ describe('workflow routes', () => {
     expect(responseContentType(runsResponse)).toBe(VENDOR_MEDIA_TYPES.workflowRuns);
     expect(runsResponse.json()).toMatchObject({
       _embedded: {
-        workflowRuns: [expect.objectContaining({ workflowId: workflow.id })],
+        workflowRuns: [
+          expect.objectContaining({
+            workflowId: workflow.id,
+            steps: [
+              expect.objectContaining({
+                name: 'Implement',
+                status: 'PENDING',
+              }),
+              expect.objectContaining({
+                name: 'Review',
+                status: 'PENDING',
+              }),
+            ],
+          }),
+        ],
       },
     });
   });

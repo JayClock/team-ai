@@ -13,6 +13,19 @@ export interface WorkflowStepPayload {
   specialistId: string;
 }
 
+export interface WorkflowRunStepPayload {
+  completedAt: string | null;
+  errorMessage: string | null;
+  name: string;
+  parallelGroup: string | null;
+  resultSessionId: string | null;
+  startedAt: string | null;
+  status: string;
+  taskId: string | null;
+  taskOutput: string | null;
+  specialistId: string;
+}
+
 export interface WorkflowDefinitionPayload {
   createdAt: string;
   description: string | null;
@@ -34,6 +47,7 @@ export interface WorkflowRunPayload {
   pendingSteps: number;
   projectId: string;
   runningSteps: number;
+  steps: WorkflowRunStepPayload[];
   startedAt: string | null;
   status: WorkflowRunStatus;
   totalSteps: number;
