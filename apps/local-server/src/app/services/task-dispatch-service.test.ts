@@ -13,7 +13,7 @@ import {
   dispatchTask,
   dispatchTasks,
   resetTaskDispatchClaimsForTest,
-} from './task-dispatch-service';
+} from './task-session-dispatch-core-service';
 
 describe('task dispatch service', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];

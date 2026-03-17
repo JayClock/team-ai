@@ -15,10 +15,10 @@ import {
 } from './task-run-service';
 import { executeTaskSession } from './task-session-runtime-service';
 import {
-  getTaskDispatchability,
-  listDispatchableTasks,
-  resolveDefaultTaskRole,
-} from './task-dispatch-policy-service';
+  getTaskSessionAssignment,
+  listDispatchableTaskSessions,
+  resolveDefaultTaskSessionRole,
+} from './task-session-assignment-core-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import {
   createTask,
@@ -234,31 +234,31 @@ describe('task service', () => {
   });
 
   it('resolves default dispatch roles by task kind and orchestration mode', () => {
-    expect(resolveDefaultTaskRole('implement')).toBe('CRAFTER');
+    expect(resolveDefaultTaskSessionRole('implement')).toBe('CRAFTER');
     expect(
-      resolveDefaultTaskRole('implement', {
+      resolveDefaultTaskSessionRole('implement', {
         orchestrationMode: 'DEVELOPER',
       }),
     ).toBe('DEVELOPER');
     expect(
-      resolveDefaultTaskRole('review', {
+      resolveDefaultTaskSessionRole('review', {
         orchestrationMode: 'DEVELOPER',
       }),
     ).toBe('DEVELOPER');
     expect(
-      resolveDefaultTaskRole('verify', {
+      resolveDefaultTaskSessionRole('verify', {
         orchestrationMode: 'DEVELOPER',
       }),
     ).toBe('DEVELOPER');
     expect(
-      resolveDefaultTaskRole('plan', {
+      resolveDefaultTaskSessionRole('plan', {
         orchestrationMode: 'DEVELOPER',
       }),
     ).toBe('DEVELOPER');
-    expect(resolveDefaultTaskRole('review')).toBe('GATE');
-    expect(resolveDefaultTaskRole('verify')).toBe('GATE');
-    expect(resolveDefaultTaskRole('plan')).toBe('ROUTA');
-    expect(resolveDefaultTaskRole(null)).toBeNull();
+    expect(resolveDefaultTaskSessionRole('review')).toBe('GATE');
+    expect(resolveDefaultTaskSessionRole('verify')).toBe('GATE');
+    expect(resolveDefaultTaskSessionRole('plan')).toBe('ROUTA');
+    expect(resolveDefaultTaskSessionRole(null)).toBeNull();
   });
 
   it('keeps default developer-mode tasks in the current session unless a downstream role is explicit', async () => {
@@ -292,14 +292,14 @@ describe('task service', () => {
       sessionId: rootSessionId,
     });
 
-    const defaultDispatchability = await getTaskDispatchability(
+    const defaultDispatchability = await getTaskSessionAssignment(
       sqlite,
       defaultTask.id,
       {
         orchestrationMode: 'DEVELOPER',
       },
     );
-    const delegatedDispatchability = await getTaskDispatchability(
+    const delegatedDispatchability = await getTaskSessionAssignment(
       sqlite,
       delegatedTask.id,
       {
@@ -364,7 +364,7 @@ describe('task service', () => {
       title: 'Detached task',
     });
 
-    const blocked = await getTaskDispatchability(sqlite, task.id);
+    const blocked = await getTaskSessionAssignment(sqlite, task.id);
 
     expect(blocked).toMatchObject({
       dispatchable: false,
@@ -373,7 +373,7 @@ describe('task service', () => {
     });
     expect(blocked.reasons).toContain('TASK_DEPENDENCIES_INCOMPLETE');
 
-    const running = await getTaskDispatchability(sqlite, runningTask.id);
+    const running = await getTaskSessionAssignment(sqlite, runningTask.id);
     expect(running.dispatchable).toBe(false);
     expect(running.reasons).toContain('TASK_EXECUTION_ALREADY_ACTIVE');
 
@@ -381,8 +381,8 @@ describe('task service', () => {
       status: 'COMPLETED',
     });
 
-    const ready = await getTaskDispatchability(sqlite, task.id);
-    const dispatchableTasks = await listDispatchableTasks(sqlite, {
+    const ready = await getTaskSessionAssignment(sqlite, task.id);
+    const dispatchableTasks = await listDispatchableTaskSessions(sqlite, {
       projectId: project.id,
     });
 

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
-import type { DispatchTaskCallbacks } from './task-dispatch-service';
+import type { TaskSessionDispatchCallbacks } from './task-session-dispatch-core-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { createNote } from './note-service';
 import { createProject } from './project-service';
@@ -144,7 +144,7 @@ function createTestRuntime(
   projectId: string,
   parentSessionId: string,
   nextSessionId: () => string,
-): DispatchTaskCallbacks {
+): TaskSessionDispatchCallbacks {
   return {
     createSession: vi.fn(async (input) => {
       const sessionId = nextSessionId();
