@@ -4,6 +4,7 @@ import { customAlphabet } from 'nanoid';
 import type { McpServer, PromptResponse } from '@agentclientprotocol/sdk';
 import type {
   AcpRuntimeClient,
+  AcpRuntimeSessionSnapshot,
   AcpRuntimeSessionHooks,
 } from '../clients/acp-runtime-client';
 import {
@@ -25,7 +26,7 @@ import type {
 } from '../schemas/acp';
 import { normalizeAcpProviderId } from './acp-provider-service';
 import { type NormalizedSessionUpdate } from './normalized-session-update';
-import { createAgent } from './agent-service';
+import { createAgent, updateAgent } from './agent-service';
 import { getProjectCodebaseById } from './project-codebase-service';
 import { getProjectRuntimeProfile } from './project-runtime-profile-service';
 import { getProjectById } from './project-service';
@@ -1424,6 +1425,232 @@ function appendPromptRequestedEvents(
   });
 }
 
+const REPLAY_HISTORY_CHAR_LIMIT = 24_000;
+
+function trimReplayTranscriptSegments(
+  segments: string[],
+  maxChars: number,
+): string {
+  if (segments.length === 0) {
+    return '';
+  }
+
+  const kept: string[] = [];
+  let total = 0;
+
+  for (const segment of [...segments].reverse()) {
+    const additional = segment.length + (kept.length > 0 ? 2 : 0);
+    if (kept.length > 0 && total + additional > maxChars) {
+      break;
+    }
+
+    if (kept.length === 0 && segment.length > maxChars) {
+      kept.unshift(segment.slice(segment.length - maxChars));
+      total = maxChars;
+      break;
+    }
+
+    kept.unshift(segment);
+    total += additional;
+  }
+
+  const omitted = segments.length - kept.length;
+  return omitted > 0
+    ? [
+        `System note:\n${omitted} earlier transcript entries were omitted to fit the replay window.`,
+        ...kept,
+      ].join('\n\n')
+    : kept.join('\n\n');
+}
+
+function buildAcpSessionReplayPrompt(
+  sqlite: Database,
+  sessionId: string,
+  nextConfig: {
+    model: string | null;
+    provider: string;
+  },
+): string | null {
+  const session = getSessionRow(sqlite, sessionId);
+  const systemPrompt = getSessionAgentPrompt(sqlite, session);
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT type, payload_json, error_json
+        FROM project_acp_session_events
+        WHERE session_id = ?
+        ORDER BY sequence ASC
+      `,
+    )
+    .all(sessionId) as SessionHistorySummaryRow[];
+
+  const segments: string[] = [];
+  let pendingAssistant:
+    | {
+        content: string;
+        messageId: string | null;
+      }
+    | null = null;
+
+  const flushAssistant = () => {
+    if (!pendingAssistant) {
+      return;
+    }
+
+    const content = pendingAssistant.content.trim();
+    if (content) {
+      segments.push(`Assistant:\n${content}`);
+    }
+    pendingAssistant = null;
+  };
+
+  for (const row of rows) {
+    const payload = parseEventRecord(
+      row.payload_json,
+    ) as unknown as AcpEventUpdatePayload;
+    const error = parseEventRecord(row.error_json);
+
+    if (row.type === 'user_message' && payload.message?.role === 'user') {
+      flushAssistant();
+      const content = extractEventText(payload.message.content);
+      if (content) {
+        segments.push(`User:\n${content}`);
+      }
+      continue;
+    }
+
+    if (row.type === 'agent_message' && payload.message?.role === 'assistant') {
+      const content = extractEventText(payload.message.content);
+      if (!content) {
+        continue;
+      }
+
+      const messageId = extractEventText(payload.message.messageId);
+      if (
+        pendingAssistant &&
+        pendingAssistant.messageId === messageId
+      ) {
+        pendingAssistant.content += content;
+      } else {
+        flushAssistant();
+        pendingAssistant = {
+          content,
+          messageId,
+        };
+      }
+      continue;
+    }
+
+    flushAssistant();
+
+    if (
+      (row.type === 'tool_call' || row.type === 'tool_call_update') &&
+      payload.toolCall?.status === 'completed'
+    ) {
+      const output = extractEventText(payload.toolCall.output);
+      if (output) {
+        segments.push(`Tool result:\n${output}`);
+      }
+      continue;
+    }
+
+    if (row.type === 'error') {
+      const message =
+        extractEventText(payload.error?.message) ??
+        extractEventText(error.message);
+      if (message) {
+        segments.push(`System note:\nPrevious runtime error: ${message}`);
+      }
+    }
+  }
+
+  flushAssistant();
+
+  const transcript = trimReplayTranscriptSegments(
+    segments,
+    REPLAY_HISTORY_CHAR_LIMIT,
+  );
+  if (!transcript) {
+    return null;
+  }
+
+  const metadata = [
+    `- provider: ${nextConfig.provider}`,
+    `- model: ${nextConfig.model ?? 'provider default'}`,
+    `- cwd: ${session.cwd ?? ''}`,
+    ...(session.task_id ? [`- taskId: ${session.task_id}`] : []),
+  ].join('\n');
+
+  return [
+    ...(systemPrompt ? [`System:\n${systemPrompt.trim()}`] : []),
+    'Replay context:\nYou are resuming an existing ACP conversation after the runtime was restarted because the provider or model changed.',
+    `Session metadata:\n${metadata}`,
+    `Conversation history:\n${transcript}`,
+    'Instruction:\nTreat the conversation history above as authoritative prior context. Do not call tools, do not continue the task yet, and reply with exactly: ACK',
+  ].join('\n\n');
+}
+
+async function recreateAcpSessionRuntime(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  runtime: AcpRuntimeClient,
+  sessionId: string,
+  nextConfig: {
+    model: string | null;
+    provider: string;
+  },
+  options: AcpServiceOptions = {},
+): Promise<AcpRuntimeSessionSnapshot> {
+  const session = getSessionRow(sqlite, sessionId);
+  const replayPrompt = buildAcpSessionReplayPrompt(sqlite, sessionId, nextConfig);
+  const baseHooks = createRuntimeHooks(
+    sqlite,
+    broker,
+    runtime,
+    sessionId,
+    options,
+  );
+  let muteUpdates = replayPrompt !== null;
+  const hooks: AcpRuntimeSessionHooks = {
+    onClosed: baseHooks.onClosed,
+    async onSessionUpdate(update) {
+      if (muteUpdates) {
+        return;
+      }
+
+      await baseHooks.onSessionUpdate(update);
+    },
+  };
+
+  await runtime.deleteSession(sessionId);
+
+  try {
+    const created = await runtime.createSession({
+      localSessionId: sessionId,
+      model: nextConfig.model,
+      provider: nextConfig.provider,
+      cwd: session.cwd ?? '',
+      mcpServers: resolveLocalMcpServers(),
+      hooks,
+    });
+
+    if (replayPrompt) {
+      await runtime.promptSession({
+        localSessionId: sessionId,
+        prompt: replayPrompt,
+        provider: nextConfig.provider,
+      });
+    }
+
+    muteUpdates = false;
+    return created;
+  } catch (error) {
+    muteUpdates = false;
+    await runtime.deleteSession(sessionId);
+    throw error;
+  }
+}
+
 async function updateSessionFromPromptResponse(
   sqlite: Database,
   broker: AcpStreamBroker,
@@ -1960,6 +2187,115 @@ export async function renameAcpSession(
       `,
     )
     .run(trimmedName, new Date().toISOString(), sessionId);
+
+  return await getAcpSessionById(sqlite, sessionId);
+}
+
+export async function updateAcpSession(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  runtime: AcpRuntimeClient,
+  projectId: string,
+  sessionId: string,
+  input: {
+    model?: string | null;
+    name?: string;
+    provider?: string;
+  },
+  options: AcpServiceOptions = {},
+): Promise<AcpSessionPayload> {
+  const current = getSessionRow(sqlite, sessionId);
+  if (current.project_id !== projectId) {
+    throwSessionNotFound(sessionId);
+  }
+
+  const nextName =
+    input.name === undefined ? current.name : input.name.trim() || null;
+  const nextProvider =
+    input.provider === undefined
+      ? current.provider
+      : normalizeAcpProviderId(input.provider);
+  const providerChanged = nextProvider !== current.provider;
+  const nextModel =
+    input.model === undefined
+      ? providerChanged
+        ? null
+        : current.model
+      : normalizeOptionalText(input.model);
+
+  if (input.name !== undefined && !nextName) {
+    throw new ProblemError({
+      type: 'https://team-ai.dev/problems/acp-session-name-invalid',
+      title: 'ACP Session Name Invalid',
+      status: 400,
+      detail: 'ACP session name must not be blank',
+    });
+  }
+
+  const modelChanged = nextModel !== current.model;
+  const nameChanged = nextName !== current.name;
+  const runtimeConfigChanged = providerChanged || modelChanged;
+
+  if (!runtimeConfigChanged && !nameChanged) {
+    return await getAcpSessionById(sqlite, sessionId);
+  }
+
+  let runtimeSession: AcpRuntimeSessionSnapshot | null = null;
+  if (runtimeConfigChanged) {
+    runtimeSession = await recreateAcpSessionRuntime(
+      sqlite,
+      broker,
+      runtime,
+      sessionId,
+      {
+        model: nextModel,
+        provider: nextProvider,
+      },
+      options,
+    );
+  }
+
+  const now = new Date().toISOString();
+  sqlite
+    .prepare(
+      `
+        UPDATE project_acp_sessions
+        SET name = @name,
+            model = @model,
+            provider = @provider,
+            runtime_session_id = @runtimeSessionId,
+            acp_status = @acpStatus,
+            acp_error = @acpError,
+            state = @state,
+            failure_reason = @failureReason,
+            completed_at = @completedAt,
+            last_activity_at = @lastActivityAt,
+            updated_at = @updatedAt
+        WHERE id = @id
+      `,
+    )
+    .run({
+      id: sessionId,
+      model: nextModel,
+      name: nextName,
+      provider: nextProvider,
+      runtimeSessionId:
+        runtimeSession?.runtimeSessionId ?? current.runtime_session_id,
+      acpStatus: runtimeConfigChanged ? 'ready' : current.acp_status,
+      acpError: runtimeConfigChanged ? null : current.acp_error,
+      state: runtimeConfigChanged ? 'PENDING' : current.state,
+      failureReason: runtimeConfigChanged ? null : current.failure_reason,
+      completedAt: runtimeConfigChanged ? null : current.completed_at,
+      lastActivityAt: runtimeConfigChanged ? now : current.last_activity_at,
+      updatedAt: now,
+    });
+
+  if (current.agent_id && (providerChanged || modelChanged)) {
+    await updateAgent(sqlite, projectId, current.agent_id, {
+      provider: nextProvider,
+      model: nextModel ?? 'default',
+    });
+  }
 
   return await getAcpSessionById(sqlite, sessionId);
 }

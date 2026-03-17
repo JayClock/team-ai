@@ -1,12 +1,13 @@
 import type { State } from '@hateoas-ts/resource';
 import type { AcpSession, Codebase, Project } from '@shared/schema';
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShellsSession } from './session';
 
 const conversationPaneSpy = vi.fn();
 const sessionsRefreshMock = vi.fn();
+const updateSessionMock = vi.fn();
 const resourceGetMock = vi.fn(async () => ({
   collection: [],
   follow: vi.fn(),
@@ -69,6 +70,7 @@ vi.mock('@features/project-conversations', () => ({
     ingestEvents: vi.fn(),
     prompt: vi.fn(),
     select: vi.fn(),
+    updateSession: updateSessionMock,
     selectedSession: currentSelectedSession,
     sessionsResource: {
       refresh: sessionsRefreshMock,
@@ -206,6 +208,8 @@ describe('ShellsSession', () => {
     clientGoMock.mockClear();
     conversationPaneSpy.mockClear();
     resourceGetMock.mockClear();
+    updateSessionMock.mockReset();
+    updateSessionMock.mockResolvedValue(currentSelectedSession);
     sessionsRefreshMock.mockReset();
     sessionsRefreshMock.mockResolvedValue({
       collection: [],
@@ -241,6 +245,71 @@ describe('ShellsSession', () => {
       const props = readConversationPaneProps();
       expect(props.provider?.value).toBe('codex');
       expect(props.model?.value).toBe('gpt-5');
+    });
+  });
+
+  it('updates the selected session model immediately when switching models', async () => {
+    currentSelectedSession = createSessionState({
+      id: 'session-1',
+      model: 'gpt-5',
+      provider: 'codex',
+    });
+
+    render(
+      <ShellsSession
+        projectState={createProjectState()}
+        projectTitle="Team AI"
+        runtimeProfile={{
+          defaultModel: 'gpt-5-mini',
+          defaultProviderId: 'opencode',
+          orchestrationMode: 'ROUTA',
+        }}
+      />,
+    );
+
+    act(() => {
+      const props = readConversationPaneProps();
+      props.model?.onValueChange?.('gpt-5.4');
+    });
+
+    await waitFor(() => {
+      expect(updateSessionMock).toHaveBeenCalledWith({
+        model: 'gpt-5.4',
+        session: currentSelectedSession,
+      });
+    });
+  });
+
+  it('recreates the selected session when switching providers', async () => {
+    currentSelectedSession = createSessionState({
+      id: 'session-1',
+      model: 'gpt-5',
+      provider: 'codex',
+    });
+
+    render(
+      <ShellsSession
+        projectState={createProjectState()}
+        projectTitle="Team AI"
+        runtimeProfile={{
+          defaultModel: 'gpt-5-mini',
+          defaultProviderId: 'opencode',
+          orchestrationMode: 'ROUTA',
+        }}
+      />,
+    );
+
+    act(() => {
+      const props = readConversationPaneProps();
+      props.provider?.onValueChange?.('opencode');
+    });
+
+    await waitFor(() => {
+      expect(updateSessionMock).toHaveBeenCalledWith({
+        model: null,
+        provider: 'opencode',
+        session: currentSelectedSession,
+      });
     });
   });
 });

@@ -305,6 +305,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     create,
     select,
     prompt,
+    updateSession,
     ingestEvents,
   } = useAcpSession(projectState, {
     actorUserId: me.id,
@@ -338,13 +339,15 @@ export function ShellsSession(props: ShellsSessionProps) {
     taskId: string;
   } | null>(null);
   const [specNote, setSpecNote] = useState<State<Note> | null>(null);
-  const [specLoading, setSpecLoading] = useState(false);
+  const [, setSpecLoading] = useState(false);
   const [orchestrationSnapshot, setOrchestrationSnapshot] =
     useState<OrchestrationSnapshot | null>(null);
   const [orchestrationLoading, setOrchestrationLoading] = useState(false);
   const [orchestrationActionPending, setOrchestrationActionPending] = useState<
     'processing' | 'refreshing' | null
   >(null);
+  const [sessionRuntimeSwitchPending, setSessionRuntimeSwitchPending] =
+    useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const noteEventSourceRef = useRef<EventSource | null>(null);
@@ -840,20 +843,84 @@ export function ShellsSession(props: ShellsSessionProps) {
       },
       refreshSessions: loadSessions,
     });
-  const sessionPromptProviderValue =
-    preferredProviderOverride !== undefined
+  const sessionPromptProviderValue = selectedSession
+    ? selectedSession.data.provider
+    : preferredProviderOverride !== undefined
       ? preferredProviderOverride
-      : selectedSession
-        ? selectedSession.data.provider
-        : selectedProviderId;
+      : selectedProviderId;
+  const handleSessionProviderChange = useCallback(
+    (nextProvider: string | null) => {
+      if (!selectedSession) {
+        setPreferredProviderOverride(nextProvider);
+        return;
+      }
+
+      if ((selectedSession.data.provider ?? null) === nextProvider) {
+        return;
+      }
+
+      if (!nextProvider) {
+        toast.error('切换会话 provider 失败');
+        return;
+      }
+
+      setSessionRuntimeSwitchPending(true);
+      void updateSession({
+        provider: nextProvider,
+        model: null,
+        session: selectedSession,
+      })
+        .then(() => {
+          toast.success('已切换会话 provider，并重建运行时上下文');
+        })
+        .catch((error: unknown) => {
+          toast.error(
+            error instanceof Error ? error.message : '切换会话 provider 失败',
+          );
+        })
+        .finally(() => {
+          setSessionRuntimeSwitchPending(false);
+        });
+    },
+    [selectedSession, updateSession],
+  );
+  const handleSessionModelChange = useCallback(
+    (nextModel: string | null) => {
+      if (!selectedSession) {
+        setPreferredModelOverride(nextModel);
+        return;
+      }
+
+      if ((selectedSession.data.model ?? null) === nextModel) {
+        return;
+      }
+
+      setSessionRuntimeSwitchPending(true);
+      void updateSession({
+        model: nextModel,
+        session: selectedSession,
+      })
+        .then(() => {
+          toast.success('已切换会话 model，并重建运行时上下文');
+        })
+        .catch((error: unknown) => {
+          toast.error(
+            error instanceof Error ? error.message : '切换会话 model 失败',
+          );
+        })
+        .finally(() => {
+          setSessionRuntimeSwitchPending(false);
+        });
+    },
+    [selectedSession, updateSession],
+  );
   const sessionPromptModel = {
-    onValueChange: setPreferredModelOverride,
-    value:
-      preferredModelOverride !== undefined
+    onValueChange: handleSessionModelChange,
+    value: selectedSession
+      ? selectedSession.data.model
+      : preferredModelOverride !== undefined
         ? preferredModelOverride
-        : selectedSession
-          ? selectedSession.data.model
-          : creationModel,
+        : creationModel,
   };
   const sessionPromptProjectPicker = useMemo(() => {
     const sessionRepository = selectedSession?.data.codebase?.id
@@ -1497,12 +1564,13 @@ export function ShellsSession(props: ShellsSessionProps) {
                     <ProjectSessionConversationPane
                       chatMessages={chatMessages}
                       hasPendingAssistantMessage={hasPendingAssistantMessage}
+                      interactionDisabled={sessionRuntimeSwitchPending}
                       model={sessionPromptModel}
                       onSubmit={handlePromptSubmit}
                       project={sessionPromptProjectPicker}
                       provider={{
                         loading: providersLoading,
-                        onValueChange: setPreferredProviderOverride,
+                        onValueChange: handleSessionProviderChange,
                         providers,
                         value: sessionPromptProviderValue,
                       }}
@@ -1520,12 +1588,13 @@ export function ShellsSession(props: ShellsSessionProps) {
                     <ProjectSessionConversationPane
                       chatMessages={chatMessages}
                       hasPendingAssistantMessage={hasPendingAssistantMessage}
+                      interactionDisabled={sessionRuntimeSwitchPending}
                       model={sessionPromptModel}
                       onSubmit={handlePromptSubmit}
                       project={sessionPromptProjectPicker}
                       provider={{
                         loading: providersLoading,
-                        onValueChange: setPreferredProviderOverride,
+                        onValueChange: handleSessionProviderChange,
                         providers,
                         value: sessionPromptProviderValue,
                       }}

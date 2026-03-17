@@ -515,6 +515,273 @@ describe('acp route', () => {
     );
   });
 
+  it('recreates the runtime and replays session history when patching the session model', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-model-reload-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const activeSessions = new Set<string>();
+    const sessionHooks = new Map<string, AcpRuntimeSessionHooks>();
+    const createSessionMock = vi.fn(async (input) => {
+      activeSessions.add(input.localSessionId);
+      sessionHooks.set(input.localSessionId, input.hooks);
+      return {
+        runtimeSessionId: `runtime-${input.localSessionId}-${createSessionMock.mock.calls.length + 1}`,
+        provider: input.provider,
+      };
+    });
+    const deleteSessionMock = vi.fn(async (localSessionId: string) => {
+      activeSessions.delete(localSessionId);
+    });
+    const promptSessionMock = vi.fn(async (input) => {
+      const hooks = sessionHooks.get(input.localSessionId);
+
+      if (!input.prompt.includes('reply with exactly: ACK')) {
+        await hooks?.onSessionUpdate({
+          eventType: 'agent_message',
+          message: {
+            content: 'assistant reply',
+            contentBlock: {
+              type: 'text',
+              text: 'assistant reply',
+            },
+            isChunk: false,
+            messageId: 'assistant-msg-1',
+            role: 'assistant',
+          },
+          provider: input.provider,
+          rawNotification: {
+            update: {
+              content: {
+                type: 'text',
+                text: 'assistant reply',
+              },
+              messageId: 'assistant-msg-1',
+              sessionUpdate: 'agent_message',
+            },
+          },
+          sessionId: input.localSessionId,
+          timestamp: '2026-03-18T00:00:00.000Z',
+        } as Parameters<AcpRuntimeSessionHooks['onSessionUpdate']>[0]);
+      }
+
+      return {
+        runtimeSessionId: `runtime-${input.localSessionId}-${createSessionMock.mock.calls.length}`,
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      };
+    });
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: createSessionMock,
+      deleteSession: deleteSessionMock,
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn((localSessionId: string) =>
+        activeSessions.has(localSessionId),
+      ),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: promptSessionMock,
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Model Reload Project',
+      repoPath: '/tmp/team-ai-desktop-model-reload-project',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-model-reload-create',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          model: 'gpt-5',
+          projectId: project.id,
+          provider: 'codex',
+          role: 'DEVELOPER',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    const sessionId = createResponse.json().result.session.id as string;
+    const promptResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-model-reload-prompt',
+        method: 'session/prompt',
+        params: {
+          projectId: project.id,
+          sessionId,
+          prompt: 'hello existing context',
+        },
+      },
+    });
+
+    expect(promptResponse.statusCode).toBe(200);
+
+    const updateResponse = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/projects/${project.id}/acp-sessions/${sessionId}`,
+      payload: {
+        model: 'gpt-5.4',
+      },
+    });
+
+    expect(updateResponse.statusCode).toBe(200);
+    expect(updateResponse.json()).toMatchObject({
+      id: sessionId,
+      model: 'gpt-5.4',
+      provider: 'codex',
+    });
+    expect(deleteSessionMock).toHaveBeenCalledWith(sessionId);
+    expect(createSessionMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        localSessionId: sessionId,
+        model: 'gpt-5.4',
+        provider: 'codex',
+      }),
+    );
+    expect(promptSessionMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        localSessionId: sessionId,
+        provider: 'codex',
+      }),
+    );
+    const replayPrompt = (
+      promptSessionMock.mock.calls[1]?.[0] as { prompt: string } | undefined
+    )?.prompt;
+    expect(replayPrompt).toContain('Conversation history:');
+    expect(replayPrompt).toContain('User:\nhello existing context');
+    expect(replayPrompt).toContain('Assistant:\nassistant reply');
+    expect(replayPrompt).toContain('reply with exactly: ACK');
+
+    const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
+    expect(storedSession.model).toBe('gpt-5.4');
+
+    const agentsResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/agents`,
+    });
+
+    expect(agentsResponse.statusCode).toBe(200);
+    expect(agentsResponse.json()._embedded.agents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          model: 'gpt-5.4',
+          provider: 'codex',
+          specialistId: 'solo-developer',
+        }),
+      ]),
+    );
+  });
+
+  it('recreates the runtime and clears the explicit model when patching the session provider', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-provider-reload-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const activeSessions = new Set<string>();
+    const createSessionMock = vi.fn(async (input) => {
+      activeSessions.add(input.localSessionId);
+      return {
+        runtimeSessionId: `runtime-${input.localSessionId}-${createSessionMock.mock.calls.length + 1}`,
+        provider: input.provider,
+      };
+    });
+    const deleteSessionMock = vi.fn(async (localSessionId: string) => {
+      activeSessions.delete(localSessionId);
+    });
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: createSessionMock,
+      deleteSession: deleteSessionMock,
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn((localSessionId: string) =>
+        activeSessions.has(localSessionId),
+      ),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}-${createSessionMock.mock.calls.length}`,
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Provider Reload Project',
+      repoPath: '/tmp/team-ai-desktop-provider-reload-project',
+    });
+
+    const createResponse = await fastify.inject({
+      method: 'POST',
+      url: '/api/acp',
+      payload: {
+        jsonrpc: '2.0',
+        id: 'req-provider-reload-create',
+        method: 'session/new',
+        params: {
+          actorUserId: 'desktop-user',
+          model: 'gpt-5',
+          projectId: project.id,
+          provider: 'codex',
+          role: 'DEVELOPER',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    const sessionId = createResponse.json().result.session.id as string;
+
+    const updateResponse = await fastify.inject({
+      method: 'PATCH',
+      url: `/api/projects/${project.id}/acp-sessions/${sessionId}`,
+      payload: {
+        provider: 'opencode',
+      },
+    });
+
+    expect(updateResponse.statusCode).toBe(200);
+    expect(updateResponse.json()).toMatchObject({
+      id: sessionId,
+      model: null,
+      provider: 'opencode',
+    });
+    expect(deleteSessionMock).toHaveBeenCalledWith(sessionId);
+    expect(createSessionMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        localSessionId: sessionId,
+        model: null,
+        provider: 'opencode',
+      }),
+    );
+
+    const storedSession = await getAcpSessionById(fastify.sqlite, sessionId);
+    expect(storedSession.model).toBeNull();
+    expect(storedSession.provider).toBe('opencode');
+  });
+
   it('resolves provider and model from the project runtime profile when session/new omits them', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-profile-defaults-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';

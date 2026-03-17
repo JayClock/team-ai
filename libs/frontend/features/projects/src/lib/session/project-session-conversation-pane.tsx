@@ -28,6 +28,7 @@ import { TextPart } from './conversation-part-text';
 export function ProjectSessionConversationPane(props: {
   chatMessages: SessionChatMessage[];
   hasPendingAssistantMessage: boolean;
+  interactionDisabled?: boolean;
   onSubmit: (input: {
     cwd?: string;
     files: unknown[];
@@ -43,6 +44,7 @@ export function ProjectSessionConversationPane(props: {
   const {
     chatMessages,
     hasPendingAssistantMessage,
+    interactionDisabled,
     model,
     onSubmit,
     project,
@@ -52,7 +54,7 @@ export function ProjectSessionConversationPane(props: {
 
   const promptInputProps = {
     ariaLabel: '会话输入框',
-    disabled: hasPendingAssistantMessage,
+    disabled: hasPendingAssistantMessage || interactionDisabled === true,
     footerStart: (
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>

@@ -97,6 +97,13 @@ export type RenameAcpSessionInput = {
   session?: string | AcpSessionRef;
 };
 
+export type UpdateAcpSessionInput = {
+  model?: string | null;
+  name?: string;
+  provider?: string;
+  session?: string | AcpSessionRef;
+};
+
 export type DeleteAcpSessionInput = {
   session?: string | AcpSessionRef;
 };
@@ -422,6 +429,49 @@ export function useAcpSession(
     [replayHistory, resolveSession, selectedSession],
   );
 
+  const updateSession = useCallback(
+    async (input: UpdateAcpSessionInput): Promise<State<AcpSession>> => {
+      const base =
+        input.session !== undefined
+          ? await resolveSession(input.session)
+          : selectedSession;
+      if (!base) {
+        throw new Error('Cannot update without a selected session');
+      }
+
+      const payload: Record<string, string | null> = {};
+      if (input.name !== undefined) {
+        const name = input.name.trim();
+        if (!name) {
+          throw new Error('name must not be blank');
+        }
+        payload.name = name;
+      }
+      if (input.model !== undefined) {
+        payload.model = input.model;
+      }
+      if (input.provider !== undefined) {
+        payload.provider = input.provider;
+      }
+      if (Object.keys(payload).length === 0) {
+        return base;
+      }
+
+      const self = base.follow('self');
+      await self.patch({
+        data: payload,
+      });
+      const refreshed = await self.refresh();
+      setSelectedSession(refreshed);
+      await replayHistory({
+        session: refreshed,
+        merge: false,
+      });
+      return refreshed;
+    },
+    [replayHistory, resolveSession, selectedSession],
+  );
+
   const deleteSession = useCallback(
     async (input: DeleteAcpSessionInput = {}): Promise<string> => {
       const base =
@@ -461,6 +511,7 @@ export function useAcpSession(
     prompt,
     cancel,
     rename,
+    updateSession,
     deleteSession,
     replayHistory,
   };

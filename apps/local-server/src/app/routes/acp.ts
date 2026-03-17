@@ -21,6 +21,7 @@ import {
   loadAcpSession,
   promptAcpSession,
   renameAcpSession,
+  updateAcpSession,
 } from '../services/acp-service';
 import { getAcpSessionContext } from '../services/session-context-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -45,9 +46,21 @@ const historyQuerySchema = z.object({
   sinceEventId: z.string().trim().min(1).optional(),
 });
 
-const renameSessionBodySchema = z.object({
-  name: z.string().trim().min(1),
-});
+const nullableStringSchema = z.string().trim().min(1).nullable();
+
+const updateSessionBodySchema = z
+  .object({
+    model: nullableStringSchema.optional(),
+    name: z.string().trim().min(1).optional(),
+    provider: z.string().trim().min(1).optional(),
+  })
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.model !== undefined ||
+      value.provider !== undefined,
+    'At least one session field must be provided',
+  );
 
 const jsonRpcRequestSchema = z.object({
   jsonrpc: z.literal('2.0'),
@@ -196,12 +209,30 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
       const { projectId, sessionId } = sessionParamsSchema.parse(
         request.params,
       );
-      const body = renameSessionBodySchema.parse(request.body);
-      const session = await renameAcpSession(
-        fastify.sqlite,
-        sessionId,
-        body.name,
-      );
+      const body = updateSessionBodySchema.parse(request.body);
+      const session =
+        body.model !== undefined || body.provider !== undefined
+          ? await updateAcpSession(
+              fastify.sqlite,
+              fastify.acpStreamBroker,
+              fastify.acpRuntime,
+              projectId,
+              sessionId,
+              {
+                model: body.model,
+                name: body.name,
+                provider: body.provider,
+              },
+              {
+                logger: request.log,
+                source: 'acp-route',
+              },
+            )
+          : await renameAcpSession(
+              fastify.sqlite,
+              sessionId,
+              body.name as string,
+            );
 
       if (session.project.id !== projectId) {
         throw fastify.httpErrors.notFound();
