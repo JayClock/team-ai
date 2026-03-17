@@ -239,9 +239,8 @@ describe('ShellsSession', () => {
 
     await waitFor(() => {
       const props = readConversationPaneProps();
-      expect(props.providerPicker.value).toBe('codex');
-      expect(props.modelPicker.providerId).toBe('codex');
-      expect(props.modelPicker.value).toBe('gpt-5');
+      expect(props.provider?.value).toBe('codex');
+      expect(props.model?.value).toBe('gpt-5');
     });
   });
 });
@@ -300,14 +299,16 @@ function createSessionState(input: {
 }
 
 function readConversationPaneProps(): {
-  modelPicker: {
+  model?: {
     onValueChange?: (value: string | null) => void;
-    providerId: string | null;
-    value: string | null;
+    value?: string | null;
   };
-  providerPicker: {
-    onValueChange: (value: string) => void;
-    value: string | null;
+  project?: {
+    onValueChange?: (value: unknown) => void;
+  };
+  provider?: {
+    onValueChange?: (value: string | null) => void;
+    value?: string | null;
   };
 } {
   const props = conversationPaneSpy.mock.lastCall?.[0];
@@ -315,14 +316,16 @@ function readConversationPaneProps(): {
   expect(props).toBeDefined();
 
   return props as {
-    modelPicker: {
+    model?: {
       onValueChange?: (value: string | null) => void;
-      providerId: string | null;
-      value: string | null;
+      value?: string | null;
     };
-    providerPicker: {
-      onValueChange: (value: string) => void;
-      value: string | null;
+    project?: {
+      onValueChange?: (value: unknown) => void;
+    };
+    provider?: {
+      onValueChange?: (value: string | null) => void;
+      value?: string | null;
     };
   };
 }

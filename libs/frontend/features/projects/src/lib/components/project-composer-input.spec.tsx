@@ -1,6 +1,24 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ProjectComposerInput } from './project-composer-input';
 
+vi.mock('../session/use-acp-provider-models', () => ({
+  useAcpProviderModels: (providerId: string | null) => ({
+    error: null,
+    loading: false,
+    models:
+      providerId === 'opencode'
+        ? [
+            {
+              id: 'gpt-5.4',
+              name: 'GPT 5.4',
+              providerId: 'opencode',
+            },
+          ]
+        : [],
+    providerId,
+  }),
+}));
+
 class ResizeObserverMock {
   disconnect() {
     return undefined;
@@ -54,11 +72,6 @@ describe('ProjectComposerInput', () => {
         ariaLabel="项目指令输入框"
         onSubmit={() => undefined}
         placeholder="输入内容"
-        providerPicker={{
-          onValueChange: () => undefined,
-          providers: [],
-          value: null,
-        }}
       />,
     );
 
@@ -73,7 +86,7 @@ describe('ProjectComposerInput', () => {
         ariaLabel="项目指令输入框"
         onSubmit={() => undefined}
         placeholder="输入内容"
-        projectPicker={{
+        project={{
           onValueChange: () => undefined,
           projects: [
             {
@@ -101,7 +114,7 @@ describe('ProjectComposerInput', () => {
         ariaLabel="项目指令输入框"
         onSubmit={() => undefined}
         placeholder="输入内容"
-        projectPicker={{
+        project={{
           onValueChange: () => undefined,
           projects: [
             {
@@ -130,7 +143,7 @@ describe('ProjectComposerInput', () => {
         ariaLabel="项目指令输入框"
         onSubmit={() => undefined}
         placeholder="输入内容"
-        projectPicker={{
+        project={{
           onCreateWorktree: () => undefined,
           onDeleteWorktree: () => undefined,
           onValidateWorktree: () => undefined,
@@ -180,9 +193,7 @@ describe('ProjectComposerInput', () => {
     render(
       <ProjectComposerInput
         ariaLabel="项目指令输入框"
-        onSubmit={onSubmit}
-        placeholder="输入内容"
-        providerPicker={{
+        provider={{
           onValueChange: () => undefined,
           providers: [
             {
@@ -201,6 +212,8 @@ describe('ProjectComposerInput', () => {
           ],
           value: 'opencode',
         }}
+        onSubmit={onSubmit}
+        placeholder="输入内容"
       />,
     );
 
@@ -225,20 +238,13 @@ describe('ProjectComposerInput', () => {
     render(
       <ProjectComposerInput
         ariaLabel="项目指令输入框"
-        modelPicker={{
-          models: [
-            {
-              id: 'gpt-5.4',
-              name: 'GPT 5.4',
-              providerId: 'opencode',
-            },
-          ],
-          providerId: 'opencode',
+        model={{
+          onValueChange: () => undefined,
           value: 'gpt-5.4',
         }}
         onSubmit={onSubmit}
         placeholder="输入内容"
-        providerPicker={{
+        provider={{
           onValueChange: () => undefined,
           providers: [
             {
@@ -284,7 +290,7 @@ describe('ProjectComposerInput', () => {
         ariaLabel="项目指令输入框"
         onSubmit={onSubmit}
         placeholder="输入内容"
-        projectPicker={{
+        project={{
           onValueChange: () => undefined,
           projects: [
             {

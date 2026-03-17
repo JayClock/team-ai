@@ -57,13 +57,11 @@ import {
   type WorkbenchSessionRuntimeProfile,
 } from './session-runtime-profile';
 import { useAcpProviders } from './use-acp-providers';
-import { useAcpProviderModels } from './use-acp-provider-models';
 import {
   type ProjectRepositoryOption,
   type ProjectWorktreeOption,
 } from '../components/project-composer-input';
 import { ProjectRuntimeProfilePanel } from '../components/project-runtime-profile-panel';
-import type { ProjectModelPickerProps } from '../components/project-model-picker';
 
 const STREAM_RETRY_DELAY_MS = 1500;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
@@ -453,11 +451,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   } = useAcpProviders(sessionDefaults.providerId);
   const composerProviderId =
     selectedSession?.data.provider ?? selectedProviderId ?? null;
-  const {
-    error: providerModelsError,
-    loading: providerModelsLoading,
-    models: providerModels,
-  } = useAcpProviderModels(composerProviderId);
 
   useEffect(() => {
     if (
@@ -847,23 +840,14 @@ export function ShellsSession(props: ShellsSessionProps) {
       },
       refreshSessions: loadSessions,
     });
-  const sessionPromptProviderPicker = {
-    loading: providersLoading,
-    onValueChange: setPreferredProviderOverride,
-    providers,
-    value:
-      preferredProviderOverride !== undefined
-        ? preferredProviderOverride
-        : selectedSession
-          ? selectedSession.data.provider
-          : selectedProviderId,
-  };
-  const sessionPromptModelPicker: ProjectModelPickerProps = {
-    error: providerModelsError,
-    loading: providerModelsLoading,
-    models: providerModels,
+  const sessionPromptProviderValue =
+    preferredProviderOverride !== undefined
+      ? preferredProviderOverride
+      : selectedSession
+        ? selectedSession.data.provider
+        : selectedProviderId;
+  const sessionPromptModel = {
     onValueChange: setPreferredModelOverride,
-    providerId: composerProviderId,
     value:
       preferredModelOverride !== undefined
         ? preferredModelOverride
@@ -1513,10 +1497,15 @@ export function ShellsSession(props: ShellsSessionProps) {
                     <ProjectSessionConversationPane
                       chatMessages={chatMessages}
                       hasPendingAssistantMessage={hasPendingAssistantMessage}
-                      modelPicker={sessionPromptModelPicker}
+                      model={sessionPromptModel}
                       onSubmit={handlePromptSubmit}
-                      providerPicker={sessionPromptProviderPicker}
-                      projectPicker={sessionPromptProjectPicker}
+                      project={sessionPromptProjectPicker}
+                      provider={{
+                        loading: providersLoading,
+                        onValueChange: setPreferredProviderOverride,
+                        providers,
+                        value: sessionPromptProviderValue,
+                      }}
                       selectedSession={selectedSession}
                     />
                   ) : mainPane === 'ops' ? (
@@ -1531,10 +1520,15 @@ export function ShellsSession(props: ShellsSessionProps) {
                     <ProjectSessionConversationPane
                       chatMessages={chatMessages}
                       hasPendingAssistantMessage={hasPendingAssistantMessage}
-                      modelPicker={sessionPromptModelPicker}
+                      model={sessionPromptModel}
                       onSubmit={handlePromptSubmit}
-                      providerPicker={sessionPromptProviderPicker}
-                      projectPicker={sessionPromptProjectPicker}
+                      project={sessionPromptProjectPicker}
+                      provider={{
+                        loading: providersLoading,
+                        onValueChange: setPreferredProviderOverride,
+                        providers,
+                        value: sessionPromptProviderValue,
+                      }}
                       selectedSession={selectedSession}
                     />
                   </div>

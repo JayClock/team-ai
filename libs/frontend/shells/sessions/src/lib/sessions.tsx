@@ -6,7 +6,6 @@ import {
   type ProjectRepositoryOption,
   type ProjectWorktreeOption,
   useAcpProviders,
-  useAcpProviderModels,
 } from '@features/projects';
 import {
   AcpSessionSummary,
@@ -203,11 +202,6 @@ function ShellsSessionsContent(props: {
     selectedProviderId,
     setSelectedProviderId,
   } = useAcpProviders('opencode');
-  const {
-    error: providerModelsError,
-    loading: providerModelsLoading,
-    models: providerModels,
-  } = useAcpProviderModels(selectedProviderId);
   const { sessionsResource, create } = useAcpSession(projectState, {
     actorUserId: me.id,
     provider: selectedProviderId,
@@ -638,24 +632,19 @@ function ShellsSessionsContent(props: {
     ariaLabel: '项目指令输入框',
     disabled: startingSession,
     footerStart: homePromptFooterStart,
+    model: {
+      onValueChange: setSelectedModelId,
+      value: selectedModelId,
+    },
     onSubmit: submitHomePrompt,
     placeholder: '你想在这个项目里完成什么？可以直接描述需求、约束和期望结果。',
-    providerPicker: {
+    project: projectPicker,
+    provider: {
       loading: providersLoading,
       onValueChange: setSelectedProviderId,
       providers,
       value: selectedProviderId,
     },
-    modelPicker: {
-      error: providerModelsError,
-      loading: providerModelsLoading,
-      models: providerModels,
-      onValueChange: setSelectedModelId,
-      providerId: selectedProviderId,
-      value: selectedModelId,
-    },
-    projectPicker,
-    submitDisabled: startingSession,
     submitPending: startingSession,
   };
 

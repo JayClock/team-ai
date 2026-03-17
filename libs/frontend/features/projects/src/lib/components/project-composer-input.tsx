@@ -13,6 +13,7 @@ import {
 } from '@shared/ui';
 import { ArrowRightIcon, LoaderCircleIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
+import { useAcpProviderModels } from '../session/use-acp-provider-models';
 import {
   ProjectModelPicker,
   type ProjectModelPickerProps,
@@ -50,18 +51,42 @@ export type ProjectComposerInputProps = {
   disabled?: boolean;
   footerEnd?: ReactNode;
   footerStart?: ReactNode;
+  model?: ProjectComposerModelProps;
   onSubmit: (input: ProjectComposerSubmitInput) => Promise<void> | void;
-  modelPicker?: ProjectModelPickerProps;
   placeholder: string;
-  providerPicker?: ProjectProviderPickerProps;
-  projectPicker?: ProjectRepositoryPickerProps;
-  submitDisabled?: boolean;
+  project?: ProjectComposerProjectProps;
+  provider?: ProjectComposerProviderProps;
   submitPending?: boolean;
 };
 
-const DEFAULT_MODEL_PICKER_PROPS: ProjectModelPickerProps = {
-  models: [],
-};
+export type ProjectComposerModelProps = Pick<
+  ProjectModelPickerProps,
+  'onValueChange' | 'value'
+>;
+
+export type ProjectComposerProjectProps = Pick<
+  ProjectRepositoryPickerProps,
+  | 'cloneEndpoint'
+  | 'onCreateWorktree'
+  | 'onDeleteWorktree'
+  | 'onProjectCloned'
+  | 'onValidateWorktree'
+  | 'onValueChange'
+  | 'projects'
+  | 'selectedWorktreeId'
+  | 'value'
+  | 'worktrees'
+  | 'worktreesLoading'
+>;
+
+export type ProjectComposerProviderProps = Pick<
+  ProjectProviderPickerProps,
+  'loading' | 'onValueChange' | 'providers' | 'value'
+>;
+
+const DEFAULT_PROJECT_OPTIONS: ProjectRepositoryPickerProps['projects'] = [];
+const DEFAULT_PROJECT_WORKTREES: ProjectRepositoryPickerProps['worktrees'] = [];
+const EMPTY_PROVIDER_OPTIONS: ProjectProviderPickerProps['providers'] = [];
 
 export function ProjectComposerInput(props: ProjectComposerInputProps) {
   return (
@@ -77,23 +102,31 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
     disabled,
     footerEnd,
     footerStart,
-    modelPicker,
+    model,
     onSubmit,
     placeholder,
-    providerPicker,
-    projectPicker,
-    submitDisabled,
+    project,
+    provider,
     submitPending,
   } = props;
   const controller = usePromptInputController();
-  const resolvedModelPicker = modelPicker ?? DEFAULT_MODEL_PICKER_PROPS;
+  const providerValue = provider?.value;
+  const resolvedProviderOptions = provider?.providers ?? EMPTY_PROVIDER_OPTIONS;
+  const resolvedProjectOptions = project?.projects ?? DEFAULT_PROJECT_OPTIONS;
+  const resolvedProjectWorktrees =
+    project?.worktrees ?? DEFAULT_PROJECT_WORKTREES;
+  const {
+    error: modelError,
+    loading: modelLoading,
+    models: modelOptions,
+    providerId: modelProviderId,
+  } = useAcpProviderModels(providerValue ?? null);
   const text = controller.textInput.value;
   const hasAttachments = controller.attachments.files.length > 0;
 
   const isSubmitDisabled =
     disabled === true ||
     submitPending === true ||
-    submitDisabled === true ||
     text.trim().length === 0;
 
   return (
@@ -104,10 +137,10 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
         multiple
         onSubmit={(message) =>
           onSubmit({
-            cwd: projectPicker?.value?.repoPath ?? undefined,
+            cwd: project?.value?.repoPath ?? undefined,
             files: message.files,
-            model: resolvedModelPicker.value ?? undefined,
-            provider: providerPicker?.value ?? undefined,
+            model: model?.value ?? undefined,
+            provider: providerValue ?? undefined,
             text: message.text,
           })
         }
@@ -131,30 +164,39 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
 
         <PromptInputFooter className="w-full items-center gap-2 border-t border-slate-100 px-4 py-3 md:px-5 dark:border-[#1c1f2e]">
           <PromptInputTools className="min-w-0 flex-1 flex-wrap items-center gap-2">
-            {projectPicker ? (
-              <ProjectRepositoryPicker {...projectPicker} />
-            ) : null}
+            <ProjectRepositoryPicker
+              cloneEndpoint={project?.cloneEndpoint}
+              disabled={disabled === true || submitPending === true}
+              onCreateWorktree={project?.onCreateWorktree}
+              onDeleteWorktree={project?.onDeleteWorktree}
+              onProjectCloned={project?.onProjectCloned}
+              onValidateWorktree={project?.onValidateWorktree}
+              onValueChange={project?.onValueChange}
+              projects={resolvedProjectOptions}
+              selectedWorktreeId={project?.selectedWorktreeId}
+              value={project?.value}
+              worktrees={resolvedProjectWorktrees}
+              worktreesLoading={project?.worktreesLoading}
+            />
             {footerStart}
           </PromptInputTools>
 
           <div className="ml-auto flex items-center gap-2">
-            {providerPicker ? (
-              <ProjectProviderPicker
-                {...providerPicker}
-                disabled={
-                  disabled === true ||
-                  submitPending === true ||
-                  providerPicker.disabled === true
-                }
-              />
-            ) : null}
+            <ProjectProviderPicker
+              disabled={disabled === true || submitPending === true}
+              loading={provider?.loading}
+              onValueChange={provider?.onValueChange}
+              providers={resolvedProviderOptions}
+              value={providerValue}
+            />
             <ProjectModelPicker
-              {...resolvedModelPicker}
-              disabled={
-                disabled === true ||
-                submitPending === true ||
-                resolvedModelPicker.disabled === true
-              }
+              disabled={disabled === true || submitPending === true}
+              error={modelError}
+              loading={modelLoading}
+              models={modelOptions}
+              onValueChange={model?.onValueChange}
+              providerId={modelProviderId}
+              value={model?.value}
             />
             {footerEnd}
 

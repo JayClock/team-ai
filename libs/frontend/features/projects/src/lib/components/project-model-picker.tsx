@@ -54,7 +54,7 @@ export function ProjectModelPicker(props: ProjectModelPickerProps) {
           type="button"
           variant="ghost"
           size="sm"
-          disabled={disabled || !normalizedProviderId}
+          disabled={disabled || loading || !normalizedProviderId}
           className="h-8 max-w-[14rem] rounded-lg px-2.5 text-xs text-slate-500 hover:text-slate-800 data-[state=open]:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:data-[state=open]:bg-[#1f2233]"
         >
           {loading ? (

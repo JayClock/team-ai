@@ -13,10 +13,10 @@ import { formatStatusLabel } from './project-session-workbench.shared';
 import { SessionChatMessage } from './use-project-session-chat';
 import {
   ProjectComposerInput,
-  type ProjectProviderPickerProps,
-  type ProjectRepositoryPickerProps,
+  type ProjectComposerModelProps,
+  type ProjectComposerProjectProps,
+  type ProjectComposerProviderProps,
 } from '../components/project-composer-input';
-import type { ProjectModelPickerProps } from '../components/project-model-picker';
 import { ReasoningPart } from './conversation-part-reasoning';
 import {
   isRenderableTerminalPart,
@@ -35,18 +35,18 @@ export function ProjectSessionConversationPane(props: {
     provider?: string;
     text: string;
   }) => Promise<void>;
-  modelPicker?: ProjectModelPickerProps;
-  providerPicker?: ProjectProviderPickerProps;
-  projectPicker?: ProjectRepositoryPickerProps;
+  model?: ProjectComposerModelProps;
+  project?: ProjectComposerProjectProps;
+  provider?: ProjectComposerProviderProps;
   selectedSession: State<AcpSession> | null;
 }) {
   const {
     chatMessages,
     hasPendingAssistantMessage,
-    modelPicker,
+    model,
     onSubmit,
-    providerPicker,
-    projectPicker,
+    project,
+    provider,
     selectedSession,
   } = props;
 
@@ -77,13 +77,13 @@ export function ProjectSessionConversationPane(props: {
         ) : null}
       </div>
     ),
+    model,
     onSubmit,
-    modelPicker,
     placeholder: selectedSession
       ? '继续当前会话...'
       : '发送第一条消息，开始新的会话...',
-    projectPicker,
-    providerPicker,
+    project,
+    provider,
     submitPending: hasPendingAssistantMessage,
   };
 
