@@ -9,6 +9,7 @@ import desktopCorsPlugin from './plugins/desktop-cors';
 import executionRuntimePlugin from './plugins/execution-runtime';
 import backgroundWorkerPlugin from './plugins/background-worker';
 import kanbanWorkflowOrchestratorPlugin from './plugins/kanban-workflow-orchestrator';
+import workflowExecutorPlugin from './plugins/workflow-executor';
 import problemJsonPlugin from './plugins/problem-json';
 import schedulerPlugin from './plugins/scheduler';
 import sensiblePlugin from './plugins/sensible';
@@ -41,6 +42,7 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
     intervalMs: opts.backgroundWorkerIntervalMs,
   });
   fastify.register(kanbanWorkflowOrchestratorPlugin);
+  fastify.register(workflowExecutorPlugin);
   fastify.register(taskWorkflowOrchestratorPlugin);
   fastify.register(schedulerPlugin, {
     enabled: opts.schedulerEnabled,

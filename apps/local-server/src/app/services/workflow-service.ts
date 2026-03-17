@@ -51,6 +51,25 @@ interface WorkflowRunRow {
   workflow_version: number;
 }
 
+interface WorkflowRunTaskRow {
+  completed_at: string | null;
+  created_at: string;
+  id: string;
+  started_at: string | null;
+  status: string;
+  workflow_step_name: string | null;
+}
+
+interface WorkflowRunProgress {
+  completedAt: string | null;
+  completedSteps: number;
+  currentStepName: string | null;
+  failedSteps: number;
+  pendingSteps: number;
+  runningSteps: number;
+  status: WorkflowRunStatus;
+}
+
 function createWorkflowId() {
   return `wf_${workflowIdGenerator()}`;
 }
@@ -92,15 +111,22 @@ function mapWorkflowDefinitionRow(
   };
 }
 
-function mapWorkflowRunRow(row: WorkflowRunRow): WorkflowRunPayload {
+function mapWorkflowRunRow(
+  row: WorkflowRunRow,
+  progress: WorkflowRunProgress,
+): WorkflowRunPayload {
   return {
-    completedAt: row.completed_at,
+    completedAt: progress.completedAt,
+    completedSteps: progress.completedSteps,
     createdAt: row.created_at,
-    currentStepName: row.current_step_name,
+    currentStepName: progress.currentStepName,
+    failedSteps: progress.failedSteps,
     id: row.id,
+    pendingSteps: progress.pendingSteps,
     projectId: row.project_id,
+    runningSteps: progress.runningSteps,
     startedAt: row.started_at,
-    status: row.status,
+    status: progress.status,
     totalSteps: row.total_steps,
     triggerPayload: row.trigger_payload,
     triggerSource: row.trigger_source,
@@ -148,6 +174,94 @@ function getWorkflowDefinitionRow(
   }
 
   return row;
+}
+
+function listWorkflowRunTaskRows(
+  sqlite: Database,
+  workflowRunId: string,
+): WorkflowRunTaskRow[] {
+  return sqlite
+    .prepare(
+      `
+        SELECT id, workflow_step_name, status, started_at, completed_at, created_at
+        FROM project_background_tasks
+        WHERE workflow_run_id = ? AND deleted_at IS NULL
+        ORDER BY created_at ASC
+      `,
+    )
+    .all(workflowRunId) as WorkflowRunTaskRow[];
+}
+
+function resolveWorkflowRunProgress(
+  sqlite: Database,
+  row: WorkflowRunRow,
+): WorkflowRunProgress {
+  const tasks = listWorkflowRunTaskRows(sqlite, row.id);
+  const workflow = mapWorkflowDefinitionRow(
+    getWorkflowDefinitionRow(sqlite, row.workflow_id),
+  );
+  const stepTaskByName = new Map(
+    tasks.map((task) => [task.workflow_step_name ?? task.id, task]),
+  );
+
+  const completedSteps = tasks.filter((task) => task.status === 'COMPLETED').length;
+  const failedSteps = tasks.filter(
+    (task) => task.status === 'FAILED' || task.status === 'CANCELLED',
+  ).length;
+  const runningSteps = tasks.filter((task) => task.status === 'RUNNING').length;
+  const pendingSteps = tasks.filter((task) => task.status === 'PENDING').length;
+
+  const currentStep =
+    workflow.steps.find((step) => {
+      const task = stepTaskByName.get(step.name);
+      return task ? task.status !== 'COMPLETED' : true;
+    }) ?? null;
+
+  const status =
+    failedSteps > 0
+      ? 'FAILED'
+      : completedSteps === row.total_steps && row.total_steps > 0
+        ? 'COMPLETED'
+        : 'RUNNING';
+
+  return {
+    completedAt:
+      status === 'COMPLETED' || status === 'FAILED'
+        ? row.completed_at ?? new Date().toISOString()
+        : null,
+    completedSteps,
+    currentStepName: status === 'COMPLETED' ? null : currentStep?.name ?? row.current_step_name,
+    failedSteps,
+    pendingSteps,
+    runningSteps,
+    status,
+  };
+}
+
+function updateWorkflowRunRow(
+  sqlite: Database,
+  workflowRunId: string,
+  progress: WorkflowRunProgress,
+) {
+  sqlite
+    .prepare(
+      `
+        UPDATE project_workflow_runs
+        SET
+          status = @status,
+          current_step_name = @currentStepName,
+          completed_at = @completedAt,
+          updated_at = @updatedAt
+        WHERE id = @workflowRunId AND deleted_at IS NULL
+      `,
+    )
+    .run({
+      completedAt: progress.completedAt,
+      currentStepName: progress.currentStepName,
+      status: progress.status,
+      updatedAt: new Date().toISOString(),
+      workflowRunId,
+    });
 }
 
 function getWorkflowRunRow(sqlite: Database, workflowRunId: string): WorkflowRunRow {
@@ -273,7 +387,9 @@ export async function listWorkflowRuns(
     .all(workflowId) as WorkflowRunRow[];
 
   return {
-    items: rows.map(mapWorkflowRunRow),
+    items: rows.map((row) =>
+      mapWorkflowRunRow(row, resolveWorkflowRunProgress(sqlite, row)),
+    ),
     workflowId,
   };
 }
@@ -406,5 +522,31 @@ export function getWorkflowRunById(
   sqlite: Database,
   workflowRunId: string,
 ): WorkflowRunPayload {
-  return mapWorkflowRunRow(getWorkflowRunRow(sqlite, workflowRunId));
+  const row = getWorkflowRunRow(sqlite, workflowRunId);
+  return mapWorkflowRunRow(row, resolveWorkflowRunProgress(sqlite, row));
+}
+
+export function reconcileWorkflowRunById(
+  sqlite: Database,
+  workflowRunId: string,
+): WorkflowRunPayload {
+  const row = getWorkflowRunRow(sqlite, workflowRunId);
+  const progress = resolveWorkflowRunProgress(sqlite, row);
+  updateWorkflowRunRow(sqlite, workflowRunId, progress);
+  return getWorkflowRunById(sqlite, workflowRunId);
+}
+
+export function listRunningWorkflowRunIds(sqlite: Database): string[] {
+  return (
+    sqlite
+      .prepare(
+        `
+          SELECT id
+          FROM project_workflow_runs
+          WHERE status = 'RUNNING' AND deleted_at IS NULL
+          ORDER BY updated_at DESC, created_at DESC
+        `,
+      )
+      .all() as Array<{ id: string }>
+  ).map((row) => row.id);
 }

@@ -26,10 +26,14 @@ export interface WorkflowDefinitionPayload {
 
 export interface WorkflowRunPayload {
   completedAt: string | null;
+  completedSteps: number;
   createdAt: string;
   currentStepName: string | null;
+  failedSteps: number;
   id: string;
+  pendingSteps: number;
   projectId: string;
+  runningSteps: number;
   startedAt: string | null;
   status: WorkflowRunStatus;
   totalSteps: number;
