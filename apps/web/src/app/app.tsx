@@ -3,6 +3,7 @@ import SmartDomainPage from '../features/landing/smart-domain-page';
 import { Login } from '../features/auth/login';
 import { Signup } from '../features/auth/signup';
 import ProjectHome from '../features/projects/project-home';
+import ProjectOrchestrationPage from '../features/projects/project-orchestration-page';
 import ProjectSessionPage from '../features/projects/project-session-page';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { layoutRoutes } from '@shells/layout';
@@ -44,6 +45,11 @@ function createAppRouter() {
       path: '/projects/:projectId/sessions/:sessionId',
       loader: protectedRouteLoader,
       element: <ProjectSessionPage />,
+    },
+    {
+      path: '/projects/:projectId/orchestration',
+      loader: protectedRouteLoader,
+      element: <ProjectOrchestrationPage />,
     },
     {
       path: '/login',

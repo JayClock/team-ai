@@ -1,7 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { ProjectSessionWorkbench } from '@features/projects';
 import { Project } from '@shared/schema';
-import { Card, CardContent, CardHeader, CardTitle } from '@shared/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@shared/ui';
 import {
   clearPendingProjectPrompt,
   projectTitle,
@@ -75,6 +75,17 @@ export default function ProjectSessionPage() {
         onPendingPromptConsumed={handlePendingPromptConsumed}
         onSessionNavigate={handleSessionNavigate}
       />
+      <div className="pointer-events-none absolute right-4 top-4 z-20">
+        <Button
+          className="pointer-events-auto"
+          variant="outline"
+          onClick={() =>
+            navigate(`/projects/${projectState.data.id}/orchestration`)
+          }
+        >
+          Orchestration
+        </Button>
+      </div>
     </div>
   );
 }
