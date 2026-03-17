@@ -10,7 +10,6 @@ import {
   updateNote,
 } from '../../services/note-service';
 import {
-  parseSpecTaskBlocks,
   syncSpecNoteToTasks,
 } from '../../services/spec-task-sync-service';
 import {
@@ -75,10 +74,6 @@ function buildNoteTitle(
 export function createSetNoteContentHandler(fastify: FastifyInstance) {
   return async (args: SetNoteContentArgs) => {
     await ensureNoteWriteScope(fastify, args);
-
-    if (args.type === 'spec') {
-      parseSpecTaskBlocks(args.content);
-    }
 
     let note = args.noteId
       ? await getProjectNote(fastify.sqlite, args.projectId, args.noteId)

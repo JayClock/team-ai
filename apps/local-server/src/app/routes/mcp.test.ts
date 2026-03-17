@@ -1178,18 +1178,16 @@ Validation and review logic
         type: 'spec',
       },
       taskSync: {
-        createdCount: 2,
-        parsedCount: 2,
+        createdCount: 0,
+        parsedCount: 0,
+        skipped: true,
         skippedCount: 0,
         updatedCount: 0,
       },
     });
-
     const firstPayload = readMcpResult<{
       note: { id: string };
-      taskSync: { tasks: Array<{ taskId: string }> };
     }>(firstResponse);
-    const firstTaskIds = firstPayload.taskSync.tasks.map((task) => task.taskId);
 
     const updatedContent = `
 ## Goal
@@ -1254,9 +1252,10 @@ Validation and review logic
       },
       taskSync: {
         createdCount: 0,
-        parsedCount: 2,
+        parsedCount: 0,
+        skipped: true,
         skippedCount: 0,
-        updatedCount: 2,
+        updatedCount: 0,
       },
     });
 
@@ -1267,22 +1266,7 @@ Validation and review logic
       sessionId: rootSessionId,
     });
 
-    expect(syncedTasks.total).toBe(2);
-    expect(syncedTasks.items.map((task) => task.id).sort()).toEqual(
-      firstTaskIds.sort(),
-    );
-    expect(syncedTasks.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: 'implement',
-          title: 'Implement canonical spec sync',
-        }),
-        expect.objectContaining({
-          kind: 'review',
-          title: 'Review spec sync',
-        }),
-      ]),
-    );
+    expect(syncedTasks.total).toBe(0);
   });
 
   it('delegates a task to a downstream specialist via MCP', async () => {

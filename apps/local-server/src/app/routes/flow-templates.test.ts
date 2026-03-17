@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
-import { listTasks } from '../services/task-service';
 import { createProject } from '../services/project-service';
 import flowTemplatesRoute from './flow-templates';
 
@@ -31,7 +30,7 @@ describe('flow template routes', () => {
     }
   });
 
-  it('lists built-in templates and applies a spec template into synced tasks', async () => {
+  it('lists built-in templates and applies a spec template without syncing tasks', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -74,37 +73,10 @@ describe('flow template routes', () => {
         type: 'spec',
       },
       taskSync: expect.objectContaining({
-        tasks: expect.arrayContaining([
-          expect.objectContaining({
-            action: 'created',
-          }),
-        ]),
+        createdCount: 0,
+        parsedCount: 0,
+        skipped: true,
       }),
-    });
-
-    await expect(
-      listTasks(sqlite, {
-        page: 1,
-        pageSize: 20,
-        projectId: project.id,
-      }),
-    ).resolves.toMatchObject({
-      items: expect.arrayContaining([
-        expect.objectContaining({
-          assignedRole: 'CRAFTER',
-          boardId: 'workflow-default',
-          columnId: 'todo',
-          kind: 'implement',
-          title: 'Implement scoped delivery slice',
-        }),
-        expect.objectContaining({
-          assignedRole: 'GATE',
-          boardId: 'workflow-default',
-          columnId: 'review',
-          kind: 'review',
-          title: 'Review the delivery slice',
-        }),
-      ]),
     });
   });
 

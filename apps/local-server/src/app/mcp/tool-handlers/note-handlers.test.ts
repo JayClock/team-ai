@@ -7,11 +7,10 @@ import { describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../../db/sqlite';
 import { insertAcpSession } from '../../test-support/acp-session-fixture';
 import { createProject } from '../../services/project-service';
-import { listTasks } from '../../services/task-service';
 import { createApplyFlowTemplateHandler } from './note-handlers';
 
 describe('createApplyFlowTemplateHandler', () => {
-  it('creates or updates the canonical session-scoped spec note and syncs routa tasks', async () => {
+  it('creates or updates the canonical session-scoped spec note without materializing tasks', async () => {
     const { cleanup, sqlite } = await createTestDatabase();
 
     try {
@@ -45,30 +44,9 @@ describe('createApplyFlowTemplateHandler', () => {
         type: 'spec',
       });
       expect(firstResult.taskSync).toMatchObject({
-        createdCount: 2,
-        parsedCount: 2,
-      });
-
-      await expect(
-        listTasks(sqlite, {
-          page: 1,
-          pageSize: 20,
-          projectId: project.id,
-          sessionId,
-        }),
-      ).resolves.toMatchObject({
-        items: expect.arrayContaining([
-          expect.objectContaining({
-            assignedRole: 'CRAFTER',
-            kind: 'implement',
-            title: 'Implement scoped delivery slice',
-          }),
-          expect.objectContaining({
-            assignedRole: 'GATE',
-            kind: 'review',
-            title: 'Review the delivery slice',
-          }),
-        ]),
+        createdCount: 0,
+        parsedCount: 0,
+        skipped: true,
       });
 
       const secondResult = await applyFlowTemplate({
@@ -89,8 +67,9 @@ describe('createApplyFlowTemplateHandler', () => {
       });
       expect(secondResult.taskSync).toMatchObject({
         createdCount: 0,
-        parsedCount: 2,
-        updatedCount: 2,
+        parsedCount: 0,
+        skipped: true,
+        updatedCount: 0,
       });
     } finally {
       await cleanup();

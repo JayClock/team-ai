@@ -176,7 +176,7 @@ describe('notes routes', () => {
     });
   });
 
-  it('exposes spec task sync status and manual sync under note detail routes', async () => {
+  it('exposes spec task sync as a skipped compatibility surface under note detail routes', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -219,9 +219,10 @@ Render the phase 7 workbench.
     expect(pendingResponse.statusCode).toBe(200);
     expect(pendingResponse.json()).toMatchObject({
       noteId,
-      parsedCount: 1,
-      pendingCount: 1,
-      status: 'pending_sync',
+      parsedCount: 0,
+      pendingCount: 0,
+      skipped: true,
+      status: 'clean',
     });
 
     const syncResponse = await fastify.inject({
@@ -233,18 +234,20 @@ Render the phase 7 workbench.
     expect(syncResponse.json()).toMatchObject({
       noteId,
       taskSync: {
-        createdCount: 1,
-        parsedCount: 1,
+        createdCount: 0,
+        parsedCount: 0,
+        skipped: true,
       },
       syncState: {
-        matchedCount: 1,
+        matchedCount: 0,
         pendingCount: 0,
+        skipped: true,
         status: 'clean',
       },
     });
   });
 
-  it('returns parse_error snapshots for malformed spec notes', async () => {
+  it('treats malformed spec notes the same as any other spec note once sync is disabled', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);
     const project = await createProject(sqlite, {
@@ -277,8 +280,9 @@ Missing closing marker
     expect(snapshotResponse.statusCode).toBe(200);
     expect(snapshotResponse.json()).toMatchObject({
       noteId,
-      parseError: 'Task block 1 is missing a closing "@@@" marker',
-      status: 'parse_error',
+      parseError: null,
+      skipped: true,
+      status: 'clean',
     });
   });
 
