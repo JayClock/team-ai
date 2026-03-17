@@ -23,14 +23,14 @@ interface TaskCallerSessionRow {
   provider: string;
 }
 
-export interface TaskDispatchContext {
+export interface TaskSessionContext {
   actorUserId: string;
   callerSessionId: string | null;
   parentSessionId: string | null;
   provider: string | null;
 }
 
-interface ResolveTaskDispatchPolicyInput {
+interface ResolveTaskSessionAssignmentInput {
   callerSessionId?: string;
   callbacks: Pick<TaskSessionDispatchCallbacks, 'isProviderAvailable'>;
   runtimeProfile: Pick<
@@ -40,7 +40,7 @@ interface ResolveTaskDispatchPolicyInput {
   task: TaskPayload;
 }
 
-export type TaskDispatchBlockReason =
+export type TaskSessionAssignmentBlockReason =
   | 'TASK_DEVELOPER_MODE_STAYS_IN_SESSION'
   | 'TASK_DEPENDENCIES_INCOMPLETE'
   | 'TASK_EXECUTION_ALREADY_ACTIVE'
@@ -48,15 +48,15 @@ export type TaskDispatchBlockReason =
   | 'TASK_ROLE_NOT_RESOLVED'
   | 'TASK_STATUS_NOT_DISPATCHABLE';
 
-export interface TaskDispatchability {
+export interface TaskSessionAssignment {
   dispatchable: boolean;
-  reasons: TaskDispatchBlockReason[];
+  reasons: TaskSessionAssignmentBlockReason[];
   resolvedRole: RoleValue | null;
   task: TaskPayload;
   unresolvedDependencyIds: string[];
 }
 
-interface TaskDispatchabilityOptions {
+interface TaskSessionAssignmentOptions {
   orchestrationMode?: ProjectRuntimeProfilePayload['orchestrationMode'];
 }
 
@@ -70,10 +70,10 @@ interface TaskDependencyStatusRow {
   status: string;
 }
 
-export interface TaskDispatchPolicyDecision {
-  blockReasons: TaskDispatchability['reasons'];
-  dispatchContext: TaskDispatchContext | null;
-  dispatchability: TaskDispatchability;
+export interface TaskSessionAssignmentDecision {
+  blockReasons: TaskSessionAssignment['reasons'];
+  dispatchContext: TaskSessionContext | null;
+  dispatchability: TaskSessionAssignment;
   dispatchable: boolean;
   preferredProvider: string | null;
   providerCandidates: string[];
@@ -81,6 +81,11 @@ export interface TaskDispatchPolicyDecision {
   resolvedRole: RoleValue | null;
   resolvedSpecialist: SpecialistPayload | null;
 }
+
+export type TaskDispatchContext = TaskSessionContext;
+export type TaskDispatchBlockReason = TaskSessionAssignmentBlockReason;
+export type TaskDispatchability = TaskSessionAssignment;
+export type TaskDispatchPolicyDecision = TaskSessionAssignmentDecision;
 
 const defaultTaskDispatchActorId = 'desktop-user';
 const dispatchableTaskStatuses = new Set([
@@ -100,7 +105,7 @@ function isTaskStatusDispatchable(status: string): boolean {
 
 export function resolveDefaultTaskRole(
   kind: TaskKind | null,
-  options: TaskDispatchabilityOptions = {},
+  options: TaskSessionAssignmentOptions = {},
 ): RoleValue | null {
   if (options.orchestrationMode === 'DEVELOPER') {
     switch (kind) {
@@ -161,9 +166,9 @@ async function resolveUnresolvedDependencyIds(
 async function evaluateTaskDispatchability(
   sqlite: Database,
   task: TaskPayload,
-  options: TaskDispatchabilityOptions = {},
-): Promise<TaskDispatchability> {
-  const reasons: TaskDispatchBlockReason[] = [];
+  options: TaskSessionAssignmentOptions = {},
+): Promise<TaskSessionAssignment> {
+  const reasons: TaskSessionAssignmentBlockReason[] = [];
 
   if (!isTaskKindDispatchable(task.kind)) {
     reasons.push('TASK_KIND_NOT_DISPATCHABLE');
@@ -215,8 +220,8 @@ async function evaluateTaskDispatchability(
 export async function getTaskDispatchability(
   sqlite: Database,
   taskId: string,
-  options: TaskDispatchabilityOptions = {},
-): Promise<TaskDispatchability> {
+  options: TaskSessionAssignmentOptions = {},
+): Promise<TaskSessionAssignment> {
   const task = await getTaskById(sqlite, taskId);
 
   return await evaluateTaskDispatchability(sqlite, task, options);
@@ -225,8 +230,8 @@ export async function getTaskDispatchability(
 export async function listDispatchableTasks(
   sqlite: Database,
   query: ListDispatchableTasksQuery,
-  options: TaskDispatchabilityOptions = {},
-): Promise<TaskDispatchability[]> {
+  options: TaskSessionAssignmentOptions = {},
+): Promise<TaskSessionAssignment[]> {
   await getProjectById(sqlite, query.projectId);
 
   if (query.sessionId) {
@@ -323,7 +328,7 @@ function resolveTaskDispatchContext(
   sqlite: Database,
   task: Pick<TaskPayload, 'projectId' | 'sessionId'>,
   callerSessionId?: string,
-): TaskDispatchContext {
+): TaskSessionContext {
   if (callerSessionId) {
     const callerSession = getCallerSessionRow(sqlite, callerSessionId);
     return {
@@ -356,7 +361,7 @@ function resolveTaskDispatchContext(
 
 function resolveDispatchProviderCandidates(
   task: Pick<TaskPayload, 'assignedProvider'>,
-  dispatchContext: Pick<TaskDispatchContext, 'provider'>,
+  dispatchContext: Pick<TaskSessionContext, 'provider'>,
   defaultProviderId: string | null,
 ) {
   return [
@@ -402,10 +407,10 @@ async function resolveDispatchSpecialist(
   return getDefaultSpecialistByRole(sqlite, task.projectId, role);
 }
 
-export async function resolveTaskDispatchPolicy(
+export async function resolveTaskSessionAssignment(
   sqlite: Database,
-  input: ResolveTaskDispatchPolicyInput,
-): Promise<TaskDispatchPolicyDecision> {
+  input: ResolveTaskSessionAssignmentInput,
+): Promise<TaskSessionAssignmentDecision> {
   const dispatchability = await getTaskDispatchability(sqlite, input.task.id, {
     orchestrationMode: input.runtimeProfile.orchestrationMode,
   });
@@ -479,3 +484,8 @@ export async function resolveTaskDispatchPolicy(
     resolvedSpecialist,
   };
 }
+
+export const resolveTaskDispatchPolicy = resolveTaskSessionAssignment;
+export const getTaskSessionAssignment = getTaskDispatchability;
+export const listDispatchableTaskSessions = listDispatchableTasks;
+export const resolveDefaultTaskSessionRole = resolveDefaultTaskRole;
