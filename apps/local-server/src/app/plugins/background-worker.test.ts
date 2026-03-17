@@ -6,6 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fp from 'fastify-plugin';
 import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
 import { initializeDatabase } from '../db/sqlite';
+import { createBackgroundTask } from '../services/background-task-service';
+import { ensureDefaultKanbanBoard } from '../services/kanban-board-service';
+import { createProject } from '../services/project-service';
+import { createTask, getTaskById } from '../services/task-service';
 import sqlitePlugin from './sqlite';
 import acpStreamPlugin from './acp-stream';
 import backgroundWorkerPlugin from './background-worker';
@@ -84,6 +88,64 @@ describe('background worker plugin', () => {
 
     expect(fastify.backgroundWorkerHostService.isRunning()).toBe(false);
   });
+
+  it('records lane session history for task-backed background work', async () => {
+    await createStandaloneDatabase(cleanupTasks);
+    const fastify = Fastify({ logger: false });
+    fastifyInstances.push(fastify);
+
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(
+      fp(async (instance) => {
+        instance.decorate('acpRuntime', createRuntimeStub());
+      }, { name: 'acp-runtime' }),
+    );
+    await fastify.register(backgroundWorkerPlugin, {
+      enabled: false,
+    });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      repoPath: process.cwd(),
+      title: 'Background Lane Session',
+    });
+    const board = await ensureDefaultKanbanBoard(fastify.sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const task = await createTask(fastify.sqlite, {
+      assignedRole: 'CRAFTER',
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Track background worker sessions in lane history',
+      projectId: project.id,
+      title: 'Lane session task',
+    });
+    const backgroundTask = await createBackgroundTask(fastify.sqlite, {
+      agentId: 'codex',
+      projectId: project.id,
+      prompt: 'Run the task lane background work',
+      taskId: task.id,
+      title: 'Lane session background task',
+    });
+
+    const [dispatched] = await fastify.backgroundWorkerService.dispatchPending(1);
+    const updatedTask = await getTaskById(fastify.sqlite, task.id);
+
+    expect(dispatched).toMatchObject({
+      id: backgroundTask.id,
+      status: 'COMPLETED',
+    });
+    expect(updatedTask.laneSessions).toEqual([
+      expect.objectContaining({
+        columnId: todoColumn?.id,
+        columnName: 'Todo',
+        provider: 'codex',
+        role: 'CRAFTER',
+        sessionId: dispatched.resultSessionId,
+        status: 'completed',
+      }),
+    ]);
+  });
 });
 
 function createRuntimeStub(): AcpRuntimeClient {
@@ -95,7 +157,7 @@ function createRuntimeStub(): AcpRuntimeClient {
       runtimeSessionId: 'runtime-worker-test',
     })),
     deleteSession: vi.fn(async () => undefined),
-    isConfigured: vi.fn(() => false),
+    isConfigured: vi.fn((provider?: string) => provider === 'codex'),
     isSessionActive: vi.fn(() => false),
     loadSession: vi.fn(async (input) => ({
       provider: input.provider,

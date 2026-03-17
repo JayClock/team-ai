@@ -3,12 +3,14 @@ import type { DiagnosticLogger } from '../diagnostics';
 import type { KanbanColumnPayload } from '../schemas/kanban';
 import type { TaskPayload } from '../schemas/task';
 import { createBackgroundTask } from './background-task-service';
+import { listProjectCodebases } from './project-codebase-service';
 import type {
   BackgroundTaskCompletionEvent,
   KanbanEventService,
   TaskColumnTransitionEvent,
 } from './kanban-event-service';
 import { getProjectKanbanBoardById } from './kanban-board-service';
+import { ensureTaskExecutionWorktree } from './task-orchestration-service';
 import { getTaskById, updateTask } from './task-service';
 
 export interface ActiveKanbanAutomation {
@@ -80,6 +82,88 @@ function deriveStatusForColumn(column: KanbanColumnPayload, task: TaskPayload) {
   return task.status;
 }
 
+function deriveRoleForColumn(
+  column: KanbanColumnPayload,
+  task: TaskPayload,
+): string | null {
+  if (task.assignedRole) {
+    return task.assignedRole;
+  }
+
+  const normalized = `${column.id} ${column.name}`.toLowerCase();
+  if (normalized.includes('review') || normalized.includes('verify')) {
+    return 'GATE';
+  }
+
+  if (normalized.includes('dev')) {
+    return 'CRAFTER';
+  }
+
+  return task.assignedRole;
+}
+
+function requiresTaskWorktree(column: KanbanColumnPayload) {
+  const normalized = `${column.id} ${column.name}`.toLowerCase();
+  return normalized.includes('dev');
+}
+
+async function resolveDefaultCodebaseId(
+  sqlite: Database,
+  projectId: string,
+): Promise<string | null> {
+  const codebases = await listProjectCodebases(sqlite, projectId);
+  const defaultCodebase =
+    codebases.items.find((item) => item.isDefault) ?? codebases.items[0];
+  return defaultCodebase?.id ?? null;
+}
+
+async function prepareTaskForColumnAutomation(
+  sqlite: Database,
+  task: TaskPayload,
+  column: KanbanColumnPayload,
+  logger?: DiagnosticLogger,
+) {
+  const patch: Parameters<typeof updateTask>[2] = {
+    assignedRole: deriveRoleForColumn(column, task),
+    boardId: column.boardId,
+    columnId: column.id,
+    status: deriveStatusForColumn(column, task),
+  };
+
+  if (requiresTaskWorktree(column) && !task.codebaseId) {
+    const defaultCodebaseId = await resolveDefaultCodebaseId(sqlite, task.projectId);
+    if (defaultCodebaseId) {
+      patch.codebaseId = defaultCodebaseId;
+      patch.codebaseIds = [defaultCodebaseId, ...task.codebaseIds];
+    }
+  }
+
+  const preparedTask =
+    patch.assignedRole !== task.assignedRole ||
+    patch.status !== task.status ||
+    patch.codebaseId !== undefined
+      ? await updateTask(sqlite, task.id, patch)
+      : task;
+
+  if (!requiresTaskWorktree(column)) {
+    return {
+      queueAutomation: true,
+      task: preparedTask,
+    };
+  }
+
+  const worktreeReadyTask = await ensureTaskExecutionWorktree(
+    sqlite,
+    preparedTask,
+    logger,
+  );
+
+  return {
+    queueAutomation: !worktreeReadyTask.errorMessage,
+    task: worktreeReadyTask.task,
+  };
+}
+
 export function createKanbanWorkflowOrchestrator(
   input: CreateKanbanWorkflowOrchestratorInput,
 ): KanbanWorkflowOrchestrator {
@@ -106,24 +190,35 @@ export function createKanbanWorkflowOrchestrator(
     }
 
     const task = await getTaskById(input.sqlite, event.taskId);
+    const prepared = await prepareTaskForColumnAutomation(
+      input.sqlite,
+      task,
+      targetColumn,
+      input.logger,
+    );
+
+    if (!prepared.queueAutomation) {
+      return;
+    }
+
     const backgroundTask = await createBackgroundTask(input.sqlite, {
-      agentId: resolveAutomationAgentId(task, targetColumn),
+      agentId: resolveAutomationAgentId(prepared.task, targetColumn),
       projectId: event.projectId,
-      prompt: createAutomationPrompt(task, targetColumn),
-      taskId: task.id,
-      title: `${targetColumn.name}: ${task.title}`,
+      prompt: createAutomationPrompt(prepared.task, targetColumn),
+      taskId: prepared.task.id,
+      title: `${targetColumn.name}: ${prepared.task.title}`,
       triggerSource: 'workflow',
       triggeredBy: 'kanban-workflow-orchestrator',
     });
 
-    activeAutomations.set(task.id, {
+    activeAutomations.set(prepared.task.id, {
       autoAdvanceOnSuccess: targetColumn.automation.autoAdvanceOnSuccess,
       backgroundTaskId: backgroundTask.id,
       boardId: board.id,
       columnId: targetColumn.id,
       projectId: event.projectId,
-      taskId: task.id,
-      taskTitle: task.title,
+      taskId: prepared.task.id,
+      taskTitle: prepared.task.title,
     });
 
     input.logger?.info?.(
@@ -131,7 +226,7 @@ export function createKanbanWorkflowOrchestrator(
         backgroundTaskId: backgroundTask.id,
         boardId: board.id,
         columnId: targetColumn.id,
-        taskId: task.id,
+        taskId: prepared.task.id,
       },
       'Queued Kanban column automation',
     );

@@ -104,7 +104,7 @@ function throwTaskExecutionNotAllowed(taskId: string, status: string): never {
   });
 }
 
-async function ensureTaskExecutionWorktree(
+export async function ensureTaskExecutionWorktree(
   sqlite: Database,
   task: TaskPayload,
   logger?: DiagnosticLogger,

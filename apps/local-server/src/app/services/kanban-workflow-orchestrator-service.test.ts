@@ -1,14 +1,19 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createKanbanWorkflowOrchestrator } from './kanban-workflow-orchestrator-service';
 import { listBackgroundTasks } from './background-task-service';
 import { ensureDefaultKanbanBoard } from './kanban-board-service';
 import { createKanbanEventService } from './kanban-event-service';
+import { listProjectCodebases } from './project-codebase-service';
 import { createProject } from './project-service';
 import { createTask, getTaskById, updateTask } from './task-service';
+
+const execFileAsync = promisify(execFile);
 
 describe('kanban workflow orchestrator service', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];
@@ -25,7 +30,6 @@ describe('kanban workflow orchestrator service', () => {
   it('queues a background task when a card enters an automated column', async () => {
     const sqlite = await createTestDatabase(cleanupTasks);
     const project = await createProject(sqlite, {
-      repoPath: '/tmp/team-ai-kanban-orchestrator',
       title: 'Kanban Orchestrator',
     });
     const board = await ensureDefaultKanbanBoard(sqlite, project.id);
@@ -89,10 +93,119 @@ describe('kanban workflow orchestrator service', () => {
     orchestrator.stop();
   });
 
+  it('prepares a worktree-backed crafter task before queuing dev automation', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const repoPath = await createGitRepository(cleanupTasks);
+    const project = await createProject(sqlite, {
+      repoPath,
+      title: 'Kanban Dev Worktree',
+    });
+    const [codebase] = (await listProjectCodebases(sqlite, project.id)).items;
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Prepare a dedicated workspace before dev automation',
+      projectId: project.id,
+      title: 'Dev worktree task',
+    });
+
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: todoColumn?.id ?? null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: devColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+
+    const preparedTask = await getTaskById(sqlite, task.id);
+    const backgroundTasks = await listBackgroundTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+
+    expect(preparedTask).toMatchObject({
+      assignedRole: 'CRAFTER',
+      codebaseId: codebase.id,
+      status: 'READY',
+    });
+    expect(preparedTask.worktreeId).toMatch(/^wt_/);
+    expect(backgroundTasks.items).toHaveLength(1);
+
+    orchestrator.stop();
+  });
+
+  it('stops dev automation and marks the task retryable when worktree preparation fails', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-kanban-bad-repo-'));
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+    const project = await createProject(sqlite, {
+      repoPath,
+      title: 'Kanban Dev Worktree Failure',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Do not queue automation when worktree setup fails',
+      projectId: project.id,
+      title: 'Dev worktree failure task',
+    });
+
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: todoColumn?.id ?? null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: devColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+
+    const failedTask = await getTaskById(sqlite, task.id);
+    const backgroundTasks = await listBackgroundTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+
+    expect(failedTask).toMatchObject({
+      assignedRole: 'CRAFTER',
+      status: 'WAITING_RETRY',
+      verificationVerdict: 'fail',
+      worktreeId: null,
+    });
+    expect(backgroundTasks.items).toHaveLength(0);
+
+    orchestrator.stop();
+  });
+
   it('auto-advances a successful automated review task into the next column', async () => {
     const sqlite = await createTestDatabase(cleanupTasks);
     const project = await createProject(sqlite, {
-      repoPath: '/tmp/team-ai-kanban-auto-advance',
       title: 'Kanban Auto Advance',
     });
     const board = await ensureDefaultKanbanBoard(sqlite, project.id);
@@ -170,4 +283,25 @@ async function createTestDatabase(cleanupTasks: Array<() => Promise<void>>) {
   });
 
   return sqlite;
+}
+
+async function createGitRepository(cleanupTasks: Array<() => Promise<void>>) {
+  const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-kanban-repo-'));
+  cleanupTasks.push(async () => {
+    await rm(repoPath, { recursive: true, force: true });
+  });
+
+  await mkdir(repoPath, { recursive: true });
+  await execFileAsync('git', ['init', '--initial-branch=main'], { cwd: repoPath });
+  await execFileAsync('git', ['config', 'user.name', 'Team AI Test'], {
+    cwd: repoPath,
+  });
+  await execFileAsync('git', ['config', 'user.email', 'team-ai@example.test'], {
+    cwd: repoPath,
+  });
+  await writeFile(join(repoPath, 'README.md'), '# kanban\n');
+  await execFileAsync('git', ['add', 'README.md'], { cwd: repoPath });
+  await execFileAsync('git', ['commit', '-m', 'initial'], { cwd: repoPath });
+
+  return repoPath;
 }

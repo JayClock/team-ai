@@ -1,8 +1,14 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 import { createAcpSession, promptAcpSession } from '../services/acp-service';
-import { getTaskById } from '../services/task-service';
+import { getBackgroundTaskById } from '../services/background-task-service';
+import { getProjectKanbanBoardById } from '../services/kanban-board-service';
 import { createKanbanEventService, type KanbanEventService } from '../services/kanban-event-service';
+import {
+  markTaskLaneSessionStatus,
+  upsertTaskLaneSession,
+} from '../services/task-lane-service';
+import { getTaskById, updateTask } from '../services/task-service';
 import {
   createBackgroundWorkerHostService,
   type BackgroundWorkerHostService,
@@ -29,6 +35,96 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
   BackgroundWorkerPluginOptions
 > = async (fastify, options) => {
   const kanbanEventService = createKanbanEventService();
+
+  async function syncTaskLaneSessionStart(taskId: string, session: Awaited<ReturnType<typeof createAcpSession>>) {
+    const linkedTask = await getTaskById(fastify.sqlite, taskId).catch(() => null);
+    if (!linkedTask) {
+      return;
+    }
+
+    const board = linkedTask.boardId
+      ? await getProjectKanbanBoardById(
+          fastify.sqlite,
+          linkedTask.projectId,
+          linkedTask.boardId,
+        ).catch(() => null)
+      : null;
+    const columnName =
+      board?.columns.find((column) => column.id === linkedTask.columnId)?.name;
+
+    upsertTaskLaneSession(linkedTask, {
+      columnId: linkedTask.columnId ?? undefined,
+      columnName,
+      provider: session.provider,
+      role: linkedTask.assignedRole ?? undefined,
+      sessionId: session.id,
+      specialistId: linkedTask.assignedSpecialistId ?? session.specialistId ?? undefined,
+      specialistName: linkedTask.assignedSpecialistName ?? undefined,
+      startedAt: session.startedAt ?? undefined,
+      status: 'running',
+    });
+
+    await updateTask(fastify.sqlite, linkedTask.id, {
+      laneSessions: linkedTask.laneSessions,
+    });
+  }
+
+  async function syncTaskLaneSessionCompletion(
+    backgroundTaskId: string,
+    success: boolean,
+  ) {
+    const backgroundTask = await getBackgroundTaskById(
+      fastify.sqlite,
+      backgroundTaskId,
+    ).catch(() => null);
+    if (!backgroundTask?.taskId || !backgroundTask.resultSessionId) {
+      return;
+    }
+
+    const linkedTask = await getTaskById(
+      fastify.sqlite,
+      backgroundTask.taskId,
+    ).catch(() => null);
+    if (!linkedTask) {
+      return;
+    }
+
+    const updatedLaneSession = markTaskLaneSessionStatus(
+      linkedTask,
+      backgroundTask.resultSessionId,
+      success ? 'completed' : 'failed',
+    );
+    if (!updatedLaneSession) {
+      return;
+    }
+
+    await updateTask(fastify.sqlite, linkedTask.id, {
+      laneSessions: linkedTask.laneSessions,
+    });
+  }
+
+  const unsubscribeKanbanEvents = kanbanEventService.subscribe(async (event) => {
+    if (event.type !== 'background-task.completed') {
+      return;
+    }
+
+    try {
+      await syncTaskLaneSessionCompletion(
+        event.backgroundTaskId,
+        event.success,
+      );
+    } catch (error) {
+      fastify.log.error(
+        {
+          backgroundTaskId: event.backgroundTaskId,
+          error,
+          taskId: event.taskId,
+        },
+        'Failed to sync task lane session completion',
+      );
+    }
+  });
+
   const backgroundWorkerService = createBackgroundWorkerService({
     callbacks: {
       async createSession(task) {
@@ -58,6 +154,21 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
             source: 'background_worker_create_session',
           },
         );
+
+        if (task.taskId) {
+          try {
+            await syncTaskLaneSessionStart(task.taskId, session);
+          } catch (error) {
+            fastify.log.error(
+              {
+                sessionId: session.id,
+                taskId: task.taskId,
+                error,
+              },
+              'Failed to sync task lane session start',
+            );
+          }
+        }
 
         return {
           sessionId: session.id,
@@ -113,6 +224,7 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
   }
 
   fastify.addHook('onClose', async () => {
+    unsubscribeKanbanEvents();
     backgroundWorkerHostService.stop();
   });
 };
