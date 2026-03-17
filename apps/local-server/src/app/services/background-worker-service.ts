@@ -41,6 +41,7 @@ export function createBackgroundWorkerService(
     await input.events.emit({
       backgroundTaskId: task.id,
       projectId: task.projectId,
+      sessionId: task.resultSessionId,
       success,
       taskId: task.taskId,
       type: 'background-task.completed',
@@ -194,6 +195,7 @@ export async function completeBackgroundTaskForSession(
     await events.emit({
       backgroundTaskId: completedTask.id,
       projectId: completedTask.projectId,
+      sessionId: completedTask.resultSessionId,
       success,
       taskId: completedTask.taskId,
       type: 'background-task.completed',

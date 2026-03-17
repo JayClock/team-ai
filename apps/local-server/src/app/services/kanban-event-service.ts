@@ -11,13 +11,23 @@ export interface TaskColumnTransitionEvent {
 export interface BackgroundTaskCompletionEvent {
   backgroundTaskId: string;
   projectId: string;
+  sessionId: string | null;
   success: boolean;
   taskId: string;
   type: 'background-task.completed';
 }
 
+export interface BackgroundTaskSessionStartedEvent {
+  backgroundTaskId: string;
+  projectId: string;
+  sessionId: string;
+  taskId: string;
+  type: 'background-task.session-started';
+}
+
 export type KanbanEvent =
   | BackgroundTaskCompletionEvent
+  | BackgroundTaskSessionStartedEvent
   | TaskColumnTransitionEvent;
 
 export type KanbanEventListener = (

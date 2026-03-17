@@ -130,7 +130,9 @@ export async function ensureTaskExecutionWorktree(
     return {
       errorMessage: null,
       task: await updateTask(sqlite, task.id, {
+        boardId: task.boardId,
         codebaseId: worktree.codebaseId,
+        columnId: task.columnId,
         worktreeId: worktree.id,
       }),
     };

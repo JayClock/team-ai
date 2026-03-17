@@ -87,8 +87,100 @@ describe('kanban workflow orchestrator service', () => {
         backgroundTaskId: backgroundTasks.items[0].id,
         columnId: devColumn?.id,
         taskId: task.id,
+        triggerSessionId: null,
       }),
     ]);
+    expect(orchestrator.getQueuedAutomations()).toEqual([]);
+
+    orchestrator.stop();
+  });
+
+  it('queues one active automation per board and drains the next card after completion', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Queue',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const firstTask = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'First card through the queue',
+      projectId: project.id,
+      title: 'First queued task',
+    });
+    const secondTask = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Second card through the queue',
+      projectId: project.id,
+      title: 'Second queued task',
+    });
+
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      boardConcurrency: 1,
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: todoColumn?.id ?? null,
+      projectId: project.id,
+      taskId: firstTask.id,
+      taskTitle: firstTask.title,
+      toColumnId: reviewColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: todoColumn?.id ?? null,
+      projectId: project.id,
+      taskId: secondTask.id,
+      taskTitle: secondTask.title,
+      toColumnId: reviewColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+
+    const firstPassBackgroundTasks = await listBackgroundTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+
+    expect(firstPassBackgroundTasks.items).toHaveLength(1);
+    expect(orchestrator.getActiveAutomations()).toHaveLength(1);
+    expect(orchestrator.getQueuedAutomations()).toEqual([
+      expect.objectContaining({
+        boardId: board.id,
+        columnId: reviewColumn?.id,
+        taskId: secondTask.id,
+      }),
+    ]);
+
+    await events.emit({
+      backgroundTaskId: firstPassBackgroundTasks.items[0].id,
+      projectId: project.id,
+      sessionId: 'acps_queue_first',
+      success: true,
+      taskId: firstTask.id,
+      type: 'background-task.completed',
+    });
+
+    const secondPassBackgroundTasks = await listBackgroundTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+
+    expect(secondPassBackgroundTasks.items).toHaveLength(2);
+    expect(
+      secondPassBackgroundTasks.items.some((item) => item.taskId === secondTask.id),
+    ).toBe(true);
+    expect(orchestrator.getQueuedAutomations()).toEqual([]);
 
     orchestrator.stop();
   });
@@ -249,6 +341,90 @@ describe('kanban workflow orchestrator service', () => {
     await events.emit({
       backgroundTaskId: backgroundTasks.items[0].id,
       projectId: project.id,
+      sessionId: 'acps_review_lane',
+      success: true,
+      taskId: task.id,
+      type: 'background-task.completed',
+    });
+
+    const advancedTask = await getTaskById(sqlite, task.id);
+    expect(advancedTask).toMatchObject({
+      columnId: doneColumn?.id,
+      status: 'COMPLETED',
+    });
+    expect(orchestrator.getActiveAutomations()).toEqual([]);
+
+    orchestrator.stop();
+  });
+
+  it('binds active automation to the trigger session and ignores duplicate completion events', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Session Binding',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const doneColumn = board.columns.find((column) => column.name === 'Done');
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: reviewColumn?.id ?? null,
+      objective: 'Advance only once from a bound trigger session',
+      projectId: project.id,
+      title: 'Session-bound review task',
+    });
+
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: reviewColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+
+    const backgroundTasks = await listBackgroundTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+    const backgroundTaskId = backgroundTasks.items[0].id;
+
+    await events.emit({
+      backgroundTaskId,
+      projectId: project.id,
+      sessionId: 'acps_bound_review',
+      taskId: task.id,
+      type: 'background-task.session-started',
+    });
+
+    expect(orchestrator.getActiveAutomations()).toEqual([
+      expect.objectContaining({
+        backgroundTaskId,
+        taskId: task.id,
+        triggerSessionId: 'acps_bound_review',
+      }),
+    ]);
+
+    await events.emit({
+      backgroundTaskId,
+      projectId: project.id,
+      sessionId: 'acps_bound_review',
+      success: true,
+      taskId: task.id,
+      type: 'background-task.completed',
+    });
+    await events.emit({
+      backgroundTaskId,
+      projectId: project.id,
+      sessionId: 'acps_bound_review',
       success: true,
       taskId: task.id,
       type: 'background-task.completed',

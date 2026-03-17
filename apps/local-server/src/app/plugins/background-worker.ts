@@ -66,6 +66,7 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
 
     await updateTask(fastify.sqlite, linkedTask.id, {
       laneSessions: linkedTask.laneSessions,
+      triggerSessionId: session.id,
     });
   }
 
@@ -100,6 +101,7 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
 
     await updateTask(fastify.sqlite, linkedTask.id, {
       laneSessions: linkedTask.laneSessions,
+      resultSessionId: backgroundTask.resultSessionId,
     });
   }
 
@@ -158,6 +160,13 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
         if (task.taskId) {
           try {
             await syncTaskLaneSessionStart(task.taskId, session);
+            await kanbanEventService.emit({
+              backgroundTaskId: task.id,
+              projectId: task.projectId,
+              sessionId: session.id,
+              taskId: task.taskId,
+              type: 'background-task.session-started',
+            });
           } catch (error) {
             fastify.log.error(
               {

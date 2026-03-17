@@ -145,6 +145,8 @@ describe('background worker plugin', () => {
         status: 'completed',
       }),
     ]);
+    expect(updatedTask.triggerSessionId).toBe(dispatched.resultSessionId);
+    expect(updatedTask.resultSessionId).toBe(dispatched.resultSessionId);
   });
 });
 

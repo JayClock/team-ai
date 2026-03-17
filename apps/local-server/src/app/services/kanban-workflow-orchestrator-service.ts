@@ -6,6 +6,7 @@ import { createBackgroundTask } from './background-task-service';
 import { listProjectCodebases } from './project-codebase-service';
 import type {
   BackgroundTaskCompletionEvent,
+  BackgroundTaskSessionStartedEvent,
   KanbanEventService,
   TaskColumnTransitionEvent,
 } from './kanban-event-service';
@@ -21,15 +22,27 @@ export interface ActiveKanbanAutomation {
   projectId: string;
   taskId: string;
   taskTitle: string;
+  triggerSessionId: string | null;
+}
+
+export interface QueuedKanbanAutomation {
+  boardId: string;
+  columnId: string;
+  enqueuedAt: string;
+  projectId: string;
+  taskId: string;
+  taskTitle: string;
 }
 
 export interface KanbanWorkflowOrchestrator {
   getActiveAutomations(): ActiveKanbanAutomation[];
+  getQueuedAutomations(): QueuedKanbanAutomation[];
   start(): void;
   stop(): void;
 }
 
 interface CreateKanbanWorkflowOrchestratorInput {
+  boardConcurrency?: number;
   events: KanbanEventService;
   logger?: DiagnosticLogger;
   sqlite: Database;
@@ -167,10 +180,115 @@ async function prepareTaskForColumnAutomation(
 export function createKanbanWorkflowOrchestrator(
   input: CreateKanbanWorkflowOrchestratorInput,
 ): KanbanWorkflowOrchestrator {
+  const boardConcurrency = Math.max(1, input.boardConcurrency ?? 1);
   const activeAutomations = new Map<string, ActiveKanbanAutomation>();
+  const queuedAutomations = new Map<string, QueuedKanbanAutomation[]>();
+  const processedCompletionEvents = new Set<string>();
   let unsubscribe: (() => void) | null = null;
 
-  async function handleColumnTransition(event: TaskColumnTransitionEvent) {
+  function listQueuedAutomations() {
+    return Array.from(queuedAutomations.values()).flatMap((items) => items);
+  }
+
+  function countActiveAutomationsForBoard(boardId: string) {
+    return Array.from(activeAutomations.values()).filter(
+      (automation) => automation.boardId === boardId,
+    ).length;
+  }
+
+  function hasQueuedAutomation(taskId: string, columnId: string) {
+    return listQueuedAutomations().some(
+      (automation) =>
+        automation.taskId === taskId && automation.columnId === columnId,
+    );
+  }
+
+  async function dispatchQueuedAutomation(queued: QueuedKanbanAutomation) {
+    const board = await getProjectKanbanBoardById(
+      input.sqlite,
+      queued.projectId,
+      queued.boardId,
+    );
+    const targetColumn = board.columns.find(
+      (column) => column.id === queued.columnId,
+    );
+    if (!targetColumn?.automation?.enabled) {
+      return false;
+    }
+
+    const task = await getTaskById(input.sqlite, queued.taskId);
+    if (task.boardId !== queued.boardId || task.columnId !== queued.columnId) {
+      return false;
+    }
+
+    const prepared = await prepareTaskForColumnAutomation(
+      input.sqlite,
+      task,
+      targetColumn,
+      input.logger,
+    );
+    if (!prepared.queueAutomation) {
+      return false;
+    }
+
+    const backgroundTask = await createBackgroundTask(input.sqlite, {
+      agentId: resolveAutomationAgentId(prepared.task, targetColumn),
+      projectId: queued.projectId,
+      prompt: createAutomationPrompt(prepared.task, targetColumn),
+      taskId: prepared.task.id,
+      title: `${targetColumn.name}: ${prepared.task.title}`,
+      triggerSource: 'workflow',
+      triggeredBy: 'kanban-workflow-orchestrator',
+    });
+
+    activeAutomations.set(prepared.task.id, {
+      autoAdvanceOnSuccess: targetColumn.automation.autoAdvanceOnSuccess,
+      backgroundTaskId: backgroundTask.id,
+      boardId: board.id,
+      columnId: targetColumn.id,
+      projectId: queued.projectId,
+      taskId: prepared.task.id,
+      taskTitle: prepared.task.title,
+      triggerSessionId: prepared.task.triggerSessionId,
+    });
+
+    input.logger?.info?.(
+      {
+        backgroundTaskId: backgroundTask.id,
+        boardId: board.id,
+        columnId: targetColumn.id,
+        taskId: prepared.task.id,
+      },
+      'Queued Kanban column automation',
+    );
+
+    return true;
+  }
+
+  async function drainBoardQueue(boardId: string) {
+    const queue = queuedAutomations.get(boardId);
+    if (!queue?.length) {
+      return;
+    }
+
+    while (
+      queue.length > 0 &&
+      countActiveAutomationsForBoard(boardId) < boardConcurrency
+    ) {
+      const next = queue.shift();
+      if (!next) {
+        break;
+      }
+
+      await dispatchQueuedAutomation(next);
+    }
+
+    if (queue.length === 0) {
+      queuedAutomations.delete(boardId);
+    }
+  }
+
+  async function queueColumnTransition(event: TaskColumnTransitionEvent) {
     const board = await getProjectKanbanBoardById(
       input.sqlite,
       event.projectId,
@@ -201,48 +319,60 @@ export function createKanbanWorkflowOrchestrator(
       return;
     }
 
-    const backgroundTask = await createBackgroundTask(input.sqlite, {
-      agentId: resolveAutomationAgentId(prepared.task, targetColumn),
-      projectId: event.projectId,
-      prompt: createAutomationPrompt(prepared.task, targetColumn),
-      taskId: prepared.task.id,
-      title: `${targetColumn.name}: ${prepared.task.title}`,
-      triggerSource: 'workflow',
-      triggeredBy: 'kanban-workflow-orchestrator',
-    });
+    const activeAutomation = activeAutomations.get(prepared.task.id);
+    if (activeAutomation?.columnId === targetColumn.id) {
+      return;
+    }
 
-    activeAutomations.set(prepared.task.id, {
-      autoAdvanceOnSuccess: targetColumn.automation.autoAdvanceOnSuccess,
-      backgroundTaskId: backgroundTask.id,
+    if (hasQueuedAutomation(prepared.task.id, targetColumn.id)) {
+      return;
+    }
+
+    const queued: QueuedKanbanAutomation = {
       boardId: board.id,
       columnId: targetColumn.id,
+      enqueuedAt: new Date().toISOString(),
       projectId: event.projectId,
       taskId: prepared.task.id,
       taskTitle: prepared.task.title,
-    });
+    };
 
-    input.logger?.info?.(
-      {
-        backgroundTaskId: backgroundTask.id,
-        boardId: board.id,
-        columnId: targetColumn.id,
-        taskId: prepared.task.id,
-      },
-      'Queued Kanban column automation',
-    );
+    const queue = queuedAutomations.get(board.id) ?? [];
+    queue.push(queued);
+    queuedAutomations.set(board.id, queue);
+    await drainBoardQueue(board.id);
+  }
+
+  async function bindAutomationToSession(
+    event: BackgroundTaskSessionStartedEvent,
+  ) {
+    const automation = activeAutomations.get(event.taskId);
+    if (!automation || automation.backgroundTaskId !== event.backgroundTaskId) {
+      return;
+    }
+
+    automation.triggerSessionId = event.sessionId;
   }
 
   async function autoAdvanceTask(
     automation: ActiveKanbanAutomation,
     backgroundTask: BackgroundTaskCompletionEvent,
   ) {
+    const completionKey = `${backgroundTask.backgroundTaskId}:${backgroundTask.sessionId ?? 'none'}`;
+    if (processedCompletionEvents.has(completionKey)) {
+      return;
+    }
+    processedCompletionEvents.add(completionKey);
+
     if (!backgroundTask.success) {
       activeAutomations.delete(automation.taskId);
+      await drainBoardQueue(automation.boardId);
       return;
     }
 
     if (!automation.autoAdvanceOnSuccess) {
       activeAutomations.delete(automation.taskId);
+      await drainBoardQueue(automation.boardId);
       return;
     }
 
@@ -255,6 +385,15 @@ export function createKanbanWorkflowOrchestrator(
 
     if (task.columnId !== automation.columnId) {
       activeAutomations.delete(automation.taskId);
+      await drainBoardQueue(automation.boardId);
+      return;
+    }
+
+    if (
+      automation.triggerSessionId &&
+      backgroundTask.sessionId &&
+      automation.triggerSessionId !== backgroundTask.sessionId
+    ) {
       return;
     }
 
@@ -267,6 +406,7 @@ export function createKanbanWorkflowOrchestrator(
     const nextColumn = orderedColumns[currentIndex + 1];
 
     activeAutomations.delete(automation.taskId);
+    await drainBoardQueue(automation.boardId);
 
     if (!nextColumn) {
       return;
@@ -294,6 +434,10 @@ export function createKanbanWorkflowOrchestrator(
       return Array.from(activeAutomations.values());
     },
 
+    getQueuedAutomations() {
+      return listQueuedAutomations();
+    },
+
     start() {
       if (unsubscribe) {
         return;
@@ -301,7 +445,12 @@ export function createKanbanWorkflowOrchestrator(
 
       unsubscribe = input.events.subscribe(async (event) => {
         if (event.type === 'task.column-transition') {
-          await handleColumnTransition(event);
+          await queueColumnTransition(event);
+          return;
+        }
+
+        if (event.type === 'background-task.session-started') {
+          await bindAutomationToSession(event);
           return;
         }
 
@@ -320,6 +469,8 @@ export function createKanbanWorkflowOrchestrator(
       unsubscribe?.();
       unsubscribe = null;
       activeAutomations.clear();
+      queuedAutomations.clear();
+      processedCompletionEvents.clear();
     },
   };
 }
