@@ -17,9 +17,6 @@ function createTaskRunLinks(taskRun: TaskRunPayload) {
     project: {
       href: `/api/projects/${taskRun.projectId}`,
     },
-    'orchestration-summary': {
-      href: `/api/projects/${taskRun.projectId}/orchestration-summary`,
-    },
     task: {
       href: `/api/tasks/${taskRun.taskId}`,
     },

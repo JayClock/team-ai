@@ -222,7 +222,7 @@ export async function executeTaskSession(
       },
       {
         logger: options.logger,
-        source: options.source ?? 'task_execute',
+        source: options.source ?? 'task_session_execute',
       },
     );
 
