@@ -7,6 +7,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 interface OrchestrationSnapshot {
+  artifactGates: {
+    blockedTaskCount: number;
+    blockedTasks: Array<{
+      columnId: string | null;
+      id: string;
+      lastSyncError: string | null;
+      title: string;
+      verificationVerdict: string | null;
+    }>;
+  };
   backgroundWorker: {
     readyTaskCount: number;
     readyTaskIds: string[];
@@ -405,6 +415,11 @@ export default function ProjectOrchestrationPage() {
             value={`${webhookConfigs.filter((config) => config.enabled).length} enabled`}
             meta={`${webhookLogs.length} recent logs`}
           />
+          <SummaryCard
+            label="Artifact Gates"
+            value={`${snapshot?.artifactGates.blockedTaskCount ?? 0} blocked`}
+            meta="review/verify holds"
+          />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
@@ -705,6 +720,28 @@ export default function ProjectOrchestrationPage() {
             ) : (
               <div className="text-sm text-muted-foreground">
                 当前项目还没有 webhook log。
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl shadow-none">
+          <CardHeader>
+            <CardTitle>Artifact Gates</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {snapshot?.artifactGates.blockedTasks.length ? (
+              snapshot.artifactGates.blockedTasks.map((task) => (
+                <QueueRow
+                  key={task.id}
+                  label={task.verificationVerdict ?? 'blocked'}
+                  title={task.title}
+                  meta={`${task.columnId ?? 'unknown column'} · ${task.lastSyncError ?? 'Artifact gate blocked'}`}
+                />
+              ))
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                当前没有被 artifact gate 阻塞的任务。
               </div>
             )}
           </CardContent>

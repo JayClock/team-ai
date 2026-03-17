@@ -9,6 +9,7 @@ import problemJsonPlugin from '../plugins/problem-json';
 import type { KanbanWorkflowOrchestrator } from '../services/kanban-workflow-orchestrator-service';
 import { createBackgroundTask, updateBackgroundTaskStatus } from '../services/background-task-service';
 import { createProject } from '../services/project-service';
+import { createTask, updateTask } from '../services/task-service';
 import { createWorkflow, triggerWorkflow } from '../services/workflow-service';
 import type { BackgroundWorkerHostService } from '../services/background-worker-host-service';
 import { responseContentType } from '../test-support/response-content-type';
@@ -212,6 +213,19 @@ describe('background tasks route', () => {
       ],
     });
     const triggered = await triggerWorkflow(sqlite, workflow.id);
+    const gatedTask = await createTask(sqlite, {
+      columnId: 'review',
+      objective: 'Wait for artifact evidence before auto-advancing review work',
+      projectId: project.id,
+      title: 'Artifact gated task',
+    });
+    await updateTask(sqlite, gatedTask.id, {
+      lastSyncError:
+        'Artifact gate blocked auto-advance from Review: missing local URL',
+      verificationReport:
+        'Artifact gate blocked auto-advance from Review: missing local URL',
+      verificationVerdict: 'fail',
+    });
 
     const fastify = Fastify();
     fastifyInstances.push(fastify);
@@ -263,6 +277,19 @@ describe('background tasks route', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
+      artifactGates: {
+        blockedTaskCount: 1,
+        blockedTasks: [
+          expect.objectContaining({
+            columnId: 'review',
+            id: gatedTask.id,
+            lastSyncError:
+              'Artifact gate blocked auto-advance from Review: missing local URL',
+            title: 'Artifact gated task',
+            verificationVerdict: 'fail',
+          }),
+        ],
+      },
       backgroundWorker: {
         readyTasks: expect.arrayContaining([
           expect.objectContaining({

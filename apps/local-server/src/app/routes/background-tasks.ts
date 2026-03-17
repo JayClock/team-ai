@@ -19,6 +19,7 @@ import {
   getWorkflowRunById,
   listRunningWorkflowRunIds,
 } from '../services/workflow-service';
+import { listTasks } from '../services/task-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const projectParamsSchema = z.object({
@@ -88,6 +89,15 @@ const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
         (workflowRun) =>
           !query.projectId || workflowRun.projectId === query.projectId,
       );
+    const artifactGateTasks = (
+      await listTasks(fastify.sqlite, {
+        page: 1,
+        pageSize: 500,
+        projectId: query.projectId,
+      })
+    ).items.filter((task) =>
+      task.lastSyncError?.startsWith('Artifact gate blocked auto-advance') ?? false,
+    );
     const traceStats = await getTraceStats(fastify.sqlite, {
       projectId: query.projectId,
       sessionId: query.sessionId,
@@ -136,6 +146,16 @@ const backgroundTasksRoute: FastifyPluginAsync = async (fastify) => {
         queuedAutomations,
         queuedAutomationCount: queuedAutomations.length,
         queuedTaskIds: queuedAutomations.map((automation) => automation.taskId),
+      },
+      artifactGates: {
+        blockedTaskCount: artifactGateTasks.length,
+        blockedTasks: artifactGateTasks.map((task) => ({
+          columnId: task.columnId,
+          id: task.id,
+          lastSyncError: task.lastSyncError,
+          title: task.title,
+          verificationVerdict: task.verificationVerdict,
+        })),
       },
       traces: {
         byEventType: traceStats.byEventType,
