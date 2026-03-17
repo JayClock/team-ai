@@ -10,9 +10,6 @@ import {
   updateNote,
 } from '../../services/note-service';
 import {
-  syncSpecNoteToTasks,
-} from '../../services/spec-task-sync-service';
-import {
   applyFlowTemplateArgsSchema,
   listNotesArgsSchema,
   readNoteArgsSchema,
@@ -114,15 +111,9 @@ export function createSetNoteContentHandler(fastify: FastifyInstance) {
       type: note ? 'updated' : 'created',
     });
 
-    const taskSync =
-      savedNote.type === 'spec'
-        ? await syncSpecNoteToTasks(fastify.sqlite, savedNote)
-        : null;
-
     return {
       note: savedNote,
       scope: describeNoteScope(savedNote),
-      taskSync,
     };
   };
 }

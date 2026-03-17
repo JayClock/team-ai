@@ -1177,13 +1177,6 @@ Validation and review logic
         title: 'Execution Spec',
         type: 'spec',
       },
-      taskSync: {
-        createdCount: 0,
-        parsedCount: 0,
-        skipped: true,
-        skippedCount: 0,
-        updatedCount: 0,
-      },
     });
     const firstPayload = readMcpResult<{
       note: { id: string };
@@ -1249,13 +1242,6 @@ Validation and review logic
         projectId: project.id,
         sessionId: rootSessionId,
         type: 'spec',
-      },
-      taskSync: {
-        createdCount: 0,
-        parsedCount: 0,
-        skipped: true,
-        skippedCount: 0,
-        updatedCount: 0,
       },
     });
 

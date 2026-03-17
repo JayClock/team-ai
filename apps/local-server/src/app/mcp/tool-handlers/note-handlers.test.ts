@@ -43,11 +43,7 @@ describe('createApplyFlowTemplateHandler', () => {
         sessionId,
         type: 'spec',
       });
-      expect(firstResult.taskSync).toMatchObject({
-        createdCount: 0,
-        parsedCount: 0,
-        skipped: true,
-      });
+      expect(firstResult).not.toHaveProperty('taskSync');
 
       const secondResult = await applyFlowTemplate({
         projectId: project.id,
@@ -65,12 +61,7 @@ describe('createApplyFlowTemplateHandler', () => {
         title: 'Session Loop Spec',
         type: 'spec',
       });
-      expect(secondResult.taskSync).toMatchObject({
-        createdCount: 0,
-        parsedCount: 0,
-        skipped: true,
-        updatedCount: 0,
-      });
+      expect(secondResult).not.toHaveProperty('taskSync');
     } finally {
       await cleanup();
     }

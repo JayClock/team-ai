@@ -13,7 +13,6 @@ import {
 } from './flow-template-service';
 import { getAcpSessionById } from './acp-service';
 import { getProjectById } from './project-service';
-import { syncSpecNoteToTasks } from './spec-task-sync-service';
 
 export interface ApplyFlowTemplateInput {
   mergeStrategy?: 'append' | 'replace';
@@ -114,15 +113,9 @@ export async function applyFlowTemplate(
     note: savedNote,
     type: note ? 'updated' : 'created',
   });
-  const taskSync =
-    savedNote.type === 'spec'
-      ? await syncSpecNoteToTasks(sqlite, savedNote)
-      : null;
-
   return {
     appliedTemplate: template,
     note: savedNote,
     noteEvent,
-    taskSync,
   };
 }

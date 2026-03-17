@@ -72,11 +72,6 @@ describe('flow template routes', () => {
         projectId: project.id,
         type: 'spec',
       },
-      taskSync: expect.objectContaining({
-        createdCount: 0,
-        parsedCount: 0,
-        skipped: true,
-      }),
     });
   });
 

@@ -3,24 +3,15 @@ import type { AcpSession, Note } from '@shared/schema';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ProjectSessionSpecPane } from './project-session-spec-pane';
-import type {
-  SpecSyncSnapshot,
-  TaskPanelItem,
-} from './project-session-workbench.shared';
+import type { TaskPanelItem } from './project-session-workbench.shared';
 
 describe('ProjectSessionSpecPane', () => {
-  it('renders parse errors and spec-derived task lineage', () => {
+  it('renders spec content and spec-linked task lineage', () => {
     render(
       <ProjectSessionSpecPane
         note={createNoteState()}
-        onSync={vi.fn()}
         scopeSessionLabel="Root Session"
         selectedSession={createSessionState()}
-        syncLoading={false}
-        syncSnapshot={createSyncSnapshot({
-          parseError: 'Task block 2 is missing a closing "@@@" marker',
-          status: 'parse_error',
-        })}
         tasksLoading={false}
         taskItems={[
           createTaskPanelItem({
@@ -33,10 +24,7 @@ describe('ProjectSessionSpecPane', () => {
       />,
     );
 
-    expect(screen.getByText('解析错误')).toBeTruthy();
-    expect(
-      screen.getByText('Task block 2 is missing a closing "@@@" marker'),
-    ).toBeTruthy();
+    expect(screen.getByText('Spec 内容')).toBeTruthy();
     expect(screen.getByText('block #1')).toBeTruthy();
     expect(screen.getByText('执行会话 acps_exec_1')).toBeTruthy();
     expect(screen.getByText('结果会话 acps_result_1')).toBeTruthy();
@@ -50,26 +38,19 @@ describe('ProjectSessionSpecPane', () => {
     ).toBeGreaterThan(0);
   });
 
-  it('disables sync when no spec note exists', () => {
+  it('shows empty state when no spec note exists', () => {
     render(
       <ProjectSessionSpecPane
         note={null}
-        onSync={vi.fn()}
         scopeSessionLabel={null}
         selectedSession={createSessionState()}
-        syncLoading={false}
-        syncSnapshot={null}
         tasksLoading={false}
         taskItems={[]}
       />,
     );
 
-    expect(screen.getByText('未找到 Spec')).toBeTruthy();
-    const syncButton = screen.getByRole('button', {
-      name: '同步 Spec -> Tasks',
-    }) as { getAttribute(name: string): string | null };
-
-    expect(syncButton.getAttribute('disabled')).not.toBeNull();
+    expect(screen.getByText('未创建 Spec')).toBeTruthy();
+    expect(screen.getByText('暂无关联任务')).toBeTruthy();
   });
 });
 
@@ -123,24 +104,6 @@ function createSessionState(): State<AcpSession> {
     follow: vi.fn(),
     hasLink: vi.fn(() => false),
   } as unknown as State<AcpSession>;
-}
-
-function createSyncSnapshot(
-  overrides: Partial<SpecSyncSnapshot>,
-): SpecSyncSnapshot {
-  return {
-    conflictCount: 0,
-    items: [],
-    matchedCount: 1,
-    noteId: 'note_spec_1',
-    orphanedTaskCount: 0,
-    parseError: null,
-    parsedCount: 1,
-    pendingCount: 0,
-    status: 'clean',
-    taskCount: 1,
-    ...overrides,
-  };
 }
 
 function createTaskPanelItem(overrides: Partial<TaskPanelItem>): TaskPanelItem {

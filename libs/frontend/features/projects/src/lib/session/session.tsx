@@ -41,7 +41,6 @@ import {
   buildTaskRunPanelItem,
   formatStatusLabel,
   formatVerificationVerdictLabel,
-  type SpecSyncSnapshot,
   type TaskPanelAction,
   type TaskPanelItem,
 } from './project-session-workbench.shared';
@@ -320,10 +319,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     taskId: string;
   } | null>(null);
   const [specNote, setSpecNote] = useState<State<Note> | null>(null);
-  const [specSyncSnapshot, setSpecSyncSnapshot] =
-    useState<SpecSyncSnapshot | null>(null);
   const [specLoading, setSpecLoading] = useState(false);
-  const [specSyncLoading, setSpecSyncLoading] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const noteEventSourceRef = useRef<EventSource | null>(null);
@@ -725,7 +721,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     if (!workbenchSessionId) {
       setSpecLoading(false);
       setSpecNote(null);
-      setSpecSyncSnapshot(null);
       return;
     }
 
@@ -767,26 +762,13 @@ export function ShellsSession(props: ShellsSessionProps) {
       setSpecNote(resolvedNote);
 
       if (!resolvedNote) {
-        setSpecSyncSnapshot(null);
         return;
       }
-
-      const response = await runtimeFetch(
-        `/api/notes/${resolvedNote.data.id}/spec-task-sync`,
-      );
-      const payload = (await response.json()) as SpecSyncSnapshot;
-
-      if (!response.ok) {
-        throw new Error('加载 Spec 同步状态失败');
-      }
-
-      setSpecSyncSnapshot(payload);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : '加载 Spec 工作区失败';
       toast.error(message);
       setSpecNote(null);
-      setSpecSyncSnapshot(null);
     } finally {
       setSpecLoading(false);
     }
@@ -966,40 +948,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     worktrees,
     worktreesLoading,
   ]);
-
-  const handleSpecSync = useCallback(async () => {
-    if (!specNote) {
-      return;
-    }
-
-    setSpecSyncLoading(true);
-    setMainPane('spec');
-
-    try {
-      const response = await runtimeFetch(
-        `/api/notes/${specNote.data.id}/spec-task-sync`,
-        {
-          method: 'POST',
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error('同步 Spec 失败');
-      }
-
-      await Promise.all([
-        refreshSpecPane(),
-        refreshTaskItems(),
-        loadSessions(),
-      ]);
-      toast.success('Spec 已同步到任务面板');
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '同步 Spec 失败';
-      toast.error(message);
-    } finally {
-      setSpecSyncLoading(false);
-    }
-  }, [loadSessions, refreshSpecPane, refreshTaskItems, specNote]);
 
   const handleTaskAction = useCallback(
     async (item: TaskPanelItem, action: TaskPanelAction) => {
@@ -1360,11 +1308,8 @@ export function ShellsSession(props: ShellsSessionProps) {
   const specPane = (
     <ProjectSessionSpecPane
       note={specNote}
-      onSync={handleSpecSync}
       scopeSessionLabel={scopeSessionLabel}
       selectedSession={selectedSession}
-      syncLoading={specLoading || specSyncLoading}
-      syncSnapshot={specSyncSnapshot}
       tasksLoading={tasksLoading}
       taskItems={taskItems}
     />
