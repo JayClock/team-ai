@@ -299,6 +299,18 @@ function calculateIsoDeadline(
   return new Date(startedAtMs + durationMs).toISOString();
 }
 
+function calculateActivityDeadline(
+  activityAt: string | null,
+  durationMs: number,
+): string | null {
+  const baseline = activityAt ? Date.parse(activityAt) : Number.NaN;
+  if (Number.isNaN(baseline)) {
+    return null;
+  }
+
+  return new Date(baseline + durationMs).toISOString();
+}
+
 function throwSessionNotFound(sessionId: string): never {
   throw new ProblemError({
     type: 'https://team-ai.dev/problems/acp-session-not-found',
@@ -1131,6 +1143,21 @@ function updateSessionRuntime(
   },
 ) {
   const current = getSessionRow(sqlite, sessionId);
+  const nextPolicy = resolveSupervisionPolicy(
+    update.supervisionPolicy === undefined
+      ? parseSupervisionPolicy(current.supervision_policy_json)
+      : update.supervisionPolicy,
+  );
+  const nextState = update.state ?? current.state;
+  const nextInactiveDeadlineAt =
+    update.inactiveDeadlineAt === undefined
+      ? update.lastActivityAt !== undefined && nextState === 'RUNNING'
+        ? calculateActivityDeadline(
+            update.lastActivityAt,
+            nextPolicy.inactivityTimeoutMs,
+          ) ?? current.inactive_deadline_at
+        : current.inactive_deadline_at
+      : update.inactiveDeadlineAt;
   sqlite
     .prepare(
       `
@@ -1161,17 +1188,10 @@ function updateSessionRuntime(
     .run({
       id: sessionId,
       name: update.name === undefined ? current.name : update.name,
-      supervisionPolicyJson: JSON.stringify(
-        update.supervisionPolicy === undefined
-          ? parseSupervisionPolicy(current.supervision_policy_json)
-          : resolveSupervisionPolicy(update.supervisionPolicy),
-      ),
+      supervisionPolicyJson: JSON.stringify(nextPolicy),
       deadlineAt:
         update.deadlineAt === undefined ? current.deadline_at : update.deadlineAt,
-      inactiveDeadlineAt:
-        update.inactiveDeadlineAt === undefined
-          ? current.inactive_deadline_at
-          : update.inactiveDeadlineAt,
+      inactiveDeadlineAt: nextInactiveDeadlineAt,
       cancelRequestedAt:
         update.cancelRequestedAt === undefined
           ? current.cancel_requested_at
@@ -1195,7 +1215,7 @@ function updateSessionRuntime(
         update.acpStatus === undefined ? current.acp_status : update.acpStatus,
       acpError:
         update.acpError === undefined ? current.acp_error : update.acpError,
-      state: update.state ?? current.state,
+      state: nextState,
       failureReason:
         update.failureReason === undefined
           ? current.failure_reason
@@ -1582,6 +1602,27 @@ function resolveLifecycleFailureState(error: unknown): Extract<
   return 'failed';
 }
 
+function resolveTimeoutLifecycleState(
+  scope: AcpTimeoutScopePayload,
+): Extract<
+  AcpLifecycleStatePayload,
+  | 'timed_out_prompt'
+  | 'timed_out_inactive'
+  | 'timed_out_total'
+  | 'timed_out_provider_initialize'
+> {
+  switch (scope) {
+    case 'session_total':
+      return 'timed_out_total';
+    case 'session_inactive':
+      return 'timed_out_inactive';
+    case 'provider_initialize':
+      return 'timed_out_provider_initialize';
+    default:
+      return 'timed_out_prompt';
+  }
+}
+
 const REPLAY_HISTORY_CHAR_LIMIT = 24_000;
 
 function trimReplayTranscriptSegments(
@@ -1817,7 +1858,10 @@ async function updateSessionFromPromptResponse(
 ) {
   const session = getSessionRow(sqlite, sessionId);
   let state: AcpSessionState = 'RUNNING';
-  if (response.stopReason === 'cancelled') {
+  const timedOutScope = session.timeout_scope;
+  if (response.stopReason === 'cancelled' && timedOutScope) {
+    state = 'FAILED';
+  } else if (response.stopReason === 'cancelled') {
     state = 'CANCELLED';
   }
 
@@ -1833,7 +1877,7 @@ async function updateSessionFromPromptResponse(
           stopReason: response.stopReason,
           usage: response.usage ?? null,
           userMessageId: response.userMessageId ?? null,
-          ...(state === 'CANCELLED' ? { state } : {}),
+          ...((state === 'CANCELLED' || state === 'FAILED') ? { state } : {}),
         },
       },
     ),
@@ -1843,12 +1887,22 @@ async function updateSessionFromPromptResponse(
     acpStatus: 'ready',
     acpError: null,
     state,
-    failureReason: null,
-    completedAt: state === 'CANCELLED' ? completedAt : null,
+    failureReason:
+      state === 'FAILED' && timedOutScope
+        ? `ACP session timed out (${timedOutScope})`
+        : null,
+    completedAt: state === 'RUNNING' ? null : completedAt,
     lastActivityAt: completedAt,
   });
 
-  if (state !== 'CANCELLED') {
+  if (state === 'FAILED' && timedOutScope) {
+    appendLifecycleEvent(sqlite, broker, {
+      detail: `ACP session timed out (${timedOutScope})`,
+      sessionId,
+      state: resolveTimeoutLifecycleState(timedOutScope),
+      taskBound: session.task_id !== null,
+    });
+  } else if (state !== 'CANCELLED') {
     appendLifecycleEvent(sqlite, broker, {
       detail: response.stopReason,
       sessionId,
@@ -1860,7 +1914,11 @@ async function updateSessionFromPromptResponse(
   await syncTaskExecutionOutcome(
     sqlite,
     sessionId,
-    state === 'CANCELLED' ? 'CANCELLED' : 'COMPLETED',
+    state === 'FAILED'
+      ? 'FAILED'
+      : state === 'CANCELLED'
+        ? 'CANCELLED'
+        : 'COMPLETED',
     undefined,
     options,
   );
@@ -2375,6 +2433,237 @@ export async function listAcpRuntimeSessions(
   return {
     items,
     total: items.length,
+  };
+}
+
+function listSupervisedSessions(sqlite: Database): AcpSessionRow[] {
+  return sqlite
+    .prepare(
+      `
+        SELECT
+          id,
+          project_id,
+          agent_id,
+          actor_id,
+          supervision_policy_json,
+          deadline_at,
+          inactive_deadline_at,
+          cancel_requested_at,
+          cancelled_at,
+          force_killed_at,
+          timeout_scope,
+          step_count,
+          codebase_id,
+          parent_session_id,
+          specialist_id,
+          name,
+          model,
+          provider,
+          cwd,
+          acp_status,
+          acp_error,
+          state,
+          runtime_session_id,
+          failure_reason,
+          last_event_id,
+          started_at,
+          last_activity_at,
+          completed_at,
+          task_id,
+          worktree_id
+        FROM project_acp_sessions
+        WHERE deleted_at IS NULL
+          AND state IN ('RUNNING', 'CANCELLING')
+        ORDER BY updated_at ASC
+      `,
+    )
+    .all() as AcpSessionRow[];
+}
+
+function resolveSupervisionTimeoutDetail(scope: AcpTimeoutScopePayload): string {
+  switch (scope) {
+    case 'session_total':
+      return 'ACP session exceeded its total runtime budget.';
+    case 'session_inactive':
+      return 'ACP session exceeded its inactivity budget.';
+    default:
+      return `ACP session timed out (${scope}).`;
+  }
+}
+
+export async function runAcpSessionSupervisionTick(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  runtime: AcpRuntimeClient,
+  options: AcpServiceOptions & {
+    now?: Date;
+  } = {},
+): Promise<{
+  checkedSessionIds: string[];
+  forcedSessionIds: string[];
+  timedOutSessionIds: string[];
+}> {
+  const now = options.now ?? new Date();
+  const nowIso = now.toISOString();
+  const nowMs = now.getTime();
+  const checkedSessionIds: string[] = [];
+  const forcedSessionIds: string[] = [];
+  const timedOutSessionIds: string[] = [];
+  const sessions = listSupervisedSessions(sqlite);
+
+  for (const session of sessions) {
+    checkedSessionIds.push(session.id);
+
+    try {
+      const supervisionPolicy = parseSupervisionPolicy(
+        session.supervision_policy_json,
+      );
+
+      if (session.state === 'RUNNING') {
+        const scope =
+          session.deadline_at !== null &&
+          Date.parse(session.deadline_at) <= nowMs
+            ? 'session_total'
+            : session.inactive_deadline_at !== null &&
+                Date.parse(session.inactive_deadline_at) <= nowMs
+              ? 'session_inactive'
+              : null;
+
+        if (!scope) {
+          continue;
+        }
+
+        const detail = resolveSupervisionTimeoutDetail(scope);
+        timedOutSessionIds.push(session.id);
+        appendSupervisionEvent(sqlite, broker, {
+          sessionId: session.id,
+          stage: 'timeout_detected',
+          scope,
+          policy: supervisionPolicy,
+          detail,
+        });
+        updateSessionRuntime(sqlite, session.id, {
+          acpError: null,
+          acpStatus: 'ready',
+          state: 'CANCELLING',
+          failureReason: detail,
+          cancelRequestedAt: nowIso,
+          timeoutScope: scope,
+          supervisionPolicy,
+        });
+        appendSupervisionEvent(sqlite, broker, {
+          sessionId: session.id,
+          stage: 'cancel_requested',
+          scope,
+          policy: supervisionPolicy,
+          detail: `Requested ACP session cancellation after ${scope} timeout.`,
+        });
+        appendLifecycleEvent(sqlite, broker, {
+          detail,
+          sessionId: session.id,
+          state: 'cancelling',
+          taskBound: session.task_id !== null,
+        });
+
+        if (session.runtime_session_id && !runtime.isSessionActive(session.id)) {
+          await ensureRuntimeLoaded(sqlite, broker, runtime, session.id, options);
+        }
+
+        if (
+          session.runtime_session_id !== null ||
+          runtime.isSessionActive(session.id)
+        ) {
+          await runtime.cancelSession({
+            localSessionId: session.id,
+            reason: detail,
+          });
+        }
+
+        continue;
+      }
+
+      if (session.state !== 'CANCELLING' || !session.cancel_requested_at) {
+        continue;
+      }
+
+      const cancelRequestedAtMs = Date.parse(session.cancel_requested_at);
+      if (
+        Number.isNaN(cancelRequestedAtMs) ||
+        nowMs - cancelRequestedAtMs < supervisionPolicy.cancelGraceMs
+      ) {
+        continue;
+      }
+
+      const timeoutScope = session.timeout_scope ?? 'force_kill_grace';
+      const detail =
+        timeoutScope === 'force_kill_grace'
+          ? 'ACP session exceeded cancel grace and was force-killed.'
+          : `ACP session timed out (${timeoutScope}) and exceeded cancel grace; force-killing runtime.`;
+
+      forcedSessionIds.push(session.id);
+      appendSupervisionEvent(sqlite, broker, {
+        sessionId: session.id,
+        stage: 'cancel_grace_expired',
+        scope: timeoutScope,
+        policy: supervisionPolicy,
+        detail,
+      });
+      await runtime.killSession(session.id);
+      appendSupervisionEvent(sqlite, broker, {
+        sessionId: session.id,
+        stage: 'force_killed',
+        scope: timeoutScope,
+        policy: supervisionPolicy,
+        detail,
+        forceKilled: true,
+      });
+      updateSessionRuntime(sqlite, session.id, {
+        acpError: detail,
+        acpStatus: 'error',
+        state: 'FAILED',
+        failureReason: detail,
+        completedAt: nowIso,
+        cancelledAt: nowIso,
+        forceKilledAt: nowIso,
+        lastActivityAt: nowIso,
+        timeoutScope,
+        supervisionPolicy,
+      });
+      appendLifecycleEvent(sqlite, broker, {
+        detail,
+        sessionId: session.id,
+        state: 'force_killed',
+        taskBound: session.task_id !== null,
+      });
+
+      await syncTaskExecutionOutcome(
+        sqlite,
+        session.id,
+        'FAILED',
+        detail,
+        options,
+      );
+    } catch (error) {
+      options.logger?.error?.(
+        {
+          error:
+            error instanceof Error
+              ? {
+                  message: error.message,
+                  stack: error.stack,
+                }
+              : String(error),
+          sessionId: session.id,
+        },
+        'ACP session supervision tick failed for session',
+      );
+    }
+  }
+
+  return {
+    checkedSessionIds,
+    forcedSessionIds,
+    timedOutSessionIds,
   };
 }
 

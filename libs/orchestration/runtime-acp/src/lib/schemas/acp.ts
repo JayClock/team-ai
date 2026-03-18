@@ -1,4 +1,9 @@
-export type AcpSessionState = 'PENDING' | 'RUNNING' | 'FAILED' | 'CANCELLED';
+export type AcpSessionState =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'CANCELLING'
+  | 'FAILED'
+  | 'CANCELLED';
 
 export type AcpSessionStatus = 'connecting' | 'ready' | 'error';
 

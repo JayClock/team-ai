@@ -10,6 +10,7 @@ import {
 } from '@orchestration/runtime-acp';
 import desktopAuthPlugin from './plugins/desktop-auth';
 import desktopCorsPlugin from './plugins/desktop-cors';
+import acpSessionSupervisionPlugin from './plugins/acp-session-supervision';
 import backgroundWorkerPlugin from './plugins/background-worker';
 import kanbanWorkflowOrchestratorPlugin from './plugins/kanban-workflow-orchestrator';
 import workflowExecutorPlugin from './plugins/workflow-executor';
@@ -23,6 +24,8 @@ export interface AppOptions extends FastifyPluginOptions {
   acpSessionIdleTimeoutMs?: number;
   acpSessionReaperEnabled?: boolean;
   acpSessionReaperIntervalMs?: number;
+  acpSessionSupervisionEnabled?: boolean;
+  acpSessionSupervisionIntervalMs?: number;
   backgroundWorkerEnabled?: boolean;
   backgroundWorkerIntervalMs?: number;
   desktopSessionToken?: string;
@@ -46,6 +49,10 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
     enabled: opts.acpSessionReaperEnabled,
     idleTimeoutMs: opts.acpSessionIdleTimeoutMs,
     intervalMs: opts.acpSessionReaperIntervalMs,
+  });
+  fastify.register(acpSessionSupervisionPlugin, {
+    enabled: opts.acpSessionSupervisionEnabled,
+    intervalMs: opts.acpSessionSupervisionIntervalMs,
   });
   fastify.register(backgroundWorkerPlugin, {
     enabled: opts.backgroundWorkerEnabled,
