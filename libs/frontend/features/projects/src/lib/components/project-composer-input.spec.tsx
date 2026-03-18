@@ -1,5 +1,30 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectComposerInput } from './project-composer-input';
+
+const runtimeFetchMock = vi.fn();
+
+type ComposerEditor = {
+  commands: {
+    insertContent: (value: string) => boolean;
+    setContent: (value: string) => boolean;
+  };
+};
+
+type ComposerTextbox = HTMLElement & {
+  __projectComposerEditor?: ComposerEditor;
+};
+
+vi.mock('@shared/util-http', () => ({
+  runtimeFetch: (...args: unknown[]) => runtimeFetchMock(...args),
+}));
 
 vi.mock('../session/use-acp-provider-models', () => ({
   useAcpProviderModels: (providerId: string | null) => ({
@@ -43,6 +68,26 @@ const htmlElementPrototype = (
     HTMLElement?: { prototype: { scrollIntoView?: () => void } };
   }
 ).HTMLElement?.prototype;
+const elementPrototype = (
+  globalThis as {
+    Element?: {
+      prototype: {
+        getBoundingClientRect?: () => DOMRect;
+        getClientRects?: () => DOMRect[];
+      };
+    };
+  }
+).Element?.prototype;
+const rangePrototype = (
+  globalThis as {
+    Range?: {
+      prototype: {
+        getBoundingClientRect?: () => DOMRect;
+        getClientRects?: () => DOMRect[];
+      };
+    };
+  }
+).Range?.prototype;
 
 if (htmlElementPrototype) {
   Object.defineProperty(htmlElementPrototype, 'scrollIntoView', {
@@ -51,7 +96,113 @@ if (htmlElementPrototype) {
   });
 }
 
+if (elementPrototype && !elementPrototype.getClientRects) {
+  Object.defineProperty(elementPrototype, 'getClientRects', {
+    configurable: true,
+    value: () => [],
+  });
+}
+
+if (elementPrototype && !elementPrototype.getBoundingClientRect) {
+  Object.defineProperty(elementPrototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: () =>
+      ({
+        bottom: 0,
+        height: 0,
+        left: 0,
+        right: 0,
+        top: 0,
+        width: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect,
+  });
+}
+
+if (rangePrototype && !rangePrototype.getClientRects) {
+  Object.defineProperty(rangePrototype, 'getClientRects', {
+    configurable: true,
+    value: () => [],
+  });
+}
+
+if (rangePrototype && !rangePrototype.getBoundingClientRect) {
+  Object.defineProperty(rangePrototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: () =>
+      ({
+        bottom: 0,
+        height: 0,
+        left: 0,
+        right: 0,
+        top: 0,
+        width: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect,
+  });
+}
+
+async function getComposerEditor() {
+  const textbox = screen.getByRole('textbox', {
+    name: '项目指令输入框',
+  }) as ComposerTextbox;
+
+  await waitFor(() => expect(textbox.__projectComposerEditor).toBeTruthy());
+
+  return textbox.__projectComposerEditor as ComposerEditor;
+}
+
+async function setComposerText(value: string) {
+  const editor = await getComposerEditor();
+
+  editor.commands.setContent(value);
+
+  await waitFor(() =>
+    expect(
+      screen.getByRole('textbox', { name: '项目指令输入框' }).textContent,
+    ).toContain(value),
+  );
+}
+
+async function appendComposerText(value: string) {
+  const editor = await getComposerEditor();
+
+  editor.commands.insertContent(value);
+
+  await waitFor(() =>
+    expect(
+      screen.getByRole('textbox', { name: '项目指令输入框' }).textContent,
+    ).toContain(value),
+  );
+}
+
+async function openComposerCommands() {
+  const editor = await getComposerEditor();
+
+  editor.commands.insertContent('/');
+
+  return await screen.findByRole('button', {
+    name: /添加附件/,
+  });
+}
+
 describe('ProjectComposerInput', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  beforeEach(() => {
+    runtimeFetchMock.mockReset();
+    runtimeFetchMock.mockResolvedValue({
+      json: async () => ({ files: [] }),
+      ok: true,
+    });
+  });
+
   it('always renders the model picker', () => {
     render(
       <ProjectComposerInput
@@ -217,9 +368,7 @@ describe('ProjectComposerInput', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: '项目指令输入框' }), {
-      target: { value: '实现 provider 选择' },
-    });
+    await setComposerText('实现 provider 选择');
     fireEvent.click(screen.getByRole('button', { name: '发起会话' }));
 
     await waitFor(() =>
@@ -266,9 +415,7 @@ describe('ProjectComposerInput', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: '项目指令输入框' }), {
-      target: { value: '实现 model 选择' },
-    });
+    await setComposerText('实现 model 选择');
     fireEvent.click(screen.getByRole('button', { name: '发起会话' }));
 
     await waitFor(() =>
@@ -310,9 +457,7 @@ describe('ProjectComposerInput', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: '项目指令输入框' }), {
-      target: { value: '实现 repo context 选择' },
-    });
+    await setComposerText('实现 repo context 选择');
     fireEvent.click(screen.getByRole('button', { name: '发起会话' }));
 
     await waitFor(() =>
@@ -323,5 +468,157 @@ describe('ProjectComposerInput', () => {
         text: '实现 repo context 选择',
       }),
     );
+  });
+
+  it('selects repository files and includes them in the submit payload', async () => {
+    const onSubmit = vi.fn();
+
+    runtimeFetchMock.mockResolvedValue({
+      json: async () => ({
+        files: [
+          {
+            fullPath: '/tmp/project-1/src/lib/project-composer-input.tsx',
+            name: 'project-composer-input.tsx',
+            path: 'src/lib/project-composer-input.tsx',
+            score: 900,
+          },
+        ],
+      }),
+      ok: true,
+    });
+
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        onSubmit={onSubmit}
+        placeholder="输入内容"
+        project={{
+          onValueChange: () => undefined,
+          projects: [
+            {
+              id: 'project-1',
+              repoPath: '/tmp/project-1',
+              sourceUrl: 'https://github.com/acme/project-1',
+              title: 'Project One',
+            },
+          ],
+          value: {
+            id: 'project-1',
+            repoPath: '/tmp/project-1',
+            sourceUrl: 'https://github.com/acme/project-1',
+            title: 'Project One',
+          },
+        }}
+      />,
+    );
+
+    expect(await openComposerCommands()).toBeTruthy();
+
+    fireEvent.mouseDown(
+      await screen.findByRole('button', { name: /选择仓库文件/ }),
+    );
+
+    const dialog = await screen.findByRole('dialog');
+
+    await waitFor(() =>
+      expect(runtimeFetchMock).toHaveBeenCalledWith(
+        '/api/files/search?limit=20&repoPath=%2Ftmp%2Fproject-1',
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        }),
+      ),
+    );
+
+    fireEvent.click(
+      within(dialog).getByRole('option', {
+        name: 'project-composer-input.tsx src/lib/project-composer-input.tsx',
+      }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(
+        screen.getByRole('textbox', { name: '项目指令输入框' }).textContent,
+      ).toContain('@project-composer-input.tsx'),
+    );
+
+    await appendComposerText('请分析输入组件');
+    fireEvent.click(screen.getByRole('button', { name: '发起会话' }));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith({
+        cwd: '/tmp/project-1',
+        files: [
+          expect.objectContaining({
+            fullPath: '/tmp/project-1/src/lib/project-composer-input.tsx',
+            kind: 'repo-file',
+            name: 'project-composer-input.tsx',
+            path: 'src/lib/project-composer-input.tsx',
+          }),
+        ],
+        model: undefined,
+        provider: undefined,
+        text:
+          '请分析输入组件\n\n已选择的项目文件上下文：\n- src/lib/project-composer-input.tsx',
+      }),
+    );
+  });
+
+  it('invokes provider switching from slash commands', async () => {
+    const onProviderChange = vi.fn();
+
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        onSubmit={() => undefined}
+        placeholder="输入内容"
+        provider={{
+          onValueChange: onProviderChange,
+          providers: [
+            {
+              command: 'npx opencode',
+              description: 'OpenCode provider',
+              distributionTypes: ['npx'],
+              envCommandKey: 'OPENCODE_COMMAND',
+              id: 'opencode',
+              installable: true,
+              installed: true,
+              name: 'OpenCode',
+              source: 'static',
+              status: 'available',
+              unavailableReason: null,
+            },
+          ],
+          value: undefined,
+        }}
+        project={{
+          onValueChange: () => undefined,
+          projects: [
+            {
+              id: 'project-1',
+              repoPath: '/tmp/project-1',
+              sourceUrl: 'https://github.com/acme/project-1',
+              title: 'Project One',
+            },
+          ],
+          value: {
+            id: 'project-1',
+            repoPath: '/tmp/project-1',
+            sourceUrl: 'https://github.com/acme/project-1',
+            title: 'Project One',
+          },
+        }}
+      />,
+    );
+
+    expect(await openComposerCommands()).toBeTruthy();
+
+    const providerCommand = await screen.findByRole('button', {
+      name: /切换 Provider: OpenCode/,
+    });
+
+    fireEvent.mouseDown(providerCommand);
+
+    expect(onProviderChange).toHaveBeenCalledWith('opencode');
   });
 });
