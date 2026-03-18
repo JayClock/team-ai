@@ -13,7 +13,7 @@ import {
 } from '../presenters/acp-presenter';
 import { presentAcpSessionContext } from '../presenters/session-context-presenter';
 import {
-  DEFAULT_ACP_PROMPT_TIMEOUT_MS,
+  DEFAULT_ACP_SESSION_SUPERVISION_POLICY,
   cancelAcpSession,
   createAcpSession,
   deleteAcpSession,
@@ -86,6 +86,20 @@ const installAcpProviderBodySchema = z.object({
   providerId: z.string().trim().min(1),
   distributionType: z.enum(['npx', 'uvx', 'binary']).optional(),
 });
+
+const supervisionInputSchema = z
+  .object({
+    promptTimeoutMs: z.coerce.number().int().positive().optional(),
+    inactivityTimeoutMs: z.coerce.number().int().positive().optional(),
+    totalTimeoutMs: z.coerce.number().int().positive().optional(),
+    cancelGraceMs: z.coerce.number().int().positive().optional(),
+    completionGraceMs: z.coerce.number().int().positive().optional(),
+    providerInitTimeoutMs: z.coerce.number().int().positive().optional(),
+    packageManagerInitTimeoutMs: z.coerce.number().int().positive().optional(),
+    maxSteps: z.union([z.null(), z.coerce.number().int().positive()]).optional(),
+    maxRetries: z.coerce.number().int().nonnegative().optional(),
+  })
+  .partial();
 
 function resultEnvelope(
   id: string | number | null | undefined,
@@ -390,12 +404,12 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           const sessionId = z.string().min(1).parse(params.sessionId);
           const promptInput = {
             prompt: z.string().trim().min(1).parse(params.prompt),
-            timeoutMs: z.coerce
-              .number()
-              .int()
-              .positive()
-              .default(DEFAULT_ACP_PROMPT_TIMEOUT_MS)
-              .parse(params.timeoutMs),
+            supervision: supervisionInputSchema
+              .default({
+                promptTimeoutMs:
+                  DEFAULT_ACP_SESSION_SUPERVISION_POLICY.promptTimeoutMs,
+              })
+              .parse(params.supervision),
             eventId: z
               .string()
               .trim()

@@ -201,6 +201,14 @@ describe('sqlite initialization', () => {
       'codebase_id',
       'worktree_id',
       'model',
+      'supervision_policy_json',
+      'deadline_at',
+      'inactive_deadline_at',
+      'cancel_requested_at',
+      'cancelled_at',
+      'force_killed_at',
+      'timeout_scope',
+      'step_count',
     ]);
     expect(agentColumns.map(({ name }) => name)).toEqual([
       'id',

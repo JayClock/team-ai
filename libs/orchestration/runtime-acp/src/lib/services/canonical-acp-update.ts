@@ -14,7 +14,32 @@ export type CanonicalAcpEventType =
   | 'config_option_update'
   | 'usage_update'
   | 'available_commands_update'
+  | 'supervision_update'
   | 'error';
+
+export type CanonicalAcpTimeoutScope =
+  | 'prompt'
+  | 'session_total'
+  | 'session_inactive'
+  | 'step_budget'
+  | 'provider_initialize'
+  | 'provider_request'
+  | 'gateway_completion_wait'
+  | 'tool_execution'
+  | 'mcp_execution'
+  | 'force_kill_grace';
+
+export interface CanonicalAcpSupervisionPolicy {
+  cancelGraceMs: number;
+  completionGraceMs: number;
+  inactivityTimeoutMs: number;
+  maxRetries: number;
+  maxSteps: number | null;
+  packageManagerInitTimeoutMs: number;
+  promptTimeoutMs: number;
+  providerInitTimeoutMs: number;
+  totalTimeoutMs: number;
+}
 
 export interface CanonicalAcpToolCall {
   content: unknown[];
@@ -68,6 +93,18 @@ export interface CanonicalAcpUpdate {
   sessionInfo?: {
     title?: string | null;
     updatedAt?: string | null;
+  };
+  supervision?: {
+    detail?: string | null;
+    forceKilled?: boolean;
+    policy?: CanonicalAcpSupervisionPolicy;
+    scope?: CanonicalAcpTimeoutScope;
+    stage:
+      | 'policy_resolved'
+      | 'timeout_detected'
+      | 'cancel_requested'
+      | 'cancel_grace_expired'
+      | 'force_killed';
   };
   terminal?: CanonicalAcpTerminalEvent;
   toolCall?: CanonicalAcpToolCall;

@@ -31,13 +31,46 @@ export type AcpEventTypePayload =
   | 'available_commands_update'
   | 'orchestration_update'
   | 'lifecycle_update'
+  | 'supervision_update'
   | 'error';
+
+export type AcpTimeoutScopePayload =
+  | 'prompt'
+  | 'session_total'
+  | 'session_inactive'
+  | 'step_budget'
+  | 'provider_initialize'
+  | 'provider_request'
+  | 'gateway_completion_wait'
+  | 'tool_execution'
+  | 'mcp_execution'
+  | 'force_kill_grace';
+
+export interface AcpSupervisionPolicyPayload {
+  cancelGraceMs: number;
+  completionGraceMs: number;
+  inactivityTimeoutMs: number;
+  maxRetries: number;
+  maxSteps: number | null;
+  packageManagerInitTimeoutMs: number;
+  promptTimeoutMs: number;
+  providerInitTimeoutMs: number;
+  totalTimeoutMs: number;
+}
 
 export type AcpLifecycleStatePayload =
   | 'idle'
   | 'completed'
   | 'failed'
-  | 'timeout';
+  | 'timeout'
+  | 'cancelling'
+  | 'cancelled'
+  | 'timed_out_prompt'
+  | 'timed_out_inactive'
+  | 'timed_out_total'
+  | 'timed_out_step_budget'
+  | 'timed_out_provider_initialize'
+  | 'force_killed';
 
 export type AcpOrchestrationEventName =
   | 'child_session_completed'
@@ -105,6 +138,18 @@ export interface AcpEventUpdatePayload {
     title?: string | null;
     updatedAt?: string | null;
   };
+  supervision?: {
+    detail?: string | null;
+    forceKilled?: boolean;
+    policy?: AcpSupervisionPolicyPayload;
+    scope?: AcpTimeoutScopePayload;
+    stage:
+      | 'policy_resolved'
+      | 'timeout_detected'
+      | 'cancel_requested'
+      | 'cancel_grace_expired'
+      | 'force_killed';
+  };
   terminal?: AcpEventTerminalPayload;
   timestamp: string;
   lifecycle?: {
@@ -153,6 +198,14 @@ export interface AcpSessionPayload {
   project: AcpRefPayload;
   provider: string;
   specialistId: string | null;
+  supervisionPolicy: AcpSupervisionPolicyPayload;
+  deadlineAt: string | null;
+  inactiveDeadlineAt: string | null;
+  cancelRequestedAt: string | null;
+  cancelledAt: string | null;
+  forceKilledAt: string | null;
+  timeoutScope: AcpTimeoutScopePayload | null;
+  stepCount: number;
   task: AcpRefPayload | null;
   startedAt: string | null;
   worktree: AcpRefPayload | null;

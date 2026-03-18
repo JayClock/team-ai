@@ -57,7 +57,7 @@ export function createAcpSessionPromptHandler(fastify: FastifyInstance) {
       {
         eventId: args.eventId,
         prompt: args.prompt,
-        timeoutMs: args.timeoutMs,
+        supervision: args.supervision,
         traceId: args.traceId,
       },
       {

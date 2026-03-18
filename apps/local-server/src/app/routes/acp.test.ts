@@ -1922,7 +1922,9 @@ describe('acp route', () => {
           projectId: project.id,
           sessionId: childSessionId,
           prompt: 'Attempt the implementation task within the timeout budget',
-          timeoutMs: 1000,
+          supervision: {
+            promptTimeoutMs: 1000,
+          },
         },
       },
     });
@@ -1976,7 +1978,7 @@ describe('acp route', () => {
           update: expect.objectContaining({
             eventType: 'lifecycle_update',
             lifecycle: expect.objectContaining({
-              state: 'timeout',
+              state: 'timed_out_prompt',
               taskBound: true,
             }),
           }),

@@ -74,7 +74,17 @@ export type SelectAcpSessionInput = {
 export type PromptAcpSessionInput = {
   prompt: string;
   session?: string | AcpSessionRef;
-  timeoutMs?: number;
+  supervision?: {
+    cancelGraceMs?: number;
+    completionGraceMs?: number;
+    inactivityTimeoutMs?: number;
+    maxRetries?: number;
+    maxSteps?: number | null;
+    packageManagerInitTimeoutMs?: number;
+    promptTimeoutMs?: number;
+    providerInitTimeoutMs?: number;
+    totalTimeoutMs?: number;
+  };
   eventId?: string;
   traceId?: string;
 };
@@ -339,7 +349,7 @@ export function useAcpSession(
           projectId: projectState.data.id,
           sessionId: base.data.id,
           prompt: input.prompt,
-          timeoutMs: input.timeoutMs,
+          supervision: input.supervision,
           eventId: input.eventId ?? `ui-${Date.now()}`,
         },
         input.traceId ?? options.traceId,

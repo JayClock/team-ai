@@ -1023,4 +1023,32 @@ export const sqliteMigrations: SqliteMigration[] = [
         AND (default_provider_id IS NOT NULL OR default_model IS NOT NULL);
     `,
   },
+  {
+    version: '033_project_acp_sessions_supervision',
+    sql: `
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN supervision_policy_json TEXT NOT NULL DEFAULT '{"promptTimeoutMs":300000,"inactivityTimeoutMs":600000,"totalTimeoutMs":1800000,"cancelGraceMs":1000,"completionGraceMs":1000,"providerInitTimeoutMs":10000,"packageManagerInitTimeoutMs":120000,"maxSteps":64,"maxRetries":0}';
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN deadline_at TEXT;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN inactive_deadline_at TEXT;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN cancel_requested_at TEXT;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN cancelled_at TEXT;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN force_killed_at TEXT;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN timeout_scope TEXT;
+
+      ALTER TABLE project_acp_sessions
+        ADD COLUMN step_count INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

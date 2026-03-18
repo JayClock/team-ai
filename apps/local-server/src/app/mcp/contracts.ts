@@ -298,11 +298,31 @@ export const promptAcpSessionArgsSchema = z.object({
   projectId: z.string().trim().min(1),
   prompt: z.string().trim().min(1),
   sessionId: z.string().trim().min(1),
-  timeoutMs: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(DEFAULT_ACP_PROMPT_TIMEOUT_MS),
+  supervision: z
+    .object({
+      promptTimeoutMs: z.coerce
+        .number()
+        .int()
+        .positive()
+        .default(DEFAULT_ACP_PROMPT_TIMEOUT_MS),
+      inactivityTimeoutMs: z.coerce.number().int().positive().optional(),
+      totalTimeoutMs: z.coerce.number().int().positive().optional(),
+      cancelGraceMs: z.coerce.number().int().positive().optional(),
+      completionGraceMs: z.coerce.number().int().positive().optional(),
+      providerInitTimeoutMs: z.coerce.number().int().positive().optional(),
+      packageManagerInitTimeoutMs: z.coerce
+        .number()
+        .int()
+        .positive()
+        .optional(),
+      maxSteps: z
+        .union([z.null(), z.coerce.number().int().positive()])
+        .optional(),
+      maxRetries: z.coerce.number().int().nonnegative().optional(),
+    })
+    .default({
+      promptTimeoutMs: DEFAULT_ACP_PROMPT_TIMEOUT_MS,
+    }),
   traceId: z.string().trim().min(1).optional(),
 });
 
