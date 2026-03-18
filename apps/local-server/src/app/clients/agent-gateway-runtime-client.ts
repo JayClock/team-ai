@@ -63,20 +63,6 @@ export function createAgentGatewayRuntimeClient(
   const sessionManager =
     new AcpSessionProcessManager<ActiveGatewayRuntimeSession>();
 
-  function getSession(localSessionId: string): ActiveGatewayRuntimeSession {
-    const session = sessionManager.get(localSessionId)?.resource;
-    if (!session) {
-      throw new ProblemError({
-        type: 'https://team-ai.dev/problems/acp-session-runtime-not-loaded',
-        title: 'ACP Session Runtime Not Loaded',
-        status: 409,
-        detail: `ACP runtime for session ${localSessionId} is not loaded`,
-      });
-    }
-
-    return session;
-  }
-
   async function createSession(
     input: CreateAcpRuntimeSessionInput,
   ): Promise<AcpRuntimeSessionSnapshot> {
@@ -165,34 +151,42 @@ export function createAgentGatewayRuntimeClient(
   async function promptSession(
     input: PromptAcpRuntimeSessionInput,
   ): Promise<AcpPromptRuntimeResult> {
-    const session = getSession(input.localSessionId);
-    const gatewayPrompt = buildGatewayPromptInput(session, input);
+    return sessionManager.withActivity(
+      input.localSessionId,
+      async ({ resource: session }) => {
+        const gatewayPrompt = buildGatewayPromptInput(session, input);
 
-    await agentGatewayClient.prompt(session.gatewaySessionId, gatewayPrompt);
+        await agentGatewayClient.prompt(session.gatewaySessionId, gatewayPrompt);
 
-    const waitResult = await waitForPromptCompletion(
-      agentGatewayClient,
-      session,
-      input.timeoutMs,
+        const waitResult = await waitForPromptCompletion(
+          agentGatewayClient,
+          session,
+          input.timeoutMs,
+        );
+
+        return {
+          runtimeSessionId: session.gatewaySessionId,
+          response: {
+            stopReason: waitResult.stopReason,
+            userMessageId: null,
+            usage: null,
+          } as PromptResponse,
+        };
+      },
     );
-
-    return {
-      runtimeSessionId: session.gatewaySessionId,
-      response: {
-        stopReason: waitResult.stopReason,
-        userMessageId: null,
-        usage: null,
-      } as PromptResponse,
-    };
   }
 
   async function cancelSession(
     input: CancelAcpRuntimeSessionInput,
   ): Promise<void> {
-    const session = getSession(input.localSessionId);
-    await agentGatewayClient.cancel(session.gatewaySessionId, {
-      reason: input.reason,
-    });
+    await sessionManager.withActivity(
+      input.localSessionId,
+      async ({ resource: session }) => {
+        await agentGatewayClient.cancel(session.gatewaySessionId, {
+          reason: input.reason,
+        });
+      },
+    );
   }
 
   async function killSession(localSessionId: string): Promise<void> {

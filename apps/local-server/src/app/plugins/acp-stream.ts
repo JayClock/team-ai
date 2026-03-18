@@ -7,6 +7,10 @@ type AcpListener = (event: AcpEventEnvelopePayload) => void;
 export class AcpStreamBroker {
   private readonly listeners = new Map<string, Set<AcpListener>>();
 
+  countSubscribers(sessionId: string): number {
+    return this.listeners.get(sessionId)?.size ?? 0;
+  }
+
   publish(event: AcpEventEnvelopePayload) {
     const listeners = this.listeners.get(event.sessionId);
 

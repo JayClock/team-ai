@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
 import AutoLoad from '@fastify/autoload';
 import acpRuntimePlugin from './plugins/acp-runtime';
+import acpSessionReaperPlugin from './plugins/acp-session-reaper';
 import agentGatewayClientPlugin from './plugins/agent-gateway-client';
 import acpStreamPlugin from './plugins/acp-stream';
 import desktopAuthPlugin from './plugins/desktop-auth';
@@ -17,6 +18,9 @@ import sqlitePlugin from './plugins/sqlite';
 
 export interface AppOptions extends FastifyPluginOptions {
   agentGatewayBaseUrl?: string;
+  acpSessionIdleTimeoutMs?: number;
+  acpSessionReaperEnabled?: boolean;
+  acpSessionReaperIntervalMs?: number;
   backgroundWorkerEnabled?: boolean;
   backgroundWorkerIntervalMs?: number;
   desktopSessionToken?: string;
@@ -36,6 +40,11 @@ export const app: FastifyPluginAsync<AppOptions> = async (fastify, opts) => {
     agentGatewayBaseUrl: opts.agentGatewayBaseUrl,
   });
   fastify.register(acpRuntimePlugin);
+  fastify.register(acpSessionReaperPlugin, {
+    enabled: opts.acpSessionReaperEnabled,
+    idleTimeoutMs: opts.acpSessionIdleTimeoutMs,
+    intervalMs: opts.acpSessionReaperIntervalMs,
+  });
   fastify.register(backgroundWorkerPlugin, {
     enabled: opts.backgroundWorkerEnabled,
     intervalMs: opts.backgroundWorkerIntervalMs,

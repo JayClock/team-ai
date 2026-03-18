@@ -184,20 +184,6 @@ export function createAcpRuntimeClient(
   const sessionManager =
     new AcpSessionProcessManager<ActiveAcpRuntimeSession>();
 
-  function getActiveSession(localSessionId: string): ActiveAcpRuntimeSession {
-    const session = sessionManager.get(localSessionId)?.resource;
-    if (!session) {
-      throw new ProblemError({
-        type: 'https://team-ai.dev/problems/acp-session-runtime-not-loaded',
-        title: 'ACP Session Runtime Not Loaded',
-        status: 409,
-        detail: `ACP runtime for session ${localSessionId} is not loaded`,
-      });
-    }
-
-    return session;
-  }
-
   async function createSession(
     input: CreateAcpRuntimeSessionInput,
   ): Promise<AcpRuntimeSessionSnapshot> {
@@ -273,48 +259,56 @@ export function createAcpRuntimeClient(
   async function promptSession(
     input: PromptAcpRuntimeSessionInput,
   ): Promise<AcpPromptRuntimeResult> {
-    const session = getActiveSession(input.localSessionId);
-    const promptRequest = withRequestTimeout(
-      session.connection.prompt({
-        sessionId: session.runtimeSessionId,
-        prompt: [
-          {
-            type: 'text',
-            text: input.prompt,
-          },
-        ],
-        _meta: input.traceId ? { traceId: input.traceId } : undefined,
-      }),
-      input.timeoutMs
-        ? resolveAcpPromptTransportTimeoutMs(input.timeoutMs)
-        : resolveAcpRequestTimeoutMs('session/prompt', session.runtimeCommand),
-      'session/prompt',
+    return sessionManager.withActivity(
+      input.localSessionId,
+      async ({ resource: session }) => {
+        const promptRequest = withRequestTimeout(
+          session.connection.prompt({
+            sessionId: session.runtimeSessionId,
+            prompt: [
+              {
+                type: 'text',
+                text: input.prompt,
+              },
+            ],
+            _meta: input.traceId ? { traceId: input.traceId } : undefined,
+          }),
+          input.timeoutMs
+            ? resolveAcpPromptTransportTimeoutMs(input.timeoutMs)
+            : resolveAcpRequestTimeoutMs('session/prompt', session.runtimeCommand),
+          'session/prompt',
+        );
+
+        const response = input.timeoutMs
+          ? await withPromptTimeout(
+              promptRequest,
+              input.timeoutMs,
+              session.connection,
+              session.runtimeSessionId,
+            )
+          : await promptRequest;
+
+        return {
+          runtimeSessionId: session.runtimeSessionId,
+          response,
+        };
+      },
     );
-
-    const response = input.timeoutMs
-      ? await withPromptTimeout(
-          promptRequest,
-          input.timeoutMs,
-          session.connection,
-          session.runtimeSessionId,
-        )
-      : await promptRequest;
-
-    return {
-      runtimeSessionId: session.runtimeSessionId,
-      response,
-    };
   }
 
   async function cancelSession(
     input: CancelAcpRuntimeSessionInput,
   ): Promise<void> {
-    const session = getActiveSession(input.localSessionId);
-    const params: CancelNotification = {
-      sessionId: session.runtimeSessionId,
-      _meta: input.reason ? { reason: input.reason } : undefined,
-    };
-    await session.connection.cancel(params);
+    await sessionManager.withActivity(
+      input.localSessionId,
+      async ({ resource: session }) => {
+        const params: CancelNotification = {
+          sessionId: session.runtimeSessionId,
+          _meta: input.reason ? { reason: input.reason } : undefined,
+        };
+        await session.connection.cancel(params);
+      },
+    );
   }
 
   async function close(): Promise<void> {
