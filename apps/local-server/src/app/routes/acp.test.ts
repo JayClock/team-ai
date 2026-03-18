@@ -250,6 +250,76 @@ describe('acp route', () => {
     expect(rootResponse.json()._links.acp.href).toBe('/api/acp');
   });
 
+  it('cleans up ACP SSE subscribers when the client aborts the stream', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-sse-cleanup-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      killSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-1',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP SSE Cleanup Project',
+      repoPath: '/tmp/team-ai-desktop-sse-cleanup',
+    });
+    const session = await createAcpSession(
+      fastify.sqlite,
+      fastify.acpStreamBroker,
+      fastify.acpRuntime,
+      {
+        actorUserId: 'desktop-user',
+        projectId: project.id,
+        provider: 'codex',
+        role: 'DEVELOPER',
+      },
+      {
+        logger: fastify.log,
+        source: 'acp-route-test',
+      },
+    );
+
+    const baseUrl = await fastify.listen({
+      host: '127.0.0.1',
+      port: 0,
+    });
+    const controller = new AbortController();
+    const response = await fetch(`${baseUrl}/api/acp?sessionId=${session.id}`, {
+      signal: controller.signal,
+    });
+
+    expect(response.ok).toBe(true);
+    await vi.waitFor(() => {
+      expect(fastify.acpStreamBroker.countSubscribers(session.id)).toBe(1);
+    });
+
+    controller.abort();
+    await response.body?.cancel().catch(() => undefined);
+
+    await vi.waitFor(() => {
+      expect(fastify.acpStreamBroker.countSubscribers(session.id)).toBe(0);
+    });
+  });
+
   it('persists runtime updates against the local session when providers emit remote session ids', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-remote-session-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';

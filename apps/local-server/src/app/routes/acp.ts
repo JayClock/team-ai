@@ -501,39 +501,106 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
     reply.raw.writeHead(200, {
       ...resolveDesktopCorsHeaders(request.headers.origin),
       Connection: 'keep-alive',
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Content-Type': 'text/event-stream',
+      'X-Accel-Buffering': 'no',
     });
 
-    reply.raw.write(
-      `event: connected\ndata: ${JSON.stringify({
-        sessionId: query.sessionId,
-        at: new Date().toISOString(),
-      })}\n\n`,
-    );
+    let closed = false;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+    let unsubscribe: (() => void) | null = null;
 
-    for (const event of history) {
-      reply.raw.write(`event: acp-event\ndata: ${JSON.stringify(event)}\n\n`);
+    const cleanup = (reason: string) => {
+      if (closed) {
+        return;
+      }
+      closed = true;
+
+      if (heartbeat) {
+        clearInterval(heartbeat);
+        heartbeat = null;
+      }
+
+      if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+      }
+
+      request.log.debug(
+        {
+          reason,
+          sessionId: query.sessionId,
+        },
+        'Closing ACP SSE stream',
+      );
+
+      if (!reply.raw.writableEnded) {
+        reply.raw.end();
+      }
+    };
+
+    const writeEvent = (eventName: string, payload: object, reason: string) => {
+      if (closed) {
+        return false;
+      }
+
+      try {
+        reply.raw.write(
+          `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`,
+        );
+        return true;
+      } catch (error) {
+        request.log.warn(
+          {
+            error,
+            eventName,
+            sessionId: query.sessionId,
+          },
+          'ACP SSE write failed',
+        );
+        cleanup(reason);
+        return false;
+      }
+    };
+
+    if (
+      !writeEvent(
+        'connected',
+        {
+          sessionId: query.sessionId,
+          at: new Date().toISOString(),
+        },
+        'connected write failed',
+      )
+    ) {
+      return reply.hijack();
     }
 
-    const unsubscribe = fastify.acpStreamBroker.subscribe(
+    for (const event of history) {
+      if (!writeEvent('acp-event', event, 'history write failed')) {
+        return reply.hijack();
+      }
+    }
+
+    unsubscribe = fastify.acpStreamBroker.subscribe(
       query.sessionId,
       (event) => {
-        reply.raw.write(`event: acp-event\ndata: ${JSON.stringify(event)}\n\n`);
+        writeEvent('acp-event', event, 'live event write failed');
       },
     );
 
-    const heartbeat = setInterval(() => {
-      reply.raw.write(
-        `event: heartbeat\ndata: ${JSON.stringify({ at: new Date().toISOString() })}\n\n`,
+    heartbeat = setInterval(() => {
+      writeEvent(
+        'heartbeat',
+        { at: new Date().toISOString() },
+        'heartbeat write failed',
       );
     }, 15_000);
 
-    request.raw.on('close', () => {
-      clearInterval(heartbeat);
-      unsubscribe();
-      reply.raw.end();
-    });
+    request.raw.on('aborted', () => cleanup('request aborted'));
+    request.raw.on('close', () => cleanup('request closed'));
+    reply.raw.on('close', () => cleanup('response closed'));
+    reply.raw.on('error', () => cleanup('response errored'));
 
     return reply.hijack();
   });
