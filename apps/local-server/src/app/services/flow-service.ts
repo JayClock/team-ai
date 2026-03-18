@@ -77,13 +77,19 @@ function normalizeOptionalText(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function isStringEntry(
+  entry: [string, unknown],
+): entry is [string, string] {
+  return typeof entry[1] === 'string';
+}
+
 function normalizeVariables(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {};
   }
 
   const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, entryValue]) => typeof entryValue === 'string')
+    .filter(isStringEntry)
     .map(([key, entryValue]) => [key, entryValue.trim()] as const)
     .filter(([, entryValue]) => entryValue.length > 0);
 
@@ -133,7 +139,7 @@ function normalizeStep(step: unknown): FlowStepPayload | null {
     !Array.isArray(payload.config)
       ? Object.fromEntries(
           Object.entries(payload.config as Record<string, unknown>)
-            .filter(([, value]) => typeof value === 'string')
+            .filter(isStringEntry)
             .map(([key, value]) => [key, value.trim()] as const),
         )
       : {};
