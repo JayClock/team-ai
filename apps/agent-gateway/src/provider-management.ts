@@ -8,12 +8,17 @@ import {
   ACP_CLI_PROVIDER_PRESETS,
   getProviderEnvCommandKey,
   normalizeProviderId,
+  type AcpCliProviderPreset,
 } from './providers/provider-presets.js';
 
 const execFileAsync = promisify(execFile);
 
 export type AcpProviderStatus = 'available' | 'unavailable';
-export type AcpProviderSource = 'static' | 'registry' | 'hybrid';
+export type AcpProviderSource =
+  | 'environment'
+  | 'hybrid'
+  | 'registry'
+  | 'static';
 export type AcpProviderDistributionType = 'npx' | 'uvx' | 'binary';
 
 export interface AcpProviderPayload {
@@ -163,8 +168,10 @@ export class ProviderManagement {
         },
       ]),
     );
+    const environmentProviderIds = await listExposedEnvironmentProviderIds();
     const providerIds = new Set<string>([
       ...this.config.providers.map((providerId) => normalizeProviderId(providerId)),
+      ...environmentProviderIds,
       ...registryAgents.keys(),
     ]);
 
@@ -325,7 +332,7 @@ async function buildProviderPayload(
     : null;
   const chosenCommand = envCommand ?? installedCommand ?? staticCommand ?? registryCommand;
 
-  const source = resolveProviderSource(preset !== null, registryAgent);
+  const source = resolveProviderSource(preset, registryAgent);
   const distributionTypes = resolveDistributionTypes(
     registryAgent,
     installedEntry,
@@ -359,16 +366,63 @@ function resolveEnvProviderCommand(providerId: string): ProviderCommand | null {
 }
 
 function resolveProviderSource(
-  hasStaticPreset: boolean,
+  preset: AcpCliProviderPreset | null,
   registryAgent: RegistryAgent | null,
 ): AcpProviderSource {
-  if (hasStaticPreset && registryAgent) {
+  if (preset?.catalogSource === 'environment') {
+    return 'environment';
+  }
+
+  if (preset !== null && registryAgent) {
     return 'hybrid';
   }
   if (registryAgent) {
     return 'registry';
   }
   return 'static';
+}
+
+async function listExposedEnvironmentProviderIds(): Promise<string[]> {
+  const visible: string[] = [];
+
+  for (const preset of ACP_CLI_PROVIDER_PRESETS) {
+    if (preset.catalogSource !== 'environment') {
+      continue;
+    }
+
+    if (await shouldExposeEnvironmentPreset(preset)) {
+      visible.push(preset.id);
+    }
+  }
+
+  return visible;
+}
+
+async function shouldExposeEnvironmentPreset(
+  preset: AcpCliProviderPreset,
+): Promise<boolean> {
+  if (resolveEnvProviderCommand(preset.id) !== null) {
+    return true;
+  }
+
+  if (preset.id === 'docker-opencode') {
+    return await commandExists('docker');
+  }
+
+  if (await commandExists(preset.command)) {
+    return true;
+  }
+
+  return isServerlessRuntimeEnvironment();
+}
+
+function isServerlessRuntimeEnvironment(): boolean {
+  return [
+    process.env.AWS_EXECUTION_ENV,
+    process.env.NETLIFY,
+    process.env.VERCEL,
+    process.env.VERCEL_ENV,
+  ].some((value) => typeof value === 'string' && value.trim().length > 0);
 }
 
 function resolveDistributionTypes(

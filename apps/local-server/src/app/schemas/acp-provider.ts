@@ -1,6 +1,10 @@
 export type AcpProviderStatus = 'available' | 'unavailable';
 
-export type AcpProviderSource = 'static' | 'registry' | 'hybrid';
+export type AcpProviderSource =
+  | 'environment'
+  | 'hybrid'
+  | 'registry'
+  | 'static';
 
 export type AcpProviderDistributionType = 'npx' | 'uvx' | 'binary';
 

@@ -25,6 +25,7 @@ const DEFAULT_CONFIG: GatewayConfig = {
   protocols: ['mcp', 'acp', 'a2a'],
   providers: [
     'opencode',
+    'claude',
     'codex',
     'gemini',
     'copilot',

@@ -12,6 +12,7 @@ export interface AcpCliProviderPreset {
   description: string;
   command: string;
   args: string[];
+  catalogSource?: 'environment' | 'static';
   adapterKind: ProviderAdapterKind;
   cwdArg?: string;
 }
@@ -33,6 +34,14 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     args: ['acp'],
     adapterKind: PROVIDER_ADAPTER_KINDS.opencodeAcpCli,
     cwdArg: '--cwd',
+  },
+  {
+    id: 'claude',
+    name: 'Claude',
+    description: 'Anthropic Claude Code CLI',
+    command: 'claude',
+    args: [],
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
   },
   {
     id: 'gemini',
@@ -81,6 +90,34 @@ export const ACP_CLI_PROVIDER_PRESETS: readonly AcpCliProviderPreset[] = [
     command: 'qodercli',
     args: ['--acp', '--yolo'],
     adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
+  },
+  {
+    id: 'claude-code-sdk',
+    name: 'Claude Code SDK',
+    description: 'Environment-provided Claude Code SDK ACP bridge',
+    command: 'claude-code-sdk',
+    args: [],
+    catalogSource: 'environment',
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
+  },
+  {
+    id: 'opencode-sdk',
+    name: 'OpenCode SDK',
+    description: 'Environment-provided OpenCode SDK ACP bridge',
+    command: 'opencode-sdk',
+    args: [],
+    catalogSource: 'environment',
+    adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
+  },
+  {
+    id: 'docker-opencode',
+    name: 'Docker OpenCode',
+    description: 'Run OpenCode ACP inside Docker',
+    command: 'docker',
+    args: ['run', '--rm', '-i'],
+    catalogSource: 'environment',
+    adapterKind: PROVIDER_ADAPTER_KINDS.opencodeAcpCli,
+    cwdArg: '--cwd',
   },
 ] as const;
 

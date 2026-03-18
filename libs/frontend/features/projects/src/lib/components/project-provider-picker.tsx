@@ -27,10 +27,14 @@ function providerGroupLabel(key: string): string {
       return 'Built-in - Runnable';
     case 'registry-available':
       return 'ACP Registry - Runnable';
+    case 'environment-available':
+      return 'Environment - Runnable';
     case 'static-unavailable':
       return 'Built-in - Unavailable';
     case 'registry-unavailable':
       return 'ACP Registry - Unavailable';
+    case 'environment-unavailable':
+      return 'Environment - Unavailable';
     default:
       return key;
   }
@@ -58,7 +62,12 @@ export function ProjectProviderPicker(props: ProjectProviderPickerProps) {
   const groupedProviders = useMemo(() => {
     const builtinAvailable = providers.filter(
       (provider) =>
-        provider.source !== 'registry' && provider.status === 'available',
+        (provider.source === 'static' || provider.source === 'hybrid') &&
+        provider.status === 'available',
+    );
+    const environmentAvailable = providers.filter(
+      (provider) =>
+        provider.source === 'environment' && provider.status === 'available',
     );
     const registryAvailable = providers.filter(
       (provider) =>
@@ -66,7 +75,12 @@ export function ProjectProviderPicker(props: ProjectProviderPickerProps) {
     );
     const builtinUnavailable = providers.filter(
       (provider) =>
-        provider.source !== 'registry' && provider.status !== 'available',
+        (provider.source === 'static' || provider.source === 'hybrid') &&
+        provider.status !== 'available',
+    );
+    const environmentUnavailable = providers.filter(
+      (provider) =>
+        provider.source === 'environment' && provider.status !== 'available',
     );
     const registryUnavailable = providers.filter(
       (provider) =>
@@ -75,8 +89,10 @@ export function ProjectProviderPicker(props: ProjectProviderPickerProps) {
 
     return [
       ['static-available', builtinAvailable],
+      ['environment-available', environmentAvailable],
       ['registry-available', registryAvailable],
       ['static-unavailable', builtinUnavailable],
+      ['environment-unavailable', environmentUnavailable],
       ['registry-unavailable', registryUnavailable],
     ].filter(([, items]) => items.length > 0) as Array<[string, AcpProvider[]]>;
   }, [providers]);

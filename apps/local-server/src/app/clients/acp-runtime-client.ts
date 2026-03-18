@@ -415,8 +415,12 @@ export function buildProviderLaunchCommand(
   cwd: string,
   model?: string | null,
 ): ProviderLaunchCommand {
-  const args = [...providerCommand.args];
   const normalizedProvider = normalizeAcpProviderId(provider);
+  if (normalizedProvider === 'docker-opencode') {
+    return buildDockerOpencodeLaunchCommand(providerCommand, cwd);
+  }
+
+  const args = [...providerCommand.args];
   const launchConfig = resolveProviderRuntimeLaunchConfig(normalizedProvider);
 
   if (
@@ -434,6 +438,31 @@ export function buildProviderLaunchCommand(
   ) {
     args.push(launchConfig.modelArgFlag, model.trim());
   }
+
+  return {
+    command: providerCommand.command,
+    args,
+  };
+}
+
+function buildDockerOpencodeLaunchCommand(
+  providerCommand: { args: string[]; command: string },
+  cwd: string,
+): ProviderLaunchCommand {
+  const workspacePath = cwd.trim();
+  const args = [...providerCommand.args];
+
+  if (workspacePath.length > 0) {
+    args.push('-v', `${workspacePath}:${workspacePath}`, '-w', workspacePath);
+  }
+
+  args.push(
+    'ghcr.io/sst/opencode:latest',
+    'opencode',
+    'acp',
+    '--cwd',
+    workspacePath,
+  );
 
   return {
     command: providerCommand.command,

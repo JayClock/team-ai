@@ -250,7 +250,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
   ): Promise<ActiveSession> {
     const child = spawn(
       this.command,
-      buildLaunchArgs(this.baseArgs, this.cwdArg, request.cwd),
+      buildLaunchArgs(this.preset.providerId, this.baseArgs, this.cwdArg, request.cwd),
       {
         stdio: ['pipe', 'pipe', 'pipe'],
         shell: false,
@@ -780,14 +780,40 @@ export class OpencodeAcpCliProviderAdapter extends AcpCliProviderAdapter {
 }
 
 function buildLaunchArgs(
+  providerId: string,
+  args: string[],
+  cwdArg: string | undefined,
+  cwd: string | undefined,
+): string[] {
+  if (providerId === 'docker-opencode') {
+    return buildDockerOpencodeLaunchArgs(args, cwdArg, cwd);
+  }
+
+  const launchArgs = [...args];
+
+  if (cwdArg && cwd && !launchArgs.includes(cwdArg)) {
+    launchArgs.push(cwdArg, cwd);
+  }
+
+  return launchArgs;
+}
+
+function buildDockerOpencodeLaunchArgs(
   args: string[],
   cwdArg: string | undefined,
   cwd: string | undefined,
 ): string[] {
   const launchArgs = [...args];
+  const workspacePath = cwd?.trim();
 
-  if (cwdArg && cwd && !launchArgs.includes(cwdArg)) {
-    launchArgs.push(cwdArg, cwd);
+  if (workspacePath) {
+    launchArgs.push('-v', `${workspacePath}:${workspacePath}`, '-w', workspacePath);
+  }
+
+  launchArgs.push('ghcr.io/sst/opencode:latest', 'opencode', 'acp');
+
+  if (cwdArg && workspacePath) {
+    launchArgs.push(cwdArg, workspacePath);
   }
 
   return launchArgs;

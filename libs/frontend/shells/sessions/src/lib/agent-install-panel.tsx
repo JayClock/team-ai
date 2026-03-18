@@ -38,6 +38,8 @@ function providerSourceLabel(source: AcpProvider['source']): string {
   switch (source) {
     case 'registry':
       return 'ACP Registry';
+    case 'environment':
+      return 'Environment';
     case 'hybrid':
       return 'Hybrid';
     default:

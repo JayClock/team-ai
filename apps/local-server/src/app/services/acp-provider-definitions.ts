@@ -134,6 +134,37 @@ const ACP_PROVIDER_DEFINITIONS: AcpProviderDefinition[] = [
       args: [],
     },
   },
+  {
+    defaultModel: null,
+    id: 'claude-code-sdk',
+    name: 'Claude Code SDK',
+    runtimeCommandPreset: {
+      command: 'claude-code-sdk',
+      args: [],
+    },
+  },
+  {
+    defaultModel: null,
+    id: 'opencode-sdk',
+    name: 'OpenCode SDK',
+    runtimeCommandPreset: {
+      command: 'opencode-sdk',
+      args: [],
+    },
+  },
+  {
+    defaultModel: null,
+    id: 'docker-opencode',
+    name: 'Docker OpenCode',
+    runtimeCommandPreset: {
+      command: 'docker',
+      args: ['run', '--rm', '-i'],
+    },
+    runtimeLaunch: {
+      appendCwd: false,
+      passModelToLaunch: false,
+    },
+  },
 ];
 
 export function getAcpProviderDefinition(

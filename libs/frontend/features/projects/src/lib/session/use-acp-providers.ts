@@ -4,7 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export type AcpProviderStatus = 'available' | 'unavailable';
 
-export type AcpProviderSource = 'static' | 'registry' | 'hybrid';
+export type AcpProviderSource =
+  | 'environment'
+  | 'hybrid'
+  | 'registry'
+  | 'static';
 
 export type AcpProviderDistributionType = 'npx' | 'uvx' | 'binary';
 
@@ -33,6 +37,19 @@ type AcpProviderCatalogResponse = {
   };
 };
 
+async function fetchProviderCatalog(
+  includeRegistry: boolean,
+): Promise<AcpProviderCatalogResponse> {
+  const response = await runtimeFetch(
+    `/api/acp/providers?registry=${includeRegistry ? 'true' : 'false'}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to load ACP providers: ${response.status}`);
+  }
+
+  return (await response.json()) as AcpProviderCatalogResponse;
+}
+
 type InstallAcpProviderResponse = {
   command: string;
   distributionType: AcpProviderDistributionType;
@@ -59,20 +76,34 @@ export function useAcpProviders(preferredProviderId: string | null = null) {
 
   const reload = useCallback(async () => {
     setLoading(true);
-    try {
-      const response = await runtimeFetch('/api/acp/providers?registry=true');
-      if (!response.ok) {
-        throw new Error(`Failed to load ACP providers: ${response.status}`);
-      }
+    let localCatalogLoaded = false;
 
-      const payload = (await response.json()) as AcpProviderCatalogResponse;
+    try {
+      const payload = await fetchProviderCatalog(false);
+      setProviders(payload._embedded.providers);
+      setRegistryError(payload.registry.error);
+      localCatalogLoaded = true;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to load ACP providers';
+      setRegistryError(message);
+    } finally {
+      if (localCatalogLoaded) {
+        setLoading(false);
+      }
+    }
+
+    try {
+      const payload = await fetchProviderCatalog(true);
       setProviders(payload._embedded.providers);
       setRegistryError(payload.registry.error);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Failed to load ACP providers';
       setRegistryError(message);
-      toast.error(message);
+      if (!localCatalogLoaded) {
+        toast.error(message);
+      }
     } finally {
       setLoading(false);
     }

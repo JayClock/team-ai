@@ -106,4 +106,33 @@ describe('acp-runtime-client provider configuration', () => {
       args: ['acp', '-m', 'custom/model-1'],
     });
   });
+
+  it('wraps docker-opencode sessions in a docker run command', () => {
+    expect(
+      buildProviderLaunchCommand(
+        'docker-opencode',
+        {
+          command: 'docker',
+          args: ['run', '--rm', '-i'],
+        },
+        '/tmp/workspace',
+      ),
+    ).toEqual({
+      command: 'docker',
+      args: [
+        'run',
+        '--rm',
+        '-i',
+        '-v',
+        '/tmp/workspace:/tmp/workspace',
+        '-w',
+        '/tmp/workspace',
+        'ghcr.io/sst/opencode:latest',
+        'opencode',
+        'acp',
+        '--cwd',
+        '/tmp/workspace',
+      ],
+    });
+  });
 });
