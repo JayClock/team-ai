@@ -1,6 +1,14 @@
 import { State } from '@hateoas-ts/resource';
 import { AcpEventEnvelope, AcpSession } from '@shared/schema';
 import {
+  describeSessionStatus,
+  formatSessionStatusLabel,
+  formatTimeoutScopeLabel,
+  sessionRetryHint,
+  sessionStatusChipClasses,
+  sessionStatusTone,
+} from '@features/project-sessions';
+import {
   Badge,
   Button,
   Card,
@@ -245,6 +253,15 @@ export function ProjectSessionStatusSidebar(props: {
       runtimeProfile?.orchestrationMode === 'DEVELOPER' ? 'DEVELOPER' : 'ROUTA',
     )?.providerId?.trim() || '未配置默认 provider';
   const resolvedTab = activeTab ?? defaultTab;
+  const sessionStatusLabel = selectedSession
+    ? formatSessionStatusLabel(selectedSession.data)
+    : null;
+  const sessionStatusDescription = selectedSession
+    ? describeSessionStatus(selectedSession.data)
+    : null;
+  const sessionStatusRetryHint = selectedSession
+    ? sessionRetryHint(selectedSession.data)
+    : null;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -265,6 +282,33 @@ export function ProjectSessionStatusSidebar(props: {
                 ? ` · ${formatDateTime(selectedSession.data.lastActivityAt)}`
                 : ''}
             </p>
+            {selectedSession ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${sessionStatusChipClasses(selectedSession.data)}`}
+                >
+                  <span
+                    className={`size-1.5 rounded-full ${sessionStatusTone(selectedSession.data)}`}
+                  />
+                  {sessionStatusLabel}
+                </span>
+                {selectedSession.data.timeoutScope ? (
+                  <Badge variant="outline" className="text-[11px]">
+                    {formatTimeoutScopeLabel(selectedSession.data.timeoutScope)}
+                  </Badge>
+                ) : null}
+              </div>
+            ) : null}
+            {sessionStatusDescription ? (
+              <p className="mt-2 max-w-md text-xs leading-5 text-muted-foreground">
+                {sessionStatusDescription}
+              </p>
+            ) : null}
+            {sessionStatusRetryHint ? (
+              <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">
+                {sessionStatusRetryHint}
+              </p>
+            ) : null}
           </div>
           <span
             className={`inline-flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${statusChipClasses(streamStatus)}`}

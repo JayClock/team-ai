@@ -1,6 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
+import { formatSessionStatusLabel } from '@features/project-sessions';
 import {
   ProjectComposerInput,
   ProjectSettingsDialog,
@@ -87,36 +88,6 @@ function formatDateTime(value: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-}
-
-function sessionStateLabel(value: string | null | undefined): string {
-  switch (value) {
-    case 'PENDING':
-      return '待处理';
-    case 'PLANNING':
-      return '规划中';
-    case 'READY':
-    case 'ready':
-      return '就绪';
-    case 'connecting':
-      return '连接中';
-    case 'error':
-      return '错误';
-    case 'RUNNING':
-      return '进行中';
-    case 'PAUSED':
-      return '已暂停';
-    case 'WAITING_RETRY':
-      return '等待重试';
-    case 'FAILED':
-      return '失败';
-    case 'COMPLETED':
-      return '已完成';
-    case 'CANCELLED':
-      return '已取消';
-    default:
-      return value ?? '未知状态';
-  }
 }
 
 function sessionDisplayName(session: State<AcpSessionSummary>): string {
@@ -768,7 +739,7 @@ function ShellsSessionsContent(props: {
                               </span>
                             ) : null}
                             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                              {sessionStateLabel(session.data.acpStatus)}
+                              {formatSessionStatusLabel(session.data)}
                             </span>
                             <span>
                               {formatDateTime(

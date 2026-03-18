@@ -3,6 +3,7 @@ import { SessionTreeNode } from '@features/project-sessions';
 import {
   buildSessionTree,
   countSessionTree,
+  formatTimeoutScopeLabel,
   sessionDisplayName,
 } from '@features/project-sessions';
 import {
@@ -176,6 +177,9 @@ export function formatStatusLabel(status: string | null | undefined): string {
     case 'RUNNING':
     case 'running':
       return '进行中';
+    case 'CANCELLING':
+    case 'cancelling':
+      return '正在取消';
     case 'WAITING_RETRY':
       return '等待重试';
     case 'in_progress':
@@ -189,6 +193,18 @@ export function formatStatusLabel(status: string | null | undefined): string {
     case 'CANCELLED':
     case 'cancelled':
       return '已取消';
+    case 'timed_out_prompt':
+      return 'Prompt 超时';
+    case 'timed_out_inactive':
+      return '会话空闲超时';
+    case 'timed_out_total':
+      return '会话总时长超时';
+    case 'timed_out_step_budget':
+      return '步数预算耗尽';
+    case 'timed_out_provider_initialize':
+      return 'Provider 初始化超时';
+    case 'force_killed':
+      return '已强制终止';
     case 'connected':
       return '已连接';
     case 'connecting':
@@ -793,6 +809,10 @@ export function eventLabel(event: AcpEventEnvelope): string {
       return '错误';
     case 'available_commands_update':
       return '可用命令';
+    case 'lifecycle_update':
+      return '生命周期';
+    case 'supervision_update':
+      return '监督';
     case 'agent_message':
     case 'agent_thought':
     case 'user_message':
@@ -830,6 +850,25 @@ export function eventHeadline(event: AcpEventEnvelope): string {
       return event.error?.message ?? event.update.error?.message ?? '发生错误';
     case 'available_commands_update':
       return `共 ${event.update.availableCommands?.length ?? 0} 个命令`;
+    case 'lifecycle_update':
+      return formatStatusLabel(event.update.lifecycle?.state ?? 'idle');
+    case 'supervision_update': {
+      const scopeLabel = formatTimeoutScopeLabel(event.update.supervision?.scope);
+      switch (event.update.supervision?.stage) {
+        case 'policy_resolved':
+          return '已解析 supervision 策略';
+        case 'timeout_detected':
+          return scopeLabel;
+        case 'cancel_requested':
+          return `${scopeLabel}后请求取消`;
+        case 'cancel_grace_expired':
+          return '取消宽限期已过';
+        case 'force_killed':
+          return '已强制终止';
+        default:
+          return '监督事件';
+      }
+    }
     case 'agent_message':
     case 'agent_thought':
     case 'user_message':
@@ -863,6 +902,18 @@ export function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
         event.error?.message ??
         '执行过程中发生错误。'
       );
+    case 'lifecycle_update':
+      return (
+        event.update.lifecycle?.detail ??
+        `会话状态变为 ${formatStatusLabel(event.update.lifecycle?.state)}。`
+      );
+    case 'supervision_update':
+      return (
+        event.update.supervision?.detail ??
+        (event.update.supervision?.scope
+          ? `${formatTimeoutScopeLabel(event.update.supervision.scope)} supervision 已更新。`
+          : '监督状态已更新。')
+      );
     default:
       return null;
   }
@@ -884,6 +935,8 @@ export function statusTone(status: string): string {
     case 'in_progress':
     case 'WAITING_RETRY':
     case 'connecting':
+    case 'CANCELLING':
+    case 'cancelling':
       return 'bg-amber-500';
     case 'FAILED':
     case 'failed':
@@ -892,6 +945,12 @@ export function statusTone(status: string): string {
     case 'cancelled':
     case 'BLOCKED':
     case 'blocked':
+    case 'timed_out_prompt':
+    case 'timed_out_inactive':
+    case 'timed_out_total':
+    case 'timed_out_step_budget':
+    case 'timed_out_provider_initialize':
+    case 'force_killed':
       return 'bg-rose-500';
     default:
       return 'bg-slate-400';
@@ -912,12 +971,20 @@ export function statusChipClasses(status: string): string {
     case 'running':
     case 'in_progress':
     case 'WAITING_RETRY':
+    case 'CANCELLING':
+    case 'cancelling':
       return 'bg-amber-50 text-amber-700 ring-amber-200';
     case 'FAILED':
     case 'failed':
     case 'error':
     case 'BLOCKED':
     case 'blocked':
+    case 'timed_out_prompt':
+    case 'timed_out_inactive':
+    case 'timed_out_total':
+    case 'timed_out_step_budget':
+    case 'timed_out_provider_initialize':
+    case 'force_killed':
       return 'bg-rose-50 text-rose-700 ring-rose-200';
     case 'CANCELLED':
     case 'cancelled':
@@ -997,6 +1064,51 @@ export function renderEventDetails(event: AcpEventEnvelope) {
             </div>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (event.update.eventType === 'supervision_update') {
+    return (
+      <div className="mt-3 space-y-2">
+        <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+          <span className="rounded-full border bg-background px-2 py-1">
+            阶段 {event.update.supervision?.stage ?? 'unknown'}
+          </span>
+          {event.update.supervision?.scope ? (
+            <span className="rounded-full border bg-background px-2 py-1">
+              {formatTimeoutScopeLabel(event.update.supervision.scope)}
+            </span>
+          ) : null}
+          {event.update.supervision?.forceKilled ? (
+            <span className="rounded-full border bg-background px-2 py-1">
+              force kill
+            </span>
+          ) : null}
+        </div>
+        {event.update.supervision?.detail ? (
+          <p className="text-sm leading-6">{event.update.supervision.detail}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (event.update.eventType === 'lifecycle_update') {
+    return (
+      <div className="mt-3 space-y-2">
+        <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
+          <span className="rounded-full border bg-background px-2 py-1">
+            {formatStatusLabel(event.update.lifecycle?.state)}
+          </span>
+          {event.update.lifecycle?.taskBound ? (
+            <span className="rounded-full border bg-background px-2 py-1">
+              task-bound
+            </span>
+          ) : null}
+        </div>
+        {event.update.lifecycle?.detail ? (
+          <p className="text-sm leading-6">{event.update.lifecycle.detail}</p>
+        ) : null}
       </div>
     );
   }

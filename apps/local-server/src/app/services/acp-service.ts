@@ -1039,6 +1039,7 @@ function mapSessionRow(row: AcpSessionRow): AcpSessionPayload {
     name: row.name,
     provider: row.provider,
     specialistId: row.specialist_id,
+    state: row.state,
     supervisionPolicy,
     deadlineAt: row.deadline_at,
     inactiveDeadlineAt: row.inactive_deadline_at,

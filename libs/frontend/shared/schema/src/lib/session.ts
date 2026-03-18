@@ -8,9 +8,52 @@ export type AcpRef = {
   id: string;
 };
 
-export type AcpSessionState = 'PENDING' | 'RUNNING' | 'FAILED' | 'CANCELLED';
+export type AcpSessionState =
+  | 'PENDING'
+  | 'RUNNING'
+  | 'CANCELLING'
+  | 'FAILED'
+  | 'CANCELLED';
 
 export type AcpSessionStatus = 'connecting' | 'ready' | 'error';
+
+export type AcpTimeoutScope =
+  | 'prompt'
+  | 'session_total'
+  | 'session_inactive'
+  | 'step_budget'
+  | 'provider_initialize'
+  | 'provider_request'
+  | 'gateway_completion_wait'
+  | 'tool_execution'
+  | 'mcp_execution'
+  | 'force_kill_grace';
+
+export type AcpSupervisionPolicy = {
+  cancelGraceMs: number;
+  completionGraceMs: number;
+  inactivityTimeoutMs: number;
+  maxRetries: number;
+  maxSteps: number | null;
+  packageManagerInitTimeoutMs: number;
+  promptTimeoutMs: number;
+  providerInitTimeoutMs: number;
+  totalTimeoutMs: number;
+};
+
+export type AcpLifecycleState =
+  | 'idle'
+  | 'completed'
+  | 'failed'
+  | 'timeout'
+  | 'cancelling'
+  | 'cancelled'
+  | 'timed_out_prompt'
+  | 'timed_out_inactive'
+  | 'timed_out_total'
+  | 'timed_out_step_budget'
+  | 'timed_out_provider_initialize'
+  | 'force_killed';
 
 export type AcpSessionData = {
   acpError: string | null;
@@ -25,6 +68,15 @@ export type AcpSessionData = {
   name: string | null;
   provider: string;
   specialistId: string | null;
+  state: AcpSessionState;
+  supervisionPolicy: AcpSupervisionPolicy;
+  deadlineAt: string | null;
+  inactiveDeadlineAt: string | null;
+  cancelRequestedAt: string | null;
+  cancelledAt: string | null;
+  forceKilledAt: string | null;
+  timeoutScope: AcpTimeoutScope | null;
+  stepCount: number;
   task?: AcpRef | null;
   delegationGroupId?: string | null;
   waveId?: string | null;
@@ -60,6 +112,8 @@ export type AcpEventType =
   | 'config_option_update'
   | 'usage_update'
   | 'available_commands_update'
+  | 'lifecycle_update'
+  | 'supervision_update'
   | 'error';
 
 export type AcpToolCall = {
@@ -113,8 +167,25 @@ export type AcpCanonicalUpdate = {
     title?: string | null;
     updatedAt?: string | null;
   };
+  supervision?: {
+    detail?: string | null;
+    forceKilled?: boolean;
+    policy?: AcpSupervisionPolicy;
+    scope?: AcpTimeoutScope;
+    stage:
+      | 'policy_resolved'
+      | 'timeout_detected'
+      | 'cancel_requested'
+      | 'cancel_grace_expired'
+      | 'force_killed';
+  };
   terminal?: AcpTerminal;
   timestamp: string;
+  lifecycle?: {
+    detail?: string | null;
+    state: AcpLifecycleState;
+    taskBound?: boolean;
+  };
   toolCall?: AcpToolCall;
   traceId?: string;
   turnComplete?: {

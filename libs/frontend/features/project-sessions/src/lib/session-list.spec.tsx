@@ -51,6 +51,30 @@ describe('SessionList', () => {
     expect(screen.getAllByText('Child').length).toBeGreaterThan(0);
     expect(screen.getAllByText('ROUTA').length).toBeGreaterThan(0);
   });
+
+  it('renders supervision-aware timeout labels for failed sessions', () => {
+    const timedOutSession = createSessionSummary({
+      failureReason: 'ACP session exceeded its inactivity budget.',
+      forceKilledAt: '2026-03-13T12:05:00.000Z',
+      id: 'acps_timeout',
+      name: '空闲超时会话',
+      state: 'FAILED',
+      timeoutScope: 'session_inactive',
+    });
+
+    render(
+      <SessionList
+        loading={false}
+        onSelect={vi.fn()}
+        sessions={buildSessionTree([timedOutSession])}
+      />,
+    );
+
+    expect(screen.getByText('已强制终止')).toBeTruthy();
+    expect(
+      screen.getByText(/会话空闲超时后未能在取消宽限期内结束/),
+    ).toBeTruthy();
+  });
 });
 
 function createSessionFixtures() {
@@ -81,10 +105,15 @@ function createSessionSummary(
       acpStatus: 'ready',
       actor: { id: 'user_123' },
       agent: null,
+      cancelRequestedAt: null,
+      cancelledAt: null,
       completedAt: null,
       cwd: '/workspace',
+      deadlineAt: null,
       failureReason: null,
+      forceKilledAt: null,
       id: 'acps_default',
+      inactiveDeadlineAt: null,
       lastActivityAt: '2026-03-13T12:00:00.000Z',
       lastEventId: null,
       model: null,
@@ -93,7 +122,21 @@ function createSessionSummary(
       project: { id: 'proj_123' },
       provider: 'opencode',
       specialistId: 'routa-coordinator',
+      state: 'RUNNING',
       startedAt: '2026-03-13T11:55:00.000Z',
+      stepCount: 0,
+      supervisionPolicy: {
+        cancelGraceMs: 1000,
+        completionGraceMs: 1000,
+        inactivityTimeoutMs: 600000,
+        maxRetries: 0,
+        maxSteps: 64,
+        packageManagerInitTimeoutMs: 120000,
+        promptTimeoutMs: 300000,
+        providerInitTimeoutMs: 10000,
+        totalTimeoutMs: 1800000,
+      },
+      timeoutScope: null,
       ...overrides,
     },
   } as State<AcpSessionSummary>;

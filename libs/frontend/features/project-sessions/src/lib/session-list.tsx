@@ -23,6 +23,12 @@ import {
   SessionTreeNode,
   sessionDisplayName,
 } from './session-tree';
+import {
+  describeSessionStatus,
+  formatSessionStatusLabel,
+  sessionStatusChipClasses,
+  sessionStatusTone,
+} from './session-status';
 
 function sessionRoleLabel(
   session: State<AcpSessionSummary>,
@@ -157,6 +163,8 @@ function SessionTreeItem(props: {
   const sessionTaskId = node.session.data.task?.id ?? null;
   const delegationGroupId = node.session.data.delegationGroupId?.trim() || null;
   const waveId = node.session.data.waveId?.trim() || null;
+  const sessionStatus = formatSessionStatusLabel(node.session.data);
+  const sessionStatusDescription = describeSessionStatus(node.session.data);
 
   return (
     <div className="space-y-2">
@@ -236,7 +244,21 @@ function SessionTreeItem(props: {
                     </span>
                     <span aria-hidden="true">•</span>
                     <span className="font-mono">{roleLabel}</span>
+                    <span aria-hidden="true">•</span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 ring-1 ${sessionStatusChipClasses(node.session.data)}`}
+                    >
+                      <span
+                        className={`size-1.5 rounded-full ${sessionStatusTone(node.session.data)}`}
+                      />
+                      {sessionStatus}
+                    </span>
                   </div>
+                  {sessionStatusDescription ? (
+                    <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+                      {sessionStatusDescription}
+                    </p>
+                  ) : null}
                   {specialistId ? (
                     <div className="mt-1 break-all font-mono text-[10px] leading-4 text-muted-foreground">
                       {specialistId}

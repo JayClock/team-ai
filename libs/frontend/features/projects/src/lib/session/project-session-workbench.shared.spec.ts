@@ -87,6 +87,12 @@ describe('project session workbench task actions', () => {
     expect(canRetryTask(item)).toBe(false);
   });
 
+  it('formats supervision-aware lifecycle statuses', () => {
+    expect(formatStatusLabel('CANCELLING')).toBe('正在取消');
+    expect(formatStatusLabel('timed_out_inactive')).toBe('会话空闲超时');
+    expect(formatStatusLabel('force_killed')).toBe('已强制终止');
+  });
+
   it('maps task run resources into timeline items', () => {
     const runItem = buildTaskRunPanelItem({
       data: {
@@ -132,6 +138,38 @@ describe('project session workbench task actions', () => {
     expect(formatVerificationVerdictLabel(runItem.verificationVerdict)).toBe(
       '失败',
     );
+  });
+
+  it('renders supervision event details with timeout scope context', () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        Fragment,
+        null,
+        renderEventDetails({
+          emittedAt: '2026-03-13T12:07:00.000Z',
+          error: null,
+          eventId: 'evt_supervision',
+          sessionId: 'acps_root',
+          update: {
+            eventType: 'supervision_update',
+            provider: 'opencode',
+            rawNotification: null,
+            sessionId: 'acps_root',
+            supervision: {
+              detail: 'ACP session timed out (session_total) and exceeded cancel grace; force-killing runtime.',
+              forceKilled: true,
+              scope: 'session_total',
+              stage: 'force_killed',
+            },
+            timestamp: '2026-03-13T12:07:00.000Z',
+          },
+        }),
+      ),
+    );
+
+    expect(markup).toContain('会话总时长超时');
+    expect(markup).toContain('force kill');
+    expect(markup).toContain('force_killed');
   });
 
   it('derives wave ids from delegation groups and task kind', () => {
@@ -390,10 +428,15 @@ function createSessionState(
       acpStatus: 'ready',
       actor: { id: 'user_123' },
       agent: null,
+      cancelRequestedAt: null,
+      cancelledAt: null,
       completedAt: null,
       cwd: '/workspace',
+      deadlineAt: null,
       failureReason: null,
+      forceKilledAt: null,
       id: 'acps_default',
+      inactiveDeadlineAt: null,
       lastActivityAt: '2026-03-13T12:00:00.000Z',
       lastEventId: null,
       model: null,
@@ -402,7 +445,21 @@ function createSessionState(
       project: { id: 'proj_123' },
       provider: 'opencode',
       specialistId: 'routa-coordinator',
+      state: 'RUNNING',
       startedAt: '2026-03-13T11:55:00.000Z',
+      stepCount: 0,
+      supervisionPolicy: {
+        cancelGraceMs: 1000,
+        completionGraceMs: 1000,
+        inactivityTimeoutMs: 600000,
+        maxRetries: 0,
+        maxSteps: 64,
+        packageManagerInitTimeoutMs: 120000,
+        promptTimeoutMs: 300000,
+        providerInitTimeoutMs: 10000,
+        totalTimeoutMs: 1800000,
+      },
+      timeoutScope: null,
       ...overrides,
     },
   } as State<AcpSession>;

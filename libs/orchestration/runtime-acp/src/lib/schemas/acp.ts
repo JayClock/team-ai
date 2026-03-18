@@ -203,6 +203,7 @@ export interface AcpSessionPayload {
   project: AcpRefPayload;
   provider: string;
   specialistId: string | null;
+  state: AcpSessionState;
   supervisionPolicy: AcpSupervisionPolicyPayload;
   deadlineAt: string | null;
   inactiveDeadlineAt: string | null;
