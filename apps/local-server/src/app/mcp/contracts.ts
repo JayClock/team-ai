@@ -77,7 +77,22 @@ export const taskGetArgsSchema = z.object({
 
 const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
 const stringArraySchema = z.array(z.string().trim().min(1));
-const noteSourceSchema = z.enum(['user', 'agent', 'system']);
+const noteSourceAliasMap = new Map<string, 'user' | 'agent' | 'system'>([
+  ['assistant', 'agent'],
+  ['coordinator', 'agent'],
+  ['model', 'agent'],
+  ['orchestrator', 'agent'],
+  ['planner', 'agent'],
+  ['tool', 'agent'],
+]);
+const noteSourceSchema = z.preprocess((value) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const normalizedValue = value.trim().toLowerCase();
+  return noteSourceAliasMap.get(normalizedValue) ?? normalizedValue;
+}, z.enum(['user', 'agent', 'system']));
 const noteTypeSchema = z.enum(['spec', 'task', 'general']);
 const mcpWritableTaskStatusSchema = z.enum([
   'PENDING',
