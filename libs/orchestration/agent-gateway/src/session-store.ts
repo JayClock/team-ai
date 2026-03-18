@@ -16,6 +16,7 @@ export type GatewayEventError = {
   message: string;
   retryable: boolean;
   retryAfterMs: number;
+  timeoutScope?: string;
 };
 
 export type GatewayEventEnvelope = {

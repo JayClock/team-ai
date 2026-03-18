@@ -27,6 +27,7 @@ class MockProviderRuntime implements ProviderRuntimePort {
         message: string;
         retryable: boolean;
         retryAfterMs: number;
+        timeoutScope?: string;
       }) => void;
     }
   >();
@@ -43,6 +44,7 @@ class MockProviderRuntime implements ProviderRuntimePort {
         message: string;
         retryable: boolean;
         retryAfterMs: number;
+        timeoutScope?: string;
       }) => void;
     },
   ): void {
@@ -569,7 +571,15 @@ function baseConfig(): GatewayConfig {
     protocols: ['mcp', 'acp', 'a2a'],
     providers: ['codex'],
     defaultProvider: 'codex',
-    timeoutMs: 300_000,
+    timeouts: {
+      promptTimeoutMs: 300_000,
+      promptCompletionGraceMs: 1_000,
+      cancelGraceMs: 1_000,
+      providerInitTimeoutMs: 10_000,
+      packageManagerInitTimeoutMs: 120_000,
+      providerRequestTimeoutMs: 10_000,
+      minimumPromptTransportMs: 30_000,
+    },
     retryAttempts: 2,
     maxConcurrentSessions: 32,
     logLevel: 'error',

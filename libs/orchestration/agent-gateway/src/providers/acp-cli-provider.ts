@@ -17,10 +17,7 @@ import {
   hasStructuredValue,
 } from './provider-types.js';
 import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
-
-const DEFAULT_CANCEL_GRACE_MS = 3_000;
-const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
-const DEFAULT_PACKAGE_MANAGER_INIT_TIMEOUT_MS = 120_000;
+import type { GatewayTimeoutConfig } from '../config.js';
 const DEFAULT_TERMINAL_OUTPUT_LIMIT = 64 * 1024;
 
 type JsonRpcMessage = {
@@ -95,6 +92,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
       args: string[];
       command: string;
     },
+    protected readonly timeouts: GatewayTimeoutConfig,
   ) {
     this.name = preset.providerId;
     this.command = launchCommand.command;
@@ -196,7 +194,10 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
                 }
               : undefined,
           },
-          Math.max(request.timeoutMs + 1_000, 30_000),
+          Math.max(
+            request.timeoutMs + this.timeouts.cancelGraceMs,
+            this.timeouts.minimumPromptTransportMs,
+          ),
         ),
         request.timeoutMs,
       );
@@ -299,6 +300,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
           `Failed to start ${this.preset.name}: ${error.message}`,
           true,
           1_000,
+          undefined,
         ),
       );
     });
@@ -316,12 +318,14 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
                 `${this.preset.name} run cancelled (${signal})`,
                 false,
                 0,
+                undefined,
               )
             : createProviderError(
                 'PROVIDER_PROCESS_EXITED',
                 `${this.preset.name} exited with code ${exitCode ?? -1}${suffix}`,
                 true,
                 1_000,
+                undefined,
               );
         this.failSession(session, error);
       },
@@ -664,6 +668,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
                 `${this.preset.name} run timed out after ${timeoutMs}ms`,
                 true,
                 1_000,
+                'prompt',
               ),
             );
           }, timeoutMs);
@@ -680,7 +685,11 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
     session: ActiveSession,
     method: string,
     params: Record<string, unknown>,
-    timeoutMs = resolveAcpCliRequestTimeoutMs(method, this.command),
+    timeoutMs = resolveAcpCliRequestTimeoutMs(
+      method,
+      this.command,
+      this.timeouts,
+    ),
   ): Promise<unknown> {
     return awaitResponse(() => {
       session.requestId += 1;
@@ -775,21 +784,22 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
       if (session.child.exitCode == null) {
         session.child.kill('SIGKILL');
       }
-    }, DEFAULT_CANCEL_GRACE_MS);
+    }, this.timeouts.cancelGraceMs);
   }
 }
 
 export function resolveAcpCliRequestTimeoutMs(
   method: string,
   runtimeCommand: string,
+  timeouts: GatewayTimeoutConfig,
 ): number {
   if (method === 'initialize' || method === 'session/new') {
     return runtimeCommand === 'npx' || runtimeCommand === 'uvx'
-      ? DEFAULT_PACKAGE_MANAGER_INIT_TIMEOUT_MS
-      : DEFAULT_REQUEST_TIMEOUT_MS;
+      ? timeouts.packageManagerInitTimeoutMs
+      : timeouts.providerInitTimeoutMs;
   }
 
-  return DEFAULT_REQUEST_TIMEOUT_MS;
+  return timeouts.providerRequestTimeoutMs;
 }
 
 export class OpencodeAcpCliProviderAdapter extends AcpCliProviderAdapter {
@@ -1386,12 +1396,14 @@ function createProviderError(
   message: string,
   retryable: boolean,
   retryAfterMs: number,
+  timeoutScope?: string,
 ): ProviderError {
   return {
     code,
     message,
     retryable,
     retryAfterMs,
+    timeoutScope,
   };
 }
 
@@ -1411,6 +1423,7 @@ function normalizeProviderError(
       `${providerName} rejected ACP prompt: ${message}`,
       true,
       1_000,
+      undefined,
     );
   }
 
@@ -1420,6 +1433,7 @@ function normalizeProviderError(
       `${providerName} run timed out after ${timeoutMs}ms`,
       true,
       1_000,
+      'prompt',
     );
   }
 
@@ -1428,6 +1442,7 @@ function normalizeProviderError(
     `${providerName} failed: ${message}`,
     true,
     1_000,
+    undefined,
   );
 }
 

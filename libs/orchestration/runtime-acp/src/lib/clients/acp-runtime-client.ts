@@ -33,6 +33,14 @@ import {
   resolveEnvProviderCommand,
 } from '../providers/acp-provider-service.js';
 import { resolveProviderRuntimeLaunchConfig } from '../providers/acp-provider-definitions.js';
+import {
+  createTimeoutProblem,
+  DEFAULT_PACKAGE_MANAGER_INIT_TIMEOUT_MS,
+  DEFAULT_PROMPT_CANCEL_GRACE_MS,
+  DEFAULT_PROVIDER_INIT_TIMEOUT_MS,
+  DEFAULT_PROVIDER_REQUEST_TIMEOUT_MS,
+  resolvePromptTransportTimeoutMs as resolvePromptTransportTimeoutMsFromPolicy,
+} from '../supervision/session-supervision.js';
 
 export type { ManagedAcpSessionSnapshot } from './acp-session-process-manager.js';
 
@@ -125,11 +133,6 @@ interface CreateAcpRuntimeClientOptions {
   logger?: LoggerLike;
 }
 
-const ACP_PROMPT_CANCEL_GRACE_MS = 1_000;
-const ACP_REQUEST_TIMEOUT_MS = 30_000;
-const ACP_INITIALIZE_TIMEOUT_MS = 10_000;
-const ACP_PACKAGE_MANAGER_INITIALIZE_TIMEOUT_MS = 120_000;
-
 interface LocalTerminal {
   command: ReturnType<typeof spawn>;
   exitStatus: {
@@ -166,18 +169,19 @@ export function resolveAcpRequestTimeoutMs(
     method === 'session/new'
   ) {
     return isPackageManagerRuntime(runtimeCommand)
-      ? ACP_PACKAGE_MANAGER_INITIALIZE_TIMEOUT_MS
-      : ACP_INITIALIZE_TIMEOUT_MS;
+      ? DEFAULT_PACKAGE_MANAGER_INIT_TIMEOUT_MS
+      : DEFAULT_PROVIDER_INIT_TIMEOUT_MS;
   }
 
-  return ACP_REQUEST_TIMEOUT_MS;
+  return DEFAULT_PROVIDER_REQUEST_TIMEOUT_MS;
 }
 
 export function resolveAcpPromptTransportTimeoutMs(timeoutMs: number): number {
-  return Math.max(
-    timeoutMs + ACP_PROMPT_CANCEL_GRACE_MS,
-    ACP_REQUEST_TIMEOUT_MS,
-  );
+  return resolvePromptTransportTimeoutMsFromPolicy({
+    promptTimeoutMs: timeoutMs,
+    cancelGraceMs: DEFAULT_PROMPT_CANCEL_GRACE_MS,
+    minimumTransportMs: DEFAULT_PROVIDER_REQUEST_TIMEOUT_MS,
+  });
 }
 
 export function createAcpRuntimeClient(
@@ -833,10 +837,12 @@ async function initializeAcpConnection(
         child.kill('SIGTERM');
       }
       reject(
-        new ProblemError({
+        createTimeoutProblem({
           type: 'https://team-ai.dev/problems/acp-provider-initialize-timeout',
           title: 'ACP Provider Initialize Timeout',
           status: 503,
+          scope: 'provider_initialize',
+          timeoutMs: initializeTimeoutMs,
           detail:
             `ACP provider ${input.provider} did not complete initialize within ` +
             `${initializeTimeoutMs}ms. ` +
@@ -957,10 +963,12 @@ async function withPromptTimeout(
             .cancel({ sessionId: runtimeSessionId })
             .catch(() => undefined);
           reject(
-            new ProblemError({
+            createTimeoutProblem({
               type: 'https://team-ai.dev/problems/acp-prompt-timeout',
               title: 'ACP Prompt Timed Out',
               status: 504,
+              scope: 'prompt',
+              timeoutMs,
               detail: `ACP prompt exceeded timeout of ${timeoutMs}ms`,
             }),
           );

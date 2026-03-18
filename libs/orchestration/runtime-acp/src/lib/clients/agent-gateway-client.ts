@@ -32,6 +32,7 @@ export interface AgentGatewayEventError {
   message: string;
   retryAfterMs: number;
   retryable: boolean;
+  timeoutScope?: string;
 }
 
 export interface AgentGatewayEventEnvelope {

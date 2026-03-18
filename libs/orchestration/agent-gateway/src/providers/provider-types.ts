@@ -28,6 +28,7 @@ export type ProviderError = {
   message: string;
   retryable: boolean;
   retryAfterMs: number;
+  timeoutScope?: string;
 };
 
 export type NormalizedAcpEventType =

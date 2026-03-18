@@ -2,6 +2,7 @@ import {
   AcpCliProviderAdapter,
   OpencodeAcpCliProviderAdapter,
 } from './acp-cli-provider.js';
+import type { GatewayTimeoutConfig } from '../config.js';
 import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 import {
   PROVIDER_ADAPTER_KINDS,
@@ -16,6 +17,7 @@ export interface ProviderAdapterRegistration {
   create(input: {
     launchCommand: ProviderLaunchCommand;
     preset: ResolvedAcpCliProviderPreset;
+    timeouts: GatewayTimeoutConfig;
   }): ProviderAdapter;
 }
 
@@ -23,14 +25,14 @@ const registrations = new Map<ProviderAdapterKind, ProviderAdapterRegistration>(
 
 registerProviderAdapter({
   kind: PROVIDER_ADAPTER_KINDS.acpCli,
-  create: ({ preset, launchCommand }) =>
-    new AcpCliProviderAdapter(preset, launchCommand),
+  create: ({ preset, launchCommand, timeouts }) =>
+    new AcpCliProviderAdapter(preset, launchCommand, timeouts),
 });
 
 registerProviderAdapter({
   kind: PROVIDER_ADAPTER_KINDS.opencodeAcpCli,
-  create: ({ preset, launchCommand }) =>
-    new OpencodeAcpCliProviderAdapter(preset, launchCommand),
+  create: ({ preset, launchCommand, timeouts }) =>
+    new OpencodeAcpCliProviderAdapter(preset, launchCommand, timeouts),
 });
 
 export function registerProviderAdapter(
@@ -42,6 +44,7 @@ export function registerProviderAdapter(
 export function createProviderAdapter(input: {
   launchCommand: ProviderLaunchCommand;
   preset: ResolvedAcpCliProviderPreset;
+  timeouts: GatewayTimeoutConfig;
 }): ProviderAdapter {
   const registration = registrations.get(input.preset.adapterKind);
   if (!registration) {

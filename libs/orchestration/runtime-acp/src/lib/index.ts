@@ -19,6 +19,16 @@ export * from './plugins/acp-session-reaper.js';
 export * from './plugins/acp-stream.js';
 export * from './plugins/agent-gateway-client.js';
 export * from './plugins/execution-runtime.js';
+export {
+  createTimeoutProblem,
+  DEFAULT_PACKAGE_MANAGER_INIT_TIMEOUT_MS,
+  DEFAULT_PROMPT_CANCEL_GRACE_MS,
+  DEFAULT_PROMPT_COMPLETION_GRACE_MS,
+  DEFAULT_PROVIDER_INIT_TIMEOUT_MS,
+  DEFAULT_PROVIDER_REQUEST_TIMEOUT_MS,
+  resolvePromptCompletionWaitTimeoutMs as resolveSupervisionPromptCompletionWaitTimeoutMs,
+  resolvePromptTransportTimeoutMs,
+} from './supervision/session-supervision.js';
 export { default as acpRuntimePlugin } from './plugins/acp-runtime.js';
 export { default as acpSessionReaperPlugin } from './plugins/acp-session-reaper.js';
 export { default as acpStreamPlugin } from './plugins/acp-stream.js';

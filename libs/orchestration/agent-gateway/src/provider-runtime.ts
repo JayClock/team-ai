@@ -15,7 +15,7 @@ import type {
 export class ProviderRuntime {
   private readonly adapters = new Map<string, ProviderAdapter>();
 
-  constructor(config: GatewayConfig) {
+  constructor(private readonly config: GatewayConfig) {
     for (const providerName of config.providers) {
       const canonicalProviderName = normalizeProviderId(providerName);
       if (this.adapters.has(canonicalProviderName)) {
@@ -100,6 +100,7 @@ export class ProviderRuntime {
     return createProviderAdapter({
       preset,
       launchCommand: resolveAcpCliCommand(preset),
+      timeouts: this.config.timeouts,
     });
   }
 }

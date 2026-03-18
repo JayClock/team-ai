@@ -28,9 +28,12 @@ import type {
   PromptAcpRuntimeSessionInput,
 } from './acp-runtime-client.js';
 import type { NormalizedSessionUpdate } from '../services/normalized-session-update.js';
-
+import {
+  createTimeoutProblem,
+  DEFAULT_PROMPT_COMPLETION_GRACE_MS,
+  resolvePromptCompletionWaitTimeoutMs as resolvePromptCompletionWaitTimeoutMsFromPolicy,
+} from '../supervision/session-supervision.js';
 const EVENT_POLL_INTERVAL_MS = 150;
-const PROMPT_COMPLETION_GRACE_MS = 1_000;
 
 interface ActiveGatewayRuntimeSession {
   cursor: string | null;
@@ -50,11 +53,10 @@ interface WaitResult {
 export function resolvePromptCompletionWaitTimeoutMs(
   timeoutMs: number | undefined,
 ): number | undefined {
-  if (!timeoutMs || timeoutMs <= 0) {
-    return undefined;
-  }
-
-  return timeoutMs + PROMPT_COMPLETION_GRACE_MS;
+  return resolvePromptCompletionWaitTimeoutMsFromPolicy({
+    promptTimeoutMs: timeoutMs,
+    completionGraceMs: DEFAULT_PROMPT_COMPLETION_GRACE_MS,
+  });
 }
 
 export function createAgentGatewayRuntimeClient(
@@ -271,10 +273,12 @@ async function waitForPromptCompletion(
     }
 
     if (deadlineMs && Date.now() - startedAt > deadlineMs) {
-      throw new ProblemError({
+      throw createTimeoutProblem({
         type: 'https://team-ai.dev/problems/acp-prompt-timeout',
         title: 'ACP Prompt Timed Out',
         status: 504,
+        scope: 'gateway_completion_wait',
+        timeoutMs: timeoutMs ?? deadlineMs,
         detail: `ACP prompt exceeded timeout of ${timeoutMs}ms`,
       });
     }

@@ -2694,7 +2694,9 @@ export async function promptAcpSession(
     const timeoutScope: AcpTimeoutScopePayload | null =
       error instanceof ProblemError &&
       error.type === 'https://team-ai.dev/problems/acp-prompt-timeout'
-        ? 'prompt'
+        ? ((typeof error.context?.timeoutScope === 'string'
+            ? error.context.timeoutScope
+            : 'prompt') as AcpTimeoutScopePayload)
         : error instanceof ProblemError &&
             error.type ===
               'https://team-ai.dev/problems/acp-provider-initialize-timeout'

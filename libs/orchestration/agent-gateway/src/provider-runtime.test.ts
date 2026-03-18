@@ -46,6 +46,16 @@ vi.mock('./providers/acp-cli-provider.js', () => ({
 
 import { ProviderRuntime } from './provider-runtime.js';
 
+const timeoutConfig = {
+  promptTimeoutMs: 300_000,
+  promptCompletionGraceMs: 1_000,
+  cancelGraceMs: 1_000,
+  providerInitTimeoutMs: 10_000,
+  packageManagerInitTimeoutMs: 120_000,
+  providerRequestTimeoutMs: 10_000,
+  minimumPromptTransportMs: 30_000,
+};
+
 describe('ProviderRuntime', () => {
   afterEach(() => {
     delete process.env.TEAMAI_DATA_DIR;
@@ -60,7 +70,7 @@ describe('ProviderRuntime', () => {
       protocols: ['acp'],
       providers: ['codex'],
       defaultProvider: 'codex',
-      timeoutMs: 300_000,
+      timeouts: timeoutConfig,
       retryAttempts: 2,
       maxConcurrentSessions: 32,
       logLevel: 'info',
@@ -133,7 +143,7 @@ describe('ProviderRuntime', () => {
       protocols: ['acp'],
       providers: ['codex'],
       defaultProvider: 'codex',
-      timeoutMs: 300_000,
+      timeouts: timeoutConfig,
       retryAttempts: 2,
       maxConcurrentSessions: 32,
       logLevel: 'info',
@@ -147,6 +157,7 @@ describe('ProviderRuntime', () => {
         command: 'npx',
         args: ['-y', '@zed-industries/codex-acp@0.10.0'],
       },
+      timeoutConfig,
     );
   });
 });

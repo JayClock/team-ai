@@ -47,6 +47,7 @@ export type ProviderRuntimePort = {
         message: string;
         retryable: boolean;
         retryAfterMs: number;
+        timeoutScope?: string;
       }) => void;
     },
   ): void;
@@ -100,7 +101,7 @@ export function createGatewayServer(
           providers: config.providers,
           defaultProvider: config.defaultProvider,
           limits: {
-            timeoutMs: config.timeoutMs,
+            timeouts: config.timeouts,
             retryAttempts: config.retryAttempts,
             maxConcurrentSessions: config.maxConcurrentSessions,
           },
@@ -206,7 +207,8 @@ export function createGatewayServer(
           return;
         }
 
-        const timeoutMs = asPositiveNumber(body.timeoutMs) ?? config.timeoutMs;
+        const timeoutMs =
+          asPositiveNumber(body.timeoutMs) ?? config.timeouts.promptTimeoutMs;
         const session = sessionStore.getSession(promptRoute.param);
         const cwd = asOptionalString(body.cwd);
         const env = asStringRecord(body.env);

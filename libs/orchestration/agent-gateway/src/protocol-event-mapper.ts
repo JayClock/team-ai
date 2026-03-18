@@ -229,6 +229,7 @@ function normalizeError(errorInput: unknown): GatewayEventError {
     message: asText(input.message) ?? 'Unknown protocol error',
     retryable: asBoolean(input.retryable) ?? false,
     retryAfterMs: asNumber(input.retryAfterMs) ?? 0,
+    timeoutScope: asText(input.timeoutScope) ?? undefined,
   };
 }
 

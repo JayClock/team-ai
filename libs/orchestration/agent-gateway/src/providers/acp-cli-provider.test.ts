@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { GatewayTimeoutConfig } from '../config.js';
 import { PROVIDER_ADAPTER_KINDS } from './provider-types.js';
 import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 
@@ -44,6 +45,16 @@ const codexPreset: ResolvedAcpCliProviderPreset = {
   adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
 };
 
+const timeoutConfig: GatewayTimeoutConfig = {
+  promptTimeoutMs: 300_000,
+  promptCompletionGraceMs: 1_000,
+  cancelGraceMs: 1_000,
+  providerInitTimeoutMs: 10_000,
+  packageManagerInitTimeoutMs: 120_000,
+  providerRequestTimeoutMs: 10_000,
+  minimumPromptTransportMs: 30_000,
+};
+
 class FakeChildProcess extends EventEmitter {
   readonly stdout = new EventEmitter();
   readonly stderr = new EventEmitter();
@@ -71,6 +82,7 @@ describe('AcpCliProviderAdapter', () => {
         command: 'opencode',
         args: ['acp'],
       },
+      timeoutConfig,
     );
 
     const onChunk = vi.fn();
@@ -220,12 +232,12 @@ describe('AcpCliProviderAdapter', () => {
   it('uses routa-style init timeouts for npx and uvx runtimes', async () => {
     const { resolveAcpCliRequestTimeoutMs } = await loadAcpCliProviderModule();
 
-    expect(resolveAcpCliRequestTimeoutMs('initialize', 'npx')).toBe(120_000);
-    expect(resolveAcpCliRequestTimeoutMs('session/new', 'uvx')).toBe(120_000);
-    expect(resolveAcpCliRequestTimeoutMs('initialize', 'opencode')).toBe(
+    expect(resolveAcpCliRequestTimeoutMs('initialize', 'npx', timeoutConfig)).toBe(120_000);
+    expect(resolveAcpCliRequestTimeoutMs('session/new', 'uvx', timeoutConfig)).toBe(120_000);
+    expect(resolveAcpCliRequestTimeoutMs('initialize', 'opencode', timeoutConfig)).toBe(
       10_000,
     );
-    expect(resolveAcpCliRequestTimeoutMs('session/prompt', 'npx')).toBe(10_000);
+    expect(resolveAcpCliRequestTimeoutMs('session/prompt', 'npx', timeoutConfig)).toBe(10_000);
   });
 
   it('cancels active ACP prompts through session/cancel', async () => {
@@ -239,6 +251,7 @@ describe('AcpCliProviderAdapter', () => {
         command: 'opencode',
         args: ['acp'],
       },
+      timeoutConfig,
     );
 
     adapter.prompt(
@@ -295,6 +308,7 @@ describe('AcpCliProviderAdapter', () => {
         command: 'opencode',
         args: ['acp'],
       },
+      timeoutConfig,
     );
 
     const onError = vi.fn();
@@ -358,6 +372,7 @@ describe('AcpCliProviderAdapter', () => {
         command: 'opencode',
         args: ['acp'],
       },
+      timeoutConfig,
     );
 
     const onEvent = vi.fn();
@@ -447,6 +462,7 @@ describe('AcpCliProviderAdapter', () => {
         command: 'opencode',
         args: ['acp'],
       },
+      timeoutConfig,
     );
 
     const onEvent = vi.fn();
@@ -549,6 +565,7 @@ describe('AcpCliProviderAdapter', () => {
         command: 'opencode',
         args: ['acp'],
       },
+      timeoutConfig,
     );
 
     expect(adapter.getBehavior()).toEqual({
@@ -593,6 +610,7 @@ describe('AcpCliProviderAdapter', () => {
         command: 'codex-acp',
         args: [],
       },
+      timeoutConfig,
     );
 
     expect(adapter.getBehavior()).toEqual({
