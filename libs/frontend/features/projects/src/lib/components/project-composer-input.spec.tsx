@@ -564,6 +564,55 @@ describe('ProjectComposerInput', () => {
     );
   });
 
+  it('encodes repository paths with spaces when searching files', async () => {
+    runtimeFetchMock.mockResolvedValue({
+      json: async () => ({
+        files: [],
+      }),
+      ok: true,
+    });
+
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        onSubmit={() => undefined}
+        placeholder="输入内容"
+        project={{
+          onValueChange: () => undefined,
+          projects: [
+            {
+              id: 'project-1',
+              repoPath: '/tmp/project space',
+              sourceUrl: 'https://github.com/acme/project-1',
+              title: 'Project One',
+            },
+          ],
+          value: {
+            id: 'project-1',
+            repoPath: '/tmp/project space',
+            sourceUrl: 'https://github.com/acme/project-1',
+            title: 'Project One',
+          },
+        }}
+      />,
+    );
+
+    expect(await openComposerCommands()).toBeTruthy();
+
+    fireEvent.mouseDown(
+      await screen.findByRole('button', { name: /选择仓库文件/ }),
+    );
+
+    await waitFor(() =>
+      expect(runtimeFetchMock).toHaveBeenCalledWith(
+        '/api/files/search?limit=20&repoPath=%2Ftmp%2Fproject%20space',
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        }),
+      ),
+    );
+  });
+
   it('invokes provider switching from slash commands', async () => {
     const onProviderChange = vi.fn();
 

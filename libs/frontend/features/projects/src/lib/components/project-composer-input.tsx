@@ -183,6 +183,22 @@ function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function buildRepositoryFileSearchUrl(input: {
+  limit: number;
+  query?: string;
+  repoPath: string;
+}) {
+  const params = [`limit=${encodeURIComponent(String(input.limit))}`];
+
+  if (input.query?.trim()) {
+    params.push(`q=${encodeURIComponent(input.query.trim())}`);
+  }
+
+  params.push(`repoPath=${encodeURIComponent(input.repoPath)}`);
+
+  return `/api/files/search?${params.join('&')}`;
+}
+
 function createSuggestionDropdown(triggerChar?: '@' | '/') {
   let popup: HTMLDivElement | null = null;
   let selectedIndex = 0;
@@ -376,16 +392,13 @@ function createRepoFileMention(getRepoPath: () => string | null) {
           return [];
         }
 
-        const params = new URLSearchParams({
-          limit: '15',
-          repoPath,
-        });
-
-        if (query.trim()) {
-          params.set('q', query.trim());
-        }
-
-        const response = await runtimeFetch(`/api/files/search?${params}`);
+        const response = await runtimeFetch(
+          buildRepositoryFileSearchUrl({
+            limit: 15,
+            query,
+            repoPath,
+          }),
+        );
         if (!response.ok) {
           return [];
         }
@@ -764,18 +777,16 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
       setRepoFileSearchLoading(true);
       setRepoFileSearchError(null);
 
-      const params = new URLSearchParams({
-        limit: '20',
-        repoPath: activeProjectPath,
-      });
-
-      if (deferredRepoFileSearchQuery.trim()) {
-        params.set('q', deferredRepoFileSearchQuery.trim());
-      }
-
-      void runtimeFetch(`/api/files/search?${params.toString()}`, {
-        signal: controllerRef.signal,
-      })
+      void runtimeFetch(
+        buildRepositoryFileSearchUrl({
+          limit: 20,
+          query: deferredRepoFileSearchQuery,
+          repoPath: activeProjectPath,
+        }),
+        {
+          signal: controllerRef.signal,
+        },
+      )
         .then(async (response) => {
           if (!response.ok) {
             const payload = (await response.json().catch(() => null)) as
