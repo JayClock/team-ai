@@ -63,6 +63,9 @@ describe('root route', () => {
           href: '/api/acp/providers{?registry}',
           templated: true,
         },
+        'acp-runtime-sessions': {
+          href: '/api/acp/runtime-sessions',
+        },
         mcp: {
           href: '/api/mcp',
         },

@@ -320,6 +320,103 @@ describe('acp route', () => {
     });
   });
 
+  it('lists active ACP runtime sessions from the unified inventory view', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-runtime-inventory-${Date.now()}`;
+    process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
+    process.env.HOST = '127.0.0.1';
+    process.env.PORT = '4310';
+
+    let createdSessionId: string | null = null;
+    const fastify = await createFullAcpServer({
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.localSessionId}`,
+        provider: input.provider,
+      })),
+      killSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      listSessions: vi.fn(() =>
+        createdSessionId
+          ? [
+              {
+                cwd: '/tmp/team-ai-runtime-inventory',
+                isBusy: false,
+                lastTouchedAt: '2026-03-18T00:00:00.000Z',
+                localSessionId: createdSessionId,
+                provider: 'codex',
+                runtimeSessionId: `runtime-${createdSessionId}`,
+              },
+            ]
+          : [],
+      ),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-1',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'Desktop ACP Runtime Inventory Project',
+      repoPath: '/tmp/team-ai-runtime-inventory',
+    });
+    const session = await createAcpSession(
+      fastify.sqlite,
+      fastify.acpStreamBroker,
+      fastify.acpRuntime,
+      {
+        actorUserId: 'desktop-user',
+        projectId: project.id,
+        provider: 'codex',
+        role: 'DEVELOPER',
+      },
+      {
+        logger: fastify.log,
+        source: 'acp-route-test',
+      },
+    );
+    createdSessionId = session.id;
+
+    const response = await fastify.inject({
+      method: 'GET',
+      url: '/api/acp/runtime-sessions',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(
+      VENDOR_MEDIA_TYPES.acpRuntimeSessions,
+    );
+    expect(response.json()).toMatchObject({
+      total: 1,
+      _embedded: {
+        runtimeSessions: [
+          {
+            cwd: '/tmp/team-ai-runtime-inventory',
+            isBusy: false,
+            lastTouchedAt: '2026-03-18T00:00:00.000Z',
+            localSessionId: createdSessionId,
+            provider: 'codex',
+            runtimeSessionId: `runtime-${createdSessionId}`,
+            streamSubscriberCount: 0,
+            session: {
+              id: createdSessionId,
+              project: {
+                id: project.id,
+              },
+            },
+          },
+        ],
+      },
+    });
+  });
+
   it('persists runtime updates against the local session when providers emit remote session ids', async () => {
     process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-acp-remote-session-${Date.now()}`;
     process.env.DESKTOP_SESSION_TOKEN = 'desktop-token-test';
@@ -1617,7 +1714,6 @@ describe('acp route', () => {
       projectId: project.id,
       taskId: task.id,
     });
-
     expect(promptResponse.statusCode).toBe(200);
     expect(promptResponse.json()).toMatchObject({
       result: {
@@ -1702,7 +1798,6 @@ describe('acp route', () => {
       projectId: project.id,
       taskId: task.id,
     });
-
     expect(promptResponse.statusCode).toBe(200);
     expect(promptResponse.json()).toEqual({
       error: {
@@ -1794,7 +1889,6 @@ describe('acp route', () => {
       projectId: project.id,
       taskId: task.id,
     });
-
     expect(promptResponse.statusCode).toBe(200);
     expect(promptResponse.json()).toEqual({
       error: {

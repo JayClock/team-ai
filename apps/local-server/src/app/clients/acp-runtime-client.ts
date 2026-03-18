@@ -34,6 +34,8 @@ import {
 } from '../services/acp-provider-service';
 import { resolveProviderRuntimeLaunchConfig } from '../services/acp-provider-definitions';
 
+export type { ManagedAcpSessionSnapshot } from './acp-session-process-manager';
+
 const terminalIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
   12,

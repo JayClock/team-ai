@@ -7,6 +7,7 @@ import {
 } from '../presenters/acp-provider-presenter';
 import {
   presentAcpHistory,
+  presentAcpRuntimeSessionList,
   presentAcpSession,
   presentAcpSessionList,
 } from '../presenters/acp-presenter';
@@ -18,6 +19,7 @@ import {
   deleteAcpSession,
   getAcpSessionById,
   listAcpSessionHistory,
+  listAcpRuntimeSessions,
   listAcpSessionsByProject,
   loadAcpSession,
   promptAcpSession,
@@ -133,6 +135,18 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
 
     return presentInstalledAcpProvider(
       await fastify.agentGatewayClient.installProvider(body),
+    );
+  });
+
+  fastify.get('/acp/runtime-sessions', async (_request, reply) => {
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.acpRuntimeSessions);
+
+    return presentAcpRuntimeSessionList(
+      await listAcpRuntimeSessions(
+        fastify.sqlite,
+        fastify.acpRuntime,
+        (sessionId) => fastify.acpStreamBroker.countSubscribers(sessionId),
+      ),
     );
   });
 

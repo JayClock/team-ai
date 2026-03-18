@@ -153,3 +153,19 @@ export interface AcpSessionListPayload {
   projectId: string;
   total: number;
 }
+
+export interface AcpRuntimeSessionPayload {
+  cwd: string;
+  isBusy: boolean;
+  lastTouchedAt: string;
+  localSessionId: string;
+  provider: string;
+  runtimeSessionId: string;
+  session: AcpSessionPayload | null;
+  streamSubscriberCount: number;
+}
+
+export interface AcpRuntimeSessionListPayload {
+  items: AcpRuntimeSessionPayload[];
+  total: number;
+}

@@ -9,6 +9,7 @@ function vendorMediaType(resourceType: string) {
 export const VENDOR_MEDIA_TYPES = {
   acpHistory: vendorMediaType('acp-history'),
   acpProviders: vendorMediaType('acp-providers'),
+  acpRuntimeSessions: vendorMediaType('acp-runtime-sessions'),
   acpSession: vendorMediaType('acp-session'),
   acpSessionContext: vendorMediaType('acp-session-context'),
   acpSessions: vendorMediaType('acp-sessions'),

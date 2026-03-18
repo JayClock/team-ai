@@ -1,5 +1,6 @@
 import type {
   AcpEventEnvelopePayload,
+  AcpRuntimeSessionListPayload,
   AcpSessionListPayload,
   AcpSessionPayload,
 } from '../schemas/acp';
@@ -115,5 +116,44 @@ export function presentAcpHistory(
     projectId,
     sessionId,
     history,
+  };
+}
+
+export function presentAcpRuntimeSessionList(
+  payload: AcpRuntimeSessionListPayload,
+) {
+  return {
+    _links: {
+      self: {
+        href: '/api/acp/runtime-sessions',
+      },
+      root: {
+        href: '/api',
+      },
+      acp: {
+        href: '/api/acp',
+      },
+    },
+    _embedded: {
+      runtimeSessions: payload.items.map((item) => ({
+        ...item,
+        _links: {
+          self: {
+            href: `/api/acp/runtime-sessions#${item.localSessionId}`,
+          },
+          ...(item.session
+            ? {
+                session: {
+                  href: `/api/projects/${item.session.project.id}/acp-sessions/${item.session.id}`,
+                },
+                history: {
+                  href: `/api/projects/${item.session.project.id}/acp-sessions/${item.session.id}/history`,
+                },
+              }
+            : {}),
+        },
+      })),
+    },
+    total: payload.total,
   };
 }

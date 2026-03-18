@@ -4,6 +4,7 @@ import { customAlphabet } from 'nanoid';
 import type { McpServer, PromptResponse } from '@agentclientprotocol/sdk';
 import type {
   AcpRuntimeClient,
+  ManagedAcpSessionSnapshot,
   AcpRuntimeSessionSnapshot,
   AcpRuntimeSessionHooks,
 } from '../clients/acp-runtime-client';
@@ -18,6 +19,8 @@ import type {
   AcpEventEnvelopePayload,
   AcpEventErrorPayload,
   AcpOrchestrationEventName,
+  AcpRuntimeSessionListPayload,
+  AcpRuntimeSessionPayload,
   AcpEventUpdatePayload,
   AcpSessionListPayload,
   AcpSessionPayload,
@@ -2155,6 +2158,27 @@ export async function listAcpSessionHistory(
   return rows.map(mapEventRow);
 }
 
+export async function listAcpRuntimeSessions(
+  sqlite: Database,
+  runtime: AcpRuntimeClient,
+  streamSubscribers: (sessionId: string) => number,
+): Promise<AcpRuntimeSessionListPayload> {
+  const runtimeSessions = runtime.listSessions?.() ?? [];
+  const items = runtimeSessions
+    .map((runtimeSession) =>
+      mapRuntimeSessionSnapshot(sqlite, runtimeSession, streamSubscribers),
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(right.lastTouchedAt) - Date.parse(left.lastTouchedAt),
+    );
+
+  return {
+    items,
+    total: items.length,
+  };
+}
+
 export async function renameAcpSession(
   sqlite: Database,
   sessionId: string,
@@ -2182,6 +2206,31 @@ export async function renameAcpSession(
     .run(trimmedName, new Date().toISOString(), sessionId);
 
   return await getAcpSessionById(sqlite, sessionId);
+}
+
+function mapRuntimeSessionSnapshot(
+  sqlite: Database,
+  runtimeSession: ManagedAcpSessionSnapshot,
+  streamSubscribers: (sessionId: string) => number,
+): AcpRuntimeSessionPayload {
+  let session: AcpSessionPayload | null = null;
+
+  try {
+    session = mapSessionRow(getSessionRow(sqlite, runtimeSession.localSessionId));
+  } catch {
+    session = null;
+  }
+
+  return {
+    cwd: runtimeSession.cwd,
+    isBusy: runtimeSession.isBusy,
+    lastTouchedAt: runtimeSession.lastTouchedAt,
+    localSessionId: runtimeSession.localSessionId,
+    provider: runtimeSession.provider,
+    runtimeSessionId: runtimeSession.runtimeSessionId,
+    session,
+    streamSubscriberCount: streamSubscribers(runtimeSession.localSessionId),
+  };
 }
 
 export async function updateAcpSession(
