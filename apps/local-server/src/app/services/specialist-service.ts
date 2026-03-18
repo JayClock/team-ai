@@ -22,6 +22,13 @@ interface SpecialistFilePayload {
   systemPrompt?: string;
 }
 
+const specialistAliasById: Record<string, string> = {
+  crafter: 'crafter-implementor',
+  developer: 'solo-developer',
+  gate: 'gate-reviewer',
+  routa: 'routa-coordinator',
+};
+
 function throwSpecialistNotFound(specialistId: string): never {
   throw new ProblemError({
     type: 'https://team-ai.dev/problems/specialist-not-found',
@@ -326,7 +333,11 @@ export async function getSpecialistById(
   const payload = await listSpecialists(sqlite, {
     projectId,
   });
-  const specialist = payload.items.find((item) => item.id === specialistId);
+  const specialist =
+    payload.items.find((item) => item.id === specialistId) ??
+    payload.items.find(
+      (item) => item.id === specialistAliasById[specialistId]!,
+    );
 
   if (!specialist) {
     throwSpecialistNotFound(specialistId);

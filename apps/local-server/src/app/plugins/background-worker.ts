@@ -19,6 +19,8 @@ import {
   createBackgroundWorkerService,
   type BackgroundWorkerService,
 } from '../services/background-worker-service';
+import { listAcpSessionHistory } from '../services/acp-service';
+import { resolveBackgroundTaskFlowExecution } from '../services/flow-runtime-service';
 
 interface BackgroundWorkerPluginOptions {
   enabled?: boolean;
@@ -144,12 +146,17 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
         const linkedTask = task.taskId
           ? await getTaskById(fastify.sqlite, task.taskId).catch(() => null)
           : null;
+        const flowExecution = await resolveBackgroundTaskFlowExecution(
+          fastify.sqlite,
+          task,
+        );
         const useProvider = await executionBoundary.isProviderAvailable(task.agentId);
         const session = await executionBoundary.createSession(
           {
             actorUserId: 'desktop-user',
             codebaseId: linkedTask?.codebaseId ?? null,
             goal: task.title,
+            model: flowExecution?.modelOverride ?? null,
             role: linkedTask?.assignedRole ?? null,
             projectId: task.projectId,
             provider: useProvider ? task.agentId : null,
@@ -194,16 +201,38 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
         return fastify.acpRuntime.isSessionActive(sessionId);
       },
       async promptSession(task, sessionId) {
+        const flowExecution = await resolveBackgroundTaskFlowExecution(
+          fastify.sqlite,
+          task,
+        );
         await executionBoundary.promptSession(
           task.projectId,
           sessionId,
           {
-            prompt: task.prompt,
+            prompt: flowExecution?.prompt ?? task.prompt,
           },
           {
             source: 'background_worker_prompt_session',
           },
         );
+
+        const history = await listAcpSessionHistory(
+          fastify.sqlite,
+          task.projectId,
+          sessionId,
+          200,
+        );
+        const latestAssistantMessage = [...history]
+          .reverse()
+          .find(
+            (event) =>
+              event.update.message?.role === 'assistant' &&
+              event.update.message.content?.trim(),
+          );
+
+        return {
+          taskOutput: latestAssistantMessage?.update.message?.content?.trim() ?? null,
+        };
       },
     },
     events: kanbanEventService,

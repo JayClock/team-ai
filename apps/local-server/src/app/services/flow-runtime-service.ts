@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { createHash } from 'node:crypto';
+import type { BackgroundTaskPayload } from '../schemas/background-task';
 import type { FlowPayload } from '../schemas/flow';
 import type {
   WorkflowDefinitionPayload,
@@ -10,6 +11,8 @@ import type {
 import { getProjectById } from './project-service';
 import { getFlowById } from './flow-service';
 import { getWorkflowById, listWorkflowRuns, triggerWorkflow } from './workflow-service';
+
+const flowDescriptionPrefix = '[team-ai-flow-id] ';
 
 interface TriggerFlowInput {
   flowId: string;
@@ -29,6 +32,13 @@ function createResourceWorkflowId(projectId: string, flowId: string) {
 
 function toWorkflowDefinitionName(flow: FlowPayload) {
   return `Flow · ${flow.name}`;
+}
+
+function toWorkflowDescription(flow: FlowPayload) {
+  const suffix = flow.description?.trim();
+  return suffix
+    ? `${flowDescriptionPrefix}${flow.id}\n${suffix}`
+    : `${flowDescriptionPrefix}${flow.id}`;
 }
 
 function toWorkflowVersion(flow: FlowPayload) {
@@ -93,7 +103,7 @@ async function upsertResourceWorkflowDefinition(
     )
     .run({
       createdAt: now,
-      description: flow.description,
+      description: toWorkflowDescription(flow),
       id: workflowId,
       name: workflowName,
       projectId,
@@ -150,4 +160,193 @@ export async function listFlowRuns(
 ): Promise<WorkflowRunListPayload> {
   const workflow = await syncFlowWorkflowDefinition(sqlite, projectId, flowId);
   return listWorkflowRuns(sqlite, workflow.id);
+}
+
+function resolveFlowIdFromWorkflowDescription(description: string | null | undefined) {
+  const trimmed = description?.trim();
+
+  if (!trimmed?.startsWith(flowDescriptionPrefix)) {
+    return null;
+  }
+
+  const [header] = trimmed.split('\n', 1);
+  const flowId = header.slice(flowDescriptionPrefix.length).trim();
+
+  return flowId || null;
+}
+
+function parseRuntimeVariable(value: string) {
+  const envDefaultMatch = value.match(/^\$\{([A-Z0-9_]+):-([^}]+)\}$/);
+  if (!envDefaultMatch) {
+    return value;
+  }
+
+  return process.env[envDefaultMatch[1]]?.trim() || envDefaultMatch[2].trim();
+}
+
+function buildResolvedFlowVariables(flow: FlowPayload) {
+  const resolved = new Map<string, string>();
+
+  const resolveVariable = (key: string, seen: Set<string>): string => {
+    if (resolved.has(key)) {
+      return resolved.get(key) ?? '';
+    }
+
+    if (seen.has(key)) {
+      return '';
+    }
+
+    seen.add(key);
+    const raw = flow.variables[key];
+    if (!raw) {
+      return '';
+    }
+
+    const normalized = parseRuntimeVariable(raw).replace(
+      /\$\{([A-Za-z0-9_-]+)\}/g,
+      (_match, variableName: string) => {
+        if (variableName === key) {
+          return raw;
+        }
+
+        return resolveVariable(variableName, seen);
+      },
+    );
+
+    resolved.set(key, normalized);
+    seen.delete(key);
+    return normalized;
+  };
+
+  for (const key of Object.keys(flow.variables)) {
+    resolveVariable(key, new Set<string>());
+  }
+
+  return resolved;
+}
+
+function renderFlowTemplate(
+  template: string,
+  input: {
+    flow: FlowPayload;
+    stepOutputs: Map<string, string>;
+    triggerPayload: string | null;
+  },
+) {
+  const resolvedVariables = buildResolvedFlowVariables(input.flow);
+
+  return template
+    .replaceAll('${trigger.payload}', input.triggerPayload ?? '')
+    .replaceAll('${workflow.name}', input.flow.name)
+    .replace(/\$\{steps\.([^}]+)\.output\}/g, (_match, stepName: string) => {
+      return input.stepOutputs.get(stepName.trim()) ?? '';
+    })
+    .replace(/\$\{([A-Za-z0-9_-]+)\}/g, (match, variableName: string) => {
+      return resolvedVariables.get(variableName) ?? match;
+    });
+}
+
+async function getWorkflowRunContext(
+  sqlite: Database,
+  workflowRunId: string,
+): Promise<{
+  projectId: string;
+  triggerPayload: string | null;
+  workflow: WorkflowDefinitionPayload;
+} | null> {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT workflow_id, project_id, trigger_payload
+        FROM project_workflow_runs
+        WHERE id = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(workflowRunId) as
+    | {
+        project_id: string;
+        trigger_payload: string | null;
+        workflow_id: string;
+      }
+    | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    projectId: row.project_id,
+    triggerPayload: row.trigger_payload,
+    workflow: await getWorkflowById(sqlite, row.workflow_id),
+  };
+}
+
+function listWorkflowRunTaskOutputs(sqlite: Database, workflowRunId: string) {
+  const rows = sqlite
+    .prepare(
+      `
+        SELECT workflow_step_name, task_output
+        FROM project_background_tasks
+        WHERE workflow_run_id = ? AND deleted_at IS NULL
+      `,
+    )
+    .all(workflowRunId) as Array<{
+      task_output: string | null;
+      workflow_step_name: string | null;
+    }>;
+
+  return new Map(
+    rows
+      .filter((row) => row.workflow_step_name && row.task_output)
+      .map((row) => [row.workflow_step_name as string, row.task_output as string]),
+  );
+}
+
+export async function resolveBackgroundTaskFlowExecution(
+  sqlite: Database,
+  task: Pick<
+    BackgroundTaskPayload,
+    'projectId' | 'prompt' | 'workflowRunId' | 'workflowStepName'
+  >,
+) {
+  if (!task.workflowRunId || !task.workflowStepName) {
+    return null;
+  }
+
+  const runContext = await getWorkflowRunContext(sqlite, task.workflowRunId);
+  if (!runContext || runContext.projectId !== task.projectId) {
+    return null;
+  }
+
+  const flowId = resolveFlowIdFromWorkflowDescription(runContext.workflow.description);
+  if (!flowId) {
+    return null;
+  }
+
+  const flow = await getFlowById(sqlite, task.projectId, flowId);
+  const step = flow.steps.find((item) => item.name === task.workflowStepName);
+  if (!step) {
+    return null;
+  }
+
+  const stepOutputs = listWorkflowRunTaskOutputs(sqlite, task.workflowRunId);
+  const prompt = renderFlowTemplate(step.input, {
+    flow,
+    stepOutputs,
+    triggerPayload: runContext.triggerPayload,
+  });
+  const modelOverride = step.config.model
+    ? renderFlowTemplate(step.config.model, {
+        flow,
+        stepOutputs,
+        triggerPayload: runContext.triggerPayload,
+      })
+    : null;
+
+  return {
+    flow,
+    modelOverride: modelOverride?.trim() || null,
+    prompt,
+    step,
+  };
 }

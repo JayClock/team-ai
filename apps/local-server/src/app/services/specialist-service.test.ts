@@ -117,6 +117,21 @@ describe('specialist service', () => {
     });
   });
 
+  it('resolves built-in alias ids used by routa-style flows', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      repoPath: '/tmp/team-ai-specialist-alias-project',
+      title: 'Alias Specialists',
+    });
+
+    const specialist = await getSpecialistById(sqlite, project.id, 'developer');
+
+    expect(specialist).toMatchObject({
+      id: 'solo-developer',
+      role: 'DEVELOPER',
+    });
+  });
+
   it('loads shared library specialists before workspace overrides', async () => {
     const sqlite = await createTestDatabase();
     const repoPath = await mkdtemp(

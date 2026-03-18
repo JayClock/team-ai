@@ -12,7 +12,10 @@ import {
 export interface BackgroundWorkerCallbacks {
   createSession(task: BackgroundTaskPayload): Promise<{ sessionId: string }>;
   isSessionActive(sessionId: string): Promise<boolean>;
-  promptSession(task: BackgroundTaskPayload, sessionId: string): Promise<void>;
+  promptSession(
+    task: BackgroundTaskPayload,
+    sessionId: string,
+  ): Promise<{ taskOutput?: string | null } | void>;
 }
 
 export interface BackgroundWorkerService {
@@ -90,7 +93,10 @@ export function createBackgroundWorkerService(
         },
       );
 
-      await input.callbacks.promptSession(runningTask, sessionId);
+      const promptResult = await input.callbacks.promptSession(
+        runningTask,
+        sessionId,
+      );
 
       const completedTask = await updateBackgroundTaskStatus(
         input.sqlite,
@@ -101,6 +107,7 @@ export function createBackgroundWorkerService(
           lastActivityAt: new Date().toISOString(),
           resultSessionId: sessionId,
           startedAt: startedTask.startedAt,
+          taskOutput: promptResult?.taskOutput ?? null,
         },
       );
 
