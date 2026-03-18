@@ -4,16 +4,18 @@ import { runtimeFetch } from '@shared/util-http';
 import { LoaderCircleIcon, SaveIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { shouldResetComposerModelOnProviderChange } from '../session/session-composer-model';
-import type { WorkbenchSessionRuntimeProfile } from '../session/session-runtime-profile';
+import {
+  resolveWorkbenchRuntimeRoleDefault,
+  type WorkbenchSessionRuntimeProfile,
+} from '../session/session-runtime-profile';
 import { useAcpProviderModels } from '../session/use-acp-provider-models';
 import { useAcpProviders } from '../session/use-acp-providers';
 import { ProjectModelPicker } from './project-model-picker';
 import { ProjectProviderPicker } from './project-provider-picker';
 
 type RuntimeProfileResponse = {
-  defaultModel: string | null;
-  defaultProviderId: string | null;
   orchestrationMode: WorkbenchSessionRuntimeProfile['orchestrationMode'];
+  roleDefaults: WorkbenchSessionRuntimeProfile['roleDefaults'];
 };
 
 export type ProjectRuntimeProfilePanelProps = {
@@ -35,9 +37,8 @@ function toWorkbenchRuntimeProfile(
   payload: RuntimeProfileResponse,
 ): WorkbenchSessionRuntimeProfile {
   return {
-    defaultModel: normalizeOptionalText(payload.defaultModel),
-    defaultProviderId: normalizeOptionalText(payload.defaultProviderId),
     orchestrationMode: payload.orchestrationMode,
+    roleDefaults: payload.roleDefaults ?? {},
   };
 }
 
@@ -70,10 +71,12 @@ export function ProjectRuntimeProfilePanel(
   props: ProjectRuntimeProfilePanelProps,
 ) {
   const { onRuntimeProfileChange, projectId, runtimeProfile } = props;
-  const currentProviderId = normalizeOptionalText(
-    runtimeProfile?.defaultProviderId,
+  const currentRoleDefault = resolveWorkbenchRuntimeRoleDefault(
+    runtimeProfile?.roleDefaults,
+    'ROUTA',
   );
-  const currentModel = normalizeOptionalText(runtimeProfile?.defaultModel);
+  const currentProviderId = normalizeOptionalText(currentRoleDefault?.providerId);
+  const currentModel = normalizeOptionalText(currentRoleDefault?.model);
   const {
     loading: providersLoading,
     providers,
@@ -151,8 +154,12 @@ export function ProjectRuntimeProfilePanel(
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                  defaultModel: draftModel,
-                  defaultProviderId: draftProviderId,
+                  roleDefaults: {
+                    ROUTA: {
+                      model: draftModel,
+                      providerId: draftProviderId,
+                    },
+                  },
                 }),
               })
                 .then(async (response) => {

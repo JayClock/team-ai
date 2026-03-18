@@ -3,6 +3,7 @@ import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
 import {
   ProjectComposerInput,
+  ProjectSettingsDialog,
   type ProjectRepositoryOption,
   type ProjectWorktreeOption,
   useAcpProviders,
@@ -22,15 +23,16 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Dialog,
-  DialogContent,
   toast,
 } from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
-import { ArrowRightIcon, Clock3Icon, DownloadIcon } from 'lucide-react';
+import {
+  ArrowRightIcon,
+  Clock3Icon,
+  Settings2Icon,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AgentInstallPanel } from './agent-install-panel';
 import { storePendingProjectPrompt } from './pending-project-prompt';
 import {
   LocalProject,
@@ -192,12 +194,8 @@ function ShellsSessionsContent(props: {
   const { resourceState: codebasesState } =
     useSuspenseResource(codebasesResource);
   const {
-    install,
-    installingProviderId,
     loading: providersLoading,
     providers,
-    registryError,
-    reload: reloadProviders,
     selectedProvider,
     selectedProviderId,
     setSelectedProviderId,
@@ -209,7 +207,7 @@ function ShellsSessionsContent(props: {
   });
 
   const [agentType, setAgentType] = useState<HomeAgentType>('ROUTA');
-  const [providerSheetOpen, setProviderSheetOpen] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [recentSessions, setRecentSessions] = useState<
     State<AcpSessionSummary>[]
   >([]);
@@ -665,10 +663,10 @@ function ShellsSessionsContent(props: {
             variant="outline"
             size="sm"
             className="h-9 shrink-0 rounded-xl px-3 text-xs"
-            onClick={() => setProviderSheetOpen(true)}
+            onClick={() => setSettingsDialogOpen(true)}
           >
-            <DownloadIcon className="size-4" />
-            Agents
+            <Settings2Icon className="size-4" />
+            Settings
           </Button>
         </div>
 
@@ -791,22 +789,11 @@ function ShellsSessionsContent(props: {
           )}
         </div>
       </div>
-      <Dialog open={providerSheetOpen} onOpenChange={setProviderSheetOpen}>
-        <DialogContent className="flex h-[min(820px,calc(100vh-2rem))] min-h-0 w-[min(960px,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-hidden p-0">
-          <AgentInstallPanel
-            installingProviderId={installingProviderId}
-            loading={providersLoading}
-            onInstall={install}
-            onReload={reloadProviders}
-            platform={
-              typeof navigator !== 'undefined' ? navigator.platform : null
-            }
-            providers={providers}
-            registryError={registryError}
-            runtimeAvailability={{ npx: true, uvx: true }}
-          />
-        </DialogContent>
-      </Dialog>
+      <ProjectSettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        projectState={projectState}
+      />
     </div>
   );
 }

@@ -819,8 +819,12 @@ describe('acp route', () => {
       fastify.sqlite,
       project.id,
       {
-        defaultModel: 'openai/gpt-5-mini',
-        defaultProviderId: 'opencode',
+        roleDefaults: {
+          DEVELOPER: {
+            model: 'openai/gpt-5-mini',
+            providerId: 'opencode',
+          },
+        },
       },
       {
         listProviderModels: async () => [
@@ -1073,7 +1077,7 @@ describe('acp route', () => {
       error: {
         message:
           `Project ${project.id} does not have a provider for ACP session creation. ` +
-          'Set runtime profile defaultProviderId or pass provider explicitly.',
+          'Set a role-based provider in project settings or pass provider explicitly.',
       },
       result: null,
     });

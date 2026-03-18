@@ -295,6 +295,7 @@ describe('sqlite initialization', () => {
       'deleted_at',
       'skill_configs_json',
       'mcp_server_configs_json',
+      'role_defaults_json',
     ]);
     expect(delegationGroupColumns.map(({ name }) => name)).toEqual([
       'id',

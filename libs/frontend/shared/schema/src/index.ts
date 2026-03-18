@@ -57,6 +57,8 @@ export type {
   ProjectRuntimeProfileConfig,
   ProjectRuntimeProfileConfigMap,
   ProjectOrchestrationMode,
+  ProjectRuntimeRoleDefault,
+  ProjectRuntimeRoleDefaults,
 } from './lib/runtime-profile.js';
 export type {
   Task,

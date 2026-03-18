@@ -11,6 +11,7 @@ import {
   getDefaultSpecialistByRole,
   getSpecialistById,
 } from './specialist-service';
+import { resolveProjectRuntimeRoleDefault } from './project-runtime-profile-service';
 import {
   getTaskById,
 } from './task-service';
@@ -35,7 +36,7 @@ interface ResolveTaskSessionAssignmentInput {
   callbacks: Pick<TaskSessionDispatchCallbacks, 'isProviderAvailable'>;
   runtimeProfile: Pick<
     ProjectRuntimeProfilePayload,
-    'defaultProviderId' | 'orchestrationMode'
+    'orchestrationMode' | 'roleDefaults'
   >;
   task: TaskPayload;
 }
@@ -362,12 +363,12 @@ function resolveTaskSessionContext(
 function resolveTaskSessionProviderCandidates(
   task: Pick<TaskPayload, 'assignedProvider'>,
   dispatchContext: Pick<TaskSessionContext, 'provider'>,
-  defaultProviderId: string | null,
+  roleDefaultProviderId: string | null,
 ) {
   return [
     task.assignedProvider,
     dispatchContext.provider,
-    defaultProviderId,
+    roleDefaultProviderId,
     'codex',
   ].filter((provider, index, providers): provider is string => {
     return (
@@ -459,7 +460,10 @@ export async function resolveTaskSessionAssignment(
   const providerCandidates = resolveTaskSessionProviderCandidates(
     dispatchability.task,
     dispatchContext,
-    input.runtimeProfile.defaultProviderId,
+    resolveProjectRuntimeRoleDefault(
+      input.runtimeProfile,
+      dispatchability.resolvedRole,
+    )?.providerId ?? null,
   );
   const preferredProvider = providerCandidates[0] ?? null;
   const resolvedProvider = await resolveAvailableDispatchProvider(

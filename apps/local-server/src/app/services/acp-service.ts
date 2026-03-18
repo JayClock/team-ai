@@ -38,6 +38,7 @@ import {
   renderSpecialistSystemPrompt,
   throwSpecialistRoleMismatch,
 } from './specialist-service';
+import { resolveProjectRuntimeRoleDefault } from './project-runtime-profile-service';
 import {
   cancelTaskRun,
   completeTaskRun,
@@ -269,7 +270,7 @@ function throwSessionProviderNotConfigured(projectId: string): never {
     status: 409,
     detail:
       `Project ${projectId} does not have a provider for ACP session creation. ` +
-      'Set runtime profile defaultProviderId or pass provider explicitly.',
+      'Set a role-based provider in project settings or pass provider explicitly.',
   });
 }
 
@@ -279,6 +280,7 @@ async function resolveAcpSessionDefaults(
     model?: string | null;
     projectId: string;
     provider?: string | null;
+    role?: string | null;
   },
 ): Promise<{
   orchestrationMode: 'ROUTA' | 'DEVELOPER';
@@ -289,9 +291,16 @@ async function resolveAcpSessionDefaults(
     sqlite,
     input.projectId,
   );
+  const resolvedRole =
+    ensureRoleValue(input.role ?? null) ??
+    resolveDefaultAcpSessionRole(runtimeProfile.orchestrationMode);
+  const roleDefault = resolveProjectRuntimeRoleDefault(
+    runtimeProfile,
+    resolvedRole,
+  );
   const providerId =
     normalizeOptionalText(input.provider) ??
-    normalizeOptionalText(runtimeProfile.defaultProviderId);
+    normalizeOptionalText(roleDefault?.providerId);
 
   if (!providerId) {
     throwSessionProviderNotConfigured(input.projectId);
@@ -301,7 +310,7 @@ async function resolveAcpSessionDefaults(
     orchestrationMode: runtimeProfile.orchestrationMode,
     model:
       normalizeOptionalText(input.model) ??
-      normalizeOptionalText(runtimeProfile.defaultModel),
+      normalizeOptionalText(roleDefault?.model),
     provider: normalizeAcpProviderId(providerId),
   };
 }

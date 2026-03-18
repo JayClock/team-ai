@@ -255,8 +255,13 @@ describe('project session workbench task actions', () => {
     const scenarios = buildWorkbenchWalkthroughScenarios({
       events: [],
       runtimeProfile: createRuntimeProfile({
-        defaultProviderId: 'anthropic',
         orchestrationMode: 'DEVELOPER',
+        roleDefaults: {
+          DEVELOPER: {
+            model: null,
+            providerId: 'anthropic',
+          },
+        },
       }),
       selectedSession: createSessionState({
         id: 'acps_solo',
@@ -405,15 +410,23 @@ function createSessionState(
 
 function createRuntimeProfile(
   overrides: Partial<{
-    defaultModel: string | null;
-    defaultProviderId: string | null;
     orchestrationMode: 'ROUTA' | 'DEVELOPER';
+    roleDefaults: {
+      CRAFTER?: { model: string | null; providerId: string | null };
+      DEVELOPER?: { model: string | null; providerId: string | null };
+      GATE?: { model: string | null; providerId: string | null };
+      ROUTA?: { model: string | null; providerId: string | null };
+    };
   }> = {},
 ) {
   return {
-    defaultModel: null,
-    defaultProviderId: 'opencode',
     orchestrationMode: 'ROUTA' as const,
+    roleDefaults: {
+      ROUTA: {
+        model: null,
+        providerId: 'opencode',
+      },
+    },
     ...overrides,
   };
 }

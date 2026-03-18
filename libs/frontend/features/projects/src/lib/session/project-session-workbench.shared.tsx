@@ -14,7 +14,10 @@ import {
   type TaskRun,
 } from '@shared/schema';
 import { SparklesIcon, WrenchIcon } from 'lucide-react';
-import type { WorkbenchSessionRuntimeProfile } from './session-runtime-profile';
+import {
+  resolveWorkbenchRuntimeRoleDefault,
+  type WorkbenchSessionRuntimeProfile,
+} from './session-runtime-profile';
 
 export type { SessionTreeNode };
 export { buildSessionTree, countSessionTree, sessionDisplayName };
@@ -99,11 +102,10 @@ export type WorkbenchWalkthroughScenario = {
 export type SidebarTab = 'sessions' | 'spec' | 'tasks';
 
 export type WorkbenchRuntimeProfile = {
-  defaultModel: string | null;
-  defaultProviderId: string | null;
   enabledMcpServerIds: string[];
   enabledSkillIds: string[];
   orchestrationMode: 'ROUTA' | 'DEVELOPER';
+  roleDefaults: WorkbenchSessionRuntimeProfile['roleDefaults'];
 };
 
 export type WorkbenchProjectInsights = {
@@ -595,10 +597,15 @@ export function buildWorkbenchWalkthroughScenarios(input: {
     (selectedSession?.data.specialistId === 'solo-developer'
       ? 'DEVELOPER'
       : 'ROUTA');
+  const effectiveDefaultProvider =
+    resolveWorkbenchRuntimeRoleDefault(
+      runtimeProfile?.roleDefaults,
+      effectiveMode === 'DEVELOPER' ? 'DEVELOPER' : 'ROUTA',
+    )?.providerId ?? null;
   const observedProviders = Array.from(
     new Set(
       [
-        normalizeProviderId(runtimeProfile?.defaultProviderId),
+        normalizeProviderId(effectiveDefaultProvider),
         normalizeProviderId(selectedSession?.data.provider),
         ...taskSourceItems.map((item) =>
           normalizeProviderId(item.assignedProvider),
@@ -645,8 +652,7 @@ export function buildWorkbenchWalkthroughScenarios(input: {
       : 'pending';
   const modeLabel = formatOrchestrationModeLabel(effectiveMode);
   const defaultProviderLabel =
-    normalizeProviderId(runtimeProfile?.defaultProviderId) ??
-    '未配置默认 provider';
+    normalizeProviderId(effectiveDefaultProvider) ?? '未配置默认 provider';
   const currentProviderLabel =
     normalizeProviderId(selectedSession?.data.provider) ?? '未选择 provider';
 
@@ -741,7 +747,7 @@ export function buildWorkbenchWalkthroughScenarios(input: {
           : '当前还没有识别到 provider，请先确认 Runtime Profile 或现有会话已经配置 provider。',
       steps: [
         '先用一个默认 provider 创建会话或执行任务，记录当前 provider 标识。',
-        '切换 Runtime Profile 的 defaultProviderId，再新建会话或重试任务。',
+        '切换对应角色的 provider，再新建会话或重试任务。',
         '对比切换前后的会话、任务卡片与 Task Runs，确认 provider 变化清晰可见。',
       ],
       expectedSignals: [

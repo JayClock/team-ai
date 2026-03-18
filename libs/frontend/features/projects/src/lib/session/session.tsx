@@ -22,6 +22,7 @@ import {
   resolveRuntimeApiUrl,
   runtimeFetch,
 } from '@shared/util-http';
+import { Settings2Icon } from 'lucide-react';
 import {
   type MouseEvent as ReactMouseEvent,
   useCallback,
@@ -61,7 +62,7 @@ import {
   type ProjectRepositoryOption,
   type ProjectWorktreeOption,
 } from '../components/project-composer-input';
-import { ProjectRuntimeProfilePanel } from '../components/project-runtime-profile-panel';
+import { ProjectSettingsDialog } from '../components/project-settings-dialog';
 
 const STREAM_RETRY_DELAY_MS = 1500;
 const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
@@ -319,6 +320,7 @@ export function ShellsSession(props: ShellsSessionProps) {
   >(null);
   const [worktrees, setWorktrees] = useState<ProjectWorktreeOption[]>([]);
   const [worktreesLoading, setWorktreesLoading] = useState(false);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
   const [resizeMode, setResizeMode] = useState<'left' | null>(null);
@@ -1515,12 +1517,26 @@ export function ShellsSession(props: ShellsSessionProps) {
           <main className="min-w-0 flex-1 bg-background">
             <div className="flex h-full min-h-0 flex-col">
               <div className="border-b border-border/60 bg-background px-4 py-3 md:px-5">
-                <div className="mx-auto w-full max-w-3xl">
-                  <ProjectRuntimeProfilePanel
-                    onRuntimeProfileChange={onRuntimeProfileChange}
-                    projectId={projectState.data.id}
-                    runtimeProfile={runtimeProfile}
-                  />
+                <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-foreground">
+                      项目设置
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      用一个 settings 弹窗集中管理 Providers、Agents 和
+                      Specialists。
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 shrink-0 rounded-xl px-3 text-xs"
+                    onClick={() => setSettingsDialogOpen(true)}
+                  >
+                    <Settings2Icon className="size-4" />
+                    Settings
+                  </Button>
                 </div>
               </div>
 
@@ -1637,6 +1653,12 @@ export function ShellsSession(props: ShellsSessionProps) {
       {resizeMode ? (
         <div className="fixed inset-0 z-40 cursor-col-resize" />
       ) : null}
+      <ProjectSettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        onRuntimeProfileChange={onRuntimeProfileChange}
+        projectState={projectState}
+      />
     </>
   );
 }

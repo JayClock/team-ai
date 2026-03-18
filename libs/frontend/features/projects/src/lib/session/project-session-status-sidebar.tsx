@@ -49,7 +49,10 @@ import {
   verificationVerdictChipClasses,
   walkthroughStatusChipClasses,
 } from './project-session-workbench.shared';
-import type { WorkbenchSessionRuntimeProfile } from './session-runtime-profile';
+import {
+  resolveWorkbenchRuntimeRoleDefault,
+  type WorkbenchSessionRuntimeProfile,
+} from './session-runtime-profile';
 
 export type OrchestrationSnapshot = {
   backgroundWorker: {
@@ -237,7 +240,10 @@ export function ProjectSessionStatusSidebar(props: {
     ? formatOrchestrationModeLabel(runtimeProfile.orchestrationMode)
     : '未加载模式';
   const defaultProviderLabel =
-    runtimeProfile?.defaultProviderId?.trim() || '未配置默认 provider';
+    resolveWorkbenchRuntimeRoleDefault(
+      runtimeProfile?.roleDefaults,
+      runtimeProfile?.orchestrationMode === 'DEVELOPER' ? 'DEVELOPER' : 'ROUTA',
+    )?.providerId?.trim() || '未配置默认 provider';
   const resolvedTab = activeTab ?? defaultTab;
 
   return (

@@ -103,6 +103,11 @@ vi.mock('../components/project-runtime-profile-panel', () => ({
     createElement('div', { 'data-testid': 'runtime-profile-panel' }),
 }));
 
+vi.mock('../components/project-settings-dialog', () => ({
+  ProjectSettingsDialog: () =>
+    createElement('div', { 'data-testid': 'project-settings-dialog' }),
+}));
+
 vi.mock('./project-session-conversation-pane', () => ({
   ProjectSessionConversationPane: (props: unknown) => {
     conversationPaneSpy(props);
@@ -234,9 +239,13 @@ describe('ShellsSession', () => {
         projectState={createProjectState()}
         projectTitle="Team AI"
         runtimeProfile={{
-          defaultModel: 'gpt-5-mini',
-          defaultProviderId: 'opencode',
           orchestrationMode: 'ROUTA',
+          roleDefaults: {
+            ROUTA: {
+              model: 'gpt-5-mini',
+              providerId: 'opencode',
+            },
+          },
         }}
       />,
     );
@@ -260,9 +269,13 @@ describe('ShellsSession', () => {
         projectState={createProjectState()}
         projectTitle="Team AI"
         runtimeProfile={{
-          defaultModel: 'gpt-5-mini',
-          defaultProviderId: 'opencode',
           orchestrationMode: 'ROUTA',
+          roleDefaults: {
+            ROUTA: {
+              model: 'gpt-5-mini',
+              providerId: 'opencode',
+            },
+          },
         }}
       />,
     );
@@ -292,9 +305,13 @@ describe('ShellsSession', () => {
         projectState={createProjectState()}
         projectTitle="Team AI"
         runtimeProfile={{
-          defaultModel: 'gpt-5-mini',
-          defaultProviderId: 'opencode',
           orchestrationMode: 'ROUTA',
+          roleDefaults: {
+            ROUTA: {
+              model: 'gpt-5-mini',
+              providerId: 'opencode',
+            },
+          },
         }}
       />,
     );

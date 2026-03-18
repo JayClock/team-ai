@@ -1,5 +1,6 @@
 import {
   resolveWorkbenchProviderLabel,
+  resolveWorkbenchRuntimeRoleDefault,
   resolveWorkbenchSessionDefaults,
   type WorkbenchSessionRuntimeProfile,
 } from './session-runtime-profile';
@@ -9,9 +10,13 @@ describe('resolveWorkbenchSessionDefaults', () => {
     expect(
       resolveWorkbenchSessionDefaults({
         runtimeProfile: {
-          defaultModel: 'gpt-5',
-          defaultProviderId: 'opencode',
           orchestrationMode: 'DEVELOPER',
+          roleDefaults: {
+            DEVELOPER: {
+              model: 'gpt-5',
+              providerId: 'opencode',
+            },
+          },
         },
       }),
     ).toEqual({
@@ -25,9 +30,13 @@ describe('resolveWorkbenchSessionDefaults', () => {
     expect(
       resolveWorkbenchSessionDefaults({
         runtimeProfile: {
-          defaultModel: '  ',
-          defaultProviderId: '  ',
           orchestrationMode: 'ROUTA',
+          roleDefaults: {
+            ROUTA: {
+              model: '  ',
+              providerId: '  ',
+            },
+          },
         },
       }),
     ).toEqual({
@@ -41,8 +50,7 @@ describe('resolveWorkbenchSessionDefaults', () => {
     expect(
       resolveWorkbenchSessionDefaults({
         runtimeProfile: {
-          defaultModel: null,
-          defaultProviderId: null,
+          roleDefaults: {},
         } as unknown as WorkbenchSessionRuntimeProfile,
       }),
     ).toEqual({
@@ -57,6 +65,25 @@ describe('resolveWorkbenchSessionDefaults', () => {
       model: null,
       providerId: null,
       role: 'ROUTA',
+    });
+  });
+});
+
+describe('resolveWorkbenchRuntimeRoleDefault', () => {
+  it('reads a configured role default', () => {
+    expect(
+      resolveWorkbenchRuntimeRoleDefault(
+        {
+          GATE: {
+            model: 'gpt-5-mini',
+            providerId: 'opencode',
+          },
+        },
+        'GATE',
+      ),
+    ).toEqual({
+      model: 'gpt-5-mini',
+      providerId: 'opencode',
     });
   });
 });

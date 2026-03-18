@@ -57,6 +57,7 @@ describe('runtime profile routes', () => {
       mcpServerConfigs: {},
       orchestrationMode: 'ROUTA',
       projectId: project.id,
+      roleDefaults: {},
       skillConfigs: {},
     });
 
@@ -64,8 +65,6 @@ describe('runtime profile routes', () => {
       method: 'PATCH',
       url: `/api/projects/${project.id}/runtime-profile`,
       payload: {
-        defaultModel: 'openai/gpt-5-mini',
-        defaultProviderId: 'opencode',
         enabledMcpServerIds: ['team_ai_local'],
         enabledSkillIds: ['reviewer'],
         mcpServerConfigs: {
@@ -74,6 +73,24 @@ describe('runtime profile routes', () => {
           },
         },
         orchestrationMode: 'DEVELOPER',
+        roleDefaults: {
+          CRAFTER: {
+            model: null,
+            providerId: 'anthropic',
+          },
+          DEVELOPER: {
+            model: 'openai/gpt-5-mini',
+            providerId: 'opencode',
+          },
+          GATE: {
+            model: null,
+            providerId: 'codex',
+          },
+          ROUTA: {
+            model: 'openai/gpt-5-mini',
+            providerId: 'opencode',
+          },
+        },
         skillConfigs: {
           reviewer: {
             level: 'strict',
@@ -98,6 +115,24 @@ describe('runtime profile routes', () => {
       },
       orchestrationMode: 'DEVELOPER',
       projectId: project.id,
+      roleDefaults: {
+        CRAFTER: {
+          model: null,
+          providerId: 'anthropic',
+        },
+        DEVELOPER: {
+          model: 'openai/gpt-5-mini',
+          providerId: 'opencode',
+        },
+        GATE: {
+          model: null,
+          providerId: 'codex',
+        },
+        ROUTA: {
+          model: 'openai/gpt-5-mini',
+          providerId: 'opencode',
+        },
+      },
       skillConfigs: {
         reviewer: {
           level: 'strict',
@@ -123,6 +158,24 @@ describe('runtime profile routes', () => {
       },
       orchestrationMode: 'DEVELOPER',
       projectId: project.id,
+      roleDefaults: {
+        CRAFTER: {
+          model: null,
+          providerId: 'anthropic',
+        },
+        DEVELOPER: {
+          model: 'openai/gpt-5-mini',
+          providerId: 'opencode',
+        },
+        GATE: {
+          model: null,
+          providerId: 'codex',
+        },
+        ROUTA: {
+          model: 'openai/gpt-5-mini',
+          providerId: 'opencode',
+        },
+      },
       skillConfigs: {
         reviewer: {
           level: 'strict',
@@ -151,6 +204,7 @@ describe('runtime profile routes', () => {
             orchestration_mode,
             enabled_skill_ids_json,
             enabled_mcp_server_ids_json,
+            role_defaults_json,
             created_at,
             updated_at,
             deleted_at
@@ -163,6 +217,7 @@ describe('runtime profile routes', () => {
             @orchestrationMode,
             @enabledSkillIdsJson,
             @enabledMcpServerIdsJson,
+            @roleDefaultsJson,
             @createdAt,
             @updatedAt,
             NULL
@@ -177,6 +232,12 @@ describe('runtime profile routes', () => {
         orchestrationMode: 'DEVELOPER',
         enabledSkillIdsJson: JSON.stringify(['reviewer']),
         enabledMcpServerIdsJson: JSON.stringify(['team_ai_local']),
+        roleDefaultsJson: JSON.stringify({
+          ROUTA: {
+            model: 'gpt-4.1-mini',
+            providerId: 'codex',
+          },
+        }),
         createdAt: now,
         updatedAt: now,
       });
@@ -195,6 +256,12 @@ describe('runtime profile routes', () => {
       mcpServerConfigs: {},
       orchestrationMode: 'DEVELOPER',
       projectId: project.id,
+      roleDefaults: {
+        ROUTA: {
+          model: 'gpt-4.1-mini',
+          providerId: 'codex',
+        },
+      },
       skillConfigs: {},
     });
   });
@@ -211,13 +278,17 @@ describe('runtime profile routes', () => {
       method: 'PATCH',
       url: `/api/projects/${project.id}/runtime-profile`,
       payload: {
-        defaultModel: 'openai/gpt-5-mini',
-        defaultProviderId: 'opencode',
         enabledMcpServerIds: ['team_ai_local'],
         enabledSkillIds: ['reviewer'],
         mcpServerConfigs: {
           team_ai_local: {
             timeoutMs: 2000,
+          },
+        },
+        roleDefaults: {
+          ROUTA: {
+            model: 'openai/gpt-5-mini',
+            providerId: 'opencode',
           },
         },
         skillConfigs: {
@@ -232,8 +303,17 @@ describe('runtime profile routes', () => {
       method: 'PATCH',
       url: `/api/projects/${project.id}/runtime-profile`,
       payload: {
-        defaultProviderId: 'opencode',
         orchestrationMode: 'DEVELOPER',
+        roleDefaults: {
+          DEVELOPER: {
+            model: null,
+            providerId: 'codex',
+          },
+          ROUTA: {
+            model: 'openai/gpt-5-mini',
+            providerId: 'opencode',
+          },
+        },
       },
     });
 
@@ -250,6 +330,16 @@ describe('runtime profile routes', () => {
       },
       orchestrationMode: 'DEVELOPER',
       projectId: project.id,
+      roleDefaults: {
+        DEVELOPER: {
+          model: null,
+          providerId: 'codex',
+        },
+        ROUTA: {
+          model: 'openai/gpt-5-mini',
+          providerId: 'opencode',
+        },
+      },
       skillConfigs: {
         reviewer: {
           level: 'strict',

@@ -982,4 +982,45 @@ export const sqliteMigrations: SqliteMigration[] = [
         ADD COLUMN specialist_id TEXT;
     `,
   },
+  {
+    version: '032_project_runtime_profiles_role_defaults',
+    sql: `
+      ALTER TABLE project_runtime_profiles
+        ADD COLUMN role_defaults_json TEXT NOT NULL DEFAULT '{}';
+
+      UPDATE project_runtime_profiles
+      SET role_defaults_json = json_object(
+        'ROUTA',
+        json_object(
+          'providerId',
+          default_provider_id,
+          'model',
+          default_model
+        ),
+        'CRAFTER',
+        json_object(
+          'providerId',
+          default_provider_id,
+          'model',
+          default_model
+        ),
+        'GATE',
+        json_object(
+          'providerId',
+          default_provider_id,
+          'model',
+          default_model
+        ),
+        'DEVELOPER',
+        json_object(
+          'providerId',
+          default_provider_id,
+          'model',
+          default_model
+        )
+      )
+      WHERE deleted_at IS NULL
+        AND (default_provider_id IS NOT NULL OR default_model IS NOT NULL);
+    `,
+  },
 ];

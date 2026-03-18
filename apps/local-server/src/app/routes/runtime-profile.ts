@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { presentProjectRuntimeProfile } from '../presenters/project-runtime-profile-presenter';
+import { roleValues } from '../schemas/role';
 import {
   getProjectRuntimeProfile,
   type UpdateProjectRuntimeProfileDeps,
@@ -16,6 +17,15 @@ const nullableStringSchema = z.union([z.string().trim().min(1), z.null()]);
 const stringArraySchema = z.array(z.string().trim().min(1));
 const configEntrySchema = z.record(z.string(), z.unknown());
 const configMapSchema = z.record(z.string(), configEntrySchema);
+const roleDefaultSchema = z.object({
+  model: nullableStringSchema,
+  providerId: nullableStringSchema,
+});
+const roleDefaultsSchema = z.object(
+  Object.fromEntries(
+    roleValues.map((role) => [role, roleDefaultSchema.optional()]),
+  ) as Record<(typeof roleValues)[number], z.ZodOptional<typeof roleDefaultSchema>>,
+);
 
 const runtimeProfilePatchSchema = z
   .object({
@@ -25,6 +35,7 @@ const runtimeProfilePatchSchema = z
     enabledSkillIds: stringArraySchema.optional(),
     mcpServerConfigs: configMapSchema.optional(),
     orchestrationMode: z.enum(['ROUTA', 'DEVELOPER']).optional(),
+    roleDefaults: roleDefaultsSchema.optional(),
     skillConfigs: configMapSchema.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {

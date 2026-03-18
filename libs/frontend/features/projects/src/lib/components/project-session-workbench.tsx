@@ -1,5 +1,5 @@
 import { State } from '@hateoas-ts/resource';
-import { ProjectRuntimeProfile } from '@shared/schema';
+import type { ProjectRuntimeProfile } from '@shared/schema/lib/runtime-profile';
 import { useEffect, useState } from 'react';
 import { ShellsSession, type ShellsSessionProps } from '../session/session';
 
@@ -16,9 +16,8 @@ function toWorkbenchRuntimeProfile(
   profileState: State<ProjectRuntimeProfile>,
 ): ProjectSessionRuntimeProfile {
   return {
-    defaultModel: profileState.data.defaultModel,
-    defaultProviderId: profileState.data.defaultProviderId,
     orchestrationMode: profileState.data.orchestrationMode,
+    roleDefaults: profileState.data.roleDefaults,
   };
 }
 

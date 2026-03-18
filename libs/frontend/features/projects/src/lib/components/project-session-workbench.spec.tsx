@@ -47,6 +47,14 @@ function createRuntimeProfileState(input: {
       defaultProviderId: input.defaultProviderId,
       defaultModel: null,
       orchestrationMode: input.orchestrationMode,
+      roleDefaults: input.defaultProviderId
+        ? {
+            ROUTA: {
+              model: null,
+              providerId: input.defaultProviderId,
+            },
+          }
+        : {},
       enabledSkillIds: [],
       enabledMcpServerIds: [],
       skillConfigs: {},
@@ -84,7 +92,7 @@ describe('ProjectSessionWorkbench', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          '{"defaultModel":null,"defaultProviderId":"opencode","orchestrationMode":"DEVELOPER"}',
+          '{"orchestrationMode":"DEVELOPER","roleDefaults":{"ROUTA":{"model":null,"providerId":"opencode"}}}',
         ),
       ).toBeTruthy();
     });

@@ -34,8 +34,12 @@ describe('project runtime profile service', () => {
       sqlite,
       project.id,
       {
-        defaultModel: ' openai/gpt-5-mini ',
-        defaultProviderId: ' opencode ',
+        roleDefaults: {
+          DEVELOPER: {
+            model: ' openai/gpt-5-mini ',
+            providerId: ' opencode ',
+          },
+        },
       },
       {
         listProviderModels: vi.fn(async () => [
@@ -47,18 +51,24 @@ describe('project runtime profile service', () => {
       },
     );
 
-    expect(profile.defaultProviderId).toBe('opencode');
-    expect(profile.defaultModel).toBe('openai/gpt-5-mini');
+    expect(profile.roleDefaults.DEVELOPER).toEqual({
+      model: 'openai/gpt-5-mini',
+      providerId: 'opencode',
+    });
 
     await expect(getProjectRuntimeProfile(sqlite, project.id)).resolves.toMatchObject(
       {
-        defaultModel: 'openai/gpt-5-mini',
-        defaultProviderId: 'opencode',
+        roleDefaults: {
+          DEVELOPER: {
+            model: 'openai/gpt-5-mini',
+            providerId: 'opencode',
+          },
+        },
       },
     );
   });
 
-  it('rejects saving a default model without a default provider', async () => {
+  it('rejects saving a role model without a provider', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Runtime Profile Missing Provider',
@@ -69,7 +79,12 @@ describe('project runtime profile service', () => {
       sqlite,
       project.id,
       {
-        defaultModel: 'openai/gpt-5-mini',
+        roleDefaults: {
+          ROUTA: {
+            model: 'openai/gpt-5-mini',
+            providerId: null,
+          },
+        },
       },
       {
         listProviderModels: vi.fn(),
@@ -79,11 +94,11 @@ describe('project runtime profile service', () => {
     expect(error).toBeInstanceOf(ProblemError);
     expect(error).toMatchObject({
       status: 400,
-      title: 'Runtime Profile Default Provider Required',
+      title: 'Runtime Profile Role Provider Required',
     });
   });
 
-  it('rejects saving a default model that does not belong to the selected provider', async () => {
+  it('rejects saving a role model that does not belong to the selected provider', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       title: 'Runtime Profile Model Mismatch',
@@ -94,8 +109,12 @@ describe('project runtime profile service', () => {
       sqlite,
       project.id,
       {
-        defaultModel: 'openai/gpt-5',
-        defaultProviderId: 'opencode',
+        roleDefaults: {
+          GATE: {
+            model: 'openai/gpt-5',
+            providerId: 'opencode',
+          },
+        },
       },
       {
         listProviderModels: vi.fn(async () => [
@@ -110,10 +129,10 @@ describe('project runtime profile service', () => {
     expect(error).toBeInstanceOf(ProblemError);
     expect(error).toMatchObject({
       status: 400,
-      title: 'Runtime Profile Default Model Provider Mismatch',
+      title: 'Runtime Profile Role Model Provider Mismatch',
     });
     expect((error as ProblemError).message).toBe(
-      'Model openai/gpt-5 is not available for provider opencode',
+      'Model openai/gpt-5 is not available for provider opencode in role GATE',
     );
   });
 });
