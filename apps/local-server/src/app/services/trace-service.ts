@@ -82,6 +82,8 @@ function summarizeTrace(input: RecordAcpTraceInput['update']) {
       return `turn_complete: ${input.turnComplete?.stopReason ?? 'completed'}`;
     case 'orchestration_update':
       return `orchestration_update: ${input.orchestration?.eventName ?? 'update'}`;
+    case 'lifecycle_update':
+      return `lifecycle_update: ${input.lifecycle?.state ?? 'update'}`;
     case 'session_info_update':
       return 'session_info_update';
     case 'plan_update':

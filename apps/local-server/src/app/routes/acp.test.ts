@@ -18,6 +18,7 @@ import {
   createAcpSession,
   DEFAULT_ACP_PROMPT_TIMEOUT_MS,
   getAcpSessionById,
+  listAcpSessionHistory,
 } from '../services/acp-service';
 import {
   getProjectWorktreeById,
@@ -240,7 +241,13 @@ describe('acp route', () => {
         .history.map(
           (event: { update: { eventType: string } }) => event.update.eventType,
         ),
-    ).toEqual(expect.arrayContaining(['user_message', 'turn_complete']));
+    ).toEqual(
+      expect.arrayContaining([
+        'user_message',
+        'turn_complete',
+        'lifecycle_update',
+      ]),
+    );
 
     const rootResponse = await fastify.inject({
       method: 'GET',
@@ -1714,6 +1721,12 @@ describe('acp route', () => {
       projectId: project.id,
       taskId: task.id,
     });
+    const successHistory = await listAcpSessionHistory(
+      fastify.sqlite,
+      project.id,
+      childSessionId,
+      200,
+    );
     expect(promptResponse.statusCode).toBe(200);
     expect(promptResponse.json()).toMatchObject({
       result: {
@@ -1743,6 +1756,19 @@ describe('acp route', () => {
       }),
     ]);
     expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+    expect(successHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          update: expect.objectContaining({
+            eventType: 'lifecycle_update',
+            lifecycle: expect.objectContaining({
+              state: 'completed',
+              taskBound: true,
+            }),
+          }),
+        }),
+      ]),
+    );
   });
 
   it('fails task runs when task-bound prompts error', async () => {
@@ -1798,6 +1824,12 @@ describe('acp route', () => {
       projectId: project.id,
       taskId: task.id,
     });
+    const failedHistory = await listAcpSessionHistory(
+      fastify.sqlite,
+      project.id,
+      childSessionId,
+      200,
+    );
     expect(promptResponse.statusCode).toBe(200);
     expect(promptResponse.json()).toEqual({
       error: {
@@ -1828,6 +1860,19 @@ describe('acp route', () => {
       }),
     ]);
     expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+    expect(failedHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          update: expect.objectContaining({
+            eventType: 'lifecycle_update',
+            lifecycle: expect.objectContaining({
+              state: 'failed',
+              taskBound: true,
+            }),
+          }),
+        }),
+      ]),
+    );
   });
 
   it('moves timed out task-bound prompts into waiting retry while keeping the run failed', async () => {
@@ -1889,6 +1934,12 @@ describe('acp route', () => {
       projectId: project.id,
       taskId: task.id,
     });
+    const timeoutHistory = await listAcpSessionHistory(
+      fastify.sqlite,
+      project.id,
+      childSessionId,
+      200,
+    );
     expect(promptResponse.statusCode).toBe(200);
     expect(promptResponse.json()).toEqual({
       error: {
@@ -1919,6 +1970,19 @@ describe('acp route', () => {
       }),
     ]);
     expect(taskRuns.items[0]?.completedAt).toEqual(expect.any(String));
+    expect(timeoutHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          update: expect.objectContaining({
+            eventType: 'lifecycle_update',
+            lifecycle: expect.objectContaining({
+              state: 'timeout',
+              taskBound: true,
+            }),
+          }),
+        }),
+      ]),
+    );
   });
 
   it('cancels task runs when task-bound sessions are cancelled', async () => {

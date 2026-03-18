@@ -18,6 +18,7 @@ import type { AcpStreamBroker } from '../plugins/acp-stream';
 import type {
   AcpEventEnvelopePayload,
   AcpEventErrorPayload,
+  AcpLifecycleStatePayload,
   AcpOrchestrationEventName,
   AcpRuntimeSessionListPayload,
   AcpRuntimeSessionPayload,
@@ -1381,6 +1382,12 @@ function createRuntimeHooks(
         failureReason: error.message,
         completedAt: new Date().toISOString(),
       });
+      appendLifecycleEvent(sqlite, broker, {
+        detail: error.message,
+        sessionId: localSessionId,
+        state: 'failed',
+        taskBound: current.task_id !== null,
+      });
 
       await syncTaskExecutionOutcome(
         sqlite,
@@ -1417,6 +1424,50 @@ function appendPromptRequestedEvents(
       },
     }),
   });
+}
+
+function appendLifecycleEvent(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  input: {
+    detail?: string | null;
+    sessionId: string;
+    state: AcpLifecycleStatePayload;
+    taskBound: boolean;
+  },
+) {
+  const session = getSessionRow(sqlite, input.sessionId);
+  return appendLocalEvent(sqlite, broker, {
+    sessionId: input.sessionId,
+    update: createCanonicalUpdate(
+      input.sessionId,
+      session.provider,
+      'lifecycle_update',
+      {
+        lifecycle: {
+          detail: input.detail ?? null,
+          state: input.state,
+          taskBound: input.taskBound,
+        },
+      },
+    ),
+  });
+}
+
+function resolveLifecycleFailureState(error: unknown): Extract<
+  AcpLifecycleStatePayload,
+  'failed' | 'timeout'
+> {
+  if (
+    error instanceof ProblemError &&
+    (error.type === 'https://team-ai.dev/problems/acp-prompt-timeout' ||
+      error.type ===
+        'https://team-ai.dev/problems/acp-provider-initialize-timeout')
+  ) {
+    return 'timeout';
+  }
+
+  return 'failed';
 }
 
 const REPLAY_HISTORY_CHAR_LIMIT = 24_000;
@@ -1652,6 +1703,7 @@ async function updateSessionFromPromptResponse(
   response: PromptResponse,
   options: AcpServiceOptions = {},
 ) {
+  const session = getSessionRow(sqlite, sessionId);
   let state: AcpSessionState = 'RUNNING';
   if (response.stopReason === 'cancelled') {
     state = 'CANCELLED';
@@ -1683,6 +1735,15 @@ async function updateSessionFromPromptResponse(
     completedAt: state === 'CANCELLED' ? completedAt : null,
     lastActivityAt: completedAt,
   });
+
+  if (state !== 'CANCELLED') {
+    appendLifecycleEvent(sqlite, broker, {
+      detail: response.stopReason,
+      sessionId,
+      state: session.task_id ? 'completed' : 'idle',
+      taskBound: session.task_id !== null,
+    });
+  }
 
   await syncTaskExecutionOutcome(
     sqlite,
@@ -2489,6 +2550,12 @@ export async function promptAcpSession(
       state: 'FAILED',
       failureReason: message,
       completedAt: new Date().toISOString(),
+    });
+    appendLifecycleEvent(sqlite, broker, {
+      detail: message,
+      sessionId,
+      state: resolveLifecycleFailureState(error),
+      taskBound: session.task_id !== null,
     });
 
     await syncTaskExecutionOutcome(

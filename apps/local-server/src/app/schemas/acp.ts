@@ -30,7 +30,14 @@ export type AcpEventTypePayload =
   | 'usage_update'
   | 'available_commands_update'
   | 'orchestration_update'
+  | 'lifecycle_update'
   | 'error';
+
+export type AcpLifecycleStatePayload =
+  | 'idle'
+  | 'completed'
+  | 'failed'
+  | 'timeout';
 
 export type AcpOrchestrationEventName =
   | 'child_session_completed'
@@ -100,6 +107,11 @@ export interface AcpEventUpdatePayload {
   };
   terminal?: AcpEventTerminalPayload;
   timestamp: string;
+  lifecycle?: {
+    detail?: string | null;
+    state: AcpLifecycleStatePayload;
+    taskBound?: boolean;
+  };
   toolCall?: AcpEventToolCallPayload;
   traceId?: string;
   turnComplete?: {
