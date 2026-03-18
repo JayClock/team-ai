@@ -6,6 +6,6 @@ packages:
   - 'libs/frontend/features/*'
   - 'libs/frontend/shells/*'
   - 'libs/frontend/*'
-  - 'orchestration/agent-gateway'
+  - 'libs/orchestration/*'
 onlyBuiltDependencies:
   - '@parcel/watcher'

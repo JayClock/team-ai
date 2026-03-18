@@ -1,4 +1,4 @@
-# orchestration/agent-gateway
+# libs/orchestration/agent-gateway
 
 Shared agent-gateway implementation for the sidecar app in `apps/agent-gateway`.
 

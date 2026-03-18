@@ -19,7 +19,7 @@
   "exclude": ["dist", "src/**/*.spec.ts", "src/**/*.test.ts"],
   "references": [
     {
-      "path": "../../orchestration/agent-gateway/tsconfig.lib.json"
+      "path": "../../libs/orchestration/agent-gateway/tsconfig.lib.json"
     }
   ]
 }

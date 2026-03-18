@@ -3,7 +3,7 @@ const builtEntryHref = new URL(
   import.meta.url,
 ).href;
 const sourceEntryHref = new URL(
-  '../../../orchestration/agent-gateway/src/index.ts',
+  '../../../libs/orchestration/agent-gateway/src/index.ts',
   import.meta.url,
 ).href;
 

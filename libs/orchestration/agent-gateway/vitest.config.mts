@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig(() => ({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/orchestration/agent-gateway',
+  cacheDir: '../../../node_modules/.vite/libs/orchestration/agent-gateway',
   test: {
     name: '@orchestration/agent-gateway',
     watch: false,

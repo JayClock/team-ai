@@ -67,7 +67,7 @@
       "path": "./libs/frontend/shells/sessions"
     },
     {
-      "path": "./orchestration/agent-gateway"
+      "path": "./libs/orchestration/agent-gateway"
     }
   ]
 }
