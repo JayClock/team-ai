@@ -39,9 +39,12 @@ describe('kanban workflow orchestrator plugin', () => {
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
     await fastify.register(
-      fp(async (instance) => {
-        instance.decorate('acpRuntime', createRuntimeStub());
-      }, { name: 'acp-runtime' }),
+      fp(
+        async (instance) => {
+          instance.decorate('acpRuntime', createRuntimeStub());
+        },
+        { name: 'acp-runtime' },
+      ),
     );
     await fastify.register(backgroundWorkerPlugin, {
       enabled: false,
@@ -63,7 +66,7 @@ function createRuntimeStub(): AcpRuntimeClient {
       provider: input.provider,
       runtimeSessionId: 'runtime-kanban-test',
     }),
-    deleteSession: async () => undefined,
+    killSession: async () => undefined,
     isConfigured: () => false,
     isSessionActive: () => false,
     loadSession: async (input) => ({

@@ -23,6 +23,10 @@ import {
   type NormalizedSessionUpdate,
 } from '../services/normalized-session-update';
 import {
+  AcpSessionProcessManager,
+  type ManagedAcpSessionSnapshot,
+} from './acp-session-process-manager';
+import {
   getProviderEnvCommandKey,
   normalizeAcpProviderId,
   resolveAcpRuntimeProviderCommand,
@@ -96,9 +100,10 @@ export interface AcpRuntimeClient {
   createSession(
     input: CreateAcpRuntimeSessionInput,
   ): Promise<AcpRuntimeSessionSnapshot>;
-  deleteSession(localSessionId: string): Promise<void>;
   isConfigured(provider: string): boolean;
   isSessionActive(localSessionId: string): boolean;
+  killSession(localSessionId: string): Promise<void>;
+  listSessions?(): ManagedAcpSessionSnapshot[];
   loadSession(
     input: LoadAcpRuntimeSessionInput,
   ): Promise<AcpRuntimeSessionSnapshot>;
@@ -118,7 +123,10 @@ interface CreateAcpRuntimeClientOptions {
   logger?: LoggerLike;
 }
 
+const ACP_PROMPT_CANCEL_GRACE_MS = 1_000;
+const ACP_REQUEST_TIMEOUT_MS = 30_000;
 const ACP_INITIALIZE_TIMEOUT_MS = 10_000;
+const ACP_PACKAGE_MANAGER_INITIALIZE_TIMEOUT_MS = 120_000;
 
 interface LocalTerminal {
   command: ReturnType<typeof spawn>;
@@ -141,17 +149,43 @@ interface ActiveAcpRuntimeSession {
   initializeResponse: InitializeResponse;
   localSessionId: string;
   provider: string;
+  runtimeCommand: string;
   runtimeSessionId: string;
   terminals: Map<string, LocalTerminal>;
+}
+
+export function resolveAcpRequestTimeoutMs(
+  method: 'initialize' | 'session/load' | 'session/new' | 'session/prompt',
+  runtimeCommand: string,
+): number {
+  if (
+    method === 'initialize' ||
+    method === 'session/load' ||
+    method === 'session/new'
+  ) {
+    return isPackageManagerRuntime(runtimeCommand)
+      ? ACP_PACKAGE_MANAGER_INITIALIZE_TIMEOUT_MS
+      : ACP_INITIALIZE_TIMEOUT_MS;
+  }
+
+  return ACP_REQUEST_TIMEOUT_MS;
+}
+
+export function resolveAcpPromptTransportTimeoutMs(timeoutMs: number): number {
+  return Math.max(
+    timeoutMs + ACP_PROMPT_CANCEL_GRACE_MS,
+    ACP_REQUEST_TIMEOUT_MS,
+  );
 }
 
 export function createAcpRuntimeClient(
   options: CreateAcpRuntimeClientOptions = {},
 ): AcpRuntimeClient {
-  const sessions = new Map<string, ActiveAcpRuntimeSession>();
+  const sessionManager =
+    new AcpSessionProcessManager<ActiveAcpRuntimeSession>();
 
   function getActiveSession(localSessionId: string): ActiveAcpRuntimeSession {
-    const session = sessions.get(localSessionId);
+    const session = sessionManager.get(localSessionId)?.resource;
     if (!session) {
       throw new ProblemError({
         type: 'https://team-ai.dev/problems/acp-session-runtime-not-loaded',
@@ -168,14 +202,27 @@ export function createAcpRuntimeClient(
     input: CreateAcpRuntimeSessionInput,
   ): Promise<AcpRuntimeSessionSnapshot> {
     const session = await openSessionRuntime(input);
-    const created = await session.connection.newSession({
-      cwd: input.cwd,
-      mcpServers: input.mcpServers,
-      ...(input.model ? { model: input.model } : {}),
-    });
+    const created = await withRequestTimeout(
+      session.connection.newSession({
+        cwd: input.cwd,
+        mcpServers: input.mcpServers,
+        ...(input.model ? { model: input.model } : {}),
+      }),
+      resolveAcpRequestTimeoutMs('session/new', session.runtimeCommand),
+      'session/new',
+    );
 
     session.runtimeSessionId = created.sessionId;
-    sessions.set(input.localSessionId, session);
+    await sessionManager.register({
+      cleanup: async () => {
+        await cleanupSession(session, true);
+      },
+      cwd: session.cwd,
+      localSessionId: session.localSessionId,
+      provider: session.provider,
+      resource: session,
+      runtimeSessionId: session.runtimeSessionId,
+    });
 
     return {
       runtimeSessionId: created.sessionId,
@@ -186,7 +233,7 @@ export function createAcpRuntimeClient(
   async function loadSession(
     input: LoadAcpRuntimeSessionInput,
   ): Promise<AcpRuntimeSessionSnapshot> {
-    const existing = sessions.get(input.localSessionId);
+    const existing = sessionManager.get(input.localSessionId)?.resource;
     if (existing) {
       return {
         runtimeSessionId: existing.runtimeSessionId,
@@ -195,14 +242,27 @@ export function createAcpRuntimeClient(
     }
 
     const session = await openSessionRuntime(input);
-    await session.connection.loadSession({
-      cwd: input.cwd,
-      mcpServers: input.mcpServers,
-      sessionId: input.runtimeSessionId,
-    });
+    await withRequestTimeout(
+      session.connection.loadSession({
+        cwd: input.cwd,
+        mcpServers: input.mcpServers,
+        sessionId: input.runtimeSessionId,
+      }),
+      resolveAcpRequestTimeoutMs('session/load', session.runtimeCommand),
+      'session/load',
+    );
 
     session.runtimeSessionId = input.runtimeSessionId;
-    sessions.set(input.localSessionId, session);
+    await sessionManager.register({
+      cleanup: async () => {
+        await cleanupSession(session, true);
+      },
+      cwd: session.cwd,
+      localSessionId: session.localSessionId,
+      provider: session.provider,
+      resource: session,
+      runtimeSessionId: session.runtimeSessionId,
+    });
 
     return {
       runtimeSessionId: input.runtimeSessionId,
@@ -214,24 +274,30 @@ export function createAcpRuntimeClient(
     input: PromptAcpRuntimeSessionInput,
   ): Promise<AcpPromptRuntimeResult> {
     const session = getActiveSession(input.localSessionId);
-    const promptRequest = session.connection.prompt({
-      sessionId: session.runtimeSessionId,
-      prompt: [
-        {
-          type: 'text',
-          text: input.prompt,
-        },
-      ],
-      _meta: input.traceId ? { traceId: input.traceId } : undefined,
-    });
+    const promptRequest = withRequestTimeout(
+      session.connection.prompt({
+        sessionId: session.runtimeSessionId,
+        prompt: [
+          {
+            type: 'text',
+            text: input.prompt,
+          },
+        ],
+        _meta: input.traceId ? { traceId: input.traceId } : undefined,
+      }),
+      input.timeoutMs
+        ? resolveAcpPromptTransportTimeoutMs(input.timeoutMs)
+        : resolveAcpRequestTimeoutMs('session/prompt', session.runtimeCommand),
+      'session/prompt',
+    );
 
     const response = input.timeoutMs
       ? await withPromptTimeout(
-        promptRequest,
-        input.timeoutMs,
-        session.connection,
-        session.runtimeSessionId,
-      )
+          promptRequest,
+          input.timeoutMs,
+          session.connection,
+          session.runtimeSessionId,
+        )
       : await promptRequest;
 
     return {
@@ -251,20 +317,8 @@ export function createAcpRuntimeClient(
     await session.connection.cancel(params);
   }
 
-  async function deleteSession(localSessionId: string): Promise<void> {
-    const session = sessions.get(localSessionId);
-    if (!session) {
-      return;
-    }
-
-    sessions.delete(localSessionId);
-    await cleanupSession(session, true);
-  }
-
   async function close(): Promise<void> {
-    const active = [...sessions.values()];
-    sessions.clear();
-    await Promise.all(active.map((session) => cleanupSession(session, true)));
+    await sessionManager.close();
   }
 
   function isConfigured(provider: string): boolean {
@@ -275,7 +329,11 @@ export function createAcpRuntimeClient(
   }
 
   function isSessionActive(localSessionId: string): boolean {
-    return sessions.has(localSessionId);
+    return sessionManager.has(localSessionId);
+  }
+
+  async function killSession(localSessionId: string): Promise<void> {
+    await sessionManager.remove(localSessionId);
   }
 
   async function openSessionRuntime(
@@ -342,6 +400,7 @@ export function createAcpRuntimeClient(
       connection,
       child,
       input,
+      providerCommand.command,
     );
 
     const session: ActiveAcpRuntimeSession = {
@@ -352,6 +411,7 @@ export function createAcpRuntimeClient(
       initializeResponse,
       localSessionId: input.localSessionId,
       provider: input.provider,
+      runtimeCommand: providerCommand.command,
       runtimeSessionId:
         'runtimeSessionId' in input
           ? input.runtimeSessionId
@@ -361,17 +421,17 @@ export function createAcpRuntimeClient(
 
     void connection.closed
       .then(async () => {
-        const active = sessions.get(input.localSessionId);
+        const active = sessionManager.get(input.localSessionId)?.resource;
         if (active?.connection === connection) {
-          sessions.delete(input.localSessionId);
+          sessionManager.take(input.localSessionId);
         }
         await cleanupSession(session, false);
         await input.hooks.onClosed();
       })
       .catch(async (error: unknown) => {
-        const active = sessions.get(input.localSessionId);
+        const active = sessionManager.get(input.localSessionId)?.resource;
         if (active?.connection === connection) {
-          sessions.delete(input.localSessionId);
+          sessionManager.take(input.localSessionId);
         }
         await cleanupSession(session, false);
         await input.hooks.onClosed(
@@ -401,9 +461,10 @@ export function createAcpRuntimeClient(
     cancelSession,
     close,
     createSession,
-    deleteSession,
     isConfigured,
     isSessionActive,
+    killSession,
+    listSessions: () => sessionManager.list(),
     loadSession,
     promptSession,
   };
@@ -431,11 +492,7 @@ export function buildProviderLaunchCommand(
     args.push('--cwd', cwd);
   }
 
-  if (
-    launchConfig.passModelToLaunch &&
-    model &&
-    model.trim().length > 0
-  ) {
+  if (launchConfig.passModelToLaunch && model && model.trim().length > 0) {
     args.push(launchConfig.modelArgFlag, model.trim());
   }
 
@@ -751,7 +808,12 @@ async function initializeAcpConnection(
   connection: ClientSideConnection,
   child: ReturnType<typeof spawn>,
   input: CreateAcpRuntimeSessionInput | LoadAcpRuntimeSessionInput,
+  runtimeCommand: string,
 ): Promise<InitializeResponse> {
+  const initializeTimeoutMs = resolveAcpRequestTimeoutMs(
+    'initialize',
+    runtimeCommand,
+  );
   const initializeRequest = connection.initialize({
     protocolVersion: 1,
     clientInfo: {
@@ -781,11 +843,11 @@ async function initializeAcpConnection(
           status: 503,
           detail:
             `ACP provider ${input.provider} did not complete initialize within ` +
-            `${ACP_INITIALIZE_TIMEOUT_MS}ms. ` +
+            `${initializeTimeoutMs}ms. ` +
             'The configured command is likely not an ACP-compatible agent process.',
         }),
       );
-    }, ACP_INITIALIZE_TIMEOUT_MS);
+    }, initializeTimeoutMs);
   });
 
   const exitPromise = new Promise<never>((_, reject) => {
@@ -914,4 +976,31 @@ async function withPromptTimeout(
       clearTimeout(timeoutId);
     }
   }
+}
+
+async function withRequestTimeout<T>(
+  request: Promise<T>,
+  timeoutMs: number,
+  method: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    return await Promise.race([
+      request,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`Timeout waiting for ${method}`));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+function isPackageManagerRuntime(runtimeCommand: string): boolean {
+  return runtimeCommand === 'npx' || runtimeCommand === 'uvx';
 }

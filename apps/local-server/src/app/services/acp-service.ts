@@ -150,6 +150,8 @@ export interface PromptSessionInput {
   traceId?: string;
 }
 
+export const DEFAULT_ACP_PROMPT_TIMEOUT_MS = 300_000;
+
 export interface AcpServiceOptions {
   logger?: DiagnosticLogger;
   source?: string;
@@ -1495,12 +1497,10 @@ function buildAcpSessionReplayPrompt(
     .all(sessionId) as SessionHistorySummaryRow[];
 
   const segments: string[] = [];
-  let pendingAssistant:
-    | {
-        content: string;
-        messageId: string | null;
-      }
-    | null = null;
+  let pendingAssistant: {
+    content: string;
+    messageId: string | null;
+  } | null = null;
 
   const flushAssistant = () => {
     if (!pendingAssistant) {
@@ -1536,10 +1536,7 @@ function buildAcpSessionReplayPrompt(
       }
 
       const messageId = extractEventText(payload.message.messageId);
-      if (
-        pendingAssistant &&
-        pendingAssistant.messageId === messageId
-      ) {
+      if (pendingAssistant && pendingAssistant.messageId === messageId) {
         pendingAssistant.content += content;
       } else {
         flushAssistant();
@@ -1612,7 +1609,11 @@ async function recreateAcpSessionRuntime(
   options: AcpServiceOptions = {},
 ): Promise<AcpRuntimeSessionSnapshot> {
   const session = getSessionRow(sqlite, sessionId);
-  const replayPrompt = buildAcpSessionReplayPrompt(sqlite, sessionId, nextConfig);
+  const replayPrompt = buildAcpSessionReplayPrompt(
+    sqlite,
+    sessionId,
+    nextConfig,
+  );
   const baseHooks = createRuntimeHooks(
     sqlite,
     broker,
@@ -1632,7 +1633,7 @@ async function recreateAcpSessionRuntime(
     },
   };
 
-  await runtime.deleteSession(sessionId);
+  await runtime.killSession(sessionId);
 
   try {
     const created = await runtime.createSession({
@@ -1656,7 +1657,7 @@ async function recreateAcpSessionRuntime(
     return created;
   } catch (error) {
     muteUpdates = false;
-    await runtime.deleteSession(sessionId);
+    await runtime.killSession(sessionId);
     throw error;
   }
 }
@@ -2316,7 +2317,7 @@ export async function deleteAcpSession(
   sessionId: string,
 ): Promise<void> {
   getSessionRow(sqlite, sessionId);
-  await runtime.deleteSession(sessionId);
+  await runtime.killSession(sessionId);
   sqlite
     .prepare(
       `
@@ -2373,6 +2374,7 @@ export async function promptAcpSession(
   input: PromptSessionInput,
   options: AcpServiceOptions = {},
 ) {
+  const timeoutMs = input.timeoutMs ?? DEFAULT_ACP_PROMPT_TIMEOUT_MS;
   const session = getSessionRow(sqlite, sessionId);
   if (session.project_id !== projectId) {
     throwSessionNotFound(sessionId);
@@ -2410,7 +2412,7 @@ export async function promptAcpSession(
       prompt: effectivePrompt,
       provider: session.provider,
       eventId: input.eventId,
-      timeoutMs: input.timeoutMs,
+      timeoutMs,
       traceId: input.traceId,
     });
 

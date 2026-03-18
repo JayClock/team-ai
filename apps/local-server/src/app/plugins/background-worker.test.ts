@@ -50,9 +50,12 @@ describe('background worker plugin', () => {
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
     await fastify.register(
-      fp(async (instance) => {
-        instance.decorate('acpRuntime', createRuntimeStub());
-      }, { name: 'acp-runtime' }),
+      fp(
+        async (instance) => {
+          instance.decorate('acpRuntime', createRuntimeStub());
+        },
+        { name: 'acp-runtime' },
+      ),
     );
     await fastify.register(backgroundWorkerPlugin, {
       intervalMs: 1000,
@@ -78,9 +81,12 @@ describe('background worker plugin', () => {
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
     await fastify.register(
-      fp(async (instance) => {
-        instance.decorate('acpRuntime', createRuntimeStub());
-      }, { name: 'acp-runtime' }),
+      fp(
+        async (instance) => {
+          instance.decorate('acpRuntime', createRuntimeStub());
+        },
+        { name: 'acp-runtime' },
+      ),
     );
     await fastify.register(backgroundWorkerPlugin, {
       enabled: false,
@@ -99,9 +105,12 @@ describe('background worker plugin', () => {
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
     await fastify.register(
-      fp(async (instance) => {
-        instance.decorate('acpRuntime', createRuntimeStub());
-      }, { name: 'acp-runtime' }),
+      fp(
+        async (instance) => {
+          instance.decorate('acpRuntime', createRuntimeStub());
+        },
+        { name: 'acp-runtime' },
+      ),
     );
     await fastify.register(backgroundWorkerPlugin, {
       enabled: false,
@@ -130,7 +139,8 @@ describe('background worker plugin', () => {
       title: 'Lane session background task',
     });
 
-    const [dispatched] = await fastify.backgroundWorkerService.dispatchPending(1);
+    const [dispatched] =
+      await fastify.backgroundWorkerService.dispatchPending(1);
     const updatedTask = await getTaskById(fastify.sqlite, task.id);
 
     expect(dispatched).toMatchObject({
@@ -159,16 +169,21 @@ describe('background worker plugin', () => {
     await fastify.register(sqlitePlugin);
     await fastify.register(acpStreamPlugin);
     await fastify.register(
-      fp(async (instance) => {
-        instance.decorate('acpRuntime', createRuntimeStub());
-      }, { name: 'acp-runtime' }),
+      fp(
+        async (instance) => {
+          instance.decorate('acpRuntime', createRuntimeStub());
+        },
+        { name: 'acp-runtime' },
+      ),
     );
     await fastify.register(backgroundWorkerPlugin, {
       enabled: false,
     });
     await fastify.ready();
 
-    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-specialist-adapter-'));
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-specialist-adapter-'),
+    );
     cleanupTasks.push(async () => {
       await rm(repoPath, { recursive: true, force: true });
     });
@@ -202,7 +217,8 @@ describe('background worker plugin', () => {
       title: 'Adapter-backed task',
     });
 
-    const [dispatched] = await fastify.backgroundWorkerService.dispatchPending(1);
+    const [dispatched] =
+      await fastify.backgroundWorkerService.dispatchPending(1);
 
     expect(dispatched).toMatchObject({
       id: backgroundTask.id,
@@ -221,7 +237,9 @@ describe('background worker plugin', () => {
 
     expect(session.provider).toBe('codex');
     expect(session.specialistId).toBe('adapter-backed');
-    expect(agent.systemPrompt).toContain('Reminder: Keep the task scope tight.');
+    expect(agent.systemPrompt).toContain(
+      'Reminder: Keep the task scope tight.',
+    );
   });
 });
 
@@ -233,7 +251,7 @@ function createRuntimeStub(): AcpRuntimeClient {
       provider: input.provider,
       runtimeSessionId: 'runtime-worker-test',
     })),
-    deleteSession: vi.fn(async () => undefined),
+    killSession: vi.fn(async () => undefined),
     isConfigured: vi.fn((provider?: string) => provider === 'codex'),
     isSessionActive: vi.fn(() => false),
     loadSession: vi.fn(async (input) => ({

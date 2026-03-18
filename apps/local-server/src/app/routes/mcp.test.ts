@@ -138,7 +138,9 @@ describe('mcp route', () => {
 
       const lastBlock = blocks.at(-1);
       if (!lastBlock) {
-        throw new Error('Expected SSE response to contain at least one data block');
+        throw new Error(
+          'Expected SSE response to contain at least one data block',
+        );
       }
 
       return JSON.parse(lastBlock) as Record<string, any>;
@@ -162,7 +164,9 @@ describe('mcp route', () => {
       return JSON.parse(firstContent.text) as T;
     }
 
-    throw new Error('Expected MCP response to include structuredContent or text content');
+    throw new Error(
+      'Expected MCP response to include structuredContent or text content',
+    );
   }
 
   function readMcpToolErrorText(response: {
@@ -212,7 +216,7 @@ describe('mcp route', () => {
         runtimeSessionId: 'runtime-1',
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -345,8 +349,8 @@ describe('mcp route', () => {
 
     expect(listProjectsResponse.statusCode).toBe(200);
     expect(
-      readMcpResult<{ items: Array<{ id: string }> }>(listProjectsResponse).items[0]
-        .id,
+      readMcpResult<{ items: Array<{ id: string }> }>(listProjectsResponse)
+        .items[0].id,
     ).toBe(project.id);
 
     const listAgentsResponse = await callMcp(
@@ -367,8 +371,9 @@ describe('mcp route', () => {
 
     expect(listAgentsResponse.statusCode).toBe(200);
     expect(
-      readMcpResult<{ items: Array<Record<string, unknown>> }>(listAgentsResponse)
-        .items[0],
+      readMcpResult<{ items: Array<Record<string, unknown>> }>(
+        listAgentsResponse,
+      ).items[0],
     ).toMatchObject({
       projectId: project.id,
       name: 'Planner',
@@ -393,8 +398,9 @@ describe('mcp route', () => {
 
     expect(listTasksResponse.statusCode).toBe(200);
     expect(
-      readMcpResult<{ items: Array<Record<string, unknown>> }>(listTasksResponse)
-        .items[0],
+      readMcpResult<{ items: Array<Record<string, unknown>> }>(
+        listTasksResponse,
+      ).items[0],
     ).toMatchObject({
       id: task.id,
       projectId: project.id,
@@ -420,7 +426,9 @@ describe('mcp route', () => {
     );
 
     expect(getTaskResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(getTaskResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(getTaskResponse),
+    ).toMatchObject({
       task: {
         id: task.id,
         kind: 'implement',
@@ -525,8 +533,9 @@ describe('mcp route', () => {
 
     expect(listNotesResponse.statusCode).toBe(200);
     expect(
-      readMcpResult<{ items: Array<Record<string, unknown>> }>(listNotesResponse)
-        .items[0],
+      readMcpResult<{ items: Array<Record<string, unknown>> }>(
+        listNotesResponse,
+      ).items[0],
     ).toMatchObject({
       id: note.id,
       sessionId: rootSessionId,
@@ -552,7 +561,9 @@ describe('mcp route', () => {
     );
 
     expect(readNoteResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(readNoteResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(readNoteResponse),
+    ).toMatchObject({
       note: {
         content: '# MCP Notes\n\nTrack orchestration state.',
         id: note.id,
@@ -650,7 +661,9 @@ describe('mcp route', () => {
     );
 
     expect(taskUpdateResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(taskUpdateResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(taskUpdateResponse),
+    ).toMatchObject({
       task: {
         id: task.id,
         status: 'COMPLETED',
@@ -723,7 +736,9 @@ describe('mcp route', () => {
     );
 
     expect(taskRunsResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(taskRunsResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(taskRunsResponse),
+    ).toMatchObject({
       items: [
         expect.objectContaining({
           isLatest: true,
@@ -737,9 +752,9 @@ describe('mcp route', () => {
       total: 1,
     });
 
-    const taskRunSessionId = readMcpResult<{ items: Array<{ sessionId: string }> }>(
-      taskRunsResponse,
-    ).items[0].sessionId;
+    const taskRunSessionId = readMcpResult<{
+      items: Array<{ sessionId: string }>;
+    }>(taskRunsResponse).items[0].sessionId;
 
     const appendNoteResponse = await callMcp(
       fastify,
@@ -763,7 +778,9 @@ describe('mcp route', () => {
     );
 
     expect(appendNoteResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(appendNoteResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(appendNoteResponse),
+    ).toMatchObject({
       note: {
         assignedAgentIds: ['agent-reviewer'],
         content: '## Verdict\n\n- pass',
@@ -874,7 +891,7 @@ describe('mcp route', () => {
         runtimeSessionId: 'runtime-readonly',
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -981,7 +998,7 @@ describe('mcp route', () => {
         runtimeSessionId: `runtime-${input.provider}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1070,7 +1087,7 @@ describe('mcp route', () => {
         runtimeSessionId: `runtime-${input.provider}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1162,14 +1179,16 @@ Validation and review logic
     );
 
     expect(firstResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(firstResponse)).toMatchObject({
-      note: {
-        projectId: project.id,
-        sessionId: rootSessionId,
-        title: 'Execution Spec',
-        type: 'spec',
+    expect(readMcpResult<Record<string, unknown>>(firstResponse)).toMatchObject(
+      {
+        note: {
+          projectId: project.id,
+          sessionId: rootSessionId,
+          title: 'Execution Spec',
+          type: 'spec',
+        },
       },
-    });
+    );
     const firstPayload = readMcpResult<{
       note: { id: string };
     }>(firstResponse);
@@ -1228,7 +1247,9 @@ Validation and review logic
     );
 
     expect(secondResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(secondResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(secondResponse),
+    ).toMatchObject({
       note: {
         id: firstPayload.note.id,
         projectId: project.id,
@@ -1267,7 +1288,7 @@ Validation and review logic
         runtimeSessionId: `runtime-${input.provider}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1387,7 +1408,7 @@ Validation and review logic
         runtimeSessionId: `runtime-${input.provider}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1472,7 +1493,9 @@ Validation and review logic
             summary: 'Implemented the downstream report flow',
             verdict: 'completed',
             filesChanged: ['apps/local-server/src/app/routes/mcp.ts'],
-            verificationPerformed: ['npx nx test local-server --runTestsByPath mcp'],
+            verificationPerformed: [
+              'npx nx test local-server --runTestsByPath mcp',
+            ],
           },
         },
       },
@@ -1480,7 +1503,9 @@ Validation and review logic
     );
 
     expect(implementationResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(implementationResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(implementationResponse),
+    ).toMatchObject({
       autoHandoff: [
         expect.objectContaining({
           dispatched: true,
@@ -1640,7 +1665,9 @@ Validation and review logic
             sessionId: verificationSessionId,
             summary: 'Gate approved the report flow',
             verdict: 'pass',
-            verificationPerformed: ['npx nx test local-server --runTestsByPath task-report-service'],
+            verificationPerformed: [
+              'npx nx test local-server --runTestsByPath task-report-service',
+            ],
           },
         },
       },
@@ -1648,7 +1675,9 @@ Validation and review logic
     );
 
     expect(gatePassResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(gatePassResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(gatePassResponse),
+    ).toMatchObject({
       note: {
         linkedTaskId: verificationTask.id,
         sessionId: rootSessionId,
@@ -1759,7 +1788,9 @@ Validation and review logic
     );
 
     expect(gateFailResponse.statusCode).toBe(200);
-    expect(readMcpResult<Record<string, unknown>>(gateFailResponse)).toMatchObject({
+    expect(
+      readMcpResult<Record<string, unknown>>(gateFailResponse),
+    ).toMatchObject({
       report: {
         mode: 'verification',
         parentSessionId: rootSessionId,
@@ -1797,7 +1828,7 @@ Validation and review logic
         runtimeSessionId: `runtime-${input.provider}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1872,7 +1903,7 @@ Validation and review logic
         runtimeSessionId: `runtime-${input.provider}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -2030,7 +2061,7 @@ Validation and review logic
         runtimeSessionId: `runtime-${input.provider}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({

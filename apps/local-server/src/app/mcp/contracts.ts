@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import { taskStatusValues } from '../services/task-service';
+import { DEFAULT_ACP_PROMPT_TIMEOUT_MS } from '../services/acp-service';
 
 export const mcpAccessModeHeader = 'x-teamai-mcp-access-mode';
 export const mcpSessionHeader = 'mcp-session-id';
@@ -282,7 +283,11 @@ export const promptAcpSessionArgsSchema = z.object({
   projectId: z.string().trim().min(1),
   prompt: z.string().trim().min(1),
   sessionId: z.string().trim().min(1),
-  timeoutMs: z.coerce.number().int().positive().optional(),
+  timeoutMs: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_ACP_PROMPT_TIMEOUT_MS),
   traceId: z.string().trim().min(1).optional(),
 });
 

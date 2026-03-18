@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildProviderLaunchCommand,
   createAcpRuntimeClient,
+  resolveAcpPromptTransportTimeoutMs,
+  resolveAcpRequestTimeoutMs,
 } from './acp-runtime-client';
 
 describe('acp-runtime-client provider configuration', () => {
@@ -134,5 +136,16 @@ describe('acp-runtime-client provider configuration', () => {
         '/tmp/workspace',
       ],
     });
+  });
+
+  it('uses longer initialize timeouts for npx-based ACP providers', () => {
+    expect(resolveAcpRequestTimeoutMs('initialize', 'npx')).toBe(120_000);
+    expect(resolveAcpRequestTimeoutMs('session/new', 'uvx')).toBe(120_000);
+    expect(resolveAcpRequestTimeoutMs('initialize', 'codex-acp')).toBe(10_000);
+  });
+
+  it('keeps prompt transport timeout aligned with routa grace semantics', () => {
+    expect(resolveAcpPromptTransportTimeoutMs(1_000)).toBe(30_000);
+    expect(resolveAcpPromptTransportTimeoutMs(45_000)).toBe(46_000);
   });
 });

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AcpCliProviderAdapter,
   OpencodeAcpCliProviderAdapter,
+  resolveAcpCliRequestTimeoutMs,
 } from './acp-cli-provider.js';
 
 vi.mock('node:child_process', () => ({
@@ -187,6 +188,15 @@ describe('AcpCliProviderAdapter', () => {
     );
     expect(onComplete).toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('uses routa-style init timeouts for npx and uvx runtimes', () => {
+    expect(resolveAcpCliRequestTimeoutMs('initialize', 'npx')).toBe(120_000);
+    expect(resolveAcpCliRequestTimeoutMs('session/new', 'uvx')).toBe(120_000);
+    expect(resolveAcpCliRequestTimeoutMs('initialize', 'opencode')).toBe(
+      10_000,
+    );
+    expect(resolveAcpCliRequestTimeoutMs('session/prompt', 'npx')).toBe(10_000);
   });
 
   it('cancels active ACP prompts through session/cancel', async () => {

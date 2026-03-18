@@ -20,6 +20,7 @@ import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 
 const DEFAULT_CANCEL_GRACE_MS = 3_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+const DEFAULT_PACKAGE_MANAGER_INIT_TIMEOUT_MS = 120_000;
 const DEFAULT_TERMINAL_OUTPUT_LIMIT = 64 * 1024;
 
 type JsonRpcMessage = {
@@ -250,7 +251,12 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
   ): Promise<ActiveSession> {
     const child = spawn(
       this.command,
-      buildLaunchArgs(this.preset.providerId, this.baseArgs, this.cwdArg, request.cwd),
+      buildLaunchArgs(
+        this.preset.providerId,
+        this.baseArgs,
+        this.cwdArg,
+        request.cwd,
+      ),
       {
         stdio: ['pipe', 'pipe', 'pipe'],
         shell: false,
@@ -674,7 +680,7 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
     session: ActiveSession,
     method: string,
     params: Record<string, unknown>,
-    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    timeoutMs = resolveAcpCliRequestTimeoutMs(method, this.command),
   ): Promise<unknown> {
     return awaitResponse(() => {
       session.requestId += 1;
@@ -773,6 +779,19 @@ export class AcpCliProviderAdapter implements ProviderAdapter {
   }
 }
 
+export function resolveAcpCliRequestTimeoutMs(
+  method: string,
+  runtimeCommand: string,
+): number {
+  if (method === 'initialize' || method === 'session/new') {
+    return runtimeCommand === 'npx' || runtimeCommand === 'uvx'
+      ? DEFAULT_PACKAGE_MANAGER_INIT_TIMEOUT_MS
+      : DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+
+  return DEFAULT_REQUEST_TIMEOUT_MS;
+}
+
 export class OpencodeAcpCliProviderAdapter extends AcpCliProviderAdapter {
   override getBehavior(): ProviderBehavior {
     return getOpencodeAcpCliBehavior();
@@ -807,7 +826,12 @@ function buildDockerOpencodeLaunchArgs(
   const workspacePath = cwd?.trim();
 
   if (workspacePath) {
-    launchArgs.push('-v', `${workspacePath}:${workspacePath}`, '-w', workspacePath);
+    launchArgs.push(
+      '-v',
+      `${workspacePath}:${workspacePath}`,
+      '-w',
+      workspacePath,
+    );
   }
 
   launchArgs.push('ghcr.io/sst/opencode:latest', 'opencode', 'acp');

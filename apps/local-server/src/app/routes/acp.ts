@@ -12,6 +12,7 @@ import {
 } from '../presenters/acp-presenter';
 import { presentAcpSessionContext } from '../presenters/session-context-presenter';
 import {
+  DEFAULT_ACP_PROMPT_TIMEOUT_MS,
   cancelAcpSession,
   createAcpSession,
   deleteAcpSession,
@@ -371,44 +372,87 @@ const acpRoute: FastifyPluginAsync = async (fastify) => {
           });
         }
         case 'session/prompt': {
-          const result = await promptAcpSession(
+          const projectId = z.string().min(1).parse(params.projectId);
+          const sessionId = z.string().min(1).parse(params.sessionId);
+          const promptInput = {
+            prompt: z.string().trim().min(1).parse(params.prompt),
+            timeoutMs: z.coerce
+              .number()
+              .int()
+              .positive()
+              .default(DEFAULT_ACP_PROMPT_TIMEOUT_MS)
+              .parse(params.timeoutMs),
+            eventId: z
+              .string()
+              .trim()
+              .min(1)
+              .optional()
+              .parse(params.eventId),
+            traceId: z
+              .string()
+              .trim()
+              .min(1)
+              .optional()
+              .parse(params.traceId),
+          };
+          const session = await getAcpSessionById(fastify.sqlite, sessionId);
+          if (session.project.id !== projectId) {
+            throw fastify.httpErrors.notFound();
+          }
+
+          if (session.task) {
+            const result = await promptAcpSession(
+              fastify.sqlite,
+              fastify.acpStreamBroker,
+              fastify.acpRuntime,
+              projectId,
+              sessionId,
+              promptInput,
+              {
+                logger: request.log,
+                source: 'acp-route',
+              },
+            );
+
+            return resultEnvelope(id, {
+              session: {
+                acpStatus: result.session.acpStatus,
+                id: result.session.id,
+              },
+              runtime: result.runtime,
+            });
+          }
+
+          void promptAcpSession(
             fastify.sqlite,
             fastify.acpStreamBroker,
             fastify.acpRuntime,
-            z.string().min(1).parse(params.projectId),
-            z.string().min(1).parse(params.sessionId),
-            {
-              prompt: z.string().trim().min(1).parse(params.prompt),
-              timeoutMs: z.coerce
-                .number()
-                .int()
-                .positive()
-                .optional()
-                .parse(params.timeoutMs),
-              eventId: z
-                .string()
-                .trim()
-                .min(1)
-                .optional()
-                .parse(params.eventId),
-              traceId: z
-                .string()
-                .trim()
-                .min(1)
-                .optional()
-                .parse(params.traceId),
-            },
+            projectId,
+            sessionId,
+            promptInput,
             {
               logger: request.log,
               source: 'acp-route',
             },
-          );
+          ).catch((error: unknown) => {
+            request.log.error(
+              {
+                err: error,
+                method: 'session/prompt',
+                projectId,
+                sessionId,
+                traceId: promptInput.traceId ?? null,
+              },
+              'ACP prompt execution failed after async acceptance',
+            );
+          });
+
           return resultEnvelope(id, {
             session: {
-              acpStatus: result.session.acpStatus,
-              id: result.session.id,
+              acpStatus: 'running',
+              id: sessionId,
             },
-            runtime: result.runtime ?? null,
+            runtime: null,
           });
         }
         case 'session/cancel': {

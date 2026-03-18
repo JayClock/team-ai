@@ -14,7 +14,11 @@ import acpStreamPlugin from '../plugins/acp-stream';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';
-import { createAcpSession, getAcpSessionById } from '../services/acp-service';
+import {
+  createAcpSession,
+  DEFAULT_ACP_PROMPT_TIMEOUT_MS,
+  getAcpSessionById,
+} from '../services/acp-service';
 import {
   getProjectWorktreeById,
   createProjectWorktree,
@@ -90,7 +94,7 @@ describe('acp route', () => {
         runtimeSessionId: 'runtime-1',
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -170,11 +174,23 @@ describe('acp route', () => {
     });
 
     expect(promptResponse.statusCode).toBe(200);
+    expect(promptResponse.json()).toMatchObject({
+      id: 'req-2',
+      jsonrpc: '2.0',
+      error: null,
+      result: {
+        session: {
+          acpStatus: 'running',
+          id: sessionId,
+        },
+        runtime: null,
+      },
+    });
     expect(promptMock).toHaveBeenCalledTimes(1);
     expect(promptMock).toHaveBeenCalledWith(
       expect.objectContaining({
         localSessionId: sessionId,
-        timeoutMs: undefined,
+        timeoutMs: DEFAULT_ACP_PROMPT_TIMEOUT_MS,
         eventId: undefined,
         traceId: undefined,
       }),
@@ -251,7 +267,7 @@ describe('acp route', () => {
           provider: input.provider,
         };
       }),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -374,7 +390,7 @@ describe('acp route', () => {
         runtimeSessionId: 'runtime-alias',
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -443,7 +459,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -531,7 +547,7 @@ describe('acp route', () => {
         provider: input.provider,
       };
     });
-    const deleteSessionMock = vi.fn(async (localSessionId: string) => {
+    const killSessionMock = vi.fn(async (localSessionId: string) => {
       activeSessions.delete(localSessionId);
     });
     const promptSessionMock = vi.fn(async (input) => {
@@ -578,7 +594,7 @@ describe('acp route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: createSessionMock,
-      deleteSession: deleteSessionMock,
+      killSession: killSessionMock,
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn((localSessionId: string) =>
         activeSessions.has(localSessionId),
@@ -645,7 +661,7 @@ describe('acp route', () => {
       model: 'gpt-5.4',
       provider: 'codex',
     });
-    expect(deleteSessionMock).toHaveBeenCalledWith(sessionId);
+    expect(killSessionMock).toHaveBeenCalledWith(sessionId);
     expect(createSessionMock).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
@@ -703,7 +719,7 @@ describe('acp route', () => {
         provider: input.provider,
       };
     });
-    const deleteSessionMock = vi.fn(async (localSessionId: string) => {
+    const killSessionMock = vi.fn(async (localSessionId: string) => {
       activeSessions.delete(localSessionId);
     });
 
@@ -711,7 +727,7 @@ describe('acp route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: createSessionMock,
-      deleteSession: deleteSessionMock,
+      killSession: killSessionMock,
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn((localSessionId: string) =>
         activeSessions.has(localSessionId),
@@ -767,7 +783,7 @@ describe('acp route', () => {
       model: null,
       provider: 'opencode',
     });
-    expect(deleteSessionMock).toHaveBeenCalledWith(sessionId);
+    expect(killSessionMock).toHaveBeenCalledWith(sessionId);
     expect(createSessionMock).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
@@ -795,7 +811,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -893,7 +909,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -963,7 +979,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1037,7 +1053,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1100,7 +1116,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1243,7 +1259,7 @@ describe('acp route', () => {
           detail: 'Provider codex is unavailable',
         });
       }),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1370,7 +1386,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1456,7 +1472,7 @@ describe('acp route', () => {
           provider: input.provider,
         };
       }),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1576,7 +1592,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1662,7 +1678,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1755,7 +1771,7 @@ describe('acp route', () => {
         runtimeSessionId: `runtime-${input.localSessionId}`,
         provider: input.provider,
       })),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -1866,7 +1882,7 @@ describe('acp route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: createRuntimeSession,
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(async (input) => ({
@@ -2012,7 +2028,7 @@ describe('acp route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: vi.fn(),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => false),
       loadSession: vi.fn(),
@@ -2104,7 +2120,7 @@ describe('acp route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: vi.fn(),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => false),
       loadSession: vi.fn(),
@@ -2166,7 +2182,7 @@ describe('acp route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: vi.fn(),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => false),
       loadSession: vi.fn(),
@@ -2218,7 +2234,7 @@ describe('acp route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: vi.fn(),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => false),
       loadSession: vi.fn(),
@@ -2269,7 +2285,7 @@ describe('acp route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: vi.fn(),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => false),
       loadSession: vi.fn(),

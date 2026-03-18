@@ -52,7 +52,7 @@ describe('acp session context route', () => {
       cancelSession: vi.fn(async () => undefined),
       close: vi.fn(async () => undefined),
       createSession: vi.fn(),
-      deleteSession: vi.fn(async () => undefined),
+      killSession: vi.fn(async () => undefined),
       isConfigured: vi.fn(() => true),
       isSessionActive: vi.fn(() => true),
       loadSession: vi.fn(),

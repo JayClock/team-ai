@@ -79,6 +79,42 @@ function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
   }
 }
 
+export function isAssistantProgressEvent(event: AcpEventEnvelope): boolean {
+  switch (event.update.eventType) {
+    case 'agent_message':
+    case 'agent_thought':
+    case 'tool_call':
+    case 'tool_call_update':
+    case 'terminal_created':
+    case 'terminal_output':
+    case 'terminal_exited':
+    case 'turn_complete':
+    case 'error':
+      return true;
+    default:
+      return false;
+  }
+}
+
+export function shouldClearPendingAssistant(
+  pendingEmittedAt: string,
+  history: AcpEventEnvelope[],
+): boolean {
+  const pendingAtMs = Date.parse(pendingEmittedAt);
+  if (Number.isNaN(pendingAtMs)) {
+    return history.some(isAssistantProgressEvent);
+  }
+
+  return history.some((event) => {
+    if (!isAssistantProgressEvent(event)) {
+      return false;
+    }
+
+    const eventAtMs = Date.parse(event.emittedAt);
+    return !Number.isNaN(eventAtMs) && eventAtMs >= pendingAtMs;
+  });
+}
+
 function resolveToolName(event: AcpEventEnvelope): string {
   const kind = asText(event.update.toolCall?.kind);
   if (kind) {
@@ -507,6 +543,28 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
     }
   }, [transientMessages, transientSessionKey]);
 
+  useEffect(() => {
+    if (!activeChatSessionKey) {
+      return;
+    }
+
+    setTransientMessages((current) =>
+      current.filter((entry) => {
+        if (
+          entry.sessionId !== activeChatSessionKey ||
+          entry.message.metadata?.pending !== true
+        ) {
+          return true;
+        }
+
+        return !shouldClearPendingAssistant(
+          entry.message.metadata?.emittedAt ?? '',
+          history,
+        );
+      }),
+    );
+  }, [activeChatSessionKey, history]);
+
   const appendOptimisticUserMessage = useCallback(
     (sessionId: string, text: string) => {
       const optimisticId = `optimistic-user-${sessionId}-${optimisticMessageCounterRef.current++}`;
@@ -627,7 +685,9 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
           prompt: trimmed,
         });
         await refreshSessions();
-        removeTransientPair(optimisticId, pendingAssistantId);
+        if (optimisticId) {
+          removeTransientMessage(optimisticId);
+        }
       } catch (error) {
         removeTransientPair(optimisticId, pendingAssistantId);
         const message = error instanceof Error ? error.message : '发送消息失败';
@@ -642,6 +702,7 @@ export function useProjectSessionChat(options: UseProjectSessionChatOptions) {
       createSession,
       refreshSessions,
       rebindTransientMessages,
+      removeTransientMessage,
       removeTransientPair,
       selectedSession,
       submitPrompt,

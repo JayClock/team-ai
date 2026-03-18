@@ -9,6 +9,10 @@ import {
   hasStructuredValue,
 } from '../services/canonical-acp-update';
 import { ProblemError } from '../errors/problem-error';
+import {
+  AcpSessionProcessManager,
+  type ManagedAcpSessionSnapshot,
+} from './acp-session-process-manager';
 import type {
   AgentGatewayClient,
   AgentGatewayEventEnvelope,
@@ -26,6 +30,7 @@ import type {
 import type { NormalizedSessionUpdate } from '../services/normalized-session-update';
 
 const EVENT_POLL_INTERVAL_MS = 150;
+const PROMPT_COMPLETION_GRACE_MS = 1_000;
 
 interface ActiveGatewayRuntimeSession {
   cursor: string | null;
@@ -42,13 +47,24 @@ interface WaitResult {
   stopReason: 'cancelled' | 'end_turn';
 }
 
+export function resolvePromptCompletionWaitTimeoutMs(
+  timeoutMs: number | undefined,
+): number | undefined {
+  if (!timeoutMs || timeoutMs <= 0) {
+    return undefined;
+  }
+
+  return timeoutMs + PROMPT_COMPLETION_GRACE_MS;
+}
+
 export function createAgentGatewayRuntimeClient(
   agentGatewayClient: AgentGatewayClient,
 ): AcpRuntimeClient {
-  const sessions = new Map<string, ActiveGatewayRuntimeSession>();
+  const sessionManager =
+    new AcpSessionProcessManager<ActiveGatewayRuntimeSession>();
 
   function getSession(localSessionId: string): ActiveGatewayRuntimeSession {
-    const session = sessions.get(localSessionId);
+    const session = sessionManager.get(localSessionId)?.resource;
     if (!session) {
       throw new ProblemError({
         type: 'https://team-ai.dev/problems/acp-session-runtime-not-loaded',
@@ -74,7 +90,7 @@ export function createAgentGatewayRuntimeClient(
       },
     });
 
-    sessions.set(input.localSessionId, {
+    const session: ActiveGatewayRuntimeSession = {
       cursor: created.session.lastCursor ?? null,
       cwd: input.cwd,
       gatewaySessionId: created.session.sessionId,
@@ -83,6 +99,14 @@ export function createAgentGatewayRuntimeClient(
       mcpServers: input.mcpServers,
       model: input.model ?? null,
       provider: input.provider,
+    };
+    await sessionManager.register({
+      cleanup: async () => undefined,
+      cwd: session.cwd,
+      localSessionId: session.localSessionId,
+      provider: session.provider,
+      resource: session,
+      runtimeSessionId: session.gatewaySessionId,
     });
 
     return {
@@ -94,7 +118,7 @@ export function createAgentGatewayRuntimeClient(
   async function loadSession(
     input: LoadAcpRuntimeSessionInput,
   ): Promise<AcpRuntimeSessionSnapshot> {
-    const existing = sessions.get(input.localSessionId);
+    const existing = sessionManager.get(input.localSessionId)?.resource;
     if (existing) {
       return {
         provider: existing.provider,
@@ -106,7 +130,7 @@ export function createAgentGatewayRuntimeClient(
       const response = await agentGatewayClient.listEvents(
         input.runtimeSessionId,
       );
-      sessions.set(input.localSessionId, {
+      const session: ActiveGatewayRuntimeSession = {
         cursor: response.nextCursor ?? response.session.lastCursor ?? null,
         cwd: input.cwd,
         gatewaySessionId: input.runtimeSessionId,
@@ -115,6 +139,14 @@ export function createAgentGatewayRuntimeClient(
         mcpServers: input.mcpServers,
         model: input.model ?? null,
         provider: input.provider,
+      };
+      await sessionManager.register({
+        cleanup: async () => undefined,
+        cwd: session.cwd,
+        localSessionId: session.localSessionId,
+        provider: session.provider,
+        resource: session,
+        runtimeSessionId: session.gatewaySessionId,
       });
 
       return {
@@ -163,12 +195,8 @@ export function createAgentGatewayRuntimeClient(
     });
   }
 
-  async function deleteSession(localSessionId: string): Promise<void> {
-    sessions.delete(localSessionId);
-  }
-
-  async function close(): Promise<void> {
-    sessions.clear();
+  async function killSession(localSessionId: string): Promise<void> {
+    await sessionManager.remove(localSessionId);
   }
 
   function isConfigured(provider: string): boolean {
@@ -176,16 +204,21 @@ export function createAgentGatewayRuntimeClient(
   }
 
   function isSessionActive(localSessionId: string): boolean {
-    return sessions.has(localSessionId);
+    return sessionManager.has(localSessionId);
+  }
+
+  async function close(): Promise<void> {
+    await sessionManager.close();
   }
 
   return {
     cancelSession,
     close,
     createSession,
-    deleteSession,
     isConfigured,
     isSessionActive,
+    killSession,
+    listSessions: (): ManagedAcpSessionSnapshot[] => sessionManager.list(),
     loadSession,
     promptSession,
   };
@@ -235,6 +268,7 @@ async function waitForPromptCompletion(
   timeoutMs?: number,
 ): Promise<WaitResult> {
   const startedAt = Date.now();
+  const deadlineMs = resolvePromptCompletionWaitTimeoutMs(timeoutMs);
 
   while (true) {
     const completion = await flushGatewayEvents(agentGatewayClient, session);
@@ -242,11 +276,7 @@ async function waitForPromptCompletion(
       return completion;
     }
 
-    if (
-      timeoutMs &&
-      timeoutMs > 0 &&
-      Date.now() - startedAt > timeoutMs + 5_000
-    ) {
+    if (deadlineMs && Date.now() - startedAt > deadlineMs) {
       throw new ProblemError({
         type: 'https://team-ai.dev/problems/acp-prompt-timeout',
         title: 'ACP Prompt Timed Out',

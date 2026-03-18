@@ -6,7 +6,10 @@ import type {
   AgentGatewayEventEnvelope,
   AgentGatewaySessionPayload,
 } from './agent-gateway-client';
-import { createAgentGatewayRuntimeClient } from './agent-gateway-runtime-client';
+import {
+  createAgentGatewayRuntimeClient,
+  resolvePromptCompletionWaitTimeoutMs,
+} from './agent-gateway-runtime-client';
 
 describe('agent-gateway-runtime-client', () => {
   afterEach(() => {
@@ -421,6 +424,11 @@ describe('agent-gateway-runtime-client', () => {
         }),
       }),
     );
+  });
+
+  it('uses a tight prompt completion grace window', () => {
+    expect(resolvePromptCompletionWaitTimeoutMs(undefined)).toBeUndefined();
+    expect(resolvePromptCompletionWaitTimeoutMs(2_000)).toBe(3_000);
   });
 });
 
