@@ -4,6 +4,14 @@ import { AcpEventEnvelope, AcpSession } from '@shared/schema';
 import { toast } from '@shared/ui';
 import type { DynamicToolUIPart, UIMessage } from 'ai';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  asText,
+  getRawUpdateRecord,
+  normalizeErrorText,
+  resolveToolEventInput,
+  resolveToolEventName,
+  resolveToolEventOutput,
+} from './tool-data';
 
 type SessionTerminalData = {
   args?: string[];
@@ -52,10 +60,6 @@ type UseProjectSessionChatOptions = {
   selectedSession?: State<AcpSession>;
   submitPrompt: (input: { prompt: string; sessionId: string }) => Promise<void>;
 };
-
-function asText(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
 
 function summarizeSessionEvent(event: AcpEventEnvelope): string | null {
   switch (event.update.eventType) {
@@ -116,62 +120,29 @@ export function shouldClearPendingAssistant(
 }
 
 function resolveToolName(event: AcpEventEnvelope): string {
-  const kind = asText(event.update.toolCall?.kind);
-  if (kind) {
-    return kind;
-  }
-
-  const title = asText(event.update.toolCall?.title);
-  if (title) {
-    return title;
-  }
-
-  return 'tool';
+  const rawUpdate = getRawUpdateRecord(event);
+  return resolveToolEventName(rawUpdate, {
+    kind: event.update.toolCall?.kind,
+    title: event.update.toolCall?.title,
+  });
 }
 
 function resolveToolInput(event: AcpEventEnvelope): unknown {
-  const toolCall = event.update.toolCall;
-  if (!toolCall) {
-    return null;
-  }
-
-  if (toolCall.input !== undefined) {
-    return toolCall.input;
-  }
-
-  if (toolCall.content.length > 0) {
-    return toolCall.content;
-  }
-
-  return null;
+  const rawUpdate = getRawUpdateRecord(event);
+  return resolveToolEventInput(event.update.toolCall, rawUpdate);
 }
 
 function resolveToolOutput(event: AcpEventEnvelope): unknown {
-  const toolCall = event.update.toolCall;
-  if (!toolCall) {
-    return null;
-  }
-
-  if (toolCall.output !== undefined) {
-    return toolCall.output;
-  }
-
-  if (toolCall.content.length > 0) {
-    return toolCall.content;
-  }
-
-  return null;
+  const rawUpdate = getRawUpdateRecord(event);
+  return resolveToolEventOutput(event.update.toolCall, rawUpdate);
 }
 
 function resolveToolErrorText(event: AcpEventEnvelope): string {
   const output = resolveToolOutput(event);
 
-  if (typeof output === 'string' && output.trim()) {
-    return output.trim();
-  }
-
-  if (output && typeof output === 'object') {
-    return JSON.stringify(output, null, 2);
+  const normalizedOutput = normalizeErrorText(output);
+  if (normalizedOutput) {
+    return normalizedOutput;
   }
 
   const title = asText(event.update.toolCall?.title);
@@ -182,7 +153,9 @@ function resolveToolErrorText(event: AcpEventEnvelope): string {
   return 'Tool execution failed';
 }
 
-function buildToolPart(event: AcpEventEnvelope): DynamicToolUIPart | null {
+export function buildToolPart(
+  event: AcpEventEnvelope,
+): DynamicToolUIPart | null {
   if (
     event.update.eventType !== 'tool_call' &&
     event.update.eventType !== 'tool_call_update'
@@ -196,8 +169,10 @@ function buildToolPart(event: AcpEventEnvelope): DynamicToolUIPart | null {
   }
 
   const toolCallId = asText(toolCall.toolCallId) ?? event.eventId;
+  const input = resolveToolInput(event);
+  const output = resolveToolOutput(event);
   const toolName = resolveToolName(event);
-  const title = asText(toolCall.title) ?? undefined;
+  const title = toolName;
 
   switch (toolCall.status) {
     case 'completed':
@@ -208,8 +183,8 @@ function buildToolPart(event: AcpEventEnvelope): DynamicToolUIPart | null {
         title,
         providerExecuted: true,
         state: 'output-available',
-        input: resolveToolInput(event),
-        output: resolveToolOutput(event),
+        input,
+        output,
       };
     case 'failed':
       return {
@@ -219,7 +194,7 @@ function buildToolPart(event: AcpEventEnvelope): DynamicToolUIPart | null {
         title,
         providerExecuted: true,
         state: 'output-error',
-        input: resolveToolInput(event),
+        input,
         errorText: resolveToolErrorText(event),
       };
     case 'pending':
@@ -230,7 +205,7 @@ function buildToolPart(event: AcpEventEnvelope): DynamicToolUIPart | null {
         title,
         providerExecuted: true,
         state: 'input-streaming',
-        input: resolveToolInput(event),
+        input,
       };
     case 'running':
     default:
@@ -241,7 +216,7 @@ function buildToolPart(event: AcpEventEnvelope): DynamicToolUIPart | null {
         title,
         providerExecuted: true,
         state: 'input-available',
-        input: resolveToolInput(event),
+        input,
       };
   }
 }

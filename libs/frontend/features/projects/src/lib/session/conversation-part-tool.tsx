@@ -7,8 +7,45 @@ import {
 } from '@shared/ui';
 import type { DynamicToolUIPart, ToolUIPart } from 'ai';
 import type { SessionChatMessage } from './use-project-session-chat';
+import {
+  asRecord,
+  inferToolDisplayName,
+  normalizeErrorText,
+  normalizeToolValue,
+} from './tool-data';
 
 type RenderableToolPart = DynamicToolUIPart | ToolUIPart;
+
+function getStaticToolName(part: ToolUIPart): string {
+  return part.type.split('-').slice(1).join('-');
+}
+
+function getPartTitle(part: RenderableToolPart): string | undefined {
+  return 'title' in part && typeof part.title === 'string' && part.title.trim()
+    ? part.title
+    : undefined;
+}
+
+function normalizeToolPart(part: RenderableToolPart) {
+  const normalizedInput = normalizeToolValue(part.input);
+  const inputRecord = asRecord(normalizedInput);
+  const fallbackName =
+    part.type === 'dynamic-tool' ? part.toolName : getStaticToolName(part);
+  const displayName = inferToolDisplayName(
+    getPartTitle(part) ?? fallbackName,
+    fallbackName,
+    inputRecord,
+  );
+
+  return {
+    displayName,
+    errorText:
+      'errorText' in part ? normalizeErrorText(part.errorText) : undefined,
+    output: 'output' in part ? normalizeToolValue(part.output) : undefined,
+    toolName: fallbackName,
+    input: normalizedInput,
+  };
+}
 
 export function isRenderableToolPart(
   part: SessionChatMessage['parts'][number],
@@ -23,6 +60,8 @@ interface ToolPartProps {
 }
 
 export function ToolPart({ part, index, messageId }: ToolPartProps) {
+  const normalized = normalizeToolPart(part);
+
   return (
     <Tool
       key={`${messageId}-${index}`}
@@ -32,23 +71,23 @@ export function ToolPart({ part, index, messageId }: ToolPartProps) {
     >
       {part.type === 'dynamic-tool' ? (
         <ToolHeader
-          title={part.title}
+          title={normalized.displayName}
           type={part.type}
           state={part.state}
-          toolName={part.toolName}
+          toolName={normalized.toolName}
         />
       ) : (
         <ToolHeader
-          title={'title' in part ? part.title : undefined}
+          title={normalized.displayName}
           type={part.type}
           state={part.state}
         />
       )}
       <ToolContent>
-        <ToolInput input={part.input} />
+        <ToolInput input={normalized.input} />
         <ToolOutput
-          errorText={'errorText' in part ? part.errorText : undefined}
-          output={'output' in part ? part.output : undefined}
+          errorText={normalized.errorText}
+          output={normalized.output}
         />
       </ToolContent>
     </Tool>
