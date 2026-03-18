@@ -45,6 +45,10 @@ import {
   failTaskRun,
   startTaskRun,
 } from './task-run-service';
+import {
+  flushAcpSessionEventWriteBuffer,
+  getAcpSessionEventWriteBuffer,
+} from './acp-session-event-write-buffer';
 import { recordAcpTrace } from './trace-service';
 
 const sessionIdGenerator = customAlphabet(
@@ -814,6 +818,8 @@ async function syncTaskExecutionOutcome(
   options: AcpServiceOptions = {},
   taskStatusOverride?: string,
 ) {
+  await flushAcpSessionEventWriteBuffer(sqlite, sessionId);
+
   const session = getSessionRow(sqlite, sessionId);
   const taskRun = getLatestTaskExecutionRun(sqlite, sessionId);
   if (!taskRun) {
@@ -1086,38 +1092,7 @@ function appendLocalEvent(
     error: input.error ?? null,
   };
 
-  sqlite
-    .prepare(
-      `
-        INSERT OR IGNORE INTO project_acp_session_events (
-          event_id,
-          session_id,
-          type,
-          payload_json,
-          error_json,
-          emitted_at,
-          created_at
-        )
-        VALUES (
-          @eventId,
-          @sessionId,
-          @type,
-          @payloadJson,
-          @errorJson,
-          @emittedAt,
-          @createdAt
-        )
-      `,
-    )
-    .run({
-      eventId: event.eventId,
-      sessionId: event.sessionId,
-      type: update.eventType,
-      payloadJson: JSON.stringify(update),
-      errorJson: event.error ? JSON.stringify(event.error) : null,
-      emittedAt: event.emittedAt,
-      createdAt: emittedAt,
-    });
+  getAcpSessionEventWriteBuffer(sqlite).add(event);
 
   updateSessionRuntime(sqlite, input.sessionId, {
     lastActivityAt: emittedAt,
@@ -1136,6 +1111,10 @@ function appendLocalEvent(
 }
 
 export function hasAcpSessionEvent(sqlite: Database, eventId: string) {
+  if (getAcpSessionEventWriteBuffer(sqlite).hasEvent(eventId)) {
+    return true;
+  }
+
   const row = sqlite
     .prepare(
       `
@@ -1609,6 +1588,7 @@ async function recreateAcpSessionRuntime(
   options: AcpServiceOptions = {},
 ): Promise<AcpRuntimeSessionSnapshot> {
   const session = getSessionRow(sqlite, sessionId);
+  await flushAcpSessionEventWriteBuffer(sqlite, sessionId);
   const replayPrompt = buildAcpSessionReplayPrompt(
     sqlite,
     sessionId,
@@ -2134,6 +2114,8 @@ export async function listAcpSessionHistory(
     throwSessionNotFound(sessionId);
   }
 
+  await flushAcpSessionEventWriteBuffer(sqlite, sessionId);
+
   const sinceSequence = sinceEventId
     ? ((
         sqlite
@@ -2379,6 +2361,8 @@ export async function promptAcpSession(
   if (session.project_id !== projectId) {
     throwSessionNotFound(sessionId);
   }
+
+  await flushAcpSessionEventWriteBuffer(sqlite, sessionId);
 
   const systemPrompt = getSessionAgentPrompt(sqlite, session);
   const bootstrapPrompt = sessionHasPromptHistory(sqlite, sessionId)

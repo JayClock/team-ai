@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { Database } from 'better-sqlite3';
 import { initializeDatabase } from '../db/sqlite';
 import { ensureDefaultProject } from '../services/project-service';
+import { closeAcpSessionEventWriteBuffer } from '../services/acp-session-event-write-buffer';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -16,6 +17,7 @@ const sqlitePlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.decorate('sqlite', sqlite);
   fastify.addHook('onClose', async () => {
+    await closeAcpSessionEventWriteBuffer(sqlite);
     sqlite.close();
   });
 };
