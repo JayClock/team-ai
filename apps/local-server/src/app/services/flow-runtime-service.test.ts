@@ -87,7 +87,9 @@ describe('flow runtime service', () => {
 
     expect(backgroundTasks.items).toEqual([
       expect.objectContaining({
+        agentId: 'claude-code-sdk',
         prompt: 'Ship the slice',
+        specialistId: 'developer',
         workflowRunId: result.workflowRun.id,
         workflowStepName: 'Execute Task',
       }),

@@ -5,7 +5,11 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { createProject } from './project-service';
-import { getSpecialistById, listSpecialists } from './specialist-service';
+import {
+  getSpecialistById,
+  listSpecialists,
+  renderSpecialistSystemPrompt,
+} from './specialist-service';
 
 describe('specialist service', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];
@@ -130,6 +134,50 @@ describe('specialist service', () => {
       id: 'solo-developer',
       role: 'DEVELOPER',
     });
+  });
+
+  it('accepts routa-style metadata aliases without lossy parsing', async () => {
+    const sqlite = await createTestDatabase();
+    const repoPath = await mkdtemp(
+      join(tmpdir(), 'team-ai-specialist-routa-metadata-'),
+    );
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+
+    await mkdir(join(repoPath, 'resources', 'specialists'), {
+      recursive: true,
+    });
+    await writeFile(
+      join(repoPath, 'resources', 'specialists', 'adapter-backed.md'),
+      [
+        '---',
+        'id: adapter-backed',
+        'name: Adapter Backed',
+        'role: DEVELOPER',
+        'default_model_tier: smart',
+        'default_adapter: codex',
+        'role_reminder: Stay inside the bounded task.',
+        '---',
+        'Implement the requested change.',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const project = await createProject(sqlite, {
+      repoPath,
+      title: 'Metadata Aliases',
+    });
+    const specialist = await getSpecialistById(sqlite, project.id, 'adapter-backed');
+
+    expect(specialist).toMatchObject({
+      defaultAdapter: 'codex',
+      modelTier: 'smart',
+      roleReminder: 'Stay inside the bounded task.',
+    });
+    expect(renderSpecialistSystemPrompt(specialist)).toContain(
+      'Reminder: Stay inside the bounded task.',
+    );
   });
 
   it('loads shared library specialists before workspace overrides', async () => {

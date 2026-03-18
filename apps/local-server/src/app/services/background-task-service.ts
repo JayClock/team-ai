@@ -31,6 +31,7 @@ interface BackgroundTaskRow {
   project_id: string;
   prompt: string;
   result_session_id: string | null;
+  specialist_id: string | null;
   started_at: string | null;
   status: string;
   task_id: string | null;
@@ -81,6 +82,7 @@ function mapBackgroundTaskRow(row: BackgroundTaskRow): BackgroundTaskPayload {
     projectId: row.project_id,
     prompt: row.prompt,
     resultSessionId: row.result_session_id,
+    specialistId: row.specialist_id,
     startedAt: row.started_at,
     status: row.status as BackgroundTaskPayload['status'],
     taskId: row.task_id,
@@ -138,7 +140,8 @@ function getBackgroundTaskRow(
                triggered_by, trigger_source, priority, result_session_id,
                error_message, attempts, max_attempts, last_activity_at,
                current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+               workflow_run_id, workflow_step_name, specialist_id,
+               depends_on_task_ids_json,
                task_output, started_at, completed_at, created_at, updated_at
         FROM project_background_tasks
         WHERE id = ? AND deleted_at IS NULL
@@ -169,12 +172,13 @@ export async function createBackgroundTask(
         INSERT INTO project_background_tasks (
           id, project_id, task_id, title, prompt, agent_id, status,
           triggered_by, trigger_source, priority, attempts, max_attempts,
-          workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+          workflow_run_id, workflow_step_name, specialist_id,
+          depends_on_task_ids_json,
           created_at, updated_at, deleted_at
         ) VALUES (
           @id, @projectId, @taskId, @title, @prompt, @agentId, 'PENDING',
           @triggeredBy, @triggerSource, @priority, 0, @maxAttempts,
-          @workflowRunId, @workflowStepName, @dependsOnTaskIdsJson,
+          @workflowRunId, @workflowStepName, @specialistId, @dependsOnTaskIdsJson,
           @createdAt, @updatedAt, NULL
         )
       `,
@@ -188,6 +192,7 @@ export async function createBackgroundTask(
       priority: input.priority ?? 'NORMAL',
       projectId: input.projectId,
       prompt: input.prompt,
+      specialistId: input.specialistId ?? null,
       taskId: input.taskId ?? null,
       title,
       triggeredBy: input.triggeredBy ?? 'user',
@@ -227,7 +232,8 @@ export async function listBackgroundTasks(
                triggered_by, trigger_source, priority, result_session_id,
                error_message, attempts, max_attempts, last_activity_at,
                current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+               workflow_run_id, workflow_step_name, specialist_id,
+               depends_on_task_ids_json,
                task_output, started_at, completed_at, created_at, updated_at
         FROM project_background_tasks
         WHERE ${whereClause}
@@ -274,7 +280,8 @@ export async function listReadyBackgroundTasks(
                triggered_by, trigger_source, priority, result_session_id,
                error_message, attempts, max_attempts, last_activity_at,
                current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+               workflow_run_id, workflow_step_name, specialist_id,
+               depends_on_task_ids_json,
                task_output, started_at, completed_at, created_at, updated_at
         FROM project_background_tasks
         WHERE status = 'PENDING'
@@ -322,7 +329,8 @@ export async function listRunningBackgroundTasks(
                triggered_by, trigger_source, priority, result_session_id,
                error_message, attempts, max_attempts, last_activity_at,
                current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+               workflow_run_id, workflow_step_name, specialist_id,
+               depends_on_task_ids_json,
                task_output, started_at, completed_at, created_at, updated_at
         FROM project_background_tasks
         WHERE status = 'RUNNING' AND deleted_at IS NULL
@@ -345,7 +353,8 @@ export async function findBackgroundTaskBySessionId(
                triggered_by, trigger_source, priority, result_session_id,
                error_message, attempts, max_attempts, last_activity_at,
                current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, depends_on_task_ids_json,
+               workflow_run_id, workflow_step_name, specialist_id,
+               depends_on_task_ids_json,
                task_output, started_at, completed_at, created_at, updated_at
         FROM project_background_tasks
         WHERE result_session_id = ? AND deleted_at IS NULL

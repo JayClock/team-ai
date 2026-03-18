@@ -975,4 +975,11 @@ export const sqliteMigrations: SqliteMigration[] = [
         ON project_traces(event_type, created_at DESC);
     `,
   },
+  {
+    version: '031_project_background_tasks_specialist_binding',
+    sql: `
+      ALTER TABLE project_background_tasks
+        ADD COLUMN specialist_id TEXT;
+    `,
+  },
 ];

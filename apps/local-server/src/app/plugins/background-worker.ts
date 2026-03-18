@@ -21,6 +21,7 @@ import {
 } from '../services/background-worker-service';
 import { listAcpSessionHistory } from '../services/acp-service';
 import { resolveBackgroundTaskFlowExecution } from '../services/flow-runtime-service';
+import { getSpecialistById } from '../services/specialist-service';
 
 interface BackgroundWorkerPluginOptions {
   enabled?: boolean;
@@ -150,19 +151,40 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
           fastify.sqlite,
           task,
         );
-        const useProvider = await executionBoundary.isProviderAvailable(task.agentId);
+        const resolvedSpecialistId =
+          linkedTask?.assignedSpecialistId ?? task.specialistId ?? null;
+        const specialist = resolvedSpecialistId
+          ? await getSpecialistById(
+              fastify.sqlite,
+              task.projectId,
+              resolvedSpecialistId,
+            ).catch(() => null)
+          : null;
+        const directProviderId = await executionBoundary.isProviderAvailable(
+          task.agentId,
+        )
+          ? task.agentId
+          : null;
+        const fallbackProviderId =
+          !directProviderId && specialist?.defaultAdapter
+            ? await executionBoundary.isProviderAvailable(
+                specialist.defaultAdapter,
+              )
+              ? specialist.defaultAdapter
+              : null
+            : null;
+        const providerId = directProviderId ?? fallbackProviderId;
         const session = await executionBoundary.createSession(
           {
             actorUserId: 'desktop-user',
             codebaseId: linkedTask?.codebaseId ?? null,
             goal: task.title,
             model: flowExecution?.modelOverride ?? null,
-            role: linkedTask?.assignedRole ?? null,
+            role: linkedTask?.assignedRole ?? specialist?.role ?? null,
             projectId: task.projectId,
-            provider: useProvider ? task.agentId : null,
-            specialistId: linkedTask?.assignedSpecialistId ?? (
-              useProvider ? undefined : task.agentId
-            ),
+            provider: providerId,
+            specialistId:
+              resolvedSpecialistId ?? (providerId ? undefined : task.agentId),
             taskId: task.taskId,
             worktreeId: linkedTask?.worktreeId ?? null,
           },

@@ -84,14 +84,17 @@ function parseWorkflowSteps(value: string): WorkflowStepPayload[] {
   try {
     const parsed = JSON.parse(value) as unknown;
     return Array.isArray(parsed)
-      ? parsed.filter(
-          (step): step is WorkflowStepPayload =>
-            typeof step === 'object' &&
-            step !== null &&
-            typeof (step as WorkflowStepPayload).name === 'string' &&
-            typeof (step as WorkflowStepPayload).prompt === 'string' &&
-            typeof (step as WorkflowStepPayload).specialistId === 'string',
-        )
+          ? parsed.filter(
+              (step): step is WorkflowStepPayload =>
+                typeof step === 'object' &&
+                step !== null &&
+                typeof (step as WorkflowStepPayload).name === 'string' &&
+                typeof (step as WorkflowStepPayload).prompt === 'string' &&
+                typeof (step as WorkflowStepPayload).specialistId === 'string' &&
+                ((step as WorkflowStepPayload).adapter === undefined ||
+                  (step as WorkflowStepPayload).adapter === null ||
+                  typeof (step as WorkflowStepPayload).adapter === 'string'),
+            )
       : [];
   } catch {
     return [];

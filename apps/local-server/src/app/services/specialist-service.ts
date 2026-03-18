@@ -14,11 +14,14 @@ import { getProjectById } from './project-service';
 type SpecialistSourceScope = SpecialistPayload['source']['scope'];
 
 interface SpecialistFilePayload {
+  defaultAdapter?: string | null;
+  defaultModelTier?: string | null;
   description?: string | null;
   id?: string;
   modelTier?: string | null;
   name?: string;
   role?: string;
+  roleReminder?: string | null;
   systemPrompt?: string;
 }
 
@@ -124,8 +127,17 @@ function parseFrontmatter(content: string) {
       metadata.role = value;
     } else if (key === 'description') {
       metadata.description = value || null;
-    } else if (key === 'modelTier') {
+    } else if (
+      key === 'defaultModelTier' ||
+      key === 'default_model_tier' ||
+      key === 'modelTier' ||
+      key === 'model_tier'
+    ) {
       metadata.modelTier = value || null;
+    } else if (key === 'roleReminder' || key === 'role_reminder') {
+      metadata.roleReminder = value || null;
+    } else if (key === 'defaultAdapter' || key === 'default_adapter') {
+      metadata.defaultAdapter = value || null;
     }
   }
 
@@ -150,17 +162,29 @@ function normalizeSpecialist(
   }
 
   return {
+    defaultAdapter: payload.defaultAdapter ?? null,
     description: payload.description ?? null,
     id: payload.id || fallbackId,
-    modelTier: payload.modelTier ?? null,
+    modelTier: payload.modelTier ?? payload.defaultModelTier ?? null,
     name: payload.name,
     role: payload.role,
+    roleReminder: payload.roleReminder ?? null,
     source: {
       path: filePath,
       scope,
     },
     systemPrompt: payload.systemPrompt,
   } satisfies SpecialistPayload;
+}
+
+export function renderSpecialistSystemPrompt(
+  specialist: Pick<SpecialistPayload, 'roleReminder' | 'systemPrompt'>,
+) {
+  const roleReminder = specialist.roleReminder?.trim();
+
+  return roleReminder
+    ? `${specialist.systemPrompt.trim()}\n\n---\nReminder: ${roleReminder}`
+    : specialist.systemPrompt;
 }
 
 async function readSpecialistFile(

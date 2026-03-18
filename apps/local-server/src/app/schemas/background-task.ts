@@ -30,6 +30,7 @@ export interface BackgroundTaskPayload {
   projectId: string;
   prompt: string;
   resultSessionId: string | null;
+  specialistId: string | null;
   startedAt: string | null;
   status: BackgroundTaskStatus;
   taskId: string | null;
@@ -59,6 +60,7 @@ export interface CreateBackgroundTaskInput {
   priority?: BackgroundTaskPriority;
   projectId: string;
   prompt: string;
+  specialistId?: string | null;
   taskId?: string | null;
   title?: string;
   triggerSource?: BackgroundTaskTriggerSource;

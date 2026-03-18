@@ -1,11 +1,13 @@
 import Fastify from 'fastify';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fp from 'fastify-plugin';
 import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
 import { initializeDatabase } from '../db/sqlite';
+import { getAgentById } from '../services/agent-service';
+import { getAcpSessionById } from '../services/acp-service';
 import { createBackgroundTask } from '../services/background-task-service';
 import { ensureDefaultKanbanBoard } from '../services/kanban-board-service';
 import { createProject } from '../services/project-service';
@@ -147,6 +149,79 @@ describe('background worker plugin', () => {
     ]);
     expect(updatedTask.triggerSessionId).toBe(dispatched.resultSessionId);
     expect(updatedTask.resultSessionId).toBe(dispatched.resultSessionId);
+  });
+
+  it('uses specialist defaultAdapter and roleReminder for specialist-bound tasks', async () => {
+    await createStandaloneDatabase(cleanupTasks);
+    const fastify = Fastify({ logger: false });
+    fastifyInstances.push(fastify);
+
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(
+      fp(async (instance) => {
+        instance.decorate('acpRuntime', createRuntimeStub());
+      }, { name: 'acp-runtime' }),
+    );
+    await fastify.register(backgroundWorkerPlugin, {
+      enabled: false,
+    });
+    await fastify.ready();
+
+    const repoPath = await mkdtemp(join(tmpdir(), 'team-ai-specialist-adapter-'));
+    cleanupTasks.push(async () => {
+      await rm(repoPath, { recursive: true, force: true });
+    });
+    await mkdir(join(repoPath, 'resources', 'specialists'), {
+      recursive: true,
+    });
+    await writeFile(
+      join(repoPath, 'resources', 'specialists', 'adapter-backed.md'),
+      [
+        '---',
+        'id: adapter-backed',
+        'name: Adapter Backed',
+        'role: DEVELOPER',
+        'defaultAdapter: codex',
+        'roleReminder: Keep the task scope tight.',
+        '---',
+        'Implement the requested change.',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const project = await createProject(fastify.sqlite, {
+      repoPath,
+      title: 'Specialist Adapter Fallback',
+    });
+    const backgroundTask = await createBackgroundTask(fastify.sqlite, {
+      agentId: 'adapter-backed',
+      projectId: project.id,
+      prompt: 'Execute via the specialist default adapter',
+      specialistId: 'adapter-backed',
+      title: 'Adapter-backed task',
+    });
+
+    const [dispatched] = await fastify.backgroundWorkerService.dispatchPending(1);
+
+    expect(dispatched).toMatchObject({
+      id: backgroundTask.id,
+      status: 'COMPLETED',
+    });
+
+    const session = await getAcpSessionById(
+      fastify.sqlite,
+      dispatched.resultSessionId as string,
+    );
+    const agent = await getAgentById(
+      fastify.sqlite,
+      project.id,
+      session.agent?.id as string,
+    );
+
+    expect(session.provider).toBe('codex');
+    expect(session.specialistId).toBe('adapter-backed');
+    expect(agent.systemPrompt).toContain('Reminder: Keep the task scope tight.');
   });
 });
 

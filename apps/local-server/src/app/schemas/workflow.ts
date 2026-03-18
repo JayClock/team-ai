@@ -14,6 +14,7 @@ export type WorkflowRunStepStatus =
   | 'CANCELLED';
 
 export interface WorkflowStepPayload {
+  adapter?: string | null;
   name: string;
   parallelGroup: string | null;
   prompt: string;

@@ -32,6 +32,7 @@ const workflowRunParamsSchema = z.object({
 });
 
 const workflowStepSchema = z.object({
+  adapter: z.union([z.string().trim().min(1), z.null()]).optional(),
   name: z.string().trim().min(1),
   parallelGroup: z.union([z.string().trim().min(1), z.null()]).optional(),
   prompt: z.string().trim().min(1),

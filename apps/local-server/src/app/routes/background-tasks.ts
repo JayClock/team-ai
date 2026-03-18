@@ -55,6 +55,7 @@ const createBackgroundTaskBodySchema = z.object({
   maxAttempts: z.number().int().positive().optional(),
   priority: z.enum(['HIGH', 'LOW', 'NORMAL']).optional(),
   prompt: z.string().trim().min(1),
+  specialistId: z.union([z.string().trim().min(1), z.null()]).optional(),
   taskId: z.union([z.string().trim().min(1), z.null()]).optional(),
   title: z.string().trim().min(1).optional(),
   triggerSource: z

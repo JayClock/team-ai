@@ -89,13 +89,14 @@ export async function triggerWorkflowRun(
 
     for (const step of group) {
       const task = await createBackgroundTask(sqlite, {
-        agentId: step.specialistId,
+        agentId: step.adapter ?? step.specialistId,
         dependsOnTaskIds: previousTaskIds,
         projectId: loaded.workflow.projectId,
         prompt: buildStepPrompt(step, {
           triggerPayload: input.triggerPayload,
           workflowName: loaded.workflow.name,
         }),
+        specialistId: step.specialistId,
         title: `[${loaded.workflow.name}] ${step.name}`,
         triggerSource: 'workflow',
         triggeredBy: `workflow:${loaded.workflow.name}`,

@@ -35,6 +35,7 @@ import {
   ensureRoleValue,
   getDefaultSpecialistByRole,
   getSpecialistById,
+  renderSpecialistSystemPrompt,
   throwSpecialistRoleMismatch,
 } from './specialist-service';
 import {
@@ -1818,7 +1819,7 @@ export async function createAcpSession(
         role: specialist.role,
         provider,
         model: model ?? specialist.modelTier ?? 'default',
-        systemPrompt: specialist.systemPrompt,
+        systemPrompt: renderSpecialistSystemPrompt(specialist),
         specialistId: specialist.id,
         parentAgentId: parentSession?.agent_id ?? null,
       })

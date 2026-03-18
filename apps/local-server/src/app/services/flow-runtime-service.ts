@@ -48,6 +48,7 @@ function toWorkflowVersion(flow: FlowPayload) {
 
 function toWorkflowSteps(flow: FlowPayload): WorkflowStepPayload[] {
   return flow.steps.map((step) => ({
+    adapter: step.adapter,
     name: step.name,
     parallelGroup: null,
     prompt: step.input,
