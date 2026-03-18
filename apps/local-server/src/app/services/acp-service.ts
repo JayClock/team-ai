@@ -1268,6 +1268,7 @@ function appendLocalEvent(
   },
 ): AcpEventEnvelopePayload {
   const emittedAt = input.update.timestamp || new Date().toISOString();
+  const current = getSessionRow(sqlite, input.sessionId);
   const update: AcpEventUpdatePayload = {
     ...input.update,
     // Runtime providers can emit their own remote session ids. Persist and
@@ -1288,6 +1289,10 @@ function appendLocalEvent(
   updateSessionRuntime(sqlite, input.sessionId, {
     lastActivityAt: emittedAt,
     lastEventId: event.eventId,
+    stepCount:
+      current.state === 'RUNNING'
+        ? current.step_count + resolveStepCountIncrement(update)
+        : current.step_count,
   });
 
   recordAcpTrace(sqlite, {
@@ -1433,6 +1438,13 @@ function createRuntimeHooks(
             : null,
         failureReason: state === 'FAILED' ? current.failure_reason : null,
       });
+      await enforceStepBudgetIfNeeded(
+        sqlite,
+        broker,
+        runtime,
+        localSessionId,
+        options,
+      );
     },
     async onClosed(error) {
       const current = getSessionRow(sqlite, localSessionId);
@@ -1516,6 +1528,42 @@ function appendPromptRequestedEvents(
   });
 }
 
+async function enforceStepBudgetIfNeeded(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  runtime: AcpRuntimeClient,
+  sessionId: string,
+  options: AcpServiceOptions = {},
+) {
+  const session = getSessionRow(sqlite, sessionId);
+  const supervisionPolicy = parseSupervisionPolicy(session.supervision_policy_json);
+  if (
+    session.state !== 'RUNNING' ||
+    supervisionPolicy.maxSteps === null ||
+    session.step_count <= supervisionPolicy.maxSteps
+  ) {
+    return;
+  }
+
+  const nowIso = new Date().toISOString();
+  const detail =
+    `ACP session exceeded step budget ` +
+    `(${session.step_count}/${supervisionPolicy.maxSteps}).`;
+  await requestSessionSupervisionCancellation(
+    sqlite,
+    broker,
+    runtime,
+    session,
+    {
+      detail,
+      nowIso,
+      policy: supervisionPolicy,
+      scope: 'step_budget',
+    },
+    options,
+  );
+}
+
 function appendLifecycleEvent(
   sqlite: Database,
   broker: AcpStreamBroker,
@@ -1581,6 +1629,25 @@ function appendSupervisionEvent(
   });
 }
 
+function resolveStepCountIncrement(
+  update: AcpEventUpdatePayload,
+): number {
+  if (update.eventType === 'turn_complete') {
+    return 1;
+  }
+
+  if (
+    (update.eventType === 'tool_call' ||
+      update.eventType === 'tool_call_update') &&
+    (update.toolCall?.status === 'completed' ||
+      update.toolCall?.status === 'failed')
+  ) {
+    return 1;
+  }
+
+  return 0;
+}
+
 function resolveLifecycleFailureState(error: unknown): Extract<
   AcpLifecycleStatePayload,
   'failed' | 'timed_out_prompt' | 'timed_out_provider_initialize'
@@ -1609,6 +1676,7 @@ function resolveTimeoutLifecycleState(
   | 'timed_out_prompt'
   | 'timed_out_inactive'
   | 'timed_out_total'
+  | 'timed_out_step_budget'
   | 'timed_out_provider_initialize'
 > {
   switch (scope) {
@@ -1616,10 +1684,67 @@ function resolveTimeoutLifecycleState(
       return 'timed_out_total';
     case 'session_inactive':
       return 'timed_out_inactive';
+    case 'step_budget':
+      return 'timed_out_step_budget';
     case 'provider_initialize':
       return 'timed_out_provider_initialize';
     default:
       return 'timed_out_prompt';
+  }
+}
+
+async function requestSessionSupervisionCancellation(
+  sqlite: Database,
+  broker: AcpStreamBroker,
+  runtime: AcpRuntimeClient,
+  session: AcpSessionRow,
+  input: {
+    detail: string;
+    nowIso: string;
+    policy: AcpSupervisionPolicyPayload;
+    scope: AcpTimeoutScopePayload;
+  },
+  options: AcpServiceOptions = {},
+) {
+  appendSupervisionEvent(sqlite, broker, {
+    sessionId: session.id,
+    stage: 'timeout_detected',
+    scope: input.scope,
+    policy: input.policy,
+    detail: input.detail,
+  });
+  updateSessionRuntime(sqlite, session.id, {
+    acpError: null,
+    acpStatus: 'ready',
+    state: 'CANCELLING',
+    failureReason: input.detail,
+    cancelRequestedAt: input.nowIso,
+    timeoutScope: input.scope,
+    supervisionPolicy: input.policy,
+  });
+  appendSupervisionEvent(sqlite, broker, {
+    sessionId: session.id,
+    stage: 'cancel_requested',
+    scope: input.scope,
+    policy: input.policy,
+    detail: `Requested ACP session cancellation after ${input.scope} timeout.`,
+  });
+  appendLifecycleEvent(sqlite, broker, {
+    detail: input.detail,
+    sessionId: session.id,
+    state: 'cancelling',
+    taskBound: session.task_id !== null,
+  });
+
+  if (session.runtime_session_id && !runtime.isSessionActive(session.id)) {
+    await ensureRuntimeLoaded(sqlite, broker, runtime, session.id, options);
+  }
+
+  if (session.runtime_session_id !== null || runtime.isSessionActive(session.id)) {
+    await runtime.cancelSession({
+      localSessionId: session.id,
+      reason: input.detail,
+    });
   }
 }
 
@@ -1895,6 +2020,12 @@ async function updateSessionFromPromptResponse(
     lastActivityAt: completedAt,
   });
 
+  if (state === 'RUNNING') {
+    await enforceStepBudgetIfNeeded(sqlite, broker, runtime, sessionId, options);
+  }
+
+  const updatedSession = getSessionRow(sqlite, sessionId);
+
   if (state === 'FAILED' && timedOutScope) {
     appendLifecycleEvent(sqlite, broker, {
       detail: `ACP session timed out (${timedOutScope})`,
@@ -1902,7 +2033,10 @@ async function updateSessionFromPromptResponse(
       state: resolveTimeoutLifecycleState(timedOutScope),
       taskBound: session.task_id !== null,
     });
-  } else if (state !== 'CANCELLED') {
+  } else if (
+    state !== 'CANCELLED' &&
+    updatedSession.state !== 'CANCELLING'
+  ) {
     appendLifecycleEvent(sqlite, broker, {
       detail: response.stopReason,
       sessionId,
@@ -1914,12 +2048,16 @@ async function updateSessionFromPromptResponse(
   await syncTaskExecutionOutcome(
     sqlite,
     sessionId,
-    state === 'FAILED'
+    updatedSession.state === 'CANCELLING'
+      ? 'FAILED'
+      : state === 'FAILED'
       ? 'FAILED'
       : state === 'CANCELLED'
         ? 'CANCELLED'
         : 'COMPLETED',
-    undefined,
+    updatedSession.state === 'CANCELLING'
+      ? updatedSession.failure_reason
+      : undefined,
     options,
   );
 }
@@ -2535,49 +2673,19 @@ export async function runAcpSessionSupervisionTick(
 
         const detail = resolveSupervisionTimeoutDetail(scope);
         timedOutSessionIds.push(session.id);
-        appendSupervisionEvent(sqlite, broker, {
-          sessionId: session.id,
-          stage: 'timeout_detected',
-          scope,
-          policy: supervisionPolicy,
-          detail,
-        });
-        updateSessionRuntime(sqlite, session.id, {
-          acpError: null,
-          acpStatus: 'ready',
-          state: 'CANCELLING',
-          failureReason: detail,
-          cancelRequestedAt: nowIso,
-          timeoutScope: scope,
-          supervisionPolicy,
-        });
-        appendSupervisionEvent(sqlite, broker, {
-          sessionId: session.id,
-          stage: 'cancel_requested',
-          scope,
-          policy: supervisionPolicy,
-          detail: `Requested ACP session cancellation after ${scope} timeout.`,
-        });
-        appendLifecycleEvent(sqlite, broker, {
-          detail,
-          sessionId: session.id,
-          state: 'cancelling',
-          taskBound: session.task_id !== null,
-        });
-
-        if (session.runtime_session_id && !runtime.isSessionActive(session.id)) {
-          await ensureRuntimeLoaded(sqlite, broker, runtime, session.id, options);
-        }
-
-        if (
-          session.runtime_session_id !== null ||
-          runtime.isSessionActive(session.id)
-        ) {
-          await runtime.cancelSession({
-            localSessionId: session.id,
-            reason: detail,
-          });
-        }
+        await requestSessionSupervisionCancellation(
+          sqlite,
+          broker,
+          runtime,
+          session,
+          {
+            detail,
+            nowIso,
+            policy: supervisionPolicy,
+            scope,
+          },
+          options,
+        );
 
         continue;
       }

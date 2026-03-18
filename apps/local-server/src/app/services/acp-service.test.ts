@@ -254,6 +254,149 @@ describe('acp service supervision', () => {
       ),
     ).toBe(true);
   });
+
+  it('cancels sessions that exceed the configured step budget', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const broker = new AcpStreamBroker();
+    const runtime = createRuntimeStub();
+    const project = await createProject(sqlite, {
+      repoPath: process.cwd(),
+      title: 'ACP Step Budget',
+    });
+    const created = await createAcpSession(
+      sqlite,
+      broker,
+      runtime,
+      {
+        actorUserId: 'desktop-user',
+        projectId: project.id,
+        provider: 'codex',
+      },
+      {},
+    );
+    const policy = {
+      ...created.supervisionPolicy,
+      maxSteps: 1,
+    };
+
+    sqlite
+      .prepare(
+        `
+          UPDATE project_acp_sessions
+          SET state = 'RUNNING',
+              supervision_policy_json = ?,
+              step_count = 0,
+              updated_at = ?
+          WHERE id = ?
+        `,
+      )
+      .run(
+        JSON.stringify(policy),
+        '2026-03-18T12:00:00.000Z',
+        created.id,
+      );
+
+    const createSessionCalls = runtime.createSession.mock.calls as Array<
+      [
+        {
+          hooks: {
+            onSessionUpdate(update: {
+              eventType: string;
+              provider: string;
+              rawNotification: unknown;
+              sessionId: string;
+              timestamp: string;
+              toolCall?: {
+                content: unknown[];
+                inputFinalized: boolean;
+                locations: unknown[];
+                output?: unknown;
+                status: 'completed' | 'failed' | 'pending' | 'running';
+              };
+              traceId?: string;
+            }): Promise<void>;
+          };
+        },
+      ]
+    >;
+    const hooks = createSessionCalls[0]?.[0].hooks;
+    expect(hooks).toBeDefined();
+
+    await hooks?.onSessionUpdate({
+      eventType: 'tool_call',
+      provider: 'codex',
+      rawNotification: null,
+      sessionId: created.id,
+      timestamp: '2026-03-18T12:00:01.000Z',
+      toolCall: {
+        content: [],
+        inputFinalized: true,
+        locations: [],
+        output: 'first tool result',
+        status: 'completed',
+      },
+    });
+    await hooks?.onSessionUpdate({
+      eventType: 'tool_call',
+      provider: 'codex',
+      rawNotification: null,
+      sessionId: created.id,
+      timestamp: '2026-03-18T12:00:02.000Z',
+      toolCall: {
+        content: [],
+        inputFinalized: true,
+        locations: [],
+        output: 'second tool result',
+        status: 'completed',
+      },
+    });
+
+    expect(runtime.cancelSession).toHaveBeenCalledWith({
+      localSessionId: created.id,
+      reason: 'ACP session exceeded step budget (2/1).',
+    });
+
+    const stored = sqlite
+      .prepare(
+        `
+          SELECT state, timeout_scope, step_count, cancel_requested_at
+          FROM project_acp_sessions
+          WHERE id = ?
+        `,
+      )
+      .get(created.id) as {
+      cancel_requested_at: string | null;
+      state: string;
+      step_count: number;
+      timeout_scope: string | null;
+    };
+    expect(stored.state).toBe('CANCELLING');
+    expect(stored.timeout_scope).toBe('step_budget');
+    expect(stored.step_count).toBe(2);
+    expect(stored.cancel_requested_at).not.toBeNull();
+
+    const history = await listAcpSessionHistory(
+      sqlite,
+      project.id,
+      created.id,
+      50,
+    );
+    expect(
+      history.filter(
+        (event) =>
+          event.update.eventType === 'supervision_update' &&
+          event.update.supervision?.scope === 'step_budget' &&
+          event.update.supervision?.stage === 'timeout_detected',
+      ),
+    ).toHaveLength(1);
+    expect(
+      history.some(
+        (event) =>
+          event.update.eventType === 'lifecycle_update' &&
+          event.update.lifecycle?.state === 'cancelling',
+      ),
+    ).toBe(true);
+  });
 });
 
 async function createTestDatabase(cleanupTasks: Array<() => Promise<void>>) {
