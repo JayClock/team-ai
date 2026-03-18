@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
-import executionRuntimePlugin from './execution-runtime';
+import executionRuntimePlugin from './execution-runtime.js';
 
 describe('execution-runtime plugin', () => {
   const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];

@@ -1,8 +1,8 @@
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ProblemError } from '../errors/problem-error';
-import { createAgentGatewayClient } from './agent-gateway-client';
+import { ProblemError } from '../errors/problem-error.js';
+import { createAgentGatewayClient } from './agent-gateway-client.js';
 
 describe('agent-gateway-client', () => {
   const servers: http.Server[] = [];

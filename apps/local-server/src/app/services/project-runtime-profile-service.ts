@@ -8,7 +8,7 @@ import type {
   ProjectRuntimeProfilePayload,
   UpdateProjectRuntimeProfileInput,
 } from '../schemas/runtime-profile';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import { isRoleValue, type RoleValue } from '../schemas/role';
 import { getProjectById } from './project-service';
 import { listProviderModels as listProviderModelsFromService } from './provider-service';

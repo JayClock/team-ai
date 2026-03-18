@@ -1,14 +1,12 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { ProblemError } from '../errors/problem-error';
 import {
   getAcpProviderDefinition,
   listModelSelectableProviderDefinitions,
-} from './acp-provider-definitions';
-import type {
-  ProviderModelPayload,
-  ProviderPayload,
-} from '../schemas/provider';
+  ProblemError,
+  type ProviderModelPayload,
+  type ProviderPayload,
+} from '@orchestration/runtime-acp';
 
 const execFileAsync = promisify(execFile);
 const PROVIDER_MODEL_CACHE_TTL_MS = 60 * 1000;

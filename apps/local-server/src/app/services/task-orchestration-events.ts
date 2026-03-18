@@ -1,6 +1,6 @@
 import type { RoleValue } from '../schemas/role';
 import type { TaskPayload } from '../schemas/task';
-import type { AcpOrchestrationEventName } from '../schemas/acp';
+import type { AcpOrchestrationEventName } from '@orchestration/runtime-acp';
 import type {
   TaskSessionDispatchInput,
   TaskSessionDispatchOptions,

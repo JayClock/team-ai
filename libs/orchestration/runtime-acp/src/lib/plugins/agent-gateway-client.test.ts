@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import agentGatewayClientPlugin from './agent-gateway-client';
-import executionRuntimePlugin from './execution-runtime';
+import agentGatewayClientPlugin from './agent-gateway-client.js';
+import executionRuntimePlugin from './execution-runtime.js';
 
 describe('agent-gateway-client plugin', () => {
   const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];

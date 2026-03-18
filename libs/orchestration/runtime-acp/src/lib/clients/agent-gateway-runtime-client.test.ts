@@ -1,15 +1,15 @@
 import type { McpServer } from '@agentclientprotocol/sdk';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '../errors/problem-error.js';
 import type {
   AgentGatewayClient,
   AgentGatewayEventEnvelope,
   AgentGatewaySessionPayload,
-} from './agent-gateway-client';
+} from './agent-gateway-client.js';
 import {
   createAgentGatewayRuntimeClient,
   resolvePromptCompletionWaitTimeoutMs,
-} from './agent-gateway-runtime-client';
+} from './agent-gateway-runtime-client.js';
 
 describe('agent-gateway-runtime-client', () => {
   afterEach(() => {
@@ -117,6 +117,7 @@ describe('agent-gateway-runtime-client', () => {
         session: gatewaySession('gw-1', 'CANCELLED', 'gw-1:5'),
       })),
       createSession,
+      installProvider: vi.fn(),
       isConfigured: vi.fn(() => true),
       isProviderConfigured: vi.fn(
         (providerId: string) => providerId === 'opencode',
@@ -257,6 +258,7 @@ describe('agent-gateway-runtime-client', () => {
         session: gatewaySession('gw-new', 'CANCELLED', 'gw-new:2'),
       })),
       createSession,
+      installProvider: vi.fn(),
       isConfigured: vi.fn(() => true),
       isProviderConfigured: vi.fn(
         (providerId: string) => providerId === 'opencode',
@@ -340,6 +342,7 @@ describe('agent-gateway-runtime-client', () => {
       createSession: vi.fn(async () => ({
         session: gatewaySession('gw-rawless', 'PENDING', 'gw-rawless:1'),
       })),
+      installProvider: vi.fn(),
       isConfigured: vi.fn(() => true),
       isProviderConfigured: vi.fn(() => true),
       listEvents: vi.fn(async () => ({

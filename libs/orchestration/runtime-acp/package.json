@@ -1,0 +1,25 @@
+{
+  "name": "@orchestration/runtime-acp",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "team-ai": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "0.15.0",
+    "fastify": "~5.2.1",
+    "fastify-plugin": "~5.0.1",
+    "nanoid": "^5.1.6",
+    "tslib": "^2.3.0"
+  }
+}

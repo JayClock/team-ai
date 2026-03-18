@@ -17,24 +17,24 @@ import {
   type TerminalOutputResponse,
   type WaitForTerminalExitResponse,
 } from '@agentclientprotocol/sdk';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '../errors/problem-error.js';
 import {
   normalizeSessionNotification,
   type NormalizedSessionUpdate,
-} from '../services/normalized-session-update';
+} from '../services/normalized-session-update.js';
 import {
   AcpSessionProcessManager,
   type ManagedAcpSessionSnapshot,
-} from './acp-session-process-manager';
+} from './acp-session-process-manager.js';
 import {
   getProviderEnvCommandKey,
   normalizeAcpProviderId,
   resolveAcpRuntimeProviderCommand,
   resolveEnvProviderCommand,
-} from '../services/acp-provider-service';
-import { resolveProviderRuntimeLaunchConfig } from '../services/acp-provider-definitions';
+} from '../providers/acp-provider-service.js';
+import { resolveProviderRuntimeLaunchConfig } from '../providers/acp-provider-definitions.js';
 
-export type { ManagedAcpSessionSnapshot } from './acp-session-process-manager';
+export type { ManagedAcpSessionSnapshot } from './acp-session-process-manager.js';
 
 const terminalIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',

@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import type { DiagnosticLogger } from '../diagnostics';
+import type { DiagnosticLogger } from '@orchestration/runtime-acp';
 import type { KanbanColumnPayload } from '../schemas/kanban';
 import type { TaskPayload } from '../schemas/task';
 import type {

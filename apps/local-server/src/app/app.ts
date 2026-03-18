@@ -1,13 +1,15 @@
 import { join } from 'node:path';
 import type { FastifyPluginAsync, FastifyPluginOptions } from 'fastify';
 import AutoLoad from '@fastify/autoload';
-import acpRuntimePlugin from './plugins/acp-runtime';
-import acpSessionReaperPlugin from './plugins/acp-session-reaper';
-import agentGatewayClientPlugin from './plugins/agent-gateway-client';
-import acpStreamPlugin from './plugins/acp-stream';
+import {
+  acpRuntimePlugin,
+  acpSessionReaperPlugin,
+  agentGatewayClientPlugin,
+  acpStreamPlugin,
+  executionRuntimePlugin,
+} from '@orchestration/runtime-acp';
 import desktopAuthPlugin from './plugins/desktop-auth';
 import desktopCorsPlugin from './plugins/desktop-cors';
-import executionRuntimePlugin from './plugins/execution-runtime';
 import backgroundWorkerPlugin from './plugins/background-worker';
 import kanbanWorkflowOrchestratorPlugin from './plugins/kanban-workflow-orchestrator';
 import workflowExecutorPlugin from './plugins/workflow-executor';

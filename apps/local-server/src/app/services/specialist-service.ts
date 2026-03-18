@@ -3,7 +3,7 @@ import { constants as fsConstants } from 'node:fs';
 import { access, readdir, readFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { resolveDataDirectory } from '../db/sqlite';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import { isRoleValue, type RoleValue } from '../schemas/role';
 import type {
   SpecialistListPayload,

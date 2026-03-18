@@ -1,6 +1,6 @@
 import Database, { type Database as SqliteDatabase } from 'better-sqlite3';
 import { describe, expect, it, vi } from 'vitest';
-import type { AcpEventEnvelopePayload } from '../schemas/acp';
+import type { AcpEventEnvelopePayload } from '@orchestration/runtime-acp';
 import { AcpSessionEventWriteBuffer } from './acp-session-event-write-buffer';
 
 function createTestDatabase() {

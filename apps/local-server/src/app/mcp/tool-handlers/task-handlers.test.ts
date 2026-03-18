@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os';
 import type { Database } from 'better-sqlite3';
 import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type {
+  AcpRuntimeClient,
+  AcpStreamBroker,
+} from '@orchestration/runtime-acp';
 import { initializeDatabase } from '../../db/sqlite';
-import type { AcpRuntimeClient } from '../../clients/acp-runtime-client';
-import type { AcpStreamBroker } from '../../plugins/acp-stream';
 import { getTaskWorkflowRuntime } from '../task-workflow-runtime';
 import { insertAcpSession } from '../../test-support/acp-session-fixture';
 import { readAgentConversation } from '../../services/acp-conversation-service';

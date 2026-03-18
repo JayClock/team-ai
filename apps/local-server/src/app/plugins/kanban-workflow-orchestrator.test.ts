@@ -3,13 +3,15 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
+import {
+  acpStreamPlugin,
+  type AcpRuntimeClient,
+} from '@orchestration/runtime-acp';
 import { initializeDatabase } from '../db/sqlite';
 import backgroundWorkerPlugin from './background-worker';
 import kanbanWorkflowOrchestratorPlugin from './kanban-workflow-orchestrator';
 import sqlitePlugin from './sqlite';
-import acpStreamPlugin from './acp-stream';
 import fp from 'fastify-plugin';
-import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
 
 describe('kanban workflow orchestrator plugin', () => {
   const cleanupTasks: Array<() => Promise<void>> = [];

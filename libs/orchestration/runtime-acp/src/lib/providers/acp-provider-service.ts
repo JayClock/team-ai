@@ -3,8 +3,8 @@ import { constants as fsConstants } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
-import { resolveDataDirectory } from '../db/sqlite';
-import { listStaticRuntimeProviderDefinitions } from './acp-provider-definitions';
+import { resolveDataDirectory } from '../utils/data-directory.js';
+import { listStaticRuntimeProviderDefinitions } from './acp-provider-definitions.js';
 
 const execFileAsync = promisify(execFile);
 

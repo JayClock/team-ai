@@ -1,21 +1,23 @@
 import type { Database } from 'better-sqlite3';
-import { isAbsolute } from 'node:path';
 import { customAlphabet } from 'nanoid';
-import type { McpServer, PromptResponse } from '@agentclientprotocol/sdk';
+import type { PromptResponse } from '@agentclientprotocol/sdk';
+import {
+  buildBootstrapPrompt,
+  extractSessionMetadataFromNormalizedUpdate,
+  getErrorDiagnostics,
+  logDiagnostic,
+  ProblemError,
+  normalizeAcpProviderId,
+  resolveLocalMcpServers,
+  resolveSessionCwd,
+  resolveSessionStateFromNormalizedUpdate,
+} from '@orchestration/runtime-acp';
 import type {
   AcpRuntimeClient,
   ManagedAcpSessionSnapshot,
   AcpRuntimeSessionSnapshot,
   AcpRuntimeSessionHooks,
-} from '../clients/acp-runtime-client';
-import {
-  getErrorDiagnostics,
-  logDiagnostic,
-  type DiagnosticLogger,
-} from '../diagnostics';
-import { ProblemError } from '../errors/problem-error';
-import type { AcpStreamBroker } from '../plugins/acp-stream';
-import type {
+  AcpStreamBroker,
   AcpEventEnvelopePayload,
   AcpEventErrorPayload,
   AcpLifecycleStatePayload,
@@ -27,9 +29,9 @@ import type {
   AcpSessionPayload,
   AcpSessionStatus,
   AcpSessionState,
-} from '../schemas/acp';
-import { normalizeAcpProviderId } from './acp-provider-service';
-import { type NormalizedSessionUpdate } from './normalized-session-update';
+  DiagnosticLogger,
+  NormalizedSessionUpdate,
+} from '@orchestration/runtime-acp';
 import { createAgent, updateAgent } from './agent-service';
 import { getProjectCodebaseById } from './project-codebase-service';
 import { getProjectRuntimeProfile } from './project-runtime-profile-service';
@@ -1208,103 +1210,6 @@ function sessionHasPromptHistory(sqlite: Database, sessionId: string): boolean {
     .get(sessionId) as { count: number };
 
   return row.count > 0;
-}
-
-function buildBootstrapPrompt(
-  systemPrompt: string,
-  userPrompt: string,
-): string {
-  return [`System:\n${systemPrompt.trim()}`, `User:\n${userPrompt}`].join(
-    '\n\n',
-  );
-}
-
-function resolveSessionCwd(repoPath: string | null): string {
-  const cwd = repoPath?.trim();
-  if (!cwd || !isAbsolute(cwd)) {
-    throw new ProblemError({
-      type: 'https://team-ai.dev/problems/acp-project-workspace-missing',
-      title: 'ACP Project Workspace Missing',
-      status: 409,
-      detail:
-        'ACP sessions require project.repoPath to be set to an absolute local path',
-    });
-  }
-
-  return cwd;
-}
-
-function resolveLocalMcpServers(): McpServer[] {
-  const host = process.env.HOST?.trim() || '127.0.0.1';
-  const port = process.env.PORT?.trim();
-
-  if (!port) {
-    return [];
-  }
-
-  const headers = [
-    {
-      name: 'X-TeamAI-MCP-Access-Mode',
-      value: 'read-write',
-    },
-    ...(process.env.DESKTOP_SESSION_TOKEN?.trim()
-      ? [
-          {
-            name: 'Authorization',
-            value: `Bearer ${process.env.DESKTOP_SESSION_TOKEN.trim()}`,
-          },
-        ]
-      : []),
-  ];
-
-  return [
-    {
-      type: 'http',
-      name: 'team_ai_local',
-      url: `http://${host}:${port}/api/mcp`,
-      headers,
-    },
-  ];
-}
-
-export function resolveSessionStateFromNormalizedUpdate(
-  update: NormalizedSessionUpdate,
-  fallback: AcpSessionState,
-): AcpSessionState {
-  switch (update.eventType) {
-    case 'agent_message':
-    case 'agent_thought':
-    case 'tool_call':
-    case 'terminal_created':
-    case 'terminal_output':
-    case 'terminal_exited':
-      return 'RUNNING';
-    case 'tool_call_update':
-      return update.toolCall?.status === 'failed' ? 'FAILED' : 'RUNNING';
-    case 'turn_complete':
-      return update.turnComplete?.state ?? fallback;
-    default:
-      return fallback;
-  }
-}
-
-export function extractSessionMetadataFromNormalizedUpdate(
-  update: NormalizedSessionUpdate,
-): {
-  title: string | null;
-  updatedAt: string | null;
-} {
-  if (update.eventType !== 'session_info_update') {
-    return {
-      title: null,
-      updatedAt: null,
-    };
-  }
-
-  return {
-    title: update.sessionInfo?.title ?? null,
-    updatedAt: update.sessionInfo?.updatedAt ?? null,
-  };
 }
 
 function createRuntimeHooks(

@@ -3,7 +3,7 @@ import type {
   AcpRuntimeSessionListPayload,
   AcpSessionListPayload,
   AcpSessionPayload,
-} from '../schemas/acp';
+} from '@orchestration/runtime-acp';
 
 function createSessionLinks(session: AcpSessionPayload) {
   return {

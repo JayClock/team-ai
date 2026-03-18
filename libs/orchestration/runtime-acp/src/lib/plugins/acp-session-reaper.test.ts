@@ -1,9 +1,9 @@
 import Fastify from 'fastify';
 import fp from 'fastify-plugin';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
-import acpStreamPlugin from './acp-stream';
-import acpSessionReaperPlugin from './acp-session-reaper';
+import type { AcpRuntimeClient } from '../clients/acp-runtime-client.js';
+import acpSessionReaperPlugin from './acp-session-reaper.js';
+import acpStreamPlugin from './acp-stream.js';
 
 describe('acp-session-reaper plugin', () => {
   const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];

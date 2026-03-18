@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
+import { ProblemError } from '@orchestration/runtime-acp';
 import { initializeDatabase } from '../db/sqlite';
-import { ProblemError } from '../errors/problem-error';
 import { createProject } from './project-service';
 import { listProjectCodebases } from './project-codebase-service';
 import {

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { ProblemError } from '../../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import { applyFlowTemplate } from '../../services/apply-flow-template-service';
 import { recordNoteEvent } from '../../services/note-event-service';
 import {

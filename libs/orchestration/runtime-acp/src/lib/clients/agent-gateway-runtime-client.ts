@@ -7,16 +7,16 @@ import type {
 import {
   flattenAcpContentText,
   hasStructuredValue,
-} from '../services/canonical-acp-update';
-import { ProblemError } from '../errors/problem-error';
+} from '../services/canonical-acp-update.js';
+import { ProblemError } from '../errors/problem-error.js';
 import {
   AcpSessionProcessManager,
   type ManagedAcpSessionSnapshot,
-} from './acp-session-process-manager';
+} from './acp-session-process-manager.js';
 import type {
   AgentGatewayClient,
   AgentGatewayEventEnvelope,
-} from './agent-gateway-client';
+} from './agent-gateway-client.js';
 import type {
   AcpPromptRuntimeResult,
   AcpRuntimeClient,
@@ -26,8 +26,8 @@ import type {
   CreateAcpRuntimeSessionInput,
   LoadAcpRuntimeSessionInput,
   PromptAcpRuntimeSessionInput,
-} from './acp-runtime-client';
-import type { NormalizedSessionUpdate } from '../services/normalized-session-update';
+} from './acp-runtime-client.js';
+import type { NormalizedSessionUpdate } from '../services/normalized-session-update.js';
 
 const EVENT_POLL_INTERVAL_MS = 150;
 const PROMPT_COMPLETION_GRACE_MS = 1_000;

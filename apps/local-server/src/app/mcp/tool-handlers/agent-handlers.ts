@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { ProblemError } from '../../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import { promptAcpSession } from '../../services/acp-service';
 import { getTaskWorkflowRuntime } from '../task-workflow-runtime';
 import { listAgents } from '../../services/agent-service';

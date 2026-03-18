@@ -1,6 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import type { TaskPayload } from '../schemas/task';
 import { getAcpSessionById } from './acp-service';
 import { getTaskById } from './task-service';

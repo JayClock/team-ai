@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { SessionNotification } from '@agentclientprotocol/sdk';
+import type { NormalizedSessionUpdate } from './normalized-session-update.js';
 import {
   coerceNormalizedSessionUpdate,
   normalizeSessionNotification,
-} from './normalized-session-update';
+} from './normalized-session-update.js';
 import {
   extractSessionMetadataFromNormalizedUpdate,
   resolveSessionStateFromNormalizedUpdate,
-} from './acp-service';
+} from './session-update-state.js';
 
 describe('normalized-session-update', () => {
   it('normalizes agent message chunks to canonical agent_message updates', () => {
@@ -341,7 +342,7 @@ describe('normalized-session-update', () => {
         isChunk: true,
         messageId: 'msg-6',
       },
-    };
+    } satisfies NormalizedSessionUpdate;
 
     expect(
       coerceNormalizedSessionUpdate('session-6', 'codex', canonical),

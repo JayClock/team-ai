@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import type { ProjectRuntimeProfilePayload } from '../schemas/runtime-profile';
 import type { RoleValue } from '../schemas/role';
 import type { SpecialistPayload } from '../schemas/specialist';

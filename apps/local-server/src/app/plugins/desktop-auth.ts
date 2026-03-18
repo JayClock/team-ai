@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 import { URL } from 'node:url';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 
 export const desktopSessionHeader = 'x-desktop-session';
 const authorizationHeader = 'authorization';

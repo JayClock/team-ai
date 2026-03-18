@@ -1,8 +1,8 @@
 import type { Database } from 'better-sqlite3';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import type { NotePayload } from '../schemas/note';
 import type { TaskKind, TaskPayload } from '../schemas/task';
-import type { DiagnosticLogger } from '../diagnostics';
+import type { DiagnosticLogger } from '@orchestration/runtime-acp';
 import type {
   TaskSessionDispatchCallbacks,
   TaskSessionDispatchResult,

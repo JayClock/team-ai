@@ -1,4 +1,4 @@
-import type { AcpSessionPayload } from './acp';
+import type { AcpSessionPayload } from '@orchestration/runtime-acp';
 import type { KanbanColumnPayload } from './kanban';
 import type {
   TaskLaneHandoffPayload,

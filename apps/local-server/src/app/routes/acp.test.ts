@@ -5,12 +5,12 @@ import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type {
+import {
+  acpStreamPlugin,
   AcpRuntimeClient,
   AcpRuntimeSessionHooks,
-} from '../clients/acp-runtime-client';
-import { ProblemError } from '../errors/problem-error';
-import acpStreamPlugin from '../plugins/acp-stream';
+  ProblemError,
+} from '@orchestration/runtime-acp';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
 import sqlitePlugin from '../plugins/sqlite';

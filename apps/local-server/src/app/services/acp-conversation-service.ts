@@ -3,7 +3,7 @@ import type {
   AcpEventEnvelopePayload,
   AcpEventToolCallPayload,
   AcpSessionPayload,
-} from '../schemas/acp';
+} from '@orchestration/runtime-acp';
 import { getAcpSessionById, listAcpSessionHistory } from './acp-service';
 
 export interface ReadAgentConversationInput {

@@ -1,7 +1,7 @@
 import type {
   AcpProviderCatalogPayload,
   InstallAcpProviderPayload,
-} from '../schemas/acp-provider';
+} from '@orchestration/runtime-acp';
 
 export function presentAcpProviders(payload: AcpProviderCatalogPayload) {
   return {

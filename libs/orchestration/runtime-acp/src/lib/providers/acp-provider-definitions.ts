@@ -1,4 +1,4 @@
-import type { ProviderModelPayload } from '../schemas/provider';
+import type { ProviderModelPayload } from '../schemas/provider.js';
 
 export interface AcpProviderModelListingConfig {
   args: string[];

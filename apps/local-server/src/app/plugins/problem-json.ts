@@ -1,8 +1,11 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
-import { getErrorDiagnostics } from '../diagnostics';
-import { isProblemError, problemTypeToCode } from '../errors/problem-error';
+import {
+  getErrorDiagnostics,
+  isProblemError,
+  problemTypeToCode,
+} from '@orchestration/runtime-acp';
 
 const defaultProblemType = 'about:blank';
 

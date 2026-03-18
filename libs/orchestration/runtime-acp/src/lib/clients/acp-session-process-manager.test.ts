@@ -116,7 +116,6 @@ describe('AcpSessionProcessManager', () => {
     const afterTouch = manager.list()[0]!.lastTouchedAt;
 
     const activity = manager.withActivity('local-1', async () => {
-      releaseActivity = vi.fn();
       await new Promise<void>((resolve) => {
         releaseActivity = resolve;
       });
@@ -126,7 +125,9 @@ describe('AcpSessionProcessManager', () => {
     expect(Date.parse(afterTouch)).toBeGreaterThanOrEqual(Date.parse(beforeTouch));
     expect(manager.list()[0]?.isBusy).toBe(true);
 
-    releaseActivity?.();
+    if (releaseActivity) {
+      releaseActivity();
+    }
     await activity;
 
     expect(manager.list()[0]?.isBusy).toBe(false);

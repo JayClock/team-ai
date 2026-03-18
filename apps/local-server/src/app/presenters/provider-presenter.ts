@@ -1,7 +1,7 @@
 import type {
   ProviderModelPayload,
   ProviderPayload,
-} from '../schemas/provider';
+} from '@orchestration/runtime-acp';
 
 export function presentProviders(providers: ProviderPayload[]) {
   return {

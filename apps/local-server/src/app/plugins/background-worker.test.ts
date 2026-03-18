@@ -4,7 +4,10 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fp from 'fastify-plugin';
-import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
+import {
+  acpStreamPlugin,
+  type AcpRuntimeClient,
+} from '@orchestration/runtime-acp';
 import { initializeDatabase } from '../db/sqlite';
 import { getAgentById } from '../services/agent-service';
 import { getAcpSessionById } from '../services/acp-service';
@@ -13,7 +16,6 @@ import { ensureDefaultKanbanBoard } from '../services/kanban-board-service';
 import { createProject } from '../services/project-service';
 import { createTask, getTaskById } from '../services/task-service';
 import sqlitePlugin from './sqlite';
-import acpStreamPlugin from './acp-stream';
 import backgroundWorkerPlugin from './background-worker';
 
 describe('background worker plugin', () => {

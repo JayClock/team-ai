@@ -65,7 +65,7 @@ export class LocalMcpToolManager {
           const mcpError = buildMcpError(error, auditContext);
           const problem = (
             mcpError.data as {
-              problem?: import('../errors/problem-error').ProblemDetails;
+              problem?: import('@orchestration/runtime-acp').ProblemDetails;
             } | undefined
           )?.problem;
           if (problem) {

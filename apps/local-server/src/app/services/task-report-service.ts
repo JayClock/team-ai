@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import type { NotePayload, NoteType } from '../schemas/note';
 import type { TaskRunPayload } from '../schemas/task-run';
 import type { TaskPayload } from '../schemas/task';

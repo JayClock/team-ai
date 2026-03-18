@@ -1,8 +1,8 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import acpRuntimePlugin from './acp-runtime';
-import agentGatewayClientPlugin from './agent-gateway-client';
-import executionRuntimePlugin from './execution-runtime';
+import acpRuntimePlugin from './acp-runtime.js';
+import agentGatewayClientPlugin from './agent-gateway-client.js';
+import executionRuntimePlugin from './execution-runtime.js';
 
 describe('acp-runtime plugin', () => {
   const fastifyInstances: Array<ReturnType<typeof Fastify>> = [];

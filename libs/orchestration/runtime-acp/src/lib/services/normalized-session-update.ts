@@ -8,10 +8,10 @@ import {
   type CanonicalAcpUpdate,
   flattenAcpContentText,
   hasStructuredValue,
-} from './canonical-acp-update';
+} from './canonical-acp-update.js';
 import type {
   AcpSessionState,
-} from '../schemas/acp';
+} from '../schemas/acp.js';
 
 export type NormalizedSessionUpdateEventType = CanonicalAcpEventType;
 

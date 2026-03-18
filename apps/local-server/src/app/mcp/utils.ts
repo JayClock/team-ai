@@ -1,9 +1,12 @@
 import type { FastifyBaseLogger, FastifyReply, FastifyRequest } from 'fastify';
 import { McpError } from '@modelcontextprotocol/sdk/types.js';
 import { ZodError } from 'zod';
-import { getErrorDiagnostics } from '../diagnostics';
-import type { ProblemDetails } from '../errors/problem-error';
-import { ProblemError, problemTypeToCode } from '../errors/problem-error';
+import {
+  getErrorDiagnostics,
+  type ProblemDetails,
+  ProblemError,
+  problemTypeToCode,
+} from '@orchestration/runtime-acp';
 import { getNoteById } from '../services/note-service';
 import {
   ensureRoleValue,

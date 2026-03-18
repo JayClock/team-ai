@@ -1,4 +1,4 @@
-import type { DiagnosticLogger } from '../diagnostics';
+import type { DiagnosticLogger } from '@orchestration/runtime-acp';
 import type { BackgroundTaskPayload } from '../schemas/background-task';
 
 export interface BackgroundWorkerTickResult {

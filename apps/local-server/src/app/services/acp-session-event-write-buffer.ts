@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import type { AcpEventEnvelopePayload } from '../schemas/acp';
+import type { AcpEventEnvelopePayload } from '@orchestration/runtime-acp';
 
 interface BufferedAcpSessionEventRow {
   createdAt: string;

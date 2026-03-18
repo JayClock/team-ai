@@ -1,10 +1,10 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
-import { createAgentGatewayRuntimeClient } from '../clients/agent-gateway-runtime-client';
+import { createAgentGatewayRuntimeClient } from '../clients/agent-gateway-runtime-client.js';
 import {
   createAcpRuntimeClient,
   type AcpRuntimeClient,
-} from '../clients/acp-runtime-client';
+} from '../clients/acp-runtime-client.js';
 
 interface AcpRuntimePluginOptions {
   acpRuntime?: AcpRuntimeClient;

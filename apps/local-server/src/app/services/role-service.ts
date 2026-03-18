@@ -1,5 +1,5 @@
 import type { RoleListPayload, RolePayload, RoleValue } from '../schemas/role';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 
 const roles: RolePayload[] = [
   {

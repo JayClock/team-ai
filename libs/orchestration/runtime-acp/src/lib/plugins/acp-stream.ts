@@ -1,6 +1,6 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
-import type { AcpEventEnvelopePayload } from '../schemas/acp';
+import type { AcpEventEnvelopePayload } from '../schemas/acp.js';
 
 type AcpListener = (event: AcpEventEnvelopePayload) => void;
 

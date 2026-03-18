@@ -1,4 +1,4 @@
-import type { DiagnosticLogger } from '../diagnostics';
+import type { DiagnosticLogger } from '@orchestration/runtime-acp';
 
 export interface SchedulerService {
   isRunning(): boolean;

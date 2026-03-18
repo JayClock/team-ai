@@ -3,7 +3,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import {
   createAgentGatewayClient,
   type AgentGatewayClient,
-} from '../clients/agent-gateway-client';
+} from '../clients/agent-gateway-client.js';
 
 interface AgentGatewayClientOptions {
   agentGatewayBaseUrl?: string;
@@ -12,6 +12,7 @@ interface AgentGatewayClientOptions {
 
 declare module 'fastify' {
   interface FastifyInstance {
+    agentGatewayBaseUrl: string | null;
     agentGatewayClient: AgentGatewayClient;
   }
 }

@@ -3,7 +3,7 @@ import { mkdir, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Database } from 'better-sqlite3';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import { resolveDataDirectory } from '../db/sqlite';
 import type {
   WorktreeListPayload,

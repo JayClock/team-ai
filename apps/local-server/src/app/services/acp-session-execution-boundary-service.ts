@@ -1,7 +1,9 @@
 import type { Database } from 'better-sqlite3';
-import type { AcpRuntimeClient } from '../clients/acp-runtime-client';
-import type { DiagnosticLogger } from '../diagnostics';
-import type { AcpStreamBroker } from '../plugins/acp-stream';
+import type {
+  AcpRuntimeClient,
+  DiagnosticLogger,
+  AcpStreamBroker,
+} from '@orchestration/runtime-acp';
 import {
   createAcpSession,
   promptAcpSession,

@@ -1,4 +1,7 @@
-import type { AcpEventTypePayload, AcpEventUpdatePayload } from './acp';
+import type {
+  AcpEventTypePayload,
+  AcpEventUpdatePayload,
+} from '@orchestration/runtime-acp';
 
 export type TraceEventTypePayload = AcpEventTypePayload;
 

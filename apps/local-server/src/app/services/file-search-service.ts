@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { readdir, stat } from 'node:fs/promises';
 import { basename, isAbsolute, join, relative } from 'node:path';
 import { promisify } from 'node:util';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 
 const execFileAsync = promisify(execFile);
 const MAX_FILES_TO_SCAN = 10_000;

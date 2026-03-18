@@ -3,8 +3,8 @@ import {
   getErrorDiagnostics,
   logDiagnostic,
   type DiagnosticLogger,
-} from '../diagnostics';
-import { ProblemError } from '../errors/problem-error';
+  ProblemError,
+} from '@orchestration/runtime-acp';
 import type { RoleValue } from '../schemas/role';
 import type { SpecialistPayload } from '../schemas/specialist';
 import type { TaskPayload } from '../schemas/task';

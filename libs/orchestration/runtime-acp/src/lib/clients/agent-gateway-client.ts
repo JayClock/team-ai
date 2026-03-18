@@ -1,9 +1,9 @@
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '../errors/problem-error.js';
 import type {
   AcpProviderCatalogPayload,
   AcpProviderDistributionType,
   InstallAcpProviderPayload,
-} from '../schemas/acp-provider';
+} from '../schemas/acp-provider.js';
 
 const defaultRequestHeaders = {
   Accept: 'application/json',

@@ -8,7 +8,7 @@ import type {
   WorkflowRunPayload,
   WorkflowStepPayload,
 } from '../schemas/workflow';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 import { getProjectById } from './project-service';
 import { getFlowById } from './flow-service';
 import {

@@ -3,7 +3,7 @@ import { mkdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { resolveDataDirectory } from '../db/sqlite';
-import { ProblemError } from '../errors/problem-error';
+import { ProblemError } from '@orchestration/runtime-acp';
 
 const execFileAsync = promisify(execFile);
 
@@ -141,4 +141,3 @@ export async function ensureManagedRepository(
     repository,
   };
 }
-

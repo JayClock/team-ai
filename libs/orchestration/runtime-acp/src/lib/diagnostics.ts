@@ -1,4 +1,4 @@
-import { ProblemError, problemTypeToCode } from './errors/problem-error';
+import { ProblemError, problemTypeToCode } from './errors/problem-error.js';
 
 export interface DiagnosticLogger {
   debug?(payload: unknown, message?: string): void;
