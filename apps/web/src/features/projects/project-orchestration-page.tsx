@@ -1,6 +1,14 @@
 import { State } from '@hateoas-ts/resource';
 import { Project } from '@shared/schema';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@shared/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Textarea,
+} from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
 import { projectTitle, useProjectSelection } from '@shells/sessions';
 import { useCallback, useEffect, useState } from 'react';
@@ -137,6 +145,7 @@ interface WorkflowDefinitionList {
 }
 
 interface WorkflowDefinitionSummary {
+  adapter?: string | null;
   id: string;
   name: string;
   description: string | null;
@@ -146,6 +155,56 @@ interface WorkflowDefinitionSummary {
     parallelGroup: string | null;
     specialistId: string;
   }>;
+}
+
+interface FlowList {
+  _embedded?: {
+    flows?: FlowSummary[];
+  };
+}
+
+interface FlowSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  version: string | null;
+  trigger: {
+    event: string | null;
+    source: string | null;
+    type: 'manual' | 'schedule' | 'webhook';
+  };
+  source: {
+    libraryId: string | null;
+    path: string;
+    scope: 'builtin' | 'library' | 'user' | 'workspace';
+  };
+  steps: Array<{
+    adapter: string | null;
+    name: string;
+    specialistId: string;
+  }>;
+}
+
+interface WorkflowRunList {
+  _embedded?: {
+    workflowRuns?: WorkflowRunSummary[];
+  };
+}
+
+interface WorkflowRunSummary {
+  completedSteps: number;
+  currentStepName: string | null;
+  failedSteps: number;
+  id: string;
+  pendingSteps: number;
+  runningSteps: number;
+  status: string;
+  totalSteps: number;
+  triggerSource: string;
+  updatedAt: string;
+  workflowId: string;
+  workflowName: string;
+  workflowVersion: number;
 }
 
 interface ScheduleList {
@@ -230,6 +289,17 @@ function formatWebhookLogMeta(log: WebhookLogSummary) {
   }`;
 }
 
+function formatFlowSourceMeta(flow: FlowSummary) {
+  const parts: string[] = [flow.source.scope];
+
+  if (flow.source.libraryId) {
+    parts.push(flow.source.libraryId);
+  }
+
+  parts.push(flow.source.path);
+  return parts.join(' · ');
+}
+
 function artifactGateSessionLink(projectId: string, task: OrchestrationSnapshot['artifactGates']['blockedTasks'][number]) {
   const sessionId =
     task.triggerSessionId ?? task.latestLaneSession?.sessionId ?? task.latestLaneHandoff?.fromSessionId;
@@ -247,6 +317,14 @@ export default function ProjectOrchestrationPage() {
   const projectState = selectedProject as State<Project> | undefined;
   const currentProjectId = projectState?.data.id;
   const [snapshot, setSnapshot] = useState<OrchestrationSnapshot | null>(null);
+  const [flows, setFlows] = useState<FlowSummary[]>([]);
+  const [flowRunsById, setFlowRunsById] = useState<
+    Record<string, WorkflowRunSummary[]>
+  >({});
+  const [expandedFlowId, setExpandedFlowId] = useState<string | null>(null);
+  const [flowPayloads, setFlowPayloads] = useState<Record<string, string>>({});
+  const [pendingFlowId, setPendingFlowId] = useState<string | null>(null);
+  const [loadingFlowRunsId, setLoadingFlowRunsId] = useState<string | null>(null);
   const [workflowDefinitions, setWorkflowDefinitions] = useState<
     WorkflowDefinitionSummary[]
   >([]);
@@ -270,12 +348,14 @@ export default function ProjectOrchestrationPage() {
     try {
       const [
         snapshotResponse,
+        flowsResponse,
         workflowsResponse,
         schedulesResponse,
         webhookConfigsResponse,
         webhookLogsResponse,
       ] = await Promise.all([
         runtimeFetch(`/api/background-tasks/status?projectId=${projectId}`),
+        runtimeFetch(`/api/projects/${projectId}/flows`),
         runtimeFetch(`/api/projects/${projectId}/workflows`),
         runtimeFetch(`/api/projects/${projectId}/schedules`),
         runtimeFetch(`/api/webhooks/configs?projectId=${projectId}`),
@@ -284,6 +364,9 @@ export default function ProjectOrchestrationPage() {
 
       if (!snapshotResponse.ok) {
         throw new Error('加载 orchestration snapshot 失败');
+      }
+      if (!flowsResponse.ok) {
+        throw new Error('加载 flows 失败');
       }
       if (!workflowsResponse.ok) {
         throw new Error('加载 workflows 失败');
@@ -299,6 +382,7 @@ export default function ProjectOrchestrationPage() {
       }
 
       const snapshotPayload = (await snapshotResponse.json()) as OrchestrationSnapshot;
+      const flowsPayload = (await flowsResponse.json()) as FlowList;
       const workflowsPayload = (await workflowsResponse.json()) as WorkflowDefinitionList;
       const schedulesPayload = (await schedulesResponse.json()) as ScheduleList;
       const webhookConfigsPayload =
@@ -306,6 +390,7 @@ export default function ProjectOrchestrationPage() {
       const webhookLogsPayload = (await webhookLogsResponse.json()) as WebhookLogList;
 
       setSnapshot(snapshotPayload);
+      setFlows(flowsPayload._embedded?.flows ?? []);
       setWorkflowDefinitions(workflowsPayload._embedded?.workflows ?? []);
       setSchedules(schedulesPayload._embedded?.schedules ?? []);
       setWebhookConfigs(webhookConfigsPayload._embedded?.webhookConfigs ?? []);
@@ -318,6 +403,105 @@ export default function ProjectOrchestrationPage() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    setExpandedFlowId(null);
+    setFlowPayloads({});
+    setFlowRunsById({});
+    setLoadingFlowRunsId(null);
+    setPendingFlowId(null);
+  }, [projectId]);
+
+  const loadFlowRuns = useCallback(
+    async (flowId: string, force = false) => {
+      if (!projectId) {
+        return;
+      }
+
+      if (!force && flowRunsById[flowId]) {
+        return;
+      }
+
+      setLoadingFlowRunsId(flowId);
+      try {
+        const response = await runtimeFetch(
+          `/api/projects/${projectId}/flows/${flowId}/runs`,
+        );
+        if (!response.ok) {
+          throw new Error('加载 flow runs 失败');
+        }
+
+        const payload = (await response.json()) as WorkflowRunList;
+        setFlowRunsById((current) => ({
+          ...current,
+          [flowId]: payload._embedded?.workflowRuns ?? [],
+        }));
+      } finally {
+        setLoadingFlowRunsId((current) => (current === flowId ? null : current));
+      }
+    },
+    [flowRunsById, projectId],
+  );
+
+  const toggleFlowRuns = useCallback(
+    async (flowId: string) => {
+      const nextExpandedFlowId = expandedFlowId === flowId ? null : flowId;
+      setExpandedFlowId(nextExpandedFlowId);
+
+      if (nextExpandedFlowId) {
+        await loadFlowRuns(flowId);
+      }
+    },
+    [expandedFlowId, loadFlowRuns],
+  );
+
+  const handleFlowPayloadChange = useCallback(
+    (flowId: string, nextValue: string) => {
+      setFlowPayloads((current) => ({
+        ...current,
+        [flowId]: nextValue,
+      }));
+    },
+    [],
+  );
+
+  const handleTriggerFlow = useCallback(
+    async (flowId: string) => {
+      if (!projectId) {
+        return;
+      }
+
+      setPendingFlowId(flowId);
+      try {
+        const rawPayload = flowPayloads[flowId]?.trim();
+        const response = await runtimeFetch(
+          `/api/projects/${projectId}/flows/${flowId}/trigger`,
+          {
+            body: JSON.stringify(
+              rawPayload
+                ? {
+                    triggerPayload: rawPayload,
+                  }
+                : {},
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            method: 'POST',
+          },
+        );
+        if (!response.ok) {
+          throw new Error('触发 flow 失败');
+        }
+
+        setExpandedFlowId(flowId);
+        await Promise.all([loadData(), loadFlowRuns(flowId, true)]);
+      } finally {
+        setPendingFlowId((current) => (current === flowId ? null : current));
+      }
+    },
+    [flowPayloads, loadData, loadFlowRuns, projectId],
+  );
 
   const handleProcessQueue = useCallback(async () => {
     setPendingAction('process');
@@ -389,7 +573,7 @@ export default function ProjectOrchestrationPage() {
               {projectTitle(projectState)}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              项目级 queue、workflow、trace、schedule 与 webhook 运行态总览。
+              项目级 flow、queue、workflow、trace、schedule 与 webhook 运行态总览。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -422,7 +606,12 @@ export default function ProjectOrchestrationPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-7">
+          <SummaryCard
+            label="Flows"
+            value={`${flows.length} available`}
+            meta={`${Object.keys(flowRunsById).length} inspected`}
+          />
           <SummaryCard
             label="Worker"
             value={
@@ -538,6 +727,153 @@ export default function ProjectOrchestrationPage() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="rounded-2xl shadow-none">
+          <CardHeader>
+            <CardTitle>Executable Flows</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {flows.length ? (
+              flows.map((flow) => {
+                const flowRuns = flowRunsById[flow.id] ?? [];
+                const isExpanded = expandedFlowId === flow.id;
+                const isLoadingRuns = loadingFlowRunsId === flow.id;
+                const payloadValue = flowPayloads[flow.id] ?? '';
+
+                return (
+                  <div
+                    key={flow.id}
+                    className="rounded-xl border border-border/60 bg-muted/20 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{flow.name}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {flow.description ?? 'No description'}
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          {formatFlowSourceMeta(flow)}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge variant="secondary">{flow.trigger.type}</Badge>
+                        <Badge variant="outline">{flow.source.scope}</Badge>
+                        <Badge variant="outline">{flow.steps.length} steps</Badge>
+                        {flow.source.libraryId ? (
+                          <Badge variant="outline">{flow.source.libraryId}</Badge>
+                        ) : null}
+                        {flow.version ? (
+                          <Badge variant="outline">v{flow.version}</Badge>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {flow.steps.map((step) => (
+                        <Badge key={`${flow.id}-${step.name}`} variant="outline">
+                          {step.name}
+                          {step.adapter ? ` · ${step.adapter}` : ` · ${step.specialistId}`}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+                      <Textarea
+                        className="min-h-24 bg-background"
+                        onChange={(event) =>
+                          handleFlowPayloadChange(flow.id, event.target.value)
+                        }
+                        placeholder="Trigger payload"
+                        value={payloadValue}
+                      />
+                      <div className="flex flex-wrap items-start gap-2 lg:flex-col">
+                        <Button
+                          disabled={pendingFlowId === flow.id}
+                          onClick={() => void handleTriggerFlow(flow.id)}
+                        >
+                          {pendingFlowId === flow.id ? '触发中...' : 'Trigger Flow'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          disabled={isLoadingRuns}
+                          onClick={() => void toggleFlowRuns(flow.id)}
+                        >
+                          {isExpanded ? 'Hide Runs' : 'Show Runs'}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {isExpanded ? (
+                      <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
+                        {isLoadingRuns ? (
+                          <div className="text-sm text-muted-foreground">
+                            加载 flow runs 中...
+                          </div>
+                        ) : flowRuns.length ? (
+                          flowRuns.map((run) => (
+                            <div
+                              key={`${flow.id}-${run.id}`}
+                              className="rounded-xl border border-border/60 bg-background/80 p-3"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <Link
+                                    className="text-sm font-medium underline-offset-4 hover:underline"
+                                    to={`/projects/${projectId}/workflow-runs/${run.id}`}
+                                  >
+                                    {run.workflowName}
+                                  </Link>
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    {run.triggerSource} · {formatDateTime(run.updatedAt)}
+                                  </div>
+                                </div>
+                                <Badge variant="outline">{run.status}</Badge>
+                              </div>
+                              <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                                <SummaryCard
+                                  compact
+                                  label="Done"
+                                  value={String(run.completedSteps)}
+                                  meta={`of ${run.totalSteps}`}
+                                />
+                                <SummaryCard
+                                  compact
+                                  label="Running"
+                                  value={String(run.runningSteps)}
+                                  meta={`pending ${run.pendingSteps}`}
+                                />
+                                <SummaryCard
+                                  compact
+                                  label="Failed"
+                                  value={String(run.failedSteps)}
+                                  meta={`v${run.workflowVersion}`}
+                                />
+                                <SummaryCard
+                                  compact
+                                  label="Current"
+                                  value={run.currentStepName ?? 'none'}
+                                  meta={run.id}
+                                />
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-sm text-muted-foreground">
+                            当前 flow 还没有运行历史。
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                当前项目还没有可执行 flow。
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
           <Card className="rounded-2xl shadow-none">

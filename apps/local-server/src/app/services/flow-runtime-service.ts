@@ -8,9 +8,15 @@ import type {
   WorkflowRunPayload,
   WorkflowStepPayload,
 } from '../schemas/workflow';
+import { ProblemError } from '../errors/problem-error';
 import { getProjectById } from './project-service';
 import { getFlowById } from './flow-service';
-import { getWorkflowById, listWorkflowRuns, triggerWorkflow } from './workflow-service';
+import {
+  getWorkflowById,
+  getWorkflowRunById,
+  listWorkflowRuns,
+  triggerWorkflow,
+} from './workflow-service';
 
 const flowDescriptionPrefix = '[team-ai-flow-id] ';
 
@@ -161,6 +167,30 @@ export async function listFlowRuns(
 ): Promise<WorkflowRunListPayload> {
   const workflow = await syncFlowWorkflowDefinition(sqlite, projectId, flowId);
   return listWorkflowRuns(sqlite, workflow.id);
+}
+
+export async function getFlowRun(
+  sqlite: Database,
+  projectId: string,
+  flowId: string,
+  workflowRunId: string,
+): Promise<WorkflowRunPayload> {
+  const workflow = await syncFlowWorkflowDefinition(sqlite, projectId, flowId);
+  const workflowRun = await getWorkflowRunById(sqlite, workflowRunId);
+
+  if (
+    workflowRun.projectId !== projectId ||
+    workflowRun.workflowId !== workflow.id
+  ) {
+    throw new ProblemError({
+      detail: `Workflow run ${workflowRunId} was not found for flow ${flowId}`,
+      status: 404,
+      title: 'Flow Run Not Found',
+      type: 'https://team-ai.dev/problems/flow-run-not-found',
+    });
+  }
+
+  return workflowRun;
 }
 
 function resolveFlowIdFromWorkflowDescription(description: string | null | undefined) {

@@ -4,6 +4,7 @@ import { AgentEventCollection } from './agent-event.js';
 import { CodebaseCollection } from './codebase.js';
 import { Conversation } from './conversation.js';
 import { Diagram } from './diagram.js';
+import { FlowCollection } from './flow.js';
 import { KnowledgeGraph } from './knowledge-graph.js';
 import { LogicalEntity } from './logical-entity.js';
 import { NoteEventCollection } from './note-event.js';
@@ -43,6 +44,7 @@ export type Project = Entity<
     diagrams: DiagramCollection;
     events: AgentEventCollection;
     'events-stream': Entity<ReadableStream<Uint8Array>>;
+    flows: FlowCollection;
     'knowledge-graph': KnowledgeGraph;
     'logical-entities': Collection<LogicalEntity>;
     notes: NoteCollection;

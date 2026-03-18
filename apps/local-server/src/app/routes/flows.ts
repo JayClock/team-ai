@@ -2,7 +2,11 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { presentFlow, presentFlowList } from '../presenters/flow-presenter';
 import { getFlowById, listFlows } from '../services/flow-service';
-import { listFlowRuns, triggerFlow } from '../services/flow-runtime-service';
+import {
+  getFlowRun,
+  listFlowRuns,
+  triggerFlow,
+} from '../services/flow-runtime-service';
 import { presentWorkflowRun, presentWorkflowRunList } from '../presenters/workflow-presenter';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
@@ -13,6 +17,12 @@ const projectParamsSchema = z.object({
 const flowParamsSchema = z.object({
   flowId: z.string().min(1),
   projectId: z.string().min(1),
+});
+
+const flowRunParamsSchema = z.object({
+  flowId: z.string().min(1),
+  projectId: z.string().min(1),
+  workflowRunId: z.string().min(1),
 });
 
 const triggerFlowBodySchema = z.object({
@@ -66,6 +76,21 @@ const flowsRoute: FastifyPluginAsync = async (fastify) => {
 
       return presentWorkflowRunList(
         await listFlowRuns(fastify.sqlite, projectId, flowId),
+      );
+    },
+  );
+
+  fastify.get(
+    '/projects/:projectId/flows/:flowId/runs/:workflowRunId',
+    async (request, reply) => {
+      const { flowId, projectId, workflowRunId } = flowRunParamsSchema.parse(
+        request.params,
+      );
+
+      setVendorMediaType(reply, VENDOR_MEDIA_TYPES.workflowRun);
+
+      return presentWorkflowRun(
+        await getFlowRun(fastify.sqlite, projectId, flowId, workflowRunId),
       );
     },
   );

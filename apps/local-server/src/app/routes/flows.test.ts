@@ -122,6 +122,21 @@ describe('flows route', () => {
         ],
       },
     });
+
+    const workflowRunId = runsResponse.json()._embedded.workflowRuns[0].id as string;
+    const runResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/flows/simple-dev/runs/${workflowRunId}`,
+    });
+
+    expect(runResponse.statusCode).toBe(200);
+    expect(responseContentType(runResponse)).toBe(
+      VENDOR_MEDIA_TYPES.workflowRun,
+    );
+    expect(runResponse.json()).toMatchObject({
+      id: workflowRunId,
+      workflowName: 'Flow · Simple Developer Task',
+    });
   });
 
   async function createTestDatabase(): Promise<Database> {

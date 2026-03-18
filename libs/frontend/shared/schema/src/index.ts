@@ -72,6 +72,7 @@ export type {
 } from './lib/task.js';
 export type { Role, RoleCollection, RoleValue } from './lib/role.js';
 export type { Specialist, SpecialistCollection } from './lib/specialist.js';
+export type { Flow, FlowCollection } from './lib/flow.js';
 export type {
   AgentEvent,
   AgentEventCollection,

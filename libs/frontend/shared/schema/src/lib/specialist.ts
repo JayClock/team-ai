@@ -6,12 +6,15 @@ export type Specialist = Entity<
     id: string;
     name: string;
     description: string | null;
+    defaultAdapter: string | null;
     role: RoleValue;
     modelTier: string | null;
+    roleReminder: string | null;
     systemPrompt: string;
     source: {
+      libraryId?: string | null;
       path: string;
-      scope: 'builtin' | 'workspace' | 'user';
+      scope: 'builtin' | 'library' | 'workspace' | 'user';
     };
   },
   {
