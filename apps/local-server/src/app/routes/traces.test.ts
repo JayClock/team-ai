@@ -52,6 +52,20 @@ describe('traces route', () => {
       name: 'Trace Route Session',
       projectId: project.id,
     });
+    sqlite
+      .prepare(
+        `
+          UPDATE project_acp_sessions
+          SET provider = 'codex',
+              model = 'gpt-5',
+              timeout_scope = 'session_total',
+              cancel_requested_at = '2026-03-17T00:00:01.000Z',
+              force_killed_at = '2026-03-17T00:00:04.000Z',
+              completed_at = '2026-03-17T00:00:04.000Z'
+          WHERE id = 'acps_trace_route_1'
+        `,
+      )
+      .run();
     recordAcpTrace(sqlite, {
       createdAt: '2026-03-17T00:00:00.000Z',
       eventId: 'evt_trace_route_1',
@@ -71,6 +85,24 @@ describe('traces route', () => {
         },
       },
     });
+    recordAcpTrace(sqlite, {
+      createdAt: '2026-03-17T00:00:01.000Z',
+      eventId: 'evt_trace_route_2',
+      sessionId: 'acps_trace_route_1',
+      update: {
+        eventType: 'supervision_update',
+        provider: 'codex',
+        rawNotification: null,
+        sessionId: 'acps_trace_route_1',
+        supervision: {
+          detail: 'ACP session timed out (session_total) and exceeded cancel grace; force-killing runtime.',
+          forceKilled: true,
+          scope: 'session_total',
+          stage: 'force_killed',
+        },
+        timestamp: '2026-03-17T00:00:01.000Z',
+      },
+    });
 
     const listResponse = await fastify.inject({
       method: 'GET',
@@ -79,17 +111,20 @@ describe('traces route', () => {
 
     expect(listResponse.statusCode).toBe(200);
     expect(responseContentType(listResponse)).toBe(VENDOR_MEDIA_TYPES.traces);
-    expect(listResponse.json()).toMatchObject({
-      _embedded: {
-        traces: [
-          expect.objectContaining({
-            eventType: 'tool_call',
-            id: 'evt_trace_route_1',
-          }),
-        ],
-      },
-      total: 1,
-    });
+    const listBody = listResponse.json();
+    expect(listBody.total).toBe(2);
+    expect(listBody._embedded.traces).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventType: 'tool_call',
+          id: 'evt_trace_route_1',
+        }),
+        expect.objectContaining({
+          eventType: 'supervision_update',
+          id: 'evt_trace_route_2',
+        }),
+      ]),
+    );
 
     const detailResponse = await fastify.inject({
       method: 'GET',
@@ -116,8 +151,19 @@ describe('traces route', () => {
     expect(statsResponse.json()).toMatchObject({
       byEventType: {
         tool_call: 1,
+        supervision_update: 1,
       },
-      total: 1,
+      supervision: {
+        byScope: {
+          session_total: 1,
+        },
+        byStage: {
+          force_killed: 1,
+        },
+        forceKilled: 1,
+        totalTimeouts: 1,
+      },
+      total: 2,
       uniqueSessions: 1,
     });
   });

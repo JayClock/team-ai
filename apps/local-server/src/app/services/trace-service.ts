@@ -14,6 +14,16 @@ interface SessionTraceContextRow {
   project_id: string;
 }
 
+interface SupervisionSessionStatsRow {
+  cancel_requested_at: string | null;
+  completed_at: string | null;
+  force_killed_at: string | null;
+  model: string | null;
+  provider: string;
+  task_id: string | null;
+  timeout_scope: string | null;
+}
+
 interface TraceRow {
   created_at: string;
   event_id: string;
@@ -84,6 +94,11 @@ function summarizeTrace(input: RecordAcpTraceInput['update']) {
       return `orchestration_update: ${input.orchestration?.eventName ?? 'update'}`;
     case 'lifecycle_update':
       return `lifecycle_update: ${input.lifecycle?.state ?? 'update'}`;
+    case 'supervision_update':
+      return (
+        `supervision_update: ${input.supervision?.stage ?? 'update'}` +
+        (input.supervision?.scope ? ` (${input.supervision.scope})` : '')
+      );
     case 'session_info_update':
       return 'session_info_update';
     case 'plan_update':
@@ -309,12 +324,128 @@ export async function getTraceStats(
     )
     .all(parameters) as Array<{ count: number; event_type: string }>;
 
+  const supervisionStageCounts: Record<string, number> = {};
+  const supervisionTraceRows = sqlite
+    .prepare(
+      `
+        SELECT payload_json
+        FROM project_traces
+        WHERE ${whereClause} AND event_type = 'supervision_update'
+      `,
+    )
+    .all(parameters) as Array<{ payload_json: string }>;
+
+  for (const row of supervisionTraceRows) {
+    const payload = parsePayload(row.payload_json);
+    const supervision =
+      payload.supervision && typeof payload.supervision === 'object'
+        ? (payload.supervision as Record<string, unknown>)
+        : null;
+    const stage =
+      typeof supervision?.stage === 'string' ? supervision.stage : null;
+    if (!stage) {
+      continue;
+    }
+
+    supervisionStageCounts[stage] = (supervisionStageCounts[stage] ?? 0) + 1;
+  }
+
+  const sessionFilters = ['deleted_at IS NULL', 'timeout_scope IS NOT NULL'];
+  if (input.projectId) {
+    sessionFilters.push('project_id = @projectId');
+  }
+  if (input.sessionId) {
+    sessionFilters.push('id = @sessionId');
+  }
+
+  const supervisionRows = sqlite
+    .prepare(
+      `
+        SELECT
+          provider,
+          model,
+          task_id,
+          timeout_scope,
+          cancel_requested_at,
+          completed_at,
+          force_killed_at
+        FROM project_acp_sessions
+        WHERE ${sessionFilters.join(' AND ')}
+      `,
+    )
+    .all(parameters) as SupervisionSessionStatsRow[];
+
+  const supervisionByScope: Record<string, number> = {};
+  const supervisionByProvider: Record<string, number> = {};
+  const supervisionByModel: Record<string, number> = {};
+  const supervisionBySessionKind: Record<'standalone' | 'task_bound', number> = {
+    standalone: 0,
+    task_bound: 0,
+  };
+  let cancelCompleted = 0;
+  let forceKilled = 0;
+  const cleanupLatenciesMs: number[] = [];
+
+  for (const row of supervisionRows) {
+    if (row.timeout_scope) {
+      supervisionByScope[row.timeout_scope] =
+        (supervisionByScope[row.timeout_scope] ?? 0) + 1;
+    }
+
+    supervisionByProvider[row.provider] =
+      (supervisionByProvider[row.provider] ?? 0) + 1;
+    supervisionByModel[row.model ?? 'default'] =
+      (supervisionByModel[row.model ?? 'default'] ?? 0) + 1;
+    supervisionBySessionKind[row.task_id ? 'task_bound' : 'standalone'] += 1;
+
+    if (row.force_killed_at) {
+      forceKilled += 1;
+    } else if (row.cancel_requested_at && row.completed_at) {
+      cancelCompleted += 1;
+    }
+
+    const cancelRequestedAtMs = row.cancel_requested_at
+      ? Date.parse(row.cancel_requested_at)
+      : Number.NaN;
+    const cleanupAtMs = row.force_killed_at
+      ? Date.parse(row.force_killed_at)
+      : row.completed_at
+        ? Date.parse(row.completed_at)
+        : Number.NaN;
+
+    if (!Number.isNaN(cancelRequestedAtMs) && !Number.isNaN(cleanupAtMs)) {
+      cleanupLatenciesMs.push(cleanupAtMs - cancelRequestedAtMs);
+    }
+  }
+
+  const averageCleanupLatencyMs =
+    cleanupLatenciesMs.length > 0
+      ? Math.round(
+          cleanupLatenciesMs.reduce((sum, value) => sum + value, 0) /
+            cleanupLatenciesMs.length,
+        )
+      : null;
+  const maxCleanupLatencyMs =
+    cleanupLatenciesMs.length > 0 ? Math.max(...cleanupLatenciesMs) : null;
+
   return {
     byEventType: Object.fromEntries(
       rows.map((row) => [row.event_type, row.count]),
     ),
     projectId: input.projectId ?? null,
     sessionId: input.sessionId ?? null,
+    supervision: {
+      averageCleanupLatencyMs,
+      byModel: supervisionByModel,
+      byProvider: supervisionByProvider,
+      byScope: supervisionByScope,
+      bySessionKind: supervisionBySessionKind,
+      byStage: supervisionStageCounts,
+      cancelCompleted,
+      forceKilled,
+      maxCleanupLatencyMs,
+      totalTimeouts: supervisionRows.length,
+    },
     total: total.count,
     uniqueSessions: total.unique_sessions,
   };

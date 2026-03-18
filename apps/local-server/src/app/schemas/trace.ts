@@ -33,6 +33,18 @@ export interface TraceStatsPayload {
   byEventType: Record<string, number>;
   projectId: string | null;
   sessionId: string | null;
+  supervision: {
+    averageCleanupLatencyMs: number | null;
+    byModel: Record<string, number>;
+    byProvider: Record<string, number>;
+    byScope: Record<string, number>;
+    bySessionKind: Record<'standalone' | 'task_bound', number>;
+    byStage: Record<string, number>;
+    cancelCompleted: number;
+    forceKilled: number;
+    maxCleanupLatencyMs: number | null;
+    totalTimeouts: number;
+  };
   total: number;
   uniqueSessions: number;
 }

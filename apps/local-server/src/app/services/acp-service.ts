@@ -1707,6 +1707,19 @@ async function requestSessionSupervisionCancellation(
   },
   options: AcpServiceOptions = {},
 ) {
+  options.logger?.info?.(
+    {
+      detail: input.detail,
+      model: session.model,
+      provider: session.provider,
+      scope: input.scope,
+      sessionId: session.id,
+      source: options.source ?? 'acp-service',
+      stage: 'timeout_detected',
+      taskBound: session.task_id !== null,
+    },
+    'ACP session supervision transition',
+  );
   appendSupervisionEvent(sqlite, broker, {
     sessionId: session.id,
     stage: 'timeout_detected',
@@ -1737,6 +1750,7 @@ async function requestSessionSupervisionCancellation(
     taskBound: session.task_id !== null,
   });
 
+  let cancelSent = false;
   if (session.runtime_session_id && !runtime.isSessionActive(session.id)) {
     await ensureRuntimeLoaded(sqlite, broker, runtime, session.id, options);
   }
@@ -1746,7 +1760,23 @@ async function requestSessionSupervisionCancellation(
       localSessionId: session.id,
       reason: input.detail,
     });
+    cancelSent = true;
   }
+
+  options.logger?.info?.(
+    {
+      cancelSent,
+      cancelRequestedAt: input.nowIso,
+      model: session.model,
+      provider: session.provider,
+      scope: input.scope,
+      sessionId: session.id,
+      source: options.source ?? 'acp-service',
+      stage: 'cancel_requested',
+      taskBound: session.task_id !== null,
+    },
+    'ACP session supervision transition',
+  );
 }
 
 const REPLAY_HISTORY_CHAR_LIMIT = 24_000;
@@ -2708,8 +2738,25 @@ export async function runAcpSessionSupervisionTick(
         timeoutScope === 'force_kill_grace'
           ? 'ACP session exceeded cancel grace and was force-killed.'
           : `ACP session timed out (${timeoutScope}) and exceeded cancel grace; force-killing runtime.`;
+      const cancelElapsedMs = Number.isNaN(cancelRequestedAtMs)
+        ? null
+        : nowMs - cancelRequestedAtMs;
 
       forcedSessionIds.push(session.id);
+      options.logger?.warn?.(
+        {
+          cancelElapsedMs,
+          cancelRequestedAt: session.cancel_requested_at,
+          model: session.model,
+          provider: session.provider,
+          scope: timeoutScope,
+          sessionId: session.id,
+          source: options.source ?? 'acp-service',
+          stage: 'cancel_grace_expired',
+          taskBound: session.task_id !== null,
+        },
+        'ACP session supervision transition',
+      );
       appendSupervisionEvent(sqlite, broker, {
         sessionId: session.id,
         stage: 'cancel_grace_expired',
@@ -2726,6 +2773,21 @@ export async function runAcpSessionSupervisionTick(
         detail,
         forceKilled: true,
       });
+      options.logger?.warn?.(
+        {
+          cancelElapsedMs,
+          completedAt: nowIso,
+          forceKilled: true,
+          model: session.model,
+          provider: session.provider,
+          scope: timeoutScope,
+          sessionId: session.id,
+          source: options.source ?? 'acp-service',
+          stage: 'force_killed',
+          taskBound: session.task_id !== null,
+        },
+        'ACP session supervision transition',
+      );
       updateSessionRuntime(sqlite, session.id, {
         acpError: detail,
         acpStatus: 'error',
@@ -3116,6 +3178,19 @@ export async function promptAcpSession(
       },
     });
     if (timeoutScope) {
+      options.logger?.warn?.(
+        {
+          detail: message,
+          model: session.model,
+          provider: session.provider,
+          scope: timeoutScope,
+          sessionId,
+          source: options.source ?? 'acp-service',
+          stage: 'timeout_detected',
+          taskBound: session.task_id !== null,
+        },
+        'ACP session supervision transition',
+      );
       appendSupervisionEvent(sqlite, broker, {
         sessionId,
         stage: 'timeout_detected',

@@ -30,6 +30,7 @@ const traceEventTypeValues = [
   'available_commands_update',
   'orchestration_update',
   'lifecycle_update',
+  'supervision_update',
   'error',
 ] as const;
 

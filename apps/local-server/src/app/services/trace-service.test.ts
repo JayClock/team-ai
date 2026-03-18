@@ -35,6 +35,19 @@ describe('trace service', () => {
       name: 'Trace Session',
       projectId: project.id,
     });
+    sqlite
+      .prepare(
+        `
+          UPDATE project_acp_sessions
+          SET provider = 'codex',
+              model = 'gpt-5',
+              timeout_scope = 'session_inactive',
+              cancel_requested_at = '2026-03-17T00:00:01.000Z',
+              completed_at = '2026-03-17T00:00:03.000Z'
+          WHERE id = 'acps_trace_service_1'
+        `,
+      )
+      .run();
 
     const trace = recordAcpTrace(sqlite, {
       createdAt: '2026-03-17T00:00:00.000Z',
@@ -61,13 +74,35 @@ describe('trace service', () => {
     });
     expect(trace?.summary).toContain('assistant: Trace me through the routing layer');
 
+    const supervisionTrace = recordAcpTrace(sqlite, {
+      createdAt: '2026-03-17T00:00:01.000Z',
+      eventId: 'evt_trace_supervision_1',
+      sessionId: 'acps_trace_service_1',
+      update: {
+        eventType: 'supervision_update',
+        provider: 'codex',
+        rawNotification: null,
+        sessionId: 'acps_trace_service_1',
+        supervision: {
+          detail: 'ACP session exceeded its inactivity budget.',
+          scope: 'session_inactive',
+          stage: 'timeout_detected',
+        },
+        timestamp: '2026-03-17T00:00:01.000Z',
+      },
+    });
+
+    expect(supervisionTrace?.summary).toBe(
+      'supervision_update: timeout_detected (session_inactive)',
+    );
+
     const listed = await listTraces(sqlite, { projectId: project.id });
     expect(listed).toMatchObject({
       projectId: project.id,
-      total: 1,
+      total: 2,
     });
     expect(listed.items[0]).toMatchObject({
-      id: 'evt_trace_1',
+      id: 'evt_trace_supervision_1',
     });
 
     expect(getTraceById(sqlite, 'evt_trace_1')).toMatchObject({
@@ -78,10 +113,34 @@ describe('trace service', () => {
     expect(stats).toEqual({
       byEventType: {
         agent_message: 1,
+        supervision_update: 1,
       },
       projectId: project.id,
       sessionId: null,
-      total: 1,
+      supervision: {
+        averageCleanupLatencyMs: 2000,
+        byModel: {
+          'gpt-5': 1,
+        },
+        byProvider: {
+          codex: 1,
+        },
+        byScope: {
+          session_inactive: 1,
+        },
+        bySessionKind: {
+          standalone: 1,
+          task_bound: 0,
+        },
+        byStage: {
+          timeout_detected: 1,
+        },
+        cancelCompleted: 1,
+        forceKilled: 0,
+        maxCleanupLatencyMs: 2000,
+        totalTimeouts: 1,
+      },
+      total: 2,
       uniqueSessions: 1,
     });
   });
