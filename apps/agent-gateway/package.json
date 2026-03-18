@@ -3,13 +3,14 @@
   "version": "0.0.1",
   "type": "module",
   "private": true,
+  "dependencies": {
+    "@orchestration/agent-gateway": "workspace:*"
+  },
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.app.json",
+    "build": "rm -rf dist && tsc -p tsconfig.app.json && mkdir -p dist/orchestration && cp -R ../../orchestration/agent-gateway/dist dist/orchestration/agent-gateway",
     "start": "node dist/main.js",
-    "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "test:contract": "vitest run src/server.contract.test.ts"
+    "typecheck": "tsc -p tsconfig.app.json --noEmit"
   },
   "nx": {
     "projectType": "application",
@@ -21,23 +22,20 @@
         "executor": "nx:run-commands",
         "options": {
           "cwd": "apps/agent-gateway",
-          "command": "tsx watch src/main.ts"
+          "command": "pnpm run dev"
         }
       },
       "build": {
         "executor": "nx:run-commands",
+        "dependsOn": [
+          "^build"
+        ],
         "outputs": [
           "{projectRoot}/dist"
         ],
         "options": {
           "cwd": "apps/agent-gateway",
-          "command": "tsc -p tsconfig.app.json"
-        }
-      },
-      "test": {
-        "executor": "nx:run-script",
-        "options": {
-          "script": "test"
+          "command": "pnpm run build"
         }
       },
       "start": {
@@ -47,7 +45,7 @@
         ],
         "options": {
           "cwd": "apps/agent-gateway",
-          "command": "node dist/main.js"
+          "command": "pnpm run start"
         }
       }
     }

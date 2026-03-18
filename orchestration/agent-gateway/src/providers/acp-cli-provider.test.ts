@@ -1,15 +1,48 @@
 import { EventEmitter } from 'node:events';
-import { spawn } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  AcpCliProviderAdapter,
-  OpencodeAcpCliProviderAdapter,
-  resolveAcpCliRequestTimeoutMs,
-} from './acp-cli-provider.js';
+import { PROVIDER_ADAPTER_KINDS } from './provider-types.js';
+import type { ResolvedAcpCliProviderPreset } from './provider-presets.js';
 
-vi.mock('node:child_process', () => ({
-  spawn: vi.fn(),
+const { spawnMock } = vi.hoisted(() => ({
+  spawnMock: vi.fn(),
 }));
+
+vi.mock(import('node:child_process'), async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import('node:child_process');
+  return {
+    ...actual,
+    default: {
+      ...actual,
+      spawn: spawnMock,
+    },
+    spawn: spawnMock,
+  };
+});
+
+async function loadAcpCliProviderModule() {
+  return await import('./acp-cli-provider.js');
+}
+
+const opencodePreset: ResolvedAcpCliProviderPreset = {
+  id: 'opencode',
+  providerId: 'opencode',
+  name: 'OpenCode',
+  description: 'OpenCode AI coding agent',
+  command: 'opencode',
+  args: ['acp'],
+  adapterKind: PROVIDER_ADAPTER_KINDS.opencodeAcpCli,
+  cwdArg: '--cwd',
+};
+
+const codexPreset: ResolvedAcpCliProviderPreset = {
+  id: 'codex',
+  providerId: 'codex',
+  name: 'Codex',
+  description: 'OpenAI Codex CLI (via codex-acp wrapper)',
+  command: 'codex-acp',
+  args: [],
+  adapterKind: PROVIDER_ADAPTER_KINDS.acpCli,
+};
 
 class FakeChildProcess extends EventEmitter {
   readonly stdout = new EventEmitter();
@@ -29,17 +62,11 @@ describe('AcpCliProviderAdapter', () => {
 
   it('starts opencode ACP sessions with --cwd and forwards normalized updates', async () => {
     const childProcess = new FakeChildProcess();
-    vi.mocked(spawn).mockReturnValue(childProcess as never);
+    spawnMock.mockReturnValue(childProcess as never);
+    const { OpencodeAcpCliProviderAdapter } = await loadAcpCliProviderModule();
 
     const adapter = new OpencodeAcpCliProviderAdapter(
-      {
-        id: 'opencode',
-        providerId: 'opencode',
-        name: 'OpenCode',
-        command: 'opencode',
-        args: ['acp'],
-        cwdArg: '--cwd',
-      },
+      opencodePreset,
       {
         command: 'opencode',
         args: ['acp'],
@@ -68,7 +95,7 @@ describe('AcpCliProviderAdapter', () => {
       },
     );
 
-    expect(spawn).toHaveBeenCalledWith(
+    expect(spawnMock).toHaveBeenCalledWith(
       'opencode',
       ['acp', '--cwd', '/tmp/workspace'],
       expect.objectContaining({
@@ -190,7 +217,9 @@ describe('AcpCliProviderAdapter', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it('uses routa-style init timeouts for npx and uvx runtimes', () => {
+  it('uses routa-style init timeouts for npx and uvx runtimes', async () => {
+    const { resolveAcpCliRequestTimeoutMs } = await loadAcpCliProviderModule();
+
     expect(resolveAcpCliRequestTimeoutMs('initialize', 'npx')).toBe(120_000);
     expect(resolveAcpCliRequestTimeoutMs('session/new', 'uvx')).toBe(120_000);
     expect(resolveAcpCliRequestTimeoutMs('initialize', 'opencode')).toBe(
@@ -201,17 +230,11 @@ describe('AcpCliProviderAdapter', () => {
 
   it('cancels active ACP prompts through session/cancel', async () => {
     const childProcess = new FakeChildProcess();
-    vi.mocked(spawn).mockReturnValue(childProcess as never);
+    spawnMock.mockReturnValue(childProcess as never);
+    const { OpencodeAcpCliProviderAdapter } = await loadAcpCliProviderModule();
 
     const adapter = new OpencodeAcpCliProviderAdapter(
-      {
-        id: 'opencode',
-        providerId: 'opencode',
-        name: 'OpenCode',
-        command: 'opencode',
-        args: ['acp'],
-        cwdArg: '--cwd',
-      },
+      opencodePreset,
       {
         command: 'opencode',
         args: ['acp'],
@@ -263,17 +286,11 @@ describe('AcpCliProviderAdapter', () => {
 
   it('fails loudly when session/new rejects the requested model', async () => {
     const childProcess = new FakeChildProcess();
-    vi.mocked(spawn).mockReturnValue(childProcess as never);
+    spawnMock.mockReturnValue(childProcess as never);
+    const { OpencodeAcpCliProviderAdapter } = await loadAcpCliProviderModule();
 
     const adapter = new OpencodeAcpCliProviderAdapter(
-      {
-        id: 'opencode',
-        providerId: 'opencode',
-        name: 'OpenCode',
-        command: 'opencode',
-        args: ['acp'],
-        cwdArg: '--cwd',
-      },
+      opencodePreset,
       {
         command: 'opencode',
         args: ['acp'],
@@ -332,17 +349,11 @@ describe('AcpCliProviderAdapter', () => {
 
   it('normalizes turn_complete session updates to canonical completion events', async () => {
     const childProcess = new FakeChildProcess();
-    vi.mocked(spawn).mockReturnValue(childProcess as never);
+    spawnMock.mockReturnValue(childProcess as never);
+    const { OpencodeAcpCliProviderAdapter } = await loadAcpCliProviderModule();
 
     const adapter = new OpencodeAcpCliProviderAdapter(
-      {
-        id: 'opencode',
-        providerId: 'opencode',
-        name: 'OpenCode',
-        command: 'opencode',
-        args: ['acp'],
-        cwdArg: '--cwd',
-      },
+      opencodePreset,
       {
         command: 'opencode',
         args: ['acp'],
@@ -427,17 +438,11 @@ describe('AcpCliProviderAdapter', () => {
 
   it('normalizes extended acp session updates to canonical shapes', async () => {
     const childProcess = new FakeChildProcess();
-    vi.mocked(spawn).mockReturnValue(childProcess as never);
+    spawnMock.mockReturnValue(childProcess as never);
+    const { OpencodeAcpCliProviderAdapter } = await loadAcpCliProviderModule();
 
     const adapter = new OpencodeAcpCliProviderAdapter(
-      {
-        id: 'opencode',
-        providerId: 'opencode',
-        name: 'OpenCode',
-        command: 'opencode',
-        args: ['acp'],
-        cwdArg: '--cwd',
-      },
+      opencodePreset,
       {
         command: 'opencode',
         args: ['acp'],
@@ -535,16 +540,11 @@ describe('AcpCliProviderAdapter', () => {
     );
   });
 
-  it('exposes shared adapter behavior and normalizeNotification contract', () => {
+  it('exposes shared adapter behavior and normalizeNotification contract', async () => {
+    const { OpencodeAcpCliProviderAdapter } = await loadAcpCliProviderModule();
+
     const adapter = new OpencodeAcpCliProviderAdapter(
-      {
-        id: 'opencode',
-        providerId: 'opencode',
-        name: 'OpenCode',
-        command: 'opencode',
-        args: ['acp'],
-        cwdArg: '--cwd',
-      },
+      opencodePreset,
       {
         command: 'opencode',
         args: ['acp'],
@@ -584,15 +584,11 @@ describe('AcpCliProviderAdapter', () => {
     });
   });
 
-  it('keeps generic ACP CLI providers on the standard tool input path', () => {
+  it('keeps generic ACP CLI providers on the standard tool input path', async () => {
+    const { AcpCliProviderAdapter } = await loadAcpCliProviderModule();
+
     const adapter = new AcpCliProviderAdapter(
-      {
-        id: 'codex',
-        providerId: 'codex',
-        name: 'Codex',
-        command: 'codex-acp',
-        args: [],
-      },
+      codexPreset,
       {
         command: 'codex-acp',
         args: [],

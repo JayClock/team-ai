@@ -16,5 +16,10 @@
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["dist", "src/**/*.spec.ts", "src/**/*.test.ts"]
+  "exclude": ["dist", "src/**/*.spec.ts", "src/**/*.test.ts"],
+  "references": [
+    {
+      "path": "../../orchestration/agent-gateway/tsconfig.lib.json"
+    }
+  ]
 }
