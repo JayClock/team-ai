@@ -33,6 +33,7 @@ import {
   FileCode2Icon,
   LoaderCircleIcon,
   PaperclipIcon,
+  SquareIcon,
 } from 'lucide-react';
 import {
   type ChangeEvent,
@@ -91,6 +92,7 @@ export type ProjectComposerInputProps = {
   footerEnd?: ReactNode;
   footerStart?: ReactNode;
   model?: ProjectComposerModelProps;
+  onCancel?: () => Promise<void> | void;
   onSubmit: (input: ProjectComposerSubmitInput) => Promise<void> | void;
   placeholder: string;
   project?: ProjectComposerProjectProps;
@@ -549,6 +551,7 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
     footerEnd,
     footerStart,
     model,
+    onCancel,
     onSubmit,
     placeholder,
     project,
@@ -926,7 +929,7 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
 
   const isSubmitDisabled =
     disabled === true ||
-    submitPending === true ||
+    (submitPending === true && !onCancel) ||
     plainText.trim().length === 0;
 
   return (
@@ -1005,17 +1008,21 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
             {footerEnd}
 
             <PromptInputSubmit
-              aria-label="发起会话"
+              aria-label={submitPending ? '取消会话' : '发起会话'}
               className="size-9 rounded-xl p-0"
               disabled={isSubmitDisabled}
               onClick={(event) => {
                 event.preventDefault();
+                if (submitPending) {
+                  void onCancel?.();
+                  return;
+                }
                 void handleSubmit();
               }}
               type="button"
             >
               {submitPending ? (
-                <LoaderCircleIcon className="size-4 animate-spin" />
+                <SquareIcon className="size-4" />
               ) : (
                 <ArrowRightIcon className="size-4" />
               )}

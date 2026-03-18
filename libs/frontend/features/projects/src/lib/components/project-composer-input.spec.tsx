@@ -670,4 +670,29 @@ describe('ProjectComposerInput', () => {
 
     expect(onProviderChange).toHaveBeenCalledWith('opencode');
   });
+
+  it('keeps the submit button enabled during submitPending and cancels instead of submitting', async () => {
+    const onCancel = vi.fn();
+    const onSubmit = vi.fn();
+
+    render(
+      <ProjectComposerInput
+        ariaLabel="项目指令输入框"
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+        placeholder="输入内容"
+        submitPending
+      />,
+    );
+
+    await setComposerText('等待中的消息');
+
+    const cancelButton = screen.getByRole('button', { name: '取消会话' });
+    expect(cancelButton.hasAttribute('disabled')).toBe(false);
+
+    fireEvent.click(cancelButton);
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 });

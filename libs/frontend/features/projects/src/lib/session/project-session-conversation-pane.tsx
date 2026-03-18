@@ -29,6 +29,7 @@ export function ProjectSessionConversationPane(props: {
   chatMessages: SessionChatMessage[];
   hasPendingAssistantMessage: boolean;
   interactionDisabled?: boolean;
+  onCancel?: () => Promise<void>;
   onSubmit: (input: {
     cwd?: string;
     files: unknown[];
@@ -46,6 +47,7 @@ export function ProjectSessionConversationPane(props: {
     hasPendingAssistantMessage,
     interactionDisabled,
     model,
+    onCancel,
     onSubmit,
     project,
     provider,
@@ -54,7 +56,7 @@ export function ProjectSessionConversationPane(props: {
 
   const promptInputProps = {
     ariaLabel: '会话输入框',
-    disabled: hasPendingAssistantMessage || interactionDisabled === true,
+    disabled: interactionDisabled === true,
     footerStart: (
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <span>
@@ -80,6 +82,7 @@ export function ProjectSessionConversationPane(props: {
       </div>
     ),
     model,
+    onCancel,
     onSubmit,
     placeholder: selectedSession
       ? '继续当前会话...'

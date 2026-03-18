@@ -306,6 +306,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     create,
     select,
     prompt,
+    cancel,
     updateSession,
     ingestEvents,
   } = useAcpSession(projectState, {
@@ -1581,6 +1582,7 @@ export function ShellsSession(props: ShellsSessionProps) {
                       chatMessages={chatMessages}
                       hasPendingAssistantMessage={hasPendingAssistantMessage}
                       interactionDisabled={sessionRuntimeSwitchPending}
+                      onCancel={() => cancel()}
                       model={sessionPromptModel}
                       onSubmit={handlePromptSubmit}
                       project={sessionPromptProjectPicker}
@@ -1605,6 +1607,7 @@ export function ShellsSession(props: ShellsSessionProps) {
                       chatMessages={chatMessages}
                       hasPendingAssistantMessage={hasPendingAssistantMessage}
                       interactionDisabled={sessionRuntimeSwitchPending}
+                      onCancel={() => cancel()}
                       model={sessionPromptModel}
                       onSubmit={handlePromptSubmit}
                       project={sessionPromptProjectPicker}
