@@ -16,7 +16,13 @@ import {
   TaskRunCollection,
   Worktree,
 } from '@shared/schema';
-import { Button, toast } from '@shared/ui';
+import {
+  Button,
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+  toast,
+} from '@shared/ui';
 import {
   getCurrentDesktopRuntimeConfig,
   resolveRuntimeApiUrl,
@@ -24,7 +30,6 @@ import {
 } from '@shared/util-http';
 import { Settings2Icon } from 'lucide-react';
 import {
-  type MouseEvent as ReactMouseEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -65,7 +70,6 @@ import {
 import { ProjectSettingsDialog } from '../components/project-settings-dialog';
 
 const STREAM_RETRY_DELAY_MS = 1500;
-const LEFT_SIDEBAR_WIDTH_KEY = 'team-ai.session.left-sidebar-width';
 const LEFT_SIDEBAR_COLLAPSED_KEY = 'team-ai.session.left-sidebar-collapsed';
 
 type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error';
@@ -322,9 +326,14 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [worktrees, setWorktrees] = useState<ProjectWorktreeOption[]>([]);
   const [worktreesLoading, setWorktreesLoading] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
-  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
-  const [leftSidebarWidth, setLeftSidebarWidth] = useState(320);
-  const [resizeMode, setResizeMode] = useState<'left' | null>(null);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 768,
+  );
+  const [isLeftSidebarCollapsed] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.localStorage.getItem(LEFT_SIDEBAR_COLLAPSED_KEY) === 'true',
+  );
   const [preferredRole, setPreferredRole] =
     useState<WorkbenchSessionRole | null>(null);
   const [preferredModelOverride, setPreferredModelOverride] = useState<
@@ -361,7 +370,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const latestEventIdRef = useRef<string | undefined>(undefined);
   const latestNoteEventIdRef = useRef<string | undefined>(undefined);
   const initialSelectionAppliedRef = useRef<string | null>(null);
-  const leftResizeStartRef = useRef({ width: 320, x: 0 });
 
   const selectedSessionId = selectedSession?.data.id;
   const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
@@ -543,31 +551,18 @@ export function ShellsSession(props: ShellsSessionProps) {
       return;
     }
 
-    const storedLeftWidth = Number.parseFloat(
-      window.localStorage.getItem(LEFT_SIDEBAR_WIDTH_KEY) ?? '',
-    );
-    if (Number.isFinite(storedLeftWidth)) {
-      setLeftSidebarWidth(Math.min(Math.max(storedLeftWidth, 260), 420));
-    }
+    const mediaQuery = window.matchMedia('(min-width: 768px)');
+    const syncViewportMode = () => {
+      setIsDesktopViewport(mediaQuery.matches);
+    };
 
-    setIsLeftSidebarCollapsed(
-      window.localStorage.getItem(LEFT_SIDEBAR_COLLAPSED_KEY) === 'true',
-    );
+    syncViewportMode();
+    mediaQuery.addEventListener('change', syncViewportMode);
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncViewportMode);
+    };
   }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(
-      LEFT_SIDEBAR_WIDTH_KEY,
-      String(leftSidebarWidth),
-    );
-    window.localStorage.setItem(
-      LEFT_SIDEBAR_COLLAPSED_KEY,
-      String(isLeftSidebarCollapsed),
-    );
-  }, [isLeftSidebarCollapsed, leftSidebarWidth]);
 
   useEffect(() => {
     if (selectedSession) {
@@ -1410,37 +1405,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     sessionsLoading,
   ]);
 
-  useEffect(() => {
-    if (!resizeMode) {
-      return;
-    }
-
-    const handleMouseMove = (event: MouseEvent) => {
-      const delta = event.clientX - leftResizeStartRef.current.x;
-      setLeftSidebarWidth(
-        Math.min(Math.max(leftResizeStartRef.current.width + delta, 260), 420),
-      );
-    };
-
-    const handleMouseUp = () => {
-      setResizeMode(null);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'col-resize';
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-    };
-  }, [resizeMode]);
-
   const handleSidebarSessionSelect = useCallback(
     (session: State<AcpSessionSummary>) => {
       void selectSessionFromList(session);
@@ -1488,174 +1452,168 @@ export function ShellsSession(props: ShellsSessionProps) {
       tasksLoading={tasksLoading}
     />
   );
+  const mainContent = (
+    <main className="min-w-0 flex-1 bg-background">
+      <div className="flex h-full min-h-0 flex-col">
+        <div className="border-b border-border/60 bg-background px-4 py-3 md:px-5">
+          <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">
+                项目设置
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                用一个 settings 弹窗集中管理 Providers、Agents 和
+                Specialists。
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 rounded-xl px-3 text-xs"
+              onClick={() => setSettingsDialogOpen(true)}
+            >
+              <Settings2Icon className="size-4" />
+              Settings
+            </Button>
+          </div>
+        </div>
+
+        <div className="border-b border-border/60 bg-background px-4 py-2 xl:hidden">
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              type="button"
+              variant={mainPane === 'conversation' ? 'default' : 'outline'}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setMainPane('conversation')}
+            >
+              会话
+            </Button>
+            <Button
+              type="button"
+              variant={mainPane === 'spec' ? 'default' : 'outline'}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setMainPane('spec')}
+            >
+              Spec
+            </Button>
+            <Button
+              type="button"
+              variant={mainPane === 'ops' ? 'default' : 'outline'}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setMainPane('ops')}
+            >
+              Ops
+            </Button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1">
+          <div className="h-full xl:hidden">
+            {mainPane === 'conversation' ? (
+              <ProjectSessionConversationPane
+                chatMessages={chatMessages}
+                hasPendingAssistantMessage={hasPendingAssistantMessage}
+                interactionDisabled={sessionRuntimeSwitchPending}
+                onCancel={() => cancel()}
+                model={sessionPromptModel}
+                onSubmit={handlePromptSubmit}
+                project={sessionPromptProjectPicker}
+                provider={{
+                  loading: providersLoading,
+                  onValueChange: handleSessionProviderChange,
+                  providers,
+                  value: sessionPromptProviderValue,
+                }}
+                selectedSession={selectedSession}
+              />
+            ) : mainPane === 'ops' ? (
+              opsPane
+            ) : (
+              specPane
+            )}
+          </div>
+
+          <div className="hidden h-full min-h-0 xl:flex">
+            <div className="min-w-0 flex-1">
+              <ProjectSessionConversationPane
+                chatMessages={chatMessages}
+                hasPendingAssistantMessage={hasPendingAssistantMessage}
+                interactionDisabled={sessionRuntimeSwitchPending}
+                onCancel={() => cancel()}
+                model={sessionPromptModel}
+                onSubmit={handlePromptSubmit}
+                project={sessionPromptProjectPicker}
+                provider={{
+                  loading: providersLoading,
+                  onValueChange: handleSessionProviderChange,
+                  providers,
+                  value: sessionPromptProviderValue,
+                }}
+                selectedSession={selectedSession}
+              />
+            </div>
+
+            <aside className="hidden w-[420px] shrink-0 border-l border-border/60 bg-background xl:flex xl:flex-col">
+              <div className="grid grid-cols-2 gap-2 border-b border-border/60 px-4 py-2">
+                <Button
+                  type="button"
+                  variant={mainPane === 'spec' ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setMainPane('spec')}
+                >
+                  Spec
+                </Button>
+                <Button
+                  type="button"
+                  variant={mainPane === 'ops' ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setMainPane('ops')}
+                >
+                  Ops
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1">
+                {mainPane === 'ops' ? opsPane : specPane}
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
 
   return (
     <>
       <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-muted/20 text-foreground">
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          {!isLeftSidebarCollapsed ? (
-            <>
-              <aside
-                className="hidden shrink-0 border-r border-border/60 bg-background md:flex"
-                style={{ width: leftSidebarWidth }}
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {isDesktopViewport && !isLeftSidebarCollapsed ? (
+            <ResizablePanelGroup orientation="horizontal">
+              <ResizablePanel
+                defaultSize={320}
+                minSize={260}
+                maxSize={420}
+                className="border-r border-border/60 bg-background"
               >
                 {leftSidebar}
-              </aside>
-
-              <ResizeHandle
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  leftResizeStartRef.current = {
-                    width: leftSidebarWidth,
-                    x: event.clientX,
-                  };
-                  setResizeMode('left');
-                }}
+              </ResizablePanel>
+              <ResizableHandle
+                withHandle
+                className="bg-transparent transition hover:bg-muted/60 data-[separator=drag]:bg-muted/60 data-[separator=hover]:bg-muted/60"
               />
-            </>
-          ) : null}
-
-          <main className="min-w-0 flex-1 bg-background">
-            <div className="flex h-full min-h-0 flex-col">
-              <div className="border-b border-border/60 bg-background px-4 py-3 md:px-5">
-                <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-foreground">
-                      项目设置
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      用一个 settings 弹窗集中管理 Providers、Agents 和
-                      Specialists。
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 shrink-0 rounded-xl px-3 text-xs"
-                    onClick={() => setSettingsDialogOpen(true)}
-                  >
-                    <Settings2Icon className="size-4" />
-                    Settings
-                  </Button>
-                </div>
-              </div>
-
-              <div className="border-b border-border/60 bg-background px-4 py-2 xl:hidden">
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    type="button"
-                    variant={
-                      mainPane === 'conversation' ? 'default' : 'outline'
-                    }
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => setMainPane('conversation')}
-                  >
-                    会话
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={mainPane === 'spec' ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => setMainPane('spec')}
-                  >
-                    Spec
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={mainPane === 'ops' ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => setMainPane('ops')}
-                  >
-                    Ops
-                  </Button>
-                </div>
-              </div>
-
-              <div className="min-h-0 flex-1">
-                <div className="h-full xl:hidden">
-                  {mainPane === 'conversation' ? (
-                    <ProjectSessionConversationPane
-                      chatMessages={chatMessages}
-                      hasPendingAssistantMessage={hasPendingAssistantMessage}
-                      interactionDisabled={sessionRuntimeSwitchPending}
-                      onCancel={() => cancel()}
-                      model={sessionPromptModel}
-                      onSubmit={handlePromptSubmit}
-                      project={sessionPromptProjectPicker}
-                      provider={{
-                        loading: providersLoading,
-                        onValueChange: handleSessionProviderChange,
-                        providers,
-                        value: sessionPromptProviderValue,
-                      }}
-                      selectedSession={selectedSession}
-                    />
-                  ) : mainPane === 'ops' ? (
-                    opsPane
-                  ) : (
-                    specPane
-                  )}
-                </div>
-
-                <div className="hidden h-full min-h-0 xl:flex">
-                  <div className="min-w-0 flex-1">
-                    <ProjectSessionConversationPane
-                      chatMessages={chatMessages}
-                      hasPendingAssistantMessage={hasPendingAssistantMessage}
-                      interactionDisabled={sessionRuntimeSwitchPending}
-                      onCancel={() => cancel()}
-                      model={sessionPromptModel}
-                      onSubmit={handlePromptSubmit}
-                      project={sessionPromptProjectPicker}
-                      provider={{
-                        loading: providersLoading,
-                        onValueChange: handleSessionProviderChange,
-                        providers,
-                        value: sessionPromptProviderValue,
-                      }}
-                      selectedSession={selectedSession}
-                    />
-                  </div>
-
-                  <aside className="hidden w-[420px] shrink-0 border-l border-border/60 bg-background xl:flex xl:flex-col">
-                    <div className="grid grid-cols-2 gap-2 border-b border-border/60 px-4 py-2">
-                      <Button
-                        type="button"
-                        variant={mainPane === 'spec' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => setMainPane('spec')}
-                      >
-                        Spec
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={mainPane === 'ops' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-8 text-xs"
-                        onClick={() => setMainPane('ops')}
-                      >
-                        Ops
-                      </Button>
-                    </div>
-                    <div className="min-h-0 flex-1">
-                      {mainPane === 'ops' ? opsPane : specPane}
-                    </div>
-                  </aside>
-                </div>
-              </div>
-            </div>
-          </main>
+              <ResizablePanel minSize={0}>{mainContent}</ResizablePanel>
+            </ResizablePanelGroup>
+          ) : (
+            mainContent
+          )}
         </div>
       </div>
 
-      {resizeMode ? (
-        <div className="fixed inset-0 z-40 cursor-col-resize" />
-      ) : null}
       <ProjectSettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
@@ -1663,23 +1621,6 @@ export function ShellsSession(props: ShellsSessionProps) {
         projectState={projectState}
       />
     </>
-  );
-}
-
-function ResizeHandle(props: {
-  onMouseDown: (event: ReactMouseEvent<HTMLButtonElement>) => void;
-}) {
-  const { onMouseDown } = props;
-
-  return (
-    <button
-      type="button"
-      className="group relative hidden w-2 shrink-0 cursor-col-resize items-center justify-center bg-transparent transition hover:bg-muted/60 md:flex"
-      onMouseDown={onMouseDown}
-      aria-label="调整面板宽度"
-    >
-      <span className="h-8 w-0.5 rounded-full bg-border transition group-hover:bg-foreground/30" />
-    </button>
   );
 }
 
