@@ -815,13 +815,15 @@
 
 前置依赖：`RK-M4-01`
 
+状态：`done`
+
 开发任务：
 
-- [ ] 定义 GitHub webhook 到 card 生命周期的映射规则
-- [ ] 支持 issue / PR / push 事件创建或更新 backlog / review cards
-- [ ] 为 blocked cards 增加定时 triage / reminder trigger
-- [ ] 为 backlog hygiene 增加 schedule-based refinement trigger
-- [ ] 在 card 上保留 trigger source 与外部引用信息
+- [x] 定义 GitHub webhook 到 card 生命周期的映射规则
+- [x] 支持 issue / PR / push 事件创建或更新 backlog / review cards
+- [x] 为 blocked cards 增加定时 triage / reminder trigger
+- [x] 为 backlog hygiene 增加 schedule-based refinement trigger
+- [x] 在 card 上保留 trigger source 与外部引用信息
 
 涉及文件：
 
@@ -832,8 +834,8 @@
 
 完成标准：
 
-- [ ] 外部事件可以稳定进入 Kanban，而不是停留在 workflow 子系统
-- [ ] 用户可以区分 manual / schedule / webhook 触发来源
+- [x] 外部事件可以稳定进入 Kanban，而不是停留在 workflow 子系统
+- [x] 用户可以区分 manual / schedule / webhook 触发来源
 
 ### RK-M4-07 增加 card memory 与 trace drill-down
 
@@ -968,7 +970,7 @@
 
 - [x] RK-M4-04
 - [x] RK-M4-05
-- [ ] RK-M4-06
+- [x] RK-M4-06
 - [ ] RK-M4-07
 - [ ] RK-M4-08
 

@@ -64,6 +64,10 @@ interface BoardTaskRow {
   column_id: string | null;
   completion_summary: string | null;
   execution_session_id: string | null;
+  github_number: number | null;
+  github_repo: string | null;
+  github_state: string | null;
+  github_url: string | null;
   id: string;
   kind: 'plan' | 'implement' | 'review' | 'verify' | null;
   lane_handoffs_json: string;
@@ -72,6 +76,8 @@ interface BoardTaskRow {
   position: number | null;
   priority: string | null;
   result_session_id: string | null;
+  source_event_id: string | null;
+  source_type: string;
   status: string;
   title: string;
   trigger_session_id: string | null;
@@ -379,7 +385,13 @@ function listBoardTaskRows(
           execution_session_id,
           result_session_id,
           completion_summary,
+          github_number,
+          github_repo,
+          github_state,
+          github_url,
           last_sync_error,
+          source_event_id,
+          source_type,
           verification_report,
           verification_verdict,
           lane_sessions_json,
@@ -419,6 +431,10 @@ function mapBoardTaskRow(row: BoardTaskRow): KanbanCardSummaryPayload {
     completionSummary: row.completion_summary,
     explain: null,
     executionSessionId: row.execution_session_id,
+    githubNumber: row.github_number,
+    githubRepo: row.github_repo,
+    githubState: row.github_state,
+    githubUrl: row.github_url,
     id: row.id,
     kind: row.kind,
     laneHandoffs: parseJsonArray(row.lane_handoffs_json),
@@ -429,6 +445,8 @@ function mapBoardTaskRow(row: BoardTaskRow): KanbanCardSummaryPayload {
     recentOutputSummary:
       row.verification_report ?? row.completion_summary ?? null,
     resultSessionId: row.result_session_id,
+    sourceEventId: row.source_event_id,
+    sourceType: row.source_type,
     status: row.status,
     title: row.title,
     triggerSessionId: row.trigger_session_id,

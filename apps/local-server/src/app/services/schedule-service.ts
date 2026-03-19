@@ -8,6 +8,7 @@ import type {
   TickSchedulesResult,
 } from '../schemas/schedule';
 import { getProjectById } from './project-service';
+import { upsertExternalKanbanCard } from './kanban-external-trigger-service';
 import { getWorkflowById, triggerWorkflow } from './workflow-service';
 
 const scheduleIdGenerator = customAlphabet(
@@ -123,6 +124,26 @@ function resolveTriggerPayload(schedule: SchedulePayload) {
     .replaceAll('{timestamp}', new Date().toISOString())
     .replaceAll('{cronExpr}', schedule.cronExpr)
     .replaceAll('{scheduleName}', schedule.name);
+}
+
+function buildScheduleKanbanCard(schedule: SchedulePayload) {
+  const normalizedName = schedule.name.trim().toLowerCase();
+  const isBlockedTriage =
+    normalizedName.includes('blocked') || normalizedName.includes('triage');
+
+  return {
+    kind: 'plan' as const,
+    labels: ['external:schedule', isBlockedTriage ? 'schedule:blocked' : 'schedule:backlog'],
+    objective: isBlockedTriage
+      ? `Run blocked-card triage for schedule ${schedule.name}.`
+      : `Run backlog hygiene and refinement for schedule ${schedule.name}.`,
+    sourceEventId: schedule.id,
+    sourceType: 'schedule',
+    stage: isBlockedTriage ? ('blocked' as const) : ('backlog' as const),
+    title: isBlockedTriage
+      ? `Blocked triage · ${schedule.name}`
+      : `Scheduled refinement · ${schedule.name}`,
+  };
 }
 
 function mapScheduleRow(row: ScheduleRow): SchedulePayload {
@@ -270,6 +291,10 @@ export async function tickDueSchedules(
     const result = await triggerWorkflow(sqlite, schedule.workflowId, {
       triggerPayload: resolveTriggerPayload(schedule),
       triggerSource: 'schedule',
+    });
+    await upsertExternalKanbanCard(sqlite, {
+      ...buildScheduleKanbanCard(schedule),
+      projectId: schedule.projectId,
     });
     const nextRunAt = getNextRunTime(schedule.cronExpr, now);
     const updatedAt = new Date().toISOString();

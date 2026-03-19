@@ -41,6 +41,10 @@ export interface KanbanCardSummaryPayload {
   columnId: string | null;
   completionSummary: string | null;
   executionSessionId: string | null;
+  githubNumber: number | null;
+  githubRepo: string | null;
+  githubState: string | null;
+  githubUrl: string | null;
   id: string;
   kind: TaskKind | null;
   laneHandoffs: TaskLaneHandoffPayload[];
@@ -51,6 +55,8 @@ export interface KanbanCardSummaryPayload {
   priority: string | null;
   recentOutputSummary: string | null;
   resultSessionId: string | null;
+  sourceEventId: string | null;
+  sourceType: string;
   status: string;
   title: string;
   triggerSessionId: string | null;

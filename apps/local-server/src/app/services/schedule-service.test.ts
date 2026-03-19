@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { listBackgroundTasks } from './background-task-service';
 import { createProject } from './project-service';
+import { listTasks } from './task-service';
 import {
   createSchedule,
   getScheduleById,
@@ -128,6 +129,22 @@ describe('schedule service', () => {
         workflowRunId: tickResult.workflowRunIds[0],
       }),
     ]);
+
+    const tasks = await listTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+    expect(tasks.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          columnId: expect.stringContaining('_backlog'),
+          sourceEventId: schedule.id,
+          sourceType: 'schedule',
+          title: 'Scheduled refinement · Immediate run',
+        }),
+      ]),
+    );
   });
 });
 

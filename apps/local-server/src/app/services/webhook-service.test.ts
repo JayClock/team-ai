@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { listBackgroundTasks } from './background-task-service';
 import { createProject } from './project-service';
+import { listTasks } from './task-service';
 import {
   createWebhookConfig,
   getWebhookConfigById,
@@ -175,6 +176,24 @@ describe('webhook service', () => {
         outcome: 'triggered',
       }),
     ]);
+
+    const tasks = await listTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+    expect(tasks.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          columnId: expect.stringContaining('_review'),
+          githubNumber: 42,
+          githubRepo: 'acme/platform',
+          sourceEventId: 'github:pull_request:acme/platform:42',
+          sourceType: 'webhook',
+          title: 'Review PR #42 · Improve webhook pipeline',
+        }),
+      ]),
+    );
   });
 });
 

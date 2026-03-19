@@ -112,6 +112,10 @@ interface KanbanCard {
     missingArtifacts: string[];
     recentTransitionReason: string | null;
   } | null;
+  githubNumber: number | null;
+  githubRepo: string | null;
+  githubState: string | null;
+  githubUrl: string | null;
   id: string;
   kind: string | null;
   laneHandoffs: Array<{
@@ -146,6 +150,8 @@ interface KanbanCard {
   priority: string | null;
   recentOutputSummary: string | null;
   resultSessionId: string | null;
+  sourceEventId: string | null;
+  sourceType: string;
   status: string;
   title: string;
   triggerSessionId: string | null;
@@ -1174,6 +1180,30 @@ export default function ProjectKanbanPage() {
                     label="Trigger"
                     value={selectedCard.triggerSessionId ?? 'None'}
                   />
+                  <DetailRow
+                    label="Source"
+                    value={selectedCard.sourceType ?? 'unknown'}
+                  />
+                  <DetailRow
+                    label="External Ref"
+                    value={selectedCard.sourceEventId ?? 'None'}
+                  />
+                  {selectedCard.githubRepo ? (
+                    <DetailRow
+                      label="GitHub"
+                      value={
+                        selectedCard.githubNumber
+                          ? `${selectedCard.githubRepo} #${selectedCard.githubNumber}`
+                          : selectedCard.githubRepo
+                      }
+                    />
+                  ) : null}
+                  {selectedCard.githubState ? (
+                    <DetailRow
+                      label="GitHub State"
+                      value={selectedCard.githubState}
+                    />
+                  ) : null}
 
                   {selectedCard.explain ? (
                     <>

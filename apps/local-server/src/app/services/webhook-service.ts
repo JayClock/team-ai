@@ -14,6 +14,7 @@ import type {
   WebhookTriggerLogPayload,
 } from '../schemas/webhook';
 import { getProjectById } from './project-service';
+import { upsertExternalKanbanCard } from './kanban-external-trigger-service';
 import { getWorkflowById, triggerWorkflow } from './workflow-service';
 
 const webhookConfigIdGenerator = customAlphabet(
@@ -228,6 +229,121 @@ function buildWebhookTriggerPayload(input: {
     null,
     2,
   );
+}
+
+function buildGitHubWebhookCard(input: {
+  deliveryId?: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+  repo: string | null;
+}) {
+  const action =
+    typeof input.payload.action === 'string' ? input.payload.action : null;
+
+  if (input.eventType === 'pull_request') {
+    const pullRequest =
+      typeof input.payload.pull_request === 'object' &&
+      input.payload.pull_request !== null
+        ? (input.payload.pull_request as {
+            html_url?: unknown;
+            merged?: unknown;
+            number?: unknown;
+            state?: unknown;
+            title?: unknown;
+          })
+        : null;
+    const number =
+      typeof pullRequest?.number === 'number'
+        ? pullRequest.number
+        : typeof input.payload.number === 'number'
+          ? input.payload.number
+          : null;
+    const title =
+      typeof pullRequest?.title === 'string'
+        ? pullRequest.title
+        : 'GitHub pull request';
+    const state =
+      typeof pullRequest?.state === 'string' ? pullRequest.state : null;
+    const merged = pullRequest?.merged === true;
+
+    return {
+      githubNumber: number,
+      githubRepo: input.repo,
+      githubState: merged ? 'merged' : state,
+      githubUrl:
+        typeof pullRequest?.html_url === 'string' ? pullRequest.html_url : null,
+      kind: 'review' as const,
+      labels: ['external:github', 'github:pull_request'],
+      objective: `Review GitHub pull request ${number ? `#${number}` : ''} after ${action ?? 'event'} webhook delivery.`,
+      sourceEventId: `github:pull_request:${input.repo ?? 'unknown'}:${number ?? 'unknown'}`,
+      sourceType: 'webhook',
+      stage:
+        merged || state === 'closed'
+          ? ('done' as const)
+          : ('review' as const),
+      title: `${merged || state === 'closed' ? 'Complete' : 'Review'} PR${
+        number ? ` #${number}` : ''
+      } · ${title}`,
+    };
+  }
+
+  if (input.eventType === 'issues') {
+    const issue =
+      typeof input.payload.issue === 'object' && input.payload.issue !== null
+        ? (input.payload.issue as {
+            html_url?: unknown;
+            number?: unknown;
+            state?: unknown;
+            title?: unknown;
+          })
+        : null;
+    const number =
+      typeof issue?.number === 'number'
+        ? issue.number
+        : typeof input.payload.number === 'number'
+          ? input.payload.number
+          : null;
+    const title = typeof issue?.title === 'string' ? issue.title : 'GitHub issue';
+    const state = typeof issue?.state === 'string' ? issue.state : null;
+
+    return {
+      githubNumber: number,
+      githubRepo: input.repo,
+      githubState: state,
+      githubUrl: typeof issue?.html_url === 'string' ? issue.html_url : null,
+      kind: 'plan' as const,
+      labels: ['external:github', 'github:issue'],
+      objective: `Triage GitHub issue ${number ? `#${number}` : ''} after ${action ?? 'event'} webhook delivery.`,
+      sourceEventId: `github:issue:${input.repo ?? 'unknown'}:${number ?? 'unknown'}`,
+      sourceType: 'webhook',
+      stage: state === 'closed' ? ('done' as const) : ('backlog' as const),
+      title: `${state === 'closed' ? 'Closed' : 'Triage'} issue${
+        number ? ` #${number}` : ''
+      } · ${title}`,
+    };
+  }
+
+  if (input.eventType === 'push') {
+    const ref =
+      typeof input.payload.ref === 'string' ? input.payload.ref : 'unknown-ref';
+    const branch = ref.replace('refs/heads/', '');
+
+    return {
+      githubNumber: null,
+      githubRepo: input.repo,
+      githubState: null,
+      githubUrl: null,
+      kind: 'implement' as const,
+      labels: ['external:github', 'github:push'],
+      objective: `Review the latest push on ${branch} and decide whether follow-up work should enter the board.`,
+      sourceEventId: `github:push:${input.repo ?? 'unknown'}:${branch}`,
+      sourceType: 'webhook',
+      stage: 'backlog' as const,
+      title: `Follow up push · ${branch}`,
+    };
+  }
+
+  return null;
 }
 
 function appendWebhookLog(
@@ -561,6 +677,18 @@ export async function receiveGitHubWebhook(
         }),
         triggerSource: 'webhook',
       });
+      const kanbanCard = buildGitHubWebhookCard({
+        deliveryId: input.deliveryId,
+        eventType: input.eventType,
+        payload: input.payload,
+        repo,
+      });
+      if (kanbanCard) {
+        await upsertExternalKanbanCard(sqlite, {
+          ...kanbanCard,
+          projectId: config.projectId,
+        });
+      }
 
       processed += 1;
       logs.push(
