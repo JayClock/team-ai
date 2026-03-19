@@ -198,9 +198,11 @@ const backgroundWorkerPlugin: FastifyPluginAsync<
             await syncTaskLaneSessionStart(task.taskId, session);
             await kanbanEventService.emit({
               backgroundTaskId: task.id,
+              boardId: linkedTask?.boardId ?? null,
               projectId: task.projectId,
               sessionId: session.id,
               taskId: task.taskId,
+              taskTitle: linkedTask?.title ?? task.title,
               type: 'background-task.session-started',
             });
           } catch (error) {

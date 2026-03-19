@@ -1,7 +1,7 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProjectKanbanPage from './project-kanban-page';
 
 const runtimeFetchMock = vi.fn();
@@ -14,6 +14,8 @@ const selectedProject = {
 const projects = [selectedProject];
 
 vi.mock('@shared/util-http', () => ({
+  getCurrentDesktopRuntimeConfig: () => null,
+  resolveRuntimeApiUrl: (href: string) => `http://localhost${href}`,
   runtimeFetch: (...args: Parameters<typeof runtimeFetchMock>) =>
     runtimeFetchMock(...args),
 }));
@@ -59,9 +61,57 @@ function jsonResponse(body: unknown, status = 200) {
   );
 }
 
+class MockEventSource {
+  static instances: MockEventSource[] = [];
+
+  readonly addEventListener = vi.fn(
+    (type: string, listener: (event: MessageEvent<string>) => void) => {
+      const listeners = this.listeners.get(type) ?? [];
+      listeners.push(listener);
+      this.listeners.set(type, listeners);
+    },
+  );
+
+  readonly close = vi.fn(() => {
+    this.closed = true;
+  });
+
+  readonly listeners = new Map<
+    string,
+    Array<(event: MessageEvent<string>) => void>
+  >();
+
+  onerror: (() => void) | null = null;
+
+  closed = false;
+
+  constructor(
+    readonly url: string,
+    readonly eventSourceInitDict?: EventSourceInit,
+  ) {
+    MockEventSource.instances.push(this);
+  }
+
+  emit(type: string, data: unknown) {
+    const event = {
+      data: typeof data === 'string' ? data : JSON.stringify(data),
+    } as MessageEvent<string>;
+
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(event);
+    }
+  }
+}
+
 describe('ProjectKanbanPage', () => {
   beforeEach(() => {
     runtimeFetchMock.mockReset();
+    MockEventSource.instances = [];
+    vi.stubGlobal('EventSource', MockEventSource);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('renders board columns and card details', async () => {
@@ -543,5 +593,88 @@ describe('ProjectKanbanPage', () => {
     await waitFor(() => {
       expect(boardLoads).toBeGreaterThanOrEqual(2);
     });
+  });
+
+  it('subscribes to the kanban event stream and refreshes on realtime events', async () => {
+    let boardLoads = 0;
+
+    runtimeFetchMock.mockImplementation((href: string) => {
+      if (href.endsWith('/kanban/boards')) {
+        return jsonResponse({
+          _embedded: {
+            boards: [{ id: 'board-1' }],
+          },
+        });
+      }
+
+      if (href.endsWith('/kanban/boards/board-1')) {
+        boardLoads += 1;
+        return jsonResponse({
+          columns: [
+            {
+              automation: null,
+              cards: [],
+              id: 'board-1_todo',
+              name: 'Todo',
+              position: 0,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'todo-orchestrator',
+              recommendedSpecialistName: 'Todo Orchestrator',
+              stage: 'todo',
+            },
+          ],
+          id: 'board-1',
+          name: 'Workflow Board',
+          projectId: 'project-1',
+          settings: {
+            boardConcurrency: null,
+            isDefault: true,
+            wipLimit: null,
+          },
+        });
+      }
+
+      throw new Error(`Unexpected request: ${href}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectKanbanPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Project Kanban');
+
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockEventSource.instances[0]?.url).toContain(
+      '/api/projects/project-1/kanban/events/stream?boardId=board-1',
+    );
+
+    await act(async () => {
+      MockEventSource.instances[0]?.emit('connected', {
+        boardId: 'board-1',
+        projectId: 'project-1',
+      });
+    });
+
+    await screen.findByText('Live stream active');
+
+    await act(async () => {
+      MockEventSource.instances[0]?.emit('kanban-event', {
+        boardId: 'board-1',
+        fromColumnId: 'board-1_backlog',
+        projectId: 'project-1',
+        taskId: 'task-1',
+        taskTitle: 'Realtime card',
+        toColumnId: 'board-1_todo',
+        type: 'task.column-transition',
+      });
+    });
+
+    await waitFor(() => {
+      expect(boardLoads).toBeGreaterThan(1);
+    });
+
+    expect(screen.getByText(/Realtime card moved into board-1_todo/)).toBeTruthy();
   });
 });

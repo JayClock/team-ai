@@ -10,26 +10,32 @@ export interface TaskColumnTransitionEvent {
 
 export interface BackgroundTaskCompletionEvent {
   backgroundTaskId: string;
+  boardId?: string | null;
   projectId: string;
   sessionId: string | null;
   success: boolean;
   taskId: string;
+  taskTitle?: string | null;
   type: 'background-task.completed';
 }
 
 export interface BackgroundTaskSessionStartedEvent {
   backgroundTaskId: string;
+  boardId?: string | null;
   projectId: string;
   sessionId: string;
   taskId: string;
+  taskTitle?: string | null;
   type: 'background-task.session-started';
 }
 
 export interface TaskSessionCompletedEvent {
+  boardId?: string | null;
   projectId: string;
   sessionId: string;
   success: boolean;
   taskId: string;
+  taskTitle?: string | null;
   type: 'task.session-completed';
 }
 

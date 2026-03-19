@@ -17,7 +17,11 @@ import {
   Textarea,
   toast,
 } from '@shared/ui';
-import { runtimeFetch } from '@shared/util-http';
+import {
+  getCurrentDesktopRuntimeConfig,
+  resolveRuntimeApiUrl,
+  runtimeFetch,
+} from '@shared/util-http';
 import { projectTitle, useProjectSelection } from '@shells/sessions';
 import {
   CircleAlertIcon,
@@ -28,7 +32,7 @@ import {
   SparklesIcon,
 } from 'lucide-react';
 import type { DragEvent } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface KanbanBoardListResponse {
@@ -148,6 +152,45 @@ interface KanbanCard {
   verificationVerdict: string | null;
 }
 
+type KanbanRealtimeEvent =
+  | {
+      boardId: string;
+      fromColumnId: string | null;
+      projectId: string;
+      taskId: string;
+      taskTitle: string;
+      toColumnId: string;
+      type: 'task.column-transition';
+    }
+  | {
+      backgroundTaskId: string;
+      boardId?: string | null;
+      projectId: string;
+      sessionId: string | null;
+      success: boolean;
+      taskId: string;
+      taskTitle?: string | null;
+      type: 'background-task.completed';
+    }
+  | {
+      backgroundTaskId: string;
+      boardId?: string | null;
+      projectId: string;
+      sessionId: string;
+      taskId: string;
+      taskTitle?: string | null;
+      type: 'background-task.session-started';
+    }
+  | {
+      boardId?: string | null;
+      projectId: string;
+      sessionId: string;
+      success: boolean;
+      taskId: string;
+      taskTitle?: string | null;
+      type: 'task.session-completed';
+    };
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return 'unknown';
@@ -224,6 +267,38 @@ function resolveCardSessionId(card: KanbanCard | null) {
   );
 }
 
+function describeKanbanRealtimeEvent(event: KanbanRealtimeEvent) {
+  switch (event.type) {
+    case 'task.column-transition':
+      return `${event.taskTitle} moved into ${event.toColumnId}`;
+    case 'background-task.session-started':
+      return `${event.taskTitle ?? event.taskId} started an automation session`;
+    case 'background-task.completed':
+      return `${event.taskTitle ?? event.taskId} ${
+        event.success ? 'completed' : 'failed'
+      } in the worker queue`;
+    case 'task.session-completed':
+      return `${event.taskTitle ?? event.taskId} ${
+        event.success ? 'completed' : 'failed'
+      } its routed session`;
+  }
+}
+
+function formatStreamStatusLabel(status: KanbanStreamStatus) {
+  switch (status) {
+    case 'connecting':
+      return 'Live stream connecting';
+    case 'live':
+      return 'Live stream active';
+    case 'reconnecting':
+      return 'Live stream reconnecting';
+    default:
+      return 'Live stream offline';
+  }
+}
+
+type KanbanStreamStatus = 'idle' | 'connecting' | 'live' | 'reconnecting';
+
 export default function ProjectKanbanPage() {
   const navigate = useNavigate();
   const { projects, selectedProject } = useProjectSelection();
@@ -245,6 +320,11 @@ export default function ProjectKanbanPage() {
   const [acceptanceDraft, setAcceptanceDraft] = useState('');
   const [artifactDraft, setArtifactDraft] = useState('');
   const [lastIntake, setLastIntake] = useState<KanbanIntakeResponse | null>(null);
+  const [streamStatus, setStreamStatus] = useState<KanbanStreamStatus>('idle');
+  const [lastRealtimeEvent, setLastRealtimeEvent] =
+    useState<KanbanRealtimeEvent | null>(null);
+  const [lastRealtimeEventAt, setLastRealtimeEventAt] = useState<string | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const loadBoard = useCallback(async () => {
     if (!projectState) {
@@ -290,6 +370,73 @@ export default function ProjectKanbanPage() {
   useEffect(() => {
     void loadBoard();
   }, [loadBoard]);
+
+  useEffect(() => {
+    if (!projectState || !board?.id) {
+      setStreamStatus('idle');
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      return;
+    }
+
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    setStreamStatus('connecting');
+
+    const url = new URL(
+      resolveRuntimeApiUrl(
+        `/api/projects/${projectState.data.id}/kanban/events/stream`,
+      ),
+    );
+    url.searchParams.set('boardId', board.id);
+
+    const desktopRuntimeConfig = getCurrentDesktopRuntimeConfig();
+    if (desktopRuntimeConfig) {
+      url.searchParams.set(
+        'desktopSessionToken',
+        desktopRuntimeConfig.desktopSessionToken,
+      );
+    }
+
+    const source = new EventSource(url.toString(), { withCredentials: true });
+
+    source.addEventListener('connected', () => {
+      setStreamStatus('live');
+    });
+
+    const onKanbanEvent = (raw: string) => {
+      try {
+        const parsed = JSON.parse(raw) as KanbanRealtimeEvent;
+        setLastRealtimeEvent(parsed);
+        setLastRealtimeEventAt(new Date().toISOString());
+        setStreamStatus('live');
+        void loadBoard();
+      } catch {
+        // ignore malformed realtime payloads
+      }
+    };
+
+    source.addEventListener('kanban-event', (event) => {
+      onKanbanEvent((event as MessageEvent<string>).data);
+    });
+    source.onerror = () => {
+      setStreamStatus('reconnecting');
+    };
+
+    eventSourceRef.current = source;
+
+    return () => {
+      source.close();
+      if (eventSourceRef.current === source) {
+        eventSourceRef.current = null;
+      }
+    };
+  }, [board?.id, loadBoard, projectState]);
 
   const cards = useMemo(
     () => board?.columns.flatMap((column) => column.cards ?? []) ?? [],
@@ -477,6 +624,19 @@ export default function ProjectKanbanPage() {
               {board ? ` · ${board.name}` : ''}
               {board?.settings.isDefault ? ' · default board' : ''}
             </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline">{formatStreamStatusLabel(streamStatus)}</Badge>
+              {lastRealtimeEvent ? (
+                <span>
+                  {describeKanbanRealtimeEvent(lastRealtimeEvent)}
+                  {lastRealtimeEventAt
+                    ? ` · ${formatDateTime(lastRealtimeEventAt)}`
+                    : ''}
+                </span>
+              ) : (
+                <span>自动化进度会通过事件流实时回写到看板。</span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2">

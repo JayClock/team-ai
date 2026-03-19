@@ -6,6 +6,7 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
+import { createKanbanEventService } from '../services/kanban-event-service';
 import { createTask, listTasks } from '../services/task-service';
 import { createProject } from '../services/project-service';
 import { listNotes } from '../services/note-service';
@@ -384,6 +385,68 @@ describe('kanban route', () => {
     expect(refreshedNotes.items[0]?.content).toContain('Planning Revision: 2');
   });
 
+  it('streams kanban realtime events for a board', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      repoPath: '/Users/example/kanban-realtime',
+      title: 'Kanban Realtime',
+    });
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+    fastify.decorate('kanbanEventService', createKanbanEventService());
+    fastify.decorate('sqlite', sqlite);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(kanbanRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const listResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/projects/${project.id}/kanban/boards`,
+    });
+    const boardId = (
+      listResponse.json() as {
+        _embedded: { boards: Array<{ id: string }> };
+      }
+    )._embedded.boards[0].id;
+
+    await fastify.listen({ host: '127.0.0.1', port: 0 });
+    const baseUrl = typeof fastify.server.address() === 'string'
+      ? fastify.server.address()
+      : `http://127.0.0.1:${fastify.server.address()?.port ?? 0}`;
+
+    const controller = new AbortController();
+    const response = await fetch(
+      `${baseUrl}/api/projects/${project.id}/kanban/events/stream?boardId=${boardId}`,
+      {
+        signal: controller.signal,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/event-stream');
+
+    const reader = response.body?.getReader();
+    expect(reader).toBeTruthy();
+
+    await fastify.kanbanEventService.emit({
+      boardId,
+      fromColumnId: null,
+      projectId: project.id,
+      taskId: 'task-1',
+      taskTitle: 'Realtime task',
+      toColumnId: `${boardId}_todo`,
+      type: 'task.column-transition',
+    });
+
+    const streamPayload = await readStreamChunk(reader!);
+    expect(streamPayload).toContain('event: connected');
+    expect(streamPayload).toContain('event: kanban-event');
+    expect(streamPayload).toContain('"taskTitle":"Realtime task"');
+
+    controller.abort();
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-kanban-route-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;
@@ -404,3 +467,30 @@ describe('kanban route', () => {
     return sqlite;
   }
 });
+
+async function readStreamChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs = 2_000,
+) {
+  const timeout = new Promise<string>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error('Timed out waiting for SSE payload'));
+    }, timeoutMs);
+  });
+  const read = (async () => {
+    let payload = '';
+
+    while (!payload.includes('event: kanban-event')) {
+      const next = await reader.read();
+      if (next.done) {
+        break;
+      }
+
+      payload += new TextDecoder().decode(next.value);
+    }
+
+    return payload;
+  })();
+
+  return Promise.race([read, timeout]);
+}

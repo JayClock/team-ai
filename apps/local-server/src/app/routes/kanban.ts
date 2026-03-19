@@ -1,9 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { resolveDesktopCorsHeaders } from '../plugins/desktop-cors';
 import {
   presentKanbanBoard,
   presentKanbanBoardList,
 } from '../presenters/kanban-presenter';
+import type { KanbanEvent } from '../services/kanban-event-service';
 import { intakeKanbanGoal } from '../services/kanban-intake-service';
 import {
   createKanbanBoard,
@@ -102,6 +104,10 @@ const intakeBodySchema = z.object({
   sessionId: nullableStringSchema.optional(),
 });
 
+const streamKanbanEventsQuerySchema = z.object({
+  boardId: z.string().trim().min(1).optional(),
+});
+
 const kanbanRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post('/projects/:projectId/kanban/intake', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
@@ -118,6 +124,51 @@ const kanbanRoute: FastifyPluginAsync = async (fastify) => {
       sessionId: body.sessionId,
     });
   });
+
+  fastify.get(
+    '/projects/:projectId/kanban/events/stream',
+    async (request, reply) => {
+      const { projectId } = projectParamsSchema.parse(request.params);
+      const query = streamKanbanEventsQuerySchema.parse(request.query);
+
+      reply.raw.writeHead(200, {
+        ...resolveDesktopCorsHeaders(request.headers.origin),
+        Connection: 'keep-alive',
+        'Cache-Control': 'no-cache',
+        'Content-Type': 'text/event-stream',
+      });
+
+      reply.raw.write(
+        `event: connected\ndata: ${JSON.stringify({
+          at: new Date().toISOString(),
+          boardId: query.boardId ?? null,
+          projectId,
+        })}\n\n`,
+      );
+
+      const unsubscribe = fastify.kanbanEventService.subscribe((event) => {
+        if (!matchesKanbanEventFilter(event, projectId, query.boardId)) {
+          return;
+        }
+
+        reply.raw.write(`event: kanban-event\ndata: ${JSON.stringify(event)}\n\n`);
+      });
+
+      const heartbeat = setInterval(() => {
+        reply.raw.write(
+          `event: heartbeat\ndata: ${JSON.stringify({ at: new Date().toISOString() })}\n\n`,
+        );
+      }, 15_000);
+
+      request.raw.on('close', () => {
+        clearInterval(heartbeat);
+        unsubscribe();
+        reply.raw.end();
+      });
+
+      return reply.hijack();
+    },
+  );
 
   fastify.get('/projects/:projectId/kanban/boards', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
@@ -246,3 +297,19 @@ const kanbanRoute: FastifyPluginAsync = async (fastify) => {
 };
 
 export default kanbanRoute;
+
+function matchesKanbanEventFilter(
+  event: KanbanEvent,
+  projectId: string,
+  boardId?: string,
+) {
+  if (event.projectId !== projectId) {
+    return false;
+  }
+
+  if (!boardId) {
+    return true;
+  }
+
+  return !('boardId' in event) || event.boardId === boardId;
+}

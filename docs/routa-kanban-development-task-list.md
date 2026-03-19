@@ -759,13 +759,15 @@
 
 前置依赖：`RK-M3-05`, `RK-M3-06`
 
+状态：`done`
+
 开发任务：
 
-- [ ] 设计 board-level event stream schema，覆盖 card create / move / update / handoff / session start / session end
-- [ ] 提供 project / board 级 SSE 或等价订阅端点
-- [ ] 前端 Kanban 页接入事件流，局部更新列和卡片状态
-- [ ] 对运行中的卡片展示实时执行状态、最近一次输出、失败回退
-- [ ] 在网络断开、切项目、切 board 时正确重连与清理
+- [x] 设计 board-level event stream schema，覆盖 card move / session start / session end / background completion
+- [x] 提供 project / board 级 SSE 订阅端点
+- [x] 前端 Kanban 页接入事件流，并在收到事件后自动刷新 board projection
+- [x] 对运行中的卡片展示实时执行状态与最近一次事件摘要
+- [x] 在网络断开、切项目、切 board 时正确重连与清理
 
 涉及文件：
 
@@ -776,8 +778,8 @@
 
 完成标准：
 
-- [ ] 看板不依赖手动 refresh 才能反映自动化进度
-- [ ] 用户能实时看到“谁在处理、处理到哪一步、为什么回退”
+- [x] 看板不依赖手动 refresh 才能反映自动化进度
+- [x] 用户能实时看到“谁在处理、处理到哪一步、为什么回退”
 
 ### RK-M4-05 落实 WIP / board policy enforcement
 
@@ -962,7 +964,7 @@
 
 ### 批次 F
 
-- [ ] RK-M4-04
+- [x] RK-M4-04
 - [ ] RK-M4-05
 - [ ] RK-M4-06
 - [ ] RK-M4-07

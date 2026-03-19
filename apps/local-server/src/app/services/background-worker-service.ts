@@ -8,6 +8,7 @@ import {
   listRunningBackgroundTasks,
   updateBackgroundTaskStatus,
 } from './background-task-service';
+import { getTaskById } from './task-service';
 
 export interface BackgroundWorkerCallbacks {
   createSession(task: BackgroundTaskPayload): Promise<{ sessionId: string }>;
@@ -56,12 +57,16 @@ export function createBackgroundWorkerService(
       return;
     }
 
+    const linkedTask = await getTaskById(input.sqlite, task.taskId).catch(() => null);
+
     await input.events.emit({
       backgroundTaskId: task.id,
+      boardId: linkedTask?.boardId ?? null,
       projectId: task.projectId,
       sessionId: task.resultSessionId,
       success,
       taskId: task.taskId,
+      taskTitle: linkedTask?.title ?? null,
       type: 'background-task.completed',
     });
   }
@@ -248,12 +253,17 @@ export async function completeBackgroundTaskForSession(
   );
 
   if (completedTask.taskId) {
+    const linkedTask = await getTaskById(sqlite, completedTask.taskId).catch(
+      () => null,
+    );
     await events.emit({
       backgroundTaskId: completedTask.id,
+      boardId: linkedTask?.boardId ?? null,
       projectId: completedTask.projectId,
       sessionId: completedTask.resultSessionId,
       success,
       taskId: completedTask.taskId,
+      taskTitle: linkedTask?.title ?? null,
       type: 'background-task.completed',
     });
   }

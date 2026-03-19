@@ -162,10 +162,12 @@ const kanbanWorkflowOrchestratorPlugin: FastifyPluginAsync = async (
             }
 
             await fastify.kanbanEventService.emit({
+              boardId: linkedTask?.boardId ?? null,
               projectId: task.projectId,
               sessionId: session.id,
               success: true,
               taskId: task.id,
+              taskTitle: linkedTask?.title ?? task.title,
               type: 'task.session-completed',
             });
           })
@@ -184,10 +186,12 @@ const kanbanWorkflowOrchestratorPlugin: FastifyPluginAsync = async (
             }
 
             await fastify.kanbanEventService.emit({
+              boardId: linkedTask?.boardId ?? null,
               projectId: task.projectId,
               sessionId: session.id,
               success: false,
               taskId: task.id,
+              taskTitle: linkedTask?.title ?? task.title,
               type: 'task.session-completed',
             });
           });
