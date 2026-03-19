@@ -6,6 +6,8 @@ import {
   deleteTask,
   getTaskById,
   listTasks,
+  normalizeTaskPositionsInColumn,
+  placeTaskInColumn,
   updateTask,
 } from '../services/task-service';
 import { prepareTaskForColumnTransition } from '../services/task-lane-service';
@@ -149,27 +151,42 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
       sessionId,
     });
 
-    if (
-      fastify.hasDecorator('kanbanEventService') &&
-      task.boardId &&
-      task.columnId
-    ) {
-      await fastify.kanbanEventService.emit({
+    if (task.boardId && task.columnId && body.position !== undefined) {
+      placeTaskInColumn(fastify.sqlite, {
         boardId: task.boardId,
-        fromColumnId: null,
+        columnId: task.columnId,
+        position: body.position,
         projectId: task.projectId,
         taskId: task.id,
-        taskTitle: task.title,
-        toColumnId: task.columnId,
+      });
+    }
+
+    const createdTask =
+      task.boardId && task.columnId && body.position !== undefined
+        ? await getTaskById(fastify.sqlite, task.id)
+        : task;
+
+    if (
+      fastify.hasDecorator('kanbanEventService') &&
+      createdTask.boardId &&
+      createdTask.columnId
+    ) {
+      await fastify.kanbanEventService.emit({
+        boardId: createdTask.boardId,
+        fromColumnId: null,
+        projectId: createdTask.projectId,
+        taskId: createdTask.id,
+        taskTitle: createdTask.title,
+        toColumnId: createdTask.columnId,
         type: 'task.column-transition',
       });
     }
 
     reply
       .code(201)
-      .header('Location', `/api/tasks/${task.id}`)
+      .header('Location', `/api/tasks/${createdTask.id}`)
       .type(VENDOR_MEDIA_TYPES.task);
-    return presentTask(task);
+    return presentTask(createdTask);
   });
 
   fastify.get('/tasks/:taskId', async (request, reply) => {
@@ -226,28 +243,59 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     const updated = await updateTask(fastify.sqlite, taskId, nextPatch);
+    const targetPosition = inputPosition(body.position, updated.position);
+
+    if (
+      previous.boardId !== updated.boardId ||
+      previous.columnId !== updated.columnId ||
+      body.position !== undefined
+    ) {
+      if (previous.boardId && previous.columnId) {
+        normalizeTaskPositionsInColumn(
+          fastify.sqlite,
+          previous.projectId,
+          previous.boardId,
+          previous.columnId,
+        );
+      }
+
+      placeTaskInColumn(fastify.sqlite, {
+        boardId: updated.boardId,
+        columnId: updated.columnId,
+        position: targetPosition,
+        projectId: updated.projectId,
+        taskId: updated.id,
+      });
+    }
+
+    const positionedTask =
+      previous.boardId !== updated.boardId ||
+      previous.columnId !== updated.columnId ||
+      body.position !== undefined
+        ? await getTaskById(fastify.sqlite, taskId)
+        : updated;
 
     if (
       fastify.hasDecorator('kanbanEventService') &&
-      updated.boardId &&
-      updated.columnId &&
-      (previous.boardId !== updated.boardId ||
-        previous.columnId !== updated.columnId)
+      positionedTask.boardId &&
+      positionedTask.columnId &&
+      (previous.boardId !== positionedTask.boardId ||
+        previous.columnId !== positionedTask.columnId)
     ) {
       await fastify.kanbanEventService.emit({
-        boardId: updated.boardId,
+        boardId: positionedTask.boardId,
         fromColumnId: previous.columnId,
-        projectId: updated.projectId,
-        taskId: updated.id,
-        taskTitle: updated.title,
-        toColumnId: updated.columnId,
+        projectId: positionedTask.projectId,
+        taskId: positionedTask.id,
+        taskTitle: positionedTask.title,
+        toColumnId: positionedTask.columnId,
         type: 'task.column-transition',
       });
     }
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
 
-    return presentTask(updated);
+    return presentTask(positionedTask);
   });
 
   fastify.post('/tasks/:taskId/move', async (request, reply) => {
@@ -290,28 +338,59 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     }
 
     const updated = await updateTask(fastify.sqlite, taskId, nextPatch);
+    const targetPosition = inputPosition(body.position, updated.position);
+
+    if (
+      previous.boardId !== updated.boardId ||
+      previous.columnId !== updated.columnId ||
+      body.position !== undefined
+    ) {
+      if (previous.boardId && previous.columnId) {
+        normalizeTaskPositionsInColumn(
+          fastify.sqlite,
+          previous.projectId,
+          previous.boardId,
+          previous.columnId,
+        );
+      }
+
+      placeTaskInColumn(fastify.sqlite, {
+        boardId: updated.boardId,
+        columnId: updated.columnId,
+        position: targetPosition,
+        projectId: updated.projectId,
+        taskId: updated.id,
+      });
+    }
+
+    const positionedTask =
+      previous.boardId !== updated.boardId ||
+      previous.columnId !== updated.columnId ||
+      body.position !== undefined
+        ? await getTaskById(fastify.sqlite, taskId)
+        : updated;
 
     if (
       fastify.hasDecorator('kanbanEventService') &&
-      updated.boardId &&
-      updated.columnId &&
-      (previous.boardId !== updated.boardId ||
-        previous.columnId !== updated.columnId)
+      positionedTask.boardId &&
+      positionedTask.columnId &&
+      (previous.boardId !== positionedTask.boardId ||
+        previous.columnId !== positionedTask.columnId)
     ) {
       await fastify.kanbanEventService.emit({
-        boardId: updated.boardId,
+        boardId: positionedTask.boardId,
         fromColumnId: previous.columnId,
-        projectId: updated.projectId,
-        taskId: updated.id,
-        taskTitle: updated.title,
-        toColumnId: updated.columnId,
+        projectId: positionedTask.projectId,
+        taskId: positionedTask.id,
+        taskTitle: positionedTask.title,
+        toColumnId: positionedTask.columnId,
         type: 'task.column-transition',
       });
     }
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
 
-    return presentTask(updated);
+    return presentTask(positionedTask);
   });
 
   fastify.delete('/tasks/:taskId', async (request, reply) => {
@@ -322,3 +401,10 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
 };
 
 export default tasksRoute;
+
+function inputPosition(
+  requestedPosition: number | null | undefined,
+  fallbackPosition: number | null,
+) {
+  return requestedPosition === undefined ? fallbackPosition : requestedPosition;
+}

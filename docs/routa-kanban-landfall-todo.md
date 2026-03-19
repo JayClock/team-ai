@@ -87,6 +87,7 @@
 - [x] 支持从 Review 回退到 Dev
 - [x] 支持进入 Blocked 与从 Blocked 恢复
 - [x] 为未来拖拽排序保留 `position` 规则
+- [x] 支持同列内按 `position` 重排并持久化顺序
 
 涉及文件：
 
@@ -210,11 +211,12 @@
 
 - [x] 补充 board projection route tests
 - [x] 补充 move card route tests
-- [ ] 补充 Review -> Dev 回退测试
-- [ ] 补充 Blocked 进入/恢复测试
+- [x] 补充 Review -> Dev 回退测试
+- [x] 补充 Blocked 进入/恢复测试
+- [x] 补充列内排序持久化测试
 - [ ] 补充 spec sync 测试
 - [ ] 补充 kanban MCP tool tests
-- [ ] 补充前端 Kanban 页面交互测试
+- [x] 补充前端 Kanban 页面交互测试
 
 ## 建议执行顺序
 

@@ -29,6 +29,7 @@ import {
   WorkflowIcon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import {
   buildWorkbenchWalkthroughScenarios,
   canRetryTask,
@@ -368,7 +369,10 @@ export function ProjectSessionStatusSidebar(props: {
                 />
               ) : (
                 <>
-                  <WorkflowSummaryCard taskItems={taskItems} />
+                  <WorkflowSummaryCard
+                    projectId={selectedSession?.data.project.id ?? null}
+                    taskItems={taskItems}
+                  />
                   {taskItems.map((item) => (
                     <Card
                       key={item.id}
@@ -550,8 +554,11 @@ export function ProjectSessionStatusSidebar(props: {
   );
 }
 
-function WorkflowSummaryCard(props: { taskItems: TaskPanelItem[] }) {
-  const { taskItems } = props;
+function WorkflowSummaryCard(props: {
+  projectId: string | null;
+  taskItems: TaskPanelItem[];
+}) {
+  const { projectId, taskItems } = props;
   const laneCounts = new Map<string, number>();
   const delegationGroupIds = new Set<string>();
   const childSessionIds = new Set<string>();
@@ -578,16 +585,23 @@ function WorkflowSummaryCard(props: { taskItems: TaskPanelItem[] }) {
     <Card className="rounded-xl border-border/70 shadow-none">
       <CardContent className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">
-            <div>
+          <div>
             <div className="text-sm font-semibold">Workflow Board</div>
             <p className="mt-1 text-sm text-muted-foreground">
               当前任务按 workflow lane 归位，直接对应 spec -&gt; task -&gt;
               child session 的执行流。
             </p>
           </div>
-          <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
-            {taskItems.length} 张卡片
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
+              {taskItems.length} 张卡片
+            </span>
+            {projectId ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/projects/${projectId}/kanban`}>打开看板</Link>
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">

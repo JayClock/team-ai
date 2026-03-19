@@ -89,6 +89,12 @@ interface DependentTaskRow {
   id: string;
 }
 
+interface ColumnTaskPositionRow {
+  id: string;
+  position: number | null;
+  updated_at: string;
+}
+
 export const taskStatusValues = [
   'PENDING',
   'READY',
@@ -344,6 +350,110 @@ function getNextTaskPosition(
     }) as { max_position: number | null };
 
   return (row.max_position ?? -1) + 1;
+}
+
+function listColumnTaskPositionRows(
+  sqlite: Database,
+  projectId: string,
+  boardId: string,
+  columnId: string,
+  excludeTaskId?: string,
+) {
+  return sqlite
+    .prepare(
+      `
+        SELECT id, position, updated_at
+        FROM project_tasks
+        WHERE project_id = @projectId
+          AND board_id = @boardId
+          AND column_id = @columnId
+          AND deleted_at IS NULL
+          AND (@excludeTaskId IS NULL OR id != @excludeTaskId)
+        ORDER BY
+          CASE WHEN position IS NULL THEN 1 ELSE 0 END ASC,
+          position ASC,
+          updated_at DESC,
+          created_at DESC
+      `,
+    )
+    .all({
+      boardId,
+      columnId,
+      excludeTaskId: excludeTaskId ?? null,
+      projectId,
+    }) as ColumnTaskPositionRow[];
+}
+
+function writeColumnTaskPositions(
+  sqlite: Database,
+  taskIds: string[],
+) {
+  const updatePosition = sqlite.prepare(
+    `
+      UPDATE project_tasks
+      SET position = @position
+      WHERE id = @id AND deleted_at IS NULL
+    `,
+  );
+
+  const transaction = sqlite.transaction((ids: string[]) => {
+    ids.forEach((id, index) => {
+      updatePosition.run({
+        id,
+        position: index,
+      });
+    });
+  });
+
+  transaction(taskIds);
+}
+
+export function normalizeTaskPositionsInColumn(
+  sqlite: Database,
+  projectId: string,
+  boardId: string | null,
+  columnId: string | null,
+) {
+  if (!boardId || !columnId) {
+    return;
+  }
+
+  const rows = listColumnTaskPositionRows(sqlite, projectId, boardId, columnId);
+  writeColumnTaskPositions(
+    sqlite,
+    rows.map((row) => row.id),
+  );
+}
+
+export function placeTaskInColumn(
+  sqlite: Database,
+  input: {
+    boardId: string | null;
+    columnId: string | null;
+    position: number | null | undefined;
+    projectId: string;
+    taskId: string;
+  },
+) {
+  if (!input.boardId || !input.columnId) {
+    return;
+  }
+
+  const rows = listColumnTaskPositionRows(
+    sqlite,
+    input.projectId,
+    input.boardId,
+    input.columnId,
+    input.taskId,
+  );
+  const taskIds = rows.map((row) => row.id);
+  const nextPosition =
+    input.position == null
+      ? taskIds.length
+      : Math.max(0, Math.min(input.position, taskIds.length));
+
+  taskIds.splice(nextPosition, 0, input.taskId);
+  writeColumnTaskPositions(sqlite, taskIds);
 }
 
 function mapTaskRow(row: TaskRow): TaskPayload {

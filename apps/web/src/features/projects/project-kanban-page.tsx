@@ -357,15 +357,22 @@ export default function ProjectKanbanPage() {
                         </div>
                       ) : (
                         column.cards?.map((card) => (
-                          <button
+                          <div
                             key={card.id}
-                            type="button"
+                            role="button"
+                            tabIndex={0}
                             className={`rounded-xl border p-3 text-left transition-colors ${
                               selectedCard?.id === card.id
                                 ? 'border-primary bg-primary/5'
                                 : 'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/30'
                             }`}
                             onClick={() => setSelectedCardId(card.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                setSelectedCardId(card.id);
+                              }
+                            }}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
@@ -393,6 +400,7 @@ export default function ProjectKanbanPage() {
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button
+                                    aria-label={`Move ${card.title}`}
                                     variant="ghost"
                                     size="icon"
                                     className="size-8 shrink-0"
@@ -430,7 +438,7 @@ export default function ProjectKanbanPage() {
                                 <span className="line-clamp-2">{card.lastSyncError}</span>
                               </div>
                             ) : null}
-                          </button>
+                          </div>
                         ))
                       )}
                     </CardContent>

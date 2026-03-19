@@ -25,7 +25,7 @@
 - 有 move card 能力
 - 能从卡片打开 task/session
 
-当前状态：`in_progress`
+当前状态：`done`
 
 ### [x] RK-M1-01 统一默认 board 列模型
 
@@ -174,7 +174,7 @@
 - [ ] 手动移卡不破坏 session 状态
 - [ ] 自动化仍能继续工作
 
-### [ ] RK-M1-07 增加列内排序持久化
+### [x] RK-M1-07 增加列内排序持久化
 
 类型：后端
 
@@ -182,10 +182,10 @@
 
 开发任务：
 
-- [ ] 统一 task `position` 语义
-- [ ] 设计列内 position 重排逻辑
-- [ ] move 到新列时自动分配 position
-- [ ] 保证 position 可重复修复或重建
+- [x] 统一 task `position` 语义
+- [x] 设计列内 position 重排逻辑
+- [x] move 到新列时自动分配 position
+- [x] 保证 position 可重复修复或重建
 
 涉及文件：
 
@@ -194,7 +194,7 @@
 
 完成标准：
 
-- [ ] 同一列内卡片顺序稳定
+- [x] 同一列内卡片顺序稳定
 
 ### [x] RK-M1-08 新建项目 Kanban 页面
 
@@ -264,7 +264,7 @@
 
 - [ ] 用户可手动回退、阻塞、恢复卡片
 
-### [ ] RK-M1-11 将现有 workflow 摘要卡与新看板关系梳理清楚
+### [x] RK-M1-11 将现有 workflow 摘要卡与新看板关系梳理清楚
 
 类型：前端
 
@@ -272,9 +272,9 @@
 
 开发任务：
 
-- [ ] 保留 `Workflow Board` 摘要卡但降级为 overview
-- [ ] 让 overview 链接到新 Kanban 页面
-- [ ] 避免两个地方重复承担主看板职责
+- [x] 保留 `Workflow Board` 摘要卡但降级为 overview
+- [x] 让 overview 链接到新 Kanban 页面
+- [x] 避免两个地方重复承担主看板职责
 
 涉及文件：
 
@@ -282,9 +282,9 @@
 
 完成标准：
 
-- [ ] 用户不会混淆“摘要”和“真正看板”
+- [x] 用户不会混淆“摘要”和“真正看板”
 
-### [ ] RK-M1-12 M1 测试补齐
+### [x] RK-M1-12 M1 测试补齐
 
 类型：测试
 
@@ -292,12 +292,12 @@
 
 开发任务：
 
-- [ ] 补 route test: board projection
-- [ ] 补 route test: move card
-- [ ] 补 route test: Review -> Dev
-- [ ] 补 route test: Blocked 进入/恢复
-- [ ] 补前端 page test: Kanban 渲染
-- [ ] 补前端交互 test: move card
+- [x] 补 route test: board projection
+- [x] 补 route test: move card
+- [x] 补 route test: Review -> Dev
+- [x] 补 route test: Blocked 进入/恢复
+- [x] 补前端 page test: Kanban 渲染
+- [x] 补前端交互 test: move card
 
 涉及文件：
 
@@ -306,7 +306,7 @@
 
 完成标准：
 
-- [ ] M1 关键路径都有自动化测试
+- [x] M1 关键路径都有自动化测试
 
 ---
 
@@ -709,11 +709,12 @@
 ### 批次 B
 
 - [x] RK-M1-06
-- [ ] RK-M1-07
+- [x] RK-M1-07
 - [x] RK-M1-08
 - [x] RK-M1-09
 - [x] RK-M1-10
-- [ ] RK-M1-11
+- [x] RK-M1-11
+- [x] RK-M1-12
 
 ### 批次 C
 

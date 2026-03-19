@@ -477,6 +477,112 @@ describe('tasks routes', () => {
       columnId: blockedColumn?.id ?? null,
       status: 'WAITING_RETRY',
     });
+
+    const restoreResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/move`,
+      payload: {
+        boardId: board.id,
+        columnId: todoColumn?.id ?? null,
+      },
+    });
+
+    expect(restoreResponse.statusCode).toBe(200);
+    expect(restoreResponse.json()).toMatchObject({
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      status: 'PENDING',
+    });
+  });
+
+  it('supports moving a review card back to dev', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Review Backflow Endpoint',
+      repoPath: '/tmp/team-ai-review-backflow-endpoint',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const taskId = await createTask(fastify, project.id, null, {
+      boardId: board.id,
+      columnId: reviewColumn?.id ?? null,
+      kind: 'review',
+      objective: 'Move this review card back into dev',
+      title: 'Review backflow task',
+    });
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/move`,
+      payload: {
+        boardId: board.id,
+        columnId: devColumn?.id ?? null,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      boardId: board.id,
+      columnId: devColumn?.id ?? null,
+      status: 'READY',
+    });
+  });
+
+  it('reorders cards within the same column when a position is provided', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Task Reorder Endpoint',
+      repoPath: '/tmp/team-ai-task-reorder-endpoint',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const firstTaskId = await createTask(fastify, project.id, null, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'First task',
+      title: 'First task',
+    });
+    const secondTaskId = await createTask(fastify, project.id, null, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Second task',
+      title: 'Second task',
+    });
+    const thirdTaskId = await createTask(fastify, project.id, null, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Third task',
+      title: 'Third task',
+    });
+
+    const reorderResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${thirdTaskId}/move`,
+      payload: {
+        boardId: board.id,
+        columnId: todoColumn?.id ?? null,
+        position: 0,
+      },
+    });
+
+    expect(reorderResponse.statusCode).toBe(200);
+    expect(reorderResponse.json()).toMatchObject({
+      id: thirdTaskId,
+      position: 0,
+    });
+
+    const firstTask = await getTaskById(sqlite, firstTaskId);
+    const secondTask = await getTaskById(sqlite, secondTaskId);
+    const thirdTask = await getTaskById(sqlite, thirdTaskId);
+
+    expect([thirdTask.position, firstTask.position, secondTask.position]).toEqual([
+      0,
+      1,
+      2,
+    ]);
   });
 
   async function createTestDatabase(): Promise<Database> {
