@@ -42,7 +42,7 @@ export const defaultTaskWorkflowColumns: TaskWorkflowColumnDefinition[] = [
   {
     description: 'Implementation work currently executing.',
     id: 'dev',
-    name: 'In Progress',
+    name: 'Dev',
     recommendedRole: 'CRAFTER',
     recommendedSpecialistId: 'crafter-implementor',
     recommendedSpecialistName: 'Crafter Implementor',
@@ -127,4 +127,65 @@ export function getTaskWorkflowColumnDefinition(columnId: string | null | undefi
   return (
     defaultTaskWorkflowColumns.find((column) => column.id === columnId) ?? null
   );
+}
+
+export function resolveTaskWorkflowColumnStage(
+  columnId: string | null | undefined,
+  columnName?: string | null,
+): TaskWorkflowColumnStage | null {
+  const normalizedId = columnId?.trim().toLowerCase() ?? '';
+  const normalizedName = columnName?.trim().toLowerCase() ?? '';
+
+  const matches = (value: string, candidate: string) =>
+    value === candidate || value.endsWith(`_${candidate}`);
+
+  if (matches(normalizedId, 'backlog') || normalizedName === 'backlog') {
+    return 'backlog';
+  }
+
+  if (matches(normalizedId, 'todo') || normalizedName === 'todo') {
+    return 'todo';
+  }
+
+  if (matches(normalizedId, 'dev') || normalizedName === 'dev') {
+    return 'dev';
+  }
+
+  if (matches(normalizedId, 'review') || normalizedName === 'review') {
+    return 'review';
+  }
+
+  if (matches(normalizedId, 'blocked') || normalizedName === 'blocked') {
+    return 'blocked';
+  }
+
+  if (matches(normalizedId, 'done') || normalizedName === 'done') {
+    return 'done';
+  }
+
+  return null;
+}
+
+export function resolveTaskStatusForWorkflowColumn(
+  columnId: string | null | undefined,
+  columnName: string | null | undefined,
+  currentStatus: string,
+) {
+  const stage = resolveTaskWorkflowColumnStage(columnId, columnName);
+
+  switch (stage) {
+    case 'backlog':
+    case 'todo':
+      return 'PENDING';
+    case 'dev':
+      return 'READY';
+    case 'review':
+      return 'PENDING';
+    case 'blocked':
+      return 'WAITING_RETRY';
+    case 'done':
+      return 'COMPLETED';
+    default:
+      return currentStatus;
+  }
 }

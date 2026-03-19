@@ -30,16 +30,16 @@ function buildKanbanTaskPrompt(
   },
   column: {
     name: string;
+    stage: string | null;
   },
 ) {
-  const normalizedColumn = column.name.toLowerCase();
   const collaborationInstructions =
-    normalizedColumn.includes('review') || normalizedColumn.includes('verify')
+    column.stage === 'review'
       ? [
           'If runtime setup from the previous lane is needed, call request_previous_lane_handoff instead of guessing the environment.',
           'Continue once the previous lane replies with submit_lane_handoff.',
         ]
-      : normalizedColumn.includes('dev')
+      : column.stage === 'dev'
         ? [
             'If another lane requests runtime or environment help for this task, complete only the requested support work.',
             'When you finish that support work, call submit_lane_handoff with the handoff id and a concise summary.',

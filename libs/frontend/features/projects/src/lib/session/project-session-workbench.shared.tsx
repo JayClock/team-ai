@@ -362,13 +362,18 @@ export function formatVerificationVerdictLabel(
 export function formatTaskWorkflowColumnLabel(
   columnId: string | null | undefined,
 ): string {
-  switch (columnId) {
+  const normalized = columnId?.trim().toLowerCase() ?? '';
+  const stage = normalized.includes('_')
+    ? normalized.slice(normalized.lastIndexOf('_') + 1)
+    : normalized;
+
+  switch (stage) {
     case 'backlog':
       return 'Backlog';
     case 'todo':
       return 'Todo';
     case 'dev':
-      return 'In Progress';
+      return 'Dev';
     case 'review':
       return 'Review';
     case 'blocked':

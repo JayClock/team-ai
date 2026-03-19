@@ -1,6 +1,7 @@
 import Homepage from '../features/landing/homepage';
 import SmartDomainPage from '../features/landing/smart-domain-page';
 import { Login } from '../features/auth/login';
+import ProjectKanbanPage from '../features/projects/project-kanban-page';
 import { Signup } from '../features/auth/signup';
 import ProjectHome from '../features/projects/project-home';
 import ProjectOrchestrationPage from '../features/projects/project-orchestration-page';
@@ -51,6 +52,11 @@ function createAppRouter() {
       path: '/projects/:projectId/orchestration',
       loader: protectedRouteLoader,
       element: <ProjectOrchestrationPage />,
+    },
+    {
+      path: '/projects/:projectId/kanban',
+      loader: protectedRouteLoader,
+      element: <ProjectKanbanPage />,
     },
     {
       path: '/projects/:projectId/workflow-runs/:workflowRunId',

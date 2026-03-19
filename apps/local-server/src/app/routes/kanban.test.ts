@@ -6,6 +6,7 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
+import { createTask } from '../services/task-service';
 import { createProject } from '../services/project-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
@@ -74,11 +75,12 @@ describe('kanban route', () => {
       'Todo',
       'Dev',
       'Review',
+      'Blocked',
       'Done',
     ]);
   });
 
-  it('returns a kanban board by id', async () => {
+  it('returns a kanban board projection by id', async () => {
     const sqlite = await createTestDatabase();
     const project = await createProject(sqlite, {
       repoPath: '/Users/example/kanban-detail',
@@ -101,6 +103,19 @@ describe('kanban route', () => {
         _embedded: { boards: Array<{ id: string }> };
       }
     )._embedded.boards[0].id;
+    const boardColumns = (
+      listResponse.json() as {
+        _embedded: { boards: Array<{ columns: Array<{ id: string }> }> };
+      }
+    )._embedded.boards[0].columns;
+
+    await createTask(sqlite, {
+      boardId,
+      columnId: boardColumns[1]?.id ?? null,
+      objective: 'Render card summaries in the board projection',
+      projectId: project.id,
+      title: 'Projected card',
+    });
 
     const detailResponse = await fastify.inject({
       method: 'GET',
@@ -113,6 +128,12 @@ describe('kanban route', () => {
       id: boardId,
       name: 'Workflow Board',
       projectId: project.id,
+      columns: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Todo',
+          cards: [expect.objectContaining({ title: 'Projected card' })],
+        }),
+      ]),
     });
   });
 

@@ -580,6 +580,9 @@ export default function ProjectOrchestrationPage() {
             <Button variant="outline" asChild>
               <Link to="/">返回项目</Link>
             </Button>
+            <Button variant="outline" asChild>
+              <Link to={`/projects/${projectId}/kanban`}>Kanban</Link>
+            </Button>
             <Button variant="outline" onClick={() => navigate(-1)}>
               返回上一页
             </Button>

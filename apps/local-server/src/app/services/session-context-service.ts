@@ -16,6 +16,7 @@ import type {
 import { getAcpSessionById } from './acp-service';
 import { getProjectWorktreeById } from './project-worktree-service';
 import { listTasks } from './task-service';
+import { resolveTaskWorkflowColumnStage } from './task-workflow-service';
 
 interface BoardRow {
   id: string;
@@ -93,6 +94,7 @@ function mapColumnRow(row: ColumnRow): KanbanColumnPayload {
     id: row.id,
     name: row.name,
     position: row.position,
+    stage: resolveTaskWorkflowColumnStage(row.id, row.name),
   };
 }
 

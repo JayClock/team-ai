@@ -76,15 +76,26 @@ export default function ProjectSessionPage() {
         onSessionNavigate={handleSessionNavigate}
       />
       <div className="pointer-events-none absolute right-4 top-4 z-20">
-        <Button
-          className="pointer-events-auto"
-          variant="outline"
-          onClick={() =>
-            navigate(`/projects/${projectState.data.id}/orchestration`)
-          }
-        >
-          Orchestration
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            className="pointer-events-auto"
+            variant="outline"
+            onClick={() =>
+              navigate(`/projects/${projectState.data.id}/kanban`)
+            }
+          >
+            Kanban
+          </Button>
+          <Button
+            className="pointer-events-auto"
+            variant="outline"
+            onClick={() =>
+              navigate(`/projects/${projectState.data.id}/orchestration`)
+            }
+          >
+            Orchestration
+          </Button>
+        </div>
       </div>
     </div>
   );

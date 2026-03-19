@@ -50,8 +50,7 @@ function matchesArtifactRequirement(requirement: string, evidence: string) {
 }
 
 function isGateColumn(column: KanbanColumnPayload) {
-  const normalized = `${column.id} ${column.name}`.toLowerCase();
-  return normalized.includes('review') || normalized.includes('verify');
+  return column.stage === 'review';
 }
 
 function collectTaskArtifactEvidence(

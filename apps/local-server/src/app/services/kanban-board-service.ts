@@ -4,10 +4,15 @@ import { ProblemError } from '@orchestration/runtime-acp';
 import type {
   KanbanBoardListPayload,
   KanbanBoardPayload,
+  KanbanCardSummaryPayload,
   KanbanColumnAutomationPayload,
   KanbanColumnPayload,
 } from '../schemas/kanban';
 import { getProjectById } from './project-service';
+import {
+  defaultTaskWorkflowColumns,
+  resolveTaskWorkflowColumnStage,
+} from './task-workflow-service';
 
 const boardIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -31,57 +36,69 @@ interface ColumnRow {
   position: number;
 }
 
+interface BoardTaskRow {
+  assigned_role: string | null;
+  assigned_specialist_name: string | null;
+  board_id: string | null;
+  column_id: string | null;
+  execution_session_id: string | null;
+  id: string;
+  kind: 'plan' | 'implement' | 'review' | 'verify' | null;
+  last_sync_error: string | null;
+  position: number | null;
+  priority: string | null;
+  result_session_id: string | null;
+  status: string;
+  title: string;
+  trigger_session_id: string | null;
+  updated_at: string;
+  verification_verdict: string | null;
+}
+
 function createBoardId() {
   return `brd_${boardIdGenerator()}`;
 }
 
 function createDefaultColumnRows(boardId: string, now: string) {
-  const columns: Array<{
-    automation: KanbanColumnAutomationPayload | null;
-    id: string;
-    name: string;
-    position: number;
-  }> = [
-    { automation: null, id: `${boardId}_backlog`, name: 'Backlog', position: 0 },
-    { automation: null, id: `${boardId}_todo`, name: 'Todo', position: 1 },
-    {
-      automation: {
-        autoAdvanceOnSuccess: false,
-        enabled: true,
-        provider: null,
-        requiredArtifacts: [],
-        specialistId: null,
-        transitionType: 'entry',
-      },
-      id: `${boardId}_dev`,
-      name: 'Dev',
-      position: 2,
-    },
-    {
-      automation: {
-        autoAdvanceOnSuccess: true,
-        enabled: true,
-        provider: null,
-        requiredArtifacts: [],
-        specialistId: null,
-        transitionType: 'entry',
-      },
-      id: `${boardId}_review`,
-      name: 'Review',
-      position: 3,
-    },
-    { automation: null, id: `${boardId}_done`, name: 'Done', position: 4 },
-  ];
-
-  return columns.map((column) => ({
-    automationJson: column.automation ? JSON.stringify(column.automation) : null,
+  return defaultTaskWorkflowColumns.map((column, position) => ({
+    automationJson: createDefaultColumnAutomation(column.id),
     boardId,
     createdAt: now,
-    id: column.id,
+    id: `${boardId}_${column.id}`,
     name: column.name,
-    position: column.position,
+    position,
     updatedAt: now,
   }));
+}
+
+function createDefaultColumnAutomation(
+  columnId: string,
+): string | null {
+  let automation: KanbanColumnAutomationPayload | null = null;
+
+  if (columnId === 'dev') {
+    automation = {
+      autoAdvanceOnSuccess: false,
+      enabled: true,
+      provider: null,
+      requiredArtifacts: [],
+      specialistId: null,
+      transitionType: 'entry',
+    };
+  }
+
+  if (columnId === 'review') {
+    automation = {
+      autoAdvanceOnSuccess: true,
+      enabled: true,
+      provider: null,
+      requiredArtifacts: [],
+      specialistId: null,
+      transitionType: 'entry',
+    };
+  }
+
+  return automation ? JSON.stringify(automation) : null;
 }
 
 function mapColumnRow(row: ColumnRow): KanbanColumnPayload {
@@ -93,6 +110,7 @@ function mapColumnRow(row: ColumnRow): KanbanColumnPayload {
     id: row.id,
     name: row.name,
     position: row.position,
+    stage: resolveTaskWorkflowColumnStage(row.id, row.name),
   };
 }
 
@@ -145,6 +163,159 @@ function listColumnRows(sqlite: Database, boardId: string) {
     .all(boardId) as ColumnRow[];
 }
 
+function listBoardTaskRows(
+  sqlite: Database,
+  projectId: string,
+  boardId: string,
+) {
+  return sqlite
+    .prepare(
+      `
+        SELECT
+          id,
+          board_id,
+          column_id,
+          title,
+          status,
+          kind,
+          priority,
+          position,
+          assigned_role,
+          assigned_specialist_name,
+          trigger_session_id,
+          execution_session_id,
+          result_session_id,
+          last_sync_error,
+          verification_verdict,
+          updated_at
+        FROM project_tasks
+        WHERE project_id = ? AND board_id = ? AND deleted_at IS NULL
+      `,
+    )
+    .all(projectId, boardId) as BoardTaskRow[];
+}
+
+function mapBoardTaskRow(row: BoardTaskRow): KanbanCardSummaryPayload {
+  return {
+    assignedRole: row.assigned_role,
+    assignedSpecialistName: row.assigned_specialist_name,
+    boardId: row.board_id,
+    columnId: row.column_id,
+    executionSessionId: row.execution_session_id,
+    id: row.id,
+    kind: row.kind,
+    lastSyncError: row.last_sync_error,
+    position: row.position,
+    priority: row.priority,
+    resultSessionId: row.result_session_id,
+    status: row.status,
+    title: row.title,
+    triggerSessionId: row.trigger_session_id,
+    updatedAt: row.updated_at,
+    verificationVerdict: row.verification_verdict,
+  };
+}
+
+function compareKanbanCards(
+  left: KanbanCardSummaryPayload,
+  right: KanbanCardSummaryPayload,
+) {
+  const leftPosition = left.position ?? Number.MAX_SAFE_INTEGER;
+  const rightPosition = right.position ?? Number.MAX_SAFE_INTEGER;
+
+  if (leftPosition !== rightPosition) {
+    return leftPosition - rightPosition;
+  }
+
+  return right.updatedAt.localeCompare(left.updatedAt);
+}
+
+function attachCardsToColumns(
+  columns: KanbanColumnPayload[],
+  cards: KanbanCardSummaryPayload[],
+) {
+  const cardsByColumnId = new Map<string, KanbanCardSummaryPayload[]>();
+
+  for (const card of cards) {
+    if (!card.columnId) {
+      continue;
+    }
+
+    const existing = cardsByColumnId.get(card.columnId) ?? [];
+    existing.push(card);
+    cardsByColumnId.set(card.columnId, existing);
+  }
+
+  return columns.map((column) => ({
+    ...column,
+    cards: (cardsByColumnId.get(column.id) ?? []).sort(compareKanbanCards),
+  }));
+}
+
+function reconcileDefaultBoardColumns(
+  sqlite: Database,
+  board: BoardRow,
+): KanbanColumnPayload[] {
+  const existingColumns = listColumnRows(sqlite, board.id);
+  const stageRows = new Map(
+    existingColumns.map((row) => [
+      resolveTaskWorkflowColumnStage(row.id, row.name),
+      row,
+    ]),
+  );
+  const now = new Date().toISOString();
+  const insertColumn = sqlite.prepare(
+    `
+      INSERT INTO project_kanban_columns (
+        id, board_id, name, position, automation_json, created_at, updated_at, deleted_at
+      ) VALUES (
+        @id, @boardId, @name, @position, @automationJson, @createdAt, @updatedAt, NULL
+      )
+    `,
+  );
+  const updateColumn = sqlite.prepare(
+    `
+      UPDATE project_kanban_columns
+      SET name = @name, position = @position, updated_at = @updatedAt
+      WHERE id = @id
+    `,
+  );
+
+  const syncColumns = sqlite.transaction(() => {
+    for (const [position, definition] of defaultTaskWorkflowColumns.entries()) {
+      const row = stageRows.get(definition.stage);
+      if (!row) {
+        insertColumn.run({
+          automationJson: createDefaultColumnAutomation(definition.id),
+          boardId: board.id,
+          createdAt: now,
+          id: `${board.id}_${definition.id}`,
+          name: definition.name,
+          position,
+          updatedAt: now,
+        });
+        continue;
+      }
+
+      if (
+        row.name !== definition.name ||
+        row.position !== position
+      ) {
+        updateColumn.run({
+          id: row.id,
+          name: definition.name,
+          position,
+          updatedAt: now,
+        });
+      }
+    }
+  });
+
+  syncColumns();
+
+  return listColumnRows(sqlite, board.id).map(mapColumnRow);
+}
+
 export async function ensureDefaultKanbanBoard(
   sqlite: Database,
   projectId: string,
@@ -154,10 +325,7 @@ export async function ensureDefaultKanbanBoard(
   const existingRows = listBoardRows(sqlite, projectId);
   if (existingRows.length > 0) {
     const existing = existingRows[0];
-    return mapBoardRow(
-      existing,
-      listColumnRows(sqlite, existing.id).map(mapColumnRow),
-    );
+    return mapBoardRow(existing, reconcileDefaultBoardColumns(sqlite, existing));
   }
 
   const now = new Date().toISOString();
@@ -225,7 +393,7 @@ export async function listProjectKanbanBoards(
   await ensureDefaultKanbanBoard(sqlite, projectId);
 
   const items = listBoardRows(sqlite, projectId).map((row) =>
-    mapBoardRow(row, listColumnRows(sqlite, row.id).map(mapColumnRow)),
+    mapBoardRow(row, reconcileDefaultBoardColumns(sqlite, row)),
   );
 
   return {
@@ -255,5 +423,8 @@ export async function getProjectKanbanBoardById(
     throwBoardNotFound(projectId, boardId);
   }
 
-  return mapBoardRow(row, listColumnRows(sqlite, row.id).map(mapColumnRow));
+  const columns = reconcileDefaultBoardColumns(sqlite, row);
+  const cards = listBoardTaskRows(sqlite, projectId, row.id).map(mapBoardTaskRow);
+
+  return mapBoardRow(row, attachCardsToColumns(columns, cards));
 }

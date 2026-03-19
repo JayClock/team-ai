@@ -441,6 +441,44 @@ describe('tasks routes', () => {
     ]);
   });
 
+  it('moves a card through the dedicated move endpoint', async () => {
+    const sqlite = await createTestDatabase();
+    const events = createKanbanEventService();
+    const fastify = await createTestServer(sqlite, {
+      kanbanEventService: events,
+    });
+    const project = await createProject(sqlite, {
+      title: 'Task Move Endpoint',
+      repoPath: '/tmp/team-ai-task-move-endpoint',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const blockedColumn = board.columns.find((column) => column.name === 'Blocked');
+    const taskId = await createTask(fastify, project.id, null, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Move this card through the dedicated endpoint',
+      title: 'Move endpoint task',
+    });
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/move`,
+      payload: {
+        boardId: board.id,
+        columnId: blockedColumn?.id ?? null,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.task);
+    expect(response.json()).toMatchObject({
+      boardId: board.id,
+      columnId: blockedColumn?.id ?? null,
+      status: 'WAITING_RETRY',
+    });
+  });
+
   async function createTestDatabase(): Promise<Database> {
     const dataDir = await mkdtemp(join(tmpdir(), 'team-ai-tasks-route-'));
     const previousDataDir = process.env.TEAMAI_DATA_DIR;

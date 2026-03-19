@@ -9,6 +9,7 @@ import {
   updateTask,
 } from '../services/task-service';
 import { prepareTaskForColumnTransition } from '../services/task-lane-service';
+import { resolveTaskStatusForWorkflowColumn } from '../services/task-workflow-service';
 import { setVendorMediaType, VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 
 const listTasksQuerySchema = z.object({
@@ -109,6 +110,12 @@ const taskPatchSchema = z
     message: 'At least one field must be provided',
   });
 
+const moveTaskBodySchema = z.object({
+  boardId: nullableStringSchema,
+  columnId: nullableStringSchema,
+  position: z.number().int().optional().nullable(),
+});
+
 const tasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/tasks', async (request, reply) => {
     const query = listTasksQuerySchema.parse(request.query);
@@ -205,6 +212,81 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
       nextPatch.lastSyncError = transitionState.lastSyncError;
       nextPatch.sessionIds = transitionState.sessionIds;
       nextPatch.triggerSessionId = transitionState.triggerSessionId;
+    }
+
+    if (
+      body.status === undefined &&
+      (previous.boardId !== nextBoardId || previous.columnId !== nextColumnId)
+    ) {
+      nextPatch.status = resolveTaskStatusForWorkflowColumn(
+        nextColumnId,
+        null,
+        previous.status,
+      );
+    }
+
+    const updated = await updateTask(fastify.sqlite, taskId, nextPatch);
+
+    if (
+      fastify.hasDecorator('kanbanEventService') &&
+      updated.boardId &&
+      updated.columnId &&
+      (previous.boardId !== updated.boardId ||
+        previous.columnId !== updated.columnId)
+    ) {
+      await fastify.kanbanEventService.emit({
+        boardId: updated.boardId,
+        fromColumnId: previous.columnId,
+        projectId: updated.projectId,
+        taskId: updated.id,
+        taskTitle: updated.title,
+        toColumnId: updated.columnId,
+        type: 'task.column-transition',
+      });
+    }
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
+
+    return presentTask(updated);
+  });
+
+  fastify.post('/tasks/:taskId/move', async (request, reply) => {
+    const { taskId } = taskParamsSchema.parse(request.params);
+    const body = moveTaskBodySchema.parse(request.body);
+    const previous = await getTaskById(fastify.sqlite, taskId);
+    const transitionState = {
+      boardId: previous.boardId,
+      columnId: previous.columnId,
+      laneHandoffs: previous.laneHandoffs,
+      laneSessions: previous.laneSessions,
+      lastSyncError: previous.lastSyncError,
+      sessionIds: previous.sessionIds,
+      triggerSessionId: previous.triggerSessionId,
+    };
+    const nextPatch: Parameters<typeof updateTask>[2] = {
+      boardId: body.boardId,
+      columnId: body.columnId,
+      ...(body.position !== undefined ? { position: body.position } : {}),
+    };
+
+    if (
+      prepareTaskForColumnTransition(transitionState, {
+        boardId: body.boardId,
+        columnId: body.columnId,
+      })
+    ) {
+      nextPatch.laneSessions = transitionState.laneSessions;
+      nextPatch.lastSyncError = transitionState.lastSyncError;
+      nextPatch.sessionIds = transitionState.sessionIds;
+      nextPatch.triggerSessionId = transitionState.triggerSessionId;
+    }
+
+    if (previous.boardId !== body.boardId || previous.columnId !== body.columnId) {
+      nextPatch.status = resolveTaskStatusForWorkflowColumn(
+        body.columnId,
+        null,
+        previous.status,
+      );
     }
 
     const updated = await updateTask(fastify.sqlite, taskId, nextPatch);

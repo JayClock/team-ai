@@ -317,6 +317,35 @@ function dedupeStrings(values: Iterable<string>): string[] {
   return Array.from(new Set(values));
 }
 
+function getNextTaskPosition(
+  sqlite: Database,
+  projectId: string,
+  boardId: string,
+  columnId: string,
+  excludeTaskId?: string,
+) {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT COALESCE(MAX(position), -1) AS max_position
+        FROM project_tasks
+        WHERE project_id = @projectId
+          AND board_id = @boardId
+          AND column_id = @columnId
+          AND deleted_at IS NULL
+          AND (@excludeTaskId IS NULL OR id != @excludeTaskId)
+      `,
+    )
+    .get({
+      boardId,
+      columnId,
+      excludeTaskId: excludeTaskId ?? null,
+      projectId,
+    }) as { max_position: number | null };
+
+  return (row.max_position ?? -1) + 1;
+}
+
 function mapTaskRow(row: TaskRow): TaskPayload {
   return {
     acceptanceCriteria: parseStringArray(row.acceptance_criteria_json),
@@ -686,6 +715,16 @@ export async function createTask(
     kind,
     status,
   });
+  const position =
+    input.position ??
+    (workflowContext.boardId && workflowContext.columnId
+      ? getNextTaskPosition(
+          sqlite,
+          input.projectId,
+          workflowContext.boardId,
+          workflowContext.columnId,
+        )
+      : null);
   const sessionIds = dedupeStrings(
     input.sessionIds ?? (sessionId ? [sessionId] : []),
   );
@@ -828,7 +867,7 @@ export async function createTask(
       executionSessionId,
       parallelGroup: input.parallelGroup ?? null,
       parentTaskId,
-      position: input.position ?? null,
+      position,
       priority: input.priority ?? null,
       projectId: input.projectId,
       resultSessionId,
@@ -1088,6 +1127,23 @@ export async function updateTask(
     kind,
     status,
   });
+  const movedToNextColumn =
+    current.board_id !== workflowContext.boardId ||
+    current.column_id !== workflowContext.columnId;
+  const position =
+    input.position !== undefined
+      ? input.position
+      : workflowContext.boardId && workflowContext.columnId
+        ? movedToNextColumn
+          ? getNextTaskPosition(
+              sqlite,
+              current.project_id,
+              workflowContext.boardId,
+              workflowContext.columnId,
+              taskId,
+            )
+          : current.position
+        : null;
   const nextSessionIds = dedupeStrings([
     ...(input.sessionIds ?? parseStringArray(current.session_ids_json)),
     ...(sessionId ? [sessionId] : []),
@@ -1160,7 +1216,7 @@ export async function updateTask(
         ? current.parallel_group
         : input.parallelGroup,
     parentTaskId,
-    position: input.position === undefined ? current.position : input.position,
+    position,
     priority: input.priority === undefined ? current.priority : input.priority,
     scope: input.scope === undefined ? current.scope : input.scope,
     resultSessionId,

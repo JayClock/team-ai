@@ -51,22 +51,24 @@ interface CreateKanbanWorkflowOrchestratorInput {
 }
 
 function deriveStatusForColumn(column: KanbanColumnPayload, task: TaskPayload) {
-  const normalized = `${column.id} ${column.name}`.toLowerCase();
-
-  if (normalized.includes('done')) {
+  if (column.stage === 'done') {
     return 'COMPLETED';
   }
 
-  if (normalized.includes('review')) {
+  if (column.stage === 'review') {
     return 'PENDING';
   }
 
-  if (normalized.includes('dev')) {
+  if (column.stage === 'dev') {
     return 'READY';
   }
 
-  if (normalized.includes('todo') || normalized.includes('backlog')) {
+  if (column.stage === 'todo' || column.stage === 'backlog') {
     return 'PENDING';
+  }
+
+  if (column.stage === 'blocked') {
+    return 'WAITING_RETRY';
   }
 
   return task.status;
@@ -80,21 +82,53 @@ function deriveRoleForColumn(
     return task.assignedRole;
   }
 
-  const normalized = `${column.id} ${column.name}`.toLowerCase();
-  if (normalized.includes('review') || normalized.includes('verify')) {
+  if (column.stage === 'review' || column.stage === 'done') {
     return 'GATE';
   }
 
-  if (normalized.includes('dev')) {
+  if (column.stage === 'dev' || column.stage === 'todo') {
     return 'CRAFTER';
+  }
+
+  if (column.stage === 'backlog' || column.stage === 'blocked') {
+    return 'ROUTA';
   }
 
   return task.assignedRole;
 }
 
 function requiresTaskWorktree(column: KanbanColumnPayload) {
-  const normalized = `${column.id} ${column.name}`.toLowerCase();
-  return normalized.includes('dev');
+  return column.stage === 'dev';
+}
+
+function resolveNextForwardColumn(
+  columns: KanbanColumnPayload[],
+  currentColumnId: string,
+) {
+  const currentColumn = columns.find((column) => column.id === currentColumnId);
+  const orderedStages: Array<KanbanColumnPayload['stage']> = [
+    'backlog',
+    'todo',
+    'dev',
+    'review',
+    'done',
+  ];
+
+  if (!currentColumn?.stage) {
+    return null;
+  }
+
+  const currentStageIndex = orderedStages.indexOf(currentColumn.stage);
+  if (currentStageIndex < 0) {
+    return null;
+  }
+
+  const nextStage = orderedStages[currentStageIndex + 1];
+  if (!nextStage) {
+    return null;
+  }
+
+  return columns.find((column) => column.stage === nextStage) ?? null;
 }
 
 async function resolveDefaultCodebaseId(
@@ -290,11 +324,10 @@ export function createKanbanWorkflowOrchestrator(
     const orderedColumns = board.columns
       .slice()
       .sort((left, right) => left.position - right.position);
-    const currentIndex = orderedColumns.findIndex(
+    const currentColumn = orderedColumns.find(
       (column) => column.id === automation.columnId,
     );
-    const currentColumn = orderedColumns[currentIndex];
-    const nextColumn = orderedColumns[currentIndex + 1];
+    const nextColumn = resolveNextForwardColumn(orderedColumns, automation.columnId);
     if (!currentColumn || !nextColumn) {
       return;
     }
