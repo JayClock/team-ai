@@ -528,6 +528,50 @@ describe('tasks routes', () => {
     });
   });
 
+  it('rejects stale move requests when the card changed after the board was loaded', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Task Move Conflict',
+      repoPath: '/tmp/team-ai-task-move-conflict',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const taskId = await createTask(fastify, project.id, null, {
+      boardId: board.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Move with stale board state',
+      title: 'Stale move task',
+    });
+
+    const initialTask = await getTaskById(sqlite, taskId);
+    await updateTask(sqlite, taskId, {
+      completionSummary: 'Background automation already touched this card.',
+    });
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/move`,
+      payload: {
+        boardId: board.id,
+        columnId: reviewColumn?.id ?? null,
+        expectedUpdatedAt: initialTask.updatedAt,
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      detail:
+        'The card changed since it was loaded. Refresh the board and try the move again.',
+      title: 'Kanban Card Stale',
+      type: 'https://team-ai.dev/problems/kanban-card-stale',
+    });
+
+    const unchangedTask = await getTaskById(sqlite, taskId);
+    expect(unchangedTask.columnId).toBe(todoColumn?.id ?? null);
+  });
+
   it('blocks moves that would exceed the board WIP limit', async () => {
     const sqlite = await createTestDatabase();
     const fastify = await createTestServer(sqlite);

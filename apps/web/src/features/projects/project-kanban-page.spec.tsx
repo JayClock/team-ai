@@ -454,6 +454,7 @@ describe('ProjectKanbanPage', () => {
           JSON.stringify({
             boardId: 'board-1',
             columnId: 'board-1_blocked',
+            expectedUpdatedAt: '2026-03-19T00:00:00.000Z',
           }),
         );
 
@@ -562,6 +563,7 @@ describe('ProjectKanbanPage', () => {
           JSON.stringify({
             boardId: 'board-1',
             columnId: 'board-1_review',
+            expectedUpdatedAt: '2026-03-19T00:00:00.000Z',
             position: 0,
           }),
         );
@@ -722,6 +724,125 @@ describe('ProjectKanbanPage', () => {
 
     await waitFor(() => {
       expect(boardLoads).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('shows a stale-card error when the move target changed in the background', async () => {
+    runtimeFetchMock.mockImplementation((href: string, init?: RequestInit) => {
+      if (href.endsWith('/kanban/boards')) {
+        return jsonResponse({
+          _embedded: {
+            boards: [{ id: 'board-1' }],
+          },
+        });
+      }
+
+      if (href.endsWith('/kanban/boards/board-1')) {
+        return jsonResponse({
+          columns: [
+            {
+              automation: null,
+              cards: [
+                {
+                  assignedRole: 'CRAFTER',
+                  assignedSpecialistName: 'Crafter Implementor',
+                  artifactEvidence: [],
+                  columnId: 'board-1_todo',
+                  completionSummary: null,
+                  executionSessionId: null,
+                  explain: null,
+                  id: 'task-1',
+                  kind: 'implement',
+                  laneHandoffs: [],
+                  laneSessions: [],
+                  lastSyncError: null,
+                  memory: {
+                    blockers: [],
+                    decisions: [],
+                    doneSummary: null,
+                    resolvedNotes: [],
+                  },
+                  position: 0,
+                  priority: null,
+                  recentOutputSummary: null,
+                  resultSessionId: null,
+                  sourceEventId: null,
+                  sourceType: 'manual',
+                  status: 'READY',
+                  title: 'Stale move',
+                  traceLinks: [],
+                  triggerSessionId: null,
+                  updatedAt: '2026-03-19T00:00:00.000Z',
+                  verificationReport: null,
+                  verificationVerdict: null,
+                },
+              ],
+              id: 'board-1_todo',
+              name: 'Todo',
+              position: 0,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'todo-orchestrator',
+              recommendedSpecialistName: 'Todo Orchestrator',
+              stage: 'todo',
+            },
+            {
+              automation: null,
+              cards: [],
+              id: 'board-1_review',
+              name: 'Review',
+              position: 1,
+              recommendedRole: 'GATE',
+              recommendedSpecialistId: 'gate-reviewer',
+              recommendedSpecialistName: 'Gate Reviewer',
+              stage: 'review',
+            },
+          ],
+          id: 'board-1',
+          name: 'Workflow Board',
+          projectId: 'project-1',
+          settings: {
+            boardConcurrency: null,
+            isDefault: true,
+            wipLimit: null,
+          },
+        });
+      }
+
+      if (href.endsWith('/tasks/task-1/move')) {
+        expect(init?.body).toBe(
+          JSON.stringify({
+            boardId: 'board-1',
+            columnId: 'board-1_review',
+            expectedUpdatedAt: '2026-03-19T00:00:00.000Z',
+          }),
+        );
+
+        return jsonResponse(
+          {
+            detail:
+              'The card changed since it was loaded. Refresh the board and try the move again.',
+          },
+          409,
+        );
+      }
+
+      throw new Error(`Unexpected request: ${href}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectKanbanPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findAllByText('Stale move');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Review' }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        'The card changed since it was loaded. Refresh the board and try the move again.',
+      );
     });
   });
 

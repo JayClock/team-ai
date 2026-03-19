@@ -647,6 +647,7 @@ export default function ProjectKanbanPage() {
           body: JSON.stringify({
             boardId: board.id,
             columnId: column.id,
+            expectedUpdatedAt: card.updatedAt,
             ...(position !== undefined ? { position } : {}),
           }),
           headers: {

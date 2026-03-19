@@ -36,11 +36,11 @@
 
 开发任务：
 
-- [ ] 将默认 board 列改为 `Backlog / Todo / Dev / Review / Blocked / Done`
-- [ ] 给每列定义稳定 id，不依赖展示名推导
-- [ ] 将 `kanban-board-service` 默认列与 `task-workflow-service` 保持一致
-- [ ] 统一列 position 定义
-- [ ] 明确 Review 回退、Blocked 进入/恢复的列关系
+- [x] 将默认 board 列改为 `Backlog / Todo / Dev / Review / Blocked / Done`
+- [x] 给每列定义稳定 id，不依赖展示名推导
+- [x] 将 `kanban-board-service` 默认列与 `task-workflow-service` 保持一致
+- [x] 统一列 position 定义
+- [x] 明确 Review 回退、Blocked 进入/恢复的列关系
 
 涉及文件：
 
@@ -50,8 +50,8 @@
 
 完成标准：
 
-- [ ] 新建 board 自动具备 6 列
-- [ ] 旧逻辑不再出现 `columnId` 与 board 列不一致
+- [x] 新建 board 自动具备 6 列
+- [x] 旧逻辑不再出现 `columnId` 与 board 列不一致
 
 ### [x] RK-M1-02 清理按列名猜角色的逻辑
 
@@ -61,10 +61,10 @@
 
 开发任务：
 
-- [ ] 将 `deriveStatusForColumn` 的列判断从名称匹配改成 canonical stage 或 id
-- [ ] 将 `deriveRoleForColumn` 改成基于列配置或 canonical stage
-- [ ] 将 `requiresTaskWorktree` 改成配置驱动，不靠字符串包含 `dev`
-- [ ] 为迁移提供兼容处理，防止历史 board 数据失效
+- [x] 将 `deriveStatusForColumn` 的列判断从名称匹配改成 canonical stage 或 id
+- [x] 将 `deriveRoleForColumn` 改成基于列配置或 canonical stage
+- [x] 将 `requiresTaskWorktree` 改成配置驱动，不靠字符串包含 `dev`
+- [x] 为迁移提供兼容处理，防止历史 board 数据失效
 
 涉及文件：
 
@@ -72,8 +72,8 @@
 
 完成标准：
 
-- [ ] 列重命名后自动化仍然可工作
-- [ ] orchestrator 不再依赖 `includes('review')` 这类脆弱规则
+- [x] 列重命名后自动化仍然可工作
+- [x] orchestrator 不再依赖 `includes('review')` 这类脆弱规则
 
 ### [x] RK-M1-03 新增 board projection schema
 
@@ -83,11 +83,11 @@
 
 开发任务：
 
-- [ ] 新增 board projection payload
-- [ ] 定义 card summary payload
-- [ ] 在列 payload 中嵌入 cards 数组
-- [ ] 在 card summary 中补足看板渲染所需字段
-- [ ] 预留排序字段和可操作 link/action 字段
+- [x] 新增 board projection payload
+- [x] 定义 card summary payload
+- [x] 在列 payload 中嵌入 cards 数组
+- [x] 在 card summary 中补足看板渲染所需字段
+- [x] 预留排序字段和可操作 link/action 字段
 
 建议新增结构：
 
@@ -101,7 +101,7 @@
 
 完成标准：
 
-- [ ] 前端无需再拼 board 与 tasks
+- [x] 前端无需再拼 board 与 tasks
 
 ### [x] RK-M1-04 实现 board projection service
 
@@ -111,12 +111,12 @@
 
 开发任务：
 
-- [ ] 新增 board projection service
-- [ ] 按 boardId 拉取 columns
-- [ ] 按 boardId 拉取 tasks
-- [ ] 按 columnId 聚合 cards
-- [ ] 按 `position`、`updatedAt` 等规则排序
-- [ ] 将 triggerSession、lastSyncError、assignedSpecialistName 等信息映射进 card summary
+- [x] 新增 board projection service
+- [x] 按 boardId 拉取 columns
+- [x] 按 boardId 拉取 tasks
+- [x] 按 columnId 聚合 cards
+- [x] 按 `position`、`updatedAt` 等规则排序
+- [x] 将 triggerSession、lastSyncError、assignedSpecialistName 等信息映射进 card summary
 
 涉及文件：
 
@@ -125,7 +125,7 @@
 
 完成标准：
 
-- [ ] 一个 service 就能输出前端所需完整 board state
+- [x] 一个 service 就能输出前端所需完整 board state
 
 ### [x] RK-M1-05 暴露 board projection route
 
@@ -135,10 +135,10 @@
 
 开发任务：
 
-- [ ] 在 `GET /projects/:projectId/kanban/boards/:boardId` 上返回 projection，或新增单独 projection endpoint
-- [ ] 给 board / column / card 增加 HATEOAS links
-- [ ] 对 projectId / boardId 做归属校验
-- [ ] 保持 vendor media type 一致
+- [x] 在 `GET /projects/:projectId/kanban/boards/:boardId` 上返回 projection，或新增单独 projection endpoint
+- [x] 给 board / column / card 增加 HATEOAS links
+- [x] 对 projectId / boardId 做归属校验
+- [x] 保持 vendor media type 一致
 
 涉及文件：
 
@@ -147,7 +147,7 @@
 
 完成标准：
 
-- [ ] 前端请求一个 endpoint 即可渲染看板
+- [x] 前端请求一个 endpoint 即可渲染看板
 
 ### [x] RK-M1-06 增加 move card API
 
@@ -157,13 +157,13 @@
 
 开发任务：
 
-- [ ] 定义 `move card` 请求体
-- [ ] 支持更新 `boardId`、`columnId`、`position`
-- [ ] move 时调用现有 `prepareTaskForColumnTransition`
-- [ ] move 时正确处理 `sessionIds`、`triggerSessionId`、`lastSyncError`
-- [ ] move 后发出 `task.column-transition` event
-- [ ] 支持 Review -> Dev 回退
-- [ ] 支持进入 Blocked 与从 Blocked 恢复
+- [x] 定义 `move card` 请求体
+- [x] 支持更新 `boardId`、`columnId`、`position`
+- [x] move 时调用现有 `prepareTaskForColumnTransition`
+- [x] move 时正确处理 `sessionIds`、`triggerSessionId`、`lastSyncError`
+- [x] move 后发出 `task.column-transition` event
+- [x] 支持 Review -> Dev 回退
+- [x] 支持进入 Blocked 与从 Blocked 恢复
 
 涉及文件：
 
@@ -172,8 +172,8 @@
 
 完成标准：
 
-- [ ] 手动移卡不破坏 session 状态
-- [ ] 自动化仍能继续工作
+- [x] 手动移卡不破坏 session 状态
+- [x] 自动化仍能继续工作
 
 ### [x] RK-M1-07 增加列内排序持久化
 
@@ -205,12 +205,12 @@
 
 开发任务：
 
-- [ ] 新增项目级 Kanban 路由页
-- [ ] 请求 board projection 数据
-- [ ] 渲染 6 列布局
-- [ ] 每列显示列名、卡片数、自动化状态
-- [ ] 每张卡片显示标题、kind、role、specialist、session、error
-- [ ] 支持 loading / empty / error 状态
+- [x] 新增项目级 Kanban 路由页
+- [x] 请求 board projection 数据
+- [x] 渲染 6 列布局
+- [x] 每列显示列名、卡片数、自动化状态
+- [x] 每张卡片显示标题、kind、role、specialist、session、error
+- [x] 支持 loading / empty / error 状态
 
 涉及文件：
 
@@ -219,7 +219,7 @@
 
 完成标准：
 
-- [ ] 进入项目能直接看到真正的列式看板
+- [x] 进入项目能直接看到真正的列式看板
 
 ### [x] RK-M1-09 实现卡片详情侧栏或弹窗
 
@@ -229,11 +229,11 @@
 
 开发任务：
 
-- [ ] 点击卡片打开详情
-- [ ] 展示 task 基础字段
-- [ ] 展示 laneSessions 摘要
-- [ ] 展示最新 handoff 摘要
-- [ ] 提供“打开 session”“打开任务详情”操作
+- [x] 点击卡片打开详情
+- [x] 展示 task 基础字段
+- [x] 展示 laneSessions 摘要
+- [x] 展示最新 handoff 摘要
+- [x] 提供“打开 session”“打开任务详情”操作
 
 涉及文件：
 
@@ -241,7 +241,7 @@
 
 完成标准：
 
-- [ ] 用户不离开看板也能理解卡片状态
+- [x] 用户不离开看板也能理解卡片状态
 
 ### [x] RK-M1-10 实现手动移动卡片交互
 
@@ -251,11 +251,11 @@
 
 开发任务：
 
-- [ ] 先实现非拖拽版 move：卡片菜单选择目标列
-- [ ] 调用 move card API
-- [ ] 成功后刷新 board projection
-- [ ] 对自动化运行中的卡片增加确认提示
-- [ ] 对失败场景显示错误 toast
+- [x] 先实现非拖拽版 move：卡片菜单选择目标列
+- [x] 调用 move card API
+- [x] 成功后刷新 board projection
+- [x] 对自动化运行中的卡片增加确认提示
+- [x] 对失败场景显示错误 toast
 
 涉及文件：
 
@@ -263,7 +263,7 @@
 
 完成标准：
 
-- [ ] 用户可手动回退、阻塞、恢复卡片
+- [x] 用户可手动回退、阻塞、恢复卡片
 
 ### [x] RK-M1-11 将现有 workflow 摘要卡与新看板关系梳理清楚
 

@@ -89,6 +89,7 @@ export async function moveKanbanCard(
   input: {
     boardId: string | null;
     columnId: string | null;
+    expectedUpdatedAt?: string | null;
     force?: boolean;
     policyBypassReason?: string | null;
     position?: number | null;
@@ -97,6 +98,20 @@ export async function moveKanbanCard(
   events?: KanbanEventService,
 ) {
   const previous = await getTaskById(sqlite, input.taskId);
+
+  if (
+    input.expectedUpdatedAt &&
+    input.expectedUpdatedAt !== previous.updatedAt
+  ) {
+    throw new ProblemError({
+      detail:
+        'The card changed since it was loaded. Refresh the board and try the move again.',
+      status: 409,
+      title: 'Kanban Card Stale',
+      type: 'https://team-ai.dev/problems/kanban-card-stale',
+    });
+  }
+
   const transitionState = {
     boardId: previous.boardId,
     columnId: previous.columnId,
