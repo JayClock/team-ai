@@ -710,11 +710,11 @@
 
 开发任务：
 
-- [ ] 为 coordinator 定义“只拆解、不写代码”的明确行为边界
-- [ ] intake 后自动生成 refinement notes、acceptance criteria、execution hints
-- [ ] 支持将 review / blocked / done 的结果回写到 spec 或 planning note
-- [ ] 在 cards 与 spec block 之间保留稳定 linkage，支持再次 refine
-- [ ] 为多 wave 分解保留版本或 revision 信息
+- [x] 为 coordinator 定义“只拆解、不写代码”的明确行为边界
+- [x] intake 后自动生成 refinement notes、acceptance criteria、execution hints
+- [x] 支持将 review / blocked / done 的结果回写到 spec 或 planning note
+- [x] 在 cards 与 spec block 之间保留稳定 linkage，支持再次 refine
+- [x] 为多 wave 分解保留版本或 revision 信息
 
 涉及文件：
 
@@ -724,8 +724,8 @@
 
 完成标准：
 
-- [ ] coordinator 成为真正的 planning 层，而不是隐式入口
-- [ ] spec 与 cards 可以双向追踪和迭代
+- [x] coordinator 成为真正的 planning 层，而不是隐式入口
+- [x] spec 与 cards 可以双向追踪和迭代
 
 ### RK-M4-03 支持 specialist CRUD 与可视化绑定
 
@@ -957,7 +957,7 @@
 ### 批次 E
 
 - [x] RK-M4-01
-- [ ] RK-M4-02
+- [x] RK-M4-02
 - [ ] RK-M4-03
 
 ### 批次 F

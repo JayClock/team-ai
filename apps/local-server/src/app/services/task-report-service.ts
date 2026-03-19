@@ -11,6 +11,7 @@ import { recordNoteEvent } from './note-event-service';
 import {
   createNote,
   findLatestTaskNote,
+  getNoteById,
   updateNote,
 } from './note-service';
 import { getLatestTaskRunByTaskId, updateTaskRun } from './task-run-service';
@@ -239,6 +240,74 @@ function appendReportContent(
   return `${trimmed}\n\n---\n\n${appendedSection}`;
 }
 
+function buildSpecWritebackSection(input: {
+  mode: 'implementation' | 'verification';
+  summary: string;
+  task: TaskPayload;
+  verificationReport: string;
+  verdict: ReportToParentVerdict;
+}) {
+  const lines = [
+    `## Task Outcome · ${input.task.title}`,
+    '',
+    `- Task ID: ${input.task.id}`,
+    `- Source Block: ${
+      input.task.sourceEntryIndex === null ? 'unknown' : `#${input.task.sourceEntryIndex + 1}`
+    }`,
+    `- Mode: ${input.mode}`,
+    `- Verdict: ${input.verdict}`,
+    `- Summary: ${input.summary}`,
+  ];
+
+  if (input.task.assignedSpecialistId) {
+    lines.push(`- Specialist: ${input.task.assignedSpecialistId}`);
+  }
+
+  lines.push('', '### Report Snapshot', '', input.verificationReport);
+
+  return lines.join('\n');
+}
+
+async function appendSpecWriteback(
+  sqlite: Database,
+  input: {
+    mode: 'implementation' | 'verification';
+    source: NotePayload['source'];
+    summary: string;
+    task: TaskPayload;
+    verificationReport: string;
+    verdict: ReportToParentVerdict;
+  },
+) {
+  if (input.task.sourceType !== 'spec_note' || !input.task.sourceEventId) {
+    return null;
+  }
+
+  const specNote = await getNoteById(sqlite, input.task.sourceEventId).catch(() => null);
+  if (!specNote || specNote.type !== 'spec') {
+    return null;
+  }
+
+  const appendedSection = buildSpecWritebackSection({
+    mode: input.mode,
+    summary: input.summary,
+    task: input.task,
+    verificationReport: input.verificationReport,
+    verdict: input.verdict,
+  });
+  const note = await updateNote(sqlite, specNote.id, {
+    content: appendReportContent(specNote.content, appendedSection),
+    source: input.source,
+  });
+
+  await recordNoteEvent(sqlite, {
+    note,
+    type: 'updated',
+  });
+
+  return note;
+}
+
 async function upsertReportNote(
   sqlite: Database,
   input: {
@@ -383,6 +452,14 @@ export async function reportToParent(
     projectId: input.projectId,
     source: 'agent',
     task,
+  });
+  await appendSpecWriteback(sqlite, {
+    mode,
+    source: 'agent',
+    summary: input.summary,
+    task,
+    verificationReport,
+    verdict: input.verdict,
   });
 
   const updatedTask = await updateTask(sqlite, task.id, {

@@ -360,6 +360,28 @@ describe('kanban route', () => {
         }),
       ]),
     );
+
+    const secondResponse = await fastify.inject({
+      method: 'POST',
+      payload: {
+        goal: 'Add password reset support',
+      },
+      url: `/api/projects/${project.id}/kanban/intake`,
+    });
+
+    expect(secondResponse.statusCode).toBe(200);
+    expect(secondResponse.json()).toMatchObject({
+      parsedTaskCount: 6,
+      specFragment: expect.stringContaining('Revision: 2'),
+    });
+
+    const refreshedNotes = await listNotes(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+      type: 'spec',
+    });
+    expect(refreshedNotes.items[0]?.content).toContain('Planning Revision: 2');
   });
 
   async function createTestDatabase(): Promise<Database> {

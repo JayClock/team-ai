@@ -38,9 +38,11 @@ export interface KanbanIntakeResult {
 
 interface IntakeTaskPlan {
   acceptanceCriteria: string[];
+  executionHints: string[];
   kind: TaskKind;
   objective: string;
   owner: string;
+  scope: string[];
   title: string;
   verificationCommands: string[];
 }
@@ -91,8 +93,10 @@ function buildTaskPlans(input: {
   artifactHints: string[];
   constraints: string[];
   goal: string;
+  revision: number;
 }) {
   const goalTitle = toGoalTitle(input.goal);
+  const revisionLabel = `revision-${input.revision}`;
   const implementAcceptance =
     input.acceptanceHints.length > 0
       ? input.acceptanceHints
@@ -109,9 +113,18 @@ function buildTaskPlans(input: {
         'Split the goal into an execution-ready implementation slice',
         'Capture artifact expectations and handoff notes for downstream work',
       ],
+      executionHints: [
+        'Coordinator only: refine the work and delegate, do not implement code in this step.',
+        'Keep the canonical spec updated before launching heavy execution work.',
+      ],
       kind: 'plan',
       objective: `Refine the goal into an execution-ready plan.\n\nGoal:\n${goalTitle}`,
       owner: 'Todo Orchestrator',
+      scope: [
+        `Planning Revision: ${input.revision}`,
+        `Planning Wave: ${revisionLabel}`,
+        'Coordinator Boundary: decomposition, sequencing, and approval management only',
+      ],
       title: `Refine ${goalTitle}`,
       verificationCommands: [
         'Confirm the resulting card set is implementation-ready',
@@ -119,6 +132,10 @@ function buildTaskPlans(input: {
     },
     {
       acceptanceCriteria: implementAcceptance,
+      executionHints: [
+        'Use the refinement output instead of re-planning from scratch.',
+        ...(input.constraints.length > 0 ? input.constraints : []),
+      ],
       kind: 'implement',
       objective: [
         `Implement the requested goal: ${goalTitle}`,
@@ -129,6 +146,11 @@ function buildTaskPlans(input: {
         .filter(Boolean)
         .join('\n\n'),
       owner: 'Crafter Implementor',
+      scope: [
+        `Planning Revision: ${input.revision}`,
+        `Planning Wave: ${revisionLabel}`,
+        'Derived From: coordinator intake plan',
+      ],
       title: `Implement ${goalTitle}`,
       verificationCommands: implementVerification,
     },
@@ -139,9 +161,18 @@ function buildTaskPlans(input: {
           ? input.acceptanceHints
           : ['Confirm the implementation is production-ready or clearly note gaps']),
       ],
+      executionHints: [
+        'Review against the refined acceptance criteria, not just the latest summary.',
+        'Bounce back to implementation when evidence or acceptance is incomplete.',
+      ],
       kind: 'review',
       objective: `Review the delivered implementation, compare it to the goal and acceptance hints, and decide whether it can move forward.`,
       owner: 'Gate Reviewer',
+      scope: [
+        `Planning Revision: ${input.revision}`,
+        `Planning Wave: ${revisionLabel}`,
+        'Derived From: coordinator intake plan',
+      ],
       title: `Review ${goalTitle}`,
       verificationCommands:
         input.artifactHints.length > 0
@@ -170,6 +201,18 @@ function renderTaskBlock(
     ...task.acceptanceCriteria.map((item) => `- ${item}`),
   ];
 
+  if (task.executionHints.length > 0) {
+    sections.push(
+      '',
+      '## Execution Hints',
+      ...task.executionHints.map((item) => `- ${item}`),
+    );
+  }
+
+  if (task.scope.length > 0) {
+    sections.push('', '## Scope', ...task.scope.map((item) => `- ${item}`));
+  }
+
   if (blockIndex > 0) {
     sections.push('', '## Depends On', `- ${tasks[blockIndex - 1]?.title}`);
   }
@@ -189,11 +232,16 @@ function renderSpecFragment(input: {
   artifactHints: string[];
   constraints: string[];
   goal: string;
+  revision: number;
 }) {
   const tasks = buildTaskPlans(input);
   const headerSections = [
     `## Intake Goal · ${toGoalTitle(input.goal)}`,
     input.goal,
+    renderBulletSection('Planning Metadata', [
+      `Revision: ${input.revision}`,
+      'Coordinator Contract: planning, decomposition, sequencing, and writeback only',
+    ]),
     renderBulletSection('Constraints', input.constraints),
     renderBulletSection('Acceptance Hints', input.acceptanceHints),
     renderBulletSection('Artifact Hints', input.artifactHints),
@@ -218,6 +266,10 @@ function createInitialSpecContent(projectTitle: string, specFragment: string) {
   ].join('\n');
 }
 
+function countIntakeRevisions(content: string | null | undefined) {
+  return (content?.match(/^## Intake Goal · /gm) ?? []).length;
+}
+
 export async function intakeKanbanGoal(
   sqlite: Database,
   input: KanbanIntakeInput,
@@ -232,11 +284,13 @@ export async function intakeKanbanGoal(
     projectId: input.projectId,
     sessionId,
   });
+  const revision = countIntakeRevisions(existingNote?.content) + 1;
   const rendered = renderSpecFragment({
     acceptanceHints,
     artifactHints,
     constraints,
     goal,
+    revision,
   });
   const nextContent = existingNote?.content.trim()
     ? `${existingNote.content.trim()}\n\n---\n\n${rendered.specFragment}`

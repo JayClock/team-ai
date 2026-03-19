@@ -5,7 +5,7 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
-import { listNotes } from './note-service';
+import { createNote, getNoteById, listNotes } from './note-service';
 import { createProject } from './project-service';
 import { reportToParent } from './task-report-service';
 import { startTaskRun } from './task-run-service';
@@ -271,6 +271,76 @@ describe('task report service', () => {
     expect(notes.items).toHaveLength(1);
     expect(notes.items[0].content).toContain('Verification found a failing regression test');
     expect(notes.items[0].content).toContain('Verification still failing after retry review');
+  });
+
+  it('writes implementation outcomes back into the canonical spec note', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      title: 'Spec Writeback Report',
+      repoPath: '/tmp/team-ai-task-report-spec-writeback',
+    });
+    const specNote = await createNote(sqlite, {
+      content: `
+## Intake Goal · Build a user authentication flow
+
+@@@task
+# Implement auth flow
+Ship the login flow.
+
+## Owner
+Crafter Implementor
+@@@
+`,
+      projectId: project.id,
+      source: 'system',
+      title: 'Spec',
+      type: 'spec',
+    });
+    const rootSessionId = 'acps_task_report_root_spec';
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-report-spec-writeback',
+      id: rootSessionId,
+      projectId: project.id,
+    });
+    const task = await createTask(sqlite, {
+      kind: 'implement',
+      objective: 'Implement auth flow',
+      projectId: project.id,
+      sessionId: rootSessionId,
+      sourceEntryIndex: 0,
+      sourceEventId: specNote.id,
+      sourceType: 'spec_note',
+      status: 'READY',
+      title: 'Implement auth flow',
+    });
+    const childSessionId = 'acps_task_report_child_spec';
+    insertAcpSession(sqlite, {
+      cwd: '/tmp/team-ai-task-report-spec-writeback',
+      id: childSessionId,
+      parentSessionId: rootSessionId,
+      projectId: project.id,
+      taskId: task.id,
+    });
+    await updateTask(sqlite, task.id, {
+      assignedRole: 'CRAFTER',
+      executionSessionId: childSessionId,
+      status: 'RUNNING',
+    });
+
+    await reportToParent(sqlite, {
+      projectId: project.id,
+      sessionId: childSessionId,
+      summary: 'Completed the auth flow implementation',
+      verificationPerformed: ['pnpm vitest apps/local-server/src/app/services/task-report-service.test.ts'],
+      verdict: 'completed',
+    });
+
+    const updatedSpec = await getNoteById(sqlite, specNote.id);
+    expect(updatedSpec.content).toContain('## Task Outcome · Implement auth flow');
+    expect(updatedSpec.content).toContain(`- Task ID: ${task.id}`);
+    expect(updatedSpec.content).toContain('- Source Block: #1');
+    expect(updatedSpec.content).toContain('- Verdict: completed');
+    expect(updatedSpec.content).toContain('Completed the auth flow implementation');
   });
 
   it('tracks delegation-group barrier progress until all child tasks settle', async () => {
