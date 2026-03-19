@@ -45,6 +45,8 @@ team-ai/
 | Server entry        | `apps/server/src/main/java/reengineering/ddd/Application.java`      | Spring Boot bootstrap              |
 | Web entry           | `apps/web/src/main.tsx`                                             | React with ResourceProvider        |
 | Build config        | `nx.json`, `build.gradle`, `settings.gradle`                        | Hybrid Nx+Gradle                   |
+| Kanban backend      | `apps/local-server/src/app/routes/`, `apps/local-server/src/app/services/` | Intake, board, policy, traces      |
+| Kanban frontend     | `apps/web/src/features/projects/`                                   | Board, settings, orchestration UI  |
 | Feature modules     | `libs/frontend/features/`                                           | Conversation/message features      |
 | Shared UI           | `libs/frontend/shared/ui/src/`                                      | Ant Design + Tailwind components   |
 
@@ -102,6 +104,7 @@ team-ai/
 - **HATEOAS navigation:** Use `.follow()` semantic links, never hardcode URLs
 - **State management:** React Context + Preact Signals (reactive state)
 - **UI library:** Ant Design components + Tailwind CSS utilities
+- **Kanban workspace:** Project Kanban is now a primary work surface, not just a status sidebar
 
 **Backend:**
 
@@ -116,6 +119,14 @@ team-ai/
 - **No deployment CI:** CI only, no CD pipeline
 - **Nx Cloud disabled:** Available but commented out
 - **Extended timeouts:** 10-minute Gradle HTTP timeouts configured
+
+**Kanban Coordination:**
+
+- **Natural-language intake:** Use project Kanban intake to materialize goals into notes/spec/cards
+- **Specialist-driven columns:** Board automation binds provider/specialist/role per column
+- **Realtime board:** Project Kanban subscribes to board SSE events for live refresh
+- **Policy enforcement:** WIP and entry policy are enforced both in UI preflight and server move handling
+- **Traceable cards:** Card detail surfaces lane sessions, handoffs, memory, and task-scoped traces
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
@@ -182,6 +193,13 @@ team-ai/
 - Zero debugger statements
 - No blanket ESLint disables (all 18 have specific justifications)
 
+**Kanban Rules:**
+
+- Do not bypass `kanban-card-service` / task move APIs when changing card column or position
+- Keep workflow-managed boards compatible with canonical stages: `backlog`, `todo`, `dev`, `review`, `blocked`, `done`
+- Preserve custom board structures; only workflow-managed boards should be auto-reconciled
+- For task execution context, prefer board projection, session context, and task-scoped traces over ad hoc joins
+
 ## UNIQUE STYLES
 
 **Smart Domain Architecture:**
@@ -213,6 +231,24 @@ team-ai/
 - Nx orchestrates both TypeScript and Java builds via `@nx/gradle` plugin
 - Gradle uses `dev.nx.gradle.project-graph` plugin for Nx synchronization
 - Custom module mapping: `:backend:domain` → `libs/backend/domain` (flat structure)
+
+## KANBAN FLOW
+
+The Routa-aligned Kanban flow is now:
+
+1. Goal intake produces note/spec/cards.
+2. Board columns bind specialists and policies.
+3. Cards move through `Backlog / Todo / Dev / Review / Blocked / Done`.
+4. Webhook and schedule triggers can create or update cards.
+5. Card detail remains the audit surface for memory, traces, handoffs, and session history.
+
+Primary entry points:
+
+- Backend board APIs: `apps/local-server/src/app/routes/kanban.ts`
+- Specialist APIs: `apps/local-server/src/app/routes/specialists.ts`
+- Trace APIs: `apps/local-server/src/app/routes/traces.ts`
+- Web frontend board: `apps/web/src/features/projects/project-kanban-page.tsx`
+- Web frontend settings: `apps/web/src/features/projects/project-kanban-settings-page.tsx`
 
 ## COMMANDS
 
