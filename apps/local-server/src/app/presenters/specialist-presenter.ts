@@ -17,6 +17,16 @@ function createSpecialistLinks(
         ? `/api/projects/${projectId}/specialists/${specialist.id}`
         : `/api/specialists/${specialist.id}`,
     },
+    update: projectId
+      ? {
+          href: `/api/projects/${projectId}/specialists/${specialist.id}`,
+        }
+      : undefined,
+    delete: projectId
+      ? {
+          href: `/api/projects/${projectId}/specialists/${specialist.id}`,
+        }
+      : undefined,
     collection: {
       href: collectionHref,
     },
@@ -48,6 +58,11 @@ export function presentSpecialistList(payload: SpecialistListPayload) {
           ? `/api/projects/${payload.projectId}/specialists`
           : '/api/specialists',
       },
+      create: payload.projectId
+        ? {
+            href: `/api/projects/${payload.projectId}/specialists`,
+          }
+        : undefined,
       root: {
         href: '/api',
       },

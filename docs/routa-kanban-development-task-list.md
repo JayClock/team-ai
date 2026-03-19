@@ -735,11 +735,11 @@
 
 开发任务：
 
-- [ ] 增加 specialist create / update / delete API
-- [ ] 支持从项目级设置页创建自定义 specialist，至少包含 id、name、role、system prompt、provider defaults
-- [ ] 支持从 Markdown / JSON 导入 specialist，并在 UI 中展示来源和覆盖关系
-- [ ] 在 board settings 中用可选列表绑定 specialist，而不是手输 `specialistId`
-- [ ] 对被列引用的 specialist 增加删除保护或替换流程
+- [x] 增加 specialist create / update / delete API
+- [x] 支持从项目级设置页创建自定义 specialist，至少包含 id、name、role、system prompt、provider defaults
+- [x] 支持从 Markdown / JSON 导入 specialist，并在 UI 中展示来源和覆盖关系
+- [x] 在 board settings 中用可选列表绑定 specialist，而不是手输 `specialistId`
+- [x] 对被列引用的 specialist 增加删除保护或替换流程
 
 涉及文件：
 
@@ -750,8 +750,8 @@
 
 完成标准：
 
-- [ ] specialist 可通过 UI / API 管理
-- [ ] column 绑定 specialist 时不再依赖人工记忆 id
+- [x] specialist 可通过 UI / API 管理
+- [x] column 绑定 specialist 时不再依赖人工记忆 id
 
 ### RK-M4-04 为 Kanban 页增加实时事件流
 
@@ -958,7 +958,7 @@
 
 - [x] RK-M4-01
 - [x] RK-M4-02
-- [ ] RK-M4-03
+- [x] RK-M4-03
 
 ### 批次 F
 

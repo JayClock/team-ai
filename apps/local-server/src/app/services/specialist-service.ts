@@ -1,6 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { constants as fsConstants } from 'node:fs';
-import { access, readdir, readFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { resolveDataDirectory } from '../db/sqlite';
 import { ProblemError } from '@orchestration/runtime-acp';
@@ -20,6 +20,20 @@ interface SpecialistFilePayload {
   id?: string;
   modelTier?: string | null;
   name?: string;
+  role?: string;
+  roleReminder?: string | null;
+  systemPrompt?: string;
+}
+
+export interface UpsertSpecialistInput {
+  defaultAdapter?: string | null;
+  definitionContent?: string;
+  description?: string | null;
+  format?: 'json' | 'markdown';
+  id: string;
+  modelTier?: string | null;
+  name?: string;
+  projectId: string;
   role?: string;
   roleReminder?: string | null;
   systemPrompt?: string;
@@ -47,6 +61,42 @@ export function throwInvalidRole(role: string): never {
     title: 'Invalid Role',
     status: 400,
     detail: `Role ${role} is not supported`,
+  });
+}
+
+function throwSpecialistDefinitionInvalid(detail: string): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/specialist-definition-invalid',
+    title: 'Specialist Definition Invalid',
+    status: 400,
+    detail,
+  });
+}
+
+function throwSpecialistDeleteConflict(
+  specialistId: string,
+  boardName: string,
+  columnName: string,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/specialist-delete-conflict',
+    title: 'Specialist Delete Conflict',
+    status: 409,
+    detail:
+      `Specialist ${specialistId} is still referenced by board ${boardName} column ${columnName}`,
+  });
+}
+
+function throwSpecialistSourceImmutable(
+  specialistId: string,
+  scope: SpecialistSourceScope,
+): never {
+  throw new ProblemError({
+    type: 'https://team-ai.dev/problems/specialist-source-immutable',
+    title: 'Specialist Source Immutable',
+    status: 409,
+    detail:
+      `Specialist ${specialistId} is sourced from ${scope}; create a user override instead of deleting it directly`,
   });
 }
 
@@ -145,6 +195,32 @@ function parseFrontmatter(content: string) {
     body: content.slice(endIndex + 5).trim(),
     metadata,
   };
+}
+
+function parseSpecialistContent(
+  content: string,
+  format: 'json' | 'markdown',
+  fallbackId: string,
+) {
+  if (format === 'json') {
+    return normalizeSpecialist(
+      join(getUserSpecialistsDirectory(), `${fallbackId}.json`),
+      'user',
+      JSON.parse(content) as SpecialistFilePayload,
+      fallbackId,
+    );
+  }
+
+  const parsed = parseFrontmatter(content);
+  return normalizeSpecialist(
+    join(getUserSpecialistsDirectory(), `${fallbackId}.md`),
+    'user',
+    {
+      ...parsed.metadata,
+      systemPrompt: parsed.body,
+    },
+    fallbackId,
+  );
 }
 
 function normalizeSpecialist(
@@ -261,6 +337,43 @@ async function loadDirectorySpecialists(
   return specialists;
 }
 
+function serializeSpecialistFile(
+  input: Omit<SpecialistPayload, 'source'>,
+  format: 'json' | 'markdown',
+) {
+  if (format === 'markdown') {
+    return [
+      '---',
+      `id: ${input.id}`,
+      `name: ${input.name}`,
+      `role: ${input.role}`,
+      `description: ${input.description ?? ''}`,
+      `modelTier: ${input.modelTier ?? ''}`,
+      `roleReminder: ${input.roleReminder ?? ''}`,
+      `defaultAdapter: ${input.defaultAdapter ?? ''}`,
+      '---',
+      '',
+      input.systemPrompt,
+      '',
+    ].join('\n');
+  }
+
+  return JSON.stringify(
+    {
+      defaultAdapter: input.defaultAdapter,
+      description: input.description,
+      id: input.id,
+      modelTier: input.modelTier,
+      name: input.name,
+      role: input.role,
+      roleReminder: input.roleReminder,
+      systemPrompt: input.systemPrompt,
+    },
+    null,
+    2,
+  );
+}
+
 async function loadLibrarySpecialists(librariesDirectory: string) {
   if (!(await canReadDirectory(librariesDirectory))) {
     return [] as SpecialistPayload[];
@@ -366,6 +479,168 @@ export async function getSpecialistById(
   if (!specialist) {
     throwSpecialistNotFound(specialistId);
   }
+
+  return specialist;
+}
+
+function resolveSpecialistFileFormat(path: string | null | undefined) {
+  return extname(path ?? '').toLowerCase() === '.md' ? 'markdown' : 'json';
+}
+
+async function ensureSpecialistDeleteSafe(
+  sqlite: Database,
+  projectId: string,
+  specialistId: string,
+) {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT
+          boards.name AS board_name,
+          columns.name AS column_name
+        FROM project_kanban_columns columns
+        INNER JOIN project_kanban_boards boards
+          ON boards.id = columns.board_id
+        WHERE boards.project_id = ?
+          AND boards.deleted_at IS NULL
+          AND columns.deleted_at IS NULL
+          AND json_extract(columns.automation_json, '$.specialistId') = ?
+        LIMIT 1
+      `,
+    )
+    .get(projectId, specialistId) as
+    | {
+        board_name: string;
+        column_name: string;
+      }
+    | undefined;
+
+  if (row) {
+    throwSpecialistDeleteConflict(specialistId, row.board_name, row.column_name);
+  }
+}
+
+export async function upsertSpecialist(
+  sqlite: Database,
+  input: UpsertSpecialistInput,
+) {
+  await getProjectById(sqlite, input.projectId);
+
+  const existingList = await listSpecialists(sqlite, {
+    projectId: input.projectId,
+  });
+  const existing =
+    existingList.items.find((item) => item.id === input.id) ?? null;
+  const format =
+    input.format ??
+    resolveSpecialistFileFormat(existing?.source.path);
+  const definitionContent = input.definitionContent?.trim();
+  let specialist: SpecialistPayload | null = null;
+
+  if (definitionContent && definitionContent.length > 0) {
+    try {
+      specialist = parseSpecialistContent(definitionContent, format, input.id);
+    } catch (error) {
+      throwSpecialistDefinitionInvalid(
+        error instanceof Error ? error.message : 'Failed to parse specialist definition',
+      );
+    }
+  }
+
+  if (!specialist) {
+    const name = input.name ?? existing?.name;
+    const role = input.role ?? existing?.role;
+    const systemPrompt = input.systemPrompt ?? existing?.systemPrompt;
+
+    if (!name || !role || !systemPrompt) {
+      throwSpecialistDefinitionInvalid(
+        'Structured specialist upsert requires name, role, and systemPrompt',
+      );
+    }
+
+    if (!isRoleValue(role)) {
+      throwInvalidRole(role);
+    }
+
+    specialist = {
+      defaultAdapter: input.defaultAdapter ?? existing?.defaultAdapter ?? null,
+      description: input.description ?? existing?.description ?? null,
+      id: input.id,
+      modelTier: input.modelTier ?? existing?.modelTier ?? null,
+      name,
+      role,
+      roleReminder: input.roleReminder ?? existing?.roleReminder ?? null,
+      source: {
+        path: join(
+          getUserSpecialistsDirectory(),
+          `${input.id}.${format === 'markdown' ? 'md' : 'json'}`,
+        ),
+        scope: 'user',
+      },
+      systemPrompt,
+    };
+  }
+
+  if (!specialist || specialist.id !== input.id) {
+    throwSpecialistDefinitionInvalid(
+      `Specialist definition must resolve to id ${input.id}`,
+    );
+  }
+
+  const targetPath = join(
+    getUserSpecialistsDirectory(),
+    `${input.id}.${format === 'markdown' ? 'md' : 'json'}`,
+  );
+  await mkdir(getUserSpecialistsDirectory(), {
+    recursive: true,
+  });
+  await writeFile(
+    targetPath,
+    definitionContent && definitionContent.length > 0
+      ? definitionContent
+      : serializeSpecialistFile(
+          {
+            defaultAdapter: specialist.defaultAdapter,
+            description: specialist.description,
+            id: specialist.id,
+            modelTier: specialist.modelTier,
+            name: specialist.name,
+            role: specialist.role,
+            roleReminder: specialist.roleReminder,
+            systemPrompt: specialist.systemPrompt,
+          },
+          format,
+        ),
+    'utf8',
+  );
+
+  const obsoletePath = existing?.source.scope === 'user' ? existing.source.path : null;
+  if (obsoletePath && obsoletePath !== targetPath) {
+    await unlink(obsoletePath).catch(() => undefined);
+  }
+
+  return await getSpecialistById(sqlite, input.projectId, input.id);
+}
+
+export async function deleteSpecialist(
+  sqlite: Database,
+  input: {
+    projectId: string;
+    specialistId: string;
+  },
+) {
+  const specialist = await getSpecialistById(
+    sqlite,
+    input.projectId,
+    input.specialistId,
+  );
+
+  if (specialist.source.scope !== 'user') {
+    throwSpecialistSourceImmutable(input.specialistId, specialist.source.scope);
+  }
+
+  await ensureSpecialistDeleteSafe(sqlite, input.projectId, input.specialistId);
+  await unlink(specialist.source.path);
 
   return specialist;
 }

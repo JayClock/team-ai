@@ -53,6 +53,24 @@ describe('ProjectKanbanSettingsPage', () => {
 
   it('loads board settings and saves board metadata plus new columns', async () => {
     runtimeFetchMock.mockImplementation((href: string, init?: RequestInit) => {
+      if (href.endsWith('/specialists') && !init?.method) {
+        return jsonResponse({
+          _embedded: {
+            specialists: [
+              {
+                defaultAdapter: 'codex',
+                id: 'todo-orchestrator',
+                name: 'Todo Orchestrator',
+                role: 'ROUTA',
+                source: {
+                  scope: 'builtin',
+                },
+              },
+            ],
+          },
+        });
+      }
+
       if (href.endsWith('/kanban/boards') && !init?.method) {
         return jsonResponse({
           _embedded: {
@@ -188,6 +206,123 @@ describe('ProjectKanbanSettingsPage', () => {
         '/api/projects/project-1/kanban/boards/board-1/columns',
         expect.objectContaining({
           method: 'POST',
+        }),
+      );
+    });
+  });
+
+  it('loads project specialists and uses them for column bindings', async () => {
+    runtimeFetchMock.mockImplementation((href: string, init?: RequestInit) => {
+      if (href.endsWith('/specialists') && !init?.method) {
+        return jsonResponse({
+          _embedded: {
+            specialists: [
+              {
+                defaultAdapter: 'codex',
+                id: 'planner-override',
+                name: 'Planner Override',
+                role: 'ROUTA',
+                source: {
+                  scope: 'user',
+                },
+              },
+            ],
+          },
+        });
+      }
+
+      if (href.endsWith('/kanban/boards') && !init?.method) {
+        return jsonResponse({
+          _embedded: {
+            boards: [
+              {
+                id: 'board-1',
+                name: 'Workflow Board',
+                settings: {
+                  boardConcurrency: null,
+                  isDefault: true,
+                  wipLimit: null,
+                },
+              },
+            ],
+          },
+        });
+      }
+
+      if (href.endsWith('/kanban/boards/board-1') && !init?.method) {
+        return jsonResponse({
+          columns: [
+            {
+              automation: null,
+              id: 'board-1_todo',
+              name: 'Todo',
+              position: 0,
+              stage: 'todo',
+            },
+          ],
+          id: 'board-1',
+          name: 'Workflow Board',
+          projectId: 'project-1',
+          settings: {
+            boardConcurrency: null,
+            isDefault: true,
+            wipLimit: null,
+          },
+        });
+      }
+
+      if (
+        href.endsWith('/kanban/boards/board-1/columns/board-1_todo') &&
+        init?.method === 'PATCH'
+      ) {
+        expect(init.body).toBe(
+          JSON.stringify({
+            automation: {
+              autoAdvanceOnSuccess: false,
+              enabled: false,
+              provider: 'codex',
+              requiredArtifacts: [],
+              role: 'ROUTA',
+              specialistId: 'planner-override',
+              specialistName: 'Planner Override',
+              transitionType: 'entry',
+            },
+            name: 'Todo',
+            position: 0,
+            stage: 'todo',
+          }),
+        );
+
+        return jsonResponse({
+          id: 'board-1',
+        });
+      }
+
+      throw new Error(`Unexpected request: ${href}`);
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/projects/project-1/kanban/settings']}>
+        <Routes>
+          <Route
+            path="/projects/:projectId/kanban/settings"
+            element={<ProjectKanbanSettingsPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByDisplayValue('Workflow Board');
+    fireEvent.change(screen.getByLabelText('Specialist for Todo'), {
+      target: { value: 'planner-override' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Column' }));
+
+    await waitFor(() => {
+      expect(runtimeFetchMock).toHaveBeenCalledWith(
+        '/api/projects/project-1/kanban/boards/board-1/columns/board-1_todo',
+        expect.objectContaining({
+          method: 'PATCH',
         }),
       );
     });

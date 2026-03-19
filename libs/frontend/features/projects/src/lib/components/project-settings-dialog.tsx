@@ -9,11 +9,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Input,
   ScrollArea,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  Textarea,
   toast,
 } from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
@@ -489,9 +491,134 @@ function ProvidersTab(props: {
 function SpecialistsTab(props: {
   loading: boolean;
   onReload: () => void;
+  projectId: string;
   specialists: State<Specialist>[];
 }) {
-  const { loading, onReload, specialists } = props;
+  const { loading, onReload, projectId, specialists } = props;
+  const [draftId, setDraftId] = useState('');
+  const [draftName, setDraftName] = useState('');
+  const [draftRole, setDraftRole] = useState<RoleValue>('ROUTA');
+  const [draftDescription, setDraftDescription] = useState('');
+  const [draftModelTier, setDraftModelTier] = useState('');
+  const [draftDefaultAdapter, setDraftDefaultAdapter] = useState('');
+  const [draftRoleReminder, setDraftRoleReminder] = useState('');
+  const [draftSystemPrompt, setDraftSystemPrompt] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [selectedSpecialistId, setSelectedSpecialistId] = useState<string | null>(null);
+
+  const resetDraft = useCallback(() => {
+    setSelectedSpecialistId(null);
+    setDraftId('');
+    setDraftName('');
+    setDraftRole('ROUTA');
+    setDraftDescription('');
+    setDraftModelTier('');
+    setDraftDefaultAdapter('');
+    setDraftRoleReminder('');
+    setDraftSystemPrompt('');
+  }, []);
+
+  const loadIntoDraft = useCallback((specialist: Specialist['data']) => {
+    setSelectedSpecialistId(specialist.id);
+    setDraftId(specialist.id);
+    setDraftName(specialist.name);
+    setDraftRole(specialist.role);
+    setDraftDescription(specialist.description ?? '');
+    setDraftModelTier(specialist.modelTier ?? '');
+    setDraftDefaultAdapter(specialist.defaultAdapter ?? '');
+    setDraftRoleReminder(specialist.roleReminder ?? '');
+    setDraftSystemPrompt(specialist.systemPrompt);
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    if (!draftId.trim() || !draftName.trim() || !draftSystemPrompt.trim()) {
+      toast.error('请填写 specialist id、name 和 system prompt。');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const existing = specialists.find((item) => item.data.id === draftId.trim());
+      const method = selectedSpecialistId ? 'PATCH' : 'POST';
+      const url =
+        method === 'POST'
+          ? `/api/projects/${projectId}/specialists`
+          : `/api/projects/${projectId}/specialists/${draftId.trim()}`;
+
+      const response = await runtimeFetch(url, {
+        body: JSON.stringify({
+          defaultAdapter: normalizeOptionalText(draftDefaultAdapter),
+          description: normalizeOptionalText(draftDescription),
+          ...(method === 'POST' ? { id: draftId.trim() } : {}),
+          modelTier: normalizeOptionalText(draftModelTier),
+          name: draftName.trim(),
+          role: draftRole,
+          roleReminder: normalizeOptionalText(draftRoleReminder),
+          systemPrompt: draftSystemPrompt.trim(),
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method,
+      });
+      if (!response.ok) {
+        throw new Error(`保存 specialist 失败: ${response.status}`);
+      }
+
+      toast.success(
+        existing && existing.data.source.scope !== 'user'
+          ? '已创建 user override specialist'
+          : 'Specialist 已保存',
+      );
+      resetDraft();
+      onReload();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '保存 specialist 失败');
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    draftDefaultAdapter,
+    draftDescription,
+    draftId,
+    draftModelTier,
+    draftName,
+    draftRole,
+    draftRoleReminder,
+    draftSystemPrompt,
+    onReload,
+    projectId,
+    resetDraft,
+    selectedSpecialistId,
+    specialists,
+  ]);
+
+  const handleDelete = useCallback(async (specialistId: string) => {
+    setSaving(true);
+
+    try {
+      const response = await runtimeFetch(
+        `/api/projects/${projectId}/specialists/${specialistId}`,
+        {
+          method: 'DELETE',
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`删除 specialist 失败: ${response.status}`);
+      }
+
+      toast.success('Specialist 已删除');
+      if (selectedSpecialistId === specialistId) {
+        resetDraft();
+      }
+      onReload();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '删除 specialist 失败');
+    } finally {
+      setSaving(false);
+    }
+  }, [onReload, projectId, resetDraft, selectedSpecialistId]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -518,80 +645,187 @@ function SpecialistsTab(props: {
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 px-5 py-4">
-          {loading && specialists.length === 0 ? (
-            <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-              正在加载 specialists...
+        <div className="grid gap-4 px-5 py-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-border/60 bg-background p-4">
+            <div className="text-sm font-semibold">Custom Specialist</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              可以创建新的 user specialist，或基于现有 builtin/workspace specialist 创建 override。
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">ID</span>
+                <Input value={draftId} onChange={(event) => setDraftId(event.target.value)} />
+              </label>
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">Name</span>
+                <Input value={draftName} onChange={(event) => setDraftName(event.target.value)} />
+              </label>
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">Role</span>
+                <select
+                  className="h-9 w-full rounded-md border border-border/60 bg-background px-3 text-sm"
+                  value={draftRole}
+                  onChange={(event) => setDraftRole(event.target.value as RoleValue)}
+                >
+                  <option value="ROUTA">ROUTA</option>
+                  <option value="CRAFTER">CRAFTER</option>
+                  <option value="GATE">GATE</option>
+                  <option value="DEVELOPER">DEVELOPER</option>
+                </select>
+              </label>
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">Description</span>
+                <Input
+                  value={draftDescription}
+                  onChange={(event) => setDraftDescription(event.target.value)}
+                />
+              </label>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-2 text-sm">
+                  <span className="text-muted-foreground">Model Tier</span>
+                  <Input
+                    value={draftModelTier}
+                    onChange={(event) => setDraftModelTier(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-2 text-sm">
+                  <span className="text-muted-foreground">Default Adapter</span>
+                  <Input
+                    value={draftDefaultAdapter}
+                    onChange={(event) => setDraftDefaultAdapter(event.target.value)}
+                  />
+                </label>
+              </div>
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">Role Reminder</span>
+                <Input
+                  value={draftRoleReminder}
+                  onChange={(event) => setDraftRoleReminder(event.target.value)}
+                />
+              </label>
+              <label className="space-y-2 text-sm">
+                <span className="text-muted-foreground">System Prompt</span>
+                <Textarea
+                  className="min-h-40"
+                  value={draftSystemPrompt}
+                  onChange={(event) => setDraftSystemPrompt(event.target.value)}
+                />
+              </label>
             </div>
-          ) : specialists.length === 0 ? (
-            <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed text-sm text-muted-foreground">
-              当前项目没有可见 specialists。
+
+            <div className="mt-4 flex gap-2">
+              <Button type="button" size="sm" disabled={saving} onClick={() => void handleSave()}>
+                {selectedSpecialistId ? 'Save Override' : 'Create Specialist'}
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={resetDraft}>
+                Reset
+              </Button>
             </div>
-          ) : (
-            specialists.map((specialist) => (
-              <div
-                key={specialist.data.id}
-                className="rounded-2xl border border-border/60 bg-background p-4"
-              >
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="text-sm font-semibold text-foreground">
-                        {specialist.data.name}
-                      </div>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${specialistRoleClass(
-                          specialist.data.role,
-                        )}`}
-                      >
-                        {specialist.data.role}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                        {specialistScopeLabel(specialist.data.source.scope)}
-                      </span>
-                      {specialist.data.modelTier ? (
-                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-                          {specialist.data.modelTier}
+          </div>
+
+          <div className="space-y-3">
+            {loading && specialists.length === 0 ? (
+              <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+                正在加载 specialists...
+              </div>
+            ) : specialists.length === 0 ? (
+              <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed text-sm text-muted-foreground">
+                当前项目没有可见 specialists。
+              </div>
+            ) : (
+              specialists.map((specialist) => (
+                <div
+                  key={specialist.data.id}
+                  className="rounded-2xl border border-border/60 bg-background p-4"
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-sm font-semibold text-foreground">
+                          {specialist.data.name}
+                        </div>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${specialistRoleClass(
+                            specialist.data.role,
+                          )}`}
+                        >
+                          {specialist.data.role}
                         </span>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                          {specialistScopeLabel(specialist.data.source.scope)}
+                        </span>
+                        {specialist.data.modelTier ? (
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                            {specialist.data.modelTier}
+                          </span>
+                        ) : null}
+                      </div>
+                      {specialist.data.description ? (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {specialist.data.description}
+                        </p>
+                      ) : null}
+                      {specialist.data.source.scope !== 'user' ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          编辑会创建同 id 的 user override。
+                        </p>
                       ) : null}
                     </div>
-                    {specialist.data.description ? (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {specialist.data.description}
-                      </p>
-                    ) : null}
-                  </div>
 
-                  <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
-                    {specialist.data.defaultAdapter ? (
-                      <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1">
-                        adapter {specialist.data.defaultAdapter}
+                    <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                      {specialist.data.defaultAdapter ? (
+                        <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1">
+                          adapter {specialist.data.defaultAdapter}
+                        </span>
+                      ) : null}
+                      <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 font-mono">
+                        {specialist.data.id}
                       </span>
+                    </div>
+                  </div>
+
+                  {specialist.data.roleReminder ? (
+                    <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                      {specialist.data.roleReminder}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+                    <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      <SparklesIcon className="size-3.5" />
+                      System Prompt Preview
+                    </div>
+                    <pre className="line-clamp-6 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">
+                      {specialist.data.systemPrompt}
+                    </pre>
+                  </div>
+
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => loadIntoDraft(specialist.data)}
+                    >
+                      {specialist.data.source.scope === 'user' ? 'Edit' : 'Override'}
+                    </Button>
+                    {specialist.data.source.scope === 'user' ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={saving}
+                        onClick={() => void handleDelete(specialist.data.id)}
+                      >
+                        Delete
+                      </Button>
                     ) : null}
-                    <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 font-mono">
-                      {specialist.data.id}
-                    </span>
                   </div>
                 </div>
-
-                {specialist.data.roleReminder ? (
-                  <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-                    {specialist.data.roleReminder}
-                  </div>
-                ) : null}
-
-                <div className="mt-3 rounded-xl border border-border/60 bg-muted/20 p-3">
-                  <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    <SparklesIcon className="size-3.5" />
-                    System Prompt Preview
-                  </div>
-                  <pre className="line-clamp-6 whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">
-                    {specialist.data.systemPrompt}
-                  </pre>
-                </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </ScrollArea>
     </div>
@@ -736,6 +970,7 @@ export function ProjectSettingsDialog(props: ProjectSettingsDialogProps) {
             <SpecialistsTab
               loading={specialistsLoading}
               onReload={() => void loadSpecialists()}
+              projectId={projectState.data.id}
               specialists={specialists}
             />
           </TabsContent>

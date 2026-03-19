@@ -61,6 +61,20 @@ interface BoardResponse {
   };
 }
 
+interface SpecialistListResponse {
+  _embedded?: {
+    specialists?: Array<{
+      defaultAdapter: string | null;
+      id: string;
+      name: string;
+      role: string;
+      source: {
+        scope: string;
+      };
+    }>;
+  };
+}
+
 interface ColumnDraft {
   autoAdvanceOnSuccess: boolean;
   enabled: boolean;
@@ -115,6 +129,15 @@ export default function ProjectKanbanSettingsPage() {
   const [newColumnStage, setNewColumnStage] = useState<ColumnStage>('todo');
   const [loading, setLoading] = useState(true);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
+  const [specialists, setSpecialists] = useState<
+    Array<{
+      defaultAdapter: string | null;
+      id: string;
+      name: string;
+      role: string;
+      scope: string;
+    }>
+  >([]);
 
   const loadBoard = useCallback(
     async (boardId: string) => {
@@ -183,9 +206,34 @@ export default function ProjectKanbanSettingsPage() {
     }
   }, [loadBoard, projectId, selectedBoardId]);
 
+  const loadSpecialists = useCallback(async () => {
+    if (!projectId) {
+      setSpecialists([]);
+      return;
+    }
+
+    const response = await runtimeFetch(`/api/projects/${projectId}/specialists`);
+    if (!response.ok) {
+      throw new Error(`加载 specialists 失败: ${response.status}`);
+    }
+
+    const payload = (await response.json()) as SpecialistListResponse;
+    setSpecialists(
+      (payload._embedded?.specialists ?? []).map((specialist) => ({
+        defaultAdapter: specialist.defaultAdapter,
+        id: specialist.id,
+        name: specialist.name,
+        role: specialist.role,
+        scope: specialist.source.scope,
+      })),
+    );
+  }, [projectId]);
+
   useEffect(() => {
-    void loadBoards();
-  }, [loadBoards]);
+    void Promise.all([loadBoards(), loadSpecialists()]).catch((error) => {
+      toast.error(error instanceof Error ? error.message : '加载看板设置失败');
+    });
+  }, [loadBoards, loadSpecialists]);
 
   const saveBoard = useCallback(async () => {
     if (!projectId || !board) {
@@ -587,9 +635,11 @@ export default function ProjectKanbanSettingsPage() {
                           </label>
                           <label className="space-y-2 text-sm">
                             <span className="text-muted-foreground">
-                              Specialist ID
+                              Specialist
                             </span>
-                            <Input
+                            <select
+                              aria-label={`Specialist for ${column.name}`}
+                              className="h-9 w-full rounded-md border border-border/60 bg-background px-3 text-sm"
                               value={column.specialistId}
                               onChange={(event) =>
                                 setColumnDrafts((current) =>
@@ -597,13 +647,35 @@ export default function ProjectKanbanSettingsPage() {
                                     entry.id === column.id
                                       ? {
                                           ...entry,
+                                          provider:
+                                            specialists.find(
+                                              (specialist) =>
+                                                specialist.id === event.target.value,
+                                            )?.defaultAdapter ?? entry.provider,
+                                          role:
+                                            specialists.find(
+                                              (specialist) =>
+                                                specialist.id === event.target.value,
+                                            )?.role ?? entry.role,
                                           specialistId: event.target.value,
+                                          specialistName:
+                                            specialists.find(
+                                              (specialist) =>
+                                                specialist.id === event.target.value,
+                                            )?.name ?? '',
                                         }
                                       : entry,
                                   ),
                                 )
                               }
-                            />
+                            >
+                              <option value="">No specialist</option>
+                              {specialists.map((specialist) => (
+                                <option key={specialist.id} value={specialist.id}>
+                                  {specialist.name} ({specialist.id})
+                                </option>
+                              ))}
+                            </select>
                           </label>
                           <label className="space-y-2 text-sm">
                             <span className="text-muted-foreground">
