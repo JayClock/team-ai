@@ -26,6 +26,7 @@ export interface TraceListPayload {
   offset: number;
   projectId: string | null;
   sessionId: string | null;
+  taskId: string | null;
   total: number;
 }
 
@@ -33,6 +34,7 @@ export interface TraceStatsPayload {
   byEventType: Record<string, number>;
   projectId: string | null;
   sessionId: string | null;
+  taskId: string | null;
   supervision: {
     averageCleanupLatencyMs: number | null;
     byModel: Record<string, number>;
@@ -62,4 +64,5 @@ export interface ListTracesInput {
   offset?: number;
   projectId?: string;
   sessionId?: string;
+  taskId?: string;
 }

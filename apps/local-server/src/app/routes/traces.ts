@@ -40,6 +40,7 @@ const listTracesQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
   projectId: z.string().trim().min(1).optional(),
   sessionId: z.string().trim().min(1).optional(),
+  taskId: z.string().trim().min(1).optional(),
 });
 
 const traceParamsSchema = z.object({
@@ -49,6 +50,7 @@ const traceParamsSchema = z.object({
 const traceStatsQuerySchema = z.object({
   projectId: z.string().trim().min(1).optional(),
   sessionId: z.string().trim().min(1).optional(),
+  taskId: z.string().trim().min(1).optional(),
 });
 
 const tracesRoute: FastifyPluginAsync = async (fastify) => {

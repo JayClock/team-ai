@@ -1,5 +1,9 @@
 import type { AcpSessionPayload } from '@orchestration/runtime-acp';
-import type { KanbanColumnPayload } from './kanban';
+import type {
+  KanbanCardMemoryPayload,
+  KanbanCardTraceLinkPayload,
+  KanbanColumnPayload,
+} from './kanban';
 import type {
   TaskLaneHandoffPayload,
   TaskLaneSessionPayload,
@@ -21,10 +25,12 @@ export interface SessionKanbanContextPayload {
   columnId: string | null;
   columnName: string | null;
   currentLaneSession: TaskLaneSessionPayload | null;
+  memory: KanbanCardMemoryPayload;
   previousLaneSession: TaskLaneSessionPayload | null;
   relatedHandoffs: SessionRelatedLaneHandoffPayload[];
   taskId: string;
   taskTitle: string;
+  traceLinks: KanbanCardTraceLinkPayload[];
   triggerSessionId: string | null;
 }
 

@@ -249,3 +249,11 @@
 - [x] agent 可以通过 MCP 直接管理 card
 - [x] board 可以按项目定制
 - [x] 前端体验达到日常主工作台级别
+
+### M4
+
+- [x] 自然语言目标可以直接 intake 成 backlog/spec/cards
+- [x] specialist 可以通过 CRUD 与 board 配置形成闭环
+- [x] 看板具备实时事件流与 policy enforcement
+- [x] webhook / schedule 可以投递和更新 Kanban 卡片
+- [x] card 具备 memory 与 trace drill-down

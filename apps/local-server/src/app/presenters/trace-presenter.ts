@@ -50,6 +50,10 @@ export function presentTraceList(payload: TraceListPayload) {
     query.set('eventType', payload.eventType);
   }
 
+  if (payload.taskId) {
+    query.set('taskId', payload.taskId);
+  }
+
   return {
     _embedded: {
       traces: payload.items.map(presentTraceResource),
@@ -61,6 +65,7 @@ export function presentTraceList(payload: TraceListPayload) {
     },
     limit: payload.limit,
     offset: payload.offset,
+    taskId: payload.taskId ?? null,
     total: payload.total,
   };
 }
@@ -72,6 +77,9 @@ export function presentTraceStats(stats: TraceStatsPayload) {
   }
   if (stats.sessionId) {
     query.set('sessionId', stats.sessionId);
+  }
+  if (stats.taskId) {
+    query.set('taskId', stats.taskId);
   }
 
   return {

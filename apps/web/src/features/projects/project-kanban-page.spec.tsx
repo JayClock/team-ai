@@ -254,6 +254,128 @@ describe('ProjectKanbanPage', () => {
     expect(screen.getByText('Artifact Evidence')).toBeTruthy();
   });
 
+  it('renders card memory and trace drill-down details', async () => {
+    runtimeFetchMock.mockImplementation((href: string) => {
+      if (href.endsWith('/kanban/boards')) {
+        return jsonResponse({
+          _embedded: {
+            boards: [{ id: 'board-1' }],
+          },
+        });
+      }
+
+      if (href.endsWith('/kanban/boards/board-1')) {
+        return jsonResponse({
+          columns: [
+            {
+              automation: null,
+              cards: [
+                {
+                  assignedRole: 'CRAFTER',
+                  assignedSpecialistName: 'Crafter Implementor',
+                  artifactEvidence: [],
+                  columnId: 'board-1_dev',
+                  completionSummary: 'Merged the memory projection.',
+                  executionSessionId: 'session-1',
+                  explain: null,
+                  githubNumber: null,
+                  githubRepo: null,
+                  githubState: null,
+                  githubUrl: null,
+                  id: 'task-1',
+                  kind: 'implement',
+                  laneHandoffs: [],
+                  laneSessions: [
+                    {
+                      columnName: 'Dev',
+                      sessionId: 'session-1',
+                      startedAt: '2026-03-19T00:00:00.000Z',
+                      status: 'completed',
+                    },
+                  ],
+                  lastSyncError: 'Waiting on QA sign-off.',
+                  memory: {
+                    blockers: ['Waiting on QA sign-off.'],
+                    decisions: ['Bypass reason: release manager approved.'],
+                    doneSummary: 'Merged the memory projection.',
+                    resolvedNotes: ['Runtime context delivered.'],
+                  },
+                  position: 0,
+                  priority: 'high',
+                  recentOutputSummary: 'Merged the memory projection.',
+                  resultSessionId: 'session-1',
+                  sourceEventId: 'spec-entry-1',
+                  sourceType: 'spec_note',
+                  status: 'READY',
+                  title: 'Remember board context',
+                  traceLinks: [
+                    {
+                      lastCapturedAt: '2026-03-19T00:03:00.000Z',
+                      latestSummary: 'assistant: Context gathered and implementation is underway.',
+                      sessionId: 'session-1',
+                      total: 2,
+                      traceId: 'trace-1',
+                    },
+                  ],
+                  triggerSessionId: 'session-1',
+                  updatedAt: '2026-03-19T00:00:00.000Z',
+                  verificationReport: 'Ready for trace review.',
+                  verificationVerdict: null,
+                },
+              ],
+              id: 'board-1_dev',
+              name: 'Dev',
+              position: 0,
+              recommendedRole: 'CRAFTER',
+              recommendedSpecialistId: 'crafter-implementor',
+              recommendedSpecialistName: 'Crafter Implementor',
+              stage: 'dev',
+            },
+          ],
+          id: 'board-1',
+          name: 'Workflow Board',
+          projectId: 'project-1',
+          settings: {
+            boardConcurrency: null,
+            isDefault: true,
+            wipLimit: null,
+          },
+        });
+      }
+
+      if (href.includes('/api/traces?taskId=task-1&limit=12')) {
+        return jsonResponse({
+          items: [
+            {
+              createdAt: '2026-03-19T00:03:00.000Z',
+              id: 'trace-1',
+              sessionId: 'session-1',
+              summary: 'assistant: Context gathered and implementation is underway.',
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected request: ${href}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectKanbanPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Card Memory');
+    expect(screen.getByText('Bypass reason: release manager approved.')).toBeTruthy();
+    expect(screen.getAllByText('Waiting on QA sign-off.').length).toBeGreaterThan(0);
+    expect(screen.getByText('Trace Timeline')).toBeTruthy();
+    expect(
+      screen.getAllByText(
+        'assistant: Context gathered and implementation is underway.',
+      ).length,
+    ).toBeGreaterThan(0);
+  });
+
   it('sends a move request from the card menu', async () => {
     runtimeFetchMock.mockImplementation((href: string, init?: RequestInit) => {
       if (href.endsWith('/kanban/boards')) {

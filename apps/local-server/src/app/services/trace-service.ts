@@ -7,7 +7,9 @@ import type {
   TracePayload,
   TraceStatsPayload,
 } from '../schemas/trace';
+import { collectTaskTraceSessionIds } from './kanban-card-memory-service';
 import { getProjectById } from './project-service';
+import { getTaskById } from './task-service';
 
 interface SessionTraceContextRow {
   model: string | null;
@@ -213,6 +215,10 @@ export async function listTraces(
     projectId: input.projectId ?? null,
     sessionId: input.sessionId ?? null,
   };
+  const taskSessionIds =
+    input.taskId !== undefined
+      ? collectTaskTraceSessionIds(await getTaskById(sqlite, input.taskId))
+      : [];
 
   if (input.projectId) {
     filters.push('project_id = @projectId');
@@ -224,6 +230,28 @@ export async function listTraces(
 
   if (input.eventType) {
     filters.push('event_type = @eventType');
+  }
+
+  if (input.taskId) {
+    if (taskSessionIds.length === 0) {
+      return {
+        eventType: input.eventType ?? null,
+        items: [],
+        limit,
+        offset,
+        projectId: input.projectId ?? null,
+        sessionId: input.sessionId ?? null,
+        taskId: input.taskId,
+        total: 0,
+      };
+    }
+
+    filters.push(
+      `session_id IN (${taskSessionIds.map((_value, index) => `@taskSessionId${index}`).join(', ')})`,
+    );
+    for (const [index, sessionId] of taskSessionIds.entries()) {
+      parameters[`taskSessionId${index}`] = sessionId;
+    }
   }
 
   const whereClause = filters.join(' AND ');
@@ -257,6 +285,7 @@ export async function listTraces(
     offset,
     projectId: input.projectId ?? null,
     sessionId: input.sessionId ?? null,
+    taskId: input.taskId ?? null,
     total: total.count,
   };
 }
@@ -282,7 +311,7 @@ export function getTraceById(sqlite: Database, traceId: string): TracePayload {
 
 export async function getTraceStats(
   sqlite: Database,
-  input: Pick<ListTracesInput, 'projectId' | 'sessionId'> = {},
+  input: Pick<ListTracesInput, 'projectId' | 'sessionId' | 'taskId'> = {},
 ): Promise<TraceStatsPayload> {
   if (input.projectId) {
     await getProjectById(sqlite, input.projectId);
@@ -293,6 +322,10 @@ export async function getTraceStats(
     projectId: input.projectId ?? null,
     sessionId: input.sessionId ?? null,
   };
+  const taskSessionIds =
+    input.taskId !== undefined
+      ? collectTaskTraceSessionIds(await getTaskById(sqlite, input.taskId))
+      : [];
 
   if (input.projectId) {
     filters.push('project_id = @projectId');
@@ -300,6 +333,41 @@ export async function getTraceStats(
 
   if (input.sessionId) {
     filters.push('session_id = @sessionId');
+  }
+
+  if (input.taskId) {
+    if (taskSessionIds.length === 0) {
+      return {
+        byEventType: {},
+        projectId: input.projectId ?? null,
+        sessionId: input.sessionId ?? null,
+        taskId: input.taskId,
+        supervision: {
+          averageCleanupLatencyMs: null,
+          byModel: {},
+          byProvider: {},
+          byScope: {},
+          bySessionKind: {
+            standalone: 0,
+            task_bound: 0,
+          },
+          byStage: {},
+          cancelCompleted: 0,
+          forceKilled: 0,
+          maxCleanupLatencyMs: null,
+          totalTimeouts: 0,
+        },
+        total: 0,
+        uniqueSessions: 0,
+      };
+    }
+
+    filters.push(
+      `session_id IN (${taskSessionIds.map((_value, index) => `@taskSessionId${index}`).join(', ')})`,
+    );
+    for (const [index, sessionId] of taskSessionIds.entries()) {
+      parameters[`taskSessionId${index}`] = sessionId;
+    }
   }
 
   const whereClause = filters.join(' AND ');
@@ -356,6 +424,11 @@ export async function getTraceStats(
   }
   if (input.sessionId) {
     sessionFilters.push('id = @sessionId');
+  }
+  if (input.taskId) {
+    sessionFilters.push(
+      `id IN (${taskSessionIds.map((_value, index) => `@taskSessionId${index}`).join(', ')})`,
+    );
   }
 
   const supervisionRows = sqlite
@@ -434,6 +507,7 @@ export async function getTraceStats(
     ),
     projectId: input.projectId ?? null,
     sessionId: input.sessionId ?? null,
+    taskId: input.taskId ?? null,
     supervision: {
       averageCleanupLatencyMs,
       byModel: supervisionByModel,

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import { createProject } from '../services/project-service';
+import { createTask } from '../services/task-service';
 import { recordAcpTrace } from '../services/trace-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 import { responseContentType } from '../test-support/response-content-type';
@@ -52,12 +53,27 @@ describe('traces route', () => {
       name: 'Trace Route Session',
       projectId: project.id,
     });
+    const task = await createTask(sqlite, {
+      executionSessionId: 'acps_trace_route_1',
+      laneSessions: [
+        {
+          sessionId: 'acps_trace_route_1',
+          startedAt: '2026-03-17T00:00:00.000Z',
+          status: 'running',
+        },
+      ],
+      objective: 'Trace bound task',
+      projectId: project.id,
+      title: 'Trace bound task',
+      triggerSessionId: 'acps_trace_route_1',
+    });
     sqlite
       .prepare(
         `
           UPDATE project_acp_sessions
           SET provider = 'codex',
               model = 'gpt-5',
+              task_id = @taskId,
               timeout_scope = 'session_total',
               cancel_requested_at = '2026-03-17T00:00:01.000Z',
               force_killed_at = '2026-03-17T00:00:04.000Z',
@@ -65,7 +81,9 @@ describe('traces route', () => {
           WHERE id = 'acps_trace_route_1'
         `,
       )
-      .run();
+      .run({
+        taskId: task.id,
+      });
     recordAcpTrace(sqlite, {
       createdAt: '2026-03-17T00:00:00.000Z',
       eventId: 'evt_trace_route_1',
@@ -126,6 +144,17 @@ describe('traces route', () => {
       ]),
     );
 
+    const taskScopedResponse = await fastify.inject({
+      method: 'GET',
+      url: `/api/traces?taskId=${task.id}`,
+    });
+
+    expect(taskScopedResponse.statusCode).toBe(200);
+    expect(taskScopedResponse.json()).toMatchObject({
+      taskId: task.id,
+      total: 2,
+    });
+
     const detailResponse = await fastify.inject({
       method: 'GET',
       url: '/api/traces/evt_trace_route_1',
@@ -153,6 +182,7 @@ describe('traces route', () => {
         tool_call: 1,
         supervision_update: 1,
       },
+      taskId: null,
       supervision: {
         byScope: {
           session_total: 1,

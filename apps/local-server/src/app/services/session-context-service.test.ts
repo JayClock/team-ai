@@ -8,6 +8,7 @@ import { listProjectCodebases } from './project-codebase-service';
 import { createProject } from './project-service';
 import { getAcpSessionContext } from './session-context-service';
 import { createTask, updateTask } from './task-service';
+import { recordAcpTrace } from './trace-service';
 import { insertAcpSession } from '../test-support/acp-session-fixture';
 
 describe('session context service', () => {
@@ -132,6 +133,21 @@ describe('session context service', () => {
         taskId: task.id,
         worktreeId: 'wt_ctx_1',
       });
+    recordAcpTrace(sqlite, {
+      createdAt: '2026-03-17T00:03:00.000Z',
+      eventId: 'evt_ctx_trace_1',
+      sessionId: 'acps_ctx_current',
+      update: {
+        eventType: 'agent_message',
+        message: {
+          content: 'Context gathered and implementation is underway.',
+          role: 'assistant',
+        },
+        provider: 'codex',
+        sessionId: 'acps_ctx_current',
+        timestamp: '2026-03-17T00:03:00.000Z',
+      },
+    });
 
     const context = await getAcpSessionContext(
       sqlite,
@@ -151,6 +167,9 @@ describe('session context service', () => {
       currentLaneSession: expect.objectContaining({
         sessionId: 'acps_ctx_current',
       }),
+      memory: expect.objectContaining({
+        resolvedNotes: ['Share runtime context for the dev lane'],
+      }),
       previousLaneSession: expect.objectContaining({
         sessionId: 'acps_ctx_prev',
       }),
@@ -160,6 +179,12 @@ describe('session context service', () => {
           id: 'handoff_ctx_1',
           fromColumnName: board.columns[1]?.name,
           toColumnName: board.columns[2]?.name,
+        }),
+      ],
+      traceLinks: [
+        expect.objectContaining({
+          sessionId: 'acps_ctx_current',
+          traceId: 'evt_ctx_trace_1',
         }),
       ],
     });

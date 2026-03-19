@@ -33,6 +33,21 @@ export interface KanbanCardExplainPayload {
   recentTransitionReason: string | null;
 }
 
+export interface KanbanCardMemoryPayload {
+  blockers: string[];
+  decisions: string[];
+  doneSummary: string | null;
+  resolvedNotes: string[];
+}
+
+export interface KanbanCardTraceLinkPayload {
+  lastCapturedAt: string | null;
+  latestSummary: string | null;
+  sessionId: string;
+  traceId: string | null;
+  total: number;
+}
+
 export interface KanbanCardSummaryPayload {
   assignedRole: string | null;
   assignedSpecialistName: string | null;
@@ -50,6 +65,7 @@ export interface KanbanCardSummaryPayload {
   laneHandoffs: TaskLaneHandoffPayload[];
   laneSessions: TaskLaneSessionPayload[];
   lastSyncError: string | null;
+  memory: KanbanCardMemoryPayload;
   explain: KanbanCardExplainPayload | null;
   position: number | null;
   priority: string | null;
@@ -59,6 +75,7 @@ export interface KanbanCardSummaryPayload {
   sourceType: string;
   status: string;
   title: string;
+  traceLinks: KanbanCardTraceLinkPayload[];
   triggerSessionId: string | null;
   updatedAt: string;
   verificationReport: string | null;

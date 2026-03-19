@@ -845,11 +845,11 @@
 
 开发任务：
 
-- [ ] 为 card 定义长期 memory 结构：decisions、blockers、resolved notes、done summaries
-- [ ] 将 memory 与 laneSessions / laneHandoffs / traces 建立关联
-- [ ] 在卡片详情中增加 trace timeline / trace jump links
-- [ ] 支持从 review / done / blocked specialist 输出中自动提炼 memory 条目
-- [ ] 支持下一轮 refinement 读取 card memory 作为上下文
+- [x] 为 card 定义长期 memory 结构：decisions、blockers、resolved notes、done summaries
+- [x] 将 memory 与 laneSessions / laneHandoffs / traces 建立关联
+- [x] 在卡片详情中增加 trace timeline / trace jump links
+- [x] 支持从 review / done / blocked specialist 输出中自动提炼 memory 条目
+- [x] 支持下一轮 refinement 读取 card memory 作为上下文
 
 涉及文件：
 
@@ -860,8 +860,8 @@
 
 完成标准：
 
-- [ ] card 成为可持续演化的工作单元，而不是一次性状态节点
-- [ ] 用户可以从 card 直接钻取关键 trace 和决策历史
+- [x] card 成为可持续演化的工作单元，而不是一次性状态节点
+- [x] 用户可以从 card 直接钻取关键 trace 和决策历史
 
 ### RK-M4-08 M4 测试与文档补齐
 
@@ -971,7 +971,7 @@
 - [x] RK-M4-04
 - [x] RK-M4-05
 - [x] RK-M4-06
-- [ ] RK-M4-07
+- [x] RK-M4-07
 - [ ] RK-M4-08
 
 ---

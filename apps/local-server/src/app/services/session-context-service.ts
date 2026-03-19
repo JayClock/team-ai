@@ -20,6 +20,10 @@ import {
   getTaskWorkflowColumnDefinition,
   resolveTaskWorkflowColumnStage,
 } from './task-workflow-service';
+import {
+  deriveKanbanCardMemory,
+  listTraceLinksForTask,
+} from './kanban-card-memory-service';
 
 interface BoardRow {
   id: string;
@@ -208,6 +212,7 @@ function enrichHandoff(
 }
 
 function buildSessionKanbanContext(
+  sqlite: Database,
   task: TaskPayload,
   sessionId: string,
   boardName: string | null,
@@ -232,6 +237,14 @@ function buildSessionKanbanContext(
     columnId: currentColumnId,
     columnName: currentColumnName,
     currentLaneSession,
+    memory: deriveKanbanCardMemory({
+      completionSummary: task.completionSummary,
+      laneHandoffs: task.laneHandoffs,
+      lastSyncError: task.lastSyncError,
+      status: task.status,
+      verificationReport: task.verificationReport,
+      verificationVerdict: task.verificationVerdict,
+    }),
     previousLaneSession,
     relatedHandoffs: task.laneHandoffs
       .filter(
@@ -245,6 +258,7 @@ function buildSessionKanbanContext(
       ),
     taskId: task.id,
     taskTitle: task.title,
+    traceLinks: listTraceLinksForTask(sqlite, task),
     triggerSessionId: task.triggerSessionId,
   };
 }
@@ -283,7 +297,13 @@ export async function getAcpSessionContext(
 
   return {
     kanban: task
-      ? buildSessionKanbanContext(task, sessionId, board.name, board.columns)
+      ? buildSessionKanbanContext(
+          sqlite,
+          task,
+          sessionId,
+          board.name,
+          board.columns,
+        )
       : null,
     projectId,
     session,

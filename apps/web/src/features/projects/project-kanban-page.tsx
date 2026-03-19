@@ -146,6 +146,12 @@ interface KanbanCard {
     status: string;
   }>;
   lastSyncError: string | null;
+  memory: {
+    blockers: string[];
+    decisions: string[];
+    doneSummary: string | null;
+    resolvedNotes: string[];
+  };
   position: number | null;
   priority: string | null;
   recentOutputSummary: string | null;
@@ -154,10 +160,26 @@ interface KanbanCard {
   sourceType: string;
   status: string;
   title: string;
+  traceLinks: Array<{
+    lastCapturedAt: string | null;
+    latestSummary: string | null;
+    sessionId: string;
+    total: number;
+    traceId: string | null;
+  }>;
   triggerSessionId: string | null;
   updatedAt: string;
   verificationReport: string | null;
   verificationVerdict: string | null;
+}
+
+interface TraceListResponse {
+  items: Array<{
+    createdAt: string;
+    id: string;
+    sessionId: string;
+    summary: string;
+  }>;
 }
 
 type KanbanRealtimeEvent =
@@ -320,7 +342,7 @@ function evaluateLocalMovePolicy(
     board.columns.find((column) => column.id === card.columnId) ?? null;
 
   if (
-    targetColumn.automation?.allowedSourceColumnIds.length &&
+    targetColumn.automation?.allowedSourceColumnIds?.length &&
     (!card.columnId ||
       !targetColumn.automation.allowedSourceColumnIds.includes(card.columnId))
   ) {
@@ -432,6 +454,8 @@ export default function ProjectKanbanPage() {
   const [lastRealtimeEvent, setLastRealtimeEvent] =
     useState<KanbanRealtimeEvent | null>(null);
   const [lastRealtimeEventAt, setLastRealtimeEventAt] = useState<string | null>(null);
+  const [cardTraces, setCardTraces] = useState<TraceListResponse['items']>([]);
+  const [cardTracesLoading, setCardTracesLoading] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const loadBoard = useCallback(async () => {
@@ -561,6 +585,44 @@ export default function ProjectKanbanPage() {
 
     setSelectedCardId(selectedCard.id);
   }, [selectedCard]);
+
+  useEffect(() => {
+    if (!selectedCard?.id || !(selectedCard.traceLinks?.length ?? 0)) {
+      setCardTraces([]);
+      setCardTracesLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCardTracesLoading(true);
+
+    void runtimeFetch(`/api/traces?taskId=${encodeURIComponent(selectedCard.id)}&limit=12`)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(await getErrorDetail(response));
+        }
+
+        const payload = (await response.json()) as TraceListResponse;
+        if (!cancelled) {
+          setCardTraces(payload.items);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : '加载 traces 失败');
+          setCardTraces([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setCardTracesLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCard?.id, selectedCard?.traceLinks]);
 
   const handleMoveCard = useCallback(
     async (
@@ -1374,6 +1436,97 @@ export default function ProjectKanbanPage() {
                     </>
                   ) : null}
 
+                  {(selectedCard.memory?.decisions.length ?? 0) > 0 ||
+                  (selectedCard.memory?.blockers.length ?? 0) > 0 ||
+                  (selectedCard.memory?.resolvedNotes.length ?? 0) > 0 ||
+                  selectedCard.memory?.doneSummary ? (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Card Memory
+                        </div>
+                        {(selectedCard.memory?.decisions.length ?? 0) > 0 ? (
+                          <MemoryList
+                            label="Decisions"
+                            items={selectedCard.memory.decisions}
+                          />
+                        ) : null}
+                        {(selectedCard.memory?.blockers.length ?? 0) > 0 ? (
+                          <MemoryList
+                            label="Blockers"
+                            items={selectedCard.memory.blockers}
+                          />
+                        ) : null}
+                        {(selectedCard.memory?.resolvedNotes.length ?? 0) > 0 ? (
+                          <MemoryList
+                            label="Resolved"
+                            items={selectedCard.memory.resolvedNotes}
+                          />
+                        ) : null}
+                        {selectedCard.memory?.doneSummary ? (
+                          <DetailRow
+                            label="Done Summary"
+                            value={selectedCard.memory.doneSummary}
+                          />
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+
+                  {(selectedCard.traceLinks?.length ?? 0) > 0 ? (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          Trace Timeline
+                        </div>
+                        <div className="space-y-2">
+                          {selectedCard.traceLinks.map((traceLink) => (
+                            <div
+                              key={`${selectedCard.id}-${traceLink.sessionId}`}
+                              className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2"
+                            >
+                              <div className="text-sm font-medium">
+                                {traceLink.sessionId}
+                              </div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {traceLink.total} traces ·{' '}
+                                {formatDateTime(traceLink.lastCapturedAt)}
+                              </div>
+                              {traceLink.latestSummary ? (
+                                <p className="mt-2 text-sm text-foreground">
+                                  {traceLink.latestSummary}
+                                </p>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                        {cardTracesLoading ? (
+                          <div className="text-sm text-muted-foreground">
+                            Loading trace details...
+                          </div>
+                        ) : cardTraces.length > 0 ? (
+                          <div className="space-y-2">
+                            {cardTraces.map((trace) => (
+                              <div
+                                key={trace.id}
+                                className="rounded-lg border border-border/60 bg-background px-3 py-2"
+                              >
+                                <div className="text-xs text-muted-foreground">
+                                  {trace.sessionId} · {formatDateTime(trace.createdAt)}
+                                </div>
+                                <p className="mt-1 text-sm text-foreground">
+                                  {trace.summary}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
+
                   {selectedSessionId ? (
                     <>
                       <Separator />
@@ -1409,6 +1562,28 @@ function DetailRow(props: { label: string; value: string }) {
         {label}
       </div>
       <div className="text-sm text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function MemoryList(props: { items: string[]; label: string }) {
+  const { items, label } = props;
+
+  return (
+    <div>
+      <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 space-y-2">
+        {items.map((item) => (
+          <div
+            key={`${label}-${item}`}
+            className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm text-foreground"
+          >
+            {item}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

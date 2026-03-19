@@ -9,6 +9,10 @@ import type {
   KanbanColumnAutomationPayload,
   KanbanColumnPayload,
 } from '../schemas/kanban';
+import type {
+  TaskLaneHandoffPayload,
+  TaskLaneSessionPayload,
+} from '../schemas/task';
 import { getProjectById } from './project-service';
 import {
   defaultTaskWorkflowColumns,
@@ -16,6 +20,10 @@ import {
   resolveTaskWorkflowColumnStage,
 } from './task-workflow-service';
 import { evaluateTaskArtifactGate } from './task-artifact-gate-service';
+import {
+  deriveKanbanCardMemory,
+  listTraceLinksForTask,
+} from './kanban-card-memory-service';
 
 const boardIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -421,7 +429,17 @@ function flattenArtifactEvidence(row: BoardTaskRow) {
   return [...evidence];
 }
 
-function mapBoardTaskRow(row: BoardTaskRow): KanbanCardSummaryPayload {
+function mapBoardTaskRow(
+  sqlite: Database,
+  row: BoardTaskRow,
+): KanbanCardSummaryPayload {
+  const laneSessions = parseJsonArray<TaskLaneSessionPayload>(
+    row.lane_sessions_json,
+  );
+  const laneHandoffs = parseJsonArray<TaskLaneHandoffPayload>(
+    row.lane_handoffs_json,
+  );
+
   return {
     assignedRole: row.assigned_role,
     assignedSpecialistName: row.assigned_specialist_name,
@@ -437,9 +455,17 @@ function mapBoardTaskRow(row: BoardTaskRow): KanbanCardSummaryPayload {
     githubUrl: row.github_url,
     id: row.id,
     kind: row.kind,
-    laneHandoffs: parseJsonArray(row.lane_handoffs_json),
-    laneSessions: parseJsonArray(row.lane_sessions_json),
+    laneHandoffs,
+    laneSessions,
     lastSyncError: row.last_sync_error,
+    memory: deriveKanbanCardMemory({
+      completionSummary: row.completion_summary,
+      laneHandoffs,
+      lastSyncError: row.last_sync_error,
+      status: row.status,
+      verificationReport: row.verification_report,
+      verificationVerdict: row.verification_verdict,
+    }),
     position: row.position,
     priority: row.priority,
     recentOutputSummary:
@@ -449,6 +475,12 @@ function mapBoardTaskRow(row: BoardTaskRow): KanbanCardSummaryPayload {
     sourceType: row.source_type,
     status: row.status,
     title: row.title,
+    traceLinks: listTraceLinksForTask(sqlite, {
+      executionSessionId: row.execution_session_id,
+      laneSessions,
+      resultSessionId: row.result_session_id,
+      triggerSessionId: row.trigger_session_id,
+    }),
     triggerSessionId: row.trigger_session_id,
     updatedAt: row.updated_at,
     verificationReport: row.verification_report,
@@ -785,7 +817,7 @@ export async function getProjectKanbanBoardById(
     ? reconcileDefaultBoardColumns(sqlite, row)
     : listColumnRows(sqlite, row.id).map(mapColumnRow);
   const cardRows = listBoardTaskRows(sqlite, projectId, row.id);
-  const cards = cardRows.map(mapBoardTaskRow);
+  const cards = cardRows.map((row) => mapBoardTaskRow(sqlite, row));
 
   return mapBoardRow(row, attachCardsToColumns(columns, cards, cardRows));
 }
