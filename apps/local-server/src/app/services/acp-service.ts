@@ -53,6 +53,14 @@ import {
   getAcpSessionEventWriteBuffer,
 } from './acp-session-event-write-buffer';
 import {
+  appendLifecycleEvent,
+  appendLocalEvent,
+  appendPromptRequestedEvents,
+  appendSupervisionEvent,
+  createCanonicalUpdate,
+  createRuntimeHooks,
+} from './acp-session-events';
+import {
   calculateActivityDeadline,
   calculateIsoDeadline,
   cloneDefaultSupervisionPolicy,
@@ -74,10 +82,6 @@ import { recordAcpTrace } from './trace-service';
 const sessionIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
   12,
-);
-const eventIdGenerator = customAlphabet(
-  '0123456789abcdefghijklmnopqrstuvwxyz',
-  16,
 );
 
 interface ListSessionsQuery {
@@ -162,10 +166,6 @@ const retryablePromptProblemTypes = new Set<string>([
 
 function createSessionId() {
   return `acps_${sessionIdGenerator()}`;
-}
-
-function createEventId() {
-  return `acpe_${eventIdGenerator()}`;
 }
 
 function normalizeOptionalText(
@@ -878,74 +878,6 @@ async function syncTaskExecutionOutcome(
   });
 }
 
-function createCanonicalUpdate(
-  sessionId: string,
-  provider: string,
-  eventType: AcpEventUpdatePayload['eventType'],
-  extras: Omit<
-    Partial<AcpEventUpdatePayload>,
-    'eventType' | 'provider' | 'rawNotification' | 'sessionId' | 'timestamp'
-  > = {},
-): AcpEventUpdatePayload {
-  return {
-    sessionId,
-    provider,
-    eventType,
-    timestamp: new Date().toISOString(),
-    rawNotification: null,
-    ...extras,
-  };
-}
-
-function appendLocalEvent(
-  sqlite: Database,
-  broker: AcpStreamBroker,
-  input: {
-    error?: AcpEventErrorPayload | null;
-    eventId?: string;
-    sessionId: string;
-    update: AcpEventUpdatePayload;
-  },
-): AcpEventEnvelopePayload {
-  const emittedAt = input.update.timestamp || new Date().toISOString();
-  const current = getSessionRow(sqlite, input.sessionId);
-  const update: AcpEventUpdatePayload = {
-    ...input.update,
-    // Runtime providers can emit their own remote session ids. Persist and
-    // broadcast events against the local ACP session id used by our database.
-    sessionId: input.sessionId,
-    timestamp: emittedAt,
-  };
-  const event: AcpEventEnvelopePayload = {
-    eventId: input.eventId ?? createEventId(),
-    sessionId: update.sessionId,
-    emittedAt,
-    update,
-    error: input.error ?? null,
-  };
-
-  getAcpSessionEventWriteBuffer(sqlite).add(event);
-
-  updateSessionRuntime(sqlite, input.sessionId, {
-    lastActivityAt: emittedAt,
-    lastEventId: event.eventId,
-    stepCount:
-      current.state === 'RUNNING'
-        ? current.step_count + resolveStepCountIncrement(update)
-        : current.step_count,
-  });
-
-  recordAcpTrace(sqlite, {
-    createdAt: emittedAt,
-    eventId: event.eventId,
-    sessionId: input.sessionId,
-    update,
-  });
-
-  broker.publish(event);
-  return event;
-}
-
 export function hasAcpSessionEvent(sqlite: Database, eventId: string) {
   if (getAcpSessionEventWriteBuffer(sqlite).hasEvent(eventId)) {
     return true;
@@ -1042,132 +974,6 @@ function sessionHasPromptHistory(sqlite: Database, sessionId: string): boolean {
   return row.count > 0;
 }
 
-function createRuntimeHooks(
-  sqlite: Database,
-  broker: AcpStreamBroker,
-  runtime: AcpRuntimeClient,
-  localSessionId: string,
-  options: AcpServiceOptions = {},
-): AcpRuntimeSessionHooks {
-  return {
-    async onSessionUpdate(update) {
-      const current = getSessionRow(sqlite, localSessionId);
-      const normalized: NormalizedSessionUpdate = update;
-      const emitted = appendLocalEvent(sqlite, broker, {
-        sessionId: localSessionId,
-        update: normalized,
-      });
-
-      const state = resolveSessionStateFromNormalizedUpdate(
-        normalized,
-        current.state,
-      );
-      const metadata = extractSessionMetadataFromNormalizedUpdate(normalized);
-      updateSessionRuntime(sqlite, localSessionId, {
-        acpError:
-          state === 'FAILED'
-            ? (emitted.error?.message ?? current.acp_error)
-            : null,
-        acpStatus: state === 'FAILED' ? 'error' : 'ready',
-        state,
-        lastActivityAt: metadata.updatedAt ?? emitted.emittedAt,
-        name: metadata.title ?? current.name,
-        completedAt:
-          state === 'CANCELLED' || state === 'FAILED'
-            ? emitted.emittedAt
-            : null,
-        failureReason: state === 'FAILED' ? current.failure_reason : null,
-      });
-      await enforceStepBudgetIfNeeded(
-        sqlite,
-        broker,
-        runtime,
-        localSessionId,
-        options,
-      );
-    },
-    async onClosed(error) {
-      const current = getSessionRow(sqlite, localSessionId);
-      if (!error) {
-        return;
-      }
-
-      if (current.state === 'CANCELLED' || current.state === 'FAILED') {
-        return;
-      }
-
-      appendLocalEvent(sqlite, broker, {
-        sessionId: localSessionId,
-        update: createCanonicalUpdate(
-          localSessionId,
-          current.provider,
-          'error',
-          {
-            error: {
-              code: 'ACP_CONNECTION_CLOSED',
-              message: error.message,
-            },
-          },
-        ),
-        error: {
-          code: 'ACP_CONNECTION_CLOSED',
-          message: error.message,
-          retryable: true,
-          retryAfterMs: 1000,
-        },
-      });
-
-      updateSessionRuntime(sqlite, localSessionId, {
-        acpStatus: 'error',
-        acpError: error.message,
-        state: 'FAILED',
-        failureReason: error.message,
-        completedAt: new Date().toISOString(),
-      });
-      appendLifecycleEvent(sqlite, broker, {
-        detail: error.message,
-        sessionId: localSessionId,
-        state: 'failed',
-        taskBound: current.task_id !== null,
-      });
-
-      await syncTaskExecutionOutcome(
-        sqlite,
-        localSessionId,
-        'FAILED',
-        error.message,
-        options,
-      );
-    },
-  };
-}
-
-function appendPromptRequestedEvents(
-  sqlite: Database,
-  broker: AcpStreamBroker,
-  sessionId: string,
-  provider: string,
-  prompt: string,
-  eventId?: string,
-) {
-  appendLocalEvent(sqlite, broker, {
-    sessionId,
-    eventId,
-    update: createCanonicalUpdate(sessionId, provider, 'user_message', {
-      message: {
-        role: 'user',
-        messageId: null,
-        content: prompt,
-        contentBlock: {
-          type: 'text',
-          text: prompt,
-        },
-        isChunk: false,
-      },
-    }),
-  });
-}
-
 async function enforceStepBudgetIfNeeded(
   sqlite: Database,
   broker: AcpStreamBroker,
@@ -1202,90 +1008,6 @@ async function enforceStepBudgetIfNeeded(
     },
     options,
   );
-}
-
-function appendLifecycleEvent(
-  sqlite: Database,
-  broker: AcpStreamBroker,
-  input: {
-    detail?: string | null;
-    sessionId: string;
-    state: AcpLifecycleStatePayload;
-    taskBound: boolean;
-  },
-) {
-  const session = getSessionRow(sqlite, input.sessionId);
-  return appendLocalEvent(sqlite, broker, {
-    sessionId: input.sessionId,
-    update: createCanonicalUpdate(
-      input.sessionId,
-      session.provider,
-      'lifecycle_update',
-      {
-        lifecycle: {
-          detail: input.detail ?? null,
-          state: input.state,
-          taskBound: input.taskBound,
-        },
-      },
-    ),
-  });
-}
-
-function appendSupervisionEvent(
-  sqlite: Database,
-  broker: AcpStreamBroker,
-  input: {
-    detail?: string | null;
-    forceKilled?: boolean;
-    policy?: AcpSupervisionPolicyPayload;
-    scope?: AcpTimeoutScopePayload;
-    sessionId: string;
-    stage:
-      | 'policy_resolved'
-      | 'timeout_detected'
-      | 'cancel_requested'
-      | 'cancel_grace_expired'
-      | 'force_killed';
-  },
-) {
-  const session = getSessionRow(sqlite, input.sessionId);
-  return appendLocalEvent(sqlite, broker, {
-    sessionId: input.sessionId,
-    update: createCanonicalUpdate(
-      input.sessionId,
-      session.provider,
-      'supervision_update',
-      {
-        supervision: {
-          detail: input.detail ?? null,
-          forceKilled: input.forceKilled ?? false,
-          policy: input.policy,
-          scope: input.scope,
-          stage: input.stage,
-        },
-      },
-    ),
-  });
-}
-
-function resolveStepCountIncrement(
-  update: AcpEventUpdatePayload,
-): number {
-  if (update.eventType === 'turn_complete') {
-    return 1;
-  }
-
-  if (
-    (update.eventType === 'tool_call' ||
-      update.eventType === 'tool_call_update') &&
-    (update.toolCall?.status === 'completed' ||
-      update.toolCall?.status === 'failed')
-  ) {
-    return 1;
-  }
-
-  return 0;
 }
 
 function resolveLifecycleFailureState(error: unknown): Extract<
@@ -1601,6 +1323,10 @@ async function recreateAcpSessionRuntime(
     broker,
     runtime,
     sessionId,
+    {
+      enforceStepBudgetIfNeeded,
+      syncTaskExecutionOutcome,
+    },
     options,
   );
   let muteUpdates = replayPrompt !== null;
@@ -1760,7 +1486,17 @@ async function ensureRuntimeLoaded(
     provider: session.provider,
     cwd: session.cwd ?? '',
     mcpServers: resolveLocalMcpServers(),
-    hooks: createRuntimeHooks(sqlite, broker, runtime, session.id, options),
+    hooks: createRuntimeHooks(
+      sqlite,
+      broker,
+      runtime,
+      session.id,
+      {
+        enforceStepBudgetIfNeeded,
+        syncTaskExecutionOutcome,
+      },
+      options,
+    ),
   });
 
   if (loaded.runtimeSessionId !== session.runtime_session_id) {
@@ -1979,7 +1715,17 @@ export async function createAcpSession(
       provider,
       cwd: workspaceBinding.cwd,
       mcpServers: resolveLocalMcpServers(),
-      hooks: createRuntimeHooks(sqlite, broker, runtime, sessionId, options),
+      hooks: createRuntimeHooks(
+        sqlite,
+        broker,
+        runtime,
+        sessionId,
+        {
+          enforceStepBudgetIfNeeded,
+          syncTaskExecutionOutcome,
+        },
+        options,
+      ),
     });
 
     updateSessionRuntime(sqlite, sessionId, {
@@ -2610,7 +2356,17 @@ export async function loadAcpSession(
       provider: session.provider,
       cwd: session.cwd ?? '',
       mcpServers: resolveLocalMcpServers(),
-      hooks: createRuntimeHooks(sqlite, broker, runtime, session.id, options),
+      hooks: createRuntimeHooks(
+        sqlite,
+        broker,
+        runtime,
+        session.id,
+        {
+          enforceStepBudgetIfNeeded,
+          syncTaskExecutionOutcome,
+        },
+        options,
+      ),
     });
 
     if (loaded.runtimeSessionId !== session.runtime_session_id) {
