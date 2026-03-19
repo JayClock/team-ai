@@ -40,6 +40,7 @@ export const VENDOR_MEDIA_TYPES = {
   settings: vendorMediaType('settings'),
   specialist: vendorMediaType('specialist'),
   specialists: vendorMediaType('specialists'),
+  specTaskSync: vendorMediaType('spec-task-sync'),
   syncConflict: vendorMediaType('sync-conflict'),
   syncConflicts: vendorMediaType('sync-conflicts'),
   syncStatus: vendorMediaType('sync-status'),

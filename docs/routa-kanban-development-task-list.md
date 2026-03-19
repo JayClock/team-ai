@@ -327,20 +327,21 @@
 
 开发任务：
 
-- [ ] 定义 `@@@task` block 唯一标识策略
-- [ ] 定义 block 更新如何映射到已有 task
-- [ ] 定义 block 删除如何处理旧 task
-- [ ] 定义 spec 中哪些字段映射到 task：title、objective、acceptanceCriteria、verification、owner、dependsOn
-- [ ] 输出 mapping 文档
+- [x] 定义 `@@@task` block 唯一标识策略
+- [x] 定义 block 更新如何映射到已有 task
+- [x] 定义 block 删除如何处理旧 task
+- [x] 定义 spec 中哪些字段映射到 task：title、objective、acceptanceCriteria、verification、owner、dependsOn
+- [x] 输出 mapping 文档
 
 涉及文件：
 
 - `apps/local-server/src/assets/flow-templates/routa-spec-loop.md`
 - 可新增 `docs/` 设计文档
+- `docs/routa-spec-task-sync-protocol.md`
 
 完成标准：
 
-- [ ] spec sync 行为不再靠隐式约定
+- [x] spec sync 行为不再靠隐式约定
 
 ### RK-M2-02 实现 spec sync service
 
@@ -350,13 +351,13 @@
 
 开发任务：
 
-- [ ] 读取 canonical spec note
-- [ ] 解析 `@@@task` blocks
-- [ ] 与现有 tasks 做 diff
-- [ ] 新 block 创建 task/card
-- [ ] 已有 block 更新 task/card
-- [ ] 删除 block 时归档或标记任务失效
-- [ ] 回写 source linkage 信息
+- [x] 读取 canonical spec note
+- [x] 解析 `@@@task` blocks
+- [x] 与现有 tasks 做 diff
+- [x] 新 block 创建 task/card
+- [x] 已有 block 更新 task/card
+- [x] 删除 block 时归档或标记任务失效
+- [x] 回写 source linkage 信息
 
 涉及文件：
 
@@ -365,7 +366,7 @@
 
 完成标准：
 
-- [ ] spec 与 cards 保持同步
+- [x] spec 与 cards 保持同步
 
 ### RK-M2-03 提供 spec sync 触发入口
 
@@ -375,10 +376,10 @@
 
 开发任务：
 
-- [ ] 增加手动 sync API
-- [ ] 在 spec pane 提供“同步到看板”按钮
-- [ ] 明确是否在 note 更新后自动触发 sync
-- [ ] 对 sync 结果返回新增、更新、归档统计
+- [x] 增加手动 sync API
+- [x] 在 spec pane 提供“同步到看板”按钮
+- [x] 明确是否在 note 更新后自动触发 sync
+- [x] 对 sync 结果返回新增、更新、归档统计
 
 涉及文件：
 
@@ -387,7 +388,7 @@
 
 完成标准：
 
-- [ ] 用户可以显式触发 spec -> card 同步
+- [x] 用户可以显式触发 spec -> card 同步
 
 ### RK-M2-04 补齐 Todo / Done / Blocked specialist
 
@@ -397,11 +398,11 @@
 
 开发任务：
 
-- [ ] 新增 Todo orchestrator specialist
-- [ ] 新增 Done reporter specialist
-- [ ] 新增 Blocked resolver specialist
-- [ ] 为每个 specialist 写清职责、边界、输出格式
-- [ ] 将默认列与 specialist 建立显式映射
+- [x] 新增 Todo orchestrator specialist
+- [x] 新增 Done reporter specialist
+- [x] 新增 Blocked resolver specialist
+- [x] 为每个 specialist 写清职责、边界、输出格式
+- [x] 将默认列与 specialist 建立显式映射
 
 涉及文件：
 
@@ -410,7 +411,7 @@
 
 完成标准：
 
-- [ ] 每一列都有明确 owner specialist
+- [x] 每一列都有明确 owner specialist
 
 ### RK-M2-05 改造列自动化为配置驱动
 
@@ -420,11 +421,11 @@
 
 开发任务：
 
-- [ ] 在 column automation 中显式存 provider / specialistId / role / requiredArtifacts
-- [ ] session 启动时优先读取列配置
-- [ ] 删除对列名的角色推断逻辑
-- [ ] Done 列支持自动 completion summary
-- [ ] Blocked 列支持 blocker triage 流转
+- [x] 在 column automation 中显式存 provider / specialistId / role / requiredArtifacts
+- [x] session 启动时优先读取列配置
+- [x] 删除对列名的角色推断逻辑
+- [x] Done 列支持自动 completion summary
+- [x] Blocked 列支持 blocker triage 流转
 
 涉及文件：
 
@@ -433,7 +434,7 @@
 
 完成标准：
 
-- [ ] 自动化行为由列配置决定
+- [x] 自动化行为由列配置决定
 
 ### RK-M2-06 打通卡片自动流转主链路
 
@@ -443,11 +444,11 @@
 
 开发任务：
 
-- [ ] Todo 进入可执行状态后自动推进到 Dev
-- [ ] Dev 成功后进入 Review
-- [ ] Review 通过后进入 Done
-- [ ] Review 不通过时回退 Dev 或进入 Blocked
-- [ ] 缺少 artifact 时进入 Blocked 或停留并给出明确说明
+- [x] Todo 进入可执行状态后自动推进到 Dev
+- [x] Dev 成功后进入 Review
+- [x] Review 通过后进入 Done
+- [x] Review 不通过时回退 Dev 或进入 Blocked
+- [x] 缺少 artifact 时进入 Blocked 或停留并给出明确说明
 
 涉及文件：
 
@@ -456,7 +457,7 @@
 
 完成标准：
 
-- [ ] 主链路行为可预测且可解释
+- [x] 主链路行为可预测且可解释
 
 ### RK-M2-07 在卡片详情中展示 explain 信息
 
@@ -466,11 +467,11 @@
 
 开发任务：
 
-- [ ] 输出 card explain payload
-- [ ] 展示当前列原因
-- [ ] 展示最新自动化结果
-- [ ] 展示 artifact gate 缺失项
-- [ ] 展示最近一次回退或阻塞原因
+- [x] 输出 card explain payload
+- [x] 展示当前列原因
+- [x] 展示最新自动化结果
+- [x] 展示 artifact gate 缺失项
+- [x] 展示最近一次回退或阻塞原因
 
 涉及文件：
 
@@ -479,7 +480,7 @@
 
 完成标准：
 
-- [ ] 用户能回答“为什么这张卡在这里”
+- [x] 用户能回答“为什么这张卡在这里”
 
 ### RK-M2-08 M2 测试补齐
 
@@ -489,15 +490,15 @@
 
 开发任务：
 
-- [ ] 补 spec sync 测试
-- [ ] 补 Todo -> Dev -> Review -> Done 测试
-- [ ] 补 Review fail -> Dev 回退测试
-- [ ] 补 artifact gate 阻塞测试
-- [ ] 补 specialist 配置驱动测试
+- [x] 补 spec sync 测试
+- [x] 补 Todo -> Dev -> Review -> Done 测试
+- [x] 补 Review fail -> Dev 回退测试
+- [x] 补 artifact gate 阻塞测试
+- [x] 补 specialist 配置驱动测试
 
 完成标准：
 
-- [ ] spec-first 主流程具备回归测试
+- [x] spec-first 主流程具备回归测试
 
 ---
 
@@ -718,13 +719,13 @@
 
 ### 批次 C
 
-- [ ] RK-M2-01
-- [ ] RK-M2-02
-- [ ] RK-M2-03
-- [ ] RK-M2-04
-- [ ] RK-M2-05
-- [ ] RK-M2-06
-- [ ] RK-M2-07
+- [x] RK-M2-01
+- [x] RK-M2-02
+- [x] RK-M2-03
+- [x] RK-M2-04
+- [x] RK-M2-05
+- [x] RK-M2-06
+- [x] RK-M2-07
 
 ### 批次 D
 

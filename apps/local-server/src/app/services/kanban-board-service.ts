@@ -11,8 +11,10 @@ import type {
 import { getProjectById } from './project-service';
 import {
   defaultTaskWorkflowColumns,
+  getTaskWorkflowColumnDefinition,
   resolveTaskWorkflowColumnStage,
 } from './task-workflow-service';
+import { evaluateTaskArtifactGate } from './task-artifact-gate-service';
 
 const boardIdGenerator = customAlphabet(
   '0123456789abcdefghijklmnopqrstuvwxyz',
@@ -41,9 +43,12 @@ interface BoardTaskRow {
   assigned_specialist_name: string | null;
   board_id: string | null;
   column_id: string | null;
+  completion_summary: string | null;
   execution_session_id: string | null;
   id: string;
   kind: 'plan' | 'implement' | 'review' | 'verify' | null;
+  lane_handoffs_json: string;
+  lane_sessions_json: string;
   last_sync_error: string | null;
   position: number | null;
   priority: string | null;
@@ -52,7 +57,32 @@ interface BoardTaskRow {
   title: string;
   trigger_session_id: string | null;
   updated_at: string;
+  verification_report: string | null;
   verification_verdict: string | null;
+}
+
+function parseAutomationJson(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? (parsed as Partial<KanbanColumnAutomationPayload>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseJsonArray<T>(value: string): T[] {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function createBoardId() {
@@ -71,46 +101,116 @@ function createDefaultColumnRows(boardId: string, now: string) {
   }));
 }
 
-function createDefaultColumnAutomation(
+function resolveColumnAutomation(
   columnId: string,
-): string | null {
-  let automation: KanbanColumnAutomationPayload | null = null;
+  automationJson: string | null,
+): KanbanColumnAutomationPayload | null {
+  const definition = getTaskWorkflowColumnDefinition(columnId);
+  const existing = parseAutomationJson(automationJson);
 
-  if (columnId === 'dev') {
-    automation = {
-      autoAdvanceOnSuccess: false,
-      enabled: true,
-      provider: null,
-      requiredArtifacts: [],
-      specialistId: null,
-      transitionType: 'entry',
-    };
-  }
-
-  if (columnId === 'review') {
-    automation = {
+  const defaultsByColumnId: Partial<Record<string, KanbanColumnAutomationPayload>> = {
+    blocked: {
       autoAdvanceOnSuccess: true,
       enabled: true,
       provider: null,
       requiredArtifacts: [],
-      specialistId: null,
+      role: definition?.recommendedRole ?? null,
+      specialistId: definition?.recommendedSpecialistId ?? null,
+      specialistName: definition?.recommendedSpecialistName ?? null,
       transitionType: 'entry',
-    };
+    },
+    dev: {
+      autoAdvanceOnSuccess: true,
+      enabled: true,
+      provider: null,
+      requiredArtifacts: [],
+      role: definition?.recommendedRole ?? null,
+      specialistId: definition?.recommendedSpecialistId ?? null,
+      specialistName: definition?.recommendedSpecialistName ?? null,
+      transitionType: 'entry',
+    },
+    done: {
+      autoAdvanceOnSuccess: false,
+      enabled: true,
+      provider: null,
+      requiredArtifacts: [],
+      role: definition?.recommendedRole ?? null,
+      specialistId: definition?.recommendedSpecialistId ?? null,
+      specialistName: definition?.recommendedSpecialistName ?? null,
+      transitionType: 'entry',
+    },
+    review: {
+      autoAdvanceOnSuccess: true,
+      enabled: true,
+      provider: null,
+      requiredArtifacts: [],
+      role: definition?.recommendedRole ?? null,
+      specialistId: definition?.recommendedSpecialistId ?? null,
+      specialistName: definition?.recommendedSpecialistName ?? null,
+      transitionType: 'entry',
+    },
+    todo: {
+      autoAdvanceOnSuccess: true,
+      enabled: true,
+      provider: null,
+      requiredArtifacts: [],
+      role: definition?.recommendedRole ?? null,
+      specialistId: definition?.recommendedSpecialistId ?? null,
+      specialistName: definition?.recommendedSpecialistName ?? null,
+      transitionType: 'entry',
+    },
+  };
+  const defaults = defaultsByColumnId[columnId];
+
+  if (!existing && !defaults) {
+    return null;
   }
 
+  return {
+    autoAdvanceOnSuccess:
+      existing?.autoAdvanceOnSuccess ?? defaults?.autoAdvanceOnSuccess ?? false,
+    enabled: existing?.enabled ?? defaults?.enabled ?? false,
+    provider: existing?.provider ?? defaults?.provider ?? null,
+    requiredArtifacts: Array.isArray(existing?.requiredArtifacts)
+      ? existing.requiredArtifacts
+      : defaults?.requiredArtifacts ?? [],
+    role: existing?.role ?? defaults?.role ?? null,
+    specialistId: existing?.specialistId ?? defaults?.specialistId ?? null,
+    specialistName:
+      existing?.specialistName ?? defaults?.specialistName ?? null,
+    transitionType: existing?.transitionType ?? defaults?.transitionType ?? 'entry',
+  };
+}
+
+function createDefaultColumnAutomation(
+  columnId: string,
+): string | null {
+  const automation = resolveColumnAutomation(columnId, null);
+  return automation ? JSON.stringify(automation) : null;
+}
+
+function normalizeColumnAutomationJson(
+  columnId: string,
+  automationJson: string | null,
+) {
+  const automation = resolveColumnAutomation(columnId, automationJson);
   return automation ? JSON.stringify(automation) : null;
 }
 
 function mapColumnRow(row: ColumnRow): KanbanColumnPayload {
+  const stage = resolveTaskWorkflowColumnStage(row.id, row.name);
+  const definition = stage ? getTaskWorkflowColumnDefinition(stage) : null;
+
   return {
-    automation: row.automation_json
-      ? (JSON.parse(row.automation_json) as KanbanColumnAutomationPayload)
-      : null,
+    automation: resolveColumnAutomation(stage ?? row.id, row.automation_json),
     boardId: row.board_id,
     id: row.id,
     name: row.name,
     position: row.position,
-    stage: resolveTaskWorkflowColumnStage(row.id, row.name),
+    recommendedRole: definition?.recommendedRole ?? null,
+    recommendedSpecialistId: definition?.recommendedSpecialistId ?? null,
+    recommendedSpecialistName: definition?.recommendedSpecialistName ?? null,
+    stage,
   };
 }
 
@@ -185,8 +285,12 @@ function listBoardTaskRows(
           trigger_session_id,
           execution_session_id,
           result_session_id,
+          completion_summary,
           last_sync_error,
+          verification_report,
           verification_verdict,
+          lane_sessions_json,
+          lane_handoffs_json,
           updated_at
         FROM project_tasks
         WHERE project_id = ? AND board_id = ? AND deleted_at IS NULL
@@ -201,6 +305,7 @@ function mapBoardTaskRow(row: BoardTaskRow): KanbanCardSummaryPayload {
     assignedSpecialistName: row.assigned_specialist_name,
     boardId: row.board_id,
     columnId: row.column_id,
+    explain: null,
     executionSessionId: row.execution_session_id,
     id: row.id,
     kind: row.kind,
@@ -213,6 +318,70 @@ function mapBoardTaskRow(row: BoardTaskRow): KanbanCardSummaryPayload {
     triggerSessionId: row.trigger_session_id,
     updatedAt: row.updated_at,
     verificationVerdict: row.verification_verdict,
+  };
+}
+
+function buildExplainPayload(
+  row: BoardTaskRow,
+  column: KanbanColumnPayload | undefined,
+) {
+  if (!column) {
+    return null;
+  }
+
+  const artifactGate = evaluateTaskArtifactGate(
+    {
+      completionSummary: row.completion_summary,
+      laneHandoffs: parseJsonArray(row.lane_handoffs_json),
+      laneSessions: parseJsonArray(row.lane_sessions_json),
+      lastSyncError: row.last_sync_error,
+      resultSessionId: row.result_session_id,
+      status: row.status,
+      title: row.title,
+      triggerSessionId: row.trigger_session_id,
+      verificationReport: row.verification_report,
+      verificationVerdict: row.verification_verdict,
+    } as Parameters<typeof evaluateTaskArtifactGate>[0],
+    column,
+    row.trigger_session_id ?? row.result_session_id,
+  );
+  const handoffs = parseJsonArray<{
+    responseSummary?: string;
+    status: string;
+  }>(row.lane_handoffs_json);
+  const latestHandoff = [...handoffs]
+    .reverse()
+    .find((handoff) => Boolean(handoff.responseSummary));
+  const currentColumnReason = row.last_sync_error
+    ? row.last_sync_error
+    : row.trigger_session_id
+      ? `Automation is currently running in ${column.name}.`
+      : row.verification_verdict === 'fail'
+        ? 'The latest review reported changes required before this card can move forward.'
+        : row.status === 'WAITING_RETRY'
+          ? 'This card is blocked and waiting for retry or intervention.'
+          : column.stage === 'done'
+            ? 'The card completed its workflow and is waiting for final summary output.'
+            : `This card is currently staged in ${column.name}.`;
+  const latestAutomationResult = row.trigger_session_id
+    ? 'Automation session in progress'
+    : row.verification_verdict === 'fail'
+      ? 'Review failed'
+      : row.verification_verdict === 'pass'
+        ? 'Review passed'
+        : row.result_session_id
+          ? 'Automation session completed'
+          : null;
+
+  return {
+    currentColumnReason,
+    latestAutomationResult,
+    missingArtifacts: artifactGate.missingArtifacts,
+    recentTransitionReason:
+      latestHandoff?.responseSummary ??
+      row.verification_report ??
+      row.completion_summary ??
+      null,
   };
 }
 
@@ -233,8 +402,11 @@ function compareKanbanCards(
 function attachCardsToColumns(
   columns: KanbanColumnPayload[],
   cards: KanbanCardSummaryPayload[],
+  rows: BoardTaskRow[],
 ) {
   const cardsByColumnId = new Map<string, KanbanCardSummaryPayload[]>();
+  const columnById = new Map(columns.map((column) => [column.id, column]));
+  const rowByTaskId = new Map(rows.map((row) => [row.id, row]));
 
   for (const card of cards) {
     if (!card.columnId) {
@@ -242,7 +414,16 @@ function attachCardsToColumns(
     }
 
     const existing = cardsByColumnId.get(card.columnId) ?? [];
-    existing.push(card);
+    existing.push({
+      ...card,
+      explain:
+        (rowByTaskId.get(card.id) &&
+          buildExplainPayload(
+            rowByTaskId.get(card.id)!,
+            columnById.get(card.columnId),
+          )) ??
+        null,
+    });
     cardsByColumnId.set(card.columnId, existing);
   }
 
@@ -276,7 +457,11 @@ function reconcileDefaultBoardColumns(
   const updateColumn = sqlite.prepare(
     `
       UPDATE project_kanban_columns
-      SET name = @name, position = @position, updated_at = @updatedAt
+      SET
+        name = @name,
+        position = @position,
+        automation_json = @automationJson,
+        updated_at = @updatedAt
       WHERE id = @id
     `,
   );
@@ -299,9 +484,15 @@ function reconcileDefaultBoardColumns(
 
       if (
         row.name !== definition.name ||
-        row.position !== position
+        row.position !== position ||
+        row.automation_json !==
+          normalizeColumnAutomationJson(definition.id, row.automation_json)
       ) {
         updateColumn.run({
+          automationJson: normalizeColumnAutomationJson(
+            definition.id,
+            row.automation_json,
+          ),
           id: row.id,
           name: definition.name,
           position,
@@ -424,7 +615,8 @@ export async function getProjectKanbanBoardById(
   }
 
   const columns = reconcileDefaultBoardColumns(sqlite, row);
-  const cards = listBoardTaskRows(sqlite, projectId, row.id).map(mapBoardTaskRow);
+  const cardRows = listBoardTaskRows(sqlite, projectId, row.id);
+  const cards = cardRows.map(mapBoardTaskRow);
 
-  return mapBoardRow(row, attachCardsToColumns(columns, cards));
+  return mapBoardRow(row, attachCardsToColumns(columns, cards, cardRows));
 }

@@ -78,32 +78,43 @@ function deriveRoleForColumn(
   column: KanbanColumnPayload,
   task: TaskPayload,
 ): string | null {
-  if (task.assignedRole) {
-    return task.assignedRole;
-  }
+  return (
+    column.automation?.role ??
+    column.recommendedRole ??
+    task.assignedRole
+  );
+}
 
-  if (column.stage === 'review' || column.stage === 'done') {
-    return 'GATE';
-  }
+function deriveSpecialistIdForColumn(
+  column: KanbanColumnPayload,
+  task: TaskPayload,
+) {
+  return (
+    column.automation?.specialistId ??
+    column.recommendedSpecialistId ??
+    task.assignedSpecialistId
+  );
+}
 
-  if (column.stage === 'dev' || column.stage === 'todo') {
-    return 'CRAFTER';
-  }
-
-  if (column.stage === 'backlog' || column.stage === 'blocked') {
-    return 'ROUTA';
-  }
-
-  return task.assignedRole;
+function deriveSpecialistNameForColumn(
+  column: KanbanColumnPayload,
+  task: TaskPayload,
+) {
+  return (
+    column.automation?.specialistName ??
+    column.recommendedSpecialistName ??
+    task.assignedSpecialistName
+  );
 }
 
 function requiresTaskWorktree(column: KanbanColumnPayload) {
   return column.stage === 'dev';
 }
 
-function resolveNextForwardColumn(
+function resolveColumnAfterSuccessfulAutomation(
   columns: KanbanColumnPayload[],
   currentColumnId: string,
+  task: TaskPayload,
 ) {
   const currentColumn = columns.find((column) => column.id === currentColumnId);
   const orderedStages: Array<KanbanColumnPayload['stage']> = [
@@ -116,6 +127,19 @@ function resolveNextForwardColumn(
 
   if (!currentColumn?.stage) {
     return null;
+  }
+
+  if (currentColumn.stage === 'blocked') {
+    const previousActiveLane = [...task.laneSessions]
+      .reverse()
+      .find((entry) => entry.columnId && entry.columnId !== currentColumnId);
+    if (previousActiveLane?.columnId) {
+      return (
+        columns.find((column) => column.id === previousActiveLane.columnId) ?? null
+      );
+    }
+
+    return columns.find((column) => column.stage === 'todo') ?? null;
   }
 
   const currentStageIndex = orderedStages.indexOf(currentColumn.stage);
@@ -148,6 +172,8 @@ async function prepareTaskForColumnAutomation(
   logger?: DiagnosticLogger,
 ) {
   const patch: Parameters<typeof updateTask>[2] = {
+    assignedSpecialistId: deriveSpecialistIdForColumn(column, task),
+    assignedSpecialistName: deriveSpecialistNameForColumn(column, task),
     assignedRole: deriveRoleForColumn(column, task),
     boardId: column.boardId,
     columnId: column.id,
@@ -164,6 +190,8 @@ async function prepareTaskForColumnAutomation(
 
   const preparedTask =
     patch.assignedRole !== task.assignedRole ||
+    patch.assignedSpecialistId !== task.assignedSpecialistId ||
+    patch.assignedSpecialistName !== task.assignedSpecialistName ||
     patch.status !== task.status ||
     patch.codebaseId !== undefined
       ? await updateTask(sqlite, task.id, patch)
@@ -327,8 +355,42 @@ export function createKanbanWorkflowOrchestrator(
     const currentColumn = orderedColumns.find(
       (column) => column.id === automation.columnId,
     );
-    const nextColumn = resolveNextForwardColumn(orderedColumns, automation.columnId);
+    const nextColumn = resolveColumnAfterSuccessfulAutomation(
+      orderedColumns,
+      automation.columnId,
+      task,
+    );
     if (!currentColumn || !nextColumn) {
+      return;
+    }
+
+    if (currentColumn.stage === 'review' && task.verificationVerdict === 'fail') {
+      const fallbackColumn =
+        orderedColumns.find((column) => column.stage === 'dev') ??
+        orderedColumns.find((column) => column.stage === 'blocked');
+      if (!fallbackColumn) {
+        return;
+      }
+
+      const failedTask = await updateTask(input.sqlite, automation.taskId, {
+        boardId: board.id,
+        columnId: fallbackColumn.id,
+        lastSyncError:
+          task.verificationReport ??
+          task.lastSyncError ??
+          'Review reported changes required.',
+        status: deriveStatusForColumn(fallbackColumn, task),
+      });
+
+      await input.events.emit({
+        boardId: board.id,
+        fromColumnId: automation.columnId,
+        projectId: automation.projectId,
+        taskId: failedTask.id,
+        taskTitle: failedTask.title,
+        toColumnId: fallbackColumn.id,
+        type: 'task.column-transition',
+      });
       return;
     }
 

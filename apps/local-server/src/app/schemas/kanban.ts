@@ -13,8 +13,17 @@ export interface KanbanColumnAutomationPayload {
   enabled: boolean;
   provider: string | null;
   requiredArtifacts: string[];
+  role: string | null;
+  specialistName: string | null;
   specialistId: string | null;
   transitionType: 'both' | 'entry' | 'exit';
+}
+
+export interface KanbanCardExplainPayload {
+  currentColumnReason: string;
+  latestAutomationResult: string | null;
+  missingArtifacts: string[];
+  recentTransitionReason: string | null;
 }
 
 export interface KanbanCardSummaryPayload {
@@ -26,6 +35,7 @@ export interface KanbanCardSummaryPayload {
   id: string;
   kind: TaskKind | null;
   lastSyncError: string | null;
+  explain: KanbanCardExplainPayload | null;
   position: number | null;
   priority: string | null;
   resultSessionId: string | null;
@@ -43,6 +53,9 @@ export interface KanbanColumnPayload {
   id: string;
   name: string;
   position: number;
+  recommendedRole: string | null;
+  recommendedSpecialistId: string | null;
+  recommendedSpecialistName: string | null;
   stage: KanbanColumnStage | null;
 }
 

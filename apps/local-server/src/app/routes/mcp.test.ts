@@ -1258,6 +1258,12 @@ Validation and review logic
         sessionId: rootSessionId,
         type: 'spec',
       },
+      sync: {
+        archivedTaskIds: [],
+        createdTaskIds: [],
+        parsedTaskCount: 2,
+        updatedTaskIds: expect.any(Array),
+      },
     });
 
     const syncedTasks = await listTasks(fastify.sqlite, {
@@ -1267,7 +1273,29 @@ Validation and review logic
       sessionId: rootSessionId,
     });
 
-    expect(syncedTasks.total).toBe(0);
+    expect(syncedTasks.total).toBe(2);
+    expect(syncedTasks.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceEntryIndex: 0,
+          sourceEventId: firstPayload.note.id,
+          sourceType: 'spec_note',
+          title: 'Implement canonical spec sync',
+          verificationCommands: [
+            'npx vitest run apps/local-server/src/app/routes/mcp.test.ts',
+          ],
+        }),
+        expect.objectContaining({
+          sourceEntryIndex: 1,
+          sourceEventId: firstPayload.note.id,
+          sourceType: 'spec_note',
+          title: 'Review spec sync',
+          verificationCommands: [
+            'npx vitest run apps/local-server/src/app/routes/notes.test.ts',
+          ],
+        }),
+      ]),
+    );
   });
 
   it('delegates a task to a downstream specialist via MCP', async () => {

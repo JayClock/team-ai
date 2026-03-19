@@ -104,30 +104,31 @@
 
 ### 5. 打通 Spec / 用户意图 -> cards sync
 
-- [ ] 明确 canonical spec 中 `@@@task` block 与 task/card 的映射规则
-- [ ] 提供 `spec sync` 能力：新增 block 创建卡片、更新 block 更新卡片、删除 block 标记卡片失效或归档
-- [ ] 保留 `sourceType=spec_note` 与 `sourceEntryIndex` 作为追踪依据
-- [ ] 避免“spec 有任务块但 board 上没有卡片”与“board 有卡片但 spec 已删除”的漂移
-- [ ] 在 UI 中提供显式 sync 入口或自动 sync 策略
+- [x] 明确 canonical spec 中 `@@@task` block 与 task/card 的映射规则
+- [x] 提供 `spec sync` 能力：新增 block 创建卡片、更新 block 更新卡片、删除 block 标记卡片失效或归档
+- [x] 保留 `sourceType=spec_note` 与 `sourceEntryIndex` 作为追踪依据
+- [x] 避免“spec 有任务块但 board 上没有卡片”与“board 有卡片但 spec 已删除”的漂移
+- [x] 在 UI 中提供显式 sync 入口或自动 sync 策略
 
 涉及文件：
 
 - `apps/local-server/src/assets/flow-templates/routa-spec-loop.md`
 - `apps/local-server/src/app/services/task-service.ts`
 - `libs/frontend/features/projects/src/lib/session/project-session-spec-pane.tsx`
+- `docs/routa-spec-task-sync-protocol.md`
 
 验收标准：
 
-- [ ] 更新 spec 后，可稳定生成或更新对应卡片
-- [ ] 用户能看到 spec block 与 board card 的一一对应关系
+- [x] 更新 spec 后，可稳定生成或更新对应卡片
+- [x] 用户能看到 spec block 与 board card 的一一对应关系
 
 ### 6. 补齐列角色闭环
 
-- [ ] 为 `Todo` 明确 orchestrator specialist，避免现在只靠 coordinator/crafter 隐式承担
-- [ ] 为 `Done` 明确 reporter specialist 或 done summarizer 职责
-- [ ] 为 `Blocked` 明确 blocker triage / resolver specialist
-- [ ] 为每列定义默认 prompt 模板，而不是只靠 `Dev` / `Review` 特判
-- [ ] 将 specialist 绑定写入 board column automation 或等价配置中
+- [x] 为 `Todo` 明确 orchestrator specialist，避免现在只靠 coordinator/crafter 隐式承担
+- [x] 为 `Done` 明确 reporter specialist 或 done summarizer 职责
+- [x] 为 `Blocked` 明确 blocker triage / resolver specialist
+- [x] 为每列定义默认 prompt 模板，而不是只靠 `Dev` / `Review` 特判
+- [x] 将 specialist 绑定写入 board column automation 或等价配置中
 
 涉及文件：
 
@@ -137,8 +138,8 @@
 
 验收标准：
 
-- [ ] 每一列都有明确 owner role
-- [ ] 自动化启动 session 时，不需要靠列名字符串猜角色
+- [x] 每一列都有明确 owner role
+- [x] 自动化启动 session 时，不需要靠列名字符串猜角色
 
 ### 7. 扩展 Kanban MCP tools
 

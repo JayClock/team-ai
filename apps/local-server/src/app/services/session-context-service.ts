@@ -16,7 +16,10 @@ import type {
 import { getAcpSessionById } from './acp-service';
 import { getProjectWorktreeById } from './project-worktree-service';
 import { listTasks } from './task-service';
-import { resolveTaskWorkflowColumnStage } from './task-workflow-service';
+import {
+  getTaskWorkflowColumnDefinition,
+  resolveTaskWorkflowColumnStage,
+} from './task-workflow-service';
 
 interface BoardRow {
   id: string;
@@ -88,13 +91,19 @@ function findTaskForSession(tasks: TaskPayload[], sessionId: string) {
 }
 
 function mapColumnRow(row: ColumnRow): KanbanColumnPayload {
+  const stage = resolveTaskWorkflowColumnStage(row.id, row.name);
+  const definition = stage ? getTaskWorkflowColumnDefinition(stage) : null;
+
   return {
     automation: null,
     boardId: row.board_id,
     id: row.id,
     name: row.name,
     position: row.position,
-    stage: resolveTaskWorkflowColumnStage(row.id, row.name),
+    recommendedRole: definition?.recommendedRole ?? null,
+    recommendedSpecialistId: definition?.recommendedSpecialistId ?? null,
+    recommendedSpecialistName: definition?.recommendedSpecialistName ?? null,
+    stage,
   };
 }
 

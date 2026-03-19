@@ -1,11 +1,26 @@
 import type { State } from '@hateoas-ts/resource';
 import type { AcpSession, Note } from '@shared/schema';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProjectSessionSpecPane } from './project-session-spec-pane';
 import type { TaskPanelItem } from './project-session-workbench.shared';
 
+const runtimeFetchMock = vi.fn();
+
+vi.mock('@shared/util-http', () => ({
+  runtimeFetch: (...args: Parameters<typeof runtimeFetchMock>) =>
+    runtimeFetchMock(...args),
+}));
+
 describe('ProjectSessionSpecPane', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  beforeEach(() => {
+    runtimeFetchMock.mockReset();
+  });
+
   it('renders spec content and spec-linked task lineage', () => {
     render(
       <ProjectSessionSpecPane
@@ -51,6 +66,54 @@ describe('ProjectSessionSpecPane', () => {
 
     expect(screen.getByText('未创建 Spec')).toBeTruthy();
     expect(screen.getByText('暂无关联任务')).toBeTruthy();
+  });
+
+  it('posts a manual spec sync request and refreshes linked tasks', async () => {
+    runtimeFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          archivedCount: 0,
+          createdCount: 1,
+          updatedCount: 2,
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          status: 200,
+        },
+      ),
+    );
+    const onSyncComplete = vi.fn(async () => undefined);
+
+    render(
+      <ProjectSessionSpecPane
+        note={createNoteState()}
+        onSyncComplete={onSyncComplete}
+        scopeSessionLabel="Root Session"
+        selectedSession={createSessionState()}
+        tasksLoading={false}
+        taskItems={[]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '同步到看板' }));
+
+    await waitFor(() => {
+      expect(runtimeFetchMock).toHaveBeenCalledWith(
+        '/api/projects/project-1/spec/sync',
+        expect.objectContaining({
+          body: JSON.stringify({
+            noteId: 'note_spec_1',
+            sessionId: 'acps_root',
+          }),
+          method: 'POST',
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(onSyncComplete).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

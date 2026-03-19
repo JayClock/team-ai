@@ -83,12 +83,21 @@ describe('ProjectKanbanPage', () => {
               id: 'board-1_backlog',
               name: 'Backlog',
               position: 0,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'routa-coordinator',
+              recommendedSpecialistName: 'Routa Coordinator',
               stage: 'backlog',
             },
             {
               automation: {
                 autoAdvanceOnSuccess: false,
                 enabled: true,
+                provider: null,
+                requiredArtifacts: [],
+                role: 'ROUTA',
+                specialistId: 'todo-orchestrator',
+                specialistName: 'Todo Orchestrator',
+                transitionType: 'entry',
               },
               cards: [
                 {
@@ -96,6 +105,12 @@ describe('ProjectKanbanPage', () => {
                   assignedSpecialistName: 'Crafter Implementor',
                   columnId: 'board-1_todo',
                   executionSessionId: null,
+                  explain: {
+                    currentColumnReason: 'Automation is currently running in Todo.',
+                    latestAutomationResult: 'Automation session in progress',
+                    missingArtifacts: ['local URL'],
+                    recentTransitionReason: 'Waiting for the next implementation slice.',
+                  },
                   id: 'task-1',
                   kind: 'implement',
                   lastSyncError: null,
@@ -112,6 +127,9 @@ describe('ProjectKanbanPage', () => {
               id: 'board-1_todo',
               name: 'Todo',
               position: 1,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'todo-orchestrator',
+              recommendedSpecialistName: 'Todo Orchestrator',
               stage: 'todo',
             },
           ],
@@ -135,6 +153,9 @@ describe('ProjectKanbanPage', () => {
     expect(screen.getByText('Backlog')).toBeTruthy();
     expect(screen.getByText('Todo')).toBeTruthy();
     expect((await screen.findAllByText('Crafter Implementor')).length).toBe(2);
+    expect(screen.getByText('Why Here')).toBeTruthy();
+    expect(screen.getByText('Automation is currently running in Todo.')).toBeTruthy();
+    expect(screen.getByText('local URL')).toBeTruthy();
   });
 
   it('sends a move request from the card menu', async () => {
@@ -158,6 +179,7 @@ describe('ProjectKanbanPage', () => {
                   assignedSpecialistName: 'Crafter Implementor',
                   columnId: 'board-1_todo',
                   executionSessionId: null,
+                  explain: null,
                   id: 'task-1',
                   kind: 'implement',
                   lastSyncError: null,
@@ -174,6 +196,9 @@ describe('ProjectKanbanPage', () => {
               id: 'board-1_todo',
               name: 'Todo',
               position: 0,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'todo-orchestrator',
+              recommendedSpecialistName: 'Todo Orchestrator',
               stage: 'todo',
             },
             {
@@ -182,6 +207,9 @@ describe('ProjectKanbanPage', () => {
               id: 'board-1_blocked',
               name: 'Blocked',
               position: 1,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'blocked-resolver',
+              recommendedSpecialistName: 'Blocked Resolver',
               stage: 'blocked',
             },
           ],

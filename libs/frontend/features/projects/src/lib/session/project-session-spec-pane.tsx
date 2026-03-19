@@ -1,11 +1,15 @@
 import type { State } from '@hateoas-ts/resource';
 import type { AcpSession, Note } from '@shared/schema';
 import {
+  Button,
   Card,
   CardContent,
   ScrollArea,
+  toast,
 } from '@shared/ui';
+import { runtimeFetch } from '@shared/util-http';
 import { ScrollTextIcon } from 'lucide-react';
+import { useState } from 'react';
 import {
   formatDateTime,
   formatTaskKindLabel,
@@ -16,6 +20,7 @@ import {
 
 export function ProjectSessionSpecPane(props: {
   note: State<Note> | null;
+  onSyncComplete?: () => Promise<void> | void;
   selectedSession: State<AcpSession> | null;
   scopeSessionLabel: string | null;
   tasksLoading: boolean;
@@ -23,12 +28,55 @@ export function ProjectSessionSpecPane(props: {
 }) {
   const {
     note,
+    onSyncComplete,
     selectedSession,
     scopeSessionLabel,
     tasksLoading,
     taskItems,
   } = props;
   const specTasks = taskItems.filter((item) => item.sourceType === 'spec_note');
+  const [syncPending, setSyncPending] = useState(false);
+
+  async function handleSyncSpec() {
+    const projectId = note?.data.projectId ?? selectedSession?.data.project.id;
+    if (!projectId) {
+      toast.error('无法确定当前项目，暂时不能同步 Spec。');
+      return;
+    }
+
+    setSyncPending(true);
+
+    try {
+      const response = await runtimeFetch(`/api/projects/${projectId}/spec/sync`, {
+        body: JSON.stringify({
+          noteId: note?.data.id,
+          sessionId: selectedSession?.data.id,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      });
+      if (!response.ok) {
+        throw new Error(`同步失败: ${response.status}`);
+      }
+
+      const payload = (await response.json()) as {
+        archivedCount: number;
+        createdCount: number;
+        updatedCount: number;
+      };
+      toast.success(
+        `已同步到看板：新增 ${payload.createdCount}，更新 ${payload.updatedCount}，归档 ${payload.archivedCount}`,
+      );
+      await onSyncComplete?.();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '同步 Spec 失败';
+      toast.error(message);
+    } finally {
+      setSyncPending(false);
+    }
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -89,19 +137,29 @@ export function ProjectSessionSpecPane(props: {
                 <div>
                   <div className="text-sm font-semibold">Spec 派生任务</div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    展示当前仍然挂在 spec 上的任务来源、类型和会话挂接，便于核对历史上下文。
+                    展示当前由 canonical spec 同步出来的卡片来源、类型和会话挂接，便于核对历史上下文。
                   </p>
                 </div>
-                <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
-                  {tasksLoading ? '加载中' : `${specTasks.length} 个任务`}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-border/60 bg-muted/30 px-2 py-1 text-[11px] text-muted-foreground">
+                    {tasksLoading ? '加载中' : `${specTasks.length} 个任务`}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={syncPending || !note}
+                    onClick={() => void handleSyncSpec()}
+                  >
+                    {syncPending ? '同步中...' : '同步到看板'}
+                  </Button>
+                </div>
               </div>
 
               {tasksLoading ? (
                 <div className="text-sm text-muted-foreground">正在加载任务...</div>
               ) : specTasks.length === 0 ? (
                 <EmptyState
-                  description="当前没有与 spec note 直接关联的任务。新的任务编排不再由 spec 自动物化。"
+                  description="当前没有与 spec note 直接关联的任务。点击“同步到看板”后，@@@task blocks 会物化成真实卡片。"
                   title="暂无关联任务"
                 />
               ) : (

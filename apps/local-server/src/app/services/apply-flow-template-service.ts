@@ -11,6 +11,7 @@ import {
   getFlowTemplateById,
   renderFlowTemplate,
 } from './flow-template-service';
+import { syncSpecTasks } from './spec-task-sync-service';
 import { getAcpSessionById } from './acp-service';
 import { getProjectById } from './project-service';
 
@@ -113,9 +114,20 @@ export async function applyFlowTemplate(
     note: savedNote,
     type: note ? 'updated' : 'created',
   });
+
+  const sync =
+    savedNote.type === 'spec'
+      ? await syncSpecTasks(sqlite, {
+          noteId: savedNote.id,
+          projectId: savedNote.projectId,
+          sessionId: savedNote.sessionId,
+        })
+      : null;
+
   return {
     appliedTemplate: template,
     note: savedNote,
     noteEvent,
+    sync,
   };
 }

@@ -18,10 +18,11 @@ noteType: spec
 # Implement scoped delivery slice
 Deliver the implementation change for the current scope in the first implementation wave.
 
-## Inputs
-- Wave: 1
-- Depends on: The current spec note and its synced task blocks
-- Verification owner: GATE
+## Owner
+Crafter Implementor
+
+## Depends On
+- The current spec note and its synced task blocks
 
 ## Scope
 List the concrete files, modules, or surfaces that must change.
@@ -38,10 +39,11 @@ List the concrete files, modules, or surfaces that must change.
 # Review the delivery slice
 Validate the completed implementation wave and record a pass or fail verdict.
 
-## Inputs
-- Wave: 2
-- Depends on: Implement scoped delivery slice
-- Verification owner: GATE
+## Owner
+Gate Reviewer
+
+## Depends On
+- Implement scoped delivery slice
 
 ## Scope
 Review the completed implementation and its verification evidence.
@@ -71,3 +73,9 @@ Review the completed implementation and its verification evidence.
 - Report completion
 - Delegate review
 - Record pass or fail
+
+## Sync Protocol
+- Each `@@@task` block is mapped by `sourceType=spec_note + sourceEventId=<canonical note id> + sourceEntryIndex=<block order>`.
+- Editing an existing block updates the linked task in place.
+- Removing a block archives the linked task so the board does not drift from the canonical spec.
+- Supported task sections: `Owner`, `Depends On`, `Scope`, `Definition of Done`, `Acceptance Criteria`, `Verification`.

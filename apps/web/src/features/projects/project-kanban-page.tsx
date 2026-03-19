@@ -47,11 +47,20 @@ interface KanbanColumn {
   automation: {
     autoAdvanceOnSuccess: boolean;
     enabled: boolean;
+    provider: string | null;
+    requiredArtifacts: string[];
+    role: string | null;
+    specialistId: string | null;
+    specialistName: string | null;
+    transitionType: 'both' | 'entry' | 'exit';
   } | null;
   cards?: KanbanCard[];
   id: string;
   name: string;
   position: number;
+  recommendedRole: string | null;
+  recommendedSpecialistId: string | null;
+  recommendedSpecialistName: string | null;
   stage: string | null;
 }
 
@@ -60,6 +69,12 @@ interface KanbanCard {
   assignedSpecialistName: string | null;
   columnId: string | null;
   executionSessionId: string | null;
+  explain: {
+    currentColumnReason: string;
+    latestAutomationResult: string | null;
+    missingArtifacts: string[];
+    recentTransitionReason: string | null;
+  } | null;
   id: string;
   kind: string | null;
   lastSyncError: string | null;
@@ -497,6 +512,13 @@ export default function ProjectKanbanPage() {
                     value={formatDateTime(selectedCard.updatedAt)}
                   />
                   <DetailRow
+                    label="Automation"
+                    value={
+                      selectedCard.explain?.latestAutomationResult ??
+                      'No recent automation summary'
+                    }
+                  />
+                  <DetailRow
                     label="Position"
                     value={
                       selectedCard.position === null
@@ -516,6 +538,48 @@ export default function ProjectKanbanPage() {
                     label="Trigger"
                     value={selectedCard.triggerSessionId ?? 'None'}
                   />
+
+                  {selectedCard.explain ? (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                            Why Here
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-foreground">
+                            {selectedCard.explain.currentColumnReason}
+                          </p>
+                        </div>
+
+                        {selectedCard.explain.missingArtifacts.length > 0 ? (
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                              Missing Artifacts
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {selectedCard.explain.missingArtifacts.map((artifact) => (
+                                <Badge key={artifact} variant="outline">
+                                  {artifact}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {selectedCard.explain.recentTransitionReason ? (
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                              Recent Context
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-foreground">
+                              {selectedCard.explain.recentTransitionReason}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  ) : null}
 
                   {selectedCard.lastSyncError ? (
                     <>

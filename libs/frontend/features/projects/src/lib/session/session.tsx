@@ -1402,6 +1402,7 @@ export function ShellsSession(props: ShellsSessionProps) {
   const specPane = (
     <ProjectSessionSpecPane
       note={specNote}
+      onSyncComplete={refreshTaskItems}
       scopeSessionLabel={scopeSessionLabel}
       selectedSession={selectedSession}
       tasksLoading={tasksLoading}

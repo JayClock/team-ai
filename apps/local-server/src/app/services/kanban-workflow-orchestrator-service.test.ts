@@ -93,6 +93,7 @@ describe('kanban workflow orchestrator service', () => {
     const board = await ensureDefaultKanbanBoard(sqlite, project.id);
     const todoColumn = board.columns.find((column) => column.name === 'Todo');
     const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const doneColumn = board.columns.find((column) => column.name === 'Done');
     const firstTask = await createTask(sqlite, {
       boardId: board.id,
       columnId: todoColumn?.id ?? null,
@@ -178,7 +179,12 @@ describe('kanban workflow orchestrator service', () => {
         taskId: secondTask.id,
       }),
     ]);
-    expect(orchestrator.getQueuedAutomations()).toEqual([]);
+    expect(orchestrator.getQueuedAutomations()).toEqual([
+      expect.objectContaining({
+        columnId: doneColumn?.id,
+        taskId: firstTask.id,
+      }),
+    ]);
 
     orchestrator.stop();
   });
@@ -236,6 +242,77 @@ describe('kanban workflow orchestrator service', () => {
     });
     expect(preparedTask.worktreeId).toMatch(/^wt_/);
     expect(startTaskSession).toHaveBeenCalledTimes(1);
+
+    orchestrator.stop();
+  });
+
+  it('assigns Todo automation from explicit column configuration and advances to Dev on success', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Todo Automation',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const backlogColumn = board.columns.find((column) => column.name === 'Backlog');
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: backlogColumn?.id ?? null,
+      objective: 'Route planning work through the Todo lane before implementation',
+      projectId: project.id,
+      title: 'Todo automation task',
+    });
+
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_todo_automation',
+    }));
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession,
+      },
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await updateTask(sqlite, task.id, {
+      columnId: todoColumn?.id ?? null,
+      status: 'PENDING',
+    });
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: backlogColumn?.id ?? null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: todoColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+
+    const queuedTodoTask = await getTaskById(sqlite, task.id);
+    expect(queuedTodoTask).toMatchObject({
+      assignedRole: 'ROUTA',
+      assignedSpecialistId: 'todo-orchestrator',
+      assignedSpecialistName: 'Todo Orchestrator',
+      columnId: todoColumn?.id,
+      status: 'PENDING',
+    });
+    expect(startTaskSession).toHaveBeenCalledTimes(1);
+
+    await events.emit({
+      projectId: project.id,
+      sessionId: 'acps_todo_automation',
+      success: true,
+      taskId: task.id,
+      type: 'task.session-completed',
+    });
+
+    const advancedTask = await getTaskById(sqlite, task.id);
+    expect(advancedTask).toMatchObject({
+      columnId: devColumn?.id,
+      status: 'READY',
+    });
 
     orchestrator.stop();
   });
@@ -355,7 +432,75 @@ describe('kanban workflow orchestrator service', () => {
       columnId: doneColumn?.id,
       status: 'COMPLETED',
     });
-    expect(orchestrator.getActiveAutomations()).toEqual([]);
+    expect(orchestrator.getActiveAutomations()).toEqual([
+      expect.objectContaining({
+        columnId: doneColumn?.id,
+        sessionId: 'acps_review_lane',
+        taskId: task.id,
+      }),
+    ]);
+
+    orchestrator.stop();
+  });
+
+  it('routes failed review automation back to Dev with the review summary attached', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Review Fallback',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: reviewColumn?.id ?? null,
+      objective: 'Send failed review work back to implementation with context',
+      projectId: project.id,
+      title: 'Review fallback task',
+      verificationReport: 'Tests failed on the regression path.',
+      verificationVerdict: 'fail',
+    });
+
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_review_failed',
+    }));
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession,
+      },
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await updateTask(sqlite, task.id, {
+      columnId: reviewColumn?.id ?? null,
+    });
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: devColumn?.id ?? null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: reviewColumn?.id ?? '',
+      type: 'task.column-transition',
+    });
+
+    await events.emit({
+      projectId: project.id,
+      sessionId: 'acps_review_failed',
+      success: true,
+      taskId: task.id,
+      type: 'task.session-completed',
+    });
+
+    const failedTask = await getTaskById(sqlite, task.id);
+    expect(failedTask).toMatchObject({
+      columnId: devColumn?.id,
+      lastSyncError: 'Tests failed on the regression path.',
+      status: 'READY',
+    });
 
     orchestrator.stop();
   });
@@ -575,7 +720,13 @@ describe('kanban workflow orchestrator service', () => {
       columnId: doneColumn?.id,
       status: 'COMPLETED',
     });
-    expect(orchestrator.getActiveAutomations()).toEqual([]);
+    expect(orchestrator.getActiveAutomations()).toEqual([
+      expect.objectContaining({
+        columnId: doneColumn?.id,
+        sessionId: 'acps_bound_review',
+        taskId: task.id,
+      }),
+    ]);
 
     orchestrator.stop();
   });
@@ -644,7 +795,13 @@ describe('kanban workflow orchestrator service', () => {
       }),
       'acps_cancel_me',
     );
-    expect(orchestrator.getActiveAutomations()).toEqual([]);
+    expect(orchestrator.getActiveAutomations()).toEqual([
+      expect.objectContaining({
+        columnId: doneColumn?.id,
+        sessionId: 'acps_cancel_me',
+        taskId: task.id,
+      }),
+    ]);
 
     orchestrator.stop();
   });
@@ -714,7 +871,9 @@ function setColumnRequiredArtifacts(
     enabled: boolean;
     provider: string | null;
     requiredArtifacts: string[];
+    role: string | null;
     specialistId: string | null;
+    specialistName: string | null;
     transitionType: 'both' | 'entry' | 'exit';
   };
 
