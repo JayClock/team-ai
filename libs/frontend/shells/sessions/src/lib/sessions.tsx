@@ -1,7 +1,10 @@
 import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
-import { formatSessionStatusLabel } from '@features/project-sessions';
+import {
+  formatSessionStatusLabel,
+  useProjectSessions,
+} from '@features/project-sessions';
 import {
   ProjectComposerInput,
   ProjectSettingsDialog,
@@ -62,15 +65,6 @@ const HOME_AGENT_OPTIONS: Array<{
     specialistId: 'solo-developer',
   },
 ];
-
-function timestamp(value: string | null): number {
-  if (!value) {
-    return 0;
-  }
-
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-}
 
 function formatDateTime(value: string | null): string {
   if (!value) {
@@ -171,20 +165,22 @@ function ShellsSessionsContent(props: {
     selectedProviderId,
     setSelectedProviderId,
   } = useAcpProviders('opencode');
-  const { sessionsResource, create } = useAcpSession(projectState, {
+  const { create } = useAcpSession(projectState, {
     actorUserId: me.id,
     provider: selectedProviderId,
     historyLimit: 50,
   });
+  const {
+    error: sessionsError,
+    loading: loadingRecent,
+    refresh: refreshRecentSessions,
+    sessions,
+  } = useProjectSessions(projectState);
 
   const [agentType, setAgentType] = useState<HomeAgentType>('ROUTA');
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
-  const [recentSessions, setRecentSessions] = useState<
-    State<AcpSessionSummary>[]
-  >([]);
   const [worktrees, setWorktrees] = useState<ProjectWorktreeOption[]>([]);
   const [worktreesLoading, setWorktreesLoading] = useState(false);
-  const [loadingRecent, setLoadingRecent] = useState(true);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
   >(null);
@@ -313,41 +309,15 @@ function ShellsSessionsContent(props: {
     [rolesState.collection],
   );
 
-  const loadRecentSessions = useCallback(async () => {
-    setLoadingRecent(true);
-    try {
-      let currentPage = await sessionsResource.refresh();
-      const allSessions = [...currentPage.collection];
-      while (currentPage.hasLink('next')) {
-        currentPage = await currentPage.follow('next').get();
-        allSessions.push(...currentPage.collection);
-      }
-      allSessions.sort((left, right) => {
-        const leftTime = timestamp(
-          left.data.lastActivityAt ??
-            left.data.startedAt ??
-            left.data.completedAt,
-        );
-        const rightTime = timestamp(
-          right.data.lastActivityAt ??
-            right.data.startedAt ??
-            right.data.completedAt,
-        );
-        return rightTime - leftTime;
-      });
-      setRecentSessions(allSessions.slice(0, 8));
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to load ACP sessions';
-      toast.error(message);
-    } finally {
-      setLoadingRecent(false);
-    }
-  }, [sessionsResource]);
-
   useEffect(() => {
-    void loadRecentSessions();
-  }, [loadRecentSessions]);
+    if (!sessionsError) {
+      return;
+    }
+
+    toast.error(sessionsError.message || 'Failed to load ACP sessions');
+  }, [sessionsError]);
+
+  const recentSessions = useMemo(() => sessions.slice(0, 8), [sessions]);
 
   const submitHomePrompt = useCallback(
     async (input: {
@@ -382,7 +352,7 @@ function ShellsSessionsContent(props: {
           goal,
         });
         storePendingProjectPrompt(created.data.id, goal);
-        await loadRecentSessions();
+        await refreshRecentSessions();
         navigate(`/projects/${selectedProjectId}/sessions/${created.data.id}`);
       } catch (error) {
         const message =
@@ -396,9 +366,9 @@ function ShellsSessionsContent(props: {
     [
       agentType,
       create,
-      loadRecentSessions,
       me.id,
       navigate,
+      refreshRecentSessions,
       selectedModelId,
       selectedRepository.repoPath,
       selectedProvider,

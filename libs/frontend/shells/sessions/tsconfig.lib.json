@@ -42,6 +42,9 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../../features/project-sessions/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/util-http/tsconfig.lib.json"
     },
     {

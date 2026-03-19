@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShellsSession } from './session';
 
 const conversationPaneSpy = vi.fn();
-const sessionsRefreshMock = vi.fn();
+const refreshSessionsMock = vi.fn();
 const updateSessionMock = vi.fn();
 const resourceGetMock = vi.fn(async () => ({
   collection: [],
@@ -72,15 +72,26 @@ vi.mock('@features/project-conversations', () => ({
     select: vi.fn(),
     updateSession: updateSessionMock,
     selectedSession: currentSelectedSession,
-    sessionsResource: {
-      refresh: sessionsRefreshMock,
-    },
+  }),
+}));
+
+vi.mock('@features/project-sessions', () => ({
+  useProjectSessions: () => ({
+    error: null,
+    loading: false,
+    refresh: refreshSessionsMock,
+    sessions: [],
   }),
 }));
 
 vi.mock('@shared/ui', () => ({
   Button: (props: { children?: ReactNode }) =>
     createElement('button', null, props.children),
+  ResizableHandle: () => createElement('div'),
+  ResizablePanel: (props: { children?: ReactNode }) =>
+    createElement('div', null, props.children),
+  ResizablePanelGroup: (props: { children?: ReactNode }) =>
+    createElement('div', null, props.children),
   toast: {
     error: vi.fn(),
     success: vi.fn(),
@@ -207,6 +218,15 @@ Object.defineProperty(globalThis, 'EventSource', {
   value: EventSourceMock,
 });
 
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: vi.fn().mockImplementation(() => ({
+    addEventListener: vi.fn(),
+    matches: true,
+    removeEventListener: vi.fn(),
+  })),
+});
+
 describe('ShellsSession', () => {
   beforeEach(() => {
     currentSelectedSession = null;
@@ -215,12 +235,8 @@ describe('ShellsSession', () => {
     resourceGetMock.mockClear();
     updateSessionMock.mockReset();
     updateSessionMock.mockResolvedValue(currentSelectedSession);
-    sessionsRefreshMock.mockReset();
-    sessionsRefreshMock.mockResolvedValue({
-      collection: [],
-      follow: vi.fn(),
-      hasLink: vi.fn(() => false),
-    });
+    refreshSessionsMock.mockReset();
+    refreshSessionsMock.mockResolvedValue([]);
   });
 
   afterEach(() => {

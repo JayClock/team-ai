@@ -1,26 +1,24 @@
 import { State } from '@hateoas-ts/resource';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { AcpSessionSummary } from '@shared/schema';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { AcpSessionCollection, AcpSessionSummary, Project } from '@shared/schema';
 import { describe, expect, it, vi } from 'vitest';
 import { SessionList } from './session-list';
-import { buildSessionTree } from './session-tree';
 
 describe('SessionList', () => {
-  it('collapses child sessions by default to reduce tree noise', () => {
+  it('collapses child sessions by default to reduce tree noise', async () => {
     const { rootSession, childSession } = createSessionFixtures();
 
     render(
       <SessionList
-        loading={false}
         onSelect={vi.fn()}
+        projectState={createProjectState([childSession, rootSession])}
         sessionAnnotationsById={{
           acps_child: ['执行 task_search'],
         }}
-        sessions={buildSessionTree([childSession, rootSession])}
       />,
     );
 
-    expect(screen.getByText('主控会话')).toBeTruthy();
+    expect(await screen.findByText('主控会话')).toBeTruthy();
     expect(screen.queryByText('实现搜索索引')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '展开子会话' }));
@@ -35,24 +33,25 @@ describe('SessionList', () => {
     expect(screen.getByText('执行 task_search')).toBeTruthy();
   });
 
-  it('auto-expands the selected session lineage', () => {
+  it('auto-expands the selected session lineage', async () => {
     const { rootSession, childSession } = createSessionFixtures();
 
     render(
       <SessionList
-        loading={false}
         onSelect={vi.fn()}
+        projectState={createProjectState([childSession, rootSession])}
         selectedSessionId={childSession.data.id}
-        sessions={buildSessionTree([childSession, rootSession])}
       />,
     );
 
-    expect(screen.getAllByText('实现搜索索引').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText('实现搜索索引').length).toBeGreaterThan(0);
+    });
     expect(screen.getAllByText('Child').length).toBeGreaterThan(0);
     expect(screen.getAllByText('ROUTA').length).toBeGreaterThan(0);
   });
 
-  it('renders supervision-aware timeout labels for failed sessions', () => {
+  it('renders supervision-aware timeout labels for failed sessions', async () => {
     const timedOutSession = createSessionSummary({
       failureReason: 'ACP session exceeded its inactivity budget.',
       forceKilledAt: '2026-03-13T12:05:00.000Z',
@@ -64,13 +63,12 @@ describe('SessionList', () => {
 
     render(
       <SessionList
-        loading={false}
         onSelect={vi.fn()}
-        sessions={buildSessionTree([timedOutSession])}
+        projectState={createProjectState([timedOutSession])}
       />,
     );
 
-    expect(screen.getByText('已强制终止')).toBeTruthy();
+    expect(await screen.findByText('已强制终止')).toBeTruthy();
     expect(
       screen.getByText(/会话空闲超时后未能在取消宽限期内结束/),
     ).toBeTruthy();
@@ -140,4 +138,37 @@ function createSessionSummary(
       ...overrides,
     },
   } as State<AcpSessionSummary>;
+}
+
+function createProjectState(
+  sessions: State<AcpSessionSummary>[],
+): State<Project> {
+  const sessionsPage = {
+    collection: sessions,
+    follow: vi.fn(),
+    hasLink: vi.fn(() => false),
+  } as unknown as State<AcpSessionCollection>;
+
+  return {
+    data: {
+      createdAt: '2026-03-13T11:50:00.000Z',
+      description: null,
+      id: 'proj_123',
+      repoPath: '/workspace',
+      sourceType: 'local',
+      sourceUrl: null,
+      title: 'Project',
+      updatedAt: '2026-03-13T11:50:00.000Z',
+    },
+    follow: vi.fn((rel: string) => {
+      if (rel !== 'acp-sessions') {
+        throw new Error(`Unsupported rel: ${rel}`);
+      }
+
+      return {
+        refresh: vi.fn(async () => sessionsPage),
+      };
+    }),
+    hasLink: vi.fn((rel: string) => rel === 'acp-sessions'),
+  } as unknown as State<Project>;
 }

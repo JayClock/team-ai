@@ -1,6 +1,7 @@
 import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
+import { useProjectSessions } from '@features/project-sessions';
 import {
   AcpEventEnvelope,
   AcpSessionSummary,
@@ -45,7 +46,6 @@ import {
 } from './project-session-status-sidebar';
 import { useProjectSessionChat } from './use-project-session-chat';
 import {
-  buildSessionTree,
   buildTaskPanelItem,
   buildTaskRunPanelItem,
   formatStatusLabel,
@@ -304,7 +304,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const { resourceState: codebasesState } =
     useSuspenseResource(codebasesResource);
   const {
-    sessionsResource,
     selectedSession,
     history,
     create,
@@ -317,9 +316,12 @@ export function ShellsSession(props: ShellsSessionProps) {
     actorUserId: me.id,
     historyLimit: 200,
   });
-
-  const [sessions, setSessions] = useState<State<AcpSessionSummary>[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const {
+    error: sessionsError,
+    loading: sessionsLoading,
+    refresh: refreshSessions,
+    sessions,
+  } = useProjectSessions(projectState);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
   >(null);
@@ -372,7 +374,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const initialSelectionAppliedRef = useRef<string | null>(null);
 
   const selectedSessionId = selectedSession?.data.id;
-  const sessionTree = useMemo(() => buildSessionTree(sessions), [sessions]);
   const workbenchSessionId = useMemo(
     () =>
       resolveRootSessionId(sessions, selectedSessionId) ??
@@ -386,6 +387,13 @@ export function ShellsSession(props: ShellsSessionProps) {
       null,
     [sessions, workbenchSessionId],
   );
+  useEffect(() => {
+    if (!sessionsError) {
+      return;
+    }
+
+    toast.error(sessionsError.message || '加载会话列表失败');
+  }, [sessionsError]);
   const scopeSessionLabel = useMemo(() => {
     const name = workbenchSessionSummary?.data.name?.trim();
     if (name) {
@@ -633,42 +641,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     [create, creationModel, creationRole, me.id, sessionDefaults.providerId],
   );
 
-  const loadSessions = useCallback(async () => {
-    setSessionsLoading(true);
-    try {
-      let currentPage = await sessionsResource.refresh();
-      const allSessions = [...currentPage.collection];
-      while (currentPage.hasLink('next')) {
-        currentPage = await currentPage.follow('next').get();
-        allSessions.push(...currentPage.collection);
-      }
-      allSessions.sort((left, right) => {
-        const leftValue = timestamp(
-          left.data.lastActivityAt ??
-            left.data.startedAt ??
-            left.data.completedAt,
-        );
-        const rightValue = timestamp(
-          right.data.lastActivityAt ??
-            right.data.startedAt ??
-            right.data.completedAt,
-        );
-        return rightValue - leftValue;
-      });
-      setSessions(allSessions);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '加载会话列表失败';
-      toast.error(message);
-    } finally {
-      setSessionsLoading(false);
-    }
-  }, [sessionsResource]);
-
-  useEffect(() => {
-    void loadSessions();
-  }, [loadSessions]);
-
   const refreshTaskItems = useCallback(async () => {
     if (!workbenchSessionId) {
       setTaskItems([]);
@@ -839,7 +811,9 @@ export function ShellsSession(props: ShellsSessionProps) {
           prompt: nextPrompt,
         });
       },
-      refreshSessions: loadSessions,
+      refreshSessions: async () => {
+        await refreshSessions();
+      },
     });
   const sessionPromptProviderValue = selectedSession
     ? selectedSession.data.provider
@@ -1102,7 +1076,7 @@ export function ShellsSession(props: ShellsSessionProps) {
 
         await Promise.all([
           refreshTaskItems(),
-          loadSessions(),
+          refreshSessions(),
           refreshOrchestration(),
         ]);
         toast.success(action === 'retry' ? '任务已重新排队' : '任务已分发');
@@ -1114,8 +1088,8 @@ export function ShellsSession(props: ShellsSessionProps) {
       }
     },
     [
-      loadSessions,
       refreshOrchestration,
+      refreshSessions,
       refreshTaskItems,
       selectedSession?.data.id,
       workbenchSessionId,
@@ -1150,7 +1124,7 @@ export function ShellsSession(props: ShellsSessionProps) {
 
       await Promise.all([
         refreshTaskItems(),
-        loadSessions(),
+        refreshSessions(),
         refreshOrchestration(),
       ]);
       toast.success(
@@ -1163,7 +1137,7 @@ export function ShellsSession(props: ShellsSessionProps) {
     } finally {
       setOrchestrationActionPending(null);
     }
-  }, [loadSessions, refreshOrchestration, refreshTaskItems]);
+  }, [refreshOrchestration, refreshSessions, refreshTaskItems]);
 
   const stopStream = useCallback((manual: boolean) => {
     allowReconnectRef.current = !manual;
@@ -1415,10 +1389,11 @@ export function ShellsSession(props: ShellsSessionProps) {
   const leftSidebar = (
     <ProjectSessionHistorySidebar
       onSelectSession={handleSidebarSessionSelect}
+      projectState={projectState}
       projectTitle={projectTitle}
       selectedSessionId={selectedSessionId}
       sessionAnnotationsById={sessionAnnotationsById}
-      sessions={sessionTree}
+      sessions={sessions}
       sessionsLoading={sessionsLoading}
     />
   );
@@ -1560,32 +1535,6 @@ export function ShellsSession(props: ShellsSessionProps) {
                 selectedSession={selectedSession}
               />
             </div>
-
-            <aside className="hidden w-[420px] shrink-0 border-l border-border/60 bg-background xl:flex xl:flex-col">
-              <div className="grid grid-cols-2 gap-2 border-b border-border/60 px-4 py-2">
-                <Button
-                  type="button"
-                  variant={mainPane === 'spec' ? 'default' : 'outline'}
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() => setMainPane('spec')}
-                >
-                  Spec
-                </Button>
-                <Button
-                  type="button"
-                  variant={mainPane === 'ops' ? 'default' : 'outline'}
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() => setMainPane('ops')}
-                >
-                  Ops
-                </Button>
-              </div>
-              <div className="min-h-0 flex-1">
-                {mainPane === 'ops' ? opsPane : specPane}
-              </div>
-            </aside>
           </div>
         </div>
       </div>

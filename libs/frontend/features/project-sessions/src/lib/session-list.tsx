@@ -1,5 +1,5 @@
 import { State } from '@hateoas-ts/resource';
-import { AcpSessionSummary } from '@shared/schema';
+import { AcpSessionSummary, Project } from '@shared/schema';
 import {
   Button,
   Card,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
+  buildSessionTree,
   findSessionPathIds,
   SessionTreeNode,
   sessionDisplayName,
@@ -29,6 +30,7 @@ import {
   sessionStatusChipClasses,
   sessionStatusTone,
 } from './session-status';
+import { useProjectSessions } from './use-project-sessions';
 
 function sessionRoleLabel(
   session: State<AcpSessionSummary>,
@@ -53,23 +55,40 @@ function sessionRoleLabel(
 }
 
 export function SessionList(props: {
-  loading: boolean;
   onSelect: (session: State<AcpSessionSummary>) => void;
+  projectState: State<Project>;
   selectedSessionId?: string;
   sessionAnnotationsById?: Record<string, string[]>;
-  sessions: SessionTreeNode[];
+  sessions?: State<AcpSessionSummary>[];
+  sessionsLoading?: boolean;
 }) {
   const {
-    loading,
     onSelect,
+    projectState,
     selectedSessionId,
     sessionAnnotationsById,
     sessions,
+    sessionsLoading,
   } = props;
+  const shouldLoadInternally =
+    sessions === undefined && sessionsLoading === undefined;
+  const {
+    error,
+    loading: internalLoading,
+    sessions: internalSessions,
+  } = useProjectSessions(projectState, {
+    enabled: shouldLoadInternally,
+  });
+  const resolvedSessions = sessions ?? internalSessions;
+  const loading = sessionsLoading ?? internalLoading;
+  const sessionTree = useMemo(
+    () => buildSessionTree(resolvedSessions),
+    [resolvedSessions],
+  );
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const selectedPathIds = useMemo(
-    () => findSessionPathIds(sessions, selectedSessionId),
-    [selectedSessionId, sessions],
+    () => findSessionPathIds(sessionTree, selectedSessionId),
+    [selectedSessionId, sessionTree],
   );
   const selectedPathSet = useMemo(
     () => new Set(selectedPathIds),
@@ -97,7 +116,11 @@ export function SessionList(props: {
         <div className="space-y-2 p-3">
           {loading ? (
             <p className="text-sm text-muted-foreground">正在加载会话...</p>
-          ) : sessions.length === 0 ? (
+          ) : error && sessionTree.length === 0 ? (
+            <p className="text-sm text-destructive">
+              {error.message || '加载会话列表失败'}
+            </p>
+          ) : sessionTree.length === 0 ? (
             <Empty className="border-dashed px-4 py-10">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
@@ -110,7 +133,7 @@ export function SessionList(props: {
               </EmptyHeader>
             </Empty>
           ) : (
-            sessions.map((node) => (
+            sessionTree.map((node) => (
               <SessionTreeItem
                 key={node.session.data.id}
                 depth={0}
