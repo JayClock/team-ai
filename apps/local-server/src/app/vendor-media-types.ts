@@ -24,6 +24,7 @@ export const VENDOR_MEDIA_TYPES = {
   installedAcpProvider: vendorMediaType('installed-acp-provider'),
   kanbanBoard: vendorMediaType('kanban-board'),
   kanbanBoards: vendorMediaType('kanban-boards'),
+  kanbanIntake: vendorMediaType('kanban-intake'),
   note: vendorMediaType('note'),
   noteEvents: vendorMediaType('note-events'),
   notes: vendorMediaType('notes'),

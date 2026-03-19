@@ -14,6 +14,7 @@ import {
   ScrollArea,
   Separator,
   Skeleton,
+  Textarea,
   toast,
 } from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
@@ -24,6 +25,7 @@ import {
   KanbanSquareIcon,
   MoreHorizontalIcon,
   RefreshCcwIcon,
+  SparklesIcon,
 } from 'lucide-react';
 import type { DragEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -47,6 +49,26 @@ interface KanbanBoardResponse {
     isDefault: boolean;
     wipLimit: number | null;
   };
+}
+
+interface KanbanIntakeResponse {
+  archivedTaskIds: string[];
+  createdTaskIds: string[];
+  decomposition: {
+    goal: string;
+    tasks: Array<{
+      kind: string;
+      owner: string;
+      title: string;
+    }>;
+  };
+  note: {
+    id: string;
+    updatedAt: string;
+  };
+  parsedTaskCount: number;
+  specFragment: string;
+  updatedTaskIds: string[];
 }
 
 interface KanbanColumn {
@@ -186,6 +208,13 @@ function formatLaneSessionLabel(session: KanbanCard['laneSessions'][number]) {
   );
 }
 
+function parseMultilineItems(value: string) {
+  return value
+    .split('\n')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function resolveCardSessionId(card: KanbanCard | null) {
   return (
     card?.triggerSessionId ??
@@ -209,6 +238,13 @@ export default function ProjectKanbanPage() {
     columnId: string;
     position: number;
   } | null>(null);
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  const [intakePending, setIntakePending] = useState(false);
+  const [goalDraft, setGoalDraft] = useState('');
+  const [constraintsDraft, setConstraintsDraft] = useState('');
+  const [acceptanceDraft, setAcceptanceDraft] = useState('');
+  const [artifactDraft, setArtifactDraft] = useState('');
+  const [lastIntake, setLastIntake] = useState<KanbanIntakeResponse | null>(null);
 
   const loadBoard = useCallback(async () => {
     if (!projectState) {
@@ -313,6 +349,64 @@ export default function ProjectKanbanPage() {
     [board, loadBoard, movingCardId],
   );
 
+  const handleIntakeSubmit = useCallback(async () => {
+    if (!projectState) {
+      return;
+    }
+
+    const goal = goalDraft.trim();
+    if (!goal) {
+      toast.error('请输入要拆解的目标。');
+      return;
+    }
+
+    setIntakePending(true);
+
+    try {
+      const response = await runtimeFetch(
+        `/api/projects/${projectState.data.id}/kanban/intake`,
+        {
+          body: JSON.stringify({
+            acceptanceHints: parseMultilineItems(acceptanceDraft),
+            artifactHints: parseMultilineItems(artifactDraft),
+            constraints: parseMultilineItems(constraintsDraft),
+            goal,
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          method: 'POST',
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`生成卡片失败: ${response.status}`);
+      }
+
+      const payload = (await response.json()) as KanbanIntakeResponse;
+      setLastIntake(payload);
+      setGoalDraft('');
+      setConstraintsDraft('');
+      setAcceptanceDraft('');
+      setArtifactDraft('');
+      toast.success(
+        `已生成 ${payload.parsedTaskCount} 张卡片，新增 ${payload.createdTaskIds.length}，更新 ${payload.updatedTaskIds.length}`,
+      );
+      await loadBoard();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '生成卡片失败';
+      toast.error(message);
+    } finally {
+      setIntakePending(false);
+    }
+  }, [
+    acceptanceDraft,
+    artifactDraft,
+    constraintsDraft,
+    goalDraft,
+    loadBoard,
+    projectState,
+  ]);
+
   if (projects.length === 0) {
     return (
       <div className="p-4 md:p-6">
@@ -386,6 +480,14 @@ export default function ProjectKanbanPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIntakeOpen((previous) => !previous)}
+            >
+              <SparklesIcon className="mr-1.5 size-3.5" />
+              New Goal
+            </Button>
             <Button variant="outline" size="sm" onClick={() => void loadBoard()}>
               <RefreshCcwIcon className="mr-1.5 size-3.5" />
               Refresh
@@ -418,88 +520,291 @@ export default function ProjectKanbanPage() {
 
       <div className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 gap-4 px-4 py-4 md:px-6">
         <div className="min-w-0 flex-1 overflow-hidden">
-          {loading ? (
-            <div className="grid h-full gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <Card key={`kanban-skeleton-${index}`} className="rounded-2xl">
-                  <CardHeader>
-                    <Skeleton className="h-5 w-24" />
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Skeleton className="h-20 w-full" />
-                    <Skeleton className="h-20 w-full" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : !board ? (
-            <Card className="rounded-2xl">
-              <CardContent className="p-6 text-sm text-muted-foreground">
-                当前项目没有可用看板。
-              </CardContent>
-            </Card>
-          ) : (
-            <ScrollArea className="h-full">
-              <div className="flex min-h-full gap-4 pb-4">
-                {board.columns.map((column) => (
-                  <Card
-                    key={column.id}
-                    className="flex min-h-[calc(100dvh-11rem)] w-[320px] shrink-0 flex-col rounded-2xl border-border/70 shadow-none"
-                  >
-                    <CardHeader className="space-y-3 pb-3">
+          <div className="flex h-full min-h-0 flex-col gap-4">
+            {intakeOpen ? (
+              <Card className="rounded-2xl border-border/70 shadow-none">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Goal Intake</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    输入自然语言目标，系统会生成 canonical spec 片段并同步成 backlog / todo / review 卡片。
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium">Goal</span>
+                      <Textarea
+                        aria-label="Goal"
+                        value={goalDraft}
+                        onChange={(event) => setGoalDraft(event.target.value)}
+                        placeholder="例如：Build a user authentication flow"
+                        className="min-h-24"
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium">Constraints</span>
+                      <Textarea
+                        aria-label="Constraints"
+                        value={constraintsDraft}
+                        onChange={(event) => setConstraintsDraft(event.target.value)}
+                        placeholder={'每行一个约束\n例如：Use the existing auth store'}
+                        className="min-h-24"
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium">Acceptance Hints</span>
+                      <Textarea
+                        aria-label="Acceptance Hints"
+                        value={acceptanceDraft}
+                        onChange={(event) => setAcceptanceDraft(event.target.value)}
+                        placeholder={'每行一个验收提示\n例如：Users can log in with email and password'}
+                        className="min-h-24"
+                      />
+                    </label>
+                    <label className="space-y-2">
+                      <span className="text-sm font-medium">Artifact Hints</span>
+                      <Textarea
+                        aria-label="Artifact Hints"
+                        value={artifactDraft}
+                        onChange={(event) => setArtifactDraft(event.target.value)}
+                        placeholder={'每行一个证据提示\n例如：login screen screenshot'}
+                        className="min-h-24"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">
+                      当前入口会生成 `Refine / Implement / Review` 三张基础卡，并直接同步到看板。
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => void handleIntakeSubmit()}
+                      disabled={intakePending}
+                    >
+                      {intakePending ? 'Generating...' : 'Generate Cards'}
+                    </Button>
+                  </div>
+
+                  {lastIntake ? (
+                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <CardTitle className="text-base">{column.name}</CardTitle>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {column.cards?.length ?? 0} cards
+                          <div className="text-sm font-semibold">Generated Task Drafts</div>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            最近一次 intake 已更新 note {lastIntake.note.id}，并同步了 {lastIntake.parsedTaskCount} 张卡片。
                           </p>
-                          {column.automation?.requiredArtifacts.length ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              requires {column.automation.requiredArtifacts.join(', ')}
-                            </p>
-                          ) : null}
                         </div>
                         <Badge variant="outline">
-                          {column.automation?.enabled
-                            ? column.automation.autoAdvanceOnSuccess
-                              ? 'auto'
-                              : 'manual'
-                            : 'idle'}
+                          {formatDateTime(lastIntake.note.updatedAt)}
                         </Badge>
                       </div>
-                    </CardHeader>
 
-                    <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-                      {(column.cards ?? []).length === 0 ? (
-                        <div
-                          className={`rounded-xl border border-dashed p-4 text-sm text-muted-foreground ${
-                            dropTarget?.columnId === column.id &&
-                            dropTarget.position === 0
-                              ? 'border-primary bg-primary/5'
-                              : 'border-border/70 bg-muted/20'
-                          }`}
-                          onDragOver={(event) => {
-                            event.preventDefault();
-                            setDropTarget({
-                              columnId: column.id,
-                              position: 0,
-                            });
-                          }}
-                          onDrop={(event) => {
-                            event.preventDefault();
-                            void handleDrop(column, 0);
-                          }}
-                        >
-                          当前列还没有卡片。
-                        </div>
-                      ) : (
-                        <>
-                          {column.cards?.map((card, index) => (
-                            <div key={card.id} className="space-y-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {lastIntake.decomposition.tasks.map((task) => (
+                          <Badge key={task.title} variant="secondary">
+                            {task.title}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ) : null}
+
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {loading ? (
+                <div className="grid h-full gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Card key={`kanban-skeleton-${index}`} className="rounded-2xl">
+                      <CardHeader>
+                        <Skeleton className="h-5 w-24" />
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <Skeleton className="h-20 w-full" />
+                        <Skeleton className="h-20 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : !board ? (
+                <Card className="rounded-2xl">
+                  <CardContent className="p-6 text-sm text-muted-foreground">
+                    当前项目没有可用看板。
+                  </CardContent>
+                </Card>
+              ) : (
+                <ScrollArea className="h-full">
+                  <div className="flex min-h-full gap-4 pb-4">
+                    {board.columns.map((column) => (
+                      <Card
+                        key={column.id}
+                        className="flex min-h-[calc(100dvh-11rem)] w-[320px] shrink-0 flex-col rounded-2xl border-border/70 shadow-none"
+                      >
+                        <CardHeader className="space-y-3 pb-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <CardTitle className="text-base">{column.name}</CardTitle>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {column.cards?.length ?? 0} cards
+                              </p>
+                              {column.automation?.requiredArtifacts.length ? (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  requires {column.automation.requiredArtifacts.join(', ')}
+                                </p>
+                              ) : null}
+                            </div>
+                            <Badge variant="outline">
+                              {column.automation?.enabled
+                                ? column.automation.autoAdvanceOnSuccess
+                                  ? 'auto'
+                                  : 'manual'
+                                : 'idle'}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+                          {(column.cards ?? []).length === 0 ? (
+                            <div
+                              className={`rounded-xl border border-dashed p-4 text-sm text-muted-foreground ${
+                                dropTarget?.columnId === column.id &&
+                                dropTarget.position === 0
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-border/70 bg-muted/20'
+                              }`}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                setDropTarget({
+                                  columnId: column.id,
+                                  position: 0,
+                                });
+                              }}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                void handleDrop(column, 0);
+                              }}
+                            >
+                              当前列还没有卡片。
+                            </div>
+                          ) : (
+                            <>
+                              {column.cards?.map((card, index) => (
+                                <div key={card.id} className="space-y-2">
+                                  <div
+                                    className={`h-2 rounded-full border border-dashed transition-colors ${
+                                      dropTarget?.columnId === column.id &&
+                                      dropTarget.position === index
+                                        ? 'border-primary bg-primary/10'
+                                        : 'border-transparent'
+                                    }`}
+                                    onDragOver={(event) => {
+                                      event.preventDefault();
+                                      setDropTarget({
+                                        columnId: column.id,
+                                        position: index,
+                                      });
+                                    }}
+                                    onDrop={(event) => {
+                                      event.preventDefault();
+                                      void handleDrop(column, index);
+                                    }}
+                                  />
+                                  <div
+                                    draggable
+                                    key={card.id}
+                                    role="button"
+                                    tabIndex={0}
+                                    className={`rounded-xl border p-3 text-left transition-colors ${
+                                      selectedCard?.id === card.id
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/30'
+                                    } ${draggedCardId === card.id ? 'opacity-60' : ''}`}
+                                    onClick={() => setSelectedCardId(card.id)}
+                                    onDragEnd={() => {
+                                      setDraggedCardId(null);
+                                      setDropTarget(null);
+                                    }}
+                                    onDragStart={(event) => handleDragStart(event, card)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        setSelectedCardId(card.id);
+                                      }
+                                    }}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <div className="line-clamp-2 text-sm font-medium">
+                                          {card.title}
+                                        </div>
+                                        <div className="mt-2 flex flex-wrap gap-1.5">
+                                          <Badge variant="secondary" className="text-[10px]">
+                                            {formatCardKindLabel(card.kind)}
+                                          </Badge>
+                                          <Badge variant="secondary" className="text-[10px]">
+                                            {formatCardStatusLabel(card.status)}
+                                          </Badge>
+                                          {card.assignedRole ? (
+                                            <Badge
+                                              variant="secondary"
+                                              className="text-[10px]"
+                                            >
+                                              {card.assignedRole}
+                                            </Badge>
+                                          ) : null}
+                                        </div>
+                                      </div>
+
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            aria-label={`Move ${card.title}`}
+                                            variant="ghost"
+                                            size="icon"
+                                            className="size-8 shrink-0"
+                                            disabled={movingCardId === card.id}
+                                          >
+                                            <MoreHorizontalIcon className="size-4" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48">
+                                          {board.columns
+                                            .filter((targetColumn) => targetColumn.id !== column.id)
+                                            .map((targetColumn) => (
+                                              <DropdownMenuItem
+                                                key={`${card.id}-${targetColumn.id}`}
+                                                onClick={() =>
+                                                  void handleMoveCard(card, targetColumn)
+                                                }
+                                              >
+                                                Move to {targetColumn.name}
+                                              </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+
+                                    {card.assignedSpecialistName ? (
+                                      <p className="mt-3 text-xs text-muted-foreground">
+                                        {card.assignedSpecialistName}
+                                      </p>
+                                    ) : null}
+
+                                    {card.lastSyncError ? (
+                                      <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
+                                        <CircleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
+                                        <span className="line-clamp-2">{card.lastSyncError}</span>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              ))}
                               <div
                                 className={`h-2 rounded-full border border-dashed transition-colors ${
                                   dropTarget?.columnId === column.id &&
-                                  dropTarget.position === index
+                                  dropTarget.position === (column.cards?.length ?? 0)
                                     ? 'border-primary bg-primary/10'
                                     : 'border-transparent'
                                 }`}
@@ -507,131 +812,24 @@ export default function ProjectKanbanPage() {
                                   event.preventDefault();
                                   setDropTarget({
                                     columnId: column.id,
-                                    position: index,
+                                    position: column.cards?.length ?? 0,
                                   });
                                 }}
                                 onDrop={(event) => {
                                   event.preventDefault();
-                                  void handleDrop(column, index);
+                                  void handleDrop(column, column.cards?.length ?? 0);
                                 }}
                               />
-                              <div
-                                draggable
-                                key={card.id}
-                                role="button"
-                                tabIndex={0}
-                                className={`rounded-xl border p-3 text-left transition-colors ${
-                                  selectedCard?.id === card.id
-                                    ? 'border-primary bg-primary/5'
-                                    : 'border-border/60 bg-muted/20 hover:border-border hover:bg-muted/30'
-                                } ${draggedCardId === card.id ? 'opacity-60' : ''}`}
-                                onClick={() => setSelectedCardId(card.id)}
-                                onDragEnd={() => {
-                                  setDraggedCardId(null);
-                                  setDropTarget(null);
-                                }}
-                                onDragStart={(event) => handleDragStart(event, card)}
-                                onKeyDown={(event) => {
-                                  if (event.key === 'Enter' || event.key === ' ') {
-                                    event.preventDefault();
-                                    setSelectedCardId(card.id);
-                                  }
-                                }}
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <div className="line-clamp-2 text-sm font-medium">
-                                      {card.title}
-                                    </div>
-                                    <div className="mt-2 flex flex-wrap gap-1.5">
-                                      <Badge variant="secondary" className="text-[10px]">
-                                        {formatCardKindLabel(card.kind)}
-                                      </Badge>
-                                      <Badge variant="secondary" className="text-[10px]">
-                                        {formatCardStatusLabel(card.status)}
-                                      </Badge>
-                                      {card.assignedRole ? (
-                                        <Badge
-                                          variant="secondary"
-                                          className="text-[10px]"
-                                        >
-                                          {card.assignedRole}
-                                        </Badge>
-                                      ) : null}
-                                    </div>
-                                  </div>
-
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        aria-label={`Move ${card.title}`}
-                                        variant="ghost"
-                                        size="icon"
-                                        className="size-8 shrink-0"
-                                        disabled={movingCardId === card.id}
-                                      >
-                                        <MoreHorizontalIcon className="size-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48">
-                                      {board.columns
-                                        .filter((targetColumn) => targetColumn.id !== column.id)
-                                        .map((targetColumn) => (
-                                          <DropdownMenuItem
-                                            key={`${card.id}-${targetColumn.id}`}
-                                            onClick={() =>
-                                              void handleMoveCard(card, targetColumn)
-                                            }
-                                          >
-                                            Move to {targetColumn.name}
-                                          </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </div>
-
-                                {card.assignedSpecialistName ? (
-                                  <p className="mt-3 text-xs text-muted-foreground">
-                                    {card.assignedSpecialistName}
-                                  </p>
-                                ) : null}
-
-                                {card.lastSyncError ? (
-                                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
-                                    <CircleAlertIcon className="mt-0.5 size-3.5 shrink-0" />
-                                    <span className="line-clamp-2">{card.lastSyncError}</span>
-                                  </div>
-                                ) : null}
-                              </div>
-                            </div>
-                          ))}
-                          <div
-                            className={`h-2 rounded-full border border-dashed transition-colors ${
-                              dropTarget?.columnId === column.id &&
-                              dropTarget.position === (column.cards?.length ?? 0)
-                                ? 'border-primary bg-primary/10'
-                                : 'border-transparent'
-                            }`}
-                            onDragOver={(event) => {
-                              event.preventDefault();
-                              setDropTarget({
-                                columnId: column.id,
-                                position: column.cards?.length ?? 0,
-                              });
-                            }}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              void handleDrop(column, column.cards?.length ?? 0);
-                            }}
-                          />
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-          )}
+                            </>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
+          </div>
         </div>
 
         <Card className="hidden w-[320px] shrink-0 rounded-2xl border-border/70 shadow-none lg:flex lg:flex-col">

@@ -4,6 +4,7 @@ import {
   presentKanbanBoard,
   presentKanbanBoardList,
 } from '../presenters/kanban-presenter';
+import { intakeKanbanGoal } from '../services/kanban-intake-service';
 import {
   createKanbanBoard,
   createKanbanColumn,
@@ -93,7 +94,31 @@ const columnPatchBodySchema = z
     message: 'At least one column field must be provided',
   });
 
+const intakeBodySchema = z.object({
+  acceptanceHints: z.array(z.string().trim().min(1)).optional(),
+  artifactHints: z.array(z.string().trim().min(1)).optional(),
+  constraints: z.array(z.string().trim().min(1)).optional(),
+  goal: z.string().trim().min(1),
+  sessionId: nullableStringSchema.optional(),
+});
+
 const kanbanRoute: FastifyPluginAsync = async (fastify) => {
+  fastify.post('/projects/:projectId/kanban/intake', async (request, reply) => {
+    const { projectId } = projectParamsSchema.parse(request.params);
+    const body = intakeBodySchema.parse(request.body);
+
+    setVendorMediaType(reply, VENDOR_MEDIA_TYPES.kanbanIntake);
+
+    return await intakeKanbanGoal(fastify.sqlite, {
+      acceptanceHints: body.acceptanceHints,
+      artifactHints: body.artifactHints,
+      constraints: body.constraints,
+      goal: body.goal,
+      projectId,
+      sessionId: body.sessionId,
+    });
+  });
+
   fastify.get('/projects/:projectId/kanban/boards', async (request, reply) => {
     const { projectId } = projectParamsSchema.parse(request.params);
 

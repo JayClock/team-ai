@@ -419,4 +419,129 @@ describe('ProjectKanbanPage', () => {
       );
     });
   });
+
+  it('submits a natural-language goal intake and refreshes the board', async () => {
+    let boardLoads = 0;
+
+    runtimeFetchMock.mockImplementation((href: string, init?: RequestInit) => {
+      if (href.endsWith('/kanban/boards')) {
+        return jsonResponse({
+          _embedded: {
+            boards: [{ id: 'board-1' }],
+          },
+        });
+      }
+
+      if (href.endsWith('/kanban/boards/board-1')) {
+        boardLoads += 1;
+        return jsonResponse({
+          columns: [
+            {
+              automation: null,
+              cards: [],
+              id: 'board-1_backlog',
+              name: 'Backlog',
+              position: 0,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'routa-coordinator',
+              recommendedSpecialistName: 'Routa Coordinator',
+              stage: 'backlog',
+            },
+          ],
+          id: 'board-1',
+          name: 'Workflow Board',
+          projectId: 'project-1',
+          settings: {
+            boardConcurrency: null,
+            isDefault: true,
+            wipLimit: null,
+          },
+        });
+      }
+
+      if (href.endsWith('/kanban/intake')) {
+        expect(init?.method).toBe('POST');
+        expect(JSON.parse(String(init?.body))).toEqual({
+          acceptanceHints: ['Users can log in with email and password'],
+          artifactHints: ['login screen screenshot'],
+          constraints: ['Use the existing auth store'],
+          goal: 'Build a user authentication flow',
+        });
+
+        return jsonResponse({
+          archivedTaskIds: [],
+          createdTaskIds: ['task-1', 'task-2', 'task-3'],
+          decomposition: {
+            goal: 'Build a user authentication flow',
+            tasks: [
+              {
+                kind: 'plan',
+                owner: 'Todo Orchestrator',
+                title: 'Refine Build a user authentication flow',
+              },
+              {
+                kind: 'implement',
+                owner: 'Crafter Implementor',
+                title: 'Implement Build a user authentication flow',
+              },
+              {
+                kind: 'review',
+                owner: 'Gate Reviewer',
+                title: 'Review Build a user authentication flow',
+              },
+            ],
+          },
+          note: {
+            id: 'note-1',
+            updatedAt: '2026-03-19T00:00:00.000Z',
+          },
+          parsedTaskCount: 3,
+          specFragment: '## Intake Goal · Build a user authentication flow',
+          updatedTaskIds: [],
+        });
+      }
+
+      throw new Error(`Unexpected request: ${href}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectKanbanPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Project Kanban');
+
+    fireEvent.click(screen.getByRole('button', { name: 'New Goal' }));
+    fireEvent.change(screen.getByLabelText('Goal'), {
+      target: {
+        value: 'Build a user authentication flow',
+      },
+    });
+    fireEvent.change(screen.getByLabelText('Constraints'), {
+      target: {
+        value: 'Use the existing auth store',
+      },
+    });
+    fireEvent.change(screen.getByLabelText('Acceptance Hints'), {
+      target: {
+        value: 'Users can log in with email and password',
+      },
+    });
+    fireEvent.change(screen.getByLabelText('Artifact Hints'), {
+      target: {
+        value: 'login screen screenshot',
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Cards' }));
+
+    await screen.findByText('Generated Task Drafts');
+    expect(
+      screen.getByText('Refine Build a user authentication flow'),
+    ).toBeTruthy();
+
+    await waitFor(() => {
+      expect(boardLoads).toBeGreaterThanOrEqual(2);
+    });
+  });
 });

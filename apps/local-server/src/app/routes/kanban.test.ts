@@ -6,8 +6,9 @@ import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
-import { createTask } from '../services/task-service';
+import { createTask, listTasks } from '../services/task-service';
 import { createProject } from '../services/project-service';
+import { listNotes } from '../services/note-service';
 import { responseContentType } from '../test-support/response-content-type';
 import { VENDOR_MEDIA_TYPES } from '../vendor-media-types';
 import kanbanRoute from './kanban';
@@ -268,6 +269,97 @@ describe('kanban route', () => {
         }
       ).columns,
     ).not.toEqual(expect.arrayContaining([expect.objectContaining({ name: 'QA Gate' })]));
+  });
+
+  it('intakes a natural-language goal into spec fragments and kanban cards', async () => {
+    const sqlite = await createTestDatabase();
+    const project = await createProject(sqlite, {
+      repoPath: '/Users/example/kanban-intake',
+      title: 'Kanban Intake',
+    });
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+    fastify.decorate('sqlite', sqlite);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(kanbanRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const response = await fastify.inject({
+      method: 'POST',
+      payload: {
+        acceptanceHints: ['Users can log in with email and password'],
+        artifactHints: ['login screen screenshot', 'test run output'],
+        constraints: ['Use the existing auth store', 'Preserve current routing'],
+        goal: 'Build a user authentication flow',
+      },
+      url: `/api/projects/${project.id}/kanban/intake`,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(responseContentType(response)).toBe(VENDOR_MEDIA_TYPES.kanbanIntake);
+    expect(response.json()).toMatchObject({
+      createdTaskIds: expect.any(Array),
+      decomposition: {
+        goal: 'Build a user authentication flow',
+        tasks: [
+          expect.objectContaining({
+            kind: 'plan',
+            owner: 'Todo Orchestrator',
+            title: 'Refine Build a user authentication flow',
+          }),
+          expect.objectContaining({
+            kind: 'implement',
+            owner: 'Crafter Implementor',
+            title: 'Implement Build a user authentication flow',
+          }),
+          expect.objectContaining({
+            kind: 'review',
+            owner: 'Gate Reviewer',
+            title: 'Review Build a user authentication flow',
+          }),
+        ],
+      },
+      note: {
+        projectId: project.id,
+        type: 'spec',
+      },
+      parsedTaskCount: 3,
+      specFragment: expect.stringContaining('## Intake Goal · Build a user authentication flow'),
+    });
+
+    const notes = await listNotes(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+      type: 'spec',
+    });
+    expect(notes.total).toBe(1);
+    expect(notes.items[0]?.content).toContain('Build a user authentication flow');
+    expect(notes.items[0]?.content).toContain('Use the existing auth store');
+
+    const tasks = await listTasks(sqlite, {
+      page: 1,
+      pageSize: 20,
+      projectId: project.id,
+    });
+    expect(tasks.total).toBe(3);
+    expect(tasks.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceType: 'spec_note',
+          title: 'Refine Build a user authentication flow',
+        }),
+        expect.objectContaining({
+          sourceType: 'spec_note',
+          title: 'Implement Build a user authentication flow',
+        }),
+        expect.objectContaining({
+          sourceType: 'spec_note',
+          title: 'Review Build a user authentication flow',
+        }),
+      ]),
+    );
   });
 
   async function createTestDatabase(): Promise<Database> {

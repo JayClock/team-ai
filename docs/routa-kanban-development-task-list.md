@@ -4,7 +4,8 @@
 
 - `M1` 先做“看得见、能移动、能追踪”
 - `M2` 再做“能从 spec 产卡并自动流转”
-- `M3` 最后做“可配置、可扩展、可被 agent 直接操作”
+- `M3` 再做“可配置、可扩展、可被 agent 直接操作”
+- `M4` 最后补“自然语言入口、实时协作、board policy 与外部触发闭环”
 
 任务状态建议：
 
@@ -662,6 +663,223 @@
 
 ---
 
+## M4
+
+目标：
+
+- 用户一句话就能产出 backlog/spec/cards
+- specialist 可以通过 UI / API 真正管理
+- 看板具备实时协作感，而不是手动刷新
+- WIP / board policy 变成真实约束，不只是配置项
+- webhook / schedule / memory / traces 与 Kanban 主视角打通
+
+当前状态：`in_progress`
+
+### RK-M4-01 实现 prompt -> backlog/spec/cards 入口
+
+类型：后端/前端
+
+前置依赖：`RK-M2-02`, `RK-M3-03`
+
+开发任务：
+
+- [x] 新增 project 级“创建任务目标”入口，接收自然语言 intent
+- [x] 为 coordinator 定义 intake payload：goal、constraints、acceptance hints、artifacts hints
+- [x] 将 intake 请求落成 canonical spec note 或等价 planning document
+- [x] 复用 spec sync，把分解结果直接物化成 backlog / todo cards
+- [x] 返回本次 intake 生成的 spec 片段、card ids、分解摘要
+- [x] 在 UI 中提供从项目页直接进入 intake 的入口，而不是只从 spec pane 手动同步
+
+涉及文件：
+
+- `apps/local-server/src/app/routes/`
+- `apps/local-server/src/app/services/`
+- `libs/frontend/features/projects/src/lib/session/`
+- `apps/web/src/features/projects/`
+
+完成标准：
+
+- [x] 用户一句话可以直接生成一组 Kanban cards
+- [x] 不要求用户先手写 spec 才能上板
+
+### RK-M4-02 补 coordinator 的分解与回写闭环
+
+类型：后端/编排
+
+前置依赖：`RK-M4-01`
+
+开发任务：
+
+- [ ] 为 coordinator 定义“只拆解、不写代码”的明确行为边界
+- [ ] intake 后自动生成 refinement notes、acceptance criteria、execution hints
+- [ ] 支持将 review / blocked / done 的结果回写到 spec 或 planning note
+- [ ] 在 cards 与 spec block 之间保留稳定 linkage，支持再次 refine
+- [ ] 为多 wave 分解保留版本或 revision 信息
+
+涉及文件：
+
+- `apps/local-server/src/assets/specialists/routa-coordinator.md`
+- `apps/local-server/src/app/services/spec-task-sync-service.ts`
+- `apps/local-server/src/app/services/kanban-workflow-orchestrator-service.ts`
+
+完成标准：
+
+- [ ] coordinator 成为真正的 planning 层，而不是隐式入口
+- [ ] spec 与 cards 可以双向追踪和迭代
+
+### RK-M4-03 支持 specialist CRUD 与可视化绑定
+
+类型：后端/前端
+
+前置依赖：`RK-M3-03`
+
+开发任务：
+
+- [ ] 增加 specialist create / update / delete API
+- [ ] 支持从项目级设置页创建自定义 specialist，至少包含 id、name、role、system prompt、provider defaults
+- [ ] 支持从 Markdown / JSON 导入 specialist，并在 UI 中展示来源和覆盖关系
+- [ ] 在 board settings 中用可选列表绑定 specialist，而不是手输 `specialistId`
+- [ ] 对被列引用的 specialist 增加删除保护或替换流程
+
+涉及文件：
+
+- `apps/local-server/src/app/routes/specialists.ts`
+- `apps/local-server/src/app/services/specialist-service.ts`
+- `libs/frontend/features/projects/src/lib/components/project-settings-dialog.tsx`
+- `apps/web/src/features/projects/project-kanban-settings-page.tsx`
+
+完成标准：
+
+- [ ] specialist 可通过 UI / API 管理
+- [ ] column 绑定 specialist 时不再依赖人工记忆 id
+
+### RK-M4-04 为 Kanban 页增加实时事件流
+
+类型：后端/前端
+
+前置依赖：`RK-M3-05`, `RK-M3-06`
+
+开发任务：
+
+- [ ] 设计 board-level event stream schema，覆盖 card create / move / update / handoff / session start / session end
+- [ ] 提供 project / board 级 SSE 或等价订阅端点
+- [ ] 前端 Kanban 页接入事件流，局部更新列和卡片状态
+- [ ] 对运行中的卡片展示实时执行状态、最近一次输出、失败回退
+- [ ] 在网络断开、切项目、切 board 时正确重连与清理
+
+涉及文件：
+
+- `apps/local-server/src/app/routes/`
+- `apps/local-server/src/app/services/`
+- `libs/frontend/shared/util-http/src/lib/standard-sse-chat-transport.ts`
+- `apps/web/src/features/projects/project-kanban-page.tsx`
+
+完成标准：
+
+- [ ] 看板不依赖手动 refresh 才能反映自动化进度
+- [ ] 用户能实时看到“谁在处理、处理到哪一步、为什么回退”
+
+### RK-M4-05 落实 WIP / board policy enforcement
+
+类型：后端/前端
+
+前置依赖：`RK-M3-03`, `RK-M4-04`
+
+开发任务：
+
+- [ ] 将 `wipLimit` 纳入 move card 校验
+- [ ] 将 `wipLimit` 纳入自动推进与队列调度校验
+- [ ] 支持列级 entry policy，例如 required artifacts、allowed source columns、manual approval required
+- [ ] 前端在拖拽和菜单移动前展示 policy violation 原因
+- [ ] 为 bypass 或管理员强制移动预留明确接口与审计记录
+
+涉及文件：
+
+- `apps/local-server/src/app/services/kanban-card-service.ts`
+- `apps/local-server/src/app/services/kanban-session-queue-service.ts`
+- `apps/local-server/src/app/services/kanban-board-service.ts`
+- `apps/web/src/features/projects/project-kanban-page.tsx`
+
+完成标准：
+
+- [ ] board policy 会真实阻止非法推进，而不是仅作为展示信息
+- [ ] 自动化与手工操作遵守同一套规则
+
+### RK-M4-06 打通 webhook / schedule -> Kanban
+
+类型：后端/集成
+
+前置依赖：`RK-M4-01`
+
+开发任务：
+
+- [ ] 定义 GitHub webhook 到 card 生命周期的映射规则
+- [ ] 支持 issue / PR / push 事件创建或更新 backlog / review cards
+- [ ] 为 blocked cards 增加定时 triage / reminder trigger
+- [ ] 为 backlog hygiene 增加 schedule-based refinement trigger
+- [ ] 在 card 上保留 trigger source 与外部引用信息
+
+涉及文件：
+
+- `apps/local-server/src/app/routes/`
+- `apps/local-server/src/app/services/flow-runtime-service.ts`
+- `apps/local-server/src/app/services/`
+- `libs/frontend/shared/schema/src/lib/flow.ts`
+
+完成标准：
+
+- [ ] 外部事件可以稳定进入 Kanban，而不是停留在 workflow 子系统
+- [ ] 用户可以区分 manual / schedule / webhook 触发来源
+
+### RK-M4-07 增加 card memory 与 trace drill-down
+
+类型：后端/前端
+
+前置依赖：`RK-M3-06`
+
+开发任务：
+
+- [ ] 为 card 定义长期 memory 结构：decisions、blockers、resolved notes、done summaries
+- [ ] 将 memory 与 laneSessions / laneHandoffs / traces 建立关联
+- [ ] 在卡片详情中增加 trace timeline / trace jump links
+- [ ] 支持从 review / done / blocked specialist 输出中自动提炼 memory 条目
+- [ ] 支持下一轮 refinement 读取 card memory 作为上下文
+
+涉及文件：
+
+- `apps/local-server/src/app/services/session-context-service.ts`
+- `apps/local-server/src/app/services/trace-service.ts`
+- `apps/local-server/src/app/routes/traces.ts`
+- `apps/web/src/features/projects/project-kanban-page.tsx`
+
+完成标准：
+
+- [ ] card 成为可持续演化的工作单元，而不是一次性状态节点
+- [ ] 用户可以从 card 直接钻取关键 trace 和决策历史
+
+### RK-M4-08 M4 测试与文档补齐
+
+类型：测试/文档
+
+前置依赖：M4 主要开发任务
+
+开发任务：
+
+- [ ] 补 intake -> spec -> cards 的端到端测试
+- [ ] 补 specialist CRUD route / UI tests
+- [ ] 补 board realtime subscription tests
+- [ ] 补 WIP / policy enforcement tests
+- [ ] 补 webhook / schedule 映射测试
+- [ ] 补 card memory / trace drill-down tests
+- [ ] 更新开发流程文档与验收说明
+
+完成标准：
+
+- [ ] M4 新能力具备回归保障
+- [ ] 新协作模式有清晰操作文档
+
+---
+
 ## 横向任务
 
 ### RK-X-01 数据迁移评估
@@ -691,7 +909,7 @@
 
 开发任务：
 
-- [ ] 整理 M1/M2/M3 对应验证命令
+- [ ] 整理 M1/M2/M3/M4 对应验证命令
 - [ ] 输出推荐的 `nx` 测试命令组合
 - [ ] 为主要路径准备 smoke test 步骤
 
@@ -735,6 +953,20 @@
 - [x] RK-M3-04
 - [x] RK-M3-05
 - [x] RK-M3-06
+
+### 批次 E
+
+- [x] RK-M4-01
+- [ ] RK-M4-02
+- [ ] RK-M4-03
+
+### 批次 F
+
+- [ ] RK-M4-04
+- [ ] RK-M4-05
+- [ ] RK-M4-06
+- [ ] RK-M4-07
+- [ ] RK-M4-08
 
 ---
 
