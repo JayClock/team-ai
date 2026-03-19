@@ -7,7 +7,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../db/sqlite';
 import problemJsonPlugin from '../plugins/problem-json';
 import sensiblePlugin from '../plugins/sensible';
-import { ensureDefaultKanbanBoard } from '../services/kanban-board-service';
+import {
+  ensureDefaultKanbanBoard,
+  updateKanbanBoard,
+  updateKanbanColumn,
+} from '../services/kanban-board-service';
 import { createProject } from '../services/project-service';
 import { createKanbanEventService } from '../services/kanban-event-service';
 import { getTaskById, updateTask } from '../services/task-service';
@@ -375,12 +379,6 @@ describe('tasks routes', () => {
     expect(patchResponse.statusCode).toBe(200);
     expect(emitted).toEqual([
       {
-        fromColumnId: null,
-        taskId,
-        toColumnId: todoColumn?.id ?? '',
-        type: 'task.column-transition',
-      },
-      {
         fromColumnId: todoColumn?.id ?? '',
         taskId,
         toColumnId: devColumn?.id ?? '',
@@ -528,6 +526,139 @@ describe('tasks routes', () => {
       columnId: devColumn?.id ?? null,
       status: 'READY',
     });
+  });
+
+  it('blocks moves that would exceed the board WIP limit', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Task WIP Policy',
+      repoPath: '/tmp/team-ai-task-wip-policy',
+    });
+    const configuredBoard = await updateKanbanBoard(sqlite, {
+      boardId: (await ensureDefaultKanbanBoard(sqlite, project.id)).id,
+      projectId: project.id,
+      settings: {
+        wipLimit: 1,
+      },
+    });
+    const backlogColumn = configuredBoard.columns.find((column) => column.name === 'Backlog');
+    const todoColumn = configuredBoard.columns.find((column) => column.name === 'Todo');
+    await createTask(fastify, project.id, null, {
+      boardId: configuredBoard.id,
+      columnId: todoColumn?.id ?? null,
+      objective: 'Already active',
+      title: 'Active task',
+    });
+    const backlogTaskId = await createTask(fastify, project.id, null, {
+      boardId: configuredBoard.id,
+      columnId: backlogColumn?.id ?? null,
+      objective: 'Wait in backlog',
+      title: 'Blocked by WIP',
+    });
+
+    const response = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${backlogTaskId}/move`,
+      payload: {
+        boardId: configuredBoard.id,
+        columnId: todoColumn?.id ?? null,
+      },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      detail: expect.stringContaining('Board WIP limit reached'),
+      title: 'Kanban Policy Blocked Transition',
+    });
+
+    const unchangedTask = await getTaskById(sqlite, backlogTaskId);
+    expect(unchangedTask.columnId).toBe(backlogColumn?.id ?? null);
+  });
+
+  it('blocks moves that violate column entry policy and records forced bypasses', async () => {
+    const sqlite = await createTestDatabase();
+    const fastify = await createTestServer(sqlite);
+    const project = await createProject(sqlite, {
+      title: 'Task Entry Policy',
+      repoPath: '/tmp/team-ai-task-entry-policy',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const todoColumn = board.columns.find((column) => column.name === 'Todo');
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    if (!reviewColumn) {
+      throw new Error('Review column is required for the test');
+    }
+
+    await updateKanbanColumn(sqlite, {
+      automation: {
+        allowedSourceColumnIds: [todoColumn?.id ?? ''],
+        autoAdvanceOnSuccess: true,
+        enabled: true,
+        manualApprovalRequired: true,
+        provider: null,
+        requiredArtifacts: ['local URL'],
+        role: reviewColumn.automation?.role ?? null,
+        specialistId: reviewColumn.automation?.specialistId ?? null,
+        specialistName: reviewColumn.automation?.specialistName ?? null,
+        transitionType: 'entry',
+      },
+      boardId: board.id,
+      columnId: reviewColumn.id,
+      projectId: project.id,
+    });
+
+    const taskId = await createTask(fastify, project.id, null, {
+      boardId: board.id,
+      columnId: devColumn?.id ?? null,
+      objective: 'Needs review policy checks',
+      title: 'Policy guarded task',
+    });
+
+    const blockedResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/move`,
+      payload: {
+        boardId: board.id,
+        columnId: reviewColumn.id,
+      },
+    });
+
+    expect(blockedResponse.statusCode).toBe(409);
+    expect(blockedResponse.json()).toMatchObject({
+      detail: expect.stringContaining('Only cards from'),
+      title: 'Kanban Policy Blocked Transition',
+    });
+
+    const forcedResponse = await fastify.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/move`,
+      payload: {
+        boardId: board.id,
+        columnId: reviewColumn.id,
+        force: true,
+        policyBypassReason: 'Release manager approved the exception.',
+      },
+    });
+
+    expect(forcedResponse.statusCode).toBe(200);
+    expect(forcedResponse.json()).toMatchObject({
+      boardId: board.id,
+      columnId: reviewColumn.id,
+    });
+
+    const bypassedTask = await getTaskById(sqlite, taskId);
+    expect(bypassedTask.laneHandoffs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          requestType: 'policy_bypass',
+          responseSummary: expect.stringContaining(
+            'Release manager approved the exception.',
+          ),
+        }),
+      ]),
+    );
   });
 
   it('reorders cards within the same column when a position is provided', async () => {

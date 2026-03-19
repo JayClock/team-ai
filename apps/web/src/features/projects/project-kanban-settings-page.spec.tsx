@@ -278,8 +278,10 @@ describe('ProjectKanbanSettingsPage', () => {
         expect(init.body).toBe(
           JSON.stringify({
             automation: {
+              allowedSourceColumnIds: [],
               autoAdvanceOnSuccess: false,
               enabled: false,
+              manualApprovalRequired: false,
               provider: 'codex',
               requiredArtifacts: [],
               role: 'ROUTA',

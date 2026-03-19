@@ -9,7 +9,8 @@ export type TaskLaneHandoffRequestType =
   | 'environment_preparation'
   | 'runtime_context'
   | 'clarification'
-  | 'rerun_command';
+  | 'rerun_command'
+  | 'policy_bypass';
 export type TaskLaneHandoffStatus =
   | 'requested'
   | 'delivered'

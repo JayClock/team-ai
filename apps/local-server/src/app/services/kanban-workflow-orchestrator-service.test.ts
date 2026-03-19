@@ -443,6 +443,63 @@ describe('kanban workflow orchestrator service', () => {
     orchestrator.stop();
   });
 
+  it('blocks queue dispatch when board WIP exceeds the configured limit', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Queue WIP Policy',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    if (!devColumn) {
+      throw new Error('Dev column is required for the test');
+    }
+
+    setBoardWipLimit(sqlite, board.id, 1);
+    await createTask(sqlite, {
+      boardId: board.id,
+      columnId: devColumn.id,
+      objective: 'Already in progress',
+      projectId: project.id,
+      title: 'Existing WIP task',
+    });
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: devColumn.id,
+      objective: 'Try to start another automation',
+      projectId: project.id,
+      title: 'Queued behind WIP limit',
+    });
+
+    const startTaskSession = vi.fn(async () => ({
+      sessionId: 'acps_wip_limited',
+    }));
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession,
+      },
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: devColumn.id,
+      type: 'task.column-transition',
+    });
+
+    const blockedTask = await getTaskById(sqlite, task.id);
+    expect(blockedTask.lastSyncError).toContain('Board WIP limit reached');
+    expect(startTaskSession).not.toHaveBeenCalled();
+
+    orchestrator.stop();
+  });
+
   it('routes failed review automation back to Dev with the review summary attached', async () => {
     const sqlite = await createTestDatabase(cleanupTasks);
     const project = await createProject(sqlite, {
@@ -500,6 +557,71 @@ describe('kanban workflow orchestrator service', () => {
       columnId: devColumn?.id,
       lastSyncError: 'Tests failed on the regression path.',
       status: 'READY',
+    });
+
+    orchestrator.stop();
+  });
+
+  it('blocks auto-advance when the next column requires manual approval', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const project = await createProject(sqlite, {
+      title: 'Kanban Manual Approval Policy',
+    });
+    const board = await ensureDefaultKanbanBoard(sqlite, project.id);
+    const devColumn = board.columns.find((column) => column.name === 'Dev');
+    const reviewColumn = board.columns.find((column) => column.name === 'Review');
+    if (!devColumn || !reviewColumn) {
+      throw new Error('Dev and Review columns are required for the test');
+    }
+
+    patchColumnAutomation(sqlite, reviewColumn.id, {
+      manualApprovalRequired: true,
+    });
+
+    const task = await createTask(sqlite, {
+      boardId: board.id,
+      columnId: devColumn.id,
+      objective: 'Do not auto-advance into review without approval',
+      projectId: project.id,
+      title: 'Manual approval task',
+    });
+
+    const events = createKanbanEventService();
+    const orchestrator = createKanbanWorkflowOrchestrator({
+      callbacks: {
+        startTaskSession: vi.fn(async () => ({
+          sessionId: 'acps_manual_approval',
+        })),
+      },
+      events,
+      sqlite,
+    });
+    orchestrator.start();
+
+    await events.emit({
+      boardId: board.id,
+      fromColumnId: null,
+      projectId: project.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      toColumnId: devColumn.id,
+      type: 'task.column-transition',
+    });
+
+    await events.emit({
+      boardId: board.id,
+      projectId: project.id,
+      sessionId: 'acps_manual_approval',
+      success: true,
+      taskId: task.id,
+      taskTitle: task.title,
+      type: 'task.session-completed',
+    });
+
+    const blockedTask = await getTaskById(sqlite, task.id);
+    expect(blockedTask).toMatchObject({
+      columnId: devColumn.id,
+      lastSyncError: expect.stringContaining('requires manual approval'),
     });
 
     orchestrator.stop();
@@ -853,6 +975,68 @@ function setColumnRequiredArtifacts(
   columnId: string,
   requiredArtifacts: string[],
 ) {
+  patchColumnAutomation(sqlite, columnId, {
+    requiredArtifacts,
+  });
+}
+
+function setBoardWipLimit(
+  sqlite: ReturnType<typeof initializeDatabase>,
+  boardId: string,
+  wipLimit: number,
+) {
+  const row = sqlite
+    .prepare(
+      `
+        SELECT settings_json
+        FROM project_kanban_boards
+        WHERE id = ? AND deleted_at IS NULL
+      `,
+    )
+    .get(boardId) as { settings_json: string } | undefined;
+  if (!row) {
+    throw new Error(`Board ${boardId} does not exist`);
+  }
+
+  const settings = JSON.parse(row.settings_json) as {
+    boardConcurrency: number | null;
+    managedTemplate?: 'custom' | 'workflow';
+    wipLimit: number | null;
+  };
+
+  sqlite
+    .prepare(
+      `
+        UPDATE project_kanban_boards
+        SET settings_json = @settingsJson
+        WHERE id = @boardId AND deleted_at IS NULL
+      `,
+    )
+    .run({
+      boardId,
+      settingsJson: JSON.stringify({
+        ...settings,
+        wipLimit,
+      }),
+    });
+}
+
+function patchColumnAutomation(
+  sqlite: ReturnType<typeof initializeDatabase>,
+  columnId: string,
+  patch: Partial<{
+    allowedSourceColumnIds: string[];
+    autoAdvanceOnSuccess: boolean;
+    enabled: boolean;
+    manualApprovalRequired: boolean;
+    provider: string | null;
+    requiredArtifacts: string[];
+    role: string | null;
+    specialistId: string | null;
+    specialistName: string | null;
+    transitionType: 'both' | 'entry' | 'exit';
+  }>,
+) {
   const row = sqlite
     .prepare(
       `
@@ -867,8 +1051,10 @@ function setColumnRequiredArtifacts(
   }
 
   const automation = JSON.parse(row.automation_json) as {
+    allowedSourceColumnIds?: string[];
     autoAdvanceOnSuccess: boolean;
     enabled: boolean;
+    manualApprovalRequired?: boolean;
     provider: string | null;
     requiredArtifacts: string[];
     role: string | null;
@@ -888,7 +1074,7 @@ function setColumnRequiredArtifacts(
     .run({
       automationJson: JSON.stringify({
         ...automation,
-        requiredArtifacts,
+        ...patch,
       }),
       columnId,
     });

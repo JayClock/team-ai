@@ -1,5 +1,13 @@
 import type { Database } from 'better-sqlite3';
+import { ProblemError } from '@orchestration/runtime-acp';
 import type { KanbanEventService } from './kanban-event-service';
+import { getProjectKanbanBoardById } from './kanban-board-service';
+import {
+  appendKanbanPolicyBypassAudit,
+  assertKanbanTransitionPolicy,
+  evaluateKanbanTransitionPolicy,
+  getKanbanPolicyViolationMessage,
+} from './kanban-policy-service';
 import { prepareTaskForColumnTransition } from './task-lane-service';
 import {
   createTask,
@@ -81,6 +89,8 @@ export async function moveKanbanCard(
   input: {
     boardId: string | null;
     columnId: string | null;
+    force?: boolean;
+    policyBypassReason?: string | null;
     position?: number | null;
     taskId: string;
   },
@@ -102,6 +112,69 @@ export async function moveKanbanCard(
     ...(input.position !== undefined ? { position: input.position } : {}),
   };
 
+  if (input.boardId && input.columnId) {
+    const board = await getProjectKanbanBoardById(
+      sqlite,
+      previous.projectId,
+      input.boardId,
+    );
+    const targetColumn = board.columns.find((column) => column.id === input.columnId);
+
+    if (!targetColumn) {
+      throw new ProblemError({
+        detail: `Column ${input.columnId} was not found in board ${input.boardId}`,
+        status: 404,
+        title: 'Kanban Column Not Found',
+        type: 'https://team-ai.dev/problems/kanban-column-not-found',
+      });
+    }
+
+    const policyViolations = evaluateKanbanTransitionPolicy({
+      board,
+      sourceColumnId: previous.columnId,
+      targetColumn,
+      task: previous,
+    });
+
+    try {
+      assertKanbanTransitionPolicy({
+        board,
+        sourceColumnId: previous.columnId,
+        targetColumn,
+        task: previous,
+      });
+    } catch (error) {
+      if (!input.force) {
+        throw error;
+      }
+
+      const policyBypassReason = input.policyBypassReason?.trim();
+      if (!policyBypassReason) {
+        throw new ProblemError({
+          detail: 'A bypass reason is required when forcing a policy-blocked move.',
+          status: 400,
+          title: 'Kanban Policy Bypass Reason Required',
+          type: 'https://team-ai.dev/problems/kanban-policy-bypass-reason-required',
+        });
+      }
+
+      nextPatch.laneHandoffs = appendKanbanPolicyBypassAudit(previous, {
+        reason: policyBypassReason,
+        sourceColumnId: previous.columnId,
+        targetColumnId: input.columnId,
+        violations:
+          policyViolations.length > 0
+            ? policyViolations
+            : [
+                {
+                  code: 'manual_approval_required',
+                  message: getKanbanPolicyViolationMessage(error),
+                },
+              ],
+      });
+    }
+  }
+
   if (
     prepareTaskForColumnTransition(transitionState, {
       boardId: input.boardId,
@@ -110,6 +183,7 @@ export async function moveKanbanCard(
   ) {
     nextPatch.laneSessions = transitionState.laneSessions;
     nextPatch.lastSyncError = transitionState.lastSyncError;
+    nextPatch.laneHandoffs = nextPatch.laneHandoffs ?? transitionState.laneHandoffs;
     nextPatch.sessionIds = transitionState.sessionIds;
     nextPatch.triggerSessionId = transitionState.triggerSessionId;
   }

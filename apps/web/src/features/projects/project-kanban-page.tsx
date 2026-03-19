@@ -77,8 +77,10 @@ interface KanbanIntakeResponse {
 
 interface KanbanColumn {
   automation: {
+    allowedSourceColumnIds: string[];
     autoAdvanceOnSuccess: boolean;
     enabled: boolean;
+    manualApprovalRequired: boolean;
     provider: string | null;
     requiredArtifacts: string[];
     role: string | null;
@@ -265,6 +267,106 @@ function resolveCardSessionId(card: KanbanCard | null) {
     card?.resultSessionId ??
     null
   );
+}
+
+function normalizePolicyText(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function matchesArtifactRequirement(requirement: string, evidence: string) {
+  const normalizedRequirement = normalizePolicyText(requirement);
+  const normalizedEvidence = normalizePolicyText(evidence);
+
+  if (normalizedEvidence.includes(normalizedRequirement)) {
+    return true;
+  }
+
+  if (
+    (normalizedRequirement.includes('url') ||
+      normalizedRequirement.includes('link')) &&
+    /(https?:\/\/|localhost|127\.0\.0\.1)/.test(normalizedEvidence)
+  ) {
+    return true;
+  }
+
+  if (
+    (normalizedRequirement.includes('screenshot') ||
+      normalizedRequirement.includes('image')) &&
+    /\.(png|jpg|jpeg|webp|gif)\b/.test(normalizedEvidence)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function isWipStage(stage: KanbanColumn['stage']) {
+  return stage !== null && stage !== 'backlog' && stage !== 'done';
+}
+
+function evaluateLocalMovePolicy(
+  board: KanbanBoardResponse,
+  card: KanbanCard,
+  targetColumn: KanbanColumn,
+) {
+  const violations: string[] = [];
+  const sourceColumn =
+    board.columns.find((column) => column.id === card.columnId) ?? null;
+
+  if (
+    targetColumn.automation?.allowedSourceColumnIds.length &&
+    (!card.columnId ||
+      !targetColumn.automation.allowedSourceColumnIds.includes(card.columnId))
+  ) {
+    violations.push(`Only approved source columns can enter ${targetColumn.name}.`);
+  }
+
+  if (targetColumn.automation?.manualApprovalRequired) {
+    violations.push(`${targetColumn.name} requires manual approval before moving a card in.`);
+  }
+
+  const increasesBoardWip =
+    !isWipStage(sourceColumn?.stage ?? null) && isWipStage(targetColumn.stage);
+  const activeWip = board.columns.reduce((total, column) => {
+    if (!isWipStage(column.stage)) {
+      return total;
+    }
+
+    return total + (column.cards?.length ?? 0);
+  }, 0);
+  if (
+    increasesBoardWip &&
+    typeof board.settings.wipLimit === 'number' &&
+    activeWip >= board.settings.wipLimit
+  ) {
+    violations.push(
+      `Board WIP limit reached (${board.settings.wipLimit}). Finish active work before pulling another card forward.`,
+    );
+  }
+
+  const missingArtifacts = (targetColumn.automation?.requiredArtifacts ?? []).filter(
+    (artifact) => {
+      return !card.artifactEvidence.some((evidence) => {
+        return matchesArtifactRequirement(artifact, evidence);
+      });
+    },
+  );
+  if (missingArtifacts.length > 0) {
+    violations.push(
+      `${targetColumn.name} requires ${missingArtifacts.join(', ')} before the move can complete.`,
+    );
+  }
+
+  return violations;
+}
+
+async function getErrorDetail(response: Response) {
+  try {
+    const payload = (await response.json()) as { detail?: string; title?: string };
+    return payload.detail ?? payload.title ?? `请求失败: ${response.status}`;
+  } catch {
+    return `请求失败: ${response.status}`;
+  }
 }
 
 function describeKanbanRealtimeEvent(event: KanbanRealtimeEvent) {
@@ -464,6 +566,12 @@ export default function ProjectKanbanPage() {
         return;
       }
 
+      const localPolicyViolations = evaluateLocalMovePolicy(board, card, column);
+      if (localPolicyViolations.length > 0) {
+        toast.error(localPolicyViolations[0] ?? 'Kanban policy blocked transition.');
+        return;
+      }
+
       setMovingCardId(card.id);
 
       try {
@@ -479,7 +587,7 @@ export default function ProjectKanbanPage() {
           method: 'POST',
         });
         if (!response.ok) {
-          throw new Error(`移动卡片失败: ${response.status}`);
+          throw new Error(await getErrorDetail(response));
         }
 
         toast.success(`已移动到 ${column.name}`);

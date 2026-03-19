@@ -118,6 +118,8 @@ const taskPatchSchema = z
 const moveTaskBodySchema = z.object({
   boardId: nullableStringSchema,
   columnId: nullableStringSchema,
+  force: z.boolean().optional(),
+  policyBypassReason: z.string().trim().min(1).optional(),
   position: z.number().int().optional().nullable(),
 });
 
@@ -281,12 +283,14 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const body = moveTaskBodySchema.parse(request.body);
     const positionedTask = await moveKanbanCard(
       fastify.sqlite,
-      {
-        boardId: body.boardId,
-        columnId: body.columnId,
-        position: body.position,
-        taskId,
-      },
+        {
+          boardId: body.boardId,
+          columnId: body.columnId,
+          force: body.force,
+          policyBypassReason: body.policyBypassReason,
+          position: body.position,
+          taskId,
+        },
       fastify.hasDecorator('kanbanEventService')
         ? fastify.kanbanEventService
         : undefined,

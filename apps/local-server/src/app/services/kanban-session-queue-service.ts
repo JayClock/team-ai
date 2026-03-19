@@ -28,6 +28,7 @@ export interface KanbanSessionQueueTaskState {
 export interface KanbanSessionQueueJob {
   autoAdvanceOnSuccess: boolean;
   boardId: string;
+  canStart?: () => Promise<{ allowed: boolean; error?: string }>;
   columnId: string;
   projectId: string;
   taskId: string;
@@ -154,6 +155,18 @@ export function createKanbanSessionQueueService(
   }
 
   async function startEntry(entry: QueueEntry) {
+    if (entry.canStart) {
+      const policy = await entry.canStart();
+      if (!policy.allowed) {
+        jobsByTaskId.delete(entry.taskId);
+        removeQueuedEntry(entry.boardId, entry.taskId);
+        return {
+          error: policy.error ?? 'Kanban policy blocked queue dispatch.',
+          queued: false,
+        };
+      }
+    }
+
     removeQueuedEntry(entry.boardId, entry.taskId);
     entry.status = 'running';
 

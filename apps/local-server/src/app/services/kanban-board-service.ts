@@ -180,8 +180,10 @@ function resolveColumnAutomation(
 
   const defaultsByColumnId: Partial<Record<string, KanbanColumnAutomationPayload>> = {
     blocked: {
+      allowedSourceColumnIds: [],
       autoAdvanceOnSuccess: true,
       enabled: true,
+      manualApprovalRequired: false,
       provider: null,
       requiredArtifacts: [],
       role: definition?.recommendedRole ?? null,
@@ -190,8 +192,10 @@ function resolveColumnAutomation(
       transitionType: 'entry',
     },
     dev: {
+      allowedSourceColumnIds: [],
       autoAdvanceOnSuccess: true,
       enabled: true,
+      manualApprovalRequired: false,
       provider: null,
       requiredArtifacts: [],
       role: definition?.recommendedRole ?? null,
@@ -200,8 +204,10 @@ function resolveColumnAutomation(
       transitionType: 'entry',
     },
     done: {
+      allowedSourceColumnIds: [],
       autoAdvanceOnSuccess: false,
       enabled: true,
+      manualApprovalRequired: false,
       provider: null,
       requiredArtifacts: [],
       role: definition?.recommendedRole ?? null,
@@ -210,8 +216,10 @@ function resolveColumnAutomation(
       transitionType: 'entry',
     },
     review: {
+      allowedSourceColumnIds: [],
       autoAdvanceOnSuccess: true,
       enabled: true,
+      manualApprovalRequired: false,
       provider: null,
       requiredArtifacts: [],
       role: definition?.recommendedRole ?? null,
@@ -220,8 +228,10 @@ function resolveColumnAutomation(
       transitionType: 'entry',
     },
     todo: {
+      allowedSourceColumnIds: [],
       autoAdvanceOnSuccess: true,
       enabled: true,
+      manualApprovalRequired: false,
       provider: null,
       requiredArtifacts: [],
       role: definition?.recommendedRole ?? null,
@@ -237,9 +247,15 @@ function resolveColumnAutomation(
   }
 
   return {
+    allowedSourceColumnIds: Array.isArray(existing?.allowedSourceColumnIds)
+      ? existing.allowedSourceColumnIds.filter((item): item is string => {
+          return typeof item === 'string' && item.trim().length > 0;
+        })
+      : [],
     autoAdvanceOnSuccess:
       existing?.autoAdvanceOnSuccess ?? defaults?.autoAdvanceOnSuccess ?? false,
     enabled: existing?.enabled ?? defaults?.enabled ?? false,
+    manualApprovalRequired: existing?.manualApprovalRequired ?? false,
     provider: existing?.provider ?? defaults?.provider ?? null,
     requiredArtifacts: Array.isArray(existing?.requiredArtifacts)
       ? existing.requiredArtifacts

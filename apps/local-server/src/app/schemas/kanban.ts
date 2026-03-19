@@ -13,8 +13,10 @@ export type KanbanColumnStage =
   | 'done';
 
 export interface KanbanColumnAutomationPayload {
+  allowedSourceColumnIds: string[];
   autoAdvanceOnSuccess: boolean;
   enabled: boolean;
+  manualApprovalRequired: boolean;
   provider: string | null;
   requiredArtifacts: string[];
   role: string | null;

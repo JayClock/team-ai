@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProjectKanbanPage from './project-kanban-page';
 
 const runtimeFetchMock = vi.fn();
+const toastErrorMock = vi.fn();
+const toastSuccessMock = vi.fn();
 const selectedProject = {
   data: {
     id: 'project-1',
@@ -39,6 +41,10 @@ vi.mock('@shared/ui', async () => {
       </button>
     ),
     DropdownMenuTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+    toast: {
+      error: (...args: unknown[]) => toastErrorMock(...args),
+      success: (...args: unknown[]) => toastSuccessMock(...args),
+    },
   };
 });
 
@@ -106,6 +112,8 @@ class MockEventSource {
 describe('ProjectKanbanPage', () => {
   beforeEach(() => {
     runtimeFetchMock.mockReset();
+    toastErrorMock.mockReset();
+    toastSuccessMock.mockReset();
     MockEventSource.instances = [];
     vi.stubGlobal('EventSource', MockEventSource);
   });
@@ -676,5 +684,132 @@ describe('ProjectKanbanPage', () => {
     });
 
     expect(screen.getByText(/Realtime card moved into board-1_todo/)).toBeTruthy();
+  });
+
+  it('shows a policy reason before sending a blocked move request', async () => {
+    runtimeFetchMock.mockImplementation((href: string) => {
+      if (href.endsWith('/kanban/boards')) {
+        return jsonResponse({
+          _embedded: {
+            boards: [{ id: 'board-1' }],
+          },
+        });
+      }
+
+      if (href.endsWith('/kanban/boards/board-1')) {
+        return jsonResponse({
+          columns: [
+            {
+              automation: null,
+              cards: [
+                {
+                  assignedRole: 'ROUTA',
+                  assignedSpecialistName: 'Routa Coordinator',
+                  artifactEvidence: [],
+                  columnId: 'board-1_backlog',
+                  completionSummary: null,
+                  executionSessionId: null,
+                  explain: null,
+                  id: 'task-1',
+                  kind: 'plan',
+                  laneHandoffs: [],
+                  laneSessions: [],
+                  lastSyncError: null,
+                  position: 0,
+                  priority: null,
+                  recentOutputSummary: null,
+                  resultSessionId: null,
+                  status: 'PENDING',
+                  title: 'Blocked by policy',
+                  triggerSessionId: null,
+                  updatedAt: '2026-03-19T00:00:00.000Z',
+                  verificationReport: null,
+                  verificationVerdict: null,
+                },
+              ],
+              id: 'board-1_backlog',
+              name: 'Backlog',
+              position: 0,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'routa-coordinator',
+              recommendedSpecialistName: 'Routa Coordinator',
+              stage: 'backlog',
+            },
+            {
+              automation: {
+                allowedSourceColumnIds: [],
+                autoAdvanceOnSuccess: false,
+                enabled: true,
+                manualApprovalRequired: false,
+                provider: null,
+                requiredArtifacts: [],
+                role: 'ROUTA',
+                specialistId: 'todo-orchestrator',
+                specialistName: 'Todo Orchestrator',
+                transitionType: 'entry',
+              },
+              cards: [
+                {
+                  assignedRole: 'CRAFTER',
+                  assignedSpecialistName: 'Crafter Implementor',
+                  artifactEvidence: [],
+                  columnId: 'board-1_todo',
+                  completionSummary: null,
+                  executionSessionId: null,
+                  explain: null,
+                  id: 'task-2',
+                  kind: 'implement',
+                  laneHandoffs: [],
+                  laneSessions: [],
+                  lastSyncError: null,
+                  position: 0,
+                  priority: null,
+                  recentOutputSummary: null,
+                  resultSessionId: null,
+                  status: 'READY',
+                  title: 'Already active',
+                  triggerSessionId: null,
+                  updatedAt: '2026-03-19T00:00:00.000Z',
+                  verificationReport: null,
+                  verificationVerdict: null,
+                },
+              ],
+              id: 'board-1_todo',
+              name: 'Todo',
+              position: 1,
+              recommendedRole: 'ROUTA',
+              recommendedSpecialistId: 'todo-orchestrator',
+              recommendedSpecialistName: 'Todo Orchestrator',
+              stage: 'todo',
+            },
+          ],
+          id: 'board-1',
+          name: 'Workflow Board',
+          projectId: 'project-1',
+          settings: {
+            boardConcurrency: null,
+            isDefault: true,
+            wipLimit: 1,
+          },
+        });
+      }
+
+      throw new Error(`Unexpected request: ${href}`);
+    });
+
+    render(
+      <MemoryRouter>
+        <ProjectKanbanPage />
+      </MemoryRouter>,
+    );
+
+    await screen.findAllByText('Blocked by policy');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move to Todo' }));
+
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Board WIP limit reached'),
+    );
+    expect(runtimeFetchMock).toHaveBeenCalledTimes(2);
   });
 });

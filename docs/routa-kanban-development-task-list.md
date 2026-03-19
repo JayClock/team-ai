@@ -787,13 +787,15 @@
 
 前置依赖：`RK-M3-03`, `RK-M4-04`
 
+状态：`done`
+
 开发任务：
 
-- [ ] 将 `wipLimit` 纳入 move card 校验
-- [ ] 将 `wipLimit` 纳入自动推进与队列调度校验
-- [ ] 支持列级 entry policy，例如 required artifacts、allowed source columns、manual approval required
-- [ ] 前端在拖拽和菜单移动前展示 policy violation 原因
-- [ ] 为 bypass 或管理员强制移动预留明确接口与审计记录
+- [x] 将 `wipLimit` 纳入 move card 校验
+- [x] 将 `wipLimit` 纳入自动推进与队列调度校验
+- [x] 支持列级 entry policy，例如 required artifacts、allowed source columns、manual approval required
+- [x] 前端在拖拽和菜单移动前展示 policy violation 原因
+- [x] 为 bypass 或管理员强制移动预留明确接口与审计记录
 
 涉及文件：
 
@@ -804,8 +806,8 @@
 
 完成标准：
 
-- [ ] board policy 会真实阻止非法推进，而不是仅作为展示信息
-- [ ] 自动化与手工操作遵守同一套规则
+- [x] board policy 会真实阻止非法推进，而不是仅作为展示信息
+- [x] 自动化与手工操作遵守同一套规则
 
 ### RK-M4-06 打通 webhook / schedule -> Kanban
 
@@ -965,7 +967,7 @@
 ### 批次 F
 
 - [x] RK-M4-04
-- [ ] RK-M4-05
+- [x] RK-M4-05
 - [ ] RK-M4-06
 - [ ] RK-M4-07
 - [ ] RK-M4-08

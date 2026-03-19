@@ -41,8 +41,10 @@ const stageSchema = z.union([
 ]);
 const automationSchema = z
   .object({
+    allowedSourceColumnIds: z.array(z.string().trim().min(1)).optional(),
     autoAdvanceOnSuccess: z.boolean().optional(),
     enabled: z.boolean().optional(),
+    manualApprovalRequired: z.boolean().optional(),
     provider: nullableStringSchema.optional(),
     requiredArtifacts: z.array(z.string().trim().min(1)).optional(),
     role: nullableStringSchema.optional(),

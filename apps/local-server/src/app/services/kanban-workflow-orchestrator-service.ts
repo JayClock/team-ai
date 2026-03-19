@@ -14,6 +14,11 @@ import {
   type QueuedKanbanSessionAutomation,
 } from './kanban-session-queue-service';
 import { getProjectKanbanBoardById } from './kanban-board-service';
+import {
+  evaluateKanbanAutomationStartPolicy,
+  getKanbanPolicyViolationMessage,
+} from './kanban-policy-service';
+import { moveKanbanCard } from './kanban-card-service';
 import { listProjectCodebases } from './project-codebase-service';
 import { evaluateTaskArtifactGate } from './task-artifact-gate-service';
 import { ensureTaskExecutionWorktree } from './task-session-runtime-service';
@@ -268,9 +273,40 @@ export function createKanbanWorkflowOrchestrator(
       return;
     }
 
-    await sessionQueue.enqueue({
+    const enqueueResult = await sessionQueue.enqueue({
       autoAdvanceOnSuccess: targetColumn.automation.autoAdvanceOnSuccess,
       boardId: board.id,
+      canStart: async () => {
+        const latestBoard = await getProjectKanbanBoardById(
+          input.sqlite,
+          event.projectId,
+          board.id,
+        );
+        const latestColumn = latestBoard.columns.find(
+          (column) => column.id === targetColumn.id,
+        );
+        if (!latestColumn) {
+          return {
+            allowed: false,
+            error: `Column ${targetColumn.id} is no longer available.`,
+          };
+        }
+
+        const violations = evaluateKanbanAutomationStartPolicy({
+          board: latestBoard,
+          column: latestColumn,
+        });
+        if (violations.length === 0) {
+          return {
+            allowed: true,
+          };
+        }
+
+        return {
+          allowed: false,
+          error: violations.map((violation) => violation.message).join(' '),
+        };
+      },
       columnId: targetColumn.id,
       getTaskState: async () => getTaskQueueState(input.sqlite, event.taskId),
       projectId: event.projectId,
@@ -314,6 +350,12 @@ export function createKanbanWorkflowOrchestrator(
       taskId: event.taskId,
       taskTitle: event.taskTitle,
     });
+
+    if (enqueueResult.error) {
+      await updateTask(input.sqlite, event.taskId, {
+        lastSyncError: enqueueResult.error,
+      });
+    }
   }
 
   async function autoAdvanceTask(
@@ -417,22 +459,33 @@ export function createKanbanWorkflowOrchestrator(
       return;
     }
 
-    const updatedTask = await updateTask(input.sqlite, automation.taskId, {
-      boardId: board.id,
-      columnId: nextColumn.id,
-      lastSyncError: null,
-      status: deriveStatusForColumn(nextColumn, task),
-    });
-
-    await input.events.emit({
-      boardId: board.id,
-      fromColumnId: automation.columnId,
-      projectId: automation.projectId,
-      taskId: updatedTask.id,
-      taskTitle: updatedTask.title,
-      toColumnId: nextColumn.id,
-      type: 'task.column-transition',
-    });
+    try {
+      await updateTask(input.sqlite, automation.taskId, {
+        lastSyncError: null,
+      });
+      await moveKanbanCard(input.sqlite, {
+        boardId: board.id,
+        columnId: nextColumn.id,
+        taskId: automation.taskId,
+      }, input.events);
+    } catch (error) {
+      const detail = getKanbanPolicyViolationMessage(error);
+      await updateTask(input.sqlite, automation.taskId, {
+        lastSyncError: detail,
+        verificationReport:
+          currentColumn.stage === 'review' ? detail : task.verificationReport,
+      });
+      input.logger?.warn?.(
+        {
+          boardId: board.id,
+          fromColumnId: automation.columnId,
+          policyError: detail,
+          taskId: automation.taskId,
+          toColumnId: nextColumn.id,
+        },
+        'Blocked Kanban auto-advance because board policy requirements were not satisfied',
+      );
+    }
   }
 
   return {

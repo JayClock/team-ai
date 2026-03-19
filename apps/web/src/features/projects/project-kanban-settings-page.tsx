@@ -36,8 +36,10 @@ interface BoardListResponse {
 interface BoardResponse {
   columns: Array<{
     automation: {
+      allowedSourceColumnIds: string[];
       autoAdvanceOnSuccess: boolean;
       enabled: boolean;
+      manualApprovalRequired: boolean;
       provider: string | null;
       requiredArtifacts: string[];
       role: string | null;
@@ -76,9 +78,11 @@ interface SpecialistListResponse {
 }
 
 interface ColumnDraft {
+  allowedSourceColumnIds: string;
   autoAdvanceOnSuccess: boolean;
   enabled: boolean;
   id: string;
+  manualApprovalRequired: boolean;
   name: string;
   position: number;
   provider: string;
@@ -92,9 +96,12 @@ interface ColumnDraft {
 
 function toColumnDraft(column: BoardResponse['columns'][number]): ColumnDraft {
   return {
+    allowedSourceColumnIds:
+      column.automation?.allowedSourceColumnIds?.join(', ') ?? '',
     autoAdvanceOnSuccess: column.automation?.autoAdvanceOnSuccess ?? false,
     enabled: column.automation?.enabled ?? false,
     id: column.id,
+    manualApprovalRequired: column.automation?.manualApprovalRequired ?? false,
     name: column.name,
     position: column.position,
     provider: column.automation?.provider ?? '',
@@ -302,8 +309,13 @@ export default function ProjectKanbanSettingsPage() {
         {
           body: JSON.stringify({
             automation: {
+              allowedSourceColumnIds: column.allowedSourceColumnIds
+                .split(',')
+                .map((item) => item.trim())
+                .filter(Boolean),
               autoAdvanceOnSuccess: column.autoAdvanceOnSuccess,
               enabled: column.enabled,
+              manualApprovalRequired: column.manualApprovalRequired,
               provider: column.provider || null,
               requiredArtifacts: column.requiredArtifacts
                 .split(',')
@@ -734,6 +746,26 @@ export default function ProjectKanbanSettingsPage() {
                           </label>
                           <label className="space-y-2 text-sm">
                             <span className="text-muted-foreground">
+                              Allowed Source Columns
+                            </span>
+                            <Input
+                              value={column.allowedSourceColumnIds}
+                              onChange={(event) =>
+                                setColumnDrafts((current) =>
+                                  current.map((entry) =>
+                                    entry.id === column.id
+                                      ? {
+                                          ...entry,
+                                          allowedSourceColumnIds: event.target.value,
+                                        }
+                                      : entry,
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="space-y-2 text-sm">
+                            <span className="text-muted-foreground">
                               Transition Type
                             </span>
                             <select
@@ -794,6 +826,26 @@ export default function ProjectKanbanSettingsPage() {
                               }
                             />
                             auto advance on success
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={column.manualApprovalRequired}
+                              onChange={(event) =>
+                                setColumnDrafts((current) =>
+                                  current.map((entry) =>
+                                    entry.id === column.id
+                                      ? {
+                                          ...entry,
+                                          manualApprovalRequired:
+                                            event.target.checked,
+                                        }
+                                      : entry,
+                                  ),
+                                )
+                              }
+                            />
+                            manual approval required
                           </label>
                         </div>
 
