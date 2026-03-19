@@ -1,7 +1,6 @@
 import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
-import { useProjectSessions } from '@features/project-sessions';
 import {
   AcpEventEnvelope,
   AcpSessionSummary,
@@ -106,35 +105,6 @@ async function loadTaskRunCollectionPages(
   }
 
   return items;
-}
-
-function resolveRootSessionId(
-  sessions: State<AcpSessionSummary>[],
-  sessionId: string | undefined,
-): string | undefined {
-  if (!sessionId) {
-    return undefined;
-  }
-
-  const parentById = new Map(
-    sessions.map((session) => [
-      session.data.id,
-      session.data.parentSession?.id ?? null,
-    ]),
-  );
-  const visited = new Set<string>();
-  let currentId: string | null | undefined = sessionId;
-
-  while (currentId && !visited.has(currentId)) {
-    visited.add(currentId);
-    const parentId = parentById.get(currentId);
-    if (!parentId) {
-      return currentId;
-    }
-    currentId = parentId;
-  }
-
-  return sessionId;
 }
 
 function createSessionAnnotationMap(
@@ -274,12 +244,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     actorUserId: me.id,
     historyLimit: 200,
   });
-  const {
-    error: sessionsError,
-    loading: sessionsLoading,
-    refresh: refreshSessions,
-    sessions,
-  } = useProjectSessions(projectState);
   const [selectedRepositoryId, setSelectedRepositoryId] = useState<
     string | null
   >(null);
@@ -297,28 +261,35 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [taskItems, setTaskItems] = useState<TaskPanelItem[]>([]);
   const [sessionRuntimeSwitchPending, setSessionRuntimeSwitchPending] =
     useState(false);
+  const [workbenchSessionId, setWorkbenchSessionId] = useState<
+    string | undefined
+  >(initialSessionId);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const allowReconnectRef = useRef(true);
   const latestEventIdRef = useRef<string | undefined>(undefined);
-  const initialSelectionAppliedRef = useRef<string | null>(null);
+  const refreshSessionListRef = useRef<
+    (() => Promise<State<AcpSessionSummary>[]>) | null
+  >(null);
 
   const selectedSessionId = selectedSession?.data.id;
-  const workbenchSessionId = useMemo(
-    () =>
-      resolveRootSessionId(sessions, selectedSessionId) ??
-      selectedSessionId ??
-      undefined,
-    [selectedSessionId, sessions],
-  );
-  useEffect(() => {
-    if (!sessionsError) {
-      return;
-    }
+  const refreshSessions = useCallback(async () => {
+    await refreshSessionListRef.current?.();
+  }, []);
 
-    toast.error(sessionsError.message || '加载会话列表失败');
-  }, [sessionsError]);
+  useEffect(() => {
+    if (!selectedSessionId) {
+      setWorkbenchSessionId(undefined);
+    }
+  }, [selectedSessionId]);
+
+  const handleSessionListRefreshReady = useCallback(
+    (refresh: () => Promise<State<AcpSessionSummary>[]>) => {
+      refreshSessionListRef.current = refresh;
+    },
+    [],
+  );
   const repositoryOptions = useMemo(
     () =>
       codebasesState.collection.map<ProjectRepositoryOption>(
@@ -924,49 +895,26 @@ export function ShellsSession(props: ShellsSessionProps) {
     [onSessionNavigate, select],
   );
 
-  useEffect(() => {
-    if (!initialSessionId || sessionsLoading) {
-      return;
-    }
-    if (selectedSession?.data.id === initialSessionId) {
-      initialSelectionAppliedRef.current = initialSessionId;
-      return;
-    }
-    if (initialSelectionAppliedRef.current === initialSessionId) {
-      return;
-    }
-    const target = sessions.find(
-      (session) => session.data.id === initialSessionId,
-    );
-    if (!target) {
-      return;
-    }
-    initialSelectionAppliedRef.current = initialSessionId;
-    void selectSessionFromList(target, false);
-  }, [
-    initialSessionId,
-    selectSessionFromList,
-    selectedSession?.data.id,
-    sessions,
-    sessionsLoading,
-  ]);
-
   const handleSidebarSessionSelect = useCallback(
-    (session: State<AcpSessionSummary>) => {
-      void selectSessionFromList(session);
+    (
+      session: State<AcpSessionSummary>,
+      options?: { navigate?: boolean },
+    ) => {
+      void selectSessionFromList(session, options?.navigate ?? true);
     },
     [selectSessionFromList],
   );
 
   const leftSidebar = (
     <ProjectSessionHistorySidebar
+      initialSessionId={initialSessionId}
       onSelectSession={handleSidebarSessionSelect}
+      onSessionListRefreshReady={handleSessionListRefreshReady}
+      onWorkbenchSessionIdChange={setWorkbenchSessionId}
       projectState={projectState}
       projectTitle={projectTitle}
       selectedSessionId={selectedSessionId}
       sessionAnnotationsById={sessionAnnotationsById}
-      sessions={sessions}
-      sessionsLoading={sessionsLoading}
     />
   );
   const mainContent = (

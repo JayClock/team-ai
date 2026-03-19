@@ -6,22 +6,29 @@ import { FolderTreeIcon } from 'lucide-react';
 const SessionListWithAnnotations = SessionList;
 
 export function ProjectSessionHistorySidebar(props: {
-  onSelectSession: (session: State<AcpSessionSummary>) => void;
+  initialSessionId?: string;
+  onSelectSession: (
+    session: State<AcpSessionSummary>,
+    options?: { navigate?: boolean },
+  ) => void;
+  onSessionListRefreshReady?: (
+    refresh: () => Promise<State<AcpSessionSummary>[]>,
+  ) => void;
+  onWorkbenchSessionIdChange?: (sessionId: string | undefined) => void;
   projectState: State<Project>;
   projectTitle: string;
   selectedSessionId?: string;
   sessionAnnotationsById?: Record<string, string[]>;
-  sessions?: State<AcpSessionSummary>[];
-  sessionsLoading?: boolean;
 }) {
   const {
+    initialSessionId,
     onSelectSession,
+    onSessionListRefreshReady,
+    onWorkbenchSessionIdChange,
     projectState,
     projectTitle,
     selectedSessionId,
     sessionAnnotationsById,
-    sessions,
-    sessionsLoading,
   } = props;
 
   return (
@@ -42,12 +49,13 @@ export function ProjectSessionHistorySidebar(props: {
 
       <div className="min-h-0 flex-1">
         <SessionListWithAnnotations
+          initialSessionId={initialSessionId}
           onSelect={onSelectSession}
+          onRefreshReady={onSessionListRefreshReady}
+          onRootSessionIdChange={onWorkbenchSessionIdChange}
           projectState={projectState}
           selectedSessionId={selectedSessionId}
           sessionAnnotationsById={sessionAnnotationsById}
-          sessions={sessions}
-          sessionsLoading={sessionsLoading}
         />
       </div>
     </div>

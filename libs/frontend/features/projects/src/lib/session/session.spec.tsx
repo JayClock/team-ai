@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShellsSession } from './session';
 
 const conversationPaneSpy = vi.fn();
-const refreshSessionsMock = vi.fn();
 const updateSessionMock = vi.fn();
 const resourceGetMock = vi.fn(async () => ({
   collection: [],
@@ -72,15 +71,6 @@ vi.mock('@features/project-conversations', () => ({
     select: vi.fn(),
     updateSession: updateSessionMock,
     selectedSession: currentSelectedSession,
-  }),
-}));
-
-vi.mock('@features/project-sessions', () => ({
-  useProjectSessions: () => ({
-    error: null,
-    loading: false,
-    refresh: refreshSessionsMock,
-    sessions: [],
   }),
 }));
 
@@ -225,8 +215,6 @@ describe('ShellsSession', () => {
     resourceGetMock.mockClear();
     updateSessionMock.mockReset();
     updateSessionMock.mockResolvedValue(currentSelectedSession);
-    refreshSessionsMock.mockReset();
-    refreshSessionsMock.mockResolvedValue([]);
   });
 
   afterEach(() => {

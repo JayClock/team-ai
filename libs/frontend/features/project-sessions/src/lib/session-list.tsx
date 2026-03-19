@@ -17,7 +17,7 @@ import {
   MessageSquareTextIcon,
   SparklesIcon,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   buildSessionTree,
   findSessionPathIds,
@@ -31,6 +31,35 @@ import {
   sessionStatusTone,
 } from './session-status';
 import { useProjectSessions } from './use-project-sessions';
+
+function resolveRootSessionId(
+  sessions: State<AcpSessionSummary>[],
+  sessionId: string | undefined,
+): string | undefined {
+  if (!sessionId) {
+    return undefined;
+  }
+
+  const parentById = new Map(
+    sessions.map((session) => [
+      session.data.id,
+      session.data.parentSession?.id ?? null,
+    ]),
+  );
+  const visited = new Set<string>();
+  let currentId: string | null | undefined = sessionId;
+
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const parentId = parentById.get(currentId);
+    if (!parentId) {
+      return currentId;
+    }
+    currentId = parentId;
+  }
+
+  return sessionId;
+}
 
 function sessionRoleLabel(
   session: State<AcpSessionSummary>,
@@ -55,32 +84,35 @@ function sessionRoleLabel(
 }
 
 export function SessionList(props: {
-  onSelect: (session: State<AcpSessionSummary>) => void;
+  initialSessionId?: string;
+  onSelect: (
+    session: State<AcpSessionSummary>,
+    options?: { navigate?: boolean },
+  ) => void;
+  onRefreshReady?: (
+    refresh: () => Promise<State<AcpSessionSummary>[]>,
+  ) => void;
+  onRootSessionIdChange?: (sessionId: string | undefined) => void;
   projectState: State<Project>;
   selectedSessionId?: string;
   sessionAnnotationsById?: Record<string, string[]>;
-  sessions?: State<AcpSessionSummary>[];
-  sessionsLoading?: boolean;
 }) {
   const {
+    initialSessionId,
     onSelect,
+    onRefreshReady,
+    onRootSessionIdChange,
     projectState,
     selectedSessionId,
     sessionAnnotationsById,
-    sessions,
-    sessionsLoading,
   } = props;
-  const shouldLoadInternally =
-    sessions === undefined && sessionsLoading === undefined;
   const {
     error,
-    loading: internalLoading,
-    sessions: internalSessions,
-  } = useProjectSessions(projectState, {
-    enabled: shouldLoadInternally,
-  });
-  const resolvedSessions = sessions ?? internalSessions;
-  const loading = sessionsLoading ?? internalLoading;
+    loading,
+    refresh,
+    sessions,
+  } = useProjectSessions(projectState);
+  const resolvedSessions = sessions;
   const sessionTree = useMemo(
     () => buildSessionTree(resolvedSessions),
     [resolvedSessions],
@@ -95,6 +127,47 @@ export function SessionList(props: {
     [selectedPathIds],
   );
   const expandedIdSet = useMemo(() => new Set(expandedIds), [expandedIds]);
+  const [initialSelectionAppliedId, setInitialSelectionAppliedId] = useState<
+    string | null
+  >(null);
+
+  useEffect(() => {
+    onRefreshReady?.(refresh);
+  }, [onRefreshReady, refresh]);
+
+  useEffect(() => {
+    onRootSessionIdChange?.(
+      resolveRootSessionId(resolvedSessions, selectedSessionId),
+    );
+  }, [onRootSessionIdChange, resolvedSessions, selectedSessionId]);
+
+  useEffect(() => {
+    if (!initialSessionId) {
+      return;
+    }
+    if (selectedSessionId === initialSessionId) {
+      setInitialSelectionAppliedId(initialSessionId);
+      return;
+    }
+    if (initialSelectionAppliedId === initialSessionId || loading) {
+      return;
+    }
+    const target = resolvedSessions.find(
+      (session) => session.data.id === initialSessionId,
+    );
+    if (!target) {
+      return;
+    }
+    setInitialSelectionAppliedId(initialSessionId);
+    onSelect(target, { navigate: false });
+  }, [
+    initialSelectionAppliedId,
+    initialSessionId,
+    loading,
+    onSelect,
+    resolvedSessions,
+    selectedSessionId,
+  ]);
 
   const toggleSessionBranch = (sessionId: string) => {
     setExpandedIds((current) =>
