@@ -631,6 +631,13 @@ export async function createAcpSession(
     ? getSessionRow(sqlite, input.parentSessionId)
     : null;
   const task = input.taskId ? getTaskExecutionRow(sqlite, input.taskId) : null;
+  const shouldInheritParentWorkspace =
+    parentSession !== null &&
+    !input.codebaseId &&
+    !input.cwd &&
+    !input.worktreeId &&
+    !task?.codebase_id &&
+    !task?.worktree_id;
 
   if (task && task.project_id !== input.projectId) {
     throwTaskProjectMismatch(input.projectId, task.id);
@@ -680,10 +687,16 @@ export async function createAcpSession(
     input.projectId,
     project.repoPath ?? null,
     {
-      codebaseId: input.codebaseId,
-      cwd: input.cwd,
+      codebaseId:
+        input.codebaseId ??
+        (shouldInheritParentWorkspace ? parentSession?.codebase_id : null),
+      cwd:
+        input.cwd ??
+        (shouldInheritParentWorkspace ? parentSession?.cwd : null),
       task,
-      worktreeId: input.worktreeId,
+      worktreeId:
+        input.worktreeId ??
+        (shouldInheritParentWorkspace ? parentSession?.worktree_id : null),
     },
   );
   const now = new Date().toISOString();

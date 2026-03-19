@@ -1,7 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import type { Database } from 'better-sqlite3';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   AcpStreamBroker,
@@ -396,6 +395,49 @@ describe('acp service supervision', () => {
           event.update.lifecycle?.state === 'cancelling',
       ),
     ).toBe(true);
+  });
+
+  it('inherits the parent session workspace when the project repoPath is missing', async () => {
+    const sqlite = await createTestDatabase(cleanupTasks);
+    const broker = new AcpStreamBroker();
+    const runtime = createRuntimeStub();
+    const project = await createProject(sqlite, {
+      title: 'ACP Parent Workspace Inheritance',
+    });
+
+    const parentSession = await createAcpSession(
+      sqlite,
+      broker,
+      runtime,
+      {
+        actorUserId: 'desktop-user',
+        cwd: '/tmp/team-ai-selected-repo',
+        projectId: project.id,
+        provider: 'codex',
+      },
+      {},
+    );
+
+    const childSession = await createAcpSession(
+      sqlite,
+      broker,
+      runtime,
+      {
+        actorUserId: 'desktop-user',
+        parentSessionId: parentSession.id,
+        projectId: project.id,
+        provider: 'codex',
+      },
+      {},
+    );
+
+    expect(childSession.cwd).toBe('/tmp/team-ai-selected-repo');
+    expect(runtime.createSession).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cwd: '/tmp/team-ai-selected-repo',
+        localSessionId: childSession.id,
+      }),
+    );
   });
 });
 
