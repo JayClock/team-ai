@@ -2,16 +2,8 @@ import { State } from '@hateoas-ts/resource';
 import { AcpSessionSummary, Project } from '@shared/schema';
 import { SessionList } from '@features/project-sessions';
 import { FolderTreeIcon } from 'lucide-react';
-import type { ComponentType } from 'react';
 
-const SessionListWithAnnotations = SessionList as ComponentType<{
-  onSelect: (session: State<AcpSessionSummary>) => void;
-  projectState: State<Project>;
-  selectedSessionId?: string;
-  sessionAnnotationsById?: Record<string, string[]>;
-  sessions?: State<AcpSessionSummary>[];
-  sessionsLoading?: boolean;
-}>;
+const SessionListWithAnnotations = SessionList;
 
 export function ProjectSessionHistorySidebar(props: {
   onSelectSession: (session: State<AcpSessionSummary>) => void;

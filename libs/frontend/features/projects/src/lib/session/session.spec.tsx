@@ -126,16 +126,6 @@ vi.mock('./project-session-conversation-pane', () => ({
   },
 }));
 
-vi.mock('./project-session-spec-pane', () => ({
-  ProjectSessionSpecPane: () =>
-    createElement('div', { 'data-testid': 'spec-pane' }),
-}));
-
-vi.mock('./project-session-status-sidebar', () => ({
-  ProjectSessionStatusSidebar: () =>
-    createElement('div', { 'data-testid': 'status-sidebar' }),
-}));
-
 vi.mock('./use-project-session-chat', () => ({
   useProjectSessionChat: () => ({
     chatMessages: [],

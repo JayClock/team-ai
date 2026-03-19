@@ -6,9 +6,6 @@ import {
   AcpEventEnvelope,
   AcpSessionSummary,
   Codebase,
-  Note,
-  NoteEvent,
-  NoteCollection,
   Project,
   Root,
   Task,
@@ -40,18 +37,12 @@ import {
 } from 'react';
 import { ProjectSessionConversationPane } from './project-session-conversation-pane';
 import { ProjectSessionHistorySidebar } from './project-session-history-sidebar';
-import { ProjectSessionSpecPane } from './project-session-spec-pane';
-import {
-  ProjectSessionStatusSidebar,
-  type OrchestrationSnapshot,
-} from './project-session-status-sidebar';
 import { useProjectSessionChat } from './use-project-session-chat';
 import {
   buildTaskPanelItem,
   buildTaskRunPanelItem,
   formatStatusLabel,
   formatVerificationVerdictLabel,
-  type TaskPanelAction,
   type TaskPanelItem,
 } from './project-session-workbench.shared';
 import {
@@ -71,10 +62,6 @@ import {
 import { ProjectSettingsDialog } from '../components/project-settings-dialog';
 
 const STREAM_RETRY_DELAY_MS = 1500;
-const LEFT_SIDEBAR_COLLAPSED_KEY = 'team-ai.session.left-sidebar-collapsed';
-
-type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error';
-type MainPane = 'conversation' | 'spec' | 'ops';
 
 function buildCollectionPath(
   path: string,
@@ -119,38 +106,6 @@ async function loadTaskRunCollectionPages(
   }
 
   return items;
-}
-
-async function loadNoteCollectionPages(
-  initialPage: State<NoteCollection>,
-): Promise<State<Note>[]> {
-  const items = [...initialPage.collection];
-  let currentPage = initialPage;
-
-  while (currentPage.hasLink('next' as never)) {
-    currentPage = await currentPage.follow('next' as never).get();
-    items.push(...currentPage.collection);
-  }
-
-  return items;
-}
-
-async function loadOrchestrationSnapshot(
-  projectId: string,
-  sessionId: string | undefined,
-): Promise<OrchestrationSnapshot> {
-  const response = await runtimeFetch(
-    buildCollectionPath('/api/background-tasks/status', {
-      projectId,
-      sessionId,
-    }),
-  );
-
-  if (!response.ok) {
-    throw new Error('加载 orchestration snapshot 失败');
-  }
-
-  return (await response.json()) as OrchestrationSnapshot;
 }
 
 function resolveRootSessionId(
@@ -331,14 +286,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [worktrees, setWorktrees] = useState<ProjectWorktreeOption[]>([]);
   const [worktreesLoading, setWorktreesLoading] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
-  const [isDesktopViewport, setIsDesktopViewport] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth >= 768,
-  );
-  const [isLeftSidebarCollapsed] = useState(
-    () =>
-      typeof window !== 'undefined' &&
-      window.localStorage.getItem(LEFT_SIDEBAR_COLLAPSED_KEY) === 'true',
-  );
   const [preferredRole, setPreferredRole] =
     useState<WorkbenchSessionRole | null>(null);
   const [preferredModelOverride, setPreferredModelOverride] = useState<
@@ -347,33 +294,14 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [preferredProviderOverride, setPreferredProviderOverride] = useState<
     string | null | undefined
   >(undefined);
-  const [streamStatus, setStreamStatus] = useState<StreamStatus>('idle');
-  const [mainPane, setMainPane] = useState<MainPane>('conversation');
   const [taskItems, setTaskItems] = useState<TaskPanelItem[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(false);
-  const [pendingTaskAction, setPendingTaskAction] = useState<{
-    action: TaskPanelAction;
-    taskId: string;
-  } | null>(null);
-  const [specNote, setSpecNote] = useState<State<Note> | null>(null);
-  const [, setSpecLoading] = useState(false);
-  const [orchestrationSnapshot, setOrchestrationSnapshot] =
-    useState<OrchestrationSnapshot | null>(null);
-  const [orchestrationLoading, setOrchestrationLoading] = useState(false);
-  const [orchestrationActionPending, setOrchestrationActionPending] = useState<
-    'processing' | 'refreshing' | null
-  >(null);
   const [sessionRuntimeSwitchPending, setSessionRuntimeSwitchPending] =
     useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const noteEventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
-  const noteReconnectTimerRef = useRef<number | null>(null);
   const allowReconnectRef = useRef(true);
-  const allowNoteReconnectRef = useRef(true);
   const latestEventIdRef = useRef<string | undefined>(undefined);
-  const latestNoteEventIdRef = useRef<string | undefined>(undefined);
   const initialSelectionAppliedRef = useRef<string | null>(null);
 
   const selectedSessionId = selectedSession?.data.id;
@@ -384,12 +312,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       undefined,
     [selectedSessionId, sessions],
   );
-  const workbenchSessionSummary = useMemo(
-    () =>
-      sessions.find((session) => session.data.id === workbenchSessionId) ??
-      null,
-    [sessions, workbenchSessionId],
-  );
   useEffect(() => {
     if (!sessionsError) {
       return;
@@ -397,13 +319,6 @@ export function ShellsSession(props: ShellsSessionProps) {
 
     toast.error(sessionsError.message || '加载会话列表失败');
   }, [sessionsError]);
-  const scopeSessionLabel = useMemo(() => {
-    const name = workbenchSessionSummary?.data.name?.trim();
-    if (name) {
-      return name;
-    }
-    return workbenchSessionSummary?.data.id ?? null;
-  }, [workbenchSessionSummary]);
   const repositoryOptions = useMemo(
     () =>
       codebasesState.collection.map<ProjectRepositoryOption>(
@@ -558,24 +473,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   }, [history]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const mediaQuery = window.matchMedia('(min-width: 768px)');
-    const syncViewportMode = () => {
-      setIsDesktopViewport(mediaQuery.matches);
-    };
-
-    syncViewportMode();
-    mediaQuery.addEventListener('change', syncViewportMode);
-
-    return () => {
-      mediaQuery.removeEventListener('change', syncViewportMode);
-    };
-  }, []);
-
-  useEffect(() => {
     if (selectedSession) {
       setPreferredRole(
         selectedSession.data.specialistId === 'solo-developer'
@@ -647,11 +544,8 @@ export function ShellsSession(props: ShellsSessionProps) {
   const refreshTaskItems = useCallback(async () => {
     if (!workbenchSessionId) {
       setTaskItems([]);
-      setTasksLoading(false);
       return;
     }
-
-    setTasksLoading(true);
 
     try {
       const taskListPath = buildCollectionPath(
@@ -708,98 +602,12 @@ export function ShellsSession(props: ShellsSessionProps) {
         error instanceof Error ? error.message : '加载任务工作区失败';
       toast.error(message);
       setTaskItems([]);
-    } finally {
-      setTasksLoading(false);
     }
   }, [client, projectState.data.id, workbenchSessionId]);
-
-  const refreshSpecPane = useCallback(async () => {
-    if (!workbenchSessionId) {
-      setSpecLoading(false);
-      setSpecNote(null);
-      return;
-    }
-
-    setSpecLoading(true);
-
-    try {
-      const sessionNotesPath = buildCollectionPath(
-        `/api/projects/${projectState.data.id}/acp-sessions/${workbenchSessionId}/notes`,
-        {
-          pageSize: 1,
-          type: 'spec',
-        },
-      );
-      const sessionNotesPage = await client
-        .go<NoteCollection>(sessionNotesPath)
-        .get();
-      const sessionSpecNote =
-        (await loadNoteCollectionPages(sessionNotesPage))[0] ?? null;
-
-      const projectNotesPage = sessionSpecNote
-        ? null
-        : await client
-            .go<NoteCollection>(
-              buildCollectionPath(
-                `/api/projects/${projectState.data.id}/notes`,
-                {
-                  pageSize: 1,
-                  type: 'spec',
-                },
-              ),
-            )
-            .get();
-
-      const projectSpecNote =
-        projectNotesPage &&
-        (await loadNoteCollectionPages(projectNotesPage))[0];
-
-      const resolvedNote = sessionSpecNote ?? projectSpecNote ?? null;
-      setSpecNote(resolvedNote);
-
-      if (!resolvedNote) {
-        return;
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '加载 Spec 工作区失败';
-      toast.error(message);
-      setSpecNote(null);
-    } finally {
-      setSpecLoading(false);
-    }
-  }, [client, projectState.data.id, workbenchSessionId]);
-
-  const refreshOrchestration = useCallback(async () => {
-    setOrchestrationLoading(true);
-
-    try {
-      const snapshot = await loadOrchestrationSnapshot(
-        projectState.data.id,
-        workbenchSessionId,
-      );
-      setOrchestrationSnapshot(snapshot);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '加载 orchestration snapshot 失败';
-      toast.error(message);
-    } finally {
-      setOrchestrationLoading(false);
-    }
-  }, [projectState.data.id, workbenchSessionId]);
 
   useEffect(() => {
     void refreshTaskItems();
-    void refreshSpecPane();
-  }, [refreshSpecPane, refreshTaskItems]);
-
-  useEffect(() => {
-    if (mainPane !== 'ops') {
-      return;
-    }
-
-    void refreshOrchestration();
-  }, [mainPane, refreshOrchestration]);
+  }, [refreshTaskItems]);
 
   const { chatMessages, handlePromptSubmit, hasPendingAssistantMessage } =
     useProjectSessionChat({
@@ -1028,120 +836,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     worktreesLoading,
   ]);
 
-  const handleTaskAction = useCallback(
-    async (item: TaskPanelItem, action: TaskPanelAction) => {
-      if (!item.taskId) {
-        return;
-      }
-
-      setPendingTaskAction({
-        action,
-        taskId: item.id,
-      });
-      setMainPane('ops');
-
-      try {
-        if (action === 'retry') {
-          const latestRun = item.taskRuns?.find((run) => run.isLatest) ?? null;
-
-          if (!latestRun) {
-            throw new Error('当前任务没有可重试的最新执行记录');
-          }
-
-          const retryResponse = await runtimeFetch(
-            `/api/task-runs/${latestRun.id}/retry`,
-            {
-              method: 'POST',
-            },
-          );
-
-          if (!retryResponse.ok) {
-            throw new Error('重试任务失败');
-          }
-        } else {
-          const executeResponse = await runtimeFetch(
-            `/api/tasks/${item.taskId}/execute`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                callerSessionId: workbenchSessionId ?? selectedSession?.data.id,
-              }),
-            },
-          );
-
-          if (!executeResponse.ok) {
-            throw new Error('启动任务失败');
-          }
-        }
-
-        await Promise.all([
-          refreshTaskItems(),
-          refreshSessions(),
-          refreshOrchestration(),
-        ]);
-        toast.success(action === 'retry' ? '任务已重新排队' : '任务已分发');
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '任务操作失败';
-        toast.error(message);
-      } finally {
-        setPendingTaskAction(null);
-      }
-    },
-    [
-      refreshOrchestration,
-      refreshSessions,
-      refreshTaskItems,
-      selectedSession?.data.id,
-      workbenchSessionId,
-    ],
-  );
-
-  const handleRefreshOrchestration = useCallback(async () => {
-    setOrchestrationActionPending('refreshing');
-
-    try {
-      await refreshOrchestration();
-    } finally {
-      setOrchestrationActionPending(null);
-    }
-  }, [refreshOrchestration]);
-
-  const handleProcessOrchestrationQueue = useCallback(async () => {
-    setOrchestrationActionPending('processing');
-
-    try {
-      const response = await runtimeFetch('/api/background-tasks/process', {
-        method: 'POST',
-      });
-      const payload = (await response.json()) as {
-        completedCount?: number;
-        dispatchedCount?: number;
-      };
-
-      if (!response.ok) {
-        throw new Error('处理 orchestration 队列失败');
-      }
-
-      await Promise.all([
-        refreshTaskItems(),
-        refreshSessions(),
-        refreshOrchestration(),
-      ]);
-      toast.success(
-        `已推进 orchestration 队列，dispatch ${payload.dispatchedCount ?? 0}，complete ${payload.completedCount ?? 0}`,
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '处理 orchestration 队列失败';
-      toast.error(message);
-    } finally {
-      setOrchestrationActionPending(null);
-    }
-  }, [refreshOrchestration, refreshSessions, refreshTaskItems]);
-
   const stopStream = useCallback((manual: boolean) => {
     allowReconnectRef.current = !manual;
     if (reconnectTimerRef.current !== null) {
@@ -1152,21 +846,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-    if (manual) {
-      setStreamStatus('idle');
-    }
-  }, []);
-
-  const stopNoteStream = useCallback((manual: boolean) => {
-    allowNoteReconnectRef.current = !manual;
-    if (noteReconnectTimerRef.current !== null) {
-      window.clearTimeout(noteReconnectTimerRef.current);
-      noteReconnectTimerRef.current = null;
-    }
-    if (noteEventSourceRef.current) {
-      noteEventSourceRef.current.close();
-      noteEventSourceRef.current = null;
-    }
   }, []);
 
   const startStream = useCallback(() => {
@@ -1175,7 +854,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
     stopStream(false);
     allowReconnectRef.current = true;
-    setStreamStatus('connecting');
 
     const url = new URL(resolveRuntimeApiUrl('/api/acp'));
     url.searchParams.set('sessionId', selectedSession.data.id);
@@ -1192,10 +870,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     }
 
     const source = new EventSource(url.toString(), { withCredentials: true });
-    source.onopen = () => {
-      setStreamStatus('connected');
-    };
-
     const onEvent = (raw: string) => {
       try {
         const parsed = JSON.parse(raw) as AcpEventEnvelope;
@@ -1214,7 +888,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       onEvent(event.data);
     };
     source.onerror = () => {
-      setStreamStatus('error');
       source.close();
       eventSourceRef.current = null;
       if (!allowReconnectRef.current) {
@@ -1236,96 +909,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     return () => stopStream(true);
   }, [selectedSessionId, startStream, stopStream]);
 
-  const startNoteStream = useCallback(() => {
-    if (!workbenchSessionId) {
-      return;
-    }
-
-    stopNoteStream(false);
-    allowNoteReconnectRef.current = true;
-
-    const url = new URL(
-      resolveRuntimeApiUrl(
-        `/api/projects/${projectState.data.id}/note-events/stream`,
-      ),
-    );
-    const desktopRuntimeConfig = getCurrentDesktopRuntimeConfig();
-    if (desktopRuntimeConfig) {
-      url.searchParams.set(
-        'desktopSessionToken',
-        desktopRuntimeConfig.desktopSessionToken,
-      );
-    }
-    const latest = latestNoteEventIdRef.current;
-    if (latest) {
-      url.searchParams.set('sinceEventId', latest);
-    }
-
-    const source = new EventSource(url.toString(), { withCredentials: true });
-    const onEvent = (raw: string) => {
-      try {
-        const parsed = JSON.parse(raw) as Pick<
-          NoteEvent['data'],
-          'data' | 'eventId' | 'noteId' | 'projectId' | 'sessionId' | 'type'
-        >;
-        latestNoteEventIdRef.current = parsed.eventId;
-        const isSpecEvent = parsed.data.note.type === 'spec';
-        const isTaskLinkedEvent = Boolean(parsed.data.note.linkedTaskId);
-        const isWorkbenchScoped =
-          parsed.data.note.sessionId === null ||
-          parsed.data.note.sessionId === workbenchSessionId;
-
-        if (!isWorkbenchScoped && !isTaskLinkedEvent) {
-          return;
-        }
-
-        if (isSpecEvent) {
-          void refreshSpecPane();
-        }
-
-        if (isSpecEvent || isTaskLinkedEvent) {
-          void refreshTaskItems();
-        }
-      } catch {
-        // ignore non-json payloads
-      }
-    };
-
-    source.addEventListener('note-event', (event) => {
-      onEvent((event as MessageEvent<string>).data);
-    });
-    source.onmessage = (event) => {
-      onEvent(event.data);
-    };
-    source.onerror = () => {
-      source.close();
-      noteEventSourceRef.current = null;
-      if (!allowNoteReconnectRef.current) {
-        return;
-      }
-      noteReconnectTimerRef.current = window.setTimeout(() => {
-        startNoteStream();
-      }, STREAM_RETRY_DELAY_MS);
-    };
-    noteEventSourceRef.current = source;
-  }, [
-    projectState.data.id,
-    refreshSpecPane,
-    refreshTaskItems,
-    stopNoteStream,
-    workbenchSessionId,
-  ]);
-
-  useEffect(() => {
-    if (!workbenchSessionId) {
-      stopNoteStream(true);
-      return;
-    }
-
-    startNoteStream();
-    return () => stopNoteStream(true);
-  }, [startNoteStream, stopNoteStream, workbenchSessionId]);
-
   const selectSessionFromList = useCallback(
     async (session: State<AcpSessionSummary>, navigateToSession = true) => {
       try {
@@ -1339,20 +922,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       }
     },
     [onSessionNavigate, select],
-  );
-
-  const handleOpenSession = useCallback(
-    (sessionId: string) => {
-      const target =
-        sessions.find((session) => session.data.id === sessionId) ?? null;
-
-      if (!target) {
-        return;
-      }
-
-      void selectSessionFromList(target);
-    },
-    [selectSessionFromList, sessions],
   );
 
   useEffect(() => {
@@ -1400,37 +969,6 @@ export function ShellsSession(props: ShellsSessionProps) {
       sessionsLoading={sessionsLoading}
     />
   );
-  const providerFallbackLabel =
-    composerProviderId ?? sessionDefaults.providerId ?? '未配置 provider';
-  const specPane = (
-    <ProjectSessionSpecPane
-      note={specNote}
-      onSyncComplete={refreshTaskItems}
-      scopeSessionLabel={scopeSessionLabel}
-      selectedSession={selectedSession}
-      tasksLoading={tasksLoading}
-      taskItems={taskItems}
-    />
-  );
-  const opsPane = (
-    <ProjectSessionStatusSidebar
-      events={history}
-      onOpenSession={handleOpenSession}
-      onProcessOrchestrationQueue={handleProcessOrchestrationQueue}
-      onRefreshOrchestration={handleRefreshOrchestration}
-      onTaskAction={handleTaskAction}
-      orchestrationActionPending={orchestrationActionPending}
-      orchestrationLoading={orchestrationLoading}
-      orchestrationSnapshot={orchestrationSnapshot}
-      pendingTaskAction={pendingTaskAction}
-      providerFallbackLabel={providerFallbackLabel}
-      runtimeProfile={runtimeProfile}
-      selectedSession={selectedSession}
-      streamStatus={streamStatus}
-      taskItems={taskItems}
-      tasksLoading={tasksLoading}
-    />
-  );
   const mainContent = (
     <main className="min-w-0 flex-1 bg-background">
       <div className="flex h-full min-h-0 flex-col">
@@ -1461,87 +999,26 @@ export function ShellsSession(props: ShellsSessionProps) {
           </div>
         </div>
 
-        <div className="border-b border-border/60 bg-background px-4 py-2 xl:hidden">
-          <div className="grid grid-cols-3 gap-2">
-            <Button
-              type="button"
-              variant={mainPane === 'conversation' ? 'default' : 'outline'}
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => setMainPane('conversation')}
-            >
-              会话
-            </Button>
-            <Button
-              type="button"
-              variant={mainPane === 'spec' ? 'default' : 'outline'}
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => setMainPane('spec')}
-            >
-              Spec
-            </Button>
-            <Button
-              type="button"
-              variant={mainPane === 'ops' ? 'default' : 'outline'}
-              size="sm"
-              className="h-8 text-xs"
-              onClick={() => setMainPane('ops')}
-            >
-              Ops
-            </Button>
-          </div>
-        </div>
-
         <div className="min-h-0 flex-1">
-          <div className="h-full xl:hidden">
-            {mainPane === 'conversation' ? (
-              <ProjectSessionConversationPane
-                chatMessages={chatMessages}
-                hasPendingAssistantMessage={hasPendingAssistantMessage}
-                interactionDisabled={sessionRuntimeSwitchPending}
-                onCancel={async () => {
-                  await cancel();
-                }}
-                model={sessionPromptModel}
-                onSubmit={handlePromptSubmit}
-                project={sessionPromptProjectPicker}
-                provider={{
-                  loading: providersLoading,
-                  onValueChange: handleSessionProviderChange,
-                  providers,
-                  value: sessionPromptProviderValue,
-                }}
-                selectedSession={selectedSession}
-              />
-            ) : mainPane === 'ops' ? (
-              opsPane
-            ) : (
-              specPane
-            )}
-          </div>
-
-          <div className="hidden h-full min-h-0 xl:flex">
-            <div className="min-w-0 flex-1">
-              <ProjectSessionConversationPane
-                chatMessages={chatMessages}
-                hasPendingAssistantMessage={hasPendingAssistantMessage}
-                interactionDisabled={sessionRuntimeSwitchPending}
-                onCancel={async () => {
-                  await cancel();
-                }}
-                model={sessionPromptModel}
-                onSubmit={handlePromptSubmit}
-                project={sessionPromptProjectPicker}
-                provider={{
-                  loading: providersLoading,
-                  onValueChange: handleSessionProviderChange,
-                  providers,
-                  value: sessionPromptProviderValue,
-                }}
-                selectedSession={selectedSession}
-              />
-            </div>
+          <div className="h-full min-h-0">
+            <ProjectSessionConversationPane
+              chatMessages={chatMessages}
+              hasPendingAssistantMessage={hasPendingAssistantMessage}
+              interactionDisabled={sessionRuntimeSwitchPending}
+              onCancel={async () => {
+                await cancel();
+              }}
+              model={sessionPromptModel}
+              onSubmit={handlePromptSubmit}
+              project={sessionPromptProjectPicker}
+              provider={{
+                loading: providersLoading,
+                onValueChange: handleSessionProviderChange,
+                providers,
+                value: sessionPromptProviderValue,
+              }}
+              selectedSession={selectedSession}
+            />
           </div>
         </div>
       </div>
@@ -1552,25 +1029,21 @@ export function ShellsSession(props: ShellsSessionProps) {
     <>
       <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-muted/20 text-foreground">
         <div className="min-h-0 flex-1 overflow-hidden">
-          {isDesktopViewport && !isLeftSidebarCollapsed ? (
-            <ResizablePanelGroup orientation="horizontal">
-              <ResizablePanel
-                defaultSize={320}
-                minSize={260}
-                maxSize={420}
-                className="border-r border-border/60 bg-background"
-              >
-                {leftSidebar}
-              </ResizablePanel>
-              <ResizableHandle
-                withHandle
-                className="bg-transparent transition hover:bg-muted/60 data-[separator=drag]:bg-muted/60 data-[separator=hover]:bg-muted/60"
-              />
-              <ResizablePanel minSize={0}>{mainContent}</ResizablePanel>
-            </ResizablePanelGroup>
-          ) : (
-            mainContent
-          )}
+          <ResizablePanelGroup orientation="horizontal">
+            <ResizablePanel
+              defaultSize={320}
+              minSize={260}
+              maxSize={420}
+              className="border-r border-border/60 bg-background"
+            >
+              {leftSidebar}
+            </ResizablePanel>
+            <ResizableHandle
+              withHandle
+              className="bg-transparent transition hover:bg-muted/60 data-[separator=drag]:bg-muted/60 data-[separator=hover]:bg-muted/60"
+            />
+            <ResizablePanel minSize={0}>{mainContent}</ResizablePanel>
+          </ResizablePanelGroup>
         </div>
       </div>
 

@@ -8,17 +8,13 @@ import {
 } from '@features/project-sessions';
 import {
   AcpEventEnvelope,
-  type AcpSession,
   type Task,
   type TaskLaneHandoff,
   type TaskLaneSession,
   type TaskRun,
 } from '@shared/schema';
 import { SparklesIcon, WrenchIcon } from 'lucide-react';
-import {
-  resolveWorkbenchRuntimeRoleDefault,
-  type WorkbenchSessionRuntimeProfile,
-} from './session-runtime-profile';
+import { type WorkbenchSessionRuntimeProfile } from './session-runtime-profile';
 
 export type { SessionTreeNode };
 export { buildSessionTree, countSessionTree, sessionDisplayName };
@@ -74,32 +70,6 @@ export type TaskRunPanelItem = {
   waveId?: string | null;
 };
 
-export type TaskPanelAction = 'execute' | 'review' | 'retry';
-
-export type TaskPrimaryAction = {
-  action: Exclude<TaskPanelAction, 'retry'>;
-  enabled: boolean;
-  label: string;
-  pendingLabel: string;
-};
-
-const taskPrimaryActionStatuses = new Set(['PENDING', 'READY']);
-const taskRetryStatuses = new Set(['FAILED', 'CANCELLED', 'WAITING_RETRY']);
-const taskFailureStatuses = new Set(['FAILED', 'CANCELLED', 'WAITING_RETRY']);
-const taskRunFailureStatuses = new Set(['FAILED', 'CANCELLED']);
-
-export type WorkbenchWalkthroughStatus = 'pending' | 'ready' | 'covered';
-
-export type WorkbenchWalkthroughScenario = {
-  expectedSignals: string[];
-  id: string;
-  liveNote: string;
-  status: WorkbenchWalkthroughStatus;
-  steps: string[];
-  summary: string;
-  title: string;
-};
-
 export type SidebarTab = 'sessions' | 'spec' | 'tasks';
 
 export type WorkbenchRuntimeProfile = {
@@ -152,11 +122,6 @@ export function formatDateTime(value: string | null): string {
     return value;
   }
   return parsed.toLocaleString();
-}
-
-function normalizeProviderId(value: string | null | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
 }
 
 function formatJson(value: unknown): string {
@@ -231,19 +196,6 @@ export function formatTaskKindLabel(kind: string | null | undefined): string {
       return '验证';
     default:
       return kind?.trim() || '未分类';
-  }
-}
-
-export function formatOrchestrationModeLabel(
-  mode: WorkbenchSessionRuntimeProfile['orchestrationMode'] | null | undefined,
-): string {
-  switch (mode) {
-    case 'DEVELOPER':
-      return 'DEVELOPER 单人';
-    case 'ROUTA':
-      return 'ROUTA 多 Agent';
-    default:
-      return '未加载模式';
   }
 }
 
@@ -449,335 +401,6 @@ export function verificationVerdictChipClasses(
     default:
       return 'bg-slate-100 text-slate-600 ring-slate-200';
   }
-}
-
-function isDispatchableTaskKind(
-  kind: TaskPanelItem['kind'],
-): kind is 'implement' | 'review' | 'verify' {
-  return kind === 'implement' || kind === 'review' || kind === 'verify';
-}
-
-function canRunPrimaryTaskAction(item: TaskPanelItem): boolean {
-  return (
-    item.source === 'task' &&
-    Boolean(item.taskState) &&
-    !item.executionSessionId &&
-    taskPrimaryActionStatuses.has(item.status)
-  );
-}
-
-export function getTaskPrimaryAction(
-  item: TaskPanelItem,
-): TaskPrimaryAction | null {
-  if (!isDispatchableTaskKind(item.kind)) {
-    return null;
-  }
-
-  const enabled = canRunPrimaryTaskAction(item);
-
-  switch (item.kind) {
-    case 'implement':
-      return {
-        action: 'execute',
-        enabled,
-        label: '开始执行',
-        pendingLabel: '启动中...',
-      };
-    case 'review':
-      return {
-        action: 'review',
-        enabled,
-        label: '开始复核',
-        pendingLabel: '复核中...',
-      };
-    case 'verify':
-      return {
-        action: 'review',
-        enabled,
-        label: '开始验证',
-        pendingLabel: '验证中...',
-      };
-  }
-}
-
-export function canRetryTask(item: TaskPanelItem): boolean {
-  return (
-    item.source === 'task' &&
-    Boolean(item.taskState) &&
-    isDispatchableTaskKind(item.kind) &&
-    !item.executionSessionId &&
-    taskRetryStatuses.has(item.status)
-  );
-}
-
-export function describeTaskExecutionStatus(
-  item: TaskPanelItem,
-  currentSessionId?: string,
-): string | null {
-  if (item.source !== 'task') {
-    return null;
-  }
-
-  if (item.executionSessionId && item.executionSessionId === currentSessionId) {
-    return '当前会话正在执行该任务';
-  }
-
-  if (item.resultSessionId) {
-    switch (item.status) {
-      case 'COMPLETED':
-        return '执行结果已回写';
-      case 'FAILED':
-        return '已回写失败结果';
-      case 'CANCELLED':
-        return '已回写取消结果';
-      default:
-        return '结果会话已关联';
-    }
-  }
-
-  if (item.executionSessionId) {
-    return item.status === 'RUNNING' ? '执行会话进行中' : '已分发执行会话';
-  }
-
-  switch (item.status) {
-    case 'READY':
-      return '等待自动分发';
-    case 'PENDING':
-      return '尚未进入执行';
-    case 'BLOCKED':
-      return '等待依赖解锁';
-    case 'WAITING_RETRY':
-      return '等待手动重试';
-    case 'RUNNING':
-      return '执行状态已启动';
-    default:
-      return '等待执行状态更新';
-  }
-}
-
-export function formatWalkthroughStatusLabel(
-  status: WorkbenchWalkthroughStatus,
-): string {
-  switch (status) {
-    case 'covered':
-      return '已覆盖';
-    case 'ready':
-      return '可走查';
-    default:
-      return '待触发';
-  }
-}
-
-export function walkthroughStatusChipClasses(
-  status: WorkbenchWalkthroughStatus,
-): string {
-  switch (status) {
-    case 'covered':
-      return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
-    case 'ready':
-      return 'bg-sky-50 text-sky-700 ring-sky-200';
-    default:
-      return 'bg-slate-100 text-slate-600 ring-slate-200';
-  }
-}
-
-export function buildWorkbenchWalkthroughScenarios(input: {
-  events: AcpEventEnvelope[];
-  runtimeProfile?: WorkbenchSessionRuntimeProfile | null;
-  selectedSession: State<AcpSession> | null;
-  streamStatus: string;
-  taskItems: TaskPanelItem[];
-}): WorkbenchWalkthroughScenario[] {
-  const { events, runtimeProfile, selectedSession, streamStatus, taskItems } =
-    input;
-  const taskSourceItems = taskItems.filter((item) => item.source === 'task');
-  const allRuns = taskSourceItems.flatMap((item) => item.taskRuns ?? []);
-  const reviewOrVerifyTasks = taskSourceItems.filter(
-    (item) => item.kind === 'review' || item.kind === 'verify',
-  );
-  const reviewOrVerifyRuns = allRuns.filter(
-    (run) => run.kind === 'review' || run.kind === 'verify',
-  );
-  const dispatchLinkedTasks = taskSourceItems.filter(
-    (item) => item.executionSessionId || item.resultSessionId,
-  );
-  const retriedRuns = allRuns.filter((run) => Boolean(run.retryOfRunId));
-  const retryReady = taskSourceItems.some((item) => canRetryTask(item));
-  const failureTaskCount = taskSourceItems.filter((item) =>
-    taskFailureStatuses.has(item.status),
-  ).length;
-  const failureRunCount = allRuns.filter((run) =>
-    taskRunFailureStatuses.has(run.status),
-  ).length;
-  const errorEvents = events.filter((event) => event.update.eventType === 'error');
-  const hasSessionFailure = Boolean(
-    selectedSession?.data.failureReason?.trim(),
-  );
-  const effectiveMode: WorkbenchSessionRuntimeProfile['orchestrationMode'] =
-    runtimeProfile?.orchestrationMode ??
-    (selectedSession?.data.specialistId === 'solo-developer'
-      ? 'DEVELOPER'
-      : 'ROUTA');
-  const effectiveDefaultProvider =
-    resolveWorkbenchRuntimeRoleDefault(
-      runtimeProfile?.roleDefaults,
-      effectiveMode === 'DEVELOPER' ? 'DEVELOPER' : 'ROUTA',
-    )?.providerId ?? null;
-  const observedProviders = Array.from(
-    new Set(
-      [
-        normalizeProviderId(effectiveDefaultProvider),
-        normalizeProviderId(selectedSession?.data.provider),
-        ...taskSourceItems.map((item) =>
-          normalizeProviderId(item.assignedProvider),
-        ),
-        ...allRuns.map((run) => normalizeProviderId(run.provider)),
-      ].filter((provider): provider is string => Boolean(provider)),
-    ),
-  );
-  const goalToReviewCovered =
-    selectedSession?.data.specialistId !== 'solo-developer' &&
-    dispatchLinkedTasks.length > 0 &&
-    allRuns.length > 0 &&
-    (reviewOrVerifyTasks.length > 0 || reviewOrVerifyRuns.length > 0);
-  const goalToReviewStatus: WorkbenchWalkthroughStatus = goalToReviewCovered
-    ? 'covered'
-    : 'ready';
-  const failureRetryCovered = retriedRuns.length > 0;
-  const failureRetryStatus: WorkbenchWalkthroughStatus = failureRetryCovered
-    ? 'covered'
-    : selectedSession ||
-        allRuns.length > 0 ||
-        retryReady ||
-        streamStatus === 'error' ||
-        hasSessionFailure ||
-        errorEvents.length > 0 ||
-        failureTaskCount > 0 ||
-        failureRunCount > 0
-      ? 'ready'
-      : 'pending';
-  const developerSingleModeCovered =
-    effectiveMode === 'DEVELOPER' &&
-    selectedSession?.data.specialistId === 'solo-developer';
-  const developerSingleModeStatus: WorkbenchWalkthroughStatus =
-    developerSingleModeCovered
-      ? 'covered'
-      : runtimeProfile
-        ? 'ready'
-        : 'pending';
-  const providerSwitchCovered = observedProviders.length > 1;
-  const providerSwitchStatus: WorkbenchWalkthroughStatus = providerSwitchCovered
-    ? 'covered'
-    : observedProviders.length > 0
-      ? 'ready'
-      : 'pending';
-  const modeLabel = formatOrchestrationModeLabel(effectiveMode);
-  const defaultProviderLabel =
-    normalizeProviderId(effectiveDefaultProvider) ?? '未配置默认 provider';
-  const currentProviderLabel =
-    normalizeProviderId(selectedSession?.data.provider) ?? '未选择 provider';
-
-  return [
-    {
-      id: 'goal-plan-review',
-      title: '输入目标到 Review 闭环',
-      summary:
-        '从输入目标开始，一次讲清 plan、task、child session、task run 与 review/verify 的完整联动。',
-      status: goalToReviewStatus,
-      liveNote: goalToReviewCovered
-        ? `已观察到 ${dispatchLinkedTasks.length} 个带执行链路的任务、${allRuns.length} 条 run，以及 ${reviewOrVerifyTasks.length + reviewOrVerifyRuns.length} 个 review/verify 节点，可直接按闭环演示。`
-        : selectedSession
-          ? '当前已有根会话；请显式创建 task，再通过执行或委派演示 ROUTA 编排链路。'
-          : '当前还没有会话，请先点击右上角“新建会话”，再配合显式 task 创建演示编排流程。',
-      steps: [
-        '创建或打开一个项目，点击“新建会话”，输入交付目标以建立上下文。',
-        '在 Tasks 面板显式创建 task，并补充角色、范围或验收要求。',
-        '执行或委派 task，确认 child session 与 task 卡片挂接 executionSessionId / resultSessionId。',
-        '展开 Task Runs，确认 run 时间线、结果摘要，以及 review/verify 的结论展示。',
-      ],
-      expectedSignals: [
-        'Task 卡片显示 executionSessionId、resultSessionId 与“打开会话”入口。',
-        'Session Tree 能区分根会话、子会话、specialist 与 taskId。',
-        'Task Runs 展示最新执行、历史执行，以及 review/verify 的 summary、verdict、report。',
-        '从任务跳转到执行会话后，Activity 与任务状态保持一致。',
-      ],
-    },
-    {
-      id: 'failure-retry',
-      title: '失败恢复与 Retry',
-      summary:
-        '故意制造一次失败，再验证错误提示、等待重试状态与 retry run 是否形成闭环。',
-      status: failureRetryStatus,
-      liveNote: failureRetryCovered
-        ? `已检测到 ${retriedRuns.length} 条 retry run，可直接检查 retryOfRunId 与历史执行保留情况。`
-        : streamStatus === 'error' ||
-            hasSessionFailure ||
-            errorEvents.length > 0 ||
-            failureTaskCount > 0 ||
-            failureRunCount > 0 ||
-            retryReady
-          ? '当前已经有失败样本，可直接点击“重试”并继续演示恢复路径。'
-          : allRuns.length > 0
-            ? `当前已有 ${allRuns.length} 条 run 记录；可临时停掉 provider、制造命令失败或取消执行，再继续演示 retry。`
-            : selectedSession
-              ? '当前已有会话，可先推动一次任务执行，再补充失败与恢复演示。'
-              : '请先完成至少一次会话与任务执行，再进入失败恢复演示。',
-      steps: [
-        '临时停掉 provider、制造执行错误，或手动取消正在运行的任务。',
-        '确认 Activity、任务状态与 Task Runs 同时出现失败或取消信号。',
-        '对失败、取消或等待重试的任务点击“重试”，确认生成新的 latest run。',
-      ],
-      expectedSignals: [
-        'Task 或 Task Run 进入 FAILED、CANCELLED 或 WAITING_RETRY 状态。',
-        '按钮区出现可用的“重试”动作，且失败摘要仍然可见。',
-        '重试后出现新的 latest run，旧 run 进入历史执行，且保留 retryOfRunId。',
-      ],
-    },
-    {
-      id: 'developer-single-mode',
-      title: 'DEVELOPER 单人模式',
-      summary:
-        '切换到 DEVELOPER 模式后，验证根会话使用 solo-developer，并且不再自动扩散出 child session。',
-      status: developerSingleModeStatus,
-      liveNote: developerSingleModeCovered
-        ? `当前模式已进入 ${modeLabel}，所选会话使用 solo-developer，可直接说明单人模式路径。`
-        : runtimeProfile
-          ? `当前模式为 ${modeLabel}；切换 Runtime Profile 为 DEVELOPER 后，新建根会话即可演示单人模式。`
-          : '当前还没有加载到 Runtime Profile，请先确认项目可以读取默认 provider 与 orchestration mode。',
-      steps: [
-        '将 Runtime Profile 的 orchestration mode 切换为 DEVELOPER。',
-        '新建一个根会话，输入一个边界清晰的实现目标。',
-        '确认 Session Tree 中当前根会话的 specialist 为 solo-developer，且不会继续自动分发 child session。',
-      ],
-      expectedSignals: [
-        '验收面板顶部的模式标识切换为 DEVELOPER 单人。',
-        '根会话显示 solo-developer specialist，而不是 routa-coordinator。',
-        '当前会话可以直接完成交付，不依赖 task 自动分发或 child session 树展开。',
-      ],
-    },
-    {
-      id: 'provider-switch',
-      title: 'Provider 切换演示',
-      summary:
-        '切换默认 provider 后，验证新旧 provider 在会话、任务与 run 上都能被清晰区分。',
-      status: providerSwitchStatus,
-      liveNote: providerSwitchCovered
-        ? `已观察到多个 provider：${observedProviders.join(' -> ')}，可直接演示切换前后的差异。`
-        : observedProviders.length > 0
-          ? `当前默认 provider 为 ${defaultProviderLabel}，当前会话 provider 为 ${currentProviderLabel}；切换后新建会话或重试任务即可补齐演示。`
-          : '当前还没有识别到 provider，请先确认 Runtime Profile 或现有会话已经配置 provider。',
-      steps: [
-        '先用一个默认 provider 创建会话或执行任务，记录当前 provider 标识。',
-        '切换对应角色的 provider，再新建会话或重试任务。',
-        '对比切换前后的会话、任务卡片与 Task Runs，确认 provider 变化清晰可见。',
-      ],
-      expectedSignals: [
-        '验收面板顶部显示默认 provider，当前会话或 run 显示实际执行 provider。',
-        '切换后创建的新会话或新 run 会带上新的 provider 标识。',
-        '历史会话、任务与 run 仍保留旧 provider，便于前后台对照演示。',
-      ],
-    },
-  ];
 }
 
 function formatPriorityLabel(priority: string | null | undefined): string {
