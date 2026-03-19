@@ -107,6 +107,10 @@ const taskRunStatusSchema = z.enum([
   'FAILED',
   'CANCELLED',
 ]);
+const nullableTaskKindSchema = z.union([
+  z.enum(['plan', 'implement', 'review', 'verify']),
+  z.null(),
+]);
 
 export const taskUpdateArgsSchema = z
   .object({
@@ -135,6 +139,81 @@ export const taskUpdateArgsSchema = z
     void taskId;
     return Object.keys(patch).length > 0;
   }, 'At least one task field must be provided');
+
+export const createCardArgsSchema = z.object({
+  acceptanceCriteria: stringArraySchema.optional(),
+  assignedProvider: nullableStringSchema.optional(),
+  assignedRole: nullableStringSchema.optional(),
+  assignedSpecialistId: nullableStringSchema.optional(),
+  assignedSpecialistName: nullableStringSchema.optional(),
+  boardId: z.string().trim().min(1).optional(),
+  columnId: z.string().trim().min(1).optional(),
+  kind: nullableTaskKindSchema.optional(),
+  objective: z.string().trim().min(1),
+  position: z.coerce.number().int().nonnegative().optional(),
+  priority: nullableStringSchema.optional(),
+  projectId: z.string().trim().min(1),
+  scope: nullableStringSchema.optional(),
+  sessionId: z.string().trim().min(1).optional(),
+  title: z.string().trim().min(1),
+  verificationCommands: stringArraySchema.optional(),
+});
+
+export const updateCardArgsSchema = z
+  .object({
+    acceptanceCriteria: stringArraySchema.optional(),
+    assignedProvider: nullableStringSchema.optional(),
+    assignedRole: nullableStringSchema.optional(),
+    assignedSpecialistId: nullableStringSchema.optional(),
+    assignedSpecialistName: nullableStringSchema.optional(),
+    cardId: z.string().trim().min(1),
+    completionSummary: nullableStringSchema.optional(),
+    dependencies: stringArraySchema.optional(),
+    labels: stringArraySchema.optional(),
+    objective: z.string().trim().min(1).optional(),
+    priority: nullableStringSchema.optional(),
+    projectId: z.string().trim().min(1),
+    scope: nullableStringSchema.optional(),
+    status: mcpWritableTaskStatusSchema.optional(),
+    title: z.string().trim().min(1).optional(),
+    verificationCommands: stringArraySchema.optional(),
+    verificationReport: nullableStringSchema.optional(),
+    verificationVerdict: nullableStringSchema.optional(),
+  })
+  .refine((input) => {
+    const { cardId, projectId, ...patch } = input;
+    void cardId;
+    void projectId;
+    return Object.keys(patch).length > 0;
+  }, 'At least one card field must be provided');
+
+export const moveCardArgsSchema = z.object({
+  boardId: z.string().trim().min(1),
+  cardId: z.string().trim().min(1),
+  columnId: z.string().trim().min(1),
+  position: z.coerce.number().int().nonnegative().optional(),
+  projectId: z.string().trim().min(1),
+});
+
+export const blockCardArgsSchema = z.object({
+  boardId: z.string().trim().min(1).optional(),
+  cardId: z.string().trim().min(1),
+  reason: z.string().trim().min(1),
+  projectId: z.string().trim().min(1),
+});
+
+export const unblockCardArgsSchema = z.object({
+  boardId: z.string().trim().min(1).optional(),
+  cardId: z.string().trim().min(1),
+  columnId: z.string().trim().min(1).optional(),
+  position: z.coerce.number().int().nonnegative().optional(),
+  projectId: z.string().trim().min(1),
+});
+
+export const getBoardViewArgsSchema = z.object({
+  boardId: z.string().trim().min(1).optional(),
+  projectId: z.string().trim().min(1),
+});
 
 export const requestPreviousLaneHandoffArgsSchema = z.object({
   artifactHints: stringArraySchema.optional(),

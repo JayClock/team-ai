@@ -10,8 +10,14 @@ function createBoardLinks(board: KanbanBoardPayload) {
     self: {
       href: `/api/projects/${board.projectId}/kanban/boards/${board.id}`,
     },
+    update: {
+      href: `/api/projects/${board.projectId}/kanban/boards/${board.id}`,
+    },
     collection: {
       href: `/api/projects/${board.projectId}/kanban/boards`,
+    },
+    columns: {
+      href: `/api/projects/${board.projectId}/kanban/boards/${board.id}/columns`,
     },
     project: {
       href: `/api/projects/${board.projectId}`,
@@ -59,6 +65,17 @@ function createCardLinks(board: KanbanBoardPayload, card: KanbanCardSummaryPaylo
 
 function presentColumn(board: KanbanBoardPayload, column: KanbanColumnPayload) {
   return {
+    _links: {
+      create: {
+        href: `/api/projects/${board.projectId}/kanban/boards/${board.id}/columns`,
+      },
+      delete: {
+        href: `/api/projects/${board.projectId}/kanban/boards/${board.id}/columns/${column.id}`,
+      },
+      update: {
+        href: `/api/projects/${board.projectId}/kanban/boards/${board.id}/columns/${column.id}`,
+      },
+    },
     ...column,
     ...(column.cards
       ? {

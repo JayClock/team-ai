@@ -1,4 +1,8 @@
-import type { TaskKind } from './task';
+import type {
+  TaskKind,
+  TaskLaneHandoffPayload,
+  TaskLaneSessionPayload,
+} from './task';
 
 export type KanbanColumnStage =
   | 'backlog'
@@ -21,6 +25,7 @@ export interface KanbanColumnAutomationPayload {
 
 export interface KanbanCardExplainPayload {
   currentColumnReason: string;
+  decisionLog: string[];
   latestAutomationResult: string | null;
   missingArtifacts: string[];
   recentTransitionReason: string | null;
@@ -29,20 +34,26 @@ export interface KanbanCardExplainPayload {
 export interface KanbanCardSummaryPayload {
   assignedRole: string | null;
   assignedSpecialistName: string | null;
+  artifactEvidence: string[];
   boardId: string | null;
   columnId: string | null;
+  completionSummary: string | null;
   executionSessionId: string | null;
   id: string;
   kind: TaskKind | null;
+  laneHandoffs: TaskLaneHandoffPayload[];
+  laneSessions: TaskLaneSessionPayload[];
   lastSyncError: string | null;
   explain: KanbanCardExplainPayload | null;
   position: number | null;
   priority: string | null;
+  recentOutputSummary: string | null;
   resultSessionId: string | null;
   status: string;
   title: string;
   triggerSessionId: string | null;
   updatedAt: string;
+  verificationReport: string | null;
   verificationVerdict: string | null;
 }
 
@@ -59,12 +70,19 @@ export interface KanbanColumnPayload {
   stage: KanbanColumnStage | null;
 }
 
+export interface KanbanBoardSettingsPayload {
+  boardConcurrency: number | null;
+  isDefault: boolean;
+  wipLimit: number | null;
+}
+
 export interface KanbanBoardPayload {
   columns: KanbanColumnPayload[];
   createdAt: string;
   id: string;
   name: string;
   projectId: string;
+  settings: KanbanBoardSettingsPayload;
   updatedAt: string;
 }
 

@@ -304,6 +304,12 @@ describe('mcp route', () => {
         'projects_list',
         'agents_list',
         'read_agent_conversation',
+        'create_card',
+        'update_card',
+        'move_card',
+        'block_card',
+        'unblock_card',
+        'get_board_view',
         'tasks_list',
         'task_get',
         'task_update',
@@ -948,12 +954,18 @@ describe('mcp route', () => {
         'read_agent_conversation',
         'tasks_list',
         'task_get',
+        'get_board_view',
         'task_runs_list',
         'list_notes',
         'read_note',
       ]),
     );
     expect(toolNames).not.toContain('task_update');
+    expect(toolNames).not.toContain('create_card');
+    expect(toolNames).not.toContain('update_card');
+    expect(toolNames).not.toContain('move_card');
+    expect(toolNames).not.toContain('block_card');
+    expect(toolNames).not.toContain('unblock_card');
     expect(toolNames).not.toContain('task_execute');
     expect(toolNames).not.toContain('delegate_task_to_agent');
     expect(toolNames).not.toContain('request_previous_lane_handoff');
@@ -1296,6 +1308,200 @@ Validation and review logic
         }),
       ]),
     );
+  });
+
+  it('creates and manages kanban cards via MCP tools', async () => {
+    process.env.TEAMAI_DATA_DIR = `/tmp/team-ai-mcp-kanban-${Date.now()}`;
+
+    const fastify = Fastify();
+    fastifyInstances.push(fastify);
+
+    fastify.decorate('acpRuntime', {
+      cancelSession: vi.fn(async () => undefined),
+      close: vi.fn(async () => undefined),
+      createSession: vi.fn(async (input) => ({
+        runtimeSessionId: `runtime-${input.provider}`,
+        provider: input.provider,
+      })),
+      killSession: vi.fn(async () => undefined),
+      isConfigured: vi.fn(() => true),
+      isSessionActive: vi.fn(() => true),
+      loadSession: vi.fn(async (input) => ({
+        runtimeSessionId: input.runtimeSessionId,
+        provider: input.provider,
+      })),
+      promptSession: vi.fn(async () => ({
+        runtimeSessionId: 'runtime-kanban',
+        response: {
+          stopReason: 'end_turn' as const,
+        },
+      })),
+    } satisfies AcpRuntimeClient);
+
+    await fastify.register(problemJsonPlugin);
+    await fastify.register(sensiblePlugin);
+    await fastify.register(sqlitePlugin);
+    await fastify.register(acpStreamPlugin);
+    await fastify.register(rootRoute, { prefix: '/api' });
+    await fastify.register(projectsRoute, { prefix: '/api' });
+    await fastify.register(acpRoute, { prefix: '/api' });
+    await fastify.register(mcpRoute, { prefix: '/api' });
+    await fastify.ready();
+
+    const project = await createProject(fastify.sqlite, {
+      title: 'MCP Kanban Project',
+      repoPath: '/tmp/team-ai-mcp-kanban-project',
+    });
+
+    const createCardResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-create-card',
+        method: 'tools/call',
+        params: {
+          name: 'create_card',
+          arguments: {
+            objective: 'Create a card directly from MCP',
+            projectId: project.id,
+            title: 'MCP card',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(createCardResponse.statusCode).toBe(200);
+    const createdCard = readMcpResult<{ card: { id: string } }>(createCardResponse).card;
+
+    const updateCardResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-update-card',
+        method: 'tools/call',
+        params: {
+          name: 'update_card',
+          arguments: {
+            cardId: createdCard.id,
+            priority: 'high',
+            projectId: project.id,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(updateCardResponse.statusCode).toBe(200);
+    expect(readMcpResult<{ card: { priority: string } }>(updateCardResponse).card)
+      .toMatchObject({
+        priority: 'high',
+      });
+
+    const boardViewResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-board-view',
+        method: 'tools/call',
+        params: {
+          name: 'get_board_view',
+          arguments: {
+            projectId: project.id,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(boardViewResponse.statusCode).toBe(200);
+    const board = readMcpResult<{
+      board: {
+        columns: Array<{ cards?: Array<{ id: string }>; id: string; stage: string | null }>;
+        id: string;
+      };
+    }>(boardViewResponse).board;
+    const reviewColumn = board.columns.find((column) => column.stage === 'review');
+    expect(reviewColumn).toBeTruthy();
+
+    const moveCardResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-move-card',
+        method: 'tools/call',
+        params: {
+          name: 'move_card',
+          arguments: {
+            boardId: board.id,
+            cardId: createdCard.id,
+            columnId: reviewColumn?.id,
+            projectId: project.id,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(moveCardResponse.statusCode).toBe(200);
+    expect(readMcpResult<{ card: { columnId: string } }>(moveCardResponse).card)
+      .toMatchObject({
+        columnId: reviewColumn?.id,
+      });
+
+    const blockCardResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-block-card',
+        method: 'tools/call',
+        params: {
+          name: 'block_card',
+          arguments: {
+            cardId: createdCard.id,
+            projectId: project.id,
+            reason: 'Waiting for QA sign-off',
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(blockCardResponse.statusCode).toBe(200);
+    expect(readMcpResult<{ card: { lastSyncError: string; status: string } }>(blockCardResponse))
+      .toMatchObject({
+        card: {
+          lastSyncError: 'Waiting for QA sign-off',
+          status: 'WAITING_RETRY',
+        },
+      });
+
+    const unblockCardResponse = await callMcp(
+      fastify,
+      {
+        jsonrpc: '2.0',
+        id: 'mcp-unblock-card',
+        method: 'tools/call',
+        params: {
+          name: 'unblock_card',
+          arguments: {
+            cardId: createdCard.id,
+            columnId: reviewColumn?.id,
+            projectId: project.id,
+          },
+        },
+      },
+      'read-write',
+    );
+
+    expect(unblockCardResponse.statusCode).toBe(200);
+    expect(readMcpResult<{ card: { columnId: string; lastSyncError: string | null } }>(unblockCardResponse))
+      .toMatchObject({
+        card: {
+          columnId: reviewColumn?.id,
+          lastSyncError: null,
+        },
+      });
   });
 
   it('delegates a task to a downstream specialist via MCP', async () => {

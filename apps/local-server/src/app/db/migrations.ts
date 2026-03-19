@@ -1051,4 +1051,44 @@ export const sqliteMigrations: SqliteMigration[] = [
         ADD COLUMN step_count INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: '034_project_kanban_board_config',
+    sql: `
+      ALTER TABLE project_kanban_boards
+        ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0;
+
+      ALTER TABLE project_kanban_boards
+        ADD COLUMN settings_json TEXT NOT NULL DEFAULT '{"boardConcurrency":null,"wipLimit":null}';
+
+      ALTER TABLE project_kanban_columns
+        ADD COLUMN stage TEXT;
+
+      UPDATE project_kanban_boards
+      SET is_default = 1
+      WHERE id IN (
+        SELECT id
+        FROM project_kanban_boards AS boards
+        WHERE boards.deleted_at IS NULL
+          AND boards.project_id = project_kanban_boards.project_id
+        ORDER BY boards.updated_at DESC, boards.created_at DESC
+        LIMIT 1
+      );
+
+      UPDATE project_kanban_columns
+      SET stage = CASE
+        WHEN LOWER(name) = 'backlog' THEN 'backlog'
+        WHEN LOWER(name) = 'todo' THEN 'todo'
+        WHEN LOWER(name) = 'dev' THEN 'dev'
+        WHEN LOWER(name) = 'review' THEN 'review'
+        WHEN LOWER(name) = 'blocked' THEN 'blocked'
+        WHEN LOWER(name) = 'done' THEN 'done'
+        ELSE NULL
+      END
+      WHERE stage IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_project_kanban_boards_default
+        ON project_kanban_boards(project_id, is_default DESC, updated_at DESC)
+        WHERE deleted_at IS NULL;
+    `,
+  },
 ];

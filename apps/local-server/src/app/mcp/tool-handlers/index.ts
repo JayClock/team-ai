@@ -4,6 +4,14 @@ export {
   createAcpSessionPromptHandler,
 } from './acp-handlers';
 export {
+  createBlockCardHandler,
+  createCreateCardHandler,
+  createGetBoardViewHandler,
+  createMoveCardHandler,
+  createUnblockCardHandler,
+  createUpdateCardHandler,
+} from './kanban-card-handlers';
+export {
   createAgentsListHandler,
   createDelegateTaskToAgentHandler,
   createReadAgentConversationHandler,

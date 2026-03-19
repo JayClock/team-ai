@@ -15,11 +15,11 @@
 ## 当前缺口
 
 - [x] 看板前端仍是摘要卡片，不是列式看板主界面
-- [ ] Spec 到卡片没有稳定同步闭环
+- [x] Spec 到卡片没有稳定同步闭环
 - [x] 默认持久化 board 缺少 `Blocked` 列
-- [ ] 列与 specialist 的绑定还不完整
-- [ ] Kanban REST API 基本是只读
-- [ ] Kanban MCP tool 只有 handoff，没有 card 级操作
+- [x] 列与 specialist 的绑定还不完整
+- [x] Kanban REST API 基本是只读
+- [x] Kanban MCP tool 只有 handoff，没有 card 级操作
 - [x] Board 资源没有直接投影每列下的 cards
 
 ## P0
@@ -143,13 +143,13 @@
 
 ### 7. 扩展 Kanban MCP tools
 
-- [ ] 新增 `create_card`
-- [ ] 新增 `update_card`
-- [ ] 新增 `move_card`
-- [ ] 新增 `block_card`
-- [ ] 新增 `unblock_card`
-- [ ] 新增 `list_board` 或 `get_board_view`
-- [ ] 保持 `request_previous_lane_handoff` / `submit_lane_handoff` 作为 lane 协作工具，而非唯一 kanban tool
+- [x] 新增 `create_card`
+- [x] 新增 `update_card`
+- [x] 新增 `move_card`
+- [x] 新增 `block_card`
+- [x] 新增 `unblock_card`
+- [x] 新增 `list_board` 或 `get_board_view`
+- [x] 保持 `request_previous_lane_handoff` / `submit_lane_handoff` 作为 lane 协作工具，而非唯一 kanban tool
 
 涉及文件：
 
@@ -159,31 +159,31 @@
 
 验收标准：
 
-- [ ] agent 可以直接围绕 card 工作
-- [ ] 不需要通过底层 task patch 模拟所有看板操作
+- [x] agent 可以直接围绕 card 工作
+- [x] 不需要通过底层 task patch 模拟所有看板操作
 
 ## P2
 
 ### 8. 看板配置化
 
-- [ ] 支持创建多个 boards
-- [ ] 支持列增删改排序
-- [ ] 支持配置列自动化：enabled、provider、specialistId、requiredArtifacts、transitionType
-- [ ] 支持配置 board-level concurrency / WIP limit
-- [ ] 支持项目级默认 board 与备用 board
+- [x] 支持创建多个 boards
+- [x] 支持列增删改排序
+- [x] 支持配置列自动化：enabled、provider、specialistId、requiredArtifacts、transitionType
+- [x] 支持配置 board-level concurrency / WIP limit
+- [x] 支持项目级默认 board 与备用 board
 
 验收标准：
 
-- [ ] board 不再是硬编码模板
-- [ ] 不同项目可使用不同 workflow 结构
+- [x] board 不再是硬编码模板
+- [x] 不同项目可使用不同 workflow 结构
 
 ### 9. 看板观测与可解释性
 
-- [ ] 在卡片详情展示 laneSessions 时间线
-- [ ] 在卡片详情展示 laneHandoffs
-- [ ] 展示 artifact gate 缺失项与通过证据
-- [ ] 展示“为什么卡片停在这里”的 explain 信息
-- [ ] 展示 auto-advance 决策链路
+- [x] 在卡片详情展示 laneSessions 时间线
+- [x] 在卡片详情展示 laneHandoffs
+- [x] 展示 artifact gate 缺失项与通过证据
+- [x] 展示“为什么卡片停在这里”的 explain 信息
+- [x] 展示 auto-advance 决策链路
 
 涉及文件：
 
@@ -193,19 +193,19 @@
 
 验收标准：
 
-- [ ] 用户可以从单张卡片追溯执行、评审、阻塞、回退原因
+- [x] 用户可以从单张卡片追溯执行、评审、阻塞、回退原因
 
 ### 10. 拖拽和排序体验
 
-- [ ] 支持列内拖拽排序
-- [ ] 支持跨列拖拽
-- [ ] 对自动化运行中的卡片给出拖拽限制或确认交互
-- [ ] 拖拽后持久化 `position`
+- [x] 支持列内拖拽排序
+- [x] 支持跨列拖拽
+- [x] 对自动化运行中的卡片给出拖拽限制或确认交互
+- [x] 拖拽后持久化 `position`
 - [ ] 处理并发拖拽与自动推进冲突
 
 验收标准：
 
-- [ ] 常规看板操作不需要跳出页面
+- [x] 常规看板操作不需要跳出页面
 - [ ] 拖拽不会破坏后端自动化队列状态
 
 ## 测试补充
@@ -215,8 +215,8 @@
 - [x] 补充 Review -> Dev 回退测试
 - [x] 补充 Blocked 进入/恢复测试
 - [x] 补充列内排序持久化测试
-- [ ] 补充 spec sync 测试
-- [ ] 补充 kanban MCP tool tests
+- [x] 补充 spec sync 测试
+- [x] 补充 kanban MCP tool tests
 - [x] 补充前端 Kanban 页面交互测试
 
 ## 建议执行顺序
@@ -240,12 +240,12 @@
 
 ### M2
 
-- [ ] 可以从 spec 自动产卡
-- [ ] 可以自动流转到 Dev / Review / Done / Blocked
-- [ ] 可以解释卡片为何停留在当前列
+- [x] 可以从 spec 自动产卡
+- [x] 可以自动流转到 Dev / Review / Done / Blocked
+- [x] 可以解释卡片为何停留在当前列
 
 ### M3
 
-- [ ] agent 可以通过 MCP 直接管理 card
-- [ ] board 可以按项目定制
-- [ ] 前端体验达到日常主工作台级别
+- [x] agent 可以通过 MCP 直接管理 card
+- [x] board 可以按项目定制
+- [x] 前端体验达到日常主工作台级别

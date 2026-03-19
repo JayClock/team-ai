@@ -2,7 +2,10 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { presentTask, presentTaskList } from '../presenters/task-presenter';
 import {
-  createTask,
+  createKanbanCard,
+  moveKanbanCard,
+} from '../services/kanban-card-service';
+import {
   deleteTask,
   getTaskById,
   listTasks,
@@ -145,42 +148,17 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
     const { projectId } = projectParamsSchema.parse(request.params);
     const body = taskBodySchema.parse(request.body);
     const { sessionId, ...taskInput } = body;
-    const task = await createTask(fastify.sqlite, {
-      ...taskInput,
-      projectId,
-      sessionId,
-    });
-
-    if (task.boardId && task.columnId && body.position !== undefined) {
-      placeTaskInColumn(fastify.sqlite, {
-        boardId: task.boardId,
-        columnId: task.columnId,
-        position: body.position,
-        projectId: task.projectId,
-        taskId: task.id,
-      });
-    }
-
-    const createdTask =
-      task.boardId && task.columnId && body.position !== undefined
-        ? await getTaskById(fastify.sqlite, task.id)
-        : task;
-
-    if (
-      fastify.hasDecorator('kanbanEventService') &&
-      createdTask.boardId &&
-      createdTask.columnId
-    ) {
-      await fastify.kanbanEventService.emit({
-        boardId: createdTask.boardId,
-        fromColumnId: null,
-        projectId: createdTask.projectId,
-        taskId: createdTask.id,
-        taskTitle: createdTask.title,
-        toColumnId: createdTask.columnId,
-        type: 'task.column-transition',
-      });
-    }
+    const createdTask = await createKanbanCard(
+      fastify.sqlite,
+      {
+        ...taskInput,
+        projectId,
+        sessionId,
+      },
+      fastify.hasDecorator('kanbanEventService')
+        ? fastify.kanbanEventService
+        : undefined,
+    );
 
     reply
       .code(201)
@@ -301,92 +279,18 @@ const tasksRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post('/tasks/:taskId/move', async (request, reply) => {
     const { taskId } = taskParamsSchema.parse(request.params);
     const body = moveTaskBodySchema.parse(request.body);
-    const previous = await getTaskById(fastify.sqlite, taskId);
-    const transitionState = {
-      boardId: previous.boardId,
-      columnId: previous.columnId,
-      laneHandoffs: previous.laneHandoffs,
-      laneSessions: previous.laneSessions,
-      lastSyncError: previous.lastSyncError,
-      sessionIds: previous.sessionIds,
-      triggerSessionId: previous.triggerSessionId,
-    };
-    const nextPatch: Parameters<typeof updateTask>[2] = {
-      boardId: body.boardId,
-      columnId: body.columnId,
-      ...(body.position !== undefined ? { position: body.position } : {}),
-    };
-
-    if (
-      prepareTaskForColumnTransition(transitionState, {
+    const positionedTask = await moveKanbanCard(
+      fastify.sqlite,
+      {
         boardId: body.boardId,
         columnId: body.columnId,
-      })
-    ) {
-      nextPatch.laneSessions = transitionState.laneSessions;
-      nextPatch.lastSyncError = transitionState.lastSyncError;
-      nextPatch.sessionIds = transitionState.sessionIds;
-      nextPatch.triggerSessionId = transitionState.triggerSessionId;
-    }
-
-    if (previous.boardId !== body.boardId || previous.columnId !== body.columnId) {
-      nextPatch.status = resolveTaskStatusForWorkflowColumn(
-        body.columnId,
-        null,
-        previous.status,
-      );
-    }
-
-    const updated = await updateTask(fastify.sqlite, taskId, nextPatch);
-    const targetPosition = inputPosition(body.position, updated.position);
-
-    if (
-      previous.boardId !== updated.boardId ||
-      previous.columnId !== updated.columnId ||
-      body.position !== undefined
-    ) {
-      if (previous.boardId && previous.columnId) {
-        normalizeTaskPositionsInColumn(
-          fastify.sqlite,
-          previous.projectId,
-          previous.boardId,
-          previous.columnId,
-        );
-      }
-
-      placeTaskInColumn(fastify.sqlite, {
-        boardId: updated.boardId,
-        columnId: updated.columnId,
-        position: targetPosition,
-        projectId: updated.projectId,
-        taskId: updated.id,
-      });
-    }
-
-    const positionedTask =
-      previous.boardId !== updated.boardId ||
-      previous.columnId !== updated.columnId ||
-      body.position !== undefined
-        ? await getTaskById(fastify.sqlite, taskId)
-        : updated;
-
-    if (
-      fastify.hasDecorator('kanbanEventService') &&
-      positionedTask.boardId &&
-      positionedTask.columnId &&
-      (previous.boardId !== positionedTask.boardId ||
-        previous.columnId !== positionedTask.columnId)
-    ) {
-      await fastify.kanbanEventService.emit({
-        boardId: positionedTask.boardId,
-        fromColumnId: previous.columnId,
-        projectId: positionedTask.projectId,
-        taskId: positionedTask.id,
-        taskTitle: positionedTask.title,
-        toColumnId: positionedTask.columnId,
-        type: 'task.column-transition',
-      });
-    }
+        position: body.position,
+        taskId,
+      },
+      fastify.hasDecorator('kanbanEventService')
+        ? fastify.kanbanEventService
+        : undefined,
+    );
 
     setVendorMediaType(reply, VENDOR_MEDIA_TYPES.task);
 

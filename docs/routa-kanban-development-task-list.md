@@ -518,13 +518,13 @@
 
 开发任务：
 
-- [ ] 新增 `create_card`
-- [ ] 新增 `update_card`
-- [ ] 新增 `move_card`
-- [ ] 新增 `block_card`
-- [ ] 新增 `unblock_card`
-- [ ] 新增 `get_board_view`
-- [ ] 为每个 tool 定义 args schema、返回 payload、错误码
+- [x] 新增 `create_card`
+- [x] 新增 `update_card`
+- [x] 新增 `move_card`
+- [x] 新增 `block_card`
+- [x] 新增 `unblock_card`
+- [x] 新增 `get_board_view`
+- [x] 为每个 tool 定义 args schema、返回 payload、错误码
 
 涉及文件：
 
@@ -533,7 +533,7 @@
 
 完成标准：
 
-- [ ] agent 可以直接围绕 card 工作
+- [x] agent 可以直接围绕 card 工作
 
 ### RK-M3-02 实现 card 级 MCP handlers
 
@@ -543,16 +543,16 @@
 
 开发任务：
 
-- [ ] create card handler
-- [ ] update card handler
-- [ ] move card handler
-- [ ] block/unblock handler
-- [ ] board view handler
-- [ ] 复用现有 task service / move card API，不重复实现规则
+- [x] create card handler
+- [x] update card handler
+- [x] move card handler
+- [x] block/unblock handler
+- [x] board view handler
+- [x] 复用现有 task service / move card API，不重复实现规则
 
 完成标准：
 
-- [ ] MCP 操作与 REST 操作行为一致
+- [x] MCP 操作与 REST 操作行为一致
 
 ### RK-M3-03 支持 board 配置管理 API
 
@@ -562,12 +562,12 @@
 
 开发任务：
 
-- [ ] 新增 create board API
-- [ ] 新增 update board API
-- [ ] 新增 create/update/delete column API
-- [ ] 支持调整列顺序
-- [ ] 支持设置列自动化配置
-- [ ] 支持 project default board
+- [x] 新增 create board API
+- [x] 新增 update board API
+- [x] 新增 create/update/delete column API
+- [x] 支持调整列顺序
+- [x] 支持设置列自动化配置
+- [x] 支持 project default board
 
 涉及文件：
 
@@ -576,7 +576,7 @@
 
 完成标准：
 
-- [ ] board 不再是硬编码单模板
+- [x] board 不再是硬编码单模板
 
 ### RK-M3-04 新建 board 设置页面
 
@@ -586,11 +586,11 @@
 
 开发任务：
 
-- [ ] 增加 board 设置入口
-- [ ] 支持列增删改排序
-- [ ] 支持配置 specialist / provider
-- [ ] 支持配置 requiredArtifacts
-- [ ] 支持配置 autoAdvanceOnSuccess / transitionType
+- [x] 增加 board 设置入口
+- [x] 支持列增删改排序
+- [x] 支持配置 specialist / provider
+- [x] 支持配置 requiredArtifacts
+- [x] 支持配置 autoAdvanceOnSuccess / transitionType
 
 涉及文件：
 
@@ -599,7 +599,7 @@
 
 完成标准：
 
-- [ ] 用户可以可视化管理 board 配置
+- [x] 用户可以可视化管理 board 配置
 
 ### RK-M3-05 实现拖拽交互
 
@@ -609,15 +609,15 @@
 
 开发任务：
 
-- [ ] 列内拖拽排序
-- [ ] 跨列拖拽
-- [ ] 乐观更新或局部刷新策略
-- [ ] 对运行中卡片增加限制或确认
-- [ ] 处理拖拽失败回滚
+- [x] 列内拖拽排序
+- [x] 跨列拖拽
+- [x] 乐观更新或局部刷新策略
+- [x] 对运行中卡片增加限制或确认
+- [x] 处理拖拽失败回滚
 
 完成标准：
 
-- [ ] 看板具备主工作台操作效率
+- [x] 看板具备主工作台操作效率
 
 ### RK-M3-06 增强卡片 observability
 
@@ -627,11 +627,11 @@
 
 开发任务：
 
-- [ ] 卡片详情显示 lane session 时间线
-- [ ] 显示 handoff 往返链路
-- [ ] 显示 artifact evidence 列表
-- [ ] 显示自动推进决策记录
-- [ ] 显示最近一次 specialist 输出摘要
+- [x] 卡片详情显示 lane session 时间线
+- [x] 显示 handoff 往返链路
+- [x] 显示 artifact evidence 列表
+- [x] 显示自动推进决策记录
+- [x] 显示最近一次 specialist 输出摘要
 
 涉及文件：
 
@@ -640,7 +640,7 @@
 
 完成标准：
 
-- [ ] 卡片成为可审计工作单元
+- [x] 卡片成为可审计工作单元
 
 ### RK-M3-07 M3 测试补齐
 
@@ -650,15 +650,15 @@
 
 开发任务：
 
-- [ ] 补 MCP kanban tools tests
-- [ ] 补 board config route tests
-- [ ] 补前端拖拽 tests
-- [ ] 补 board settings tests
-- [ ] 补 observability 渲染 tests
+- [x] 补 MCP kanban tools tests
+- [x] 补 board config route tests
+- [x] 补前端拖拽 tests
+- [x] 补 board settings tests
+- [x] 补 observability 渲染 tests
 
 完成标准：
 
-- [ ] M3 新能力都有回归保障
+- [x] M3 新能力都有回归保障
 
 ---
 
@@ -729,12 +729,12 @@
 
 ### 批次 D
 
-- [ ] RK-M3-01
-- [ ] RK-M3-02
-- [ ] RK-M3-03
-- [ ] RK-M3-04
-- [ ] RK-M3-05
-- [ ] RK-M3-06
+- [x] RK-M3-01
+- [x] RK-M3-02
+- [x] RK-M3-03
+- [x] RK-M3-04
+- [x] RK-M3-05
+- [x] RK-M3-06
 
 ---
 
