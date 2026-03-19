@@ -31,6 +31,7 @@ import {
 } from '@shared/util-http';
 import { Settings2Icon } from 'lucide-react';
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -246,6 +247,7 @@ function createSessionAnnotationMap(
 }
 
 export type ShellsSessionProps = {
+  headerActions?: ReactNode;
   initialSessionId?: string;
   onPendingPromptConsumed?: () => void;
   onRuntimeProfileChange?: (
@@ -282,6 +284,7 @@ function mapWorktreeOptions(items: State<Worktree>[]): ProjectWorktreeOption[] {
 
 export function ShellsSession(props: ShellsSessionProps) {
   const {
+    headerActions,
     projectState,
     initialSessionId,
     onRuntimeProfileChange,
@@ -1442,16 +1445,19 @@ export function ShellsSession(props: ShellsSessionProps) {
                 Specialists。
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 shrink-0 rounded-xl px-3 text-xs"
-              onClick={() => setSettingsDialogOpen(true)}
-            >
-              <Settings2Icon className="size-4" />
-              Settings
-            </Button>
+            <div className="flex items-center gap-2">
+              {headerActions}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 shrink-0 rounded-xl px-3 text-xs"
+                onClick={() => setSettingsDialogOpen(true)}
+              >
+                <Settings2Icon className="size-4" />
+                Settings
+              </Button>
+            </div>
           </div>
         </div>
 

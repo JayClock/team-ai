@@ -68,6 +68,30 @@ export default function ProjectSessionPage() {
   return (
     <div className="min-w-0 h-[100dvh] overflow-hidden bg-background">
       <ProjectSessionWorkbench
+        headerActions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 rounded-xl px-3 text-xs"
+              onClick={() => navigate(`/projects/${projectState.data.id}/kanban`)}
+            >
+              Kanban
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 shrink-0 rounded-xl px-3 text-xs"
+              onClick={() =>
+                navigate(`/projects/${projectState.data.id}/orchestration`)
+              }
+            >
+              Orchestration
+            </Button>
+          </>
+        }
         projectState={projectState}
         projectTitle={projectTitle(currentProject)}
         initialSessionId={safeSessionId}
@@ -75,28 +99,6 @@ export default function ProjectSessionPage() {
         onPendingPromptConsumed={handlePendingPromptConsumed}
         onSessionNavigate={handleSessionNavigate}
       />
-      <div className="pointer-events-none absolute right-4 top-4 z-20">
-        <div className="flex items-center gap-2">
-          <Button
-            className="pointer-events-auto"
-            variant="outline"
-            onClick={() =>
-              navigate(`/projects/${projectState.data.id}/kanban`)
-            }
-          >
-            Kanban
-          </Button>
-          <Button
-            className="pointer-events-auto"
-            variant="outline"
-            onClick={() =>
-              navigate(`/projects/${projectState.data.id}/orchestration`)
-            }
-          >
-            Orchestration
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

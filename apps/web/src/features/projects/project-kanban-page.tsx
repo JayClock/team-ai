@@ -48,11 +48,11 @@ interface KanbanBoardResponse {
   id: string;
   name: string;
   projectId: string;
-  settings: {
+  settings?: {
     boardConcurrency: number | null;
     isDefault: boolean;
     wipLimit: number | null;
-  };
+  } | null;
 }
 
 interface KanbanIntakeResponse {
@@ -337,6 +337,7 @@ function evaluateLocalMovePolicy(
   card: KanbanCard,
   targetColumn: KanbanColumn,
 ) {
+  const boardSettings = board.settings ?? null;
   const violations: string[] = [];
   const sourceColumn =
     board.columns.find((column) => column.id === card.columnId) ?? null;
@@ -364,11 +365,11 @@ function evaluateLocalMovePolicy(
   }, 0);
   if (
     increasesBoardWip &&
-    typeof board.settings.wipLimit === 'number' &&
-    activeWip >= board.settings.wipLimit
+    typeof boardSettings?.wipLimit === 'number' &&
+    activeWip >= boardSettings.wipLimit
   ) {
     violations.push(
-      `Board WIP limit reached (${board.settings.wipLimit}). Finish active work before pulling another card forward.`,
+      `Board WIP limit reached (${boardSettings.wipLimit}). Finish active work before pulling another card forward.`,
     );
   }
 
@@ -799,7 +800,7 @@ export default function ProjectKanbanPage() {
             <p className="mt-1 truncate text-sm text-muted-foreground">
               {projectTitle(currentProject)}
               {board ? ` · ${board.name}` : ''}
-              {board?.settings.isDefault ? ' · default board' : ''}
+              {board?.settings?.isDefault ? ' · default board' : ''}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <Badge variant="outline">{formatStreamStatusLabel(streamStatus)}</Badge>
