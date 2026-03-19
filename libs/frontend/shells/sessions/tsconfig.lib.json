@@ -45,6 +45,9 @@
       "path": "../../features/project-sessions/tsconfig.lib.json"
     },
     {
+      "path": "../../features/session-events/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/util-http/tsconfig.lib.json"
     },
     {

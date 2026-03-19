@@ -732,27 +732,6 @@ export default function ProjectKanbanPage() {
     projectState,
   ]);
 
-  if (projects.length === 0) {
-    return (
-      <div className="p-4 md:p-6">
-        <Card className="mx-auto max-w-3xl">
-          <CardHeader>
-            <CardTitle>Project Kanban</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            当前还没有本地项目。
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!currentProject || !projectState) {
-    return null;
-  }
-
-  const selectedSessionId = resolveCardSessionId(selectedCard);
-
   const handleDragStart = useCallback(
     (
       event: DragEvent<HTMLDivElement>,
@@ -787,6 +766,27 @@ export default function ProjectKanbanPage() {
     },
     [cards, draggedCardId, handleMoveCard],
   );
+
+  if (projects.length === 0) {
+    return (
+      <div className="p-4 md:p-6">
+        <Card className="mx-auto max-w-3xl">
+          <CardHeader>
+            <CardTitle>Project Kanban</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            当前还没有本地项目。
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentProject || !projectState) {
+    return null;
+  }
+
+  const selectedSessionId = resolveCardSessionId(selectedCard);
 
   return (
     <div className="flex h-[100dvh] min-w-0 flex-col bg-background">

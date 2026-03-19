@@ -1,3 +1,9 @@
+import {
+  ProjectModelPicker,
+  ProjectProviderPicker,
+  useAcpProviderModels,
+  useAcpProviders,
+} from '@features/session-events';
 import { toast } from '@shared/ui';
 import { Button, Card, CardContent } from '@shared/ui';
 import { runtimeFetch } from '@shared/util-http';
@@ -8,10 +14,6 @@ import {
   resolveWorkbenchRuntimeRoleDefault,
   type WorkbenchSessionRuntimeProfile,
 } from '../session/session-runtime-profile';
-import { useAcpProviderModels } from '../session/use-acp-provider-models';
-import { useAcpProviders } from '../session/use-acp-providers';
-import { ProjectModelPicker } from './project-model-picker';
-import { ProjectProviderPicker } from './project-provider-picker';
 
 type RuntimeProfileResponse = {
   orchestrationMode: WorkbenchSessionRuntimeProfile['orchestrationMode'];

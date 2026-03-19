@@ -2,7 +2,12 @@ import { State } from '@hateoas-ts/resource';
 import { useClient, useSuspenseResource } from '@hateoas-ts/resource-react';
 import { useAcpSession } from '@features/project-conversations';
 import {
-  AcpEventEnvelope,
+  type ProjectRepositoryOption,
+  type ProjectWorktreeOption,
+  useAcpProviders,
+  useProjectSessionChat,
+} from '@features/session-events';
+import {
   AcpSessionSummary,
   Codebase,
   Project,
@@ -20,11 +25,7 @@ import {
   ResizablePanelGroup,
   toast,
 } from '@shared/ui';
-import {
-  getCurrentDesktopRuntimeConfig,
-  resolveRuntimeApiUrl,
-  runtimeFetch,
-} from '@shared/util-http';
+import { runtimeFetch } from '@shared/util-http';
 import { Settings2Icon } from 'lucide-react';
 import {
   type ReactNode,
@@ -36,7 +37,6 @@ import {
 } from 'react';
 import { ProjectSessionConversationPane } from './project-session-conversation-pane';
 import { ProjectSessionHistorySidebar } from './project-session-history-sidebar';
-import { useProjectSessionChat } from './use-project-session-chat';
 import {
   buildTaskPanelItem,
   buildTaskRunPanelItem,
@@ -53,14 +53,7 @@ import {
   type WorkbenchSessionRole,
   type WorkbenchSessionRuntimeProfile,
 } from './session-runtime-profile';
-import { useAcpProviders } from './use-acp-providers';
-import {
-  type ProjectRepositoryOption,
-  type ProjectWorktreeOption,
-} from '../components/project-composer-input';
 import { ProjectSettingsDialog } from '../components/project-settings-dialog';
-
-const STREAM_RETRY_DELAY_MS = 1500;
 
 function buildCollectionPath(
   path: string,
@@ -233,13 +226,11 @@ export function ShellsSession(props: ShellsSessionProps) {
     useSuspenseResource(codebasesResource);
   const {
     selectedSession,
-    history,
     create,
     select,
     prompt,
     cancel,
     updateSession,
-    ingestEvents,
   } = useAcpSession(projectState, {
     actorUserId: me.id,
     historyLimit: 200,
@@ -264,11 +255,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   const [workbenchSessionId, setWorkbenchSessionId] = useState<
     string | undefined
   >(initialSessionId);
-
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const reconnectTimerRef = useRef<number | null>(null);
-  const allowReconnectRef = useRef(true);
-  const latestEventIdRef = useRef<string | undefined>(undefined);
   const refreshSessionListRef = useRef<
     (() => Promise<State<AcpSessionSummary>[]>) | null
   >(null);
@@ -440,10 +426,6 @@ export function ShellsSession(props: ShellsSessionProps) {
   }, [selectedCodebaseState]);
 
   useEffect(() => {
-    latestEventIdRef.current = history[history.length - 1]?.eventId;
-  }, [history]);
-
-  useEffect(() => {
     if (selectedSession) {
       setPreferredRole(
         selectedSession.data.specialistId === 'solo-developer'
@@ -580,9 +562,8 @@ export function ShellsSession(props: ShellsSessionProps) {
     void refreshTaskItems();
   }, [refreshTaskItems]);
 
-  const { chatMessages, handlePromptSubmit, hasPendingAssistantMessage } =
+  const { handlePromptSubmit, hasPendingAssistantMessage } =
     useProjectSessionChat({
-      history,
       selectedSession: selectedSession ?? undefined,
       pendingPrompt,
       onPendingPromptConsumed,
@@ -807,79 +788,6 @@ export function ShellsSession(props: ShellsSessionProps) {
     worktreesLoading,
   ]);
 
-  const stopStream = useCallback((manual: boolean) => {
-    allowReconnectRef.current = !manual;
-    if (reconnectTimerRef.current !== null) {
-      window.clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-  }, []);
-
-  const startStream = useCallback(() => {
-    if (!selectedSession) {
-      return;
-    }
-    stopStream(false);
-    allowReconnectRef.current = true;
-
-    const url = new URL(resolveRuntimeApiUrl('/api/acp'));
-    url.searchParams.set('sessionId', selectedSession.data.id);
-    const desktopRuntimeConfig = getCurrentDesktopRuntimeConfig();
-    if (desktopRuntimeConfig) {
-      url.searchParams.set(
-        'desktopSessionToken',
-        desktopRuntimeConfig.desktopSessionToken,
-      );
-    }
-    const latest = latestEventIdRef.current;
-    if (latest) {
-      url.searchParams.set('since', latest);
-    }
-
-    const source = new EventSource(url.toString(), { withCredentials: true });
-    const onEvent = (raw: string) => {
-      try {
-        const parsed = JSON.parse(raw) as AcpEventEnvelope;
-        if (parsed.sessionId === selectedSession.data.id) {
-          ingestEvents([parsed]);
-        }
-      } catch {
-        // ignore non-json payloads
-      }
-    };
-
-    source.addEventListener('acp-event', (event) => {
-      onEvent((event as MessageEvent<string>).data);
-    });
-    source.onmessage = (event) => {
-      onEvent(event.data);
-    };
-    source.onerror = () => {
-      source.close();
-      eventSourceRef.current = null;
-      if (!allowReconnectRef.current) {
-        return;
-      }
-      reconnectTimerRef.current = window.setTimeout(() => {
-        startStream();
-      }, STREAM_RETRY_DELAY_MS);
-    };
-    eventSourceRef.current = source;
-  }, [ingestEvents, selectedSession, stopStream]);
-
-  useEffect(() => {
-    if (!selectedSessionId) {
-      stopStream(true);
-      return;
-    }
-    startStream();
-    return () => stopStream(true);
-  }, [selectedSessionId, startStream, stopStream]);
-
   const selectSessionFromList = useCallback(
     async (session: State<AcpSessionSummary>, navigateToSession = true) => {
       try {
@@ -950,7 +858,6 @@ export function ShellsSession(props: ShellsSessionProps) {
         <div className="min-h-0 flex-1">
           <div className="h-full min-h-0">
             <ProjectSessionConversationPane
-              chatMessages={chatMessages}
               hasPendingAssistantMessage={hasPendingAssistantMessage}
               interactionDisabled={sessionRuntimeSwitchPending}
               onCancel={async () => {

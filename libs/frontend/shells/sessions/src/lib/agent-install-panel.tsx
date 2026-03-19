@@ -1,4 +1,4 @@
-import type { AcpProvider } from '@features/projects';
+import type { AcpProvider } from '@features/session-events';
 import { Button, Card, Input, ScrollArea } from '@shared/ui';
 import {
   DownloadIcon,

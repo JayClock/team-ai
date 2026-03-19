@@ -1,4 +1,4 @@
-import type { AcpProvider } from '../session/use-acp-providers';
+import type { AcpProvider } from '@features/session-events';
 import { Button, Card, Input, ScrollArea } from '@shared/ui';
 import {
   DownloadIcon,

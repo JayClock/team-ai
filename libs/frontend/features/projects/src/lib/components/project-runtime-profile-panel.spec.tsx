@@ -8,7 +8,7 @@ vi.mock('@shared/util-http', () => ({
   runtimeFetch: (...args: unknown[]) => runtimeFetchMock(...args),
 }));
 
-vi.mock('../session/use-acp-providers', () => ({
+vi.mock('@features/session-events', () => ({
   useAcpProviders: (preferredProviderId: string | null = null) => {
     const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
       preferredProviderId,
@@ -52,9 +52,6 @@ vi.mock('../session/use-acp-providers', () => ({
       setSelectedProviderId,
     };
   },
-}));
-
-vi.mock('../session/use-acp-provider-models', () => ({
   useAcpProviderModels: (providerId: string | null = null) => {
     if (providerId === 'codex') {
       return {
@@ -89,9 +86,6 @@ vi.mock('../session/use-acp-provider-models', () => ({
       models: [],
     };
   },
-}));
-
-vi.mock('./project-provider-picker', () => ({
   ProjectProviderPicker: (props: {
     onValueChange?: (providerId: string | null) => void;
     value?: string | null;
@@ -109,9 +103,6 @@ vi.mock('./project-provider-picker', () => ({
       </button>
     </div>
   ),
-}));
-
-vi.mock('./project-model-picker', () => ({
   ProjectModelPicker: (props: {
     onValueChange?: (modelId: string | null) => void;
     providerId?: string | null;

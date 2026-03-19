@@ -1,8 +1,8 @@
 import { MessageResponse, Spinner } from '@shared/ui';
-import type { SessionChatMessage } from './use-project-session-chat';
+import type { SessionEventChatMessage } from './session-events.types';
 
 interface TextPartProps {
-  part: Extract<SessionChatMessage['parts'][number], { type: 'text' }>;
+  part: Extract<SessionEventChatMessage['parts'][number], { type: 'text' }>;
   isPending: boolean;
   index: number;
   messageId: string;
@@ -20,6 +20,7 @@ export function TextPart({ part, isPending, index, messageId }: TextPartProps) {
       </div>
     );
   }
+
   return (
     <MessageResponse key={`${messageId}-${index}`}>{part.text}</MessageResponse>
   );

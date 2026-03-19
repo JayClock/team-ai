@@ -1,4 +1,10 @@
 import { State } from '@hateoas-ts/resource';
+import {
+  ProjectModelPicker,
+  ProjectProviderPicker,
+  useAcpProviderModels,
+  useAcpProviders,
+} from '@features/session-events';
 import { Project, RoleValue, Specialist } from '@shared/schema';
 import type { ProjectRuntimeProfile } from '@shared/schema/lib/runtime-profile';
 import {
@@ -33,11 +39,7 @@ import {
   type WorkbenchSessionRuntimeProfile,
   workbenchRuntimeRoles,
 } from '../session/session-runtime-profile';
-import { useAcpProviderModels } from '../session/use-acp-provider-models';
-import { useAcpProviders } from '../session/use-acp-providers';
 import { ProjectAgentInstallPanel } from './project-agent-install-panel';
-import { ProjectModelPicker } from './project-model-picker';
-import { ProjectProviderPicker } from './project-provider-picker';
 
 type SettingsTab = 'providers' | 'agents' | 'specialists';
 

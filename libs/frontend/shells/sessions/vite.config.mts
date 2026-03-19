@@ -8,9 +8,21 @@ export default defineConfig(() => ({
   plugins: [react()],
   resolve: {
     alias: {
+      '@features/project-conversations': path.resolve(
+        __dirname,
+        '../../features/project-conversations/src/index.ts',
+      ),
+      '@features/project-sessions': path.resolve(
+        __dirname,
+        '../../features/project-sessions/src/index.ts',
+      ),
       '@features/projects': path.resolve(
         __dirname,
         '../../features/projects/src/index.ts',
+      ),
+      '@features/session-events': path.resolve(
+        __dirname,
+        '../../features/session-events/src/index.ts',
       ),
     },
   },

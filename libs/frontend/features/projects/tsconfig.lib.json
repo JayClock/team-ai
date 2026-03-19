@@ -42,6 +42,9 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
+      "path": "../session-events/tsconfig.lib.json"
+    },
+    {
       "path": "../../shared/util-http/tsconfig.lib.json"
     },
     {
@@ -61,9 +64,6 @@
     },
     {
       "path": "../project-conversations/tsconfig.lib.json"
-    },
-    {
-      "path": "./tsconfig.prompt-input.json"
     }
   ]
 }

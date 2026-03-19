@@ -17,6 +17,6 @@ while IFS= read -r -d '' file; do
   if [ -e "$file" ] || [ -L "$file" ]; then
     git add -- "$file"
   else
-    git add -u -- "$file"
+    git add -u -- "$file" 2>/dev/null || true
   fi
 done < "$STAGED_FILES"

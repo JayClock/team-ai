@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -26,7 +27,7 @@ vi.mock('@shared/util-http', () => ({
   runtimeFetch: (...args: unknown[]) => runtimeFetchMock(...args),
 }));
 
-vi.mock('../session/use-acp-provider-models', () => ({
+vi.mock('./use-acp-provider-models', () => ({
   useAcpProviderModels: (providerId: string | null) => ({
     error: null,
     loading: false,
@@ -159,7 +160,9 @@ async function getComposerEditor() {
 async function setComposerText(value: string) {
   const editor = await getComposerEditor();
 
-  editor.commands.setContent(value);
+  await act(async () => {
+    editor.commands.setContent(value);
+  });
 
   await waitFor(() =>
     expect(
@@ -171,7 +174,9 @@ async function setComposerText(value: string) {
 async function appendComposerText(value: string) {
   const editor = await getComposerEditor();
 
-  editor.commands.insertContent(value);
+  await act(async () => {
+    editor.commands.insertContent(value);
+  });
 
   await waitFor(() =>
     expect(
@@ -183,7 +188,9 @@ async function appendComposerText(value: string) {
 async function openComposerCommands() {
   const editor = await getComposerEditor();
 
-  editor.commands.insertContent('/');
+  await act(async () => {
+    editor.commands.insertContent('/');
+  });
 
   return await screen.findByRole('button', {
     name: /添加附件/,

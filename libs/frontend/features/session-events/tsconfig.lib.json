@@ -1,7 +1,7 @@
 {
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "dist/prompt-input",
+    "outDir": "dist",
     "lib": ["es2022", "dom", "dom.iterable"],
     "types": [
       "node",
@@ -10,7 +10,7 @@
     ],
     "rootDir": "src",
     "jsx": "react-jsx",
-    "tsBuildInfoFile": "dist/prompt-input/tsconfig.prompt-input.tsbuildinfo"
+    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
   },
   "exclude": [
     "out-tsc",
@@ -27,24 +27,31 @@
     "vite.config.mts",
     "vitest.config.ts",
     "vitest.config.mts",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.tsx",
+    "src/**/*.spec.tsx",
+    "src/**/*.test.js",
+    "src/**/*.spec.js",
+    "src/**/*.test.jsx",
+    "src/**/*.spec.jsx",
     "eslint.config.js",
     "eslint.config.cjs",
     "eslint.config.mjs"
   ],
-  "include": [
-    "src/lib/components/project-composer-input.tsx",
-    "src/lib/components/project-model-picker.tsx",
-    "src/lib/components/project-provider-picker.tsx",
-    "src/lib/components/project-repository-picker.tsx",
-    "src/lib/session/use-acp-provider-models.ts",
-    "src/lib/session/use-acp-providers.ts"
-  ],
+  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
+    {
+      "path": "../../shared/util-http/tsconfig.lib.json"
+    },
     {
       "path": "../../shared/ui/tsconfig.lib.json"
     },
     {
-      "path": "../../shared/util-http/tsconfig.lib.json"
+      "path": "../../shared/schema/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../../packages/resource/tsconfig.lib.json"
     }
   ]
 }

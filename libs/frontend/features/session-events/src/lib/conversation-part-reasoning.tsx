@@ -1,8 +1,8 @@
 import { Reasoning, ReasoningContent, ReasoningTrigger } from '@shared/ui';
-import type { SessionChatMessage } from './use-project-session-chat';
+import type { SessionEventChatMessage } from './session-events.types';
 
 interface ReasoningPartProps {
-  part: Extract<SessionChatMessage['parts'][number], { type: 'reasoning' }>;
+  part: Extract<SessionEventChatMessage['parts'][number], { type: 'reasoning' }>;
   defaultOpen: boolean;
   index: number;
   messageId: string;

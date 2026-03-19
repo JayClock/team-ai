@@ -5,21 +5,19 @@ import {
   TerminalStatus,
   TerminalTitle,
 } from '@shared/ui';
-import type { SessionChatMessage } from './use-project-session-chat';
-
-type TerminalPartType = Extract<
-  SessionChatMessage['parts'][number],
-  { type: 'data-terminal' }
->;
+import type {
+  SessionEventChatMessage,
+  SessionTerminalPart,
+} from './session-events.types';
 
 export function isRenderableTerminalPart(
-  part: SessionChatMessage['parts'][number],
-): part is TerminalPartType {
+  part: SessionEventChatMessage['parts'][number],
+): part is SessionTerminalPart {
   return part.type === 'data-terminal';
 }
 
 export function TerminalPart(props: {
-  part: TerminalPartType;
+  part: SessionTerminalPart;
   index: number;
   messageId: string;
 }) {
@@ -32,19 +30,10 @@ export function TerminalPart(props: {
         : 'running';
 
   return (
-    <Terminal
-      key={`${messageId}-${index}`}
-      className="mb-4 w-full"
-    >
+    <Terminal key={`${messageId}-${index}`} className="mb-4 w-full">
       <TerminalHeader>
-        <TerminalTitle
-          command={part.data.command}
-          args={part.data.args}
-        />
-        <TerminalStatus
-          status={status}
-          exitCode={part.data.exitCode}
-        />
+        <TerminalTitle command={part.data.command} args={part.data.args} />
+        <TerminalStatus status={status} exitCode={part.data.exitCode} />
       </TerminalHeader>
       <TerminalContent output={part.data.output} />
     </Terminal>

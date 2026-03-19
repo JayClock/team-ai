@@ -33,6 +33,12 @@
       "@features/project-sessions/*": [
         "libs/frontend/features/project-sessions/src/*"
       ],
+      "@features/session-events": [
+        "libs/frontend/features/session-events/src/index.ts"
+      ],
+      "@features/session-events/*": [
+        "libs/frontend/features/session-events/src/*"
+      ],
       "@features/projects": ["libs/frontend/features/projects/src/index.ts"],
       "@features/projects/*": ["libs/frontend/features/projects/src/*"],
       "@shared/schema": ["libs/frontend/shared/schema/src/index.ts"],

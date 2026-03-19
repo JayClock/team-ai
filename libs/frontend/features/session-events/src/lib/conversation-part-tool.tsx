@@ -6,7 +6,7 @@ import {
   ToolOutput,
 } from '@shared/ui';
 import type { DynamicToolUIPart, ToolUIPart } from 'ai';
-import type { SessionChatMessage } from './use-project-session-chat';
+import type { SessionEventChatMessage } from './session-events.types';
 import {
   asRecord,
   inferToolDisplayName,
@@ -48,7 +48,7 @@ function normalizeToolPart(part: RenderableToolPart) {
 }
 
 export function isRenderableToolPart(
-  part: SessionChatMessage['parts'][number],
+  part: SessionEventChatMessage['parts'][number],
 ): part is RenderableToolPart {
   return part.type === 'dynamic-tool' || part.type.startsWith('tool-');
 }

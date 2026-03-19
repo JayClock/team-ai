@@ -71,7 +71,7 @@ class MockEventSource {
   static instances: MockEventSource[] = [];
 
   readonly addEventListener = vi.fn(
-    (type: string, listener: (event: MessageEvent<string>) => void) => {
+    (type: string, listener: (event: MessageEvent) => void) => {
       const listeners = this.listeners.get(type) ?? [];
       listeners.push(listener);
       this.listeners.set(type, listeners);
@@ -84,7 +84,7 @@ class MockEventSource {
 
   readonly listeners = new Map<
     string,
-    Array<(event: MessageEvent<string>) => void>
+    Array<(event: MessageEvent) => void>
   >();
 
   onerror: (() => void) | null = null;
@@ -93,7 +93,7 @@ class MockEventSource {
 
   constructor(
     readonly url: string,
-    readonly eventSourceInitDict?: EventSourceInit,
+    readonly eventSourceInitDict?: { withCredentials?: boolean },
   ) {
     MockEventSource.instances.push(this);
   }
@@ -101,7 +101,7 @@ class MockEventSource {
   emit(type: string, data: unknown) {
     const event = {
       data: typeof data === 'string' ? data : JSON.stringify(data),
-    } as MessageEvent<string>;
+    } as MessageEvent;
 
     for (const listener of this.listeners.get(type) ?? []) {
       listener(event);

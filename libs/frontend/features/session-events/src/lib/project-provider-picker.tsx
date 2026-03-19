@@ -9,7 +9,7 @@ import {
 } from '@shared/ui';
 import { CheckIcon, ChevronDownIcon, LoaderCircleIcon } from 'lucide-react';
 import { useMemo } from 'react';
-import type { AcpProvider } from '../session/use-acp-providers';
+import type { AcpProvider } from './use-acp-providers';
 
 export type ProjectProviderPickerProps = {
   allowClear?: boolean;

@@ -14,6 +14,7 @@
   "dependencies": {
     "@features/project-conversations": "workspace:*",
     "@features/project-sessions": "workspace:*",
+    "@features/session-events": "workspace:^",
     "@hateoas-ts/resource": "workspace:*",
     "@hateoas-ts/resource-react": "workspace:*",
     "@shared/schema": "workspace:*",

@@ -45,7 +45,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { useAcpProviderModels } from '../session/use-acp-provider-models';
+import { useAcpProviderModels } from './use-acp-provider-models';
 import {
   ProjectModelPicker,
   type ProjectModelPickerProps,
@@ -262,7 +262,7 @@ function createSuggestionDropdown(triggerChar?: '@' | '/') {
             : ''
         }
       `;
-      button.onmousedown = (event) => {
+      button.onmousedown = (event: MouseEvent) => {
         event.preventDefault();
         event.stopPropagation();
         if (!item.disabled) {
@@ -326,7 +326,8 @@ function createSuggestionDropdown(triggerChar?: '@' | '/') {
       selectedIndex = 0;
 
       popup = document.createElement('div');
-      popup.style.cssText = `
+      const nextPopup = popup;
+      nextPopup.style.cssText = `
         position: fixed;
         z-index: 100;
         min-width: 280px;
@@ -341,12 +342,12 @@ function createSuggestionDropdown(triggerChar?: '@' | '/') {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
       `;
       renderList();
-      document.body.appendChild(popup);
+      document.body.appendChild(nextPopup);
 
       const rect = props.clientRect?.();
       if (rect) {
-        popup.style.left = `${rect.left}px`;
-        popup.style.top = `${rect.bottom + 6}px`;
+        nextPopup.style.left = `${rect.left}px`;
+        nextPopup.style.top = `${rect.bottom + 6}px`;
       }
     },
     onUpdate: (props: {

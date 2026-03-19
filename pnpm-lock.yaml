@@ -501,6 +501,9 @@ importers:
       '@features/project-sessions':
         specifier: workspace:*
         version: link:../project-sessions
+      '@features/session-events':
+        specifier: workspace:^
+        version: link:../session-events
       '@hateoas-ts/resource':
         specifier: workspace:*
         version: link:../../../../packages/resource
@@ -516,6 +519,8 @@ importers:
       '@shared/util-http':
         specifier: workspace:^
         version: link:../../shared/util-http
+
+  libs/frontend/features/session-events: {}
 
   libs/frontend/features/user-projects: {}
 

@@ -65,8 +65,6 @@ vi.mock('@hateoas-ts/resource-react', () => ({
 vi.mock('@features/project-conversations', () => ({
   useAcpSession: () => ({
     create: vi.fn(),
-    history: [],
-    ingestEvents: vi.fn(),
     prompt: vi.fn(),
     select: vi.fn(),
     updateSession: updateSessionMock,
@@ -89,8 +87,6 @@ vi.mock('@shared/ui', () => ({
 }));
 
 vi.mock('@shared/util-http', () => ({
-  getCurrentDesktopRuntimeConfig: () => null,
-  resolveRuntimeApiUrl: () => 'http://localhost/api/acp',
   runtimeFetch: vi.fn(),
 }));
 
@@ -116,87 +112,28 @@ vi.mock('./project-session-conversation-pane', () => ({
   },
 }));
 
-vi.mock('./use-project-session-chat', () => ({
+vi.mock('@features/session-events', () => ({
+  SessionEvents: () => createElement('div', { 'data-testid': 'session-events' }),
+  useAcpProviders: (defaultProviderId: string | null) => ({
+    loading: false,
+    providers: [
+      {
+        id: 'opencode',
+        name: 'OpenCode',
+      },
+      {
+        id: 'codex',
+        name: 'Codex',
+      },
+    ],
+    selectedProviderId: defaultProviderId ?? null,
+    setSelectedProviderId: vi.fn(),
+  }),
   useProjectSessionChat: () => ({
-    chatMessages: [],
     handlePromptSubmit: vi.fn(),
     hasPendingAssistantMessage: false,
   }),
 }));
-
-vi.mock('./use-acp-provider-models', () => ({
-  useAcpProviderModels: (providerId: string | null) => ({
-    error: null,
-    loading: false,
-    models:
-      providerId === 'codex'
-        ? [
-            {
-              id: 'gpt-5',
-              name: 'GPT 5',
-              providerId: 'codex',
-            },
-          ]
-        : [
-            {
-              id: 'gpt-5-mini',
-              name: 'GPT 5 Mini',
-              providerId: 'opencode',
-            },
-            {
-              id: 'gpt-5.4',
-              name: 'GPT 5.4',
-              providerId: 'opencode',
-            },
-          ],
-  }),
-}));
-
-vi.mock('./use-acp-providers', async () => {
-  const React = await import('react');
-
-  return {
-    useAcpProviders: (defaultProviderId: string | null) => {
-      const [selectedProviderId, setSelectedProviderId] = React.useState(
-        defaultProviderId ?? null,
-      );
-
-      return {
-        loading: false,
-        providers: [
-          {
-            id: 'opencode',
-            name: 'OpenCode',
-          },
-          {
-            id: 'codex',
-            name: 'Codex',
-          },
-        ],
-        selectedProviderId,
-        setSelectedProviderId,
-      };
-    },
-  };
-});
-
-class EventSourceMock {
-  onerror: (() => void) | null = null;
-  onmessage: ((event: MessageEvent) => void) | null = null;
-
-  addEventListener() {
-    return undefined;
-  }
-
-  close() {
-    return undefined;
-  }
-}
-
-Object.defineProperty(globalThis, 'EventSource', {
-  configurable: true,
-  value: EventSourceMock,
-});
 
 Object.defineProperty(window, 'matchMedia', {
   configurable: true,

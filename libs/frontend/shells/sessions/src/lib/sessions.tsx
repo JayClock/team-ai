@@ -7,11 +7,11 @@ import {
 } from '@features/project-sessions';
 import {
   ProjectComposerInput,
-  ProjectSettingsDialog,
   type ProjectRepositoryOption,
   type ProjectWorktreeOption,
   useAcpProviders,
-} from '@features/projects';
+} from '@features/session-events';
+import { ProjectSettingsDialog } from '@features/projects';
 import {
   AcpSessionSummary,
   type AgentRole,

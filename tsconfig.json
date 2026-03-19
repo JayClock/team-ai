@@ -71,6 +71,9 @@
     },
     {
       "path": "./libs/orchestration/runtime-acp"
+    },
+    {
+      "path": "./libs/frontend/features/session-events"
     }
   ]
 }
