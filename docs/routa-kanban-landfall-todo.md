@@ -257,3 +257,4 @@
 - [x] 看板具备实时事件流与 policy enforcement
 - [x] webhook / schedule 可以投递和更新 Kanban 卡片
 - [x] card 具备 memory 与 trace drill-down
+- [x] M4 回归命令、smoke test 与操作说明已固化

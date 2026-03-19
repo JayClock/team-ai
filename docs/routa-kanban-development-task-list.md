@@ -871,18 +871,18 @@
 
 开发任务：
 
-- [ ] 补 intake -> spec -> cards 的端到端测试
-- [ ] 补 specialist CRUD route / UI tests
-- [ ] 补 board realtime subscription tests
-- [ ] 补 WIP / policy enforcement tests
-- [ ] 补 webhook / schedule 映射测试
-- [ ] 补 card memory / trace drill-down tests
-- [ ] 更新开发流程文档与验收说明
+- [x] 补 intake -> spec -> cards 的端到端测试
+- [x] 补 specialist CRUD route / UI tests
+- [x] 补 board realtime subscription tests
+- [x] 补 WIP / policy enforcement tests
+- [x] 补 webhook / schedule 映射测试
+- [x] 补 card memory / trace drill-down tests
+- [x] 更新开发流程文档与验收说明
 
 完成标准：
 
-- [ ] M4 新能力具备回归保障
-- [ ] 新协作模式有清晰操作文档
+- [x] M4 新能力具备回归保障
+- [x] 新协作模式有清晰操作文档
 
 ---
 
@@ -972,7 +972,7 @@
 - [x] RK-M4-05
 - [x] RK-M4-06
 - [x] RK-M4-07
-- [ ] RK-M4-08
+- [x] RK-M4-08
 
 ---
 
