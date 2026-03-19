@@ -4,6 +4,15 @@ import { PROVIDER_ADAPTER_KINDS } from './provider-types.js';
 
 const acpCliFactory = vi.fn();
 const opencodeFactory = vi.fn();
+const timeouts = {
+  cancelGraceMs: 1_000,
+  minimumPromptTransportMs: 30_000,
+  packageManagerInitTimeoutMs: 120_000,
+  promptCompletionGraceMs: 1_000,
+  promptTimeoutMs: 300_000,
+  providerInitTimeoutMs: 10_000,
+  providerRequestTimeoutMs: 10_000,
+};
 
 vi.mock('./acp-cli-provider.js', () => ({
   AcpCliProviderAdapter: class {
@@ -39,9 +48,13 @@ describe('provider adapter registry', () => {
       args: ['acp'],
     };
 
-    createProviderAdapter({ preset, launchCommand });
+    createProviderAdapter({ preset, launchCommand, timeouts });
 
-    expect(opencodeFactory).toHaveBeenCalledWith(preset, launchCommand);
+    expect(opencodeFactory).toHaveBeenCalledWith(
+      preset,
+      launchCommand,
+      timeouts,
+    );
   });
 
   it('creates the generic ACP CLI adapter for codex providers', () => {
@@ -59,9 +72,13 @@ describe('provider adapter registry', () => {
       args: [],
     };
 
-    createProviderAdapter({ preset, launchCommand });
+    createProviderAdapter({ preset, launchCommand, timeouts });
 
-    expect(acpCliFactory).toHaveBeenCalledWith(preset, launchCommand);
+    expect(acpCliFactory).toHaveBeenCalledWith(
+      preset,
+      launchCommand,
+      timeouts,
+    );
     expect(opencodeFactory).not.toHaveBeenCalled();
   });
 });

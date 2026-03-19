@@ -99,7 +99,7 @@ describe('AcpSessionProcessManager', () => {
 
   it('tracks session activity timestamps and busy state', async () => {
     const manager = new AcpSessionProcessManager<{ value: string }>();
-    let releaseActivity: (() => void) | null = null;
+    let releaseActivity: (() => void) | undefined;
 
     await manager.register({
       cleanup: vi.fn(async () => undefined),
@@ -125,9 +125,7 @@ describe('AcpSessionProcessManager', () => {
     expect(Date.parse(afterTouch)).toBeGreaterThanOrEqual(Date.parse(beforeTouch));
     expect(manager.list()[0]?.isBusy).toBe(true);
 
-    if (releaseActivity) {
-      releaseActivity();
-    }
+    releaseActivity?.();
     await activity;
 
     expect(manager.list()[0]?.isBusy).toBe(false);

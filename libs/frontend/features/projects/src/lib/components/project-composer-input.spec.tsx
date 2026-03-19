@@ -69,7 +69,7 @@ const htmlElementPrototype = (
   }
 ).HTMLElement?.prototype;
 const elementPrototype = (
-  globalThis as {
+  globalThis as unknown as {
     Element?: {
       prototype: {
         getBoundingClientRect?: () => DOMRect;
@@ -79,7 +79,7 @@ const elementPrototype = (
   }
 ).Element?.prototype;
 const rangePrototype = (
-  globalThis as {
+  globalThis as unknown as {
     Range?: {
       prototype: {
         getBoundingClientRect?: () => DOMRect;

@@ -10,18 +10,26 @@ import {
   resolveSessionStateFromNormalizedUpdate,
 } from './session-update-state.js';
 
+function buildNotification(
+  update: Record<string, unknown>,
+  sessionId = 'notification-session',
+): SessionNotification {
+  return {
+    sessionId,
+    update: update as SessionNotification['update'],
+  } as SessionNotification;
+}
+
 describe('normalized-session-update', () => {
   it('normalizes agent message chunks to canonical agent_message updates', () => {
-    const notification = {
-      update: {
+    const notification = buildNotification({
         sessionUpdate: 'agent_message_chunk',
         messageId: 'msg-1',
         content: {
           type: 'text',
           text: 'hello world',
         },
-      },
-    } satisfies SessionNotification;
+    });
 
     const normalized = normalizeSessionNotification(
       'session-1',
@@ -50,16 +58,14 @@ describe('normalized-session-update', () => {
   });
 
   it('normalizes non-chunk ACP messages without forcing chunk semantics', () => {
-    const notification = {
-      update: {
+    const notification = buildNotification({
         sessionUpdate: 'agent_message',
         messageId: 'msg-2',
         content: {
           type: 'text',
           text: 'complete message',
         },
-      },
-    } satisfies SessionNotification;
+    });
 
     const normalized = normalizeSessionNotification(
       'session-1b',
@@ -78,8 +84,7 @@ describe('normalized-session-update', () => {
   });
 
   it('normalizes tool call updates and persists completed calls as tool_call events', () => {
-    const notification = {
-      update: {
+    const notification = buildNotification({
         sessionUpdate: 'tool_call_update',
         toolCallId: 'tool-1',
         kind: 'read_file',
@@ -91,8 +96,7 @@ describe('normalized-session-update', () => {
         rawOutput: 'file contents',
         locations: [],
         content: [],
-      },
-    } satisfies SessionNotification;
+    });
 
     const normalized = normalizeSessionNotification(
       'session-2',
@@ -119,8 +123,7 @@ describe('normalized-session-update', () => {
   });
 
   it('keeps deferred tool input marked as unfinished on tool_call', () => {
-    const notification = {
-      update: {
+    const notification = buildNotification({
         sessionUpdate: 'tool_call',
         toolCallId: 'tool-2',
         kind: 'grep_search',
@@ -130,8 +133,7 @@ describe('normalized-session-update', () => {
         rawOutput: null,
         locations: [],
         content: [],
-      },
-    } satisfies SessionNotification;
+    });
 
     const normalized = normalizeSessionNotification(
       'session-2b',
@@ -153,37 +155,31 @@ describe('normalized-session-update', () => {
     const created = normalizeSessionNotification(
       'session-term',
       'codex',
-      {
-        update: {
+      buildNotification({
           sessionUpdate: 'terminal_created',
           terminalId: 'term-1',
           command: 'npm',
           args: ['test'],
           interactive: false,
-        },
-      } satisfies SessionNotification,
+      }),
     );
     const output = normalizeSessionNotification(
       'session-term',
       'codex',
-      {
-        update: {
+      buildNotification({
           sessionUpdate: 'terminal_output',
           terminalId: 'term-1',
           data: 'running tests\n',
-        },
-      } satisfies SessionNotification,
+      }),
     );
     const exited = normalizeSessionNotification(
       'session-term',
       'codex',
-      {
-        update: {
+      buildNotification({
           sessionUpdate: 'terminal_exited',
           terminalId: 'term-1',
           exitCode: 0,
-        },
-      } satisfies SessionNotification,
+      }),
     );
 
     expect(created).toMatchObject({
@@ -215,8 +211,7 @@ describe('normalized-session-update', () => {
   });
 
   it('normalizes plan entries to description while preserving legacy persisted content', () => {
-    const notification = {
-      update: {
+    const notification = buildNotification({
         sessionUpdate: 'plan',
         entries: [
           {
@@ -225,8 +220,7 @@ describe('normalized-session-update', () => {
             status: 'in_progress',
           },
         ],
-      },
-    } satisfies SessionNotification;
+    });
 
     const normalized = normalizeSessionNotification(
       'session-plan',
@@ -247,13 +241,11 @@ describe('normalized-session-update', () => {
   });
 
   it('extracts session metadata from canonical session_info updates', () => {
-    const notification = {
-      update: {
+    const notification = buildNotification({
         sessionUpdate: 'session_info_update',
         title: 'Renamed Session',
         updatedAt: '2026-03-14T12:00:00.000Z',
-      },
-    } satisfies SessionNotification;
+    });
 
     const normalized = normalizeSessionNotification(
       'session-3',
@@ -271,12 +263,10 @@ describe('normalized-session-update', () => {
     const normalized = {
       eventType: 'turn_complete',
       provider: 'codex',
-      rawNotification: {
-        update: {
+      rawNotification: buildNotification({
           sessionUpdate: 'turn_complete',
           stopReason: 'end_turn',
-        },
-      } satisfies SessionNotification,
+      }, 'session-4'),
       sessionId: 'session-4',
       timestamp: '2026-03-14T12:00:00.000Z',
       turnComplete: {
@@ -292,13 +282,11 @@ describe('normalized-session-update', () => {
   });
 
   it('normalizes protocol error updates to canonical error events', () => {
-    const notification = {
-      update: {
+    const notification = buildNotification({
         sessionUpdate: 'error',
         code: 'PROTOCOL_ERROR',
         message: 'bad protocol',
-      },
-    } satisfies SessionNotification;
+    });
 
     const normalized = normalizeSessionNotification(
       'session-5',
@@ -319,16 +307,13 @@ describe('normalized-session-update', () => {
     const canonical = {
       eventType: 'agent_message',
       provider: 'codex',
-      rawNotification: {
-        sessionId: 'session-6',
-        update: {
+      rawNotification: buildNotification({
           sessionUpdate: 'agent_message_chunk',
           content: {
             type: 'text',
             text: 'direct canonical update',
           },
-        },
-      } satisfies SessionNotification,
+      }, 'session-6'),
       sessionId: 'session-6',
       timestamp: '2026-03-15T00:00:00.000Z',
       traceId: 'trace-6',

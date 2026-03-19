@@ -134,6 +134,23 @@ vi.mock('./project-model-picker', () => ({
 }));
 
 describe('ProjectRuntimeProfilePanel', () => {
+  function buildRuntimeProfile(
+    providerId: string | null,
+    model: string | null,
+  ) {
+    return {
+      orchestrationMode: 'ROUTA' as const,
+      roleDefaults: providerId || model
+        ? {
+            ROUTA: {
+              model,
+              providerId,
+            },
+          }
+        : {},
+    };
+  }
+
   afterEach(() => {
     runtimeFetchMock.mockReset();
   });
@@ -142,11 +159,7 @@ describe('ProjectRuntimeProfilePanel', () => {
     render(
       <ProjectRuntimeProfilePanel
         projectId="project-1"
-        runtimeProfile={{
-          defaultModel: 'openai/gpt-5-mini',
-          defaultProviderId: 'opencode',
-          orchestrationMode: 'ROUTA',
-        }}
+        runtimeProfile={buildRuntimeProfile('opencode', 'openai/gpt-5-mini')}
       />,
     );
 
@@ -164,11 +177,7 @@ describe('ProjectRuntimeProfilePanel', () => {
     render(
       <ProjectRuntimeProfilePanel
         projectId="project-1"
-        runtimeProfile={{
-          defaultModel: null,
-          defaultProviderId: 'opencode',
-          orchestrationMode: 'ROUTA',
-        }}
+        runtimeProfile={buildRuntimeProfile('opencode', null)}
       />,
     );
 
@@ -188,9 +197,13 @@ describe('ProjectRuntimeProfilePanel', () => {
     runtimeFetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({
-        defaultModel: null,
-        defaultProviderId: 'opencode',
         orchestrationMode: 'ROUTA',
+        roleDefaults: {
+          ROUTA: {
+            model: null,
+            providerId: 'opencode',
+          },
+        },
       }),
     });
 
@@ -198,11 +211,7 @@ describe('ProjectRuntimeProfilePanel', () => {
       <ProjectRuntimeProfilePanel
         onRuntimeProfileChange={onRuntimeProfileChange}
         projectId="project-1"
-        runtimeProfile={{
-          defaultModel: 'openai/gpt-5-mini',
-          defaultProviderId: 'opencode',
-          orchestrationMode: 'ROUTA',
-        }}
+        runtimeProfile={buildRuntimeProfile('opencode', 'openai/gpt-5-mini')}
       />,
     );
 
@@ -215,17 +224,19 @@ describe('ProjectRuntimeProfilePanel', () => {
         expect.objectContaining({
           method: 'PATCH',
           body: JSON.stringify({
-            defaultModel: null,
-            defaultProviderId: 'opencode',
+            roleDefaults: {
+              ROUTA: {
+                model: null,
+                providerId: 'opencode',
+              },
+            },
           }),
         }),
       );
     });
 
-    expect(onRuntimeProfileChange).toHaveBeenCalledWith({
-      defaultModel: null,
-      defaultProviderId: 'opencode',
-      orchestrationMode: 'ROUTA',
-    });
+    expect(onRuntimeProfileChange).toHaveBeenCalledWith(
+      buildRuntimeProfile('opencode', null),
+    );
   });
 });

@@ -150,7 +150,9 @@ type ComposerEditorElement = HTMLElement & {
 };
 
 const DEFAULT_PROJECT_OPTIONS: ProjectRepositoryPickerProps['projects'] = [];
-const DEFAULT_PROJECT_WORKTREES: ProjectRepositoryPickerProps['worktrees'] = [];
+const DEFAULT_PROJECT_WORKTREES: NonNullable<
+  ProjectRepositoryPickerProps['worktrees']
+> = [];
 const EMPTY_PROVIDER_OPTIONS: ProjectProviderPickerProps['providers'] = [];
 
 const EnterToSend = Extension.create({
@@ -271,7 +273,7 @@ function createSuggestionDropdown(triggerChar?: '@' | '/') {
         selectedIndex = index;
         renderList();
       };
-      popup.appendChild(button);
+      popup?.appendChild(button);
     });
   };
 
@@ -307,7 +309,7 @@ function createSuggestionDropdown(triggerChar?: '@' | '/') {
       }
 
       if (props.event.key === 'Escape') {
-        popup.remove();
+        popup?.remove();
         popup = null;
         return true;
       }
@@ -315,7 +317,7 @@ function createSuggestionDropdown(triggerChar?: '@' | '/') {
       return false;
     },
     onStart: (props: {
-      clientRect?: () => DOMRect | null;
+      clientRect?: (() => DOMRect | null) | null;
       command: (item: SuggestionItem) => void;
       items: SuggestionItem[];
     }) => {
@@ -348,7 +350,7 @@ function createSuggestionDropdown(triggerChar?: '@' | '/') {
       }
     },
     onUpdate: (props: {
-      clientRect?: () => DOMRect | null;
+      clientRect?: (() => DOMRect | null) | null;
       command: (item: SuggestionItem) => void;
       items: SuggestionItem[];
     }) => {
@@ -426,17 +428,12 @@ function createComposerCommandMention(getCommands: () => SuggestionItem[]) {
   }).configure({
     suggestion: {
       char: '/',
-      command: ({
-        editor,
-        props,
-        range,
-      }: {
-        editor: TiptapEditor;
-        props: SuggestionItem;
-        range: { from: number; to: number };
-      }) => {
+      command: ({ editor, props, range }) => {
         editor.chain().focus().deleteRange(range).run();
-        props.command?.();
+
+        if ('command' in props && typeof props.command === 'function') {
+          props.command();
+        }
       },
       items: ({ query }: { query: string }) => {
         const normalizedQuery = query.trim().toLowerCase();
@@ -562,8 +559,9 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
   const providerValue = provider?.value;
   const resolvedProviderOptions = provider?.providers ?? EMPTY_PROVIDER_OPTIONS;
   const resolvedProjectOptions = project?.projects ?? DEFAULT_PROJECT_OPTIONS;
-  const resolvedProjectWorktrees =
-    project?.worktrees ?? DEFAULT_PROJECT_WORKTREES;
+  const resolvedProjectWorktrees: NonNullable<
+    ProjectRepositoryPickerProps['worktrees']
+  > = project?.worktrees ?? DEFAULT_PROJECT_WORKTREES;
   const {
     error: modelError,
     loading: modelLoading,
@@ -656,13 +654,13 @@ function ProjectComposerInputContent(props: ProjectComposerInputProps) {
         command: () => {
           project?.onValueChange?.(projectOption);
         },
-        description: projectOption.repoPath,
+        description: projectOption.repoPath ?? undefined,
         id: `project:${projectOption.id}`,
         keywords: [
           'project',
           'repo',
           projectOption.title,
-          projectOption.repoPath,
+          ...(projectOption.repoPath ? [projectOption.repoPath] : []),
         ],
         label: `切换仓库: ${projectOption.title}`,
       });

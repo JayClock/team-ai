@@ -1518,7 +1518,9 @@ export function ShellsSession(props: ShellsSessionProps) {
                 chatMessages={chatMessages}
                 hasPendingAssistantMessage={hasPendingAssistantMessage}
                 interactionDisabled={sessionRuntimeSwitchPending}
-                onCancel={() => cancel()}
+                onCancel={async () => {
+                  await cancel();
+                }}
                 model={sessionPromptModel}
                 onSubmit={handlePromptSubmit}
                 project={sessionPromptProjectPicker}
@@ -1543,7 +1545,9 @@ export function ShellsSession(props: ShellsSessionProps) {
                 chatMessages={chatMessages}
                 hasPendingAssistantMessage={hasPendingAssistantMessage}
                 interactionDisabled={sessionRuntimeSwitchPending}
-                onCancel={() => cancel()}
+                onCancel={async () => {
+                  await cancel();
+                }}
                 model={sessionPromptModel}
                 onSubmit={handlePromptSubmit}
                 project={sessionPromptProjectPicker}
