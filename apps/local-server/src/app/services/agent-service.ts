@@ -1,6 +1,9 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectAgentsTable } from '../db/schema';
 import type {
   AgentListPayload,
   AgentPayload,
@@ -69,44 +72,37 @@ export async function listAgents(
 ): Promise<AgentListPayload> {
   await getProjectById(sqlite, query.projectId);
   const offset = (query.page - 1) * query.pageSize;
-  const items = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          name,
-          role,
-          provider,
-          model,
-          parent_agent_id,
-          specialist_id,
-          system_prompt,
-          created_at,
-          updated_at
-        FROM project_agents
-        WHERE project_id = @projectId AND deleted_at IS NULL
-        ORDER BY updated_at DESC
-        LIMIT @limit OFFSET @offset
-      `,
-    )
-    .all({
-      projectId: query.projectId,
-      limit: query.pageSize,
-      offset,
-    }) as AgentRow[];
+  const db = getDrizzleDb(sqlite);
+  const whereClause = and(
+    eq(projectAgentsTable.projectId, query.projectId),
+    isNull(projectAgentsTable.deletedAt),
+  );
+  const items = db
+    .select({
+      id: projectAgentsTable.id,
+      project_id: projectAgentsTable.projectId,
+      name: projectAgentsTable.name,
+      role: projectAgentsTable.role,
+      provider: projectAgentsTable.provider,
+      model: projectAgentsTable.model,
+      parent_agent_id: projectAgentsTable.parentAgentId,
+      specialist_id: projectAgentsTable.specialistId,
+      system_prompt: projectAgentsTable.systemPrompt,
+      created_at: projectAgentsTable.createdAt,
+      updated_at: projectAgentsTable.updatedAt,
+    })
+    .from(projectAgentsTable)
+    .where(whereClause)
+    .orderBy(desc(projectAgentsTable.updatedAt))
+    .limit(query.pageSize)
+    .offset(offset)
+    .all() as AgentRow[];
 
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_agents
-        WHERE project_id = @projectId AND deleted_at IS NULL
-      `,
-    )
-    .get({
-      projectId: query.projectId,
-    }) as { count: number };
+  const total = db
+    .select({ count: count() })
+    .from(projectAgentsTable)
+    .where(whereClause)
+    .get() as { count: number };
 
   return {
     items: items.map(mapAgentRow),
@@ -122,6 +118,7 @@ export async function createAgent(
   input: CreateAgentInput,
 ): Promise<AgentPayload> {
   await getProjectById(sqlite, input.projectId);
+  const db = getDrizzleDb(sqlite);
   const now = new Date().toISOString();
   const agent: AgentPayload = {
     id: createAgentId(),
@@ -137,40 +134,22 @@ export async function createAgent(
     updatedAt: now,
   };
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_agents (
-          id,
-          project_id,
-          name,
-          role,
-          provider,
-          model,
-          parent_agent_id,
-          specialist_id,
-          system_prompt,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @name,
-          @role,
-          @provider,
-          @model,
-          @parentAgentId,
-          @specialistId,
-          @systemPrompt,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-      `,
-    )
-    .run(agent);
+  db.insert(projectAgentsTable)
+    .values({
+      id: agent.id,
+      projectId: agent.projectId,
+      name: agent.name,
+      role: agent.role,
+      provider: agent.provider,
+      model: agent.model,
+      parentAgentId: agent.parentAgentId,
+      specialistId: agent.specialistId,
+      systemPrompt: agent.systemPrompt,
+      createdAt: agent.createdAt,
+      updatedAt: agent.updatedAt,
+      deletedAt: null,
+    })
+    .run();
 
   return agent;
 }
@@ -181,26 +160,29 @@ export async function getAgentById(
   agentId: string,
 ): Promise<AgentPayload> {
   await getProjectById(sqlite, projectId);
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          name,
-          role,
-          provider,
-          model,
-          parent_agent_id,
-          specialist_id,
-          system_prompt,
-          created_at,
-          updated_at
-        FROM project_agents
-        WHERE project_id = ? AND id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectAgentsTable.id,
+      project_id: projectAgentsTable.projectId,
+      name: projectAgentsTable.name,
+      role: projectAgentsTable.role,
+      provider: projectAgentsTable.provider,
+      model: projectAgentsTable.model,
+      parent_agent_id: projectAgentsTable.parentAgentId,
+      specialist_id: projectAgentsTable.specialistId,
+      system_prompt: projectAgentsTable.systemPrompt,
+      created_at: projectAgentsTable.createdAt,
+      updated_at: projectAgentsTable.updatedAt,
+    })
+    .from(projectAgentsTable)
+    .where(
+      and(
+        eq(projectAgentsTable.projectId, projectId),
+        eq(projectAgentsTable.id, agentId),
+        isNull(projectAgentsTable.deletedAt),
+      ),
     )
-    .get(projectId, agentId) as AgentRow | undefined;
+    .get() as AgentRow | undefined;
 
   if (!row) {
     throwAgentNotFound(projectId, agentId);
@@ -215,6 +197,7 @@ export async function updateAgent(
   agentId: string,
   input: UpdateAgentInput,
 ): Promise<AgentPayload> {
+  const db = getDrizzleDb(sqlite);
   const current = await getAgentById(sqlite, projectId, agentId);
   const next: AgentPayload = {
     ...current,
@@ -235,23 +218,25 @@ export async function updateAgent(
     updatedAt: new Date().toISOString(),
   };
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_agents
-        SET
-          name = @name,
-          role = @role,
-          provider = @provider,
-          model = @model,
-          parent_agent_id = @parentAgentId,
-          specialist_id = @specialistId,
-          system_prompt = @systemPrompt,
-          updated_at = @updatedAt
-        WHERE project_id = @projectId AND id = @id AND deleted_at IS NULL
-      `,
+  db.update(projectAgentsTable)
+    .set({
+      name: next.name,
+      role: next.role,
+      provider: next.provider,
+      model: next.model,
+      parentAgentId: next.parentAgentId,
+      specialistId: next.specialistId,
+      systemPrompt: next.systemPrompt,
+      updatedAt: next.updatedAt,
+    })
+    .where(
+      and(
+        eq(projectAgentsTable.projectId, next.projectId),
+        eq(projectAgentsTable.id, next.id),
+        isNull(projectAgentsTable.deletedAt),
+      ),
     )
-    .run(next);
+    .run();
 
   return next;
 }
@@ -263,22 +248,20 @@ export async function deleteAgent(
 ): Promise<void> {
   await getProjectById(sqlite, projectId);
   const now = new Date().toISOString();
-  const result = sqlite
-    .prepare(
-      `
-        UPDATE project_agents
-        SET
-          deleted_at = @deletedAt,
-          updated_at = @updatedAt
-        WHERE project_id = @projectId AND id = @id AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      projectId,
-      id: agentId,
+  const result = getDrizzleDb(sqlite)
+    .update(projectAgentsTable)
+    .set({
       deletedAt: now,
       updatedAt: now,
-    });
+    })
+    .where(
+      and(
+        eq(projectAgentsTable.projectId, projectId),
+        eq(projectAgentsTable.id, agentId),
+        isNull(projectAgentsTable.deletedAt),
+      ),
+    )
+    .run();
 
   if (result.changes === 0) {
     throwAgentNotFound(projectId, agentId);

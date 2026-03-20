@@ -1,5 +1,8 @@
 import type { Database } from 'better-sqlite3';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { and, count, desc, eq } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { syncConflictsTable, syncStateTable } from '../db/schema';
 import type {
   SyncConflictListPayload,
   SyncConflictPayload,
@@ -13,7 +16,7 @@ interface SyncStateRow {
   last_error: string | null;
   last_run_at: string | null;
   last_successful_sync_at: string | null;
-  paused: number;
+  paused: boolean;
   status: SyncRuntimeStatus;
   updated_at: string;
 }
@@ -65,20 +68,18 @@ function mapConflictRow(row: SyncConflictRow): SyncConflictPayload {
 }
 
 function ensureSyncState(sqlite: Database): SyncStateRow {
-  const existing = sqlite
-    .prepare(
-      `
-        SELECT
-          status,
-          paused,
-          last_run_at,
-          last_successful_sync_at,
-          last_error,
-          updated_at
-        FROM sync_state
-        WHERE id = 1
-      `,
-    )
+  const db = getDrizzleDb(sqlite);
+  const existing = db
+    .select({
+      status: syncStateTable.status,
+      paused: syncStateTable.paused,
+      last_run_at: syncStateTable.lastRunAt,
+      last_successful_sync_at: syncStateTable.lastSuccessfulSyncAt,
+      last_error: syncStateTable.lastError,
+      updated_at: syncStateTable.updatedAt,
+    })
+    .from(syncStateTable)
+    .where(eq(syncStateTable.id, 1))
     .get() as SyncStateRow | undefined;
 
   if (existing) {
@@ -87,28 +88,20 @@ function ensureSyncState(sqlite: Database): SyncStateRow {
 
   const now = new Date().toISOString();
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO sync_state (
-          id,
-          status,
-          paused,
-          last_run_at,
-          last_successful_sync_at,
-          last_error,
-          updated_at
-        )
-        VALUES (1, 'idle', 0, NULL, NULL, NULL, @updatedAt)
-      `,
-    )
-    .run({
+  db.insert(syncStateTable)
+    .values({
+      id: 1,
+      status: 'idle',
+      paused: false,
+      lastRunAt: null,
+      lastSuccessfulSyncAt: null,
+      lastError: null,
       updatedAt: now,
     });
 
   return {
     status: 'idle',
-    paused: 0,
+    paused: false,
     last_run_at: null,
     last_successful_sync_at: null,
     last_error: null,
@@ -156,39 +149,32 @@ function countPendingChanges(sqlite: Database, lastSuccessfulSyncAt: string | nu
 }
 
 function countOpenConflicts(sqlite: Database) {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM sync_conflicts
-        WHERE status = 'open'
-      `,
-    )
+  const row = getDrizzleDb(sqlite)
+    .select({ count: count() })
+    .from(syncConflictsTable)
+    .where(eq(syncConflictsTable.status, 'open'))
     .get() as { count: number };
 
   return row.count;
 }
 
 function readConflictRow(sqlite: Database, conflictId: string): SyncConflictRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          resource_type,
-          resource_id,
-          title,
-          local_summary,
-          remote_summary,
-          status,
-          resolution,
-          created_at,
-          updated_at
-        FROM sync_conflicts
-        WHERE id = ?
-      `,
-    )
-    .get(conflictId) as SyncConflictRow | undefined;
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: syncConflictsTable.id,
+      resource_type: syncConflictsTable.resourceType,
+      resource_id: syncConflictsTable.resourceId,
+      title: syncConflictsTable.title,
+      local_summary: syncConflictsTable.localSummary,
+      remote_summary: syncConflictsTable.remoteSummary,
+      status: syncConflictsTable.status,
+      resolution: syncConflictsTable.resolution,
+      created_at: syncConflictsTable.createdAt,
+      updated_at: syncConflictsTable.updatedAt,
+    })
+    .from(syncConflictsTable)
+    .where(eq(syncConflictsTable.id, conflictId))
+    .get() as SyncConflictRow | undefined;
 
   if (!row) {
     throwConflictNotFound(conflictId);
@@ -210,7 +196,7 @@ function updateSyncState(
   const current = ensureSyncState(sqlite);
   const next = {
     status: patch.status ?? current.status,
-    paused: patch.paused ?? Boolean(current.paused),
+    paused: patch.paused ?? current.paused,
     lastRunAt:
       patch.lastRunAt === undefined ? current.last_run_at : patch.lastRunAt,
     lastSuccessfulSyncAt:
@@ -221,28 +207,18 @@ function updateSyncState(
     updatedAt: new Date().toISOString(),
   };
 
-  sqlite
-    .prepare(
-      `
-        UPDATE sync_state
-        SET
-          status = @status,
-          paused = @paused,
-          last_run_at = @lastRunAt,
-          last_successful_sync_at = @lastSuccessfulSyncAt,
-          last_error = @lastError,
-          updated_at = @updatedAt
-        WHERE id = 1
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .update(syncStateTable)
+    .set({
       status: next.status,
-      paused: next.paused ? 1 : 0,
+      paused: next.paused,
       lastRunAt: next.lastRunAt,
       lastSuccessfulSyncAt: next.lastSuccessfulSyncAt,
       lastError: next.lastError,
       updatedAt: next.updatedAt,
-    });
+    })
+    .where(eq(syncStateTable.id, 1))
+    .run();
 }
 
 function maybeSeedSyntheticConflict(sqlite: Database) {
@@ -259,7 +235,7 @@ export async function getSyncStatus(sqlite: Database): Promise<SyncStatusPayload
 
   return {
     status: row.status,
-    paused: Boolean(row.paused),
+    paused: row.paused,
     syncEnabled: settings.syncEnabled,
     lastRunAt: row.last_run_at,
     lastSuccessfulSyncAt: row.last_successful_sync_at,
@@ -320,25 +296,22 @@ export async function resumeSync(sqlite: Database): Promise<SyncStatusPayload> {
 export async function listSyncConflicts(
   sqlite: Database,
 ): Promise<SyncConflictListPayload> {
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          resource_type,
-          resource_id,
-          title,
-          local_summary,
-          remote_summary,
-          status,
-          resolution,
-          created_at,
-          updated_at
-        FROM sync_conflicts
-        WHERE status = 'open'
-        ORDER BY updated_at DESC
-      `,
-    )
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: syncConflictsTable.id,
+      resource_type: syncConflictsTable.resourceType,
+      resource_id: syncConflictsTable.resourceId,
+      title: syncConflictsTable.title,
+      local_summary: syncConflictsTable.localSummary,
+      remote_summary: syncConflictsTable.remoteSummary,
+      status: syncConflictsTable.status,
+      resolution: syncConflictsTable.resolution,
+      created_at: syncConflictsTable.createdAt,
+      updated_at: syncConflictsTable.updatedAt,
+    })
+    .from(syncConflictsTable)
+    .where(eq(syncConflictsTable.status, 'open'))
+    .orderBy(desc(syncConflictsTable.updatedAt))
     .all() as SyncConflictRow[];
 
   return {
@@ -360,22 +333,20 @@ export async function resolveSyncConflict(
 
   const updatedAt = new Date().toISOString();
 
-  sqlite
-    .prepare(
-      `
-        UPDATE sync_conflicts
-        SET
-          status = 'resolved',
-          resolution = @resolution,
-          updated_at = @updatedAt
-        WHERE id = @id
-      `,
-    )
-    .run({
-      id: conflictId,
+  getDrizzleDb(sqlite)
+    .update(syncConflictsTable)
+    .set({
+      status: 'resolved',
       resolution,
       updatedAt,
-    });
+    })
+    .where(
+      and(
+        eq(syncConflictsTable.id, conflictId),
+        eq(syncConflictsTable.status, 'open'),
+      ),
+    )
+    .run();
 
   return mapConflictRow(readConflictRow(sqlite, conflictId));
 }

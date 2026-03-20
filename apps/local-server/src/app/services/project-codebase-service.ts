@@ -1,6 +1,9 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { and, desc, eq, isNull, or } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectCodebasesTable, projectsTable } from '../db/schema';
 import type {
   CloneProjectCodebaseInput,
   CodebaseListPayload,
@@ -25,7 +28,7 @@ interface CodebaseRow {
   branch: string | null;
   created_at: string;
   id: string;
-  is_default: number;
+  is_default: boolean;
   project_id: string;
   repo_path: string | null;
   source_type: 'github' | 'local' | null;
@@ -43,7 +46,7 @@ function mapCodebaseRow(row: CodebaseRow): CodebasePayload {
     sourceType: row.source_type,
     sourceUrl: row.source_url,
     branch: row.branch,
-    isDefault: row.is_default === 1,
+    isDefault: row.is_default,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -86,15 +89,11 @@ function normalizedValue(value: string | null | undefined): string | null {
 }
 
 function assertProjectExists(sqlite: Database, projectId: string) {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id
-        FROM projects
-        WHERE id = ? AND deleted_at IS NULL
-      `,
-    )
-    .get(projectId) as { id: string } | undefined;
+  const row = getDrizzleDb(sqlite)
+    .select({ id: projectsTable.id })
+    .from(projectsTable)
+    .where(and(eq(projectsTable.id, projectId), isNull(projectsTable.deletedAt)))
+    .get() as { id: string } | undefined;
 
   if (!row) {
     throwProjectNotFound(projectId);
@@ -106,16 +105,28 @@ function findCodebaseRowByProjectAndId(
   projectId: string,
   codebaseId: string,
 ) {
-  return sqlite
-    .prepare(
-      `
-        SELECT id, project_id, title, repo_path, source_type, source_url, branch
-             , is_default, created_at, updated_at
-        FROM project_codebases
-        WHERE id = ? AND project_id = ? AND deleted_at IS NULL
-      `,
+  return getDrizzleDb(sqlite)
+    .select({
+      id: projectCodebasesTable.id,
+      project_id: projectCodebasesTable.projectId,
+      title: projectCodebasesTable.title,
+      repo_path: projectCodebasesTable.repoPath,
+      source_type: projectCodebasesTable.sourceType,
+      source_url: projectCodebasesTable.sourceUrl,
+      branch: projectCodebasesTable.branch,
+      is_default: projectCodebasesTable.isDefault,
+      created_at: projectCodebasesTable.createdAt,
+      updated_at: projectCodebasesTable.updatedAt,
+    })
+    .from(projectCodebasesTable)
+    .where(
+      and(
+        eq(projectCodebasesTable.id, codebaseId),
+        eq(projectCodebasesTable.projectId, projectId),
+        isNull(projectCodebasesTable.deletedAt),
+      ),
     )
-    .get(codebaseId, projectId) as CodebaseRow | undefined;
+    .get() as CodebaseRow | undefined;
 }
 
 function findReusableCodebaseRow(
@@ -127,25 +138,35 @@ function findReusableCodebaseRow(
     return undefined;
   }
 
-  return sqlite
-    .prepare(
-      `
-        SELECT id, project_id, title, repo_path, source_type, source_url, branch
-             , is_default, created_at, updated_at
-        FROM project_codebases
-        WHERE deleted_at IS NULL
-          AND (
-            (@repoPath IS NOT NULL AND repo_path = @repoPath)
-            OR (@sourceUrl IS NOT NULL AND source_url = @sourceUrl)
-          )
-        ORDER BY is_default DESC, updated_at DESC
-        LIMIT 1
-      `,
+  return getDrizzleDb(sqlite)
+    .select({
+      id: projectCodebasesTable.id,
+      project_id: projectCodebasesTable.projectId,
+      title: projectCodebasesTable.title,
+      repo_path: projectCodebasesTable.repoPath,
+      source_type: projectCodebasesTable.sourceType,
+      source_url: projectCodebasesTable.sourceUrl,
+      branch: projectCodebasesTable.branch,
+      is_default: projectCodebasesTable.isDefault,
+      created_at: projectCodebasesTable.createdAt,
+      updated_at: projectCodebasesTable.updatedAt,
+    })
+    .from(projectCodebasesTable)
+    .where(
+      and(
+        isNull(projectCodebasesTable.deletedAt),
+        or(
+          repoPath ? eq(projectCodebasesTable.repoPath, repoPath) : undefined,
+          sourceUrl ? eq(projectCodebasesTable.sourceUrl, sourceUrl) : undefined,
+        )!,
+      ),
     )
-    .get({
-      repoPath,
-      sourceUrl,
-    }) as CodebaseRow | undefined;
+    .orderBy(
+      desc(projectCodebasesTable.isDefault),
+      desc(projectCodebasesTable.updatedAt),
+    )
+    .limit(1)
+    .get() as CodebaseRow | undefined;
 }
 
 export async function listProjectCodebases(
@@ -154,17 +175,32 @@ export async function listProjectCodebases(
 ): Promise<CodebaseListPayload> {
   assertProjectExists(sqlite, projectId);
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, title, repo_path, source_type, source_url, branch
-             , is_default, created_at, updated_at
-        FROM project_codebases
-        WHERE project_id = ? AND deleted_at IS NULL
-        ORDER BY is_default DESC, updated_at DESC, created_at DESC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectCodebasesTable.id,
+      project_id: projectCodebasesTable.projectId,
+      title: projectCodebasesTable.title,
+      repo_path: projectCodebasesTable.repoPath,
+      source_type: projectCodebasesTable.sourceType,
+      source_url: projectCodebasesTable.sourceUrl,
+      branch: projectCodebasesTable.branch,
+      is_default: projectCodebasesTable.isDefault,
+      created_at: projectCodebasesTable.createdAt,
+      updated_at: projectCodebasesTable.updatedAt,
+    })
+    .from(projectCodebasesTable)
+    .where(
+      and(
+        eq(projectCodebasesTable.projectId, projectId),
+        isNull(projectCodebasesTable.deletedAt),
+      ),
     )
-    .all(projectId) as CodebaseRow[];
+    .orderBy(
+      desc(projectCodebasesTable.isDefault),
+      desc(projectCodebasesTable.updatedAt),
+      desc(projectCodebasesTable.createdAt),
+    )
+    .all() as CodebaseRow[];
 
   return {
     projectId,
@@ -191,137 +227,121 @@ export async function syncProjectDefaultCodebase(
   sqlite: Database,
   project: ProjectPayload,
 ): Promise<CodebasePayload | undefined> {
+  const db = getDrizzleDb(sqlite);
   const repoPath = normalizedValue(project.repoPath);
   const sourceUrl = normalizedValue(project.sourceUrl);
   const now = new Date().toISOString();
 
   if (!repoPath && !sourceUrl) {
-    sqlite
-      .prepare(
-        `
-          UPDATE project_codebases
-          SET
-            deleted_at = @deletedAt,
-            updated_at = @updatedAt,
-            is_default = 0
-          WHERE project_id = @projectId
-            AND is_default = 1
-            AND deleted_at IS NULL
-        `,
-      )
-      .run({
-        projectId: project.id,
+    db.update(projectCodebasesTable)
+      .set({
         deletedAt: now,
         updatedAt: now,
-      });
+        isDefault: false,
+      })
+      .where(
+        and(
+          eq(projectCodebasesTable.projectId, project.id),
+          eq(projectCodebasesTable.isDefault, true),
+          isNull(projectCodebasesTable.deletedAt),
+        ),
+      )
+      .run();
 
     return undefined;
   }
 
-  const reusable =
-    (sqlite
-      .prepare(
-        `
-          SELECT id, project_id, title, repo_path, source_type, source_url, branch
-               , is_default, created_at, updated_at
-          FROM project_codebases
-          WHERE project_id = @projectId
-            AND deleted_at IS NULL
-            AND (
-              is_default = 1
-              OR (@repoPath IS NOT NULL AND repo_path = @repoPath)
-              OR (@sourceUrl IS NOT NULL AND source_url = @sourceUrl)
-            )
-          ORDER BY
-            CASE
-              WHEN (@repoPath IS NOT NULL AND repo_path = @repoPath)
-                OR (@sourceUrl IS NOT NULL AND source_url = @sourceUrl)
-              THEN 0
-              ELSE 1
-            END ASC,
-            is_default DESC,
-            updated_at DESC
-          LIMIT 1
-        `,
+  const reusable = (
+    db
+      .select({
+        id: projectCodebasesTable.id,
+        project_id: projectCodebasesTable.projectId,
+        title: projectCodebasesTable.title,
+        repo_path: projectCodebasesTable.repoPath,
+        source_type: projectCodebasesTable.sourceType,
+        source_url: projectCodebasesTable.sourceUrl,
+        branch: projectCodebasesTable.branch,
+        is_default: projectCodebasesTable.isDefault,
+        created_at: projectCodebasesTable.createdAt,
+        updated_at: projectCodebasesTable.updatedAt,
+      })
+      .from(projectCodebasesTable)
+      .where(
+        and(
+          eq(projectCodebasesTable.projectId, project.id),
+          isNull(projectCodebasesTable.deletedAt),
+          or(
+            eq(projectCodebasesTable.isDefault, true),
+            repoPath ? eq(projectCodebasesTable.repoPath, repoPath) : undefined,
+            sourceUrl ? eq(projectCodebasesTable.sourceUrl, sourceUrl) : undefined,
+          )!,
+        ),
       )
-      .get({
-        projectId: project.id,
-        repoPath,
-        sourceUrl,
-      }) as CodebaseRow | undefined) ?? undefined;
+      .all() as CodebaseRow[]
+  ).sort((left, right) => {
+    const leftExact =
+      (repoPath !== null && left.repo_path === repoPath) ||
+      (sourceUrl !== null && left.source_url === sourceUrl);
+    const rightExact =
+      (repoPath !== null && right.repo_path === repoPath) ||
+      (sourceUrl !== null && right.source_url === sourceUrl);
+
+    if (leftExact !== rightExact) {
+      return leftExact ? -1 : 1;
+    }
+
+    if (left.is_default !== right.is_default) {
+      return left.is_default ? -1 : 1;
+    }
+
+    return right.updated_at.localeCompare(left.updated_at);
+  })[0];
 
   const id = reusable?.id ?? createCodebaseId();
   const createdAt = reusable?.created_at ?? now;
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_codebases
-        SET
-          is_default = 0,
-          updated_at = @updatedAt
-        WHERE project_id = @projectId
-          AND id != @id
-          AND deleted_at IS NULL
-          AND is_default = 1
-      `,
-    )
-    .run({
-      id,
-      projectId: project.id,
+  db.update(projectCodebasesTable)
+    .set({
+      isDefault: false,
       updatedAt: now,
-    });
-
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_codebases (
-          id,
-          project_id,
-          title,
-          repo_path,
-          source_type,
-          source_url,
-          branch,
-          is_default,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @title,
-          @repoPath,
-          @sourceType,
-          @sourceUrl,
-          NULL,
-          1,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-        ON CONFLICT(id) DO UPDATE SET
-          title = excluded.title,
-          repo_path = excluded.repo_path,
-          source_type = excluded.source_type,
-          source_url = excluded.source_url,
-          branch = NULL,
-          is_default = 1,
-          updated_at = excluded.updated_at,
-          deleted_at = NULL
-      `,
+    })
+    .where(
+      and(
+        eq(projectCodebasesTable.projectId, project.id),
+        eq(projectCodebasesTable.isDefault, true),
+        isNull(projectCodebasesTable.deletedAt),
+      ),
     )
-    .run({
+    .run();
+
+  db.insert(projectCodebasesTable)
+    .values({
       id,
       projectId: project.id,
       title: project.title.trim() || project.id,
       repoPath,
       sourceType: project.sourceType,
       sourceUrl,
+      branch: null,
+      isDefault: true,
       createdAt,
       updatedAt: now,
-    });
+      deletedAt: null,
+    })
+    .onConflictDoUpdate({
+      target: projectCodebasesTable.id,
+      set: {
+        title: project.title.trim() || project.id,
+        repoPath,
+        sourceType: project.sourceType,
+        sourceUrl,
+        branch: null,
+        isDefault: true,
+        updatedAt: now,
+        deletedAt: null,
+      },
+    })
+    .run();
 
   return getProjectCodebaseById(sqlite, project.id, id);
 }
@@ -358,24 +378,20 @@ export async function deleteProjectCodebaseById(
     });
   }
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_codebases
-        SET
-          deleted_at = @deletedAt,
-          updated_at = @updatedAt
-        WHERE id = @codebaseId
-          AND project_id = @projectId
-          AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      codebaseId,
-      projectId,
+  getDrizzleDb(sqlite)
+    .update(projectCodebasesTable)
+    .set({
       deletedAt: now,
       updatedAt: now,
-    });
+    })
+    .where(
+      and(
+        eq(projectCodebasesTable.id, codebaseId),
+        eq(projectCodebasesTable.projectId, projectId),
+        isNull(projectCodebasesTable.deletedAt),
+      ),
+    )
+    .run();
 }
 
 export async function cloneProjectCodebase(
@@ -384,6 +400,7 @@ export async function cloneProjectCodebase(
   input: CloneProjectCodebaseInput,
   dependencies?: ManagedRepositoryServiceDependencies,
 ): Promise<{ cloneStatus: 'cloned' | 'reused'; codebase: CodebasePayload }> {
+  const db = getDrizzleDb(sqlite);
   assertProjectExists(sqlite, projectId);
 
   const result = await ensureManagedRepository(
@@ -405,55 +422,33 @@ export async function cloneProjectCodebase(
   const id = reusable?.id ?? createCodebaseId();
   const createdAt = reusable?.created_at ?? now;
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_codebases (
-          id,
-          project_id,
-          title,
-          repo_path,
-          source_type,
-          source_url,
-          branch,
-          is_default,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @title,
-          @repoPath,
-          'github',
-          @sourceUrl,
-          NULL,
-          COALESCE(@isDefault, 0),
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-        ON CONFLICT(id) DO UPDATE SET
-          title = excluded.title,
-          repo_path = excluded.repo_path,
-          source_type = 'github',
-          source_url = excluded.source_url,
-          branch = NULL,
-          updated_at = excluded.updated_at,
-          deleted_at = NULL
-      `,
-    )
-    .run({
+  db.insert(projectCodebasesTable)
+    .values({
       id,
       projectId,
       title: input.title?.trim() || result.repository.repo,
       repoPath,
+      sourceType: 'github',
       sourceUrl,
-      isDefault: reusable?.is_default ?? 0,
+      branch: null,
+      isDefault: reusable?.is_default ?? false,
       createdAt,
       updatedAt: now,
-    });
+      deletedAt: null,
+    })
+    .onConflictDoUpdate({
+      target: projectCodebasesTable.id,
+      set: {
+        title: input.title?.trim() || result.repository.repo,
+        repoPath,
+        sourceType: 'github',
+        sourceUrl,
+        branch: null,
+        updatedAt: now,
+        deletedAt: null,
+      },
+    })
+    .run();
 
   return {
     cloneStatus: result.cloneStatus,
