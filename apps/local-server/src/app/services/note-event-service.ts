@@ -1,6 +1,10 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectNoteEventsTable } from '../db/schema';
 import type {
   NoteEventEnvelopePayload,
   NoteEventListPayload,
@@ -103,6 +107,14 @@ function createNoteEventId() {
   return `noteevt_${noteEventIdGenerator()}`;
 }
 
+function combineFilters(filters: SQL<unknown>[]) {
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  return filters.length === 1 ? filters[0] : and(...filters);
+}
+
 function throwNoteEventSessionProjectMismatch(
   projectId: string,
   sessionId: string,
@@ -159,34 +171,9 @@ export async function recordNoteEvent(
     type: input.type,
   };
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_note_events (
-          event_id,
-          project_id,
-          note_id,
-          session_id,
-          type,
-          source,
-          payload_json,
-          emitted_at,
-          created_at
-        )
-        VALUES (
-          @eventId,
-          @projectId,
-          @noteId,
-          @sessionId,
-          @type,
-          @source,
-          @payloadJson,
-          @emittedAt,
-          @createdAt
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectNoteEventsTable)
+    .values({
       createdAt: emittedAt,
       emittedAt,
       eventId: event.eventId,
@@ -198,7 +185,8 @@ export async function recordNoteEvent(
       sessionId: event.sessionId,
       source: event.data.source,
       type: event.type,
-    });
+    })
+    .run();
 
   getNoteEventStreamBroker().publish(event);
 
@@ -220,58 +208,46 @@ export async function listNoteEvents(
   }
 
   const offset = (page - 1) * pageSize;
-  const filters = ['project_id = @projectId'];
-  const parameters: Record<string, unknown> = {
-    limit: pageSize,
-    offset,
-    projectId,
-  };
+  const filters: SQL<unknown>[] = [eq(projectNoteEventsTable.projectId, projectId)];
 
   if (sessionId) {
-    filters.push('session_id = @sessionId');
-    parameters.sessionId = sessionId;
+    filters.push(eq(projectNoteEventsTable.sessionId, sessionId));
   }
 
   if (noteId) {
-    filters.push('note_id = @noteId');
-    parameters.noteId = noteId;
+    filters.push(eq(projectNoteEventsTable.noteId, noteId));
   }
 
   if (type) {
-    filters.push('type = @type');
-    parameters.type = type;
+    filters.push(eq(projectNoteEventsTable.type, type));
   }
 
-  const whereClause = filters.join(' AND ');
-  const items = sqlite
-    .prepare(
-      `
-        SELECT
-          event_id,
-          project_id,
-          note_id,
-          session_id,
-          type,
-          source,
-          payload_json,
-          emitted_at
-        FROM project_note_events
-        WHERE ${whereClause}
-        ORDER BY sequence DESC
-        LIMIT @limit OFFSET @offset
-      `,
-    )
-    .all(parameters) as NoteEventRow[];
+  const whereClause = combineFilters(filters);
+  const items = getDrizzleDb(sqlite)
+    .select({
+      emitted_at: projectNoteEventsTable.emittedAt,
+      event_id: projectNoteEventsTable.eventId,
+      note_id: projectNoteEventsTable.noteId,
+      payload_json: projectNoteEventsTable.payloadJson,
+      project_id: projectNoteEventsTable.projectId,
+      session_id: projectNoteEventsTable.sessionId,
+      source: projectNoteEventsTable.source,
+      type: projectNoteEventsTable.type,
+    })
+    .from(projectNoteEventsTable)
+    .where(whereClause)
+    .orderBy(desc(projectNoteEventsTable.sequence))
+    .limit(pageSize)
+    .offset(offset)
+    .all() as NoteEventRow[];
 
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_note_events
-        WHERE ${whereClause}
-      `,
-    )
-    .get(parameters) as { count: number };
+  const total = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(projectNoteEventsTable)
+    .where(whereClause)
+    .get() as { count: number };
 
   return {
     items: items.map(mapNoteEventRow),
@@ -293,15 +269,13 @@ function resolveSinceSequence(
     return 0;
   }
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT sequence
-        FROM project_note_events
-        WHERE event_id = ?
-      `,
-    )
-    .get(sinceEventId) as { sequence: number } | undefined;
+  const row = getDrizzleDb(sqlite)
+    .select({
+      sequence: projectNoteEventsTable.sequence,
+    })
+    .from(projectNoteEventsTable)
+    .where(eq(projectNoteEventsTable.eventId, sinceEventId))
+    .get() as { sequence: number } | undefined;
 
   return row?.sequence ?? 0;
 }
@@ -327,49 +301,40 @@ export async function listNoteEventsSince(
     }
   }
 
-  const filters = ['project_id = @projectId', 'sequence > @sinceSequence'];
-  const parameters: Record<string, unknown> = {
-    limit,
-    projectId,
-    sinceSequence: resolveSinceSequence(sqlite, sinceEventId),
-  };
+  const filters: SQL<unknown>[] = [
+    eq(projectNoteEventsTable.projectId, projectId),
+    sql`${projectNoteEventsTable.sequence} > ${resolveSinceSequence(sqlite, sinceEventId)}`,
+  ];
 
   if (sessionId) {
-    filters.push('session_id = @sessionId');
-    parameters.sessionId = sessionId;
+    filters.push(eq(projectNoteEventsTable.sessionId, sessionId));
   }
 
   if (noteId) {
-    filters.push('note_id = @noteId');
-    parameters.noteId = noteId;
+    filters.push(eq(projectNoteEventsTable.noteId, noteId));
   }
 
   if (type) {
-    filters.push('type = @type');
-    parameters.type = type;
+    filters.push(eq(projectNoteEventsTable.type, type));
   }
 
-  const whereClause = filters.join(' AND ');
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT
-          sequence,
-          event_id,
-          project_id,
-          note_id,
-          session_id,
-          type,
-          source,
-          payload_json,
-          emitted_at
-        FROM project_note_events
-        WHERE ${whereClause}
-        ORDER BY sequence ASC
-        LIMIT @limit
-      `,
-    )
-    .all(parameters) as NoteEventRow[];
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      emitted_at: projectNoteEventsTable.emittedAt,
+      event_id: projectNoteEventsTable.eventId,
+      note_id: projectNoteEventsTable.noteId,
+      payload_json: projectNoteEventsTable.payloadJson,
+      project_id: projectNoteEventsTable.projectId,
+      sequence: projectNoteEventsTable.sequence,
+      session_id: projectNoteEventsTable.sessionId,
+      source: projectNoteEventsTable.source,
+      type: projectNoteEventsTable.type,
+    })
+    .from(projectNoteEventsTable)
+    .where(combineFilters(filters))
+    .orderBy(asc(projectNoteEventsTable.sequence))
+    .limit(limit)
+    .all() as NoteEventRow[];
 
   return rows.map(mapNoteEventRow);
 }

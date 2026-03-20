@@ -1,6 +1,10 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectNotesTable } from '../db/schema';
 import type {
   CreateNoteInput,
   NoteListPayload,
@@ -43,6 +47,14 @@ interface ListNotesQuery {
 
 function createNoteId() {
   return `note_${noteIdGenerator()}`;
+}
+
+function combineFilters(filters: SQL<unknown>[]) {
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  return filters.length === 1 ? filters[0] : and(...filters);
 }
 
 function parseStringArray(value: string): string[] {
@@ -129,28 +141,30 @@ function throwNoteParentSelfReference(noteId: string): never {
 }
 
 function getNoteRow(sqlite: Database, noteId: string): NoteRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          session_id,
-          type,
-          title,
-          content,
-          format,
-          parent_note_id,
-          linked_task_id,
-          assigned_agent_ids_json,
-          source,
-          created_at,
-          updated_at
-        FROM project_notes
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      assigned_agent_ids_json: projectNotesTable.assignedAgentIdsJson,
+      content: projectNotesTable.content,
+      created_at: projectNotesTable.createdAt,
+      format: projectNotesTable.format,
+      id: projectNotesTable.id,
+      linked_task_id: projectNotesTable.linkedTaskId,
+      parent_note_id: projectNotesTable.parentNoteId,
+      project_id: projectNotesTable.projectId,
+      session_id: projectNotesTable.sessionId,
+      source: projectNotesTable.source,
+      title: projectNotesTable.title,
+      type: projectNotesTable.type,
+      updated_at: projectNotesTable.updatedAt,
+    })
+    .from(projectNotesTable)
+    .where(
+      and(
+        eq(projectNotesTable.id, noteId),
+        isNull(projectNotesTable.deletedAt),
+      ),
     )
-    .get(noteId) as NoteRow | undefined;
+    .get() as NoteRow | undefined;
 
   if (!row) {
     throwNoteNotFound(noteId);
@@ -227,59 +241,50 @@ export async function listNotes(
   await ensureSessionProjectMatch(sqlite, projectId, sessionId);
 
   const offset = (page - 1) * pageSize;
-  const filters = ['project_id = @projectId', 'deleted_at IS NULL'];
-  const parameters: Record<string, unknown> = {
-    limit: pageSize,
-    offset,
-    projectId,
-  };
+  const filters: SQL<unknown>[] = [
+    eq(projectNotesTable.projectId, projectId),
+    isNull(projectNotesTable.deletedAt),
+  ];
 
   if (sessionId) {
-    filters.push('session_id = @sessionId');
-    parameters.sessionId = sessionId;
+    filters.push(eq(projectNotesTable.sessionId, sessionId));
   }
 
   if (type) {
-    filters.push('type = @type');
-    parameters.type = type;
+    filters.push(eq(projectNotesTable.type, type));
   }
 
-  const whereClause = filters.join(' AND ');
+  const whereClause = combineFilters(filters);
+  const items = getDrizzleDb(sqlite)
+    .select({
+      assigned_agent_ids_json: projectNotesTable.assignedAgentIdsJson,
+      content: projectNotesTable.content,
+      created_at: projectNotesTable.createdAt,
+      format: projectNotesTable.format,
+      id: projectNotesTable.id,
+      linked_task_id: projectNotesTable.linkedTaskId,
+      parent_note_id: projectNotesTable.parentNoteId,
+      project_id: projectNotesTable.projectId,
+      session_id: projectNotesTable.sessionId,
+      source: projectNotesTable.source,
+      title: projectNotesTable.title,
+      type: projectNotesTable.type,
+      updated_at: projectNotesTable.updatedAt,
+    })
+    .from(projectNotesTable)
+    .where(whereClause)
+    .orderBy(desc(projectNotesTable.updatedAt))
+    .limit(pageSize)
+    .offset(offset)
+    .all() as NoteRow[];
 
-  const items = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          session_id,
-          type,
-          title,
-          content,
-          format,
-          parent_note_id,
-          linked_task_id,
-          assigned_agent_ids_json,
-          source,
-          created_at,
-          updated_at
-        FROM project_notes
-        WHERE ${whereClause}
-        ORDER BY updated_at DESC
-        LIMIT @limit OFFSET @offset
-      `,
-    )
-    .all(parameters) as NoteRow[];
-
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_notes
-        WHERE ${whereClause}
-      `,
-    )
-    .get(parameters) as { count: number };
+  const total = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(projectNotesTable)
+    .where(whereClause)
+    .get() as { count: number };
 
   return {
     items: items.map(mapNoteRow),
@@ -309,39 +314,39 @@ export async function findSpecNoteByScope(
   await getProjectById(sqlite, input.projectId);
   await ensureSessionProjectMatch(sqlite, input.projectId, input.sessionId);
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          session_id,
-          type,
-          title,
-          content,
-          format,
-          parent_note_id,
-          linked_task_id,
-          assigned_agent_ids_json,
-          source,
-          created_at,
-          updated_at
-        FROM project_notes
-        WHERE project_id = @projectId
-          AND type = 'spec'
-          AND deleted_at IS NULL
-          AND (
-            (@sessionId IS NULL AND session_id IS NULL)
-            OR session_id = @sessionId
-          )
-        ORDER BY updated_at DESC, created_at DESC
-        LIMIT 1
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      assigned_agent_ids_json: projectNotesTable.assignedAgentIdsJson,
+      content: projectNotesTable.content,
+      created_at: projectNotesTable.createdAt,
+      format: projectNotesTable.format,
+      id: projectNotesTable.id,
+      linked_task_id: projectNotesTable.linkedTaskId,
+      parent_note_id: projectNotesTable.parentNoteId,
+      project_id: projectNotesTable.projectId,
+      session_id: projectNotesTable.sessionId,
+      source: projectNotesTable.source,
+      title: projectNotesTable.title,
+      type: projectNotesTable.type,
+      updated_at: projectNotesTable.updatedAt,
+    })
+    .from(projectNotesTable)
+    .where(
+      and(
+        eq(projectNotesTable.projectId, input.projectId),
+        eq(projectNotesTable.type, 'spec'),
+        isNull(projectNotesTable.deletedAt),
+        input.sessionId == null
+          ? isNull(projectNotesTable.sessionId)
+          : eq(projectNotesTable.sessionId, input.sessionId),
+      ),
     )
-    .get({
-      projectId: input.projectId,
-      sessionId: input.sessionId ?? null,
-    }) as NoteRow | undefined;
+    .orderBy(
+      desc(projectNotesTable.updatedAt),
+      desc(projectNotesTable.createdAt),
+    )
+    .limit(1)
+    .get() as NoteRow | undefined;
 
   return row ? mapNoteRow(row) : null;
 }
@@ -360,57 +365,50 @@ export async function findLatestTaskNote(
   await ensureSessionProjectMatch(sqlite, input.projectId, input.sessionId);
   await ensureTaskProjectMatch(sqlite, input.projectId, input.taskId);
 
-  const filters = [
-    'project_id = @projectId',
-    'linked_task_id = @taskId',
-    'deleted_at IS NULL',
+  const filters: SQL<unknown>[] = [
+    eq(projectNotesTable.projectId, input.projectId),
+    eq(projectNotesTable.linkedTaskId, input.taskId),
+    isNull(projectNotesTable.deletedAt),
   ];
-  const parameters: Record<string, unknown> = {
-    projectId: input.projectId,
-    taskId: input.taskId,
-  };
 
   if (input.sessionId === null || input.sessionId === undefined) {
-    filters.push('session_id IS NULL');
+    filters.push(isNull(projectNotesTable.sessionId));
   } else {
-    filters.push('session_id = @sessionId');
-    parameters.sessionId = input.sessionId;
+    filters.push(eq(projectNotesTable.sessionId, input.sessionId));
   }
 
   if (input.type) {
-    filters.push('type = @type');
-    parameters.type = input.type;
+    filters.push(eq(projectNotesTable.type, input.type));
   }
 
   if (input.title) {
-    filters.push('title = @title');
-    parameters.title = input.title;
+    filters.push(eq(projectNotesTable.title, input.title));
   }
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          session_id,
-          type,
-          title,
-          content,
-          format,
-          parent_note_id,
-          linked_task_id,
-          assigned_agent_ids_json,
-          source,
-          created_at,
-          updated_at
-        FROM project_notes
-        WHERE ${filters.join(' AND ')}
-        ORDER BY updated_at DESC, created_at DESC
-        LIMIT 1
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      assigned_agent_ids_json: projectNotesTable.assignedAgentIdsJson,
+      content: projectNotesTable.content,
+      created_at: projectNotesTable.createdAt,
+      format: projectNotesTable.format,
+      id: projectNotesTable.id,
+      linked_task_id: projectNotesTable.linkedTaskId,
+      parent_note_id: projectNotesTable.parentNoteId,
+      project_id: projectNotesTable.projectId,
+      session_id: projectNotesTable.sessionId,
+      source: projectNotesTable.source,
+      title: projectNotesTable.title,
+      type: projectNotesTable.type,
+      updated_at: projectNotesTable.updatedAt,
+    })
+    .from(projectNotesTable)
+    .where(combineFilters(filters))
+    .orderBy(
+      desc(projectNotesTable.updatedAt),
+      desc(projectNotesTable.createdAt),
     )
-    .get(parameters) as NoteRow | undefined;
+    .limit(1)
+    .get() as NoteRow | undefined;
 
   return row ? mapNoteRow(row) : null;
 }
@@ -455,47 +453,25 @@ export async function createNote(
     updatedAt: now,
   };
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_notes (
-          id,
-          project_id,
-          session_id,
-          type,
-          title,
-          content,
-          format,
-          parent_note_id,
-          linked_task_id,
-          assigned_agent_ids_json,
-          source,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @sessionId,
-          @type,
-          @title,
-          @content,
-          @format,
-          @parentNoteId,
-          @linkedTaskId,
-          @assignedAgentIdsJson,
-          @source,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-      `,
-    )
-    .run({
-      ...note,
+  getDrizzleDb(sqlite)
+    .insert(projectNotesTable)
+    .values({
+      id: note.id,
+      projectId: note.projectId,
+      sessionId: note.sessionId,
+      type: note.type,
+      title: note.title,
+      content: note.content,
+      format: note.format,
+      parentNoteId: note.parentNoteId,
+      linkedTaskId: note.linkedTaskId,
       assignedAgentIdsJson: JSON.stringify(note.assignedAgentIds),
-    });
+      source: note.source,
+      createdAt: note.createdAt,
+      updatedAt: note.updatedAt,
+      deletedAt: null,
+    })
+    .run();
 
   return note;
 }
@@ -539,28 +515,27 @@ export async function updateNote(
     updatedAt: new Date().toISOString(),
   };
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_notes
-        SET
-          session_id = @sessionId,
-          type = @type,
-          title = @title,
-          content = @content,
-          format = @format,
-          parent_note_id = @parentNoteId,
-          linked_task_id = @linkedTaskId,
-          assigned_agent_ids_json = @assignedAgentIdsJson,
-          source = @source,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      ...updated,
+  getDrizzleDb(sqlite)
+    .update(projectNotesTable)
+    .set({
+      sessionId: updated.sessionId,
+      type: updated.type,
+      title: updated.title,
+      content: updated.content,
+      format: updated.format,
+      parentNoteId: updated.parentNoteId,
+      linkedTaskId: updated.linkedTaskId,
       assignedAgentIdsJson: JSON.stringify(updated.assignedAgentIds),
-    });
+      source: updated.source,
+      updatedAt: updated.updatedAt,
+    })
+    .where(
+      and(
+        eq(projectNotesTable.id, updated.id),
+        isNull(projectNotesTable.deletedAt),
+      ),
+    )
+    .run();
 
   return updated;
 }
@@ -571,18 +546,20 @@ export async function deleteNote(
 ): Promise<NotePayload> {
   const note = mapNoteRow(getNoteRow(sqlite, noteId));
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_notes
-        SET deleted_at = @deletedAt, updated_at = @deletedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
+  const deletedAt = new Date().toISOString();
+  getDrizzleDb(sqlite)
+    .update(projectNotesTable)
+    .set({
+      deletedAt,
+      updatedAt: deletedAt,
+    })
+    .where(
+      and(
+        eq(projectNotesTable.id, noteId),
+        isNull(projectNotesTable.deletedAt),
+      ),
     )
-    .run({
-      deletedAt: new Date().toISOString(),
-      id: noteId,
-    });
+    .run();
 
   return note;
 }

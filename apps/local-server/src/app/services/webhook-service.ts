@@ -1,7 +1,14 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, desc, eq, isNull, ne } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectWebhookConfigsTable,
+  projectWebhookLogsTable,
+} from '../db/schema';
 import type {
   CreateWebhookConfigInput,
   ListWebhookTriggerLogsInput,
@@ -28,7 +35,7 @@ const webhookLogIdGenerator = customAlphabet(
 
 interface WebhookConfigRow {
   created_at: string;
-  enabled: number;
+  enabled: boolean;
   event_types_json: string;
   id: string;
   name: string;
@@ -51,7 +58,7 @@ interface WebhookLogRow {
   outcome: 'error' | 'skipped' | 'triggered';
   payload_json: string;
   project_id: string;
-  signature_valid: number;
+  signature_valid: boolean;
   workflow_run_id: string | null;
 }
 
@@ -61,6 +68,14 @@ function createWebhookConfigId() {
 
 function createWebhookLogId() {
   return `whl_${webhookLogIdGenerator()}`;
+}
+
+function combineFilters(filters: SQL<unknown>[]) {
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  return filters.length === 1 ? filters[0] : and(...filters);
 }
 
 function parseJsonRecord(value: string): Record<string, unknown> {
@@ -88,7 +103,7 @@ function parseEventTypes(value: string): string[] {
 function mapWebhookConfigRow(row: WebhookConfigRow): WebhookConfigPayload {
   return {
     createdAt: row.created_at,
-    enabled: row.enabled === 1,
+    enabled: row.enabled,
     eventTypes: parseEventTypes(row.event_types_json),
     id: row.id,
     name: row.name,
@@ -113,7 +128,7 @@ function mapWebhookLogRow(row: WebhookLogRow): WebhookTriggerLogPayload {
     outcome: row.outcome,
     payload: parseJsonRecord(row.payload_json),
     projectId: row.project_id,
-    signatureValid: row.signature_valid === 1,
+    signatureValid: row.signature_valid,
     workflowRunId: row.workflow_run_id,
   };
 }
@@ -149,16 +164,28 @@ function getWebhookConfigRow(
   sqlite: Database,
   webhookConfigId: string,
 ): WebhookConfigRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, name, source, repo, event_types_json, workflow_id,
-               webhook_secret, enabled, created_at, updated_at
-        FROM project_webhook_configs
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      created_at: projectWebhookConfigsTable.createdAt,
+      enabled: projectWebhookConfigsTable.enabled,
+      event_types_json: projectWebhookConfigsTable.eventTypesJson,
+      id: projectWebhookConfigsTable.id,
+      name: projectWebhookConfigsTable.name,
+      project_id: projectWebhookConfigsTable.projectId,
+      repo: projectWebhookConfigsTable.repo,
+      source: projectWebhookConfigsTable.source,
+      updated_at: projectWebhookConfigsTable.updatedAt,
+      webhook_secret: projectWebhookConfigsTable.webhookSecret,
+      workflow_id: projectWebhookConfigsTable.workflowId,
+    })
+    .from(projectWebhookConfigsTable)
+    .where(
+      and(
+        eq(projectWebhookConfigsTable.id, webhookConfigId),
+        isNull(projectWebhookConfigsTable.deletedAt),
+      ),
     )
-    .get(webhookConfigId) as WebhookConfigRow | undefined;
+    .get() as WebhookConfigRow | undefined;
 
   if (!row) {
     throwWebhookConfigNotFound(webhookConfigId);
@@ -353,21 +380,9 @@ function appendWebhookLog(
   const id = createWebhookLogId();
   const createdAt = new Date().toISOString();
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_webhook_logs (
-          id, project_id, config_id, delivery_id, event_type, event_action,
-          payload_json, signature_valid, outcome, error_message, workflow_run_id,
-          created_at
-        ) VALUES (
-          @id, @projectId, @configId, @deliveryId, @eventType, @eventAction,
-          @payloadJson, @signatureValid, @outcome, @errorMessage, @workflowRunId,
-          @createdAt
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectWebhookLogsTable)
+    .values({
       configId: input.configId,
       createdAt,
       deliveryId: input.deliveryId,
@@ -378,9 +393,10 @@ function appendWebhookLog(
       outcome: input.outcome,
       payloadJson: JSON.stringify(input.payload),
       projectId: input.projectId,
-      signatureValid: input.signatureValid ? 1 : 0,
+      signatureValid: input.signatureValid,
       workflowRunId: input.workflowRunId,
-    });
+    })
+    .run();
 
   return {
     ...input,
@@ -397,15 +413,19 @@ export async function createWebhookConfig(
   await getWorkflowById(sqlite, input.workflowId);
   validateEventTypes(input.eventTypes);
 
-  const existing = sqlite
-    .prepare(
-      `
-        SELECT id
-        FROM project_webhook_configs
-        WHERE project_id = ? AND name = ? AND deleted_at IS NULL
-      `,
+  const existing = getDrizzleDb(sqlite)
+    .select({
+      id: projectWebhookConfigsTable.id,
+    })
+    .from(projectWebhookConfigsTable)
+    .where(
+      and(
+        eq(projectWebhookConfigsTable.projectId, input.projectId),
+        eq(projectWebhookConfigsTable.name, input.name),
+        isNull(projectWebhookConfigsTable.deletedAt),
+      ),
     )
-    .get(input.projectId, input.name) as { id: string } | undefined;
+    .get() as { id: string } | undefined;
 
   if (existing) {
     throwWebhookConfigNameConflict(input.projectId, input.name);
@@ -414,21 +434,11 @@ export async function createWebhookConfig(
   const id = createWebhookConfigId();
   const now = new Date().toISOString();
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_webhook_configs (
-          id, project_id, name, source, repo, event_types_json, workflow_id,
-          webhook_secret, enabled, created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @projectId, @name, 'github', @repo, @eventTypesJson, @workflowId,
-          @webhookSecret, @enabled, @createdAt, @updatedAt, NULL
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectWebhookConfigsTable)
+    .values({
       createdAt: now,
-      enabled: input.enabled === false ? 0 : 1,
+      enabled: input.enabled !== false,
       eventTypesJson: JSON.stringify(input.eventTypes),
       id,
       name: input.name,
@@ -437,7 +447,10 @@ export async function createWebhookConfig(
       updatedAt: now,
       webhookSecret: input.webhookSecret?.trim() ?? '',
       workflowId: input.workflowId,
-    });
+      source: 'github',
+      deletedAt: null,
+    })
+    .run();
 
   return getWebhookConfigById(sqlite, id);
 }
@@ -450,18 +463,53 @@ export async function listProjectWebhookConfigs(
     await getProjectById(sqlite, projectId);
   }
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, name, source, repo, event_types_json, workflow_id,
-               webhook_secret, enabled, created_at, updated_at
-        FROM project_webhook_configs
-        WHERE deleted_at IS NULL
-          AND (@projectId IS NULL OR project_id = @projectId)
-        ORDER BY updated_at DESC, created_at DESC
-      `,
-    )
-    .all({ projectId: projectId ?? null }) as WebhookConfigRow[];
+  const rows = (projectId
+    ? getDrizzleDb(sqlite)
+        .select({
+          created_at: projectWebhookConfigsTable.createdAt,
+          enabled: projectWebhookConfigsTable.enabled,
+          event_types_json: projectWebhookConfigsTable.eventTypesJson,
+          id: projectWebhookConfigsTable.id,
+          name: projectWebhookConfigsTable.name,
+          project_id: projectWebhookConfigsTable.projectId,
+          repo: projectWebhookConfigsTable.repo,
+          source: projectWebhookConfigsTable.source,
+          updated_at: projectWebhookConfigsTable.updatedAt,
+          webhook_secret: projectWebhookConfigsTable.webhookSecret,
+          workflow_id: projectWebhookConfigsTable.workflowId,
+        })
+        .from(projectWebhookConfigsTable)
+        .where(
+          and(
+            eq(projectWebhookConfigsTable.projectId, projectId),
+            isNull(projectWebhookConfigsTable.deletedAt),
+          ),
+        )
+        .orderBy(
+          desc(projectWebhookConfigsTable.updatedAt),
+          desc(projectWebhookConfigsTable.createdAt),
+        )
+    : getDrizzleDb(sqlite)
+        .select({
+          created_at: projectWebhookConfigsTable.createdAt,
+          enabled: projectWebhookConfigsTable.enabled,
+          event_types_json: projectWebhookConfigsTable.eventTypesJson,
+          id: projectWebhookConfigsTable.id,
+          name: projectWebhookConfigsTable.name,
+          project_id: projectWebhookConfigsTable.projectId,
+          repo: projectWebhookConfigsTable.repo,
+          source: projectWebhookConfigsTable.source,
+          updated_at: projectWebhookConfigsTable.updatedAt,
+          webhook_secret: projectWebhookConfigsTable.webhookSecret,
+          workflow_id: projectWebhookConfigsTable.workflowId,
+        })
+        .from(projectWebhookConfigsTable)
+        .where(isNull(projectWebhookConfigsTable.deletedAt))
+        .orderBy(
+          desc(projectWebhookConfigsTable.updatedAt),
+          desc(projectWebhookConfigsTable.createdAt),
+        ))
+    .all() as WebhookConfigRow[];
 
   return {
     items: rows.map(mapWebhookConfigRow),
@@ -491,56 +539,53 @@ export async function updateWebhookConfig(
 
   if (input.name && input.name !== existing.name) {
     const duplicate = sqlite
-      .prepare(
-        `
-          SELECT id
-          FROM project_webhook_configs
-          WHERE project_id = ? AND name = ? AND deleted_at IS NULL AND id <> ?
-        `,
-      )
-      .get(
-        existing.project_id,
-        input.name,
-        input.id,
-      ) as { id: string } | undefined;
+      ? getDrizzleDb(sqlite)
+          .select({
+            id: projectWebhookConfigsTable.id,
+          })
+          .from(projectWebhookConfigsTable)
+          .where(
+            and(
+              eq(projectWebhookConfigsTable.projectId, existing.project_id),
+              eq(projectWebhookConfigsTable.name, input.name),
+              isNull(projectWebhookConfigsTable.deletedAt),
+              ne(projectWebhookConfigsTable.id, input.id),
+            ),
+          )
+          .get()
+      : undefined;
 
     if (duplicate) {
       throwWebhookConfigNameConflict(existing.project_id, input.name);
     }
   }
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_webhook_configs
-        SET
-          name = COALESCE(@name, name),
-          repo = COALESCE(@repo, repo),
-          event_types_json = COALESCE(@eventTypesJson, event_types_json),
-          workflow_id = COALESCE(@workflowId, workflow_id),
-          webhook_secret = CASE
-            WHEN @webhookSecret IS NULL THEN webhook_secret
-            ELSE @webhookSecret
-          END,
-          enabled = COALESCE(@enabled, enabled),
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      enabled:
-        typeof input.enabled === 'boolean' ? (input.enabled ? 1 : 0) : null,
+  getDrizzleDb(sqlite)
+    .update(projectWebhookConfigsTable)
+    .set({
+      name: input.name ?? existing.name,
+      repo: input.repo ? normalizeRepo(input.repo) : existing.repo,
       eventTypesJson: input.eventTypes
         ? JSON.stringify(input.eventTypes)
-        : null,
-      id: input.id,
-      name: input.name ?? null,
-      repo: input.repo ? normalizeRepo(input.repo) : null,
-      updatedAt: new Date().toISOString(),
+        : existing.event_types_json,
+      workflowId: input.workflowId ?? existing.workflow_id,
       webhookSecret:
-        input.webhookSecret !== undefined ? input.webhookSecret.trim() : null,
-      workflowId: input.workflowId ?? null,
-    });
+        input.webhookSecret !== undefined
+          ? input.webhookSecret.trim()
+          : existing.webhook_secret,
+      enabled:
+        typeof input.enabled === 'boolean'
+          ? input.enabled
+          : existing.enabled,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(
+      and(
+        eq(projectWebhookConfigsTable.id, input.id),
+        isNull(projectWebhookConfigsTable.deletedAt),
+      )
+    )
+    .run();
 
   return getWebhookConfigById(sqlite, input.id);
 }
@@ -553,18 +598,19 @@ export async function deleteWebhookConfig(
 
   const now = new Date().toISOString();
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_webhook_configs
-        SET deleted_at = @now, updated_at = @now
-        WHERE id = @id AND deleted_at IS NULL
-      `,
+  getDrizzleDb(sqlite)
+    .update(projectWebhookConfigsTable)
+    .set({
+      deletedAt: now,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(projectWebhookConfigsTable.id, webhookConfigId),
+        isNull(projectWebhookConfigsTable.deletedAt),
+      ),
     )
-    .run({
-      id: webhookConfigId,
-      now,
-    });
+    .run();
 }
 
 export async function listWebhookTriggerLogs(
@@ -578,24 +624,35 @@ export async function listWebhookTriggerLogs(
     getWebhookConfigRow(sqlite, input.configId);
   }
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, config_id, delivery_id, event_type, event_action,
-               payload_json, signature_valid, outcome, error_message,
-               workflow_run_id, created_at
-        FROM project_webhook_logs
-        WHERE (@projectId IS NULL OR project_id = @projectId)
-          AND (@configId IS NULL OR config_id = @configId)
-        ORDER BY created_at DESC
-        LIMIT @limit
-      `,
-    )
-    .all({
-      configId: input.configId ?? null,
-      limit: Math.min(Math.max(input.limit ?? 50, 1), 200),
-      projectId: input.projectId ?? null,
-    }) as WebhookLogRow[];
+  const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
+  const filters: SQL<unknown>[] = [];
+  if (input.projectId) {
+    filters.push(eq(projectWebhookLogsTable.projectId, input.projectId));
+  }
+  if (input.configId) {
+    filters.push(eq(projectWebhookLogsTable.configId, input.configId));
+  }
+
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      config_id: projectWebhookLogsTable.configId,
+      created_at: projectWebhookLogsTable.createdAt,
+      delivery_id: projectWebhookLogsTable.deliveryId,
+      error_message: projectWebhookLogsTable.errorMessage,
+      event_action: projectWebhookLogsTable.eventAction,
+      event_type: projectWebhookLogsTable.eventType,
+      id: projectWebhookLogsTable.id,
+      outcome: projectWebhookLogsTable.outcome,
+      payload_json: projectWebhookLogsTable.payloadJson,
+      project_id: projectWebhookLogsTable.projectId,
+      signature_valid: projectWebhookLogsTable.signatureValid,
+      workflow_run_id: projectWebhookLogsTable.workflowRunId,
+    })
+    .from(projectWebhookLogsTable)
+    .where(combineFilters(filters))
+    .orderBy(desc(projectWebhookLogsTable.createdAt))
+    .limit(limit)
+    .all() as WebhookLogRow[];
 
   return {
     configId: input.configId ?? null,
@@ -616,20 +673,33 @@ export async function receiveGitHubWebhook(
       ? (input.payload.repository as { full_name: string }).full_name
       : null;
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, name, source, repo, event_types_json, workflow_id,
-               webhook_secret, enabled, created_at, updated_at
-        FROM project_webhook_configs
-        WHERE source = 'github'
-          AND enabled = 1
-          AND deleted_at IS NULL
-          AND (@repo IS NULL OR repo = @repo)
-        ORDER BY created_at ASC
-      `,
-    )
-    .all({ repo }) as WebhookConfigRow[];
+  const filters: SQL<unknown>[] = [
+    eq(projectWebhookConfigsTable.source, 'github'),
+    eq(projectWebhookConfigsTable.enabled, true),
+    isNull(projectWebhookConfigsTable.deletedAt),
+  ];
+  if (repo) {
+    filters.push(eq(projectWebhookConfigsTable.repo, repo));
+  }
+
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      created_at: projectWebhookConfigsTable.createdAt,
+      enabled: projectWebhookConfigsTable.enabled,
+      event_types_json: projectWebhookConfigsTable.eventTypesJson,
+      id: projectWebhookConfigsTable.id,
+      name: projectWebhookConfigsTable.name,
+      project_id: projectWebhookConfigsTable.projectId,
+      repo: projectWebhookConfigsTable.repo,
+      source: projectWebhookConfigsTable.source,
+      updated_at: projectWebhookConfigsTable.updatedAt,
+      webhook_secret: projectWebhookConfigsTable.webhookSecret,
+      workflow_id: projectWebhookConfigsTable.workflowId,
+    })
+    .from(projectWebhookConfigsTable)
+    .where(combineFilters(filters))
+    .orderBy(projectWebhookConfigsTable.createdAt)
+    .all() as WebhookConfigRow[];
 
   let processed = 0;
   let skipped = 0;

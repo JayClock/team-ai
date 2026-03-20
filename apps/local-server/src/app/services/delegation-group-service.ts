@@ -1,6 +1,12 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectDelegationGroupsTable,
+  projectTasksTable,
+} from '../db/schema';
 import type { TaskPayload } from '../schemas/task';
 import { getAcpSessionById } from './acp-service';
 import { getTaskById } from './task-service';
@@ -130,26 +136,23 @@ function getDelegationGroupRow(
   sqlite: Database,
   groupId: string,
 ): DelegationGroupRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          caller_session_id,
-          parent_session_id,
-          status,
-          completed_at,
-          created_at,
-          updated_at,
-          task_ids_json,
-          session_ids_json,
-          failure_reason
-        FROM project_delegation_groups
-        WHERE id = ?
-      `,
-    )
-    .get(groupId) as DelegationGroupRow | undefined;
+  const row = getDrizzleDb(sqlite)
+    .select({
+      caller_session_id: projectDelegationGroupsTable.callerSessionId,
+      completed_at: projectDelegationGroupsTable.completedAt,
+      created_at: projectDelegationGroupsTable.createdAt,
+      failure_reason: projectDelegationGroupsTable.failureReason,
+      id: projectDelegationGroupsTable.id,
+      parent_session_id: projectDelegationGroupsTable.parentSessionId,
+      project_id: projectDelegationGroupsTable.projectId,
+      session_ids_json: projectDelegationGroupsTable.sessionIdsJson,
+      status: projectDelegationGroupsTable.status,
+      task_ids_json: projectDelegationGroupsTable.taskIdsJson,
+      updated_at: projectDelegationGroupsTable.updatedAt,
+    })
+    .from(projectDelegationGroupsTable)
+    .where(eq(projectDelegationGroupsTable.id, groupId))
+    .get() as DelegationGroupRow | undefined;
 
   if (!row) {
     throwDelegationGroupNotFound(groupId);
@@ -235,22 +238,9 @@ async function persistDelegationGroup(
   const current = getDelegationGroupRow(sqlite, input.groupId);
   const currentPayload = mapDelegationGroupRow(current);
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_delegation_groups
-        SET
-          parent_session_id = @parentSessionId,
-          status = @status,
-          completed_at = @completedAt,
-          updated_at = @updatedAt,
-          task_ids_json = @taskIdsJson,
-          session_ids_json = @sessionIdsJson,
-          failure_reason = @failureReason
-        WHERE id = @id
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .update(projectDelegationGroupsTable)
+    .set({
       completedAt: input.completedAt,
       failureReason:
         input.failureReason === undefined
@@ -267,7 +257,9 @@ async function persistDelegationGroup(
       status: input.status,
       taskIdsJson: JSON.stringify(input.taskIds ?? currentPayload.taskIds),
       updatedAt: new Date().toISOString(),
-    });
+    })
+    .where(eq(projectDelegationGroupsTable.id, input.groupId))
+    .run();
 
   return await getDelegationGroupById(sqlite, input.groupId);
 }
@@ -286,30 +278,31 @@ export async function getActiveDelegationGroupByCallerSessionId(
     projectId: string;
   },
 ): Promise<DelegationGroupPayload | null> {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          caller_session_id,
-          parent_session_id,
-          status,
-          completed_at,
-          created_at,
-          updated_at,
-          task_ids_json,
-          session_ids_json,
-          failure_reason
-        FROM project_delegation_groups
-        WHERE project_id = @projectId
-          AND caller_session_id = @callerSessionId
-          AND status IN ('OPEN', 'RUNNING', 'ACTIVE')
-        ORDER BY created_at DESC
-        LIMIT 1
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      caller_session_id: projectDelegationGroupsTable.callerSessionId,
+      completed_at: projectDelegationGroupsTable.completedAt,
+      created_at: projectDelegationGroupsTable.createdAt,
+      failure_reason: projectDelegationGroupsTable.failureReason,
+      id: projectDelegationGroupsTable.id,
+      parent_session_id: projectDelegationGroupsTable.parentSessionId,
+      project_id: projectDelegationGroupsTable.projectId,
+      session_ids_json: projectDelegationGroupsTable.sessionIdsJson,
+      status: projectDelegationGroupsTable.status,
+      task_ids_json: projectDelegationGroupsTable.taskIdsJson,
+      updated_at: projectDelegationGroupsTable.updatedAt,
+    })
+    .from(projectDelegationGroupsTable)
+    .where(
+      and(
+        eq(projectDelegationGroupsTable.projectId, input.projectId),
+        eq(projectDelegationGroupsTable.callerSessionId, input.callerSessionId),
+        inArray(projectDelegationGroupsTable.status, ['OPEN', 'RUNNING', 'ACTIVE']),
+      ),
     )
-    .get(input) as DelegationGroupRow | undefined;
+    .orderBy(desc(projectDelegationGroupsTable.createdAt))
+    .limit(1)
+    .get() as DelegationGroupRow | undefined;
 
   return row ? mapDelegationGroupRow(row) : null;
 }
@@ -355,38 +348,9 @@ export async function getOrCreateActiveDelegationGroup(
     updatedAt: now,
   };
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_delegation_groups (
-          id,
-          project_id,
-          caller_session_id,
-          parent_session_id,
-          status,
-          completed_at,
-          created_at,
-          updated_at,
-          task_ids_json,
-          session_ids_json,
-          failure_reason
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @callerSessionId,
-          @parentSessionId,
-          @status,
-          @completedAt,
-          @createdAt,
-          @updatedAt,
-          @taskIdsJson,
-          @sessionIdsJson,
-          @failureReason
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectDelegationGroupsTable)
+    .values({
       callerSessionId: group.callerSessionId,
       completedAt: group.completedAt,
       createdAt: group.createdAt,
@@ -398,7 +362,8 @@ export async function getOrCreateActiveDelegationGroup(
       status: group.status,
       taskIdsJson: JSON.stringify(group.taskIds),
       updatedAt: group.updatedAt,
-    });
+    })
+    .run();
 
   return group;
 }
@@ -473,18 +438,20 @@ export async function listDelegationGroupTasks(
   },
 ): Promise<TaskPayload[]> {
   const group = await getDelegationGroupById(sqlite, input.groupId);
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id
-        FROM project_tasks
-        WHERE project_id = @projectId
-          AND parallel_group = @groupId
-          AND deleted_at IS NULL
-        ORDER BY created_at ASC, updated_at ASC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectTasksTable.id,
+    })
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.projectId, input.projectId),
+        eq(projectTasksTable.parallelGroup, input.groupId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .all(input) as DelegationGroupTaskRow[];
+    .orderBy(asc(projectTasksTable.createdAt), asc(projectTasksTable.updatedAt))
+    .all() as DelegationGroupTaskRow[];
   const taskIds = mergeGroupMembers(group.taskIds, rows.map((row) => row.id));
 
   return await Promise.all(taskIds.map((taskId) => getTaskById(sqlite, taskId)));

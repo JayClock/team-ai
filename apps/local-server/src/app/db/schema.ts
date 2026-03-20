@@ -202,6 +202,7 @@ export const projectTasksTable = sqliteTable('project_tasks', {
   projectId: text('project_id').notNull(),
   parentTaskId: text('parent_task_id'),
   kind: text('kind'),
+  parallelGroup: text('parallel_group'),
   sourceType: text('source_type'),
   sourceEventId: text('source_event_id'),
   sourceEntryIndex: integer('source_entry_index'),
@@ -244,6 +245,80 @@ export const projectTaskRunsTable = sqliteTable('project_task_runs', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   deletedAt: text('deleted_at'),
+});
+
+export const projectNotesTable = sqliteTable('project_notes', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  sessionId: text('session_id'),
+  type: text('type').notNull(),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  format: text('format').notNull(),
+  parentNoteId: text('parent_note_id'),
+  linkedTaskId: text('linked_task_id'),
+  assignedAgentIdsJson: text('assigned_agent_ids_json').notNull(),
+  source: text('source').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const projectNoteEventsTable = sqliteTable('project_note_events', {
+  sequence: integer('sequence').primaryKey({ autoIncrement: true }),
+  eventId: text('event_id').notNull(),
+  projectId: text('project_id').notNull(),
+  noteId: text('note_id').notNull(),
+  sessionId: text('session_id'),
+  type: text('type').notNull(),
+  source: text('source').notNull(),
+  payloadJson: text('payload_json').notNull(),
+  emittedAt: text('emitted_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const projectWebhookConfigsTable = sqliteTable('project_webhook_configs', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  name: text('name').notNull(),
+  source: text('source').notNull(),
+  repo: text('repo').notNull(),
+  eventTypesJson: text('event_types_json').notNull(),
+  workflowId: text('workflow_id').notNull(),
+  webhookSecret: text('webhook_secret').notNull(),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const projectWebhookLogsTable = sqliteTable('project_webhook_logs', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  configId: text('config_id').notNull(),
+  deliveryId: text('delivery_id'),
+  eventType: text('event_type').notNull(),
+  eventAction: text('event_action'),
+  payloadJson: text('payload_json').notNull(),
+  signatureValid: integer('signature_valid', { mode: 'boolean' }).notNull(),
+  outcome: text('outcome').notNull(),
+  errorMessage: text('error_message'),
+  workflowRunId: text('workflow_run_id'),
+  createdAt: text('created_at').notNull(),
+});
+
+export const projectDelegationGroupsTable = sqliteTable('project_delegation_groups', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  callerSessionId: text('caller_session_id').notNull(),
+  parentSessionId: text('parent_session_id'),
+  status: text('status').notNull(),
+  completedAt: text('completed_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  taskIdsJson: text('task_ids_json').notNull(),
+  sessionIdsJson: text('session_ids_json').notNull(),
+  failureReason: text('failure_reason'),
 });
 
 export const projectWorktreesTable = sqliteTable('project_worktrees', {
@@ -324,6 +399,11 @@ export const sqliteSchema = {
   projectTasks: projectTasksTable,
   projectTraces: projectTracesTable,
   projectTaskRuns: projectTaskRunsTable,
+  projectNotes: projectNotesTable,
+  projectNoteEvents: projectNoteEventsTable,
+  projectWebhookConfigs: projectWebhookConfigsTable,
+  projectWebhookLogs: projectWebhookLogsTable,
+  projectDelegationGroups: projectDelegationGroupsTable,
   projectWorktrees: projectWorktreesTable,
   projectKanbanBoards: projectKanbanBoardsTable,
   projectKanbanColumns: projectKanbanColumnsTable,
