@@ -1,10 +1,17 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import {
   logDiagnostic,
   type DiagnosticLogger,
   ProblemError,
 } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectAcpSessionsTable,
+  projectTaskRunsTable,
+} from '../db/schema';
 import type {
   CancelTaskRunInput,
   CompleteTaskRunInput,
@@ -90,6 +97,16 @@ export const MAX_TASK_RUN_RETRY_COUNT = 3;
 
 function createTaskRunId() {
   return `trun_${taskRunIdGenerator()}`;
+}
+
+const taskRunRowId = sql<number>`rowid`;
+
+function combineFilters(filters: SQL<unknown>[]) {
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  return filters.length === 1 ? filters[0] : and(...filters);
 }
 
 function mapTaskRunRow(
@@ -362,33 +379,35 @@ function defaultTaskRunKind(taskKind: string | null | undefined): TaskRunKind {
 }
 
 function getTaskRunRow(sqlite: Database, taskRunId: string): TaskRunRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          rowid AS row_id,
-          id,
-          project_id,
-          task_id,
-          session_id,
-          kind,
-          role,
-          provider,
-          specialist_id,
-          status,
-          summary,
-          verification_verdict,
-          verification_report,
-          retry_of_run_id,
-          started_at,
-          completed_at,
-          created_at,
-          updated_at
-        FROM project_task_runs
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      completed_at: projectTaskRunsTable.completedAt,
+      created_at: projectTaskRunsTable.createdAt,
+      id: projectTaskRunsTable.id,
+      kind: projectTaskRunsTable.kind,
+      project_id: projectTaskRunsTable.projectId,
+      provider: projectTaskRunsTable.provider,
+      retry_of_run_id: projectTaskRunsTable.retryOfRunId,
+      role: projectTaskRunsTable.role,
+      row_id: taskRunRowId,
+      session_id: projectTaskRunsTable.sessionId,
+      specialist_id: projectTaskRunsTable.specialistId,
+      started_at: projectTaskRunsTable.startedAt,
+      status: projectTaskRunsTable.status,
+      summary: projectTaskRunsTable.summary,
+      task_id: projectTaskRunsTable.taskId,
+      updated_at: projectTaskRunsTable.updatedAt,
+      verification_report: projectTaskRunsTable.verificationReport,
+      verification_verdict: projectTaskRunsTable.verificationVerdict,
+    })
+    .from(projectTaskRunsTable)
+    .where(
+      and(
+        eq(projectTaskRunsTable.id, taskRunId),
+        isNull(projectTaskRunsTable.deletedAt),
+      ),
     )
-    .get(taskRunId) as TaskRunRow | undefined;
+    .get() as TaskRunRow | undefined;
 
   if (!row) {
     throwTaskRunNotFound(taskRunId);
@@ -402,35 +421,37 @@ function getLatestTaskRunRowForTask(
   taskId: string,
 ): TaskRunRow | null {
   return (
-    (sqlite
-      .prepare(
-        `
-          SELECT
-            rowid AS row_id,
-            id,
-            project_id,
-            task_id,
-            session_id,
-            kind,
-            role,
-            provider,
-            specialist_id,
-            status,
-            summary,
-            verification_verdict,
-            verification_report,
-            retry_of_run_id,
-            started_at,
-            completed_at,
-            created_at,
-            updated_at
-          FROM project_task_runs
-          WHERE task_id = ? AND deleted_at IS NULL
-          ORDER BY created_at DESC, row_id DESC
-          LIMIT 1
-        `,
+    (getDrizzleDb(sqlite)
+      .select({
+        completed_at: projectTaskRunsTable.completedAt,
+        created_at: projectTaskRunsTable.createdAt,
+        id: projectTaskRunsTable.id,
+        kind: projectTaskRunsTable.kind,
+        project_id: projectTaskRunsTable.projectId,
+        provider: projectTaskRunsTable.provider,
+        retry_of_run_id: projectTaskRunsTable.retryOfRunId,
+        role: projectTaskRunsTable.role,
+        row_id: taskRunRowId,
+        session_id: projectTaskRunsTable.sessionId,
+        specialist_id: projectTaskRunsTable.specialistId,
+        started_at: projectTaskRunsTable.startedAt,
+        status: projectTaskRunsTable.status,
+        summary: projectTaskRunsTable.summary,
+        task_id: projectTaskRunsTable.taskId,
+        updated_at: projectTaskRunsTable.updatedAt,
+        verification_report: projectTaskRunsTable.verificationReport,
+        verification_verdict: projectTaskRunsTable.verificationVerdict,
+      })
+      .from(projectTaskRunsTable)
+      .where(
+        and(
+          eq(projectTaskRunsTable.taskId, taskId),
+          isNull(projectTaskRunsTable.deletedAt),
+        ),
       )
-      .get(taskId) as TaskRunRow | undefined) ?? null
+      .orderBy(desc(projectTaskRunsTable.createdAt), desc(taskRunRowId))
+      .limit(1)
+      .get() as TaskRunRow | undefined) ?? null
   );
 }
 
@@ -446,32 +467,35 @@ function listLatestTaskRunIdsForTaskIds(
     return new Map();
   }
 
-  const placeholders = normalizedTaskIds.map(() => '?').join(', ');
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT latest.task_id, latest.id
-        FROM project_task_runs AS latest
-        WHERE latest.deleted_at IS NULL
-          AND latest.task_id IN (${placeholders})
-          AND NOT EXISTS (
-            SELECT 1
-            FROM project_task_runs AS newer
-            WHERE newer.task_id = latest.task_id
-              AND newer.deleted_at IS NULL
-              AND (
-                newer.created_at > latest.created_at
-                OR (
-                  newer.created_at = latest.created_at
-                  AND newer.rowid > latest.rowid
-                )
-              )
-          )
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectTaskRunsTable.id,
+      row_id: taskRunRowId,
+      task_id: projectTaskRunsTable.taskId,
+      created_at: projectTaskRunsTable.createdAt,
+    })
+    .from(projectTaskRunsTable)
+    .where(
+      and(
+        inArray(projectTaskRunsTable.taskId, normalizedTaskIds),
+        isNull(projectTaskRunsTable.deletedAt),
+      ),
     )
-    .all(...normalizedTaskIds) as LatestTaskRunRow[];
+    .orderBy(
+      projectTaskRunsTable.taskId,
+      desc(projectTaskRunsTable.createdAt),
+      desc(taskRunRowId),
+    )
+    .all() as Array<LatestTaskRunRow & { created_at: string; row_id: number }>;
 
-  return new Map(rows.map((row) => [row.task_id, row.id]));
+  const latestByTaskId = new Map<string, string>();
+  for (const row of rows) {
+    if (!latestByTaskId.has(row.task_id)) {
+      latestByTaskId.set(row.task_id, row.id);
+    }
+  }
+
+  return latestByTaskId;
 }
 
 function getTaskRunRetrySourceRow(
@@ -496,15 +520,19 @@ function getTaskRunSessionRow(
   sqlite: Database,
   sessionId: string,
 ): TaskRunSessionRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id
-        FROM project_acp_sessions
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectAcpSessionsTable.id,
+      project_id: projectAcpSessionsTable.projectId,
+    })
+    .from(projectAcpSessionsTable)
+    .where(
+      and(
+        eq(projectAcpSessionsTable.id, sessionId),
+        isNull(projectAcpSessionsTable.deletedAt),
+      ),
     )
-    .get(sessionId) as TaskRunSessionRow | undefined;
+    .get() as TaskRunSessionRow | undefined;
 
   if (!row) {
     throwTaskRunSessionNotFound(sessionId);
@@ -514,17 +542,19 @@ function getTaskRunSessionRow(
 }
 
 function countRetryRunsForTask(sqlite: Database, taskId: string): number {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_task_runs
-        WHERE task_id = ?
-          AND retry_of_run_id IS NOT NULL
-          AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(projectTaskRunsTable)
+    .where(
+      and(
+        eq(projectTaskRunsTable.taskId, taskId),
+        sql`${projectTaskRunsTable.retryOfRunId} IS NOT NULL`,
+        isNull(projectTaskRunsTable.deletedAt),
+      ),
     )
-    .get(taskId) as { count: number };
+    .get() as { count: number };
 
   return row.count;
 }
@@ -700,68 +730,59 @@ export async function listTaskRuns(
   await ensureSessionProjectMatch(sqlite, projectId, sessionId);
 
   const offset = (page - 1) * pageSize;
-  const filters = ['project_id = @projectId', 'deleted_at IS NULL'];
-  const parameters: Record<string, unknown> = {
-    limit: pageSize,
-    offset,
-    projectId,
-  };
+  const filters: SQL<unknown>[] = [
+    eq(projectTaskRunsTable.projectId, projectId),
+    isNull(projectTaskRunsTable.deletedAt),
+  ];
 
   if (taskId) {
-    filters.push('task_id = @taskId');
-    parameters.taskId = taskId;
+    filters.push(eq(projectTaskRunsTable.taskId, taskId));
   }
 
   if (sessionId) {
-    filters.push('session_id = @sessionId');
-    parameters.sessionId = sessionId;
+    filters.push(eq(projectTaskRunsTable.sessionId, sessionId));
   }
 
   if (status) {
-    filters.push('status = @status');
-    parameters.status = status;
+    filters.push(eq(projectTaskRunsTable.status, status));
   }
 
-  const whereClause = filters.join(' AND ');
-  const items = sqlite
-    .prepare(
-      `
-        SELECT
-          rowid AS row_id,
-          id,
-          project_id,
-          task_id,
-          session_id,
-          kind,
-          role,
-          provider,
-          specialist_id,
-          status,
-          summary,
-          verification_verdict,
-          verification_report,
-          retry_of_run_id,
-          started_at,
-          completed_at,
-          created_at,
-          updated_at
-        FROM project_task_runs
-        WHERE ${whereClause}
-        ORDER BY updated_at DESC
-        LIMIT @limit OFFSET @offset
-      `,
-    )
-    .all(parameters) as TaskRunRow[];
+  const whereClause = combineFilters(filters);
+  const items = getDrizzleDb(sqlite)
+    .select({
+      completed_at: projectTaskRunsTable.completedAt,
+      created_at: projectTaskRunsTable.createdAt,
+      id: projectTaskRunsTable.id,
+      kind: projectTaskRunsTable.kind,
+      project_id: projectTaskRunsTable.projectId,
+      provider: projectTaskRunsTable.provider,
+      retry_of_run_id: projectTaskRunsTable.retryOfRunId,
+      role: projectTaskRunsTable.role,
+      row_id: taskRunRowId,
+      session_id: projectTaskRunsTable.sessionId,
+      specialist_id: projectTaskRunsTable.specialistId,
+      started_at: projectTaskRunsTable.startedAt,
+      status: projectTaskRunsTable.status,
+      summary: projectTaskRunsTable.summary,
+      task_id: projectTaskRunsTable.taskId,
+      updated_at: projectTaskRunsTable.updatedAt,
+      verification_report: projectTaskRunsTable.verificationReport,
+      verification_verdict: projectTaskRunsTable.verificationVerdict,
+    })
+    .from(projectTaskRunsTable)
+    .where(whereClause)
+    .orderBy(desc(projectTaskRunsTable.updatedAt))
+    .limit(pageSize)
+    .offset(offset)
+    .all() as TaskRunRow[];
 
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_task_runs
-        WHERE ${whereClause}
-      `,
-    )
-    .get(parameters) as { count: number };
+  const total = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(projectTaskRunsTable)
+    .where(whereClause)
+    .get() as { count: number };
   const latestTaskRunIdByTaskId = listLatestTaskRunIdsForTaskIds(
     sqlite,
     items.map((item) => item.task_id),
@@ -910,52 +931,29 @@ export async function createTaskRun(
     verificationVerdict: input.verificationVerdict ?? null,
   };
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_task_runs (
-          id,
-          project_id,
-          task_id,
-          session_id,
-          kind,
-          role,
-          provider,
-          specialist_id,
-          status,
-          summary,
-          verification_verdict,
-          verification_report,
-          retry_of_run_id,
-          started_at,
-          completed_at,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @taskId,
-          @sessionId,
-          @kind,
-          @role,
-          @provider,
-          @specialistId,
-          @status,
-          @summary,
-          @verificationVerdict,
-          @verificationReport,
-          @retryOfRunId,
-          @startedAt,
-          @completedAt,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-      `,
-    )
-    .run(taskRun);
+  getDrizzleDb(sqlite)
+    .insert(projectTaskRunsTable)
+    .values({
+      id: taskRun.id,
+      projectId: taskRun.projectId,
+      taskId: taskRun.taskId,
+      sessionId: taskRun.sessionId,
+      kind: taskRun.kind,
+      role: taskRun.role,
+      provider: taskRun.provider,
+      specialistId: taskRun.specialistId,
+      status: taskRun.status,
+      summary: taskRun.summary,
+      verificationVerdict: taskRun.verificationVerdict,
+      verificationReport: taskRun.verificationReport,
+      retryOfRunId: taskRun.retryOfRunId,
+      startedAt: taskRun.startedAt,
+      completedAt: taskRun.completedAt,
+      createdAt: taskRun.createdAt,
+      updatedAt: taskRun.updatedAt,
+      deletedAt: null,
+    })
+    .run();
 
   const createdTaskRun = await getTaskRunById(sqlite, taskRun.id);
   logTaskRunTransition(options.logger, {
@@ -1047,27 +1045,29 @@ export async function updateTaskRun(
         : input.verificationVerdict,
   };
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_task_runs
-        SET
-          session_id = @sessionId,
-          role = @role,
-          provider = @provider,
-          specialist_id = @specialistId,
-          status = @status,
-          summary = @summary,
-          verification_verdict = @verificationVerdict,
-          verification_report = @verificationReport,
-          retry_of_run_id = @retryOfRunId,
-          started_at = @startedAt,
-          completed_at = @completedAt,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
+  getDrizzleDb(sqlite)
+    .update(projectTaskRunsTable)
+    .set({
+      sessionId: updated.sessionId,
+      role: updated.role,
+      provider: updated.provider,
+      specialistId: updated.specialistId,
+      status: updated.status,
+      summary: updated.summary,
+      verificationVerdict: updated.verificationVerdict,
+      verificationReport: updated.verificationReport,
+      retryOfRunId: updated.retryOfRunId,
+      startedAt: updated.startedAt,
+      completedAt: updated.completedAt,
+      updatedAt: updated.updatedAt,
+    })
+    .where(
+      and(
+        eq(projectTaskRunsTable.id, updated.id),
+        isNull(projectTaskRunsTable.deletedAt),
+      ),
     )
-    .run(updated);
+    .run();
 
   const updatedTaskRun = await getTaskRunById(sqlite, taskRunId);
 

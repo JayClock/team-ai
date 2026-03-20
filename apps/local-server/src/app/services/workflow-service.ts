@@ -1,6 +1,13 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, desc, eq, isNull, notLike } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectBackgroundTasksTable,
+  projectWorkflowDefinitionsTable,
+  projectWorkflowRunsTable,
+} from '../db/schema';
 import type {
   CreateWorkflowInput,
   TriggerWorkflowInput,
@@ -166,15 +173,25 @@ function getWorkflowDefinitionRow(
   sqlite: Database,
   workflowId: string,
 ): WorkflowDefinitionRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, name, description, version, steps_json, created_at, updated_at
-        FROM project_workflow_definitions
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      created_at: projectWorkflowDefinitionsTable.createdAt,
+      description: projectWorkflowDefinitionsTable.description,
+      id: projectWorkflowDefinitionsTable.id,
+      name: projectWorkflowDefinitionsTable.name,
+      project_id: projectWorkflowDefinitionsTable.projectId,
+      steps_json: projectWorkflowDefinitionsTable.stepsJson,
+      updated_at: projectWorkflowDefinitionsTable.updatedAt,
+      version: projectWorkflowDefinitionsTable.version,
+    })
+    .from(projectWorkflowDefinitionsTable)
+    .where(
+      and(
+        eq(projectWorkflowDefinitionsTable.id, workflowId),
+        isNull(projectWorkflowDefinitionsTable.deletedAt),
+      ),
     )
-    .get(workflowId) as WorkflowDefinitionRow | undefined;
+    .get() as WorkflowDefinitionRow | undefined;
 
   if (!row) {
     throwWorkflowNotFound(workflowId);
@@ -187,17 +204,28 @@ function listWorkflowRunTaskRows(
   sqlite: Database,
   workflowRunId: string,
 ): WorkflowRunTaskRow[] {
-  return sqlite
-    .prepare(
-      `
-        SELECT id, workflow_step_name, status, started_at, completed_at, created_at,
-               result_session_id, error_message, task_output, depends_on_task_ids_json
-        FROM project_background_tasks
-        WHERE workflow_run_id = ? AND deleted_at IS NULL
-        ORDER BY created_at ASC
-      `,
+  return getDrizzleDb(sqlite)
+    .select({
+      completed_at: projectBackgroundTasksTable.completedAt,
+      created_at: projectBackgroundTasksTable.createdAt,
+      depends_on_task_ids_json: projectBackgroundTasksTable.dependsOnTaskIdsJson,
+      error_message: projectBackgroundTasksTable.errorMessage,
+      id: projectBackgroundTasksTable.id,
+      result_session_id: projectBackgroundTasksTable.resultSessionId,
+      started_at: projectBackgroundTasksTable.startedAt,
+      status: projectBackgroundTasksTable.status,
+      task_output: projectBackgroundTasksTable.taskOutput,
+      workflow_step_name: projectBackgroundTasksTable.workflowStepName,
+    })
+    .from(projectBackgroundTasksTable)
+    .where(
+      and(
+        eq(projectBackgroundTasksTable.workflowRunId, workflowRunId),
+        isNull(projectBackgroundTasksTable.deletedAt),
+      ),
     )
-    .all(workflowRunId) as WorkflowRunTaskRow[];
+    .orderBy(projectBackgroundTasksTable.createdAt)
+    .all() as WorkflowRunTaskRow[];
 }
 
 function resolveWorkflowRunProgress(
@@ -294,39 +322,50 @@ function updateWorkflowRunRow(
   workflowRunId: string,
   progress: WorkflowRunProgress,
 ) {
-  sqlite
-    .prepare(
-      `
-        UPDATE project_workflow_runs
-        SET
-          status = @status,
-          current_step_name = @currentStepName,
-          completed_at = @completedAt,
-          updated_at = @updatedAt
-        WHERE id = @workflowRunId AND deleted_at IS NULL
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .update(projectWorkflowRunsTable)
+    .set({
       completedAt: progress.completedAt,
-      currentStepName: progress.currentStepName,
+      currentStepName:
+        progress.currentStepName,
       status: progress.status,
       updatedAt: new Date().toISOString(),
-      workflowRunId,
-    });
+    })
+    .where(
+      and(
+        eq(projectWorkflowRunsTable.id, workflowRunId),
+        isNull(projectWorkflowRunsTable.deletedAt),
+      ),
+    )
+    .run();
 }
 
 function getWorkflowRunRow(sqlite: Database, workflowRunId: string): WorkflowRunRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, workflow_id, project_id, workflow_name, workflow_version,
-               status, trigger_source, trigger_payload, current_step_name,
-               total_steps, started_at, completed_at, created_at, updated_at
-        FROM project_workflow_runs
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      completed_at: projectWorkflowRunsTable.completedAt,
+      created_at: projectWorkflowRunsTable.createdAt,
+      current_step_name: projectWorkflowRunsTable.currentStepName,
+      id: projectWorkflowRunsTable.id,
+      project_id: projectWorkflowRunsTable.projectId,
+      started_at: projectWorkflowRunsTable.startedAt,
+      status: projectWorkflowRunsTable.status,
+      total_steps: projectWorkflowRunsTable.totalSteps,
+      trigger_payload: projectWorkflowRunsTable.triggerPayload,
+      trigger_source: projectWorkflowRunsTable.triggerSource,
+      updated_at: projectWorkflowRunsTable.updatedAt,
+      workflow_id: projectWorkflowRunsTable.workflowId,
+      workflow_name: projectWorkflowRunsTable.workflowName,
+      workflow_version: projectWorkflowRunsTable.workflowVersion,
+    })
+    .from(projectWorkflowRunsTable)
+    .where(
+      and(
+        eq(projectWorkflowRunsTable.id, workflowRunId),
+        isNull(projectWorkflowRunsTable.deletedAt),
+      ),
     )
-    .get(workflowRunId) as WorkflowRunRow | undefined;
+    .get() as WorkflowRunRow | undefined;
 
   if (!row) {
     throw new ProblemError({
@@ -346,15 +385,19 @@ export async function createWorkflow(
 ): Promise<WorkflowDefinitionPayload> {
   await getProjectById(sqlite, input.projectId);
 
-  const existing = sqlite
-    .prepare(
-      `
-        SELECT id
-        FROM project_workflow_definitions
-        WHERE project_id = ? AND name = ? AND deleted_at IS NULL
-      `,
+  const existing = getDrizzleDb(sqlite)
+    .select({
+      id: projectWorkflowDefinitionsTable.id,
+    })
+    .from(projectWorkflowDefinitionsTable)
+    .where(
+      and(
+        eq(projectWorkflowDefinitionsTable.projectId, input.projectId),
+        eq(projectWorkflowDefinitionsTable.name, input.name),
+        isNull(projectWorkflowDefinitionsTable.deletedAt),
+      ),
     )
-    .get(input.projectId, input.name) as { id: string } | undefined;
+    .get() as { id: string } | undefined;
   if (existing) {
     throwWorkflowNameConflict(input.projectId, input.name);
   }
@@ -362,19 +405,9 @@ export async function createWorkflow(
   const now = new Date().toISOString();
   const workflowId = createWorkflowId();
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_workflow_definitions (
-          id, project_id, name, description, version, steps_json,
-          created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @projectId, @name, @description, @version, @stepsJson,
-          @createdAt, @updatedAt, NULL
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectWorkflowDefinitionsTable)
+    .values({
       createdAt: now,
       description: input.description ?? null,
       id: workflowId,
@@ -383,7 +416,9 @@ export async function createWorkflow(
       stepsJson: JSON.stringify(input.steps),
       updatedAt: now,
       version: input.version ?? 1,
-    });
+      deletedAt: null,
+    })
+    .run();
 
   return getWorkflowById(sqlite, workflowId);
 }
@@ -394,16 +429,30 @@ export async function listProjectWorkflows(
 ): Promise<WorkflowListPayload> {
   await getProjectById(sqlite, projectId);
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, name, description, version, steps_json, created_at, updated_at
-        FROM project_workflow_definitions
-        WHERE project_id = ? AND deleted_at IS NULL AND id NOT LIKE 'wff_%'
-        ORDER BY updated_at DESC, created_at DESC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      created_at: projectWorkflowDefinitionsTable.createdAt,
+      description: projectWorkflowDefinitionsTable.description,
+      id: projectWorkflowDefinitionsTable.id,
+      name: projectWorkflowDefinitionsTable.name,
+      project_id: projectWorkflowDefinitionsTable.projectId,
+      steps_json: projectWorkflowDefinitionsTable.stepsJson,
+      updated_at: projectWorkflowDefinitionsTable.updatedAt,
+      version: projectWorkflowDefinitionsTable.version,
+    })
+    .from(projectWorkflowDefinitionsTable)
+    .where(
+      and(
+        eq(projectWorkflowDefinitionsTable.projectId, projectId),
+        isNull(projectWorkflowDefinitionsTable.deletedAt),
+        notLike(projectWorkflowDefinitionsTable.id, 'wff_%'),
+      ),
     )
-    .all(projectId) as WorkflowDefinitionRow[];
+    .orderBy(
+      desc(projectWorkflowDefinitionsTable.updatedAt),
+      desc(projectWorkflowDefinitionsTable.createdAt),
+    )
+    .all() as WorkflowDefinitionRow[];
 
   return {
     items: rows.map(mapWorkflowDefinitionRow),
@@ -424,18 +473,35 @@ export async function listWorkflowRuns(
 ): Promise<WorkflowRunListPayload> {
   getWorkflowDefinitionRow(sqlite, workflowId);
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, workflow_id, project_id, workflow_name, workflow_version,
-               status, trigger_source, trigger_payload, current_step_name,
-               total_steps, started_at, completed_at, created_at, updated_at
-        FROM project_workflow_runs
-        WHERE workflow_id = ? AND deleted_at IS NULL
-        ORDER BY updated_at DESC, created_at DESC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      completed_at: projectWorkflowRunsTable.completedAt,
+      created_at: projectWorkflowRunsTable.createdAt,
+      current_step_name: projectWorkflowRunsTable.currentStepName,
+      id: projectWorkflowRunsTable.id,
+      project_id: projectWorkflowRunsTable.projectId,
+      started_at: projectWorkflowRunsTable.startedAt,
+      status: projectWorkflowRunsTable.status,
+      total_steps: projectWorkflowRunsTable.totalSteps,
+      trigger_payload: projectWorkflowRunsTable.triggerPayload,
+      trigger_source: projectWorkflowRunsTable.triggerSource,
+      updated_at: projectWorkflowRunsTable.updatedAt,
+      workflow_id: projectWorkflowRunsTable.workflowId,
+      workflow_name: projectWorkflowRunsTable.workflowName,
+      workflow_version: projectWorkflowRunsTable.workflowVersion,
+    })
+    .from(projectWorkflowRunsTable)
+    .where(
+      and(
+        eq(projectWorkflowRunsTable.workflowId, workflowId),
+        isNull(projectWorkflowRunsTable.deletedAt),
+      ),
     )
-    .all(workflowId) as WorkflowRunRow[];
+    .orderBy(
+      desc(projectWorkflowRunsTable.updatedAt),
+      desc(projectWorkflowRunsTable.createdAt),
+    )
+    .all() as WorkflowRunRow[];
 
   return {
     items: rows.map((row) =>
@@ -510,23 +576,21 @@ export async function cancelWorkflowRunById(
     });
   }
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_workflow_runs
-        SET
-          status = 'CANCELLED',
-          current_step_name = NULL,
-          completed_at = @completedAt,
-          updated_at = @updatedAt
-        WHERE id = @workflowRunId AND deleted_at IS NULL
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .update(projectWorkflowRunsTable)
+    .set({
+      status: 'CANCELLED',
+      currentStepName: null,
       completedAt: now,
       updatedAt: now,
-      workflowRunId,
-    });
+    })
+    .where(
+      and(
+        eq(projectWorkflowRunsTable.id, workflowRunId),
+        isNull(projectWorkflowRunsTable.deletedAt),
+      ),
+    )
+    .run();
 
   return getWorkflowRunById(sqlite, workflowRunId);
 }
@@ -552,14 +616,20 @@ export async function retryWorkflowRunById(
 
 export function listRunningWorkflowRunIds(sqlite: Database): string[] {
   return (
-    sqlite
-      .prepare(
-        `
-          SELECT id
-          FROM project_workflow_runs
-          WHERE status = 'RUNNING' AND deleted_at IS NULL
-          ORDER BY updated_at DESC, created_at DESC
-        `,
+    getDrizzleDb(sqlite)
+      .select({
+        id: projectWorkflowRunsTable.id,
+      })
+      .from(projectWorkflowRunsTable)
+      .where(
+        and(
+          eq(projectWorkflowRunsTable.status, 'RUNNING'),
+          isNull(projectWorkflowRunsTable.deletedAt),
+        ),
+      )
+      .orderBy(
+        desc(projectWorkflowRunsTable.updatedAt),
+        desc(projectWorkflowRunsTable.createdAt),
       )
       .all() as Array<{ id: string }>
   ).map((row) => row.id);
@@ -574,32 +644,61 @@ export function listRecentWorkflowRuns(
 ): WorkflowRunPayload[] {
   const limit = Math.max(1, input.limit ?? 8);
   const rows = input.projectId
-    ? (sqlite
-        .prepare(
-          `
-            SELECT id, workflow_id, project_id, workflow_name, workflow_version,
-                   status, trigger_source, trigger_payload, current_step_name,
-                   total_steps, started_at, completed_at, created_at, updated_at
-            FROM project_workflow_runs
-            WHERE project_id = ? AND deleted_at IS NULL
-            ORDER BY updated_at DESC, created_at DESC
-            LIMIT ?
-          `,
+    ? (getDrizzleDb(sqlite)
+        .select({
+          completed_at: projectWorkflowRunsTable.completedAt,
+          created_at: projectWorkflowRunsTable.createdAt,
+          current_step_name: projectWorkflowRunsTable.currentStepName,
+          id: projectWorkflowRunsTable.id,
+          project_id: projectWorkflowRunsTable.projectId,
+          started_at: projectWorkflowRunsTable.startedAt,
+          status: projectWorkflowRunsTable.status,
+          total_steps: projectWorkflowRunsTable.totalSteps,
+          trigger_payload: projectWorkflowRunsTable.triggerPayload,
+          trigger_source: projectWorkflowRunsTable.triggerSource,
+          updated_at: projectWorkflowRunsTable.updatedAt,
+          workflow_id: projectWorkflowRunsTable.workflowId,
+          workflow_name: projectWorkflowRunsTable.workflowName,
+          workflow_version: projectWorkflowRunsTable.workflowVersion,
+        })
+        .from(projectWorkflowRunsTable)
+        .where(
+          and(
+            eq(projectWorkflowRunsTable.projectId, input.projectId),
+            isNull(projectWorkflowRunsTable.deletedAt),
+          ),
         )
-        .all(input.projectId, limit) as WorkflowRunRow[])
-    : (sqlite
-        .prepare(
-          `
-            SELECT id, workflow_id, project_id, workflow_name, workflow_version,
-                   status, trigger_source, trigger_payload, current_step_name,
-                   total_steps, started_at, completed_at, created_at, updated_at
-            FROM project_workflow_runs
-            WHERE deleted_at IS NULL
-            ORDER BY updated_at DESC, created_at DESC
-            LIMIT ?
-          `,
+        .orderBy(
+          desc(projectWorkflowRunsTable.updatedAt),
+          desc(projectWorkflowRunsTable.createdAt),
         )
-        .all(limit) as WorkflowRunRow[]);
+        .limit(limit)
+        .all() as WorkflowRunRow[])
+    : (getDrizzleDb(sqlite)
+        .select({
+          completed_at: projectWorkflowRunsTable.completedAt,
+          created_at: projectWorkflowRunsTable.createdAt,
+          current_step_name: projectWorkflowRunsTable.currentStepName,
+          id: projectWorkflowRunsTable.id,
+          project_id: projectWorkflowRunsTable.projectId,
+          started_at: projectWorkflowRunsTable.startedAt,
+          status: projectWorkflowRunsTable.status,
+          total_steps: projectWorkflowRunsTable.totalSteps,
+          trigger_payload: projectWorkflowRunsTable.triggerPayload,
+          trigger_source: projectWorkflowRunsTable.triggerSource,
+          updated_at: projectWorkflowRunsTable.updatedAt,
+          workflow_id: projectWorkflowRunsTable.workflowId,
+          workflow_name: projectWorkflowRunsTable.workflowName,
+          workflow_version: projectWorkflowRunsTable.workflowVersion,
+        })
+        .from(projectWorkflowRunsTable)
+        .where(isNull(projectWorkflowRunsTable.deletedAt))
+        .orderBy(
+          desc(projectWorkflowRunsTable.updatedAt),
+          desc(projectWorkflowRunsTable.createdAt),
+        )
+        .limit(limit)
+        .all() as WorkflowRunRow[]);
 
   return rows.map((row) => mapWorkflowRunRow(row, resolveWorkflowRunProgress(sqlite, row)));
 }

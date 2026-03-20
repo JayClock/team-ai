@@ -129,6 +129,18 @@ export const projectRuntimeProfilesTable = sqliteTable('project_runtime_profiles
   deletedAt: text('deleted_at'),
 });
 
+export const projectWorkflowDefinitionsTable = sqliteTable('project_workflow_definitions', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  version: integer('version').notNull(),
+  stepsJson: text('steps_json').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
 export const projectWorkflowRunsTable = sqliteTable('project_workflow_runs', {
   id: text('id').primaryKey(),
   workflowId: text('workflow_id').notNull(),
@@ -213,6 +225,27 @@ export const projectTracesTable = sqliteTable('project_traces', {
   createdAt: text('created_at').notNull(),
 });
 
+export const projectTaskRunsTable = sqliteTable('project_task_runs', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  taskId: text('task_id').notNull(),
+  sessionId: text('session_id'),
+  kind: text('kind').notNull(),
+  role: text('role'),
+  provider: text('provider'),
+  specialistId: text('specialist_id'),
+  status: text('status').notNull(),
+  summary: text('summary'),
+  verificationVerdict: text('verification_verdict'),
+  verificationReport: text('verification_report'),
+  retryOfRunId: text('retry_of_run_id'),
+  startedAt: text('started_at'),
+  completedAt: text('completed_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
 export const projectKanbanBoardsTable = sqliteTable('project_kanban_boards', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull(),
@@ -268,11 +301,13 @@ export const sqliteSchema = {
   projectSchedules: projectSchedulesTable,
   projectBackgroundTasks: projectBackgroundTasksTable,
   projectRuntimeProfiles: projectRuntimeProfilesTable,
+  projectWorkflowDefinitions: projectWorkflowDefinitionsTable,
   projectWorkflowRuns: projectWorkflowRunsTable,
   projectAcpSessions: projectAcpSessionsTable,
   projectAcpSessionEvents: projectAcpSessionEventsTable,
   projectTasks: projectTasksTable,
   projectTraces: projectTracesTable,
+  projectTaskRuns: projectTaskRunsTable,
   projectKanbanBoards: projectKanbanBoardsTable,
   projectKanbanColumns: projectKanbanColumnsTable,
   syncState: syncStateTable,

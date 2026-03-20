@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { createHash } from 'node:crypto';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { BackgroundTaskPayload } from '../schemas/background-task';
 import type { FlowPayload } from '../schemas/flow';
 import type {
@@ -9,6 +10,12 @@ import type {
   WorkflowStepPayload,
 } from '../schemas/workflow';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectBackgroundTasksTable,
+  projectWorkflowDefinitionsTable,
+  projectWorkflowRunsTable,
+} from '../db/schema';
 import { getProjectById } from './project-service';
 import { getFlowById } from './flow-service';
 import {
@@ -75,40 +82,9 @@ async function upsertResourceWorkflowDefinition(
   const workflowVersion = toWorkflowVersion(flow);
   const workflowSteps = toWorkflowSteps(flow);
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_workflow_definitions (
-          id,
-          project_id,
-          name,
-          description,
-          version,
-          steps_json,
-          created_at,
-          updated_at,
-          deleted_at
-        ) VALUES (
-          @id,
-          @projectId,
-          @name,
-          @description,
-          @version,
-          @stepsJson,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-        ON CONFLICT(id) DO UPDATE SET
-          name = excluded.name,
-          description = excluded.description,
-          version = excluded.version,
-          steps_json = excluded.steps_json,
-          updated_at = excluded.updated_at,
-          deleted_at = NULL
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectWorkflowDefinitionsTable)
+    .values({
       createdAt: now,
       description: toWorkflowDescription(flow),
       id: workflowId,
@@ -117,7 +93,20 @@ async function upsertResourceWorkflowDefinition(
       stepsJson: JSON.stringify(workflowSteps),
       updatedAt: now,
       version: workflowVersion,
-    });
+      deletedAt: null,
+    })
+    .onConflictDoUpdate({
+      target: projectWorkflowDefinitionsTable.id,
+      set: {
+        name: workflowName,
+        description: toWorkflowDescription(flow),
+        version: workflowVersion,
+        stepsJson: JSON.stringify(workflowSteps),
+        updatedAt: now,
+        deletedAt: null,
+      },
+    })
+    .run();
 
   return getWorkflowById(sqlite, workflowId);
 }
@@ -285,15 +274,20 @@ async function getWorkflowRunContext(
   triggerPayload: string | null;
   workflow: WorkflowDefinitionPayload;
 } | null> {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT workflow_id, project_id, trigger_payload
-        FROM project_workflow_runs
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      project_id: projectWorkflowRunsTable.projectId,
+      trigger_payload: projectWorkflowRunsTable.triggerPayload,
+      workflow_id: projectWorkflowRunsTable.workflowId,
+    })
+    .from(projectWorkflowRunsTable)
+    .where(
+      and(
+        eq(projectWorkflowRunsTable.id, workflowRunId),
+        isNull(projectWorkflowRunsTable.deletedAt),
+      ),
     )
-    .get(workflowRunId) as
+    .get() as
     | {
         project_id: string;
         trigger_payload: string | null;
@@ -313,15 +307,19 @@ async function getWorkflowRunContext(
 }
 
 function listWorkflowRunTaskOutputs(sqlite: Database, workflowRunId: string) {
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT workflow_step_name, task_output
-        FROM project_background_tasks
-        WHERE workflow_run_id = ? AND deleted_at IS NULL
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      task_output: projectBackgroundTasksTable.taskOutput,
+      workflow_step_name: projectBackgroundTasksTable.workflowStepName,
+    })
+    .from(projectBackgroundTasksTable)
+    .where(
+      and(
+        eq(projectBackgroundTasksTable.workflowRunId, workflowRunId),
+        isNull(projectBackgroundTasksTable.deletedAt),
+      ),
     )
-    .all(workflowRunId) as Array<{
+    .all() as Array<{
       task_output: string | null;
       workflow_step_name: string | null;
     }>;
