@@ -1,5 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { ProjectPayload } from '../schemas/project';
+import type { SchedulePayload } from '../schemas/schedule';
 import type {
   SyncConflictPayload,
   SyncConflictResolution,
@@ -60,6 +61,55 @@ export const projectAgentsTable = sqliteTable('project_agents', {
   specialistId: text('specialist_id'),
 });
 
+export const projectSchedulesTable = sqliteTable('project_schedules', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  workflowId: text('workflow_id').notNull(),
+  name: text('name').notNull(),
+  cronExpr: text('cron_expr').notNull(),
+  triggerTarget: text('trigger_target').$type<SchedulePayload['triggerTarget']>().notNull(),
+  triggerPayloadTemplate: text('trigger_payload_template'),
+  enabled: integer('enabled', { mode: 'boolean' }).notNull(),
+  lastRunAt: text('last_run_at'),
+  nextRunAt: text('next_run_at'),
+  lastWorkflowRunId: text('last_workflow_run_id'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const projectBackgroundTasksTable = sqliteTable('project_background_tasks', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  taskId: text('task_id'),
+  title: text('title').notNull(),
+  prompt: text('prompt').notNull(),
+  agentId: text('agent_id').notNull(),
+  status: text('status').notNull(),
+  triggeredBy: text('triggered_by').notNull(),
+  triggerSource: text('trigger_source').notNull(),
+  priority: text('priority').notNull(),
+  resultSessionId: text('result_session_id'),
+  errorMessage: text('error_message'),
+  attempts: integer('attempts').notNull(),
+  maxAttempts: integer('max_attempts').notNull(),
+  lastActivityAt: text('last_activity_at'),
+  currentActivity: text('current_activity'),
+  toolCallCount: integer('tool_call_count'),
+  inputTokens: integer('input_tokens'),
+  outputTokens: integer('output_tokens'),
+  workflowRunId: text('workflow_run_id'),
+  workflowStepName: text('workflow_step_name'),
+  dependsOnTaskIdsJson: text('depends_on_task_ids_json').notNull(),
+  taskOutput: text('task_output'),
+  startedAt: text('started_at'),
+  completedAt: text('completed_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+  specialistId: text('specialist_id'),
+});
+
 export const syncStateTable = sqliteTable('sync_state', {
   id: integer('id').primaryKey(),
   status: text('status').$type<SyncRuntimeStatus>().notNull(),
@@ -89,6 +139,8 @@ export const sqliteSchema = {
   projects: projectsTable,
   projectCodebases: projectCodebasesTable,
   projectAgents: projectAgentsTable,
+  projectSchedules: projectSchedulesTable,
+  projectBackgroundTasks: projectBackgroundTasksTable,
   syncState: syncStateTable,
   syncConflicts: syncConflictsTable,
 };

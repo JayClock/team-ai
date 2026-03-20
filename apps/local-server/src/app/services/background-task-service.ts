@@ -1,6 +1,9 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { and, asc, count, desc, eq, isNull, sql } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectBackgroundTasksTable } from '../db/schema';
 import type {
   BackgroundTaskListPayload,
   BackgroundTaskPayload,
@@ -133,21 +136,45 @@ function getBackgroundTaskRow(
   sqlite: Database,
   backgroundTaskId: string,
 ): BackgroundTaskRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, task_id, title, prompt, agent_id, status,
-               triggered_by, trigger_source, priority, result_session_id,
-               error_message, attempts, max_attempts, last_activity_at,
-               current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, specialist_id,
-               depends_on_task_ids_json,
-               task_output, started_at, completed_at, created_at, updated_at
-        FROM project_background_tasks
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectBackgroundTasksTable.id,
+      project_id: projectBackgroundTasksTable.projectId,
+      task_id: projectBackgroundTasksTable.taskId,
+      title: projectBackgroundTasksTable.title,
+      prompt: projectBackgroundTasksTable.prompt,
+      agent_id: projectBackgroundTasksTable.agentId,
+      status: projectBackgroundTasksTable.status,
+      triggered_by: projectBackgroundTasksTable.triggeredBy,
+      trigger_source: projectBackgroundTasksTable.triggerSource,
+      priority: projectBackgroundTasksTable.priority,
+      result_session_id: projectBackgroundTasksTable.resultSessionId,
+      error_message: projectBackgroundTasksTable.errorMessage,
+      attempts: projectBackgroundTasksTable.attempts,
+      max_attempts: projectBackgroundTasksTable.maxAttempts,
+      last_activity_at: projectBackgroundTasksTable.lastActivityAt,
+      current_activity: projectBackgroundTasksTable.currentActivity,
+      tool_call_count: projectBackgroundTasksTable.toolCallCount,
+      input_tokens: projectBackgroundTasksTable.inputTokens,
+      output_tokens: projectBackgroundTasksTable.outputTokens,
+      workflow_run_id: projectBackgroundTasksTable.workflowRunId,
+      workflow_step_name: projectBackgroundTasksTable.workflowStepName,
+      specialist_id: projectBackgroundTasksTable.specialistId,
+      depends_on_task_ids_json: projectBackgroundTasksTable.dependsOnTaskIdsJson,
+      task_output: projectBackgroundTasksTable.taskOutput,
+      started_at: projectBackgroundTasksTable.startedAt,
+      completed_at: projectBackgroundTasksTable.completedAt,
+      created_at: projectBackgroundTasksTable.createdAt,
+      updated_at: projectBackgroundTasksTable.updatedAt,
+    })
+    .from(projectBackgroundTasksTable)
+    .where(
+      and(
+        eq(projectBackgroundTasksTable.id, backgroundTaskId),
+        isNull(projectBackgroundTasksTable.deletedAt),
+      ),
     )
-    .get(backgroundTaskId) as BackgroundTaskRow | undefined;
+    .get() as BackgroundTaskRow | undefined;
 
   if (!row) {
     throwBackgroundTaskNotFound(backgroundTaskId);
@@ -166,41 +193,30 @@ export async function createBackgroundTask(
   const title = input.title?.trim() || input.prompt.trim().slice(0, 60);
   const id = createBackgroundTaskId();
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_background_tasks (
-          id, project_id, task_id, title, prompt, agent_id, status,
-          triggered_by, trigger_source, priority, attempts, max_attempts,
-          workflow_run_id, workflow_step_name, specialist_id,
-          depends_on_task_ids_json,
-          created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @projectId, @taskId, @title, @prompt, @agentId, 'PENDING',
-          @triggeredBy, @triggerSource, @priority, 0, @maxAttempts,
-          @workflowRunId, @workflowStepName, @specialistId, @dependsOnTaskIdsJson,
-          @createdAt, @updatedAt, NULL
-        )
-      `,
-    )
-    .run({
-      agentId: input.agentId,
-      createdAt: now,
-      dependsOnTaskIdsJson: JSON.stringify(input.dependsOnTaskIds ?? []),
+  getDrizzleDb(sqlite)
+    .insert(projectBackgroundTasksTable)
+    .values({
       id,
-      maxAttempts: input.maxAttempts ?? 1,
-      priority: input.priority ?? 'NORMAL',
       projectId: input.projectId,
-      prompt: input.prompt,
-      specialistId: input.specialistId ?? null,
       taskId: input.taskId ?? null,
       title,
+      prompt: input.prompt,
+      agentId: input.agentId,
+      status: 'PENDING',
       triggeredBy: input.triggeredBy ?? 'user',
       triggerSource: input.triggerSource ?? 'manual',
-      updatedAt: now,
+      priority: input.priority ?? 'NORMAL',
+      attempts: 0,
+      maxAttempts: input.maxAttempts ?? 1,
       workflowRunId: input.workflowRunId ?? null,
       workflowStepName: input.workflowStepName ?? null,
-    });
+      specialistId: input.specialistId ?? null,
+      dependsOnTaskIdsJson: JSON.stringify(input.dependsOnTaskIds ?? []),
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    })
+    .run();
 
   return getBackgroundTaskById(sqlite, id);
 }
@@ -212,46 +228,55 @@ export async function listBackgroundTasks(
   await getProjectById(sqlite, query.projectId);
   const offset = (query.page - 1) * query.pageSize;
   const normalizedStatus = ensureBackgroundTaskStatus(query.status);
-  const filters = ['project_id = @projectId', 'deleted_at IS NULL'];
-  const parameters: Record<string, unknown> = {
-    limit: query.pageSize,
-    offset,
-    projectId: query.projectId,
-  };
+  const whereClause = and(
+    eq(projectBackgroundTasksTable.projectId, query.projectId),
+    isNull(projectBackgroundTasksTable.deletedAt),
+    normalizedStatus ? eq(projectBackgroundTasksTable.status, normalizedStatus) : undefined,
+  );
+  const db = getDrizzleDb(sqlite);
+  const items = db
+    .select({
+      id: projectBackgroundTasksTable.id,
+      project_id: projectBackgroundTasksTable.projectId,
+      task_id: projectBackgroundTasksTable.taskId,
+      title: projectBackgroundTasksTable.title,
+      prompt: projectBackgroundTasksTable.prompt,
+      agent_id: projectBackgroundTasksTable.agentId,
+      status: projectBackgroundTasksTable.status,
+      triggered_by: projectBackgroundTasksTable.triggeredBy,
+      trigger_source: projectBackgroundTasksTable.triggerSource,
+      priority: projectBackgroundTasksTable.priority,
+      result_session_id: projectBackgroundTasksTable.resultSessionId,
+      error_message: projectBackgroundTasksTable.errorMessage,
+      attempts: projectBackgroundTasksTable.attempts,
+      max_attempts: projectBackgroundTasksTable.maxAttempts,
+      last_activity_at: projectBackgroundTasksTable.lastActivityAt,
+      current_activity: projectBackgroundTasksTable.currentActivity,
+      tool_call_count: projectBackgroundTasksTable.toolCallCount,
+      input_tokens: projectBackgroundTasksTable.inputTokens,
+      output_tokens: projectBackgroundTasksTable.outputTokens,
+      workflow_run_id: projectBackgroundTasksTable.workflowRunId,
+      workflow_step_name: projectBackgroundTasksTable.workflowStepName,
+      specialist_id: projectBackgroundTasksTable.specialistId,
+      depends_on_task_ids_json: projectBackgroundTasksTable.dependsOnTaskIdsJson,
+      task_output: projectBackgroundTasksTable.taskOutput,
+      started_at: projectBackgroundTasksTable.startedAt,
+      completed_at: projectBackgroundTasksTable.completedAt,
+      created_at: projectBackgroundTasksTable.createdAt,
+      updated_at: projectBackgroundTasksTable.updatedAt,
+    })
+    .from(projectBackgroundTasksTable)
+    .where(whereClause)
+    .orderBy(desc(projectBackgroundTasksTable.updatedAt), desc(projectBackgroundTasksTable.createdAt))
+    .limit(query.pageSize)
+    .offset(offset)
+    .all() as BackgroundTaskRow[];
 
-  if (normalizedStatus) {
-    filters.push('status = @status');
-    parameters.status = normalizedStatus;
-  }
-
-  const whereClause = filters.join(' AND ');
-  const items = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, task_id, title, prompt, agent_id, status,
-               triggered_by, trigger_source, priority, result_session_id,
-               error_message, attempts, max_attempts, last_activity_at,
-               current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, specialist_id,
-               depends_on_task_ids_json,
-               task_output, started_at, completed_at, created_at, updated_at
-        FROM project_background_tasks
-        WHERE ${whereClause}
-        ORDER BY updated_at DESC, created_at DESC
-        LIMIT @limit OFFSET @offset
-      `,
-    )
-    .all(parameters) as BackgroundTaskRow[];
-
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_background_tasks
-        WHERE ${whereClause}
-      `,
-    )
-    .get(parameters) as { count: number };
+  const total = db
+    .select({ count: count() })
+    .from(projectBackgroundTasksTable)
+    .where(whereClause)
+    .get() as { count: number };
 
   return {
     items: items.map(mapBackgroundTaskRow),
@@ -273,40 +298,63 @@ export async function getBackgroundTaskById(
 export async function listReadyBackgroundTasks(
   sqlite: Database,
 ): Promise<BackgroundTaskPayload[]> {
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, task_id, title, prompt, agent_id, status,
-               triggered_by, trigger_source, priority, result_session_id,
-               error_message, attempts, max_attempts, last_activity_at,
-               current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, specialist_id,
-               depends_on_task_ids_json,
-               task_output, started_at, completed_at, created_at, updated_at
-        FROM project_background_tasks
-        WHERE status = 'PENDING'
-          AND deleted_at IS NULL
-        ORDER BY
-          CASE priority
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectBackgroundTasksTable.id,
+      project_id: projectBackgroundTasksTable.projectId,
+      task_id: projectBackgroundTasksTable.taskId,
+      title: projectBackgroundTasksTable.title,
+      prompt: projectBackgroundTasksTable.prompt,
+      agent_id: projectBackgroundTasksTable.agentId,
+      status: projectBackgroundTasksTable.status,
+      triggered_by: projectBackgroundTasksTable.triggeredBy,
+      trigger_source: projectBackgroundTasksTable.triggerSource,
+      priority: projectBackgroundTasksTable.priority,
+      result_session_id: projectBackgroundTasksTable.resultSessionId,
+      error_message: projectBackgroundTasksTable.errorMessage,
+      attempts: projectBackgroundTasksTable.attempts,
+      max_attempts: projectBackgroundTasksTable.maxAttempts,
+      last_activity_at: projectBackgroundTasksTable.lastActivityAt,
+      current_activity: projectBackgroundTasksTable.currentActivity,
+      tool_call_count: projectBackgroundTasksTable.toolCallCount,
+      input_tokens: projectBackgroundTasksTable.inputTokens,
+      output_tokens: projectBackgroundTasksTable.outputTokens,
+      workflow_run_id: projectBackgroundTasksTable.workflowRunId,
+      workflow_step_name: projectBackgroundTasksTable.workflowStepName,
+      specialist_id: projectBackgroundTasksTable.specialistId,
+      depends_on_task_ids_json: projectBackgroundTasksTable.dependsOnTaskIdsJson,
+      task_output: projectBackgroundTasksTable.taskOutput,
+      started_at: projectBackgroundTasksTable.startedAt,
+      completed_at: projectBackgroundTasksTable.completedAt,
+      created_at: projectBackgroundTasksTable.createdAt,
+      updated_at: projectBackgroundTasksTable.updatedAt,
+    })
+    .from(projectBackgroundTasksTable)
+    .where(
+      and(
+        eq(projectBackgroundTasksTable.status, 'PENDING'),
+        isNull(projectBackgroundTasksTable.deletedAt),
+      ),
+    )
+    .orderBy(
+      sql`CASE ${projectBackgroundTasksTable.priority}
             WHEN 'HIGH' THEN 0
             WHEN 'NORMAL' THEN 1
             ELSE 2
-          END ASC,
-          created_at ASC
-      `,
+          END`,
+      asc(projectBackgroundTasksTable.createdAt),
     )
     .all() as BackgroundTaskRow[];
 
   const tasksById = new Map(rows.map((row) => [row.id, mapBackgroundTaskRow(row)]));
 
-  const dependencies = sqlite
-    .prepare(
-      `
-        SELECT id, status
-        FROM project_background_tasks
-        WHERE deleted_at IS NULL
-      `,
-    )
+  const dependencies = getDrizzleDb(sqlite)
+    .select({
+      id: projectBackgroundTasksTable.id,
+      status: projectBackgroundTasksTable.status,
+    })
+    .from(projectBackgroundTasksTable)
+    .where(isNull(projectBackgroundTasksTable.deletedAt))
     .all() as Array<{ id: string; status: BackgroundTaskStatus }>;
   const dependencyStatusById = new Map(
     dependencies.map((row) => [row.id, row.status]),
@@ -322,21 +370,45 @@ export async function listReadyBackgroundTasks(
 export async function listRunningBackgroundTasks(
   sqlite: Database,
 ): Promise<BackgroundTaskPayload[]> {
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, task_id, title, prompt, agent_id, status,
-               triggered_by, trigger_source, priority, result_session_id,
-               error_message, attempts, max_attempts, last_activity_at,
-               current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, specialist_id,
-               depends_on_task_ids_json,
-               task_output, started_at, completed_at, created_at, updated_at
-        FROM project_background_tasks
-        WHERE status = 'RUNNING' AND deleted_at IS NULL
-        ORDER BY created_at ASC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectBackgroundTasksTable.id,
+      project_id: projectBackgroundTasksTable.projectId,
+      task_id: projectBackgroundTasksTable.taskId,
+      title: projectBackgroundTasksTable.title,
+      prompt: projectBackgroundTasksTable.prompt,
+      agent_id: projectBackgroundTasksTable.agentId,
+      status: projectBackgroundTasksTable.status,
+      triggered_by: projectBackgroundTasksTable.triggeredBy,
+      trigger_source: projectBackgroundTasksTable.triggerSource,
+      priority: projectBackgroundTasksTable.priority,
+      result_session_id: projectBackgroundTasksTable.resultSessionId,
+      error_message: projectBackgroundTasksTable.errorMessage,
+      attempts: projectBackgroundTasksTable.attempts,
+      max_attempts: projectBackgroundTasksTable.maxAttempts,
+      last_activity_at: projectBackgroundTasksTable.lastActivityAt,
+      current_activity: projectBackgroundTasksTable.currentActivity,
+      tool_call_count: projectBackgroundTasksTable.toolCallCount,
+      input_tokens: projectBackgroundTasksTable.inputTokens,
+      output_tokens: projectBackgroundTasksTable.outputTokens,
+      workflow_run_id: projectBackgroundTasksTable.workflowRunId,
+      workflow_step_name: projectBackgroundTasksTable.workflowStepName,
+      specialist_id: projectBackgroundTasksTable.specialistId,
+      depends_on_task_ids_json: projectBackgroundTasksTable.dependsOnTaskIdsJson,
+      task_output: projectBackgroundTasksTable.taskOutput,
+      started_at: projectBackgroundTasksTable.startedAt,
+      completed_at: projectBackgroundTasksTable.completedAt,
+      created_at: projectBackgroundTasksTable.createdAt,
+      updated_at: projectBackgroundTasksTable.updatedAt,
+    })
+    .from(projectBackgroundTasksTable)
+    .where(
+      and(
+        eq(projectBackgroundTasksTable.status, 'RUNNING'),
+        isNull(projectBackgroundTasksTable.deletedAt),
+      ),
     )
+    .orderBy(asc(projectBackgroundTasksTable.createdAt))
     .all() as BackgroundTaskRow[];
 
   return rows.map(mapBackgroundTaskRow);
@@ -346,21 +418,45 @@ export async function findBackgroundTaskBySessionId(
   sqlite: Database,
   sessionId: string,
 ): Promise<BackgroundTaskPayload | null> {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, task_id, title, prompt, agent_id, status,
-               triggered_by, trigger_source, priority, result_session_id,
-               error_message, attempts, max_attempts, last_activity_at,
-               current_activity, tool_call_count, input_tokens, output_tokens,
-               workflow_run_id, workflow_step_name, specialist_id,
-               depends_on_task_ids_json,
-               task_output, started_at, completed_at, created_at, updated_at
-        FROM project_background_tasks
-        WHERE result_session_id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectBackgroundTasksTable.id,
+      project_id: projectBackgroundTasksTable.projectId,
+      task_id: projectBackgroundTasksTable.taskId,
+      title: projectBackgroundTasksTable.title,
+      prompt: projectBackgroundTasksTable.prompt,
+      agent_id: projectBackgroundTasksTable.agentId,
+      status: projectBackgroundTasksTable.status,
+      triggered_by: projectBackgroundTasksTable.triggeredBy,
+      trigger_source: projectBackgroundTasksTable.triggerSource,
+      priority: projectBackgroundTasksTable.priority,
+      result_session_id: projectBackgroundTasksTable.resultSessionId,
+      error_message: projectBackgroundTasksTable.errorMessage,
+      attempts: projectBackgroundTasksTable.attempts,
+      max_attempts: projectBackgroundTasksTable.maxAttempts,
+      last_activity_at: projectBackgroundTasksTable.lastActivityAt,
+      current_activity: projectBackgroundTasksTable.currentActivity,
+      tool_call_count: projectBackgroundTasksTable.toolCallCount,
+      input_tokens: projectBackgroundTasksTable.inputTokens,
+      output_tokens: projectBackgroundTasksTable.outputTokens,
+      workflow_run_id: projectBackgroundTasksTable.workflowRunId,
+      workflow_step_name: projectBackgroundTasksTable.workflowStepName,
+      specialist_id: projectBackgroundTasksTable.specialistId,
+      depends_on_task_ids_json: projectBackgroundTasksTable.dependsOnTaskIdsJson,
+      task_output: projectBackgroundTasksTable.taskOutput,
+      started_at: projectBackgroundTasksTable.startedAt,
+      completed_at: projectBackgroundTasksTable.completedAt,
+      created_at: projectBackgroundTasksTable.createdAt,
+      updated_at: projectBackgroundTasksTable.updatedAt,
+    })
+    .from(projectBackgroundTasksTable)
+    .where(
+      and(
+        eq(projectBackgroundTasksTable.resultSessionId, sessionId),
+        isNull(projectBackgroundTasksTable.deletedAt),
+      ),
     )
-    .get(sessionId) as BackgroundTaskRow | undefined;
+    .get() as BackgroundTaskRow | undefined;
 
   return row ? mapBackgroundTaskRow(row) : null;
 }
@@ -384,70 +480,59 @@ export async function updateBackgroundTaskStatus(
 ): Promise<BackgroundTaskPayload> {
   ensureBackgroundTaskStatus(status);
   const current = getBackgroundTaskRow(sqlite, backgroundTaskId);
+  const attempts =
+    status === 'RUNNING' && current.status !== 'RUNNING'
+      ? current.attempts + 1
+      : current.attempts;
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_background_tasks
-        SET
-          status = @status,
-          result_session_id = @resultSessionId,
-          error_message = @errorMessage,
-          last_activity_at = @lastActivityAt,
-          current_activity = @currentActivity,
-          tool_call_count = @toolCallCount,
-          input_tokens = @inputTokens,
-          output_tokens = @outputTokens,
-          task_output = @taskOutput,
-          started_at = @startedAt,
-          completed_at = @completedAt,
-          attempts = CASE
-            WHEN @status = 'RUNNING' AND status != 'RUNNING' THEN attempts + 1
-            ELSE attempts
-          END,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      completedAt:
-        input?.completedAt === undefined
-          ? current.completed_at
-          : input.completedAt,
-      currentActivity:
-        input?.currentActivity === undefined
-          ? current.current_activity
-          : input.currentActivity,
-      errorMessage:
-        input?.errorMessage === undefined
-          ? current.error_message
-          : input.errorMessage,
-      id: backgroundTaskId,
-      inputTokens:
-        input?.inputTokens === undefined ? current.input_tokens : input.inputTokens,
-      lastActivityAt:
-        input?.lastActivityAt === undefined
-          ? current.last_activity_at
-          : input.lastActivityAt,
-      outputTokens:
-        input?.outputTokens === undefined
-          ? current.output_tokens
-          : input.outputTokens,
+  getDrizzleDb(sqlite)
+    .update(projectBackgroundTasksTable)
+    .set({
+      status,
       resultSessionId:
         input?.resultSessionId === undefined
           ? current.result_session_id
           : input.resultSessionId,
-      startedAt:
-        input?.startedAt === undefined ? current.started_at : input.startedAt,
-      status,
-      taskOutput:
-        input?.taskOutput === undefined ? current.task_output : input.taskOutput,
+      errorMessage:
+        input?.errorMessage === undefined
+          ? current.error_message
+          : input.errorMessage,
+      lastActivityAt:
+        input?.lastActivityAt === undefined
+          ? current.last_activity_at
+          : input.lastActivityAt,
+      currentActivity:
+        input?.currentActivity === undefined
+          ? current.current_activity
+          : input.currentActivity,
       toolCallCount:
         input?.toolCallCount === undefined
           ? current.tool_call_count
           : input.toolCallCount,
+      inputTokens:
+        input?.inputTokens === undefined ? current.input_tokens : input.inputTokens,
+      outputTokens:
+        input?.outputTokens === undefined
+          ? current.output_tokens
+          : input.outputTokens,
+      taskOutput:
+        input?.taskOutput === undefined ? current.task_output : input.taskOutput,
+      startedAt:
+        input?.startedAt === undefined ? current.started_at : input.startedAt,
+      completedAt:
+        input?.completedAt === undefined
+          ? current.completed_at
+          : input.completedAt,
+      attempts,
       updatedAt: new Date().toISOString(),
-    });
+    })
+    .where(
+      and(
+        eq(projectBackgroundTasksTable.id, backgroundTaskId),
+        isNull(projectBackgroundTasksTable.deletedAt),
+      ),
+    )
+    .run();
 
   return getBackgroundTaskById(sqlite, backgroundTaskId);
 }

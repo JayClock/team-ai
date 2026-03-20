@@ -1,6 +1,9 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { and, asc, desc, eq, isNull, lte } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectSchedulesTable } from '../db/schema';
 import type {
   CreateScheduleInput,
   ScheduleListPayload,
@@ -19,7 +22,7 @@ const scheduleIdGenerator = customAlphabet(
 interface ScheduleRow {
   created_at: string;
   cron_expr: string;
-  enabled: number;
+  enabled: boolean;
   id: string;
   last_run_at: string | null;
   last_workflow_run_id: string | null;
@@ -150,7 +153,7 @@ function mapScheduleRow(row: ScheduleRow): SchedulePayload {
   return {
     createdAt: row.created_at,
     cronExpr: row.cron_expr,
-    enabled: row.enabled === 1,
+    enabled: row.enabled,
     id: row.id,
     lastRunAt: row.last_run_at,
     lastWorkflowRunId: row.last_workflow_run_id,
@@ -165,17 +168,30 @@ function mapScheduleRow(row: ScheduleRow): SchedulePayload {
 }
 
 function getScheduleRow(sqlite: Database, scheduleId: string) {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, workflow_id, name, cron_expr, trigger_target,
-               trigger_payload_template, enabled, last_run_at, next_run_at,
-               last_workflow_run_id, created_at, updated_at
-        FROM project_schedules
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectSchedulesTable.id,
+      project_id: projectSchedulesTable.projectId,
+      workflow_id: projectSchedulesTable.workflowId,
+      name: projectSchedulesTable.name,
+      cron_expr: projectSchedulesTable.cronExpr,
+      trigger_target: projectSchedulesTable.triggerTarget,
+      trigger_payload_template: projectSchedulesTable.triggerPayloadTemplate,
+      enabled: projectSchedulesTable.enabled,
+      last_run_at: projectSchedulesTable.lastRunAt,
+      next_run_at: projectSchedulesTable.nextRunAt,
+      last_workflow_run_id: projectSchedulesTable.lastWorkflowRunId,
+      created_at: projectSchedulesTable.createdAt,
+      updated_at: projectSchedulesTable.updatedAt,
+    })
+    .from(projectSchedulesTable)
+    .where(
+      and(
+        eq(projectSchedulesTable.id, scheduleId),
+        isNull(projectSchedulesTable.deletedAt),
+      ),
     )
-    .get(scheduleId) as ScheduleRow | undefined;
+    .get() as ScheduleRow | undefined;
 
   if (!row) {
     throwScheduleNotFound(scheduleId);
@@ -199,32 +215,25 @@ export async function createSchedule(
   const scheduleId = createScheduleId();
   const nextRunAt = getNextRunTime(input.cronExpr);
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_schedules (
-          id, project_id, workflow_id, name, cron_expr, trigger_target,
-          trigger_payload_template, enabled, last_run_at, next_run_at,
-          last_workflow_run_id, created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @projectId, @workflowId, @name, @cronExpr, 'workflow',
-          @triggerPayloadTemplate, @enabled, NULL, @nextRunAt,
-          NULL, @createdAt, @updatedAt, NULL
-        )
-      `,
-    )
-    .run({
-      createdAt: now,
-      cronExpr: input.cronExpr,
-      enabled: input.enabled === false ? 0 : 1,
+  getDrizzleDb(sqlite)
+    .insert(projectSchedulesTable)
+    .values({
       id: scheduleId,
-      name: input.name,
-      nextRunAt,
       projectId: input.projectId,
-      triggerPayloadTemplate: input.triggerPayloadTemplate ?? null,
-      updatedAt: now,
       workflowId: input.workflowId,
-    });
+      name: input.name,
+      cronExpr: input.cronExpr,
+      triggerTarget: 'workflow',
+      triggerPayloadTemplate: input.triggerPayloadTemplate ?? null,
+      enabled: input.enabled !== false,
+      lastRunAt: null,
+      nextRunAt,
+      lastWorkflowRunId: null,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    })
+    .run();
 
   return getScheduleById(sqlite, scheduleId);
 }
@@ -235,18 +244,31 @@ export async function listProjectSchedules(
 ): Promise<ScheduleListPayload> {
   await getProjectById(sqlite, projectId);
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, workflow_id, name, cron_expr, trigger_target,
-               trigger_payload_template, enabled, last_run_at, next_run_at,
-               last_workflow_run_id, created_at, updated_at
-        FROM project_schedules
-        WHERE project_id = ? AND deleted_at IS NULL
-        ORDER BY updated_at DESC, created_at DESC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectSchedulesTable.id,
+      project_id: projectSchedulesTable.projectId,
+      workflow_id: projectSchedulesTable.workflowId,
+      name: projectSchedulesTable.name,
+      cron_expr: projectSchedulesTable.cronExpr,
+      trigger_target: projectSchedulesTable.triggerTarget,
+      trigger_payload_template: projectSchedulesTable.triggerPayloadTemplate,
+      enabled: projectSchedulesTable.enabled,
+      last_run_at: projectSchedulesTable.lastRunAt,
+      next_run_at: projectSchedulesTable.nextRunAt,
+      last_workflow_run_id: projectSchedulesTable.lastWorkflowRunId,
+      created_at: projectSchedulesTable.createdAt,
+      updated_at: projectSchedulesTable.updatedAt,
+    })
+    .from(projectSchedulesTable)
+    .where(
+      and(
+        eq(projectSchedulesTable.projectId, projectId),
+        isNull(projectSchedulesTable.deletedAt),
+      ),
     )
-    .all(projectId) as ScheduleRow[];
+    .orderBy(desc(projectSchedulesTable.updatedAt), desc(projectSchedulesTable.createdAt))
+    .all() as ScheduleRow[];
 
   return {
     items: rows.map(mapScheduleRow),
@@ -265,23 +287,32 @@ export async function tickDueSchedules(
   sqlite: Database,
   now = new Date(),
 ): Promise<TickSchedulesResult> {
-  const dueRows = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, workflow_id, name, cron_expr, trigger_target,
-               trigger_payload_template, enabled, last_run_at, next_run_at,
-               last_workflow_run_id, created_at, updated_at
-        FROM project_schedules
-        WHERE enabled = 1
-          AND next_run_at IS NOT NULL
-          AND next_run_at <= @now
-          AND deleted_at IS NULL
-        ORDER BY next_run_at ASC, created_at ASC
-      `,
+  const dueRows = getDrizzleDb(sqlite)
+    .select({
+      id: projectSchedulesTable.id,
+      project_id: projectSchedulesTable.projectId,
+      workflow_id: projectSchedulesTable.workflowId,
+      name: projectSchedulesTable.name,
+      cron_expr: projectSchedulesTable.cronExpr,
+      trigger_target: projectSchedulesTable.triggerTarget,
+      trigger_payload_template: projectSchedulesTable.triggerPayloadTemplate,
+      enabled: projectSchedulesTable.enabled,
+      last_run_at: projectSchedulesTable.lastRunAt,
+      next_run_at: projectSchedulesTable.nextRunAt,
+      last_workflow_run_id: projectSchedulesTable.lastWorkflowRunId,
+      created_at: projectSchedulesTable.createdAt,
+      updated_at: projectSchedulesTable.updatedAt,
+    })
+    .from(projectSchedulesTable)
+    .where(
+      and(
+        eq(projectSchedulesTable.enabled, true),
+        lte(projectSchedulesTable.nextRunAt, now.toISOString()),
+        isNull(projectSchedulesTable.deletedAt),
+      ),
     )
-    .all({
-      now: now.toISOString(),
-    }) as ScheduleRow[];
+    .orderBy(asc(projectSchedulesTable.nextRunAt), asc(projectSchedulesTable.createdAt))
+    .all() as ScheduleRow[];
 
   const firedScheduleIds: string[] = [];
   const workflowRunIds: string[] = [];
@@ -299,25 +330,21 @@ export async function tickDueSchedules(
     const nextRunAt = getNextRunTime(schedule.cronExpr, now);
     const updatedAt = new Date().toISOString();
 
-    sqlite
-      .prepare(
-        `
-          UPDATE project_schedules
-          SET
-            last_run_at = @lastRunAt,
-            next_run_at = @nextRunAt,
-            last_workflow_run_id = @lastWorkflowRunId,
-            updated_at = @updatedAt
-          WHERE id = @id AND deleted_at IS NULL
-        `,
-      )
-      .run({
-        id: schedule.id,
+    getDrizzleDb(sqlite)
+      .update(projectSchedulesTable)
+      .set({
         lastRunAt: now.toISOString(),
-        lastWorkflowRunId: result.workflowRun.id,
         nextRunAt,
+        lastWorkflowRunId: result.workflowRun.id,
         updatedAt,
-      });
+      })
+      .where(
+        and(
+          eq(projectSchedulesTable.id, schedule.id),
+          isNull(projectSchedulesTable.deletedAt),
+        ),
+      )
+      .run();
 
     firedScheduleIds.push(schedule.id);
     workflowRunIds.push(result.workflowRun.id);
