@@ -1,6 +1,7 @@
 import type { Database } from 'better-sqlite3';
 import type { PromptResponse } from '@agentclientprotocol/sdk';
 import { customAlphabet } from 'nanoid';
+import { and, eq, isNull } from 'drizzle-orm';
 import {
   buildBootstrapPrompt,
   getErrorDiagnostics,
@@ -21,6 +22,11 @@ import type {
   AcpTimeoutScopePayload,
   DiagnosticLogger,
 } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectAcpSessionsTable,
+  projectWorktreesTable,
+} from '../db/schema';
 import { createAgent, updateAgent } from './agent-service';
 import {
   appendLifecycleEvent,
@@ -315,24 +321,20 @@ function assignSessionToWorktree(
   worktreeId: string,
   sessionId: string,
 ) {
-  sqlite
-    .prepare(
-      `
-        UPDATE project_worktrees
-        SET
-          session_id = @sessionId,
-          updated_at = @updatedAt
-        WHERE id = @worktreeId
-          AND project_id = @projectId
-          AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      projectId,
+  getDrizzleDb(sqlite)
+    .update(projectWorktreesTable)
+    .set({
       sessionId,
       updatedAt: new Date().toISOString(),
-      worktreeId,
-    });
+    })
+    .where(
+      and(
+        eq(projectWorktreesTable.id, worktreeId),
+        eq(projectWorktreesTable.projectId, projectId),
+        isNull(projectWorktreesTable.deletedAt),
+      ),
+    )
+    .run();
 }
 
 async function createTaskExecutionRun(
@@ -715,82 +717,9 @@ export async function createAcpSession(
       })
     : null;
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_acp_sessions (
-          id,
-          project_id,
-          agent_id,
-          actor_id,
-          codebase_id,
-          parent_session_id,
-          specialist_id,
-          name,
-          model,
-          provider,
-          cwd,
-          worktree_id,
-          task_id,
-          acp_status,
-          acp_error,
-          supervision_policy_json,
-          deadline_at,
-          inactive_deadline_at,
-          cancel_requested_at,
-          cancelled_at,
-          force_killed_at,
-          timeout_scope,
-          step_count,
-          state,
-          runtime_session_id,
-          failure_reason,
-          last_event_id,
-          started_at,
-          last_activity_at,
-          completed_at,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @agentId,
-          @actorId,
-          @codebaseId,
-          @parentSessionId,
-          @specialistId,
-          @name,
-          @model,
-          @provider,
-          @cwd,
-          @worktreeId,
-          @taskId,
-          @acpStatus,
-          @acpError,
-          @supervisionPolicyJson,
-          NULL,
-          NULL,
-          NULL,
-          NULL,
-          NULL,
-          NULL,
-          0,
-          @state,
-          NULL,
-          NULL,
-          NULL,
-          @startedAt,
-          @lastActivityAt,
-          NULL,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectAcpSessionsTable)
+    .values({
       id: sessionId,
       projectId: input.projectId,
       agentId: agent?.id ?? null,
@@ -807,12 +736,25 @@ export async function createAcpSession(
       acpStatus: 'connecting',
       acpError: null,
       supervisionPolicyJson: JSON.stringify(supervisionPolicy),
+      deadlineAt: null,
+      inactiveDeadlineAt: null,
+      cancelRequestedAt: null,
+      cancelledAt: null,
+      forceKilledAt: null,
+      timeoutScope: null,
+      stepCount: 0,
       state: 'PENDING',
+      runtimeSessionId: null,
+      failureReason: null,
+      lastEventId: null,
       startedAt: now,
       lastActivityAt: now,
+      completedAt: null,
       createdAt: now,
       updatedAt: now,
-    });
+      deletedAt: null,
+    })
+    .run();
 
   if (workspaceBinding.worktreeId) {
     assignSessionToWorktree(
@@ -973,15 +915,14 @@ export async function renameAcpSession(
   }
 
   getSessionRow(sqlite, sessionId);
-  sqlite
-    .prepare(
-      `
-        UPDATE project_acp_sessions
-        SET name = ?, updated_at = ?
-        WHERE id = ?
-      `,
-    )
-    .run(trimmedName, new Date().toISOString(), sessionId);
+  getDrizzleDb(sqlite)
+    .update(projectAcpSessionsTable)
+    .set({
+      name: trimmedName,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(projectAcpSessionsTable.id, sessionId))
+    .run();
 
   return mapSessionRow(getSessionRow(sqlite, sessionId));
 }
@@ -1051,39 +992,24 @@ export async function updateAcpSession(
   }
 
   const now = new Date().toISOString();
-  sqlite
-    .prepare(
-      `
-        UPDATE project_acp_sessions
-        SET name = @name,
-            model = @model,
-            provider = @provider,
-            runtime_session_id = @runtimeSessionId,
-            acp_status = @acpStatus,
-            acp_error = @acpError,
-            state = @state,
-            failure_reason = @failureReason,
-            completed_at = @completedAt,
-            last_activity_at = @lastActivityAt,
-            updated_at = @updatedAt
-        WHERE id = @id
-      `,
-    )
-    .run({
-      id: sessionId,
+  getDrizzleDb(sqlite)
+    .update(projectAcpSessionsTable)
+    .set({
+      acpError: runtimeConfigChanged ? null : current.acp_error,
+      acpStatus: runtimeConfigChanged ? 'ready' : current.acp_status,
+      completedAt: runtimeConfigChanged ? null : current.completed_at,
+      failureReason: runtimeConfigChanged ? null : current.failure_reason,
+      lastActivityAt: runtimeConfigChanged ? now : current.last_activity_at,
       model: nextModel,
       name: nextName,
       provider: nextProvider,
       runtimeSessionId:
         runtimeSession?.runtimeSessionId ?? current.runtime_session_id,
-      acpStatus: runtimeConfigChanged ? 'ready' : current.acp_status,
-      acpError: runtimeConfigChanged ? null : current.acp_error,
       state: runtimeConfigChanged ? 'PENDING' : current.state,
-      failureReason: runtimeConfigChanged ? null : current.failure_reason,
-      completedAt: runtimeConfigChanged ? null : current.completed_at,
-      lastActivityAt: runtimeConfigChanged ? now : current.last_activity_at,
       updatedAt: now,
-    });
+    })
+    .where(eq(projectAcpSessionsTable.id, sessionId))
+    .run();
 
   if (current.agent_id && (providerChanged || modelChanged)) {
     await updateAgent(sqlite, projectId, current.agent_id, {
@@ -1102,15 +1028,15 @@ export async function deleteAcpSession(
 ): Promise<void> {
   getSessionRow(sqlite, sessionId);
   await runtime.killSession(sessionId);
-  sqlite
-    .prepare(
-      `
-        UPDATE project_acp_sessions
-        SET deleted_at = ?, updated_at = ?
-        WHERE id = ?
-      `,
-    )
-    .run(new Date().toISOString(), new Date().toISOString(), sessionId);
+  const now = new Date().toISOString();
+  getDrizzleDb(sqlite)
+    .update(projectAcpSessionsTable)
+    .set({
+      deletedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(projectAcpSessionsTable.id, sessionId))
+    .run();
 }
 
 export async function loadAcpSession(

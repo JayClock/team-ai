@@ -1,5 +1,11 @@
 import type { Database } from 'better-sqlite3';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectAcpSessionEventsTable,
+  projectAcpSessionsTable,
+} from '../db/schema';
 import type {
   AcpEventEnvelopePayload,
   AcpEventErrorPayload,
@@ -75,6 +81,48 @@ export interface UpdateSessionRuntimeInput {
   supervisionPolicy?: AcpSupervisionPolicyPayload;
   timeoutScope?: AcpTimeoutScopePayload | null;
 }
+
+export const acpSessionRowSelection = {
+  acp_error: projectAcpSessionsTable.acpError,
+  acp_status: projectAcpSessionsTable.acpStatus,
+  agent_id: projectAcpSessionsTable.agentId,
+  actor_id: projectAcpSessionsTable.actorId,
+  cancel_requested_at: projectAcpSessionsTable.cancelRequestedAt,
+  cancelled_at: projectAcpSessionsTable.cancelledAt,
+  codebase_id: projectAcpSessionsTable.codebaseId,
+  completed_at: projectAcpSessionsTable.completedAt,
+  cwd: projectAcpSessionsTable.cwd,
+  deadline_at: projectAcpSessionsTable.deadlineAt,
+  failure_reason: projectAcpSessionsTable.failureReason,
+  force_killed_at: projectAcpSessionsTable.forceKilledAt,
+  id: projectAcpSessionsTable.id,
+  inactive_deadline_at: projectAcpSessionsTable.inactiveDeadlineAt,
+  last_activity_at: projectAcpSessionsTable.lastActivityAt,
+  last_event_id: projectAcpSessionsTable.lastEventId,
+  model: projectAcpSessionsTable.model,
+  name: projectAcpSessionsTable.name,
+  parent_session_id: projectAcpSessionsTable.parentSessionId,
+  project_id: projectAcpSessionsTable.projectId,
+  provider: projectAcpSessionsTable.provider,
+  runtime_session_id: projectAcpSessionsTable.runtimeSessionId,
+  specialist_id: projectAcpSessionsTable.specialistId,
+  started_at: projectAcpSessionsTable.startedAt,
+  step_count: projectAcpSessionsTable.stepCount,
+  state: projectAcpSessionsTable.state,
+  supervision_policy_json: projectAcpSessionsTable.supervisionPolicyJson,
+  task_id: projectAcpSessionsTable.taskId,
+  timeout_scope: projectAcpSessionsTable.timeoutScope,
+  worktree_id: projectAcpSessionsTable.worktreeId,
+} as const;
+
+export const acpEventRowSelection = {
+  emitted_at: projectAcpSessionEventsTable.emittedAt,
+  error_json: projectAcpSessionEventsTable.errorJson,
+  event_id: projectAcpSessionEventsTable.eventId,
+  payload_json: projectAcpSessionEventsTable.payloadJson,
+  session_id: projectAcpSessionEventsTable.sessionId,
+  type: projectAcpSessionEventsTable.type,
+} as const;
 
 export const DEFAULT_ACP_SESSION_SUPERVISION_POLICY: AcpSupervisionPolicyPayload =
   {
@@ -243,45 +291,16 @@ export function getSessionRow(
   sqlite: Database,
   sessionId: string,
 ): AcpSessionRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          agent_id,
-          actor_id,
-          supervision_policy_json,
-          deadline_at,
-          inactive_deadline_at,
-          cancel_requested_at,
-          cancelled_at,
-          force_killed_at,
-          timeout_scope,
-          step_count,
-          codebase_id,
-          parent_session_id,
-          name,
-          model,
-          provider,
-          cwd,
-          acp_status,
-          acp_error,
-          state,
-          runtime_session_id,
-          specialist_id,
-          failure_reason,
-          last_event_id,
-          started_at,
-          last_activity_at,
-          completed_at,
-          task_id,
-          worktree_id
-        FROM project_acp_sessions
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select(acpSessionRowSelection)
+    .from(projectAcpSessionsTable)
+    .where(
+      and(
+        eq(projectAcpSessionsTable.id, sessionId),
+        isNull(projectAcpSessionsTable.deletedAt),
+      ),
     )
-    .get(sessionId) as AcpSessionRow | undefined;
+    .get() as AcpSessionRow | undefined;
 
   if (!row) {
     throwSessionNotFound(sessionId);
@@ -311,40 +330,13 @@ export function updateSessionRuntime(
           ) ?? current.inactive_deadline_at
         : current.inactive_deadline_at
       : update.inactiveDeadlineAt;
-  sqlite
-    .prepare(
-      `
-        UPDATE project_acp_sessions
-        SET
-          name = @name,
-          supervision_policy_json = @supervisionPolicyJson,
-          deadline_at = @deadlineAt,
-          inactive_deadline_at = @inactiveDeadlineAt,
-          cancel_requested_at = @cancelRequestedAt,
-          cancelled_at = @cancelledAt,
-          force_killed_at = @forceKilledAt,
-          timeout_scope = @timeoutScope,
-          step_count = @stepCount,
-          runtime_session_id = @runtimeSessionId,
-          acp_status = @acpStatus,
-          acp_error = @acpError,
-          state = @state,
-          failure_reason = @failureReason,
-          last_event_id = @lastEventId,
-          started_at = @startedAt,
-          last_activity_at = @lastActivityAt,
-          completed_at = @completedAt,
-          updated_at = @updatedAt
-        WHERE id = @id
-      `,
-    )
-    .run({
-      id: sessionId,
-      name: update.name === undefined ? current.name : update.name,
-      supervisionPolicyJson: JSON.stringify(nextPolicy),
-      deadlineAt:
-        update.deadlineAt === undefined ? current.deadline_at : update.deadlineAt,
-      inactiveDeadlineAt: nextInactiveDeadlineAt,
+  getDrizzleDb(sqlite)
+    .update(projectAcpSessionsTable)
+    .set({
+      acpError:
+        update.acpError === undefined ? current.acp_error : update.acpError,
+      acpStatus:
+        update.acpStatus === undefined ? current.acp_status : update.acpStatus,
       cancelRequestedAt:
         update.cancelRequestedAt === undefined
           ? current.cancel_requested_at
@@ -353,85 +345,58 @@ export function updateSessionRuntime(
         update.cancelledAt === undefined
           ? current.cancelled_at
           : update.cancelledAt,
-      forceKilledAt:
-        update.forceKilledAt === undefined
-          ? current.force_killed_at
-          : update.forceKilledAt,
-      timeoutScope:
-        update.timeoutScope === undefined
-          ? current.timeout_scope
-          : update.timeoutScope,
-      stepCount:
-        update.stepCount === undefined ? current.step_count : update.stepCount,
-      runtimeSessionId: update.runtimeSessionId ?? current.runtime_session_id,
-      acpStatus:
-        update.acpStatus === undefined ? current.acp_status : update.acpStatus,
-      acpError:
-        update.acpError === undefined ? current.acp_error : update.acpError,
-      state: nextState,
-      failureReason:
-        update.failureReason === undefined
-          ? current.failure_reason
-          : update.failureReason,
-      lastEventId:
-        update.lastEventId === undefined
-          ? current.last_event_id
-          : update.lastEventId,
-      startedAt:
-        update.startedAt === undefined ? current.started_at : update.startedAt,
-      lastActivityAt:
-        update.lastActivityAt === undefined
-          ? current.last_activity_at
-          : update.lastActivityAt,
       completedAt:
         update.completedAt === undefined
           ? current.completed_at
           : update.completedAt,
+      deadlineAt:
+        update.deadlineAt === undefined ? current.deadline_at : update.deadlineAt,
+      failureReason:
+        update.failureReason === undefined
+          ? current.failure_reason
+          : update.failureReason,
+      forceKilledAt:
+        update.forceKilledAt === undefined
+          ? current.force_killed_at
+          : update.forceKilledAt,
+      inactiveDeadlineAt: nextInactiveDeadlineAt,
+      lastActivityAt:
+        update.lastActivityAt === undefined
+          ? current.last_activity_at
+          : update.lastActivityAt,
+      lastEventId:
+        update.lastEventId === undefined
+          ? current.last_event_id
+          : update.lastEventId,
+      name: update.name === undefined ? current.name : update.name,
+      runtimeSessionId: update.runtimeSessionId ?? current.runtime_session_id,
+      startedAt:
+        update.startedAt === undefined ? current.started_at : update.startedAt,
+      state: nextState,
+      stepCount:
+        update.stepCount === undefined ? current.step_count : update.stepCount,
+      supervisionPolicyJson: JSON.stringify(nextPolicy),
+      timeoutScope:
+        update.timeoutScope === undefined
+          ? current.timeout_scope
+          : update.timeoutScope,
       updatedAt: new Date().toISOString(),
-    });
+    })
+    .where(eq(projectAcpSessionsTable.id, sessionId))
+    .run();
 }
 
 export function listSupervisedSessions(sqlite: Database): AcpSessionRow[] {
-  return sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          agent_id,
-          actor_id,
-          supervision_policy_json,
-          deadline_at,
-          inactive_deadline_at,
-          cancel_requested_at,
-          cancelled_at,
-          force_killed_at,
-          timeout_scope,
-          step_count,
-          codebase_id,
-          parent_session_id,
-          specialist_id,
-          name,
-          model,
-          provider,
-          cwd,
-          acp_status,
-          acp_error,
-          state,
-          runtime_session_id,
-          failure_reason,
-          last_event_id,
-          started_at,
-          last_activity_at,
-          completed_at,
-          task_id,
-          worktree_id
-        FROM project_acp_sessions
-        WHERE deleted_at IS NULL
-          AND state IN ('RUNNING', 'CANCELLING')
-        ORDER BY updated_at ASC
-      `,
+  return getDrizzleDb(sqlite)
+    .select(acpSessionRowSelection)
+    .from(projectAcpSessionsTable)
+    .where(
+      and(
+        isNull(projectAcpSessionsTable.deletedAt),
+        inArray(projectAcpSessionsTable.state, ['RUNNING', 'CANCELLING']),
+      ),
     )
+    .orderBy(asc(projectAcpSessionsTable.updatedAt))
     .all() as AcpSessionRow[];
 }
 

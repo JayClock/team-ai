@@ -1,5 +1,11 @@
 import type { Database } from 'better-sqlite3';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { AcpEventUpdatePayload } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectAcpSessionEventsTable,
+  projectAgentsTable,
+} from '../db/schema';
 import { getSessionRow, type AcpSessionRow } from './acp-session-store';
 
 interface SessionHistorySummaryRow {
@@ -18,15 +24,19 @@ export function getSessionAgentPrompt(
     return null;
   }
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT system_prompt
-        FROM project_agents
-        WHERE id = ? AND project_id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      system_prompt: projectAgentsTable.systemPrompt,
+    })
+    .from(projectAgentsTable)
+    .where(
+      and(
+        eq(projectAgentsTable.id, session.agent_id),
+        eq(projectAgentsTable.projectId, session.project_id),
+        isNull(projectAgentsTable.deletedAt),
+      ),
     )
-    .get(session.agent_id, session.project_id) as
+    .get() as
     | { system_prompt: string | null }
     | undefined;
 
@@ -63,16 +73,22 @@ export function sessionHasPromptHistory(
   sqlite: Database,
   sessionId: string,
 ): boolean {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_acp_session_events
-        WHERE session_id = ?
-          AND type IN ('user_message', 'agent_message', 'agent_thought')
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(projectAcpSessionEventsTable)
+    .where(
+      and(
+        eq(projectAcpSessionEventsTable.sessionId, sessionId),
+        inArray(projectAcpSessionEventsTable.type, [
+          'user_message',
+          'agent_message',
+          'agent_thought',
+        ]),
+      ),
     )
-    .get(sessionId) as { count: number };
+    .get() as { count: number };
 
   return row.count > 0;
 }
@@ -123,16 +139,16 @@ export function buildAcpSessionReplayPrompt(
 ): string | null {
   const session = getSessionRow(sqlite, sessionId);
   const systemPrompt = getSessionAgentPrompt(sqlite, session);
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT type, payload_json, error_json
-        FROM project_acp_session_events
-        WHERE session_id = ?
-        ORDER BY sequence ASC
-      `,
-    )
-    .all(sessionId) as SessionHistorySummaryRow[];
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      error_json: projectAcpSessionEventsTable.errorJson,
+      payload_json: projectAcpSessionEventsTable.payloadJson,
+      type: projectAcpSessionEventsTable.type,
+    })
+    .from(projectAcpSessionEventsTable)
+    .where(eq(projectAcpSessionEventsTable.sessionId, sessionId))
+    .orderBy(asc(projectAcpSessionEventsTable.sequence))
+    .all() as SessionHistorySummaryRow[];
 
   const segments: string[] = [];
   let pendingAssistant: {

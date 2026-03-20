@@ -1,4 +1,5 @@
 import type { Database } from 'better-sqlite3';
+import { and, asc, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
 import type {
   AcpRuntimeClient,
@@ -9,6 +10,11 @@ import type {
   AcpSessionListPayload,
   AcpSessionPayload,
 } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectAcpSessionEventsTable,
+  projectAcpSessionsTable,
+} from '../db/schema';
 import {
   appendLocalEvent,
   createCanonicalUpdate,
@@ -20,6 +26,8 @@ import {
 import {
   DEFAULT_ACP_PROMPT_TIMEOUT_MS,
   DEFAULT_ACP_SESSION_SUPERVISION_POLICY,
+  acpEventRowSelection,
+  acpSessionRowSelection,
   getSessionRow,
   mapEventRow,
   mapRuntimeSessionSnapshot,
@@ -107,16 +115,14 @@ export function hasAcpSessionEvent(sqlite: Database, eventId: string) {
     return true;
   }
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT 1 AS present
-        FROM project_acp_session_events
-        WHERE event_id = ?
-        LIMIT 1
-      `,
-    )
-    .get(eventId) as { present: number } | undefined;
+  const row = getDrizzleDb(sqlite)
+    .select({
+      present: sql<number>`1`,
+    })
+    .from(projectAcpSessionEventsTable)
+    .where(eq(projectAcpSessionEventsTable.eventId, eventId))
+    .limit(1)
+    .get() as { present: number } | undefined;
 
   return row?.present === 1;
 }
@@ -169,61 +175,37 @@ export async function listAcpSessionsByProject(
   const { page, pageSize } = query;
   const offset = (page - 1) * pageSize;
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          agent_id,
-          actor_id,
-          supervision_policy_json,
-          deadline_at,
-          inactive_deadline_at,
-          cancel_requested_at,
-          cancelled_at,
-          force_killed_at,
-          timeout_scope,
-          step_count,
-          codebase_id,
-          parent_session_id,
-          specialist_id,
-          name,
-          model,
-          provider,
-          cwd,
-          acp_status,
-          acp_error,
-          state,
-          runtime_session_id,
-          failure_reason,
-          last_event_id,
-          started_at,
-          last_activity_at,
-          completed_at,
-          task_id,
-          worktree_id
-        FROM project_acp_sessions
-        WHERE project_id = @projectId AND deleted_at IS NULL
-        ORDER BY COALESCE(last_activity_at, started_at, completed_at) DESC, updated_at DESC
-        LIMIT @limit OFFSET @offset
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select(acpSessionRowSelection)
+    .from(projectAcpSessionsTable)
+    .where(
+      and(
+        eq(projectAcpSessionsTable.projectId, projectId),
+        isNull(projectAcpSessionsTable.deletedAt),
+      ),
     )
-    .all({
-      projectId,
-      limit: pageSize,
-      offset,
-    }) as AcpSessionRow[];
+    .orderBy(
+      desc(
+        sql`coalesce(${projectAcpSessionsTable.lastActivityAt}, ${projectAcpSessionsTable.startedAt}, ${projectAcpSessionsTable.completedAt})`,
+      ),
+      desc(projectAcpSessionsTable.updatedAt),
+    )
+    .limit(pageSize)
+    .offset(offset)
+    .all() as AcpSessionRow[];
 
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_acp_sessions
-        WHERE project_id = @projectId AND deleted_at IS NULL
-      `,
+  const total = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(projectAcpSessionsTable)
+    .where(
+      and(
+        eq(projectAcpSessionsTable.projectId, projectId),
+        isNull(projectAcpSessionsTable.deletedAt),
+      ),
     )
-    .get({ projectId }) as { count: number };
+    .get() as { count: number };
 
   return {
     items: rows.map(mapSessionRow),
@@ -256,40 +238,32 @@ export async function listAcpSessionHistory(
   await flushAcpSessionEventWriteBuffer(sqlite, sessionId);
 
   const sinceSequence = sinceEventId
-    ? ((
-        sqlite
-          .prepare(
-            `
-            SELECT sequence
-            FROM project_acp_session_events
-            WHERE event_id = ? AND session_id = ?
-          `,
-          )
-          .get(sinceEventId, sessionId) as { sequence: number } | undefined
-      )?.sequence ?? 0)
+    ? ((getDrizzleDb(sqlite)
+        .select({
+          sequence: projectAcpSessionEventsTable.sequence,
+        })
+        .from(projectAcpSessionEventsTable)
+        .where(
+          and(
+            eq(projectAcpSessionEventsTable.eventId, sinceEventId),
+            eq(projectAcpSessionEventsTable.sessionId, sessionId),
+          ),
+        )
+        .get() as { sequence: number } | undefined)?.sequence ?? 0)
     : 0;
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT
-          event_id,
-          session_id,
-          type,
-          payload_json,
-          error_json,
-          emitted_at
-        FROM project_acp_session_events
-        WHERE session_id = @sessionId AND sequence > @sinceSequence
-        ORDER BY sequence ASC
-        LIMIT @limit
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select(acpEventRowSelection)
+    .from(projectAcpSessionEventsTable)
+    .where(
+      and(
+        eq(projectAcpSessionEventsTable.sessionId, sessionId),
+        gt(projectAcpSessionEventsTable.sequence, sinceSequence),
+      ),
     )
-    .all({
-      sessionId,
-      sinceSequence,
-      limit,
-    }) as AcpEventRow[];
+    .orderBy(asc(projectAcpSessionEventsTable.sequence))
+    .limit(limit)
+    .all() as AcpEventRow[];
 
   return rows.map(mapEventRow);
 }

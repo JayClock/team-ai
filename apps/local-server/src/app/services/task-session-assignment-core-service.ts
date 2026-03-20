@@ -1,5 +1,11 @@
 import type { Database } from 'better-sqlite3';
+import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectAcpSessionsTable,
+  projectTasksTable,
+} from '../db/schema';
 import type { ProjectRuntimeProfilePayload } from '../schemas/runtime-profile';
 import type { RoleValue } from '../schemas/role';
 import type { SpecialistPayload } from '../schemas/specialist';
@@ -95,6 +101,14 @@ const dispatchableTaskStatuses = new Set([
   'RUNNING',
   'WAITING_RETRY',
 ]);
+const taskDispatchPriorityOrder = sql`
+  CASE ${projectTasksTable.priority}
+    WHEN 'high' THEN 0
+    WHEN 'medium' THEN 1
+    WHEN 'low' THEN 2
+    ELSE 3
+  END
+`;
 
 function isTaskKindDispatchable(kind: TaskKind | null): boolean {
   return kind === 'implement' || kind === 'review' || kind === 'verify';
@@ -145,18 +159,20 @@ async function resolveUnresolvedDependencyIds(
     return [];
   }
 
-  const placeholders = dependencyIds.map(() => '?').join(', ');
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, status
-        FROM project_tasks
-        WHERE project_id = ?
-          AND deleted_at IS NULL
-          AND id IN (${placeholders})
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectTasksTable.id,
+      status: projectTasksTable.status,
+    })
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.projectId, task.projectId),
+        isNull(projectTasksTable.deletedAt),
+        inArray(projectTasksTable.id, dependencyIds),
+      ),
     )
-    .all(task.projectId, ...dependencyIds) as TaskDependencyStatusRow[];
+    .all() as TaskDependencyStatusRow[];
   const statusById = new Map(rows.map((row) => [row.id, row.status]));
 
   return dependencyIds.filter((dependencyId) => {
@@ -251,34 +267,27 @@ export async function listDispatchableTaskSessions(
     }
   }
 
-  const filters = ['project_id = @projectId', 'deleted_at IS NULL'];
-  const parameters: Record<string, unknown> = {
-    projectId: query.projectId,
-  };
+  const filters = [
+    eq(projectTasksTable.projectId, query.projectId),
+    isNull(projectTasksTable.deletedAt),
+  ];
 
   if (query.sessionId) {
-    filters.push('session_id = @sessionId');
-    parameters.sessionId = query.sessionId;
+    filters.push(eq(projectTasksTable.sessionId, query.sessionId));
   }
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id
-        FROM project_tasks
-        WHERE ${filters.join(' AND ')}
-        ORDER BY
-          CASE priority
-            WHEN 'high' THEN 0
-            WHEN 'medium' THEN 1
-            WHEN 'low' THEN 2
-            ELSE 3
-          END,
-          created_at ASC,
-          updated_at ASC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectTasksTable.id,
+    })
+    .from(projectTasksTable)
+    .where(and(...filters))
+    .orderBy(
+      taskDispatchPriorityOrder,
+      asc(projectTasksTable.createdAt),
+      asc(projectTasksTable.updatedAt),
     )
-    .all(parameters) as Array<{ id: string }>;
+    .all() as Array<{ id: string }>;
 
   const evaluations = await Promise.all(
     rows.map((row) => getTaskSessionAssignment(sqlite, row.id, options)),
@@ -292,15 +301,21 @@ function findSessionRow(
   sessionId: string,
 ): TaskCallerSessionRow | null {
   return (
-    (sqlite
-      .prepare(
-        `
-        SELECT id, project_id, actor_id, provider
-        FROM project_acp_sessions
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+    (getDrizzleDb(sqlite)
+      .select({
+        actor_id: projectAcpSessionsTable.actorId,
+        id: projectAcpSessionsTable.id,
+        project_id: projectAcpSessionsTable.projectId,
+        provider: projectAcpSessionsTable.provider,
+      })
+      .from(projectAcpSessionsTable)
+      .where(
+        and(
+          eq(projectAcpSessionsTable.id, sessionId),
+          isNull(projectAcpSessionsTable.deletedAt),
+        ),
       )
-      .get(sessionId) as TaskCallerSessionRow | undefined) ?? null
+      .get() as TaskCallerSessionRow | undefined) ?? null
   );
 }
 

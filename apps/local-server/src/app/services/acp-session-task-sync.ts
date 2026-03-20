@@ -1,9 +1,16 @@
 import type { Database } from 'better-sqlite3';
+import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
 import type {
   AcpEventUpdatePayload,
   DiagnosticLogger,
 } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectAcpSessionEventsTable,
+  projectTaskRunsTable,
+  projectTasksTable,
+} from '../db/schema';
 import {
   cancelTaskRun,
   completeTaskRun,
@@ -48,6 +55,23 @@ interface AcpSessionTaskSyncOptions {
   logger?: DiagnosticLogger;
   source?: string;
 }
+
+const taskExecutionRowSelection = {
+  assigned_role: projectTasksTable.assignedRole,
+  assigned_specialist_id: projectTasksTable.assignedSpecialistId,
+  codebase_id: projectTasksTable.codebaseId,
+  completion_summary: projectTasksTable.completionSummary,
+  execution_session_id: projectTasksTable.executionSessionId,
+  id: projectTasksTable.id,
+  kind: projectTasksTable.kind,
+  project_id: projectTasksTable.projectId,
+  result_session_id: projectTasksTable.resultSessionId,
+  status: projectTasksTable.status,
+  trigger_session_id: projectTasksTable.triggerSessionId,
+  verification_report: projectTasksTable.verificationReport,
+  verification_verdict: projectTasksTable.verificationVerdict,
+  worktree_id: projectTasksTable.worktreeId,
+} as const;
 
 type TaskExecutionRecovery = {
   errorCode: string;
@@ -101,29 +125,16 @@ export function getTaskExecutionRow(
   sqlite: Database,
   taskId: string,
 ): TaskExecutionRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          trigger_session_id,
-          assigned_role,
-          assigned_specialist_id,
-          codebase_id,
-          completion_summary,
-          status,
-          kind,
-          execution_session_id,
-          result_session_id,
-          verification_report,
-          verification_verdict,
-          worktree_id
-        FROM project_tasks
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select(taskExecutionRowSelection)
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.id, taskId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .get(taskId) as TaskExecutionRow | undefined;
+    .get() as TaskExecutionRow | undefined;
 
   if (!row) {
     throwTaskNotFound(taskId);
@@ -146,22 +157,13 @@ export function updateTaskExecutionState(
 ) {
   const current = getTaskExecutionRow(sqlite, input.taskId);
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_tasks
-        SET
-          execution_session_id = @executionSessionId,
-          result_session_id = @resultSessionId,
-          completion_summary = @completionSummary,
-          verification_report = @verificationReport,
-          verification_verdict = @verificationVerdict,
-          status = @status,
-          updated_at = @updatedAt
-        WHERE id = @taskId AND deleted_at IS NULL
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .update(projectTasksTable)
+    .set({
+      completionSummary:
+        input.completionSummary === undefined
+          ? current.completion_summary
+          : input.completionSummary,
       executionSessionId:
         input.executionSessionId === undefined
           ? current.execution_session_id
@@ -170,12 +172,7 @@ export function updateTaskExecutionState(
         input.resultSessionId === undefined
           ? current.result_session_id
           : input.resultSessionId,
-      completionSummary:
-        input.completionSummary === undefined
-          ? current.completion_summary
-          : input.completionSummary,
       status: input.status ?? current.status,
-      taskId: input.taskId,
       updatedAt: new Date().toISOString(),
       verificationReport:
         input.verificationReport === undefined
@@ -185,7 +182,14 @@ export function updateTaskExecutionState(
         input.verificationVerdict === undefined
           ? current.verification_verdict
           : input.verificationVerdict,
-    });
+    })
+    .where(
+      and(
+        eq(projectTasksTable.id, input.taskId),
+        isNull(projectTasksTable.deletedAt),
+      ),
+    )
+    .run();
 }
 
 export function classifyTaskExecutionFailure(
@@ -284,18 +288,25 @@ function getLatestTaskExecutionRun(
   sessionId: string,
 ): TaskExecutionRunRow | null {
   return (
-    (sqlite
-      .prepare(
-        `
-          SELECT id, status, task_id
-          FROM project_task_runs
-          WHERE session_id = ?
-            AND deleted_at IS NULL
-          ORDER BY created_at DESC, updated_at DESC
-          LIMIT 1
-        `,
+    (getDrizzleDb(sqlite)
+      .select({
+        id: projectTaskRunsTable.id,
+        status: projectTaskRunsTable.status,
+        task_id: projectTaskRunsTable.taskId,
+      })
+      .from(projectTaskRunsTable)
+      .where(
+        and(
+          eq(projectTaskRunsTable.sessionId, sessionId),
+          isNull(projectTaskRunsTable.deletedAt),
+        ),
       )
-      .get(sessionId) as TaskExecutionRunRow | undefined) ?? null
+      .orderBy(
+        desc(projectTaskRunsTable.createdAt),
+        desc(projectTaskRunsTable.updatedAt),
+      )
+      .limit(1)
+      .get() as TaskExecutionRunRow | undefined) ?? null
   );
 }
 
@@ -309,16 +320,16 @@ function buildTaskExecutionOutcome(
   verificationReport: string | null;
   verificationVerdict: string | null;
 } {
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT type, payload_json, error_json
-        FROM project_acp_session_events
-        WHERE session_id = ?
-        ORDER BY sequence ASC
-      `,
-    )
-    .all(sessionId) as SessionHistorySummaryRow[];
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      error_json: projectAcpSessionEventsTable.errorJson,
+      payload_json: projectAcpSessionEventsTable.payloadJson,
+      type: projectAcpSessionEventsTable.type,
+    })
+    .from(projectAcpSessionEventsTable)
+    .where(eq(projectAcpSessionEventsTable.sessionId, sessionId))
+    .orderBy(asc(projectAcpSessionEventsTable.sequence))
+    .all() as SessionHistorySummaryRow[];
   const assistantMessages = new Map<string, string>();
   const assistantOrder: string[] = [];
   const toolOutputs: string[] = [];
