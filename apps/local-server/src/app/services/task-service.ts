@@ -1,6 +1,10 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, asc, desc, eq, isNull, ne, sql } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectTasksTable } from '../db/schema';
 import type {
   CreateTaskInput,
   TaskKind,
@@ -95,6 +99,57 @@ interface ColumnTaskPositionRow {
   updated_at: string;
 }
 
+const taskRowSelection = {
+  acceptance_criteria_json: projectTasksTable.acceptanceCriteriaJson,
+  assigned_provider: projectTasksTable.assignedProvider,
+  assigned_role: projectTasksTable.assignedRole,
+  assigned_specialist_id: projectTasksTable.assignedSpecialistId,
+  assigned_specialist_name: projectTasksTable.assignedSpecialistName,
+  assignee: projectTasksTable.assignee,
+  board_id: projectTasksTable.boardId,
+  codebase_id: projectTasksTable.codebaseId,
+  codebase_ids_json: projectTasksTable.codebaseIdsJson,
+  column_id: projectTasksTable.columnId,
+  completion_summary: projectTasksTable.completionSummary,
+  created_at: projectTasksTable.createdAt,
+  dependencies_json: projectTasksTable.dependenciesJson,
+  execution_session_id: projectTasksTable.executionSessionId,
+  github_id: projectTasksTable.githubId,
+  github_number: projectTasksTable.githubNumber,
+  github_repo: projectTasksTable.githubRepo,
+  github_state: projectTasksTable.githubState,
+  github_synced_at: projectTasksTable.githubSyncedAt,
+  github_url: projectTasksTable.githubUrl,
+  id: projectTasksTable.id,
+  kind: projectTasksTable.kind,
+  labels_json: projectTasksTable.labelsJson,
+  lane_handoffs_json: projectTasksTable.laneHandoffsJson,
+  lane_sessions_json: projectTasksTable.laneSessionsJson,
+  last_sync_error: projectTasksTable.lastSyncError,
+  objective: projectTasksTable.objective,
+  parallel_group: projectTasksTable.parallelGroup,
+  parent_task_id: projectTasksTable.parentTaskId,
+  position: projectTasksTable.position,
+  priority: projectTasksTable.priority,
+  project_id: projectTasksTable.projectId,
+  result_session_id: projectTasksTable.resultSessionId,
+  session_id: projectTasksTable.sessionId,
+  session_ids_json: projectTasksTable.sessionIdsJson,
+  scope: projectTasksTable.scope,
+  source_entry_index: projectTasksTable.sourceEntryIndex,
+  source_event_id: projectTasksTable.sourceEventId,
+  source_type: projectTasksTable.sourceType,
+  status: projectTasksTable.status,
+  title: projectTasksTable.title,
+  trigger_session_id: projectTasksTable.triggerSessionId,
+  updated_at: projectTasksTable.updatedAt,
+  verification_commands_json: projectTasksTable.verificationCommandsJson,
+  verification_report: projectTasksTable.verificationReport,
+  verification_verdict: projectTasksTable.verificationVerdict,
+  workspace_id: projectTasksTable.workspaceId,
+  worktree_id: projectTasksTable.worktreeId,
+} as const;
+
 export const taskStatusValues = [
   'PENDING',
   'READY',
@@ -109,6 +164,10 @@ export type TaskStatus = (typeof taskStatusValues)[number];
 
 function createTaskId() {
   return `task_${taskIdGenerator()}`;
+}
+
+function combineFilters(filters: SQL<unknown>[]) {
+  return filters.length === 1 ? filters[0] : and(...filters);
 }
 
 const taskKindValues = ['plan', 'implement', 'review', 'verify'] as const;
@@ -340,24 +399,24 @@ function getNextTaskPosition(
   columnId: string,
   excludeTaskId?: string,
 ) {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT COALESCE(MAX(position), -1) AS max_position
-        FROM project_tasks
-        WHERE project_id = @projectId
-          AND board_id = @boardId
-          AND column_id = @columnId
-          AND deleted_at IS NULL
-          AND (@excludeTaskId IS NULL OR id != @excludeTaskId)
-      `,
-    )
-    .get({
-      boardId,
-      columnId,
-      excludeTaskId: excludeTaskId ?? null,
-      projectId,
-    }) as { max_position: number | null };
+  const filters = [
+    eq(projectTasksTable.projectId, projectId),
+    eq(projectTasksTable.boardId, boardId),
+    eq(projectTasksTable.columnId, columnId),
+    isNull(projectTasksTable.deletedAt),
+  ];
+
+  if (excludeTaskId) {
+    filters.push(ne(projectTasksTable.id, excludeTaskId));
+  }
+
+  const row = getDrizzleDb(sqlite)
+    .select({
+      max_position: sql<number>`coalesce(max(${projectTasksTable.position}), -1)`,
+    })
+    .from(projectTasksTable)
+    .where(combineFilters(filters))
+    .get() as { max_position: number | null };
 
   return (row.max_position ?? -1) + 1;
 }
@@ -369,49 +428,52 @@ function listColumnTaskPositionRows(
   columnId: string,
   excludeTaskId?: string,
 ) {
-  return sqlite
-    .prepare(
-      `
-        SELECT id, position, updated_at
-        FROM project_tasks
-        WHERE project_id = @projectId
-          AND board_id = @boardId
-          AND column_id = @columnId
-          AND deleted_at IS NULL
-          AND (@excludeTaskId IS NULL OR id != @excludeTaskId)
-        ORDER BY
-          CASE WHEN position IS NULL THEN 1 ELSE 0 END ASC,
-          position ASC,
-          updated_at DESC,
-          created_at DESC
-      `,
+  const filters = [
+    eq(projectTasksTable.projectId, projectId),
+    eq(projectTasksTable.boardId, boardId),
+    eq(projectTasksTable.columnId, columnId),
+    isNull(projectTasksTable.deletedAt),
+  ];
+
+  if (excludeTaskId) {
+    filters.push(ne(projectTasksTable.id, excludeTaskId));
+  }
+
+  return getDrizzleDb(sqlite)
+    .select({
+      id: projectTasksTable.id,
+      position: projectTasksTable.position,
+      updated_at: projectTasksTable.updatedAt,
+    })
+    .from(projectTasksTable)
+    .where(combineFilters(filters))
+    .orderBy(
+      sql`case when ${projectTasksTable.position} is null then 1 else 0 end`,
+      asc(projectTasksTable.position),
+      desc(projectTasksTable.updatedAt),
+      desc(projectTasksTable.createdAt),
     )
-    .all({
-      boardId,
-      columnId,
-      excludeTaskId: excludeTaskId ?? null,
-      projectId,
-    }) as ColumnTaskPositionRow[];
+    .all() as ColumnTaskPositionRow[];
 }
 
 function writeColumnTaskPositions(
   sqlite: Database,
   taskIds: string[],
 ) {
-  const updatePosition = sqlite.prepare(
-    `
-      UPDATE project_tasks
-      SET position = @position
-      WHERE id = @id AND deleted_at IS NULL
-    `,
-  );
-
   const transaction = sqlite.transaction((ids: string[]) => {
+    const db = getDrizzleDb(sqlite);
     ids.forEach((id, index) => {
-      updatePosition.run({
-        id,
-        position: index,
-      });
+      db.update(projectTasksTable)
+        .set({
+          position: index,
+        })
+        .where(
+          and(
+            eq(projectTasksTable.id, id),
+            isNull(projectTasksTable.deletedAt),
+          ),
+        )
+        .run();
     });
   });
 
@@ -588,63 +650,16 @@ async function resolveTaskAssignment(
 }
 
 function getTaskRow(sqlite: Database, taskId: string): TaskRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          trigger_session_id,
-          title,
-          objective,
-          scope,
-          status,
-          board_id,
-          column_id,
-          position,
-          priority,
-          labels_json,
-          assignee,
-          assigned_provider,
-          assigned_role,
-          assigned_specialist_id,
-          assigned_specialist_name,
-          dependencies_json,
-          parallel_group,
-          acceptance_criteria_json,
-          verification_commands_json,
-          completion_summary,
-          verification_verdict,
-          verification_report,
-          github_id,
-          github_number,
-          github_url,
-          github_repo,
-          github_state,
-          github_synced_at,
-          last_sync_error,
-          kind,
-          parent_task_id,
-          execution_session_id,
-          result_session_id,
-          source_type,
-          source_event_id,
-          source_entry_index,
-          session_id,
-          session_ids_json,
-          codebase_id,
-          codebase_ids_json,
-          worktree_id,
-          workspace_id,
-          lane_sessions_json,
-          lane_handoffs_json,
-          created_at,
-          updated_at
-        FROM project_tasks
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select(taskRowSelection)
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.id, taskId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .get(taskId) as TaskRow | undefined;
+    .get() as TaskRow | undefined;
 
   if (!row) {
     throwTaskNotFound(taskId);
@@ -680,15 +695,19 @@ async function validateTaskReference(
     return null;
   }
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id
-        FROM project_tasks
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectTasksTable.id,
+      project_id: projectTasksTable.projectId,
+    })
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.id, taskId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .get(taskId) as { id: string; project_id: string } | undefined;
+    .get() as { id: string; project_id: string } | undefined;
 
   if (!row) {
     throwTaskNotFound(taskId);
@@ -851,114 +870,9 @@ export async function createTask(
   const now = new Date().toISOString();
   const taskId = createTaskId();
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_tasks (
-          id,
-          project_id,
-          session_id,
-          session_ids_json,
-          trigger_session_id,
-          workspace_id,
-          codebase_id,
-          codebase_ids_json,
-          worktree_id,
-          title,
-          objective,
-          scope,
-          status,
-          board_id,
-          column_id,
-          position,
-          priority,
-          labels_json,
-          assignee,
-          assigned_provider,
-          assigned_role,
-          assigned_specialist_id,
-          assigned_specialist_name,
-          dependencies_json,
-          parallel_group,
-          acceptance_criteria_json,
-          verification_commands_json,
-          completion_summary,
-          verification_verdict,
-          verification_report,
-          github_id,
-          github_number,
-          github_url,
-          github_repo,
-          github_state,
-          github_synced_at,
-          last_sync_error,
-          kind,
-          parent_task_id,
-          execution_session_id,
-          result_session_id,
-          source_type,
-          source_event_id,
-          source_entry_index,
-          lane_sessions_json,
-          lane_handoffs_json,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @sessionId,
-          @sessionIdsJson,
-          @triggerSessionId,
-          @workspaceId,
-          @codebaseId,
-          @codebaseIdsJson,
-          @worktreeId,
-          @title,
-          @objective,
-          @scope,
-          @status,
-          @boardId,
-          @columnId,
-          @position,
-          @priority,
-          @labelsJson,
-          @assignee,
-          @assignedProvider,
-          @assignedRole,
-          @assignedSpecialistId,
-          @assignedSpecialistName,
-          @dependenciesJson,
-          @parallelGroup,
-          @acceptanceCriteriaJson,
-          @verificationCommandsJson,
-          @completionSummary,
-          @verificationVerdict,
-          @verificationReport,
-          @githubId,
-          @githubNumber,
-          @githubUrl,
-          @githubRepo,
-          @githubState,
-          @githubSyncedAt,
-          @lastSyncError,
-          @kind,
-          @parentTaskId,
-          @executionSessionId,
-          @resultSessionId,
-          @sourceType,
-          @sourceEventId,
-          @sourceEntryIndex,
-          @laneSessionsJson,
-          @laneHandoffsJson,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectTasksTable)
+    .values({
       acceptanceCriteriaJson: JSON.stringify(input.acceptanceCriteria ?? []),
       assignedProvider: input.assignedProvider ?? null,
       assignedRole: assignment.assignedRole,
@@ -967,10 +881,13 @@ export async function createTask(
       assignee: input.assignee ?? null,
       boardId: workflowContext.boardId,
       codebaseId: workspaceBinding.codebaseId,
+      codebaseIdsJson: JSON.stringify(workspaceBinding.codebaseIds),
       columnId: workflowContext.columnId,
       completionSummary: input.completionSummary ?? null,
       createdAt: now,
       dependenciesJson: JSON.stringify(input.dependencies ?? []),
+      deletedAt: null,
+      executionSessionId,
       githubId: input.githubId ?? null,
       githubNumber: input.githubNumber ?? null,
       githubRepo: input.githubRepo ?? null,
@@ -979,25 +896,24 @@ export async function createTask(
       githubUrl: input.githubUrl ?? null,
       id: taskId,
       kind,
+      labelsJson: JSON.stringify(input.labels ?? []),
       laneHandoffsJson: JSON.stringify(input.laneHandoffs ?? []),
       laneSessionsJson: JSON.stringify(input.laneSessions ?? []),
-      labelsJson: JSON.stringify(input.labels ?? []),
       lastSyncError: input.lastSyncError ?? null,
       objective: input.objective,
-      executionSessionId,
       parallelGroup: input.parallelGroup ?? null,
       parentTaskId,
       position,
       priority: input.priority ?? null,
       projectId: input.projectId,
       resultSessionId,
-      sessionIdsJson: JSON.stringify(sessionIds),
-      sessionId,
       scope: input.scope ?? null,
-      status,
+      sessionId,
+      sessionIdsJson: JSON.stringify(sessionIds),
       sourceEntryIndex: input.sourceEntryIndex ?? null,
       sourceEventId: input.sourceEventId ?? null,
       sourceType: input.sourceType ?? 'manual',
+      status,
       title: input.title,
       triggerSessionId: null,
       updatedAt: now,
@@ -1007,9 +923,9 @@ export async function createTask(
       verificationReport: input.verificationReport ?? null,
       verificationVerdict: input.verificationVerdict ?? null,
       workspaceId: input.projectId,
-      codebaseIdsJson: JSON.stringify(workspaceBinding.codebaseIds),
       worktreeId: workspaceBinding.worktreeId,
-    });
+    })
+    .run();
 
   return getTaskById(sqlite, taskId);
 }
@@ -1033,98 +949,37 @@ export async function listTasks(
   }
 
   const offset = (page - 1) * pageSize;
-  const filters = ['deleted_at IS NULL'];
-  const parameters: Record<string, unknown> = {
-    limit: pageSize,
-    offset,
-  };
+  const filters = [isNull(projectTasksTable.deletedAt)];
 
   if (projectId) {
-    filters.push('project_id = @projectId');
-    parameters.projectId = projectId;
+    filters.push(eq(projectTasksTable.projectId, projectId));
   }
 
   if (sessionId) {
-    filters.push('session_id = @sessionId');
-    parameters.sessionId = sessionId;
+    filters.push(eq(projectTasksTable.sessionId, sessionId));
   }
 
   if (status) {
-    filters.push('status = @status');
-    parameters.status = status;
+    filters.push(eq(projectTasksTable.status, status));
   }
 
-  const whereClause = filters.join(' AND ');
+  const whereClause = combineFilters(filters);
+  const rows = getDrizzleDb(sqlite)
+    .select(taskRowSelection)
+    .from(projectTasksTable)
+    .where(whereClause)
+    .orderBy(desc(projectTasksTable.updatedAt), desc(projectTasksTable.createdAt))
+    .limit(pageSize)
+    .offset(offset)
+    .all() as TaskRow[];
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          trigger_session_id,
-          title,
-          objective,
-          scope,
-          status,
-          board_id,
-          column_id,
-          position,
-          priority,
-          labels_json,
-          assignee,
-          assigned_provider,
-          assigned_role,
-          assigned_specialist_id,
-          assigned_specialist_name,
-          dependencies_json,
-          parallel_group,
-          acceptance_criteria_json,
-          verification_commands_json,
-          completion_summary,
-          verification_verdict,
-          verification_report,
-          github_id,
-          github_number,
-          github_url,
-          github_repo,
-          github_state,
-          github_synced_at,
-          last_sync_error,
-          kind,
-          parent_task_id,
-          execution_session_id,
-          result_session_id,
-          source_type,
-          source_event_id,
-          source_entry_index,
-          session_id,
-          session_ids_json,
-          codebase_id,
-          codebase_ids_json,
-          worktree_id,
-          workspace_id,
-          lane_sessions_json,
-          lane_handoffs_json,
-          created_at,
-          updated_at
-        FROM project_tasks
-        WHERE ${whereClause}
-        ORDER BY updated_at DESC, created_at DESC
-        LIMIT @limit OFFSET @offset
-      `,
-    )
-    .all(parameters) as TaskRow[];
-
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_tasks
-        WHERE ${whereClause}
-      `,
-    )
-    .get(parameters) as { count: number };
+  const total = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(projectTasksTable)
+    .where(whereClause)
+    .get() as { count: number };
 
   return {
     items: rows.map(mapTaskRow),
@@ -1375,60 +1230,62 @@ export async function updateTask(
     worktreeId: workspaceBinding.worktreeId,
   };
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_tasks
-        SET
-          session_id = @sessionId,
-          session_ids_json = @sessionIdsJson,
-          trigger_session_id = @triggerSessionId,
-          title = @title,
-          objective = @objective,
-          scope = @scope,
-          status = @status,
-          board_id = @boardId,
-          workspace_id = @workspaceId,
-          codebase_id = @codebaseId,
-          codebase_ids_json = @codebaseIdsJson,
-          column_id = @columnId,
-          position = @position,
-          priority = @priority,
-          labels_json = @labelsJson,
-          assignee = @assignee,
-          assigned_provider = @assignedProvider,
-          assigned_role = @assignedRole,
-          assigned_specialist_id = @assignedSpecialistId,
-          assigned_specialist_name = @assignedSpecialistName,
-          dependencies_json = @dependenciesJson,
-          parallel_group = @parallelGroup,
-          acceptance_criteria_json = @acceptanceCriteriaJson,
-          verification_commands_json = @verificationCommandsJson,
-          completion_summary = @completionSummary,
-          verification_verdict = @verificationVerdict,
-          verification_report = @verificationReport,
-          github_id = @githubId,
-          github_number = @githubNumber,
-          github_url = @githubUrl,
-          github_repo = @githubRepo,
-          github_state = @githubState,
-          github_synced_at = @githubSyncedAt,
-          last_sync_error = @lastSyncError,
-          kind = @kind,
-          parent_task_id = @parentTaskId,
-          execution_session_id = @executionSessionId,
-          result_session_id = @resultSessionId,
-          source_type = @sourceType,
-          source_event_id = @sourceEventId,
-          source_entry_index = @sourceEntryIndex,
-          lane_sessions_json = @laneSessionsJson,
-          lane_handoffs_json = @laneHandoffsJson,
-          worktree_id = @worktreeId,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
+  getDrizzleDb(sqlite)
+    .update(projectTasksTable)
+    .set({
+      acceptanceCriteriaJson: next.acceptanceCriteriaJson,
+      assignedProvider: next.assignedProvider,
+      assignedRole: next.assignedRole,
+      assignedSpecialistId: next.assignedSpecialistId,
+      assignedSpecialistName: next.assignedSpecialistName,
+      assignee: next.assignee,
+      boardId: next.boardId,
+      codebaseId: next.codebaseId,
+      codebaseIdsJson: next.codebaseIdsJson,
+      columnId: next.columnId,
+      completionSummary: next.completionSummary,
+      dependenciesJson: next.dependenciesJson,
+      executionSessionId: next.executionSessionId,
+      githubId: next.githubId,
+      githubNumber: next.githubNumber,
+      githubRepo: next.githubRepo,
+      githubState: next.githubState,
+      githubSyncedAt: next.githubSyncedAt,
+      githubUrl: next.githubUrl,
+      kind: next.kind,
+      laneHandoffsJson: next.laneHandoffsJson,
+      laneSessionsJson: next.laneSessionsJson,
+      labelsJson: next.labelsJson,
+      lastSyncError: next.lastSyncError,
+      objective: next.objective,
+      parallelGroup: next.parallelGroup,
+      parentTaskId: next.parentTaskId,
+      position: next.position,
+      priority: next.priority,
+      resultSessionId: next.resultSessionId,
+      scope: next.scope,
+      sessionId: next.sessionId,
+      sessionIdsJson: next.sessionIdsJson,
+      sourceEntryIndex: next.sourceEntryIndex,
+      sourceEventId: next.sourceEventId,
+      sourceType: next.sourceType,
+      status: next.status,
+      title: next.title,
+      triggerSessionId: next.triggerSessionId,
+      updatedAt: next.updatedAt,
+      verificationCommandsJson: next.verificationCommandsJson,
+      verificationReport: next.verificationReport,
+      verificationVerdict: next.verificationVerdict,
+      workspaceId: next.workspaceId,
+      worktreeId: next.worktreeId,
+    })
+    .where(
+      and(
+        eq(projectTasksTable.id, next.id),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .run(next);
+    .run();
 
   return getTaskById(sqlite, taskId);
 }
@@ -1456,21 +1313,20 @@ export async function deleteTask(
   sqlite: Database,
   taskId: string,
 ): Promise<void> {
-  const result = sqlite
-    .prepare(
-      `
-        UPDATE project_tasks
-        SET
-          deleted_at = @deletedAt,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
+  const now = new Date().toISOString();
+  const result = getDrizzleDb(sqlite)
+    .update(projectTasksTable)
+    .set({
+      deletedAt: now,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(projectTasksTable.id, taskId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .run({
-      deletedAt: new Date().toISOString(),
-      id: taskId,
-      updatedAt: new Date().toISOString(),
-    });
+    .run();
 
   if (result.changes === 0) {
     throwTaskNotFound(taskId);
@@ -1481,23 +1337,23 @@ export async function listDependentTasks(
   sqlite: Database,
   taskId: string,
 ): Promise<TaskPayload[]> {
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id
-        FROM project_tasks
-        WHERE deleted_at IS NULL
-          AND EXISTS (
-            SELECT 1
-            FROM json_each(project_tasks.dependencies_json)
-            WHERE json_each.value = @taskId
-          )
-        ORDER BY created_at ASC, updated_at ASC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      id: projectTasksTable.id,
+    })
+    .from(projectTasksTable)
+    .where(
+      and(
+        isNull(projectTasksTable.deletedAt),
+        sql`exists (
+          select 1
+          from json_each(${projectTasksTable.dependenciesJson})
+          where json_each.value = ${taskId}
+        )`,
+      ),
     )
-    .all({
-      taskId,
-    }) as DependentTaskRow[];
+    .orderBy(asc(projectTasksTable.createdAt), asc(projectTasksTable.updatedAt))
+    .all() as DependentTaskRow[];
 
   return await Promise.all(rows.map((row) => getTaskById(sqlite, row.id)));
 }
