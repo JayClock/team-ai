@@ -1,5 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, eq, isNull } from 'drizzle-orm';
 import type {
   ProjectRuntimeProfileConfig,
   ProjectRuntimeProfileConfigMap,
@@ -9,6 +10,8 @@ import type {
   UpdateProjectRuntimeProfileInput,
 } from '../schemas/runtime-profile';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectRuntimeProfilesTable } from '../db/schema';
 import { isRoleValue, type RoleValue } from '../schemas/role';
 import { getProjectById } from './project-service';
 import { listProviderModels as listProviderModelsFromService } from './provider-service';
@@ -325,27 +328,30 @@ function getProjectRuntimeProfileRow(
   projectId: string,
 ): ProjectRuntimeProfileRow | null {
   return (
-    (sqlite
-      .prepare(
-        `
-          SELECT
-            id,
-            project_id,
-            default_provider_id,
-            default_model,
-            orchestration_mode,
-            enabled_skill_ids_json,
-            enabled_mcp_server_ids_json,
-            skill_configs_json,
-            mcp_server_configs_json,
-            role_defaults_json,
-            created_at,
-            updated_at
-          FROM project_runtime_profiles
-          WHERE project_id = ? AND deleted_at IS NULL
-        `,
+    (getDrizzleDb(sqlite)
+      .select({
+        id: projectRuntimeProfilesTable.id,
+        project_id: projectRuntimeProfilesTable.projectId,
+        default_provider_id: projectRuntimeProfilesTable.defaultProviderId,
+        default_model: projectRuntimeProfilesTable.defaultModel,
+        orchestration_mode: projectRuntimeProfilesTable.orchestrationMode,
+        enabled_skill_ids_json: projectRuntimeProfilesTable.enabledSkillIdsJson,
+        enabled_mcp_server_ids_json:
+          projectRuntimeProfilesTable.enabledMcpServerIdsJson,
+        skill_configs_json: projectRuntimeProfilesTable.skillConfigsJson,
+        mcp_server_configs_json: projectRuntimeProfilesTable.mcpServerConfigsJson,
+        role_defaults_json: projectRuntimeProfilesTable.roleDefaultsJson,
+        created_at: projectRuntimeProfilesTable.createdAt,
+        updated_at: projectRuntimeProfilesTable.updatedAt,
+      })
+      .from(projectRuntimeProfilesTable)
+      .where(
+        and(
+          eq(projectRuntimeProfilesTable.projectId, projectId),
+          isNull(projectRuntimeProfilesTable.deletedAt),
+        ),
       )
-      .get(projectId) as ProjectRuntimeProfileRow | undefined) ?? null
+      .get() as ProjectRuntimeProfileRow | undefined) ?? null
   );
 }
 
@@ -374,49 +380,24 @@ function insertRuntimeProfile(
   sqlite: Database,
   profile: ProjectRuntimeProfilePayload,
 ) {
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_runtime_profiles (
-          id,
-          project_id,
-          default_provider_id,
-          default_model,
-          orchestration_mode,
-          enabled_skill_ids_json,
-          enabled_mcp_server_ids_json,
-          skill_configs_json,
-          mcp_server_configs_json,
-          role_defaults_json,
-          created_at,
-          updated_at,
-          deleted_at
-        )
-        VALUES (
-          @id,
-          @projectId,
-          @defaultProviderId,
-          @defaultModel,
-          @orchestrationMode,
-          @enabledSkillIdsJson,
-          @enabledMcpServerIdsJson,
-          @skillConfigsJson,
-          @mcpServerConfigsJson,
-          @roleDefaultsJson,
-          @createdAt,
-          @updatedAt,
-          NULL
-        )
-      `,
-    )
-    .run({
-      ...profile,
-      enabledMcpServerIdsJson: JSON.stringify(profile.enabledMcpServerIds),
+  getDrizzleDb(sqlite)
+    .insert(projectRuntimeProfilesTable)
+    .values({
+      id: profile.id,
+      projectId: profile.projectId,
+      defaultProviderId: profile.defaultProviderId,
+      defaultModel: profile.defaultModel,
+      orchestrationMode: profile.orchestrationMode,
       enabledSkillIdsJson: JSON.stringify(profile.enabledSkillIds),
+      enabledMcpServerIdsJson: JSON.stringify(profile.enabledMcpServerIds),
+      skillConfigsJson: JSON.stringify(profile.skillConfigs),
       mcpServerConfigsJson: JSON.stringify(profile.mcpServerConfigs),
       roleDefaultsJson: JSON.stringify(profile.roleDefaults),
-      skillConfigsJson: JSON.stringify(profile.skillConfigs),
-    });
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+      deletedAt: null,
+    })
+    .run();
 }
 
 export async function getProjectRuntimeProfile(
@@ -497,31 +478,26 @@ export async function updateProjectRuntimeProfile(
 
   await validateRuntimeProfileDefaults(next, deps);
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_runtime_profiles
-        SET
-          default_provider_id = @defaultProviderId,
-          default_model = @defaultModel,
-          orchestration_mode = @orchestrationMode,
-          enabled_skill_ids_json = @enabledSkillIdsJson,
-          enabled_mcp_server_ids_json = @enabledMcpServerIdsJson,
-          skill_configs_json = @skillConfigsJson,
-          mcp_server_configs_json = @mcpServerConfigsJson,
-          role_defaults_json = @roleDefaultsJson,
-          updated_at = @updatedAt
-        WHERE project_id = @projectId AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      ...next,
-      enabledMcpServerIdsJson: JSON.stringify(next.enabledMcpServerIds),
+  getDrizzleDb(sqlite)
+    .update(projectRuntimeProfilesTable)
+    .set({
+      defaultProviderId: next.defaultProviderId,
+      defaultModel: next.defaultModel,
+      orchestrationMode: next.orchestrationMode,
       enabledSkillIdsJson: JSON.stringify(next.enabledSkillIds),
+      enabledMcpServerIdsJson: JSON.stringify(next.enabledMcpServerIds),
+      skillConfigsJson: JSON.stringify(next.skillConfigs),
       mcpServerConfigsJson: JSON.stringify(next.mcpServerConfigs),
       roleDefaultsJson: JSON.stringify(next.roleDefaults),
-      skillConfigsJson: JSON.stringify(next.skillConfigs),
-    });
+      updatedAt: next.updatedAt,
+    })
+    .where(
+      and(
+        eq(projectRuntimeProfilesTable.projectId, next.projectId),
+        isNull(projectRuntimeProfilesTable.deletedAt),
+      ),
+    )
+    .run();
 
   return next;
 }

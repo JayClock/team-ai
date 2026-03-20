@@ -5,6 +5,8 @@ import type {
   WorkflowDefinitionPayload,
   WorkflowStepPayload,
 } from '../schemas/workflow';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectWorkflowRunsTable } from '../db/schema';
 import { createBackgroundTask } from './background-task-service';
 import { loadWorkflowDefinition } from './workflow-loader-service';
 
@@ -38,34 +40,26 @@ function insertWorkflowRun(
 ) {
   const now = new Date().toISOString();
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_workflow_runs (
-          id, workflow_id, project_id, workflow_name, workflow_version, status,
-          trigger_source, trigger_payload, current_step_name, total_steps,
-          started_at, completed_at, created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @workflowId, @projectId, @workflowName, @workflowVersion, 'RUNNING',
-          @triggerSource, @triggerPayload, @currentStepName, @totalSteps,
-          @startedAt, NULL, @createdAt, @updatedAt, NULL
-        )
-      `,
-    )
-    .run({
-      createdAt: now,
-      currentStepName: workflow.steps[0]?.name ?? null,
+  getDrizzleDb(sqlite)
+    .insert(projectWorkflowRunsTable)
+    .values({
       id: workflowRunId,
-      projectId: workflow.projectId,
-      startedAt: now,
-      totalSteps: workflow.steps.length,
-      triggerPayload: input.triggerPayload ?? null,
-      triggerSource: input.triggerSource ?? 'manual',
-      updatedAt: now,
       workflowId: workflow.id,
+      projectId: workflow.projectId,
       workflowName: workflow.name,
       workflowVersion: workflow.version,
-    });
+      status: 'RUNNING',
+      triggerSource: input.triggerSource ?? 'manual',
+      triggerPayload: input.triggerPayload ?? null,
+      currentStepName: workflow.steps[0]?.name ?? null,
+      totalSteps: workflow.steps.length,
+      startedAt: now,
+      completedAt: null,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    })
+    .run();
 }
 
 export async function triggerWorkflowRun(

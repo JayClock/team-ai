@@ -3,6 +3,9 @@ import { ProblemError } from '@orchestration/runtime-acp';
 import type { NotePayload } from '../schemas/note';
 import type { TaskKind, TaskPayload } from '../schemas/task';
 import type { DiagnosticLogger } from '@orchestration/runtime-acp';
+import { and, asc, eq, isNull } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectTasksTable } from '../db/schema';
 import type {
   TaskSessionDispatchCallbacks,
   TaskSessionDispatchResult,
@@ -130,18 +133,20 @@ async function resolveWorkflowSpecNote(
 
 function listSpecNoteTaskIds(sqlite: Database, noteId: string) {
   return (
-    sqlite
-      .prepare(
-        `
-          SELECT id
-          FROM project_tasks
-          WHERE source_type = 'spec_note'
-            AND source_event_id = ?
-            AND deleted_at IS NULL
-          ORDER BY source_entry_index ASC, created_at ASC
-        `,
+    getDrizzleDb(sqlite)
+      .select({
+        id: projectTasksTable.id,
+      })
+      .from(projectTasksTable)
+      .where(
+        and(
+          eq(projectTasksTable.sourceType, 'spec_note'),
+          eq(projectTasksTable.sourceEventId, noteId),
+          isNull(projectTasksTable.deletedAt),
+        ),
       )
-      .all(noteId) as Array<{ id: string }>
+      .orderBy(asc(projectTasksTable.sourceEntryIndex), asc(projectTasksTable.createdAt))
+      .all() as Array<{ id: string }>
   ).map((row) => row.id);
 }
 

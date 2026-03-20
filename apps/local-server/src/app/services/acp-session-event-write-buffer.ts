@@ -1,5 +1,7 @@
 import type { Database } from 'better-sqlite3';
 import type { AcpEventEnvelopePayload } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectAcpSessionEventsTable } from '../db/schema';
 
 interface BufferedAcpSessionEventRow {
   createdAt: string;
@@ -170,30 +172,23 @@ function persistBufferedRows(
   sqlite: Database,
   rows: BufferedAcpSessionEventRow[],
 ): void {
-  const insert = sqlite.prepare(`
-    INSERT OR IGNORE INTO project_acp_session_events (
-      event_id,
-      session_id,
-      type,
-      payload_json,
-      error_json,
-      emitted_at,
-      created_at
-    )
-    VALUES (
-      @eventId,
-      @sessionId,
-      @type,
-      @payloadJson,
-      @errorJson,
-      @emittedAt,
-      @createdAt
-    )
-  `);
-
+  const db = getDrizzleDb(sqlite);
   const transaction = sqlite.transaction((batch: BufferedAcpSessionEventRow[]) => {
     for (const row of batch) {
-      insert.run(row);
+      db.insert(projectAcpSessionEventsTable)
+        .values({
+          eventId: row.eventId,
+          sessionId: row.sessionId,
+          type: row.type,
+          payloadJson: row.payloadJson,
+          errorJson: row.errorJson,
+          emittedAt: row.emittedAt,
+          createdAt: row.createdAt,
+        })
+        .onConflictDoNothing({
+          target: projectAcpSessionEventsTable.eventId,
+        })
+        .run();
     }
   });
 

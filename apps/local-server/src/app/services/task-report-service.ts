@@ -1,5 +1,8 @@
 import type { Database } from 'better-sqlite3';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { and, eq, isNull } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectAcpSessionsTable } from '../db/schema';
 import type { NotePayload, NoteType } from '../schemas/note';
 import type { TaskRunPayload } from '../schemas/task-run';
 import type { TaskPayload } from '../schemas/task';
@@ -142,20 +145,22 @@ function getSessionReportContext(
   sqlite: Database,
   sessionId: string,
 ): SessionReportContextRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          parent_session_id,
-          specialist_id,
-          task_id
-        FROM project_acp_sessions
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectAcpSessionsTable.id,
+      project_id: projectAcpSessionsTable.projectId,
+      parent_session_id: projectAcpSessionsTable.parentSessionId,
+      specialist_id: projectAcpSessionsTable.specialistId,
+      task_id: projectAcpSessionsTable.taskId,
+    })
+    .from(projectAcpSessionsTable)
+    .where(
+      and(
+        eq(projectAcpSessionsTable.id, sessionId),
+        isNull(projectAcpSessionsTable.deletedAt),
+      ),
     )
-    .get(sessionId) as SessionReportContextRow | undefined;
+    .get() as SessionReportContextRow | undefined;
 
   if (!row) {
     throwReportSessionNotFound(sessionId);

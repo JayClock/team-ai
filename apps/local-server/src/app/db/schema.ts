@@ -1,5 +1,6 @@
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { ProjectPayload } from '../schemas/project';
+import type { ProjectRuntimeProfilePayload } from '../schemas/runtime-profile';
 import type { SchedulePayload } from '../schemas/schedule';
 import type {
   SyncConflictPayload,
@@ -110,6 +111,85 @@ export const projectBackgroundTasksTable = sqliteTable('project_background_tasks
   specialistId: text('specialist_id'),
 });
 
+export const projectRuntimeProfilesTable = sqliteTable('project_runtime_profiles', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  defaultProviderId: text('default_provider_id'),
+  defaultModel: text('default_model'),
+  orchestrationMode: text('orchestration_mode')
+    .$type<ProjectRuntimeProfilePayload['orchestrationMode']>()
+    .notNull(),
+  enabledSkillIdsJson: text('enabled_skill_ids_json').notNull(),
+  enabledMcpServerIdsJson: text('enabled_mcp_server_ids_json').notNull(),
+  skillConfigsJson: text('skill_configs_json').notNull(),
+  mcpServerConfigsJson: text('mcp_server_configs_json').notNull(),
+  roleDefaultsJson: text('role_defaults_json').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const projectWorkflowRunsTable = sqliteTable('project_workflow_runs', {
+  id: text('id').primaryKey(),
+  workflowId: text('workflow_id').notNull(),
+  projectId: text('project_id').notNull(),
+  workflowName: text('workflow_name').notNull(),
+  workflowVersion: integer('workflow_version').notNull(),
+  status: text('status').notNull(),
+  triggerSource: text('trigger_source').notNull(),
+  triggerPayload: text('trigger_payload'),
+  currentStepName: text('current_step_name'),
+  totalSteps: integer('total_steps').notNull(),
+  startedAt: text('started_at'),
+  completedAt: text('completed_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const projectAcpSessionsTable = sqliteTable('project_acp_sessions', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  actorId: text('actor_id').notNull(),
+  parentSessionId: text('parent_session_id'),
+  name: text('name'),
+  provider: text('provider').notNull(),
+  state: text('state').notNull(),
+  runtimeSessionId: text('runtime_session_id'),
+  failureReason: text('failure_reason'),
+  lastEventId: text('last_event_id'),
+  startedAt: text('started_at'),
+  lastActivityAt: text('last_activity_at'),
+  completedAt: text('completed_at'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+  cwd: text('cwd'),
+  agentId: text('agent_id'),
+  specialistId: text('specialist_id'),
+  taskId: text('task_id'),
+});
+
+export const projectAcpSessionEventsTable = sqliteTable('project_acp_session_events', {
+  sequence: integer('sequence').primaryKey({ autoIncrement: true }),
+  eventId: text('event_id').notNull(),
+  sessionId: text('session_id').notNull(),
+  type: text('type').notNull(),
+  payloadJson: text('payload_json').notNull(),
+  errorJson: text('error_json'),
+  emittedAt: text('emitted_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const projectTasksTable = sqliteTable('project_tasks', {
+  id: text('id').primaryKey(),
+  sourceType: text('source_type'),
+  sourceEventId: text('source_event_id'),
+  sourceEntryIndex: integer('source_entry_index'),
+  createdAt: text('created_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
 export const syncStateTable = sqliteTable('sync_state', {
   id: integer('id').primaryKey(),
   status: text('status').$type<SyncRuntimeStatus>().notNull(),
@@ -141,6 +221,11 @@ export const sqliteSchema = {
   projectAgents: projectAgentsTable,
   projectSchedules: projectSchedulesTable,
   projectBackgroundTasks: projectBackgroundTasksTable,
+  projectRuntimeProfiles: projectRuntimeProfilesTable,
+  projectWorkflowRuns: projectWorkflowRunsTable,
+  projectAcpSessions: projectAcpSessionsTable,
+  projectAcpSessionEvents: projectAcpSessionEventsTable,
+  projectTasks: projectTasksTable,
   syncState: syncStateTable,
   syncConflicts: syncConflictsTable,
 };
