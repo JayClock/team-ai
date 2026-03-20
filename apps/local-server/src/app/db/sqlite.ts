@@ -1,8 +1,10 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { asc } from 'drizzle-orm';
 import BetterSqlite3 from 'better-sqlite3';
 import { attachDrizzleDb, type LocalDatabase } from './drizzle';
 import { sqliteMigrations } from './migrations';
+import { schemaMigrationsTable, settingsTable } from './schema';
 
 const defaultBusyTimeoutMs = 5_000;
 
@@ -30,25 +32,27 @@ export function initializeDatabase(): LocalDatabase {
     );
   `);
 
+  const sqlite = attachDrizzleDb(database);
+  const db = sqlite.orm;
   const appliedVersions = new Set<string>(
-    (
-      database
-        .prepare('SELECT version FROM schema_migrations ORDER BY version')
-        .all() as Array<{ version: string }>
-    ).map(({ version }) => String(version)),
+    db
+      .select({
+        version: schemaMigrationsTable.version,
+      })
+      .from(schemaMigrationsTable)
+      .orderBy(asc(schemaMigrationsTable.version))
+      .all()
+      .map(({ version }) => String(version)),
   );
-
-  const insertMigration = database.prepare(`
-    INSERT INTO schema_migrations(version, applied_at)
-    VALUES (@version, @appliedAt)
-  `);
 
   const runMigration = database.transaction((version: string, sql: string) => {
     database.exec(sql);
-    insertMigration.run({
-      version,
-      appliedAt: new Date().toISOString(),
-    });
+    db.insert(schemaMigrationsTable)
+      .values({
+        version,
+        appliedAt: new Date().toISOString(),
+      })
+      .run();
   });
 
   for (const migration of sqliteMigrations) {
@@ -57,24 +61,15 @@ export function initializeDatabase(): LocalDatabase {
     }
   }
 
-  database
-    .prepare(
-      `
-        INSERT INTO settings (
-          id,
-          theme,
-          sync_enabled,
-          updated_at
-        )
-        VALUES (1, @theme, @syncEnabled, @updatedAt)
-        ON CONFLICT(id) DO NOTHING
-      `,
-    )
-    .run({
+  db.insert(settingsTable)
+    .values({
+      id: 1,
       theme: 'system',
-      syncEnabled: 0,
+      syncEnabled: false,
       updatedAt: new Date().toISOString(),
-    });
+    })
+    .onConflictDoNothing()
+    .run();
 
-  return attachDrizzleDb(database);
+  return sqlite;
 }

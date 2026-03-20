@@ -1,6 +1,13 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectKanbanBoardsTable,
+  projectKanbanColumnsTable,
+  projectTasksTable,
+} from '../db/schema';
 import type {
   KanbanBoardListPayload,
   KanbanBoardPayload,
@@ -49,7 +56,7 @@ interface ParsedBoardSettingsRecord {
 interface BoardRow {
   created_at: string;
   id: string;
-  is_default: number;
+  is_default: boolean;
   name: string;
   project_id: string;
   settings_json: string;
@@ -93,6 +100,54 @@ interface BoardTaskRow {
   verification_report: string | null;
   verification_verdict: string | null;
 }
+
+const boardRowSelection = {
+  created_at: projectKanbanBoardsTable.createdAt,
+  id: projectKanbanBoardsTable.id,
+  is_default: projectKanbanBoardsTable.isDefault,
+  name: projectKanbanBoardsTable.name,
+  project_id: projectKanbanBoardsTable.projectId,
+  settings_json: projectKanbanBoardsTable.settingsJson,
+  updated_at: projectKanbanBoardsTable.updatedAt,
+} as const;
+
+const columnRowSelection = {
+  automation_json: projectKanbanColumnsTable.automationJson,
+  board_id: projectKanbanColumnsTable.boardId,
+  id: projectKanbanColumnsTable.id,
+  name: projectKanbanColumnsTable.name,
+  position: projectKanbanColumnsTable.position,
+  stage: projectKanbanColumnsTable.stage,
+} as const;
+
+const boardTaskRowSelection = {
+  assigned_role: projectTasksTable.assignedRole,
+  assigned_specialist_name: projectTasksTable.assignedSpecialistName,
+  board_id: projectTasksTable.boardId,
+  column_id: projectTasksTable.columnId,
+  completion_summary: projectTasksTable.completionSummary,
+  execution_session_id: projectTasksTable.executionSessionId,
+  github_number: projectTasksTable.githubNumber,
+  github_repo: projectTasksTable.githubRepo,
+  github_state: projectTasksTable.githubState,
+  github_url: projectTasksTable.githubUrl,
+  id: projectTasksTable.id,
+  kind: projectTasksTable.kind,
+  lane_handoffs_json: projectTasksTable.laneHandoffsJson,
+  lane_sessions_json: projectTasksTable.laneSessionsJson,
+  last_sync_error: projectTasksTable.lastSyncError,
+  position: projectTasksTable.position,
+  priority: projectTasksTable.priority,
+  result_session_id: projectTasksTable.resultSessionId,
+  source_event_id: projectTasksTable.sourceEventId,
+  source_type: projectTasksTable.sourceType,
+  status: projectTasksTable.status,
+  title: projectTasksTable.title,
+  trigger_session_id: projectTasksTable.triggerSessionId,
+  updated_at: projectTasksTable.updatedAt,
+  verification_report: projectTasksTable.verificationReport,
+  verification_verdict: projectTasksTable.verificationVerdict,
+} as const;
 
 function parseAutomationJson(value: string | null) {
   if (!value) {
@@ -328,7 +383,7 @@ function mapBoardRow(
     projectId: row.project_id,
     settings: {
       ...settings,
-      isDefault: row.is_default === 1,
+      isDefault: row.is_default,
     },
     updatedAt: row.updated_at,
   };
@@ -344,30 +399,38 @@ function throwBoardNotFound(projectId: string, boardId: string): never {
 }
 
 function listBoardRows(sqlite: Database, projectId: string) {
-  return sqlite
-    .prepare(
-      `
-        SELECT id, project_id, name, created_at, updated_at
-          , is_default, settings_json
-        FROM project_kanban_boards
-        WHERE project_id = ? AND deleted_at IS NULL
-        ORDER BY is_default DESC, updated_at DESC, created_at DESC
-      `,
+  return getDrizzleDb(sqlite)
+    .select(boardRowSelection)
+    .from(projectKanbanBoardsTable)
+    .where(
+      and(
+        eq(projectKanbanBoardsTable.projectId, projectId),
+        isNull(projectKanbanBoardsTable.deletedAt),
+      ),
     )
-    .all(projectId) as BoardRow[];
+    .orderBy(
+      desc(projectKanbanBoardsTable.isDefault),
+      desc(projectKanbanBoardsTable.updatedAt),
+      desc(projectKanbanBoardsTable.createdAt),
+    )
+    .all() as BoardRow[];
 }
 
 function listColumnRows(sqlite: Database, boardId: string) {
-  return sqlite
-    .prepare(
-      `
-        SELECT id, board_id, name, position, automation_json, stage
-        FROM project_kanban_columns
-        WHERE board_id = ? AND deleted_at IS NULL
-        ORDER BY position ASC, created_at ASC
-      `,
+  return getDrizzleDb(sqlite)
+    .select(columnRowSelection)
+    .from(projectKanbanColumnsTable)
+    .where(
+      and(
+        eq(projectKanbanColumnsTable.boardId, boardId),
+        isNull(projectKanbanColumnsTable.deletedAt),
+      ),
     )
-    .all(boardId) as ColumnRow[];
+    .orderBy(
+      asc(projectKanbanColumnsTable.position),
+      asc(projectKanbanColumnsTable.createdAt),
+    )
+    .all() as ColumnRow[];
 }
 
 function listBoardTaskRows(
@@ -375,41 +438,17 @@ function listBoardTaskRows(
   projectId: string,
   boardId: string,
 ) {
-  return sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          board_id,
-          column_id,
-          title,
-          status,
-          kind,
-          priority,
-          position,
-          assigned_role,
-          assigned_specialist_name,
-          trigger_session_id,
-          execution_session_id,
-          result_session_id,
-          completion_summary,
-          github_number,
-          github_repo,
-          github_state,
-          github_url,
-          last_sync_error,
-          source_event_id,
-          source_type,
-          verification_report,
-          verification_verdict,
-          lane_sessions_json,
-          lane_handoffs_json,
-          updated_at
-        FROM project_tasks
-        WHERE project_id = ? AND board_id = ? AND deleted_at IS NULL
-      `,
+  return getDrizzleDb(sqlite)
+    .select(boardTaskRowSelection)
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.projectId, projectId),
+        eq(projectTasksTable.boardId, boardId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .all(projectId, boardId) as BoardTaskRow[];
+    .all() as BoardTaskRow[];
 }
 
 function flattenArtifactEvidence(row: BoardTaskRow) {
@@ -625,42 +664,25 @@ function reconcileDefaultBoardColumns(
     ]),
   );
   const now = new Date().toISOString();
-  const insertColumn = sqlite.prepare(
-    `
-      INSERT INTO project_kanban_columns (
-        id, board_id, name, position, stage, automation_json, created_at, updated_at, deleted_at
-      ) VALUES (
-        @id, @boardId, @name, @position, @stage, @automationJson, @createdAt, @updatedAt, NULL
-      )
-    `,
-  );
-  const updateColumn = sqlite.prepare(
-    `
-      UPDATE project_kanban_columns
-      SET
-        name = @name,
-        position = @position,
-        stage = @stage,
-        automation_json = @automationJson,
-        updated_at = @updatedAt
-      WHERE id = @id
-    `,
-  );
 
   const syncColumns = sqlite.transaction(() => {
+    const db = getDrizzleDb(sqlite);
     for (const [position, definition] of defaultTaskWorkflowColumns.entries()) {
       const row = stageRows.get(definition.stage);
       if (!row) {
-        insertColumn.run({
-          automationJson: createDefaultColumnAutomation(definition.id),
-          boardId: board.id,
-          createdAt: now,
-          id: `${board.id}_${definition.id}`,
-          name: definition.name,
-          position,
-          stage: definition.stage,
-          updatedAt: now,
-        });
+        db.insert(projectKanbanColumnsTable)
+          .values({
+            automationJson: createDefaultColumnAutomation(definition.id),
+            boardId: board.id,
+            createdAt: now,
+            deletedAt: null,
+            id: `${board.id}_${definition.id}`,
+            name: definition.name,
+            position,
+            stage: definition.stage,
+            updatedAt: now,
+          })
+          .run();
         continue;
       }
 
@@ -671,17 +693,19 @@ function reconcileDefaultBoardColumns(
         row.automation_json !==
           normalizeColumnAutomationJson(definition.id, row.automation_json)
       ) {
-        updateColumn.run({
-          automationJson: normalizeColumnAutomationJson(
-            definition.id,
-            row.automation_json,
-          ),
-          id: row.id,
-          name: definition.name,
-          position,
-          stage: definition.stage,
-          updatedAt: now,
-        });
+        db.update(projectKanbanColumnsTable)
+          .set({
+            automationJson: normalizeColumnAutomationJson(
+              definition.id,
+              row.automation_json,
+            ),
+            name: definition.name,
+            position,
+            stage: definition.stage,
+            updatedAt: now,
+          })
+          .where(eq(projectKanbanColumnsTable.id, row.id))
+          .run();
       }
     }
   });
@@ -699,7 +723,7 @@ export async function ensureDefaultKanbanBoard(
 
   const existingRows = listBoardRows(sqlite, projectId);
   if (existingRows.length > 0) {
-    const existing = existingRows.find((row) => row.is_default === 1) ?? existingRows[0];
+    const existing = existingRows.find((row) => row.is_default) ?? existingRows[0];
     const columns = boardUsesWorkflowTemplate(existing)
       ? reconcileDefaultBoardColumns(sqlite, existing)
       : listColumnRows(sqlite, existing.id).map(mapColumnRow);
@@ -711,38 +735,27 @@ export async function ensureDefaultKanbanBoard(
   const columns = createDefaultColumnRows(boardId, now);
 
   const createBoard = sqlite.transaction(() => {
-    sqlite
-      .prepare(
-        `
-          INSERT INTO project_kanban_boards (
-            id, project_id, name, is_default, settings_json, created_at, updated_at, deleted_at
-          ) VALUES (
-            @id, @projectId, @name, @isDefault, @settingsJson, @createdAt, @updatedAt, NULL
-          )
-        `,
-      )
-      .run({
+    const db = getDrizzleDb(sqlite);
+    db.insert(projectKanbanBoardsTable)
+      .values({
         createdAt: now,
+        deletedAt: null,
         id: boardId,
-        isDefault: 1,
+        isDefault: true,
         name: defaultBoardName,
         projectId,
         settingsJson: stringifyBoardSettings(undefined, 'workflow'),
         updatedAt: now,
-      });
-
-    const insertColumn = sqlite.prepare(
-      `
-        INSERT INTO project_kanban_columns (
-          id, board_id, name, position, stage, automation_json, created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @boardId, @name, @position, @stage, @automationJson, @createdAt, @updatedAt, NULL
-        )
-      `,
-    );
+      })
+      .run();
 
     for (const column of columns) {
-      insertColumn.run(column);
+      db.insert(projectKanbanColumnsTable)
+        .values({
+          ...column,
+          deletedAt: null,
+        })
+        .run();
     }
   });
 
@@ -799,15 +812,17 @@ export async function getProjectKanbanBoardById(
 ): Promise<KanbanBoardPayload> {
   await ensureDefaultKanbanBoard(sqlite, projectId);
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, name, is_default, settings_json, created_at, updated_at
-        FROM project_kanban_boards
-        WHERE id = ? AND project_id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select(boardRowSelection)
+    .from(projectKanbanBoardsTable)
+    .where(
+      and(
+        eq(projectKanbanBoardsTable.id, boardId),
+        eq(projectKanbanBoardsTable.projectId, projectId),
+        isNull(projectKanbanBoardsTable.deletedAt),
+      ),
     )
-    .get(boardId, projectId) as BoardRow | undefined;
+    .get() as BoardRow | undefined;
 
   if (!row) {
     throwBoardNotFound(projectId, boardId);
@@ -836,15 +851,17 @@ function getBoardRowById(
   projectId: string,
   boardId: string,
 ) {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, project_id, name, is_default, settings_json, created_at, updated_at
-        FROM project_kanban_boards
-        WHERE id = ? AND project_id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select(boardRowSelection)
+    .from(projectKanbanBoardsTable)
+    .where(
+      and(
+        eq(projectKanbanBoardsTable.id, boardId),
+        eq(projectKanbanBoardsTable.projectId, projectId),
+        isNull(projectKanbanBoardsTable.deletedAt),
+      ),
     )
-    .get(boardId, projectId) as BoardRow | undefined;
+    .get() as BoardRow | undefined;
 
   if (!row) {
     throwBoardNotFound(projectId, boardId);
@@ -858,15 +875,17 @@ function getColumnRowById(
   boardId: string,
   columnId: string,
 ) {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, board_id, name, position, stage, automation_json
-        FROM project_kanban_columns
-        WHERE id = ? AND board_id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select(columnRowSelection)
+    .from(projectKanbanColumnsTable)
+    .where(
+      and(
+        eq(projectKanbanColumnsTable.id, columnId),
+        eq(projectKanbanColumnsTable.boardId, boardId),
+        isNull(projectKanbanColumnsTable.deletedAt),
+      ),
     )
-    .get(columnId, boardId) as ColumnRow | undefined;
+    .get() as ColumnRow | undefined;
 
   if (!row) {
     throwColumnNotFound(boardId, columnId);
@@ -876,20 +895,19 @@ function getColumnRowById(
 }
 
 function setDefaultBoard(sqlite: Database, projectId: string, boardId: string) {
-  sqlite
-    .prepare(
-      `
-        UPDATE project_kanban_boards
-        SET is_default = CASE WHEN id = @boardId THEN 1 ELSE 0 END,
-            updated_at = @updatedAt
-        WHERE project_id = @projectId AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      boardId,
-      projectId,
+  getDrizzleDb(sqlite)
+    .update(projectKanbanBoardsTable)
+    .set({
+      isDefault: sql`${projectKanbanBoardsTable.id} = ${boardId}`,
       updatedAt: new Date().toISOString(),
-    });
+    })
+    .where(
+      and(
+        eq(projectKanbanBoardsTable.projectId, projectId),
+        isNull(projectKanbanBoardsTable.deletedAt),
+      ),
+    )
+    .run();
 }
 
 function reorderColumns(
@@ -897,24 +915,24 @@ function reorderColumns(
   boardId: string,
   orderedColumnIds: string[],
 ) {
-  const update = sqlite.prepare(
-    `
-      UPDATE project_kanban_columns
-      SET position = @position,
-          updated_at = @updatedAt
-      WHERE id = @columnId AND board_id = @boardId AND deleted_at IS NULL
-    `,
-  );
   const now = new Date().toISOString();
 
   const transaction = sqlite.transaction(() => {
+    const db = getDrizzleDb(sqlite);
     orderedColumnIds.forEach((columnId, index) => {
-      update.run({
-        boardId,
-        columnId,
-        position: index,
-        updatedAt: now,
-      });
+      db.update(projectKanbanColumnsTable)
+        .set({
+          position: index,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(projectKanbanColumnsTable.id, columnId),
+            eq(projectKanbanColumnsTable.boardId, boardId),
+            isNull(projectKanbanColumnsTable.deletedAt),
+          ),
+        )
+        .run();
     });
   });
 
@@ -939,42 +957,31 @@ export async function createKanbanBoard(
   const columns = createDefaultColumnRows(boardId, now);
 
   const transaction = sqlite.transaction(() => {
+    const db = getDrizzleDb(sqlite);
     if (isDefault) {
       setDefaultBoard(sqlite, input.projectId, boardId);
     }
 
-    sqlite
-      .prepare(
-        `
-          INSERT INTO project_kanban_boards (
-            id, project_id, name, is_default, settings_json, created_at, updated_at, deleted_at
-          ) VALUES (
-            @id, @projectId, @name, @isDefault, @settingsJson, @createdAt, @updatedAt, NULL
-          )
-        `,
-      )
-      .run({
+    db.insert(projectKanbanBoardsTable)
+      .values({
         createdAt: now,
+        deletedAt: null,
         id: boardId,
-        isDefault: isDefault ? 1 : 0,
+        isDefault,
         name: input.name,
         projectId: input.projectId,
         settingsJson: stringifyBoardSettings(input.settings, 'custom'),
         updatedAt: now,
-      });
-
-    const insertColumn = sqlite.prepare(
-      `
-        INSERT INTO project_kanban_columns (
-          id, board_id, name, position, stage, automation_json, created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @boardId, @name, @position, @stage, @automationJson, @createdAt, @updatedAt, NULL
-        )
-      `,
-    );
+      })
+      .run();
 
     for (const column of columns) {
-      insertColumn.run(column);
+      db.insert(projectKanbanColumnsTable)
+        .values({
+          ...column,
+          deletedAt: null,
+        })
+        .run();
     }
   });
 
@@ -1001,34 +1008,30 @@ export async function updateKanbanBoard(
   };
 
   const transaction = sqlite.transaction(() => {
+    const db = getDrizzleDb(sqlite);
     if (input.isDefault) {
       setDefaultBoard(sqlite, input.projectId, input.boardId);
     }
 
-    sqlite
-      .prepare(
-        `
-          UPDATE project_kanban_boards
-          SET name = @name,
-              is_default = @isDefault,
-              settings_json = @settingsJson,
-              updated_at = @updatedAt
-          WHERE id = @id AND project_id = @projectId AND deleted_at IS NULL
-        `,
-      )
-      .run({
-        id: input.boardId,
+    db.update(projectKanbanBoardsTable)
+      .set({
         isDefault:
-          input.isDefault === undefined
-            ? current.is_default
-            : input.isDefault
-              ? 1
-              : 0,
+          input.isDefault === undefined ? current.is_default : input.isDefault,
         name: input.name ?? current.name,
-        projectId: input.projectId,
-        settingsJson: stringifyBoardSettings(mergedSettings, boardUsesWorkflowTemplate(current) ? 'workflow' : 'custom'),
+        settingsJson: stringifyBoardSettings(
+          mergedSettings,
+          boardUsesWorkflowTemplate(current) ? 'workflow' : 'custom',
+        ),
         updatedAt: now,
-      });
+      })
+      .where(
+        and(
+          eq(projectKanbanBoardsTable.id, input.boardId),
+          eq(projectKanbanBoardsTable.projectId, input.projectId),
+          isNull(projectKanbanBoardsTable.deletedAt),
+        ),
+      )
+      .run();
   });
 
   transaction();
@@ -1064,26 +1067,20 @@ export async function createKanbanColumn(
           input.automation ? JSON.stringify(input.automation) : null,
         );
 
-  sqlite
-    .prepare(
-      `
-        INSERT INTO project_kanban_columns (
-          id, board_id, name, position, stage, automation_json, created_at, updated_at, deleted_at
-        ) VALUES (
-          @id, @boardId, @name, @position, @stage, @automationJson, @createdAt, @updatedAt, NULL
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectKanbanColumnsTable)
+    .values({
       automationJson,
       boardId: input.boardId,
       createdAt: now,
+      deletedAt: null,
       id: columnId,
       name: input.name,
       position: columns.length,
       stage,
       updatedAt: now,
-    });
+    })
+    .run();
 
   const orderedIds = listColumnRows(sqlite, input.boardId).map((column) => column.id);
   const currentIndex = orderedIds.indexOf(columnId);
@@ -1091,18 +1088,13 @@ export async function createKanbanColumn(
   orderedIds.splice(targetPosition, 0, columnId);
   reorderColumns(sqlite, input.boardId, orderedIds);
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_kanban_boards
-        SET updated_at = @updatedAt
-        WHERE id = @boardId
-      `,
-    )
-    .run({
-      boardId: board.id,
+  getDrizzleDb(sqlite)
+    .update(projectKanbanBoardsTable)
+    .set({
       updatedAt: now,
-    });
+    })
+    .where(eq(projectKanbanBoardsTable.id, board.id))
+    .run();
 
   return getProjectKanbanBoardById(sqlite, input.projectId, input.boardId);
 }
@@ -1139,25 +1131,22 @@ export async function updateKanbanColumn(
             }),
           );
 
-  sqlite
-    .prepare(
-      `
-        UPDATE project_kanban_columns
-        SET name = @name,
-            stage = @stage,
-            automation_json = @automationJson,
-            updated_at = @updatedAt
-        WHERE id = @columnId AND board_id = @boardId AND deleted_at IS NULL
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .update(projectKanbanColumnsTable)
+    .set({
       automationJson: nextAutomationJson,
-      boardId: input.boardId,
-      columnId: input.columnId,
       name: input.name ?? column.name,
       stage: nextStage,
       updatedAt: now,
-    });
+    })
+    .where(
+      and(
+        eq(projectKanbanColumnsTable.id, input.columnId),
+        eq(projectKanbanColumnsTable.boardId, input.boardId),
+        isNull(projectKanbanColumnsTable.deletedAt),
+      ),
+    )
+    .run();
 
   if (input.position !== undefined) {
     const orderedIds = listColumnRows(sqlite, input.boardId).map((entry) => entry.id);
@@ -1182,18 +1171,20 @@ export async function deleteKanbanColumn(
   getBoardRowById(sqlite, input.projectId, input.boardId);
   getColumnRowById(sqlite, input.boardId, input.columnId);
 
-  const activeTaskCount = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS total
-        FROM project_tasks
-        WHERE project_id = ?
-          AND board_id = ?
-          AND column_id = ?
-          AND deleted_at IS NULL
-      `,
+  const activeTaskCount = getDrizzleDb(sqlite)
+    .select({
+      total: sql<number>`count(*)`,
+    })
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.projectId, input.projectId),
+        eq(projectTasksTable.boardId, input.boardId),
+        eq(projectTasksTable.columnId, input.columnId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .get(input.projectId, input.boardId, input.columnId) as { total: number };
+    .get() as { total: number };
 
   if (activeTaskCount.total > 0) {
     throw new ProblemError({
@@ -1205,21 +1196,20 @@ export async function deleteKanbanColumn(
   }
 
   const now = new Date().toISOString();
-  sqlite
-    .prepare(
-      `
-        UPDATE project_kanban_columns
-        SET deleted_at = @deletedAt,
-            updated_at = @updatedAt
-        WHERE id = @columnId AND board_id = @boardId AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      boardId: input.boardId,
-      columnId: input.columnId,
+  getDrizzleDb(sqlite)
+    .update(projectKanbanColumnsTable)
+    .set({
       deletedAt: now,
       updatedAt: now,
-    });
+    })
+    .where(
+      and(
+        eq(projectKanbanColumnsTable.id, input.columnId),
+        eq(projectKanbanColumnsTable.boardId, input.boardId),
+        isNull(projectKanbanColumnsTable.deletedAt),
+      ),
+    )
+    .run();
 
   reorderColumns(
     sqlite,
