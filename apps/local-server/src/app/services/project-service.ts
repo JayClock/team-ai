@@ -1,6 +1,9 @@
 import type { Database } from 'better-sqlite3';
 import { customAlphabet } from 'nanoid';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { and, count, desc, eq, isNull, like, or } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectsTable } from '../db/schema';
 import type {
   CreateProjectInput,
   ProjectListPayload,
@@ -105,51 +108,49 @@ export async function listProjects(
 ): Promise<ProjectListPayload> {
   const { page, pageSize, q, repoPath, sourceUrl } = query;
   const offset = (page - 1) * pageSize;
-  const filters = ['deleted_at IS NULL'];
-  const parameters: Record<string, unknown> = {
-    limit: pageSize,
-    offset,
-  };
+  const db = getDrizzleDb(sqlite);
+  const filters = [isNull(projectsTable.deletedAt)];
 
   if (q) {
-    filters.push('(title LIKE @search OR description LIKE @search)');
-    parameters.search = `%${q}%`;
+    const search = `%${q}%`;
+    filters.push(
+      or(like(projectsTable.title, search), like(projectsTable.description, search))!,
+    );
   }
 
   if (repoPath) {
-    filters.push('workspace_root = @repoPath');
-    parameters.repoPath = repoPath.trim();
+    filters.push(eq(projectsTable.workspaceRoot, repoPath.trim()));
   }
 
   if (sourceUrl) {
-    filters.push('source_url = @sourceUrl');
-    parameters.sourceUrl = sourceUrl.trim();
+    filters.push(eq(projectsTable.sourceUrl, sourceUrl.trim()));
   }
 
-  const whereClause = filters.join(' AND ');
+  const whereClause = and(...filters);
 
-  const items = sqlite
-    .prepare(
-      `
-        SELECT id, title, description, created_at, updated_at
-               , source_type, source_url, workspace_root
-        FROM projects
-        WHERE ${whereClause}
-        ORDER BY updated_at DESC
-        LIMIT @limit OFFSET @offset
-      `,
-    )
-    .all(parameters) as ProjectRow[];
+  const items = db
+    .select({
+      id: projectsTable.id,
+      title: projectsTable.title,
+      description: projectsTable.description,
+      created_at: projectsTable.createdAt,
+      updated_at: projectsTable.updatedAt,
+      source_type: projectsTable.sourceType,
+      source_url: projectsTable.sourceUrl,
+      workspace_root: projectsTable.workspaceRoot,
+    })
+    .from(projectsTable)
+    .where(whereClause)
+    .orderBy(desc(projectsTable.updatedAt))
+    .limit(pageSize)
+    .offset(offset)
+    .all() as ProjectRow[];
 
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM projects
-        WHERE ${whereClause}
-      `,
-    )
-    .get(parameters) as { count: number };
+  const total = db
+    .select({ count: count() })
+    .from(projectsTable)
+    .where(whereClause)
+    .get() as { count: number };
 
   return {
     items: items.map(mapProjectRow),
@@ -172,16 +173,25 @@ export async function findProjectByRepoPath(
     return undefined;
   }
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, title, description, created_at, updated_at, workspace_root
-             , source_type, source_url
-        FROM projects
-        WHERE workspace_root = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectsTable.id,
+      title: projectsTable.title,
+      description: projectsTable.description,
+      created_at: projectsTable.createdAt,
+      updated_at: projectsTable.updatedAt,
+      workspace_root: projectsTable.workspaceRoot,
+      source_type: projectsTable.sourceType,
+      source_url: projectsTable.sourceUrl,
+    })
+    .from(projectsTable)
+    .where(
+      and(
+        eq(projectsTable.workspaceRoot, normalizedRepoPath),
+        isNull(projectsTable.deletedAt),
+      ),
     )
-    .get(normalizedRepoPath) as ProjectRow | undefined;
+    .get() as ProjectRow | undefined;
 
   return row ? mapProjectRow(row) : undefined;
 }
@@ -196,16 +206,25 @@ export async function findProjectBySourceUrl(
     return undefined;
   }
 
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, title, description, created_at, updated_at
-             , source_type, source_url, workspace_root
-        FROM projects
-        WHERE source_url = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectsTable.id,
+      title: projectsTable.title,
+      description: projectsTable.description,
+      created_at: projectsTable.createdAt,
+      updated_at: projectsTable.updatedAt,
+      source_type: projectsTable.sourceType,
+      source_url: projectsTable.sourceUrl,
+      workspace_root: projectsTable.workspaceRoot,
+    })
+    .from(projectsTable)
+    .where(
+      and(
+        eq(projectsTable.sourceUrl, normalizedSourceUrl),
+        isNull(projectsTable.deletedAt),
+      ),
     )
-    .get(normalizedSourceUrl) as ProjectRow | undefined;
+    .get() as ProjectRow | undefined;
 
   return row ? mapProjectRow(row) : undefined;
 }
@@ -214,6 +233,7 @@ export async function createProject(
   sqlite: Database,
   input: CreateProjectInput,
 ): Promise<ProjectPayload> {
+  const db = getDrizzleDb(sqlite);
   const now = new Date().toISOString();
   const repoPath = input.repoPath?.trim() || null;
   const sourceUrl = input.sourceUrl?.trim() || null;
@@ -229,34 +249,19 @@ export async function createProject(
   };
 
   try {
-    sqlite
-      .prepare(
-        `
-          INSERT INTO projects (
-            id,
-            title,
-            description,
-            source_type,
-            source_url,
-            workspace_root,
-            created_at,
-            updated_at,
-            deleted_at
-          )
-          VALUES (
-            @id,
-            @title,
-            @description,
-            @sourceType,
-            @sourceUrl,
-            @repoPath,
-            @createdAt,
-            @updatedAt,
-            NULL
-          )
-        `,
-      )
-      .run(project);
+    db.insert(projectsTable)
+      .values({
+        id: project.id,
+        title: project.title,
+        description: project.description,
+        sourceType: project.sourceType,
+        sourceUrl: project.sourceUrl,
+        workspaceRoot: project.repoPath,
+        createdAt: project.createdAt,
+        updatedAt: project.updatedAt,
+        deletedAt: null,
+      })
+      .run();
   } catch (error) {
     if (repoPath && isWorkspaceRootConstraintError(error)) {
       throwRepoPathConflict(repoPath);
@@ -277,17 +282,21 @@ export async function createProject(
 export async function ensureDefaultProject(
   sqlite: Database,
 ): Promise<ProjectPayload> {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, title, description, created_at, updated_at
-             , source_type, source_url, workspace_root
-        FROM projects
-        WHERE deleted_at IS NULL
-        ORDER BY updated_at DESC
-        LIMIT 1
-      `,
-    )
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectsTable.id,
+      title: projectsTable.title,
+      description: projectsTable.description,
+      created_at: projectsTable.createdAt,
+      updated_at: projectsTable.updatedAt,
+      source_type: projectsTable.sourceType,
+      source_url: projectsTable.sourceUrl,
+      workspace_root: projectsTable.workspaceRoot,
+    })
+    .from(projectsTable)
+    .where(isNull(projectsTable.deletedAt))
+    .orderBy(desc(projectsTable.updatedAt))
+    .limit(1)
     .get() as ProjectRow | undefined;
 
   if (row) {
@@ -303,16 +312,22 @@ export async function getProjectById(
   sqlite: Database,
   projectId: string,
 ): Promise<ProjectPayload> {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, title, description, created_at, updated_at
-             , source_type, source_url, workspace_root
-        FROM projects
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      id: projectsTable.id,
+      title: projectsTable.title,
+      description: projectsTable.description,
+      created_at: projectsTable.createdAt,
+      updated_at: projectsTable.updatedAt,
+      source_type: projectsTable.sourceType,
+      source_url: projectsTable.sourceUrl,
+      workspace_root: projectsTable.workspaceRoot,
+    })
+    .from(projectsTable)
+    .where(
+      and(eq(projectsTable.id, projectId), isNull(projectsTable.deletedAt)),
     )
-    .get(projectId) as ProjectRow | undefined;
+    .get() as ProjectRow | undefined;
 
   if (!row) {
     throwProjectNotFound(projectId);
@@ -326,6 +341,7 @@ export async function updateProject(
   projectId: string,
   input: UpdateProjectInput,
 ): Promise<ProjectPayload> {
+  const db = getDrizzleDb(sqlite);
   const current = await getProjectById(sqlite, projectId);
   const next: ProjectPayload = {
     ...current,
@@ -346,21 +362,19 @@ export async function updateProject(
   };
 
   try {
-    sqlite
-      .prepare(
-        `
-          UPDATE projects
-          SET
-            title = @title,
-            description = @description,
-            source_type = @sourceType,
-            source_url = @sourceUrl,
-            workspace_root = @repoPath,
-            updated_at = @updatedAt
-          WHERE id = @id AND deleted_at IS NULL
-      `,
+    db.update(projectsTable)
+      .set({
+        title: next.title,
+        description: next.description,
+        sourceType: next.sourceType,
+        sourceUrl: next.sourceUrl,
+        workspaceRoot: next.repoPath,
+        updatedAt: next.updatedAt,
+      })
+      .where(
+        and(eq(projectsTable.id, next.id), isNull(projectsTable.deletedAt)),
       )
-      .run(next);
+      .run();
   } catch (error) {
     if (next.repoPath && isWorkspaceRootConstraintError(error)) {
       throwRepoPathConflict(next.repoPath);
@@ -382,23 +396,20 @@ export async function deleteProject(
   sqlite: Database,
   projectId: string,
 ): Promise<void> {
+  const db = getDrizzleDb(sqlite);
   await deleteProjectCodebases(sqlite, projectId);
+  const timestamp = new Date().toISOString();
 
-  const result = sqlite
-    .prepare(
-      `
-        UPDATE projects
-        SET
-          deleted_at = @deletedAt,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
+  const result = db
+    .update(projectsTable)
+    .set({
+      deletedAt: timestamp,
+      updatedAt: timestamp,
+    })
+    .where(
+      and(eq(projectsTable.id, projectId), isNull(projectsTable.deletedAt)),
     )
-    .run({
-      id: projectId,
-      deletedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
+    .run();
 
   if (result.changes === 0) {
     throwProjectNotFound(projectId);

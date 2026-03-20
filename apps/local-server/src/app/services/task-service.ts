@@ -323,6 +323,16 @@ function dedupeStrings(values: Iterable<string>): string[] {
   return Array.from(new Set(values));
 }
 
+function nextUpdatedAt(currentUpdatedAt: string | null | undefined): string {
+  const previousTimestamp = currentUpdatedAt ? Date.parse(currentUpdatedAt) : NaN;
+  const now = Date.now();
+  const nextTimestamp = Number.isNaN(previousTimestamp)
+    ? now
+    : Math.max(now, previousTimestamp + 1);
+
+  return new Date(nextTimestamp).toISOString();
+}
+
 function getNextTaskPosition(
   sqlite: Database,
   projectId: string,
@@ -1347,7 +1357,7 @@ export async function updateTask(
     status,
     title: input.title ?? current.title,
     triggerSessionId,
-    updatedAt: new Date().toISOString(),
+    updatedAt: nextUpdatedAt(current.updated_at),
     verificationCommandsJson:
       input.verificationCommands === undefined
         ? current.verification_commands_json

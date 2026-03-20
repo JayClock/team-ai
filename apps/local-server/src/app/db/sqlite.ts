@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
-import type { Database } from 'better-sqlite3';
+import { attachDrizzleDb, type LocalDatabase } from './drizzle';
 import { sqliteMigrations } from './migrations';
 
 const defaultBusyTimeoutMs = 5_000;
@@ -14,7 +14,7 @@ export function resolveDatabasePath(): string {
   return join(resolveDataDirectory(), 'team-ai.db');
 }
 
-export function initializeDatabase(): Database {
+export function initializeDatabase(): LocalDatabase {
   const databasePath = resolveDatabasePath();
   mkdirSync(resolveDataDirectory(), { recursive: true });
 
@@ -76,5 +76,5 @@ export function initializeDatabase(): Database {
       updatedAt: new Date().toISOString(),
     });
 
-  return database;
+  return attachDrizzleDb(database);
 }

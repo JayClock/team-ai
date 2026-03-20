@@ -117,6 +117,7 @@ describe('trace service', () => {
       },
       projectId: project.id,
       sessionId: null,
+      taskId: null,
       supervision: {
         averageCleanupLatencyMs: 2000,
         byModel: {

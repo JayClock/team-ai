@@ -1,4 +1,7 @@
 import type { Database } from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { settingsTable } from '../db/schema';
 import type { SettingsPatch, SettingsPayload } from '../schemas/settings';
 
 interface SettingsRow {
@@ -16,17 +19,14 @@ function mapSettingsRow(row: SettingsRow): SettingsPayload {
 }
 
 export async function getSettings(sqlite: Database): Promise<SettingsPayload> {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          theme,
-          sync_enabled,
-          updated_at
-        FROM settings
-        WHERE id = 1
-      `,
-    )
+  const row = getDrizzleDb(sqlite)
+    .select({
+      theme: settingsTable.theme,
+      sync_enabled: settingsTable.syncEnabled,
+      updated_at: settingsTable.updatedAt,
+    })
+    .from(settingsTable)
+    .where(eq(settingsTable.id, 1))
     .get() as SettingsRow | undefined;
 
   if (!row) {
@@ -47,22 +47,15 @@ export async function updateSettings(
     updatedAt: new Date().toISOString(),
   };
 
-  sqlite
-    .prepare(
-      `
-        UPDATE settings
-        SET
-          theme = @theme,
-          sync_enabled = @syncEnabled,
-          updated_at = @updatedAt
-        WHERE id = 1
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .update(settingsTable)
+    .set({
       theme: next.theme,
-      syncEnabled: next.syncEnabled ? 1 : 0,
+      syncEnabled: next.syncEnabled,
       updatedAt: next.updatedAt,
-    });
+    })
+    .where(eq(settingsTable.id, 1))
+    .run();
 
   return next;
 }

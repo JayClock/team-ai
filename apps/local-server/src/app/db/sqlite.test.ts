@@ -1,8 +1,11 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { eq } from 'drizzle-orm';
 import { afterEach, describe, expect, it } from 'vitest';
+import { getDrizzleDb } from './drizzle';
 import { sqliteMigrations } from './migrations';
+import { settingsTable } from './schema';
 import { initializeDatabase } from './sqlite';
 
 describe('sqlite initialization', () => {
@@ -478,21 +481,17 @@ describe('sqlite initialization', () => {
     await useTempDataDir('team-ai-sqlite-settings-');
 
     const sqlite = initializeDatabase();
-    const settings = sqlite
-      .prepare(
-        `
-          SELECT theme, sync_enabled
-          FROM settings
-          WHERE id = 1
-        `,
-      )
-      .get() as {
-      sync_enabled: number;
-      theme: string;
-    };
+    const settings = getDrizzleDb(sqlite)
+      .select({
+        theme: settingsTable.theme,
+        sync_enabled: settingsTable.syncEnabled,
+      })
+      .from(settingsTable)
+      .where(eq(settingsTable.id, 1))
+      .get();
 
     expect(settings).toEqual({
-      sync_enabled: 0,
+      sync_enabled: false,
       theme: 'system',
     });
 
