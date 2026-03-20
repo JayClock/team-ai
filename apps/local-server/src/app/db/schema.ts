@@ -246,6 +246,22 @@ export const projectTaskRunsTable = sqliteTable('project_task_runs', {
   deletedAt: text('deleted_at'),
 });
 
+export const projectWorktreesTable = sqliteTable('project_worktrees', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  codebaseId: text('codebase_id').notNull(),
+  worktreePath: text('worktree_path').notNull(),
+  branch: text('branch').notNull(),
+  baseBranch: text('base_branch').notNull(),
+  status: text('status').notNull(),
+  sessionId: text('session_id'),
+  label: text('label'),
+  errorMessage: text('error_message'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
 export const projectKanbanBoardsTable = sqliteTable('project_kanban_boards', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull(),
@@ -308,6 +324,7 @@ export const sqliteSchema = {
   projectTasks: projectTasksTable,
   projectTraces: projectTracesTable,
   projectTaskRuns: projectTaskRunsTable,
+  projectWorktrees: projectWorktreesTable,
   projectKanbanBoards: projectKanbanBoardsTable,
   projectKanbanColumns: projectKanbanColumnsTable,
   syncState: syncStateTable,

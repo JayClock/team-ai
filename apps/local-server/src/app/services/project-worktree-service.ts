@@ -3,7 +3,10 @@ import { mkdir, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 import type { Database } from 'better-sqlite3';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectWorktreesTable } from '../db/schema';
 import { resolveDataDirectory } from '../db/sqlite';
 import type {
   WorktreeListPayload,
@@ -215,27 +218,30 @@ function getWorktreeRow(
   projectId: string,
   worktreeId: string,
 ): WorktreeRow {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          codebase_id,
-          worktree_path,
-          branch,
-          base_branch,
-          status,
-          session_id,
-          label,
-          error_message,
-          created_at,
-          updated_at
-        FROM project_worktrees
-        WHERE id = ? AND project_id = ? AND deleted_at IS NULL
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      base_branch: projectWorktreesTable.baseBranch,
+      branch: projectWorktreesTable.branch,
+      codebase_id: projectWorktreesTable.codebaseId,
+      created_at: projectWorktreesTable.createdAt,
+      error_message: projectWorktreesTable.errorMessage,
+      id: projectWorktreesTable.id,
+      label: projectWorktreesTable.label,
+      project_id: projectWorktreesTable.projectId,
+      session_id: projectWorktreesTable.sessionId,
+      status: projectWorktreesTable.status,
+      updated_at: projectWorktreesTable.updatedAt,
+      worktree_path: projectWorktreesTable.worktreePath,
+    })
+    .from(projectWorktreesTable)
+    .where(
+      and(
+        eq(projectWorktreesTable.id, worktreeId),
+        eq(projectWorktreesTable.projectId, projectId),
+        isNull(projectWorktreesTable.deletedAt),
+      ),
     )
-    .get(worktreeId, projectId) as WorktreeRow | undefined;
+    .get() as WorktreeRow | undefined;
 
   if (!row) {
     throwWorktreeNotFound(projectId, worktreeId);
@@ -250,42 +256,37 @@ function updateWorktreeStatus(
   status: WorktreeStatus,
   errorMessage: string | null = null,
 ) {
-  sqlite
-    .prepare(
-      `
-        UPDATE project_worktrees
-        SET
-          status = @status,
-          error_message = @errorMessage,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      id: worktreeId,
+  getDrizzleDb(sqlite)
+    .update(projectWorktreesTable)
+    .set({
       status,
       errorMessage,
       updatedAt: new Date().toISOString(),
-    });
+    })
+    .where(
+      and(
+        eq(projectWorktreesTable.id, worktreeId),
+        isNull(projectWorktreesTable.deletedAt),
+      ),
+    )
+    .run();
 }
 
 function softDeleteWorktree(sqlite: Database, worktreeId: string) {
   const now = new Date().toISOString();
-  sqlite
-    .prepare(
-      `
-        UPDATE project_worktrees
-        SET
-          deleted_at = @deletedAt,
-          updated_at = @updatedAt
-        WHERE id = @id AND deleted_at IS NULL
-      `,
-    )
-    .run({
-      id: worktreeId,
+  getDrizzleDb(sqlite)
+    .update(projectWorktreesTable)
+    .set({
       deletedAt: now,
       updatedAt: now,
-    });
+    })
+    .where(
+      and(
+        eq(projectWorktreesTable.id, worktreeId),
+        isNull(projectWorktreesTable.deletedAt),
+      ),
+    )
+    .run();
 }
 
 export async function listProjectWorktrees(
@@ -295,28 +296,31 @@ export async function listProjectWorktrees(
 ): Promise<WorktreeListPayload> {
   await getProjectCodebaseById(sqlite, projectId, codebaseId);
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT
-          id,
-          project_id,
-          codebase_id,
-          worktree_path,
-          branch,
-          base_branch,
-          status,
-          session_id,
-          label,
-          error_message,
-          created_at,
-          updated_at
-        FROM project_worktrees
-        WHERE project_id = ? AND codebase_id = ? AND deleted_at IS NULL
-        ORDER BY created_at DESC
-      `,
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      base_branch: projectWorktreesTable.baseBranch,
+      branch: projectWorktreesTable.branch,
+      codebase_id: projectWorktreesTable.codebaseId,
+      created_at: projectWorktreesTable.createdAt,
+      error_message: projectWorktreesTable.errorMessage,
+      id: projectWorktreesTable.id,
+      label: projectWorktreesTable.label,
+      project_id: projectWorktreesTable.projectId,
+      session_id: projectWorktreesTable.sessionId,
+      status: projectWorktreesTable.status,
+      updated_at: projectWorktreesTable.updatedAt,
+      worktree_path: projectWorktreesTable.worktreePath,
+    })
+    .from(projectWorktreesTable)
+    .where(
+      and(
+        eq(projectWorktreesTable.projectId, projectId),
+        eq(projectWorktreesTable.codebaseId, codebaseId),
+        isNull(projectWorktreesTable.deletedAt),
+      ),
     )
-    .all(projectId, codebaseId) as WorktreeRow[];
+    .orderBy(desc(projectWorktreesTable.createdAt))
+    .all() as WorktreeRow[];
 
   return {
     projectId,
@@ -353,15 +357,19 @@ export async function createProjectWorktree(
   const branch = input.branch?.trim() || `wt/${suffix}`;
 
   return withRepoLock(repoPath, async () => {
-    const existing = sqlite
-      .prepare(
-        `
-          SELECT id
-          FROM project_worktrees
-          WHERE codebase_id = ? AND branch = ? AND deleted_at IS NULL
-        `,
+    const existing = getDrizzleDb(sqlite)
+      .select({
+        id: projectWorktreesTable.id,
+      })
+      .from(projectWorktreesTable)
+      .where(
+        and(
+          eq(projectWorktreesTable.codebaseId, codebaseId),
+          eq(projectWorktreesTable.branch, branch),
+          isNull(projectWorktreesTable.deletedAt),
+        ),
       )
-      .get(codebaseId, branch) as { id: string } | undefined;
+      .get() as { id: string } | undefined;
 
     if (existing) {
       throwWorktreeConflict(`Branch ${branch} is already allocated to worktree ${existing.id}`);
@@ -376,42 +384,9 @@ export async function createProjectWorktree(
     const id = createWorktreeId();
     const now = new Date().toISOString();
 
-    sqlite
-      .prepare(
-        `
-          INSERT INTO project_worktrees (
-            id,
-            project_id,
-            codebase_id,
-            worktree_path,
-            branch,
-            base_branch,
-            status,
-            session_id,
-            label,
-            error_message,
-            created_at,
-            updated_at,
-            deleted_at
-          )
-          VALUES (
-            @id,
-            @projectId,
-            @codebaseId,
-            @worktreePath,
-            @branch,
-            @baseBranch,
-            @status,
-            NULL,
-            @label,
-            NULL,
-            @createdAt,
-            @updatedAt,
-            NULL
-          )
-        `,
-      )
-      .run({
+    getDrizzleDb(sqlite)
+      .insert(projectWorktreesTable)
+      .values({
         id,
         projectId,
         codebaseId,
@@ -419,10 +394,14 @@ export async function createProjectWorktree(
         branch,
         baseBranch,
         status: 'creating' satisfies WorktreeStatus,
+        sessionId: null,
         label,
+        errorMessage: null,
         createdAt: now,
         updatedAt: now,
-      });
+        deletedAt: null,
+      })
+      .run();
 
     try {
       await dependencies.ensureDirectory(worktreeRoot);
