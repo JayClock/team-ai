@@ -1,5 +1,11 @@
 import type { Database } from 'better-sqlite3';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectKanbanBoardsTable,
+  projectKanbanColumnsTable,
+} from '../db/schema';
 import type {
   KanbanColumnPayload,
 } from '../schemas/kanban';
@@ -122,15 +128,19 @@ function getBoardContext(
     };
   }
 
-  const board = sqlite
-    .prepare(
-      `
-        SELECT id, name
-        FROM project_kanban_boards
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  const board = getDrizzleDb(sqlite)
+    .select({
+      id: projectKanbanBoardsTable.id,
+      name: projectKanbanBoardsTable.name,
+    })
+    .from(projectKanbanBoardsTable)
+    .where(
+      and(
+        eq(projectKanbanBoardsTable.id, boardId),
+        isNull(projectKanbanBoardsTable.deletedAt),
+      ),
     )
-    .get(boardId) as BoardRow | undefined;
+    .get() as BoardRow | undefined;
   if (!board) {
     return {
       columns: [],
@@ -138,16 +148,25 @@ function getBoardContext(
     };
   }
 
-  const columns = sqlite
-    .prepare(
-      `
-        SELECT id, board_id, name, position
-        FROM project_kanban_columns
-        WHERE board_id = ? AND deleted_at IS NULL
-        ORDER BY position ASC, created_at ASC
-      `,
+  const columns = getDrizzleDb(sqlite)
+    .select({
+      board_id: projectKanbanColumnsTable.boardId,
+      id: projectKanbanColumnsTable.id,
+      name: projectKanbanColumnsTable.name,
+      position: projectKanbanColumnsTable.position,
+    })
+    .from(projectKanbanColumnsTable)
+    .where(
+      and(
+        eq(projectKanbanColumnsTable.boardId, boardId),
+        isNull(projectKanbanColumnsTable.deletedAt),
+      ),
     )
-    .all(boardId) as ColumnRow[];
+    .orderBy(
+      asc(projectKanbanColumnsTable.position),
+      asc(projectKanbanColumnsTable.createdAt),
+    )
+    .all() as ColumnRow[];
 
   return {
     columns: columns.map(mapColumnRow),

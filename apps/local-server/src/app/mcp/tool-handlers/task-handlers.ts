@@ -1,6 +1,9 @@
 import type { FastifyInstance } from 'fastify';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { logDiagnostic, ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../../db/drizzle';
+import { projectTasksTable } from '../../db/schema';
 import { getTaskWorkflowRuntime } from '../task-workflow-runtime';
 import {
   hasAcpSessionEvent,
@@ -456,26 +459,28 @@ async function ensureFixFollowUpTask(
   failedGateTask: Awaited<ReturnType<typeof getProjectTask>>,
   summary: string,
 ) {
-  const existingFixTaskId = (
-    fastify.sqlite
-      .prepare(
-        `
-          SELECT id
-          FROM project_tasks
-          WHERE project_id = @projectId
-            AND parent_task_id = @parentTaskId
-            AND kind = 'implement'
-            AND deleted_at IS NULL
-            AND status IN ('PENDING', 'READY', 'RUNNING', 'WAITING_RETRY')
-          ORDER BY created_at DESC
-          LIMIT 1
-        `,
-      )
-      .get({
-        parentTaskId: failedGateTask.id,
-        projectId: failedGateTask.projectId,
-      }) as { id: string } | undefined
-  )?.id;
+  const existingFixTaskId = getDrizzleDb(fastify.sqlite)
+    .select({
+      id: projectTasksTable.id,
+    })
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.projectId, failedGateTask.projectId),
+        eq(projectTasksTable.parentTaskId, failedGateTask.id),
+        eq(projectTasksTable.kind, 'implement'),
+        isNull(projectTasksTable.deletedAt),
+        inArray(projectTasksTable.status, [
+          'PENDING',
+          'READY',
+          'RUNNING',
+          'WAITING_RETRY',
+        ]),
+      ),
+    )
+    .orderBy(desc(projectTasksTable.createdAt))
+    .limit(1)
+    .get()?.id;
 
   const objective =
     `Address the gate feedback for "${failedGateTask.title}". ` +

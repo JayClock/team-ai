@@ -2,6 +2,12 @@ import type { Database } from 'better-sqlite3';
 import { constants as fsConstants } from 'node:fs';
 import { access, mkdir, readdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { extname, join } from 'node:path';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectKanbanBoardsTable,
+  projectKanbanColumnsTable,
+} from '../db/schema';
 import { resolveDataDirectory } from '../db/sqlite';
 import { ProblemError } from '@orchestration/runtime-acp';
 import { isRoleValue, type RoleValue } from '../schemas/role';
@@ -492,23 +498,29 @@ async function ensureSpecialistDeleteSafe(
   projectId: string,
   specialistId: string,
 ) {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT
-          boards.name AS board_name,
-          columns.name AS column_name
-        FROM project_kanban_columns columns
-        INNER JOIN project_kanban_boards boards
-          ON boards.id = columns.board_id
-        WHERE boards.project_id = ?
-          AND boards.deleted_at IS NULL
-          AND columns.deleted_at IS NULL
-          AND json_extract(columns.automation_json, '$.specialistId') = ?
-        LIMIT 1
-      `,
+  const row = getDrizzleDb(sqlite)
+    .select({
+      board_name: projectKanbanBoardsTable.name,
+      column_name: projectKanbanColumnsTable.name,
+    })
+    .from(projectKanbanColumnsTable)
+    .innerJoin(
+      projectKanbanBoardsTable,
+      eq(projectKanbanBoardsTable.id, projectKanbanColumnsTable.boardId),
     )
-    .get(projectId, specialistId) as
+    .where(
+      and(
+        eq(projectKanbanBoardsTable.projectId, projectId),
+        isNull(projectKanbanBoardsTable.deletedAt),
+        isNull(projectKanbanColumnsTable.deletedAt),
+        eq(
+          sql<string | null>`json_extract(${projectKanbanColumnsTable.automationJson}, '$.specialistId')`,
+          specialistId,
+        ),
+      ),
+    )
+    .limit(1)
+    .get() as
     | {
         board_name: string;
         column_name: string;

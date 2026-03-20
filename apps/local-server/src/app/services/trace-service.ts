@@ -1,5 +1,20 @@
 import type { Database } from 'better-sqlite3';
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  sql,
+} from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import {
+  projectAcpSessionsTable,
+  projectTracesTable,
+} from '../db/schema';
 import type {
   ListTracesInput,
   RecordAcpTraceInput,
@@ -120,16 +135,55 @@ function summarizeTrace(input: RecordAcpTraceInput['update']) {
   }
 }
 
+function combineFilters(filters: SQL<unknown>[]) {
+  if (filters.length === 0) {
+    return undefined;
+  }
+
+  return filters.length === 1 ? filters[0] : and(...filters);
+}
+
+function buildTraceFilters(input: {
+  eventType?: string | null;
+  projectId?: string | null;
+  sessionId?: string | null;
+  taskSessionIds?: string[];
+}) {
+  const filters: SQL<unknown>[] = [];
+
+  if (input.projectId) {
+    filters.push(eq(projectTracesTable.projectId, input.projectId));
+  }
+
+  if (input.sessionId) {
+    filters.push(eq(projectTracesTable.sessionId, input.sessionId));
+  }
+
+  if (input.eventType) {
+    filters.push(eq(projectTracesTable.eventType, input.eventType));
+  }
+
+  if (input.taskSessionIds && input.taskSessionIds.length > 0) {
+    filters.push(inArray(projectTracesTable.sessionId, input.taskSessionIds));
+  }
+
+  return combineFilters(filters);
+}
+
 function getTraceContext(sqlite: Database, sessionId: string) {
-  return sqlite
-    .prepare(
-      `
-        SELECT project_id, model
-        FROM project_acp_sessions
-        WHERE id = ? AND deleted_at IS NULL
-      `,
+  return getDrizzleDb(sqlite)
+    .select({
+      model: projectAcpSessionsTable.model,
+      project_id: projectAcpSessionsTable.projectId,
+    })
+    .from(projectAcpSessionsTable)
+    .where(
+      and(
+        eq(projectAcpSessionsTable.id, sessionId),
+        isNull(projectAcpSessionsTable.deletedAt),
+      ),
     )
-    .get(sessionId) as SessionTraceContextRow | undefined;
+    .get() as SessionTraceContextRow | undefined;
 }
 
 function throwTraceNotFound(traceId: string): never {
@@ -150,37 +204,9 @@ export function recordAcpTrace(
     return null;
   }
 
-  sqlite
-    .prepare(
-      `
-        INSERT OR IGNORE INTO project_traces (
-          id,
-          event_id,
-          project_id,
-          session_id,
-          provider,
-          model,
-          event_type,
-          source_trace_id,
-          summary,
-          payload_json,
-          created_at
-        ) VALUES (
-          @id,
-          @eventId,
-          @projectId,
-          @sessionId,
-          @provider,
-          @model,
-          @eventType,
-          @sourceTraceId,
-          @summary,
-          @payloadJson,
-          @createdAt
-        )
-      `,
-    )
-    .run({
+  getDrizzleDb(sqlite)
+    .insert(projectTracesTable)
+    .values({
       createdAt: input.createdAt,
       eventId: input.eventId,
       eventType: input.update.eventType,
@@ -192,7 +218,11 @@ export function recordAcpTrace(
       sessionId: input.sessionId,
       sourceTraceId: input.update.traceId ?? null,
       summary: summarizeTrace(input.update),
-    });
+    })
+    .onConflictDoNothing({
+      target: projectTracesTable.id,
+    })
+    .run();
 
   return getTraceById(sqlite, input.eventId);
 }
@@ -207,30 +237,10 @@ export async function listTraces(
 
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
   const offset = Math.max(input.offset ?? 0, 0);
-  const filters = ['1 = 1'];
-  const parameters: Record<string, unknown> = {
-    eventType: input.eventType ?? null,
-    limit,
-    offset,
-    projectId: input.projectId ?? null,
-    sessionId: input.sessionId ?? null,
-  };
   const taskSessionIds =
     input.taskId !== undefined
       ? collectTaskTraceSessionIds(await getTaskById(sqlite, input.taskId))
       : [];
-
-  if (input.projectId) {
-    filters.push('project_id = @projectId');
-  }
-
-  if (input.sessionId) {
-    filters.push('session_id = @sessionId');
-  }
-
-  if (input.eventType) {
-    filters.push('event_type = @eventType');
-  }
 
   if (input.taskId) {
     if (taskSessionIds.length === 0) {
@@ -245,38 +255,42 @@ export async function listTraces(
         total: 0,
       };
     }
-
-    filters.push(
-      `session_id IN (${taskSessionIds.map((_value, index) => `@taskSessionId${index}`).join(', ')})`,
-    );
-    for (const [index, sessionId] of taskSessionIds.entries()) {
-      parameters[`taskSessionId${index}`] = sessionId;
-    }
   }
 
-  const whereClause = filters.join(' AND ');
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, event_id, project_id, session_id, provider, model, event_type,
-               source_trace_id, summary, payload_json, created_at
-        FROM project_traces
-        WHERE ${whereClause}
-        ORDER BY created_at DESC
-        LIMIT @limit OFFSET @offset
-      `,
-    )
-    .all(parameters) as TraceRow[];
+  const filters = buildTraceFilters({
+    eventType: input.eventType,
+    projectId: input.projectId,
+    sessionId: input.sessionId,
+    taskSessionIds,
+  });
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      created_at: projectTracesTable.createdAt,
+      event_id: projectTracesTable.eventId,
+      event_type: projectTracesTable.eventType,
+      id: projectTracesTable.id,
+      model: projectTracesTable.model,
+      payload_json: projectTracesTable.payloadJson,
+      project_id: projectTracesTable.projectId,
+      provider: projectTracesTable.provider,
+      session_id: projectTracesTable.sessionId,
+      source_trace_id: projectTracesTable.sourceTraceId,
+      summary: projectTracesTable.summary,
+    })
+    .from(projectTracesTable)
+    .where(filters)
+    .orderBy(desc(projectTracesTable.createdAt))
+    .limit(limit)
+    .offset(offset)
+    .all() as TraceRow[];
 
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count
-        FROM project_traces
-        WHERE ${whereClause}
-      `,
-    )
-    .get(parameters) as { count: number };
+  const total = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+    })
+    .from(projectTracesTable)
+    .where(filters)
+    .get() as { count: number };
 
   return {
     eventType: input.eventType ?? null,
@@ -291,16 +305,23 @@ export async function listTraces(
 }
 
 export function getTraceById(sqlite: Database, traceId: string): TracePayload {
-  const row = sqlite
-    .prepare(
-      `
-        SELECT id, event_id, project_id, session_id, provider, model, event_type,
-               source_trace_id, summary, payload_json, created_at
-        FROM project_traces
-        WHERE id = ?
-      `,
-    )
-    .get(traceId) as TraceRow | undefined;
+  const row = getDrizzleDb(sqlite)
+    .select({
+      created_at: projectTracesTable.createdAt,
+      event_id: projectTracesTable.eventId,
+      event_type: projectTracesTable.eventType,
+      id: projectTracesTable.id,
+      model: projectTracesTable.model,
+      payload_json: projectTracesTable.payloadJson,
+      project_id: projectTracesTable.projectId,
+      provider: projectTracesTable.provider,
+      session_id: projectTracesTable.sessionId,
+      source_trace_id: projectTracesTable.sourceTraceId,
+      summary: projectTracesTable.summary,
+    })
+    .from(projectTracesTable)
+    .where(eq(projectTracesTable.id, traceId))
+    .get() as TraceRow | undefined;
 
   if (!row) {
     throwTraceNotFound(traceId);
@@ -317,23 +338,10 @@ export async function getTraceStats(
     await getProjectById(sqlite, input.projectId);
   }
 
-  const filters = ['1 = 1'];
-  const parameters: Record<string, unknown> = {
-    projectId: input.projectId ?? null,
-    sessionId: input.sessionId ?? null,
-  };
   const taskSessionIds =
     input.taskId !== undefined
       ? collectTaskTraceSessionIds(await getTaskById(sqlite, input.taskId))
       : [];
-
-  if (input.projectId) {
-    filters.push('project_id = @projectId');
-  }
-
-  if (input.sessionId) {
-    filters.push('session_id = @sessionId');
-  }
 
   if (input.taskId) {
     if (taskSessionIds.length === 0) {
@@ -361,47 +369,45 @@ export async function getTraceStats(
         uniqueSessions: 0,
       };
     }
-
-    filters.push(
-      `session_id IN (${taskSessionIds.map((_value, index) => `@taskSessionId${index}`).join(', ')})`,
-    );
-    for (const [index, sessionId] of taskSessionIds.entries()) {
-      parameters[`taskSessionId${index}`] = sessionId;
-    }
   }
 
-  const whereClause = filters.join(' AND ');
-  const total = sqlite
-    .prepare(
-      `
-        SELECT COUNT(*) AS count, COUNT(DISTINCT session_id) AS unique_sessions
-        FROM project_traces
-        WHERE ${whereClause}
-      `,
-    )
-    .get(parameters) as { count: number; unique_sessions: number };
+  const traceFilters = buildTraceFilters({
+    projectId: input.projectId,
+    sessionId: input.sessionId,
+    taskSessionIds,
+  });
+  const total = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+      unique_sessions: sql<number>`count(distinct ${projectTracesTable.sessionId})`,
+    })
+    .from(projectTracesTable)
+    .where(traceFilters)
+    .get() as { count: number; unique_sessions: number };
 
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT event_type, COUNT(*) AS count
-        FROM project_traces
-        WHERE ${whereClause}
-        GROUP BY event_type
-      `,
-    )
-    .all(parameters) as Array<{ count: number; event_type: string }>;
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      count: sql<number>`count(*)`,
+      event_type: projectTracesTable.eventType,
+    })
+    .from(projectTracesTable)
+    .where(traceFilters)
+    .groupBy(projectTracesTable.eventType)
+    .all() as Array<{ count: number; event_type: string }>;
 
   const supervisionStageCounts: Record<string, number> = {};
-  const supervisionTraceRows = sqlite
-    .prepare(
-      `
-        SELECT payload_json
-        FROM project_traces
-        WHERE ${whereClause} AND event_type = 'supervision_update'
-      `,
+  const supervisionTraceRows = getDrizzleDb(sqlite)
+    .select({
+      payload_json: projectTracesTable.payloadJson,
+    })
+    .from(projectTracesTable)
+    .where(
+      combineFilters([
+        ...((traceFilters ? [traceFilters] : []) as SQL<unknown>[]),
+        eq(projectTracesTable.eventType, 'supervision_update'),
+      ]),
     )
-    .all(parameters) as Array<{ payload_json: string }>;
+    .all() as Array<{ payload_json: string }>;
 
   for (const row of supervisionTraceRows) {
     const payload = parsePayload(row.payload_json);
@@ -418,35 +424,33 @@ export async function getTraceStats(
     supervisionStageCounts[stage] = (supervisionStageCounts[stage] ?? 0) + 1;
   }
 
-  const sessionFilters = ['deleted_at IS NULL', 'timeout_scope IS NOT NULL'];
+  const sessionFilters: SQL<unknown>[] = [
+    isNull(projectAcpSessionsTable.deletedAt),
+    isNotNull(projectAcpSessionsTable.timeoutScope),
+  ];
   if (input.projectId) {
-    sessionFilters.push('project_id = @projectId');
+    sessionFilters.push(eq(projectAcpSessionsTable.projectId, input.projectId));
   }
   if (input.sessionId) {
-    sessionFilters.push('id = @sessionId');
+    sessionFilters.push(eq(projectAcpSessionsTable.id, input.sessionId));
   }
-  if (input.taskId) {
-    sessionFilters.push(
-      `id IN (${taskSessionIds.map((_value, index) => `@taskSessionId${index}`).join(', ')})`,
-    );
+  if (input.taskId && taskSessionIds.length > 0) {
+    sessionFilters.push(inArray(projectAcpSessionsTable.id, taskSessionIds));
   }
 
-  const supervisionRows = sqlite
-    .prepare(
-      `
-        SELECT
-          provider,
-          model,
-          task_id,
-          timeout_scope,
-          cancel_requested_at,
-          completed_at,
-          force_killed_at
-        FROM project_acp_sessions
-        WHERE ${sessionFilters.join(' AND ')}
-      `,
-    )
-    .all(parameters) as SupervisionSessionStatsRow[];
+  const supervisionRows = getDrizzleDb(sqlite)
+    .select({
+      cancel_requested_at: projectAcpSessionsTable.cancelRequestedAt,
+      completed_at: projectAcpSessionsTable.completedAt,
+      force_killed_at: projectAcpSessionsTable.forceKilledAt,
+      model: projectAcpSessionsTable.model,
+      provider: projectAcpSessionsTable.provider,
+      task_id: projectAcpSessionsTable.taskId,
+      timeout_scope: projectAcpSessionsTable.timeoutScope,
+    })
+    .from(projectAcpSessionsTable)
+    .where(combineFilters(sessionFilters))
+    .all() as SupervisionSessionStatsRow[];
 
   const supervisionByScope: Record<string, number> = {};
   const supervisionByProvider: Record<string, number> = {};

@@ -1,5 +1,8 @@
 import type { Database } from 'better-sqlite3';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { ProblemError } from '@orchestration/runtime-acp';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectTasksTable } from '../db/schema';
 import type { NotePayload } from '../schemas/note';
 import type { CreateTaskInput, TaskKind, TaskPayload } from '../schemas/task';
 import { findSpecNoteByScope, getNoteById } from './note-service';
@@ -225,18 +228,20 @@ function parseSpecTaskBlocks(content: string): ParsedSpecTaskBlock[] {
 }
 
 function listSpecNoteTaskRows(sqlite: Database, noteId: string) {
-  return sqlite
-    .prepare(
-      `
-        SELECT id
-        FROM project_tasks
-        WHERE source_type = 'spec_note'
-          AND source_event_id = ?
-          AND deleted_at IS NULL
-        ORDER BY source_entry_index ASC, created_at ASC
-      `,
+  return getDrizzleDb(sqlite)
+    .select({
+      id: projectTasksTable.id,
+    })
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.sourceType, 'spec_note'),
+        eq(projectTasksTable.sourceEventId, noteId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .all(noteId) as Array<{ id: string }>;
+    .orderBy(asc(projectTasksTable.sourceEntryIndex), asc(projectTasksTable.createdAt))
+    .all() as Array<{ id: string }>;
 }
 
 async function listSpecNoteTasks(sqlite: Database, noteId: string) {

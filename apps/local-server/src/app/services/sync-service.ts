@@ -1,8 +1,13 @@
 import type { Database } from 'better-sqlite3';
 import { ProblemError } from '@orchestration/runtime-acp';
-import { and, count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq, gt, isNull } from 'drizzle-orm';
 import { getDrizzleDb } from '../db/drizzle';
-import { syncConflictsTable, syncStateTable } from '../db/schema';
+import {
+  projectAgentsTable,
+  projectsTable,
+  syncConflictsTable,
+  syncStateTable,
+} from '../db/schema';
 import type {
   SyncConflictListPayload,
   SyncConflictPayload,
@@ -109,42 +114,44 @@ function ensureSyncState(sqlite: Database): SyncStateRow {
   };
 }
 
-function countUpdatedSince(
-  sqlite: Database,
-  table: string,
-  timestamp: string | null,
-  options?: {
-    deletedColumn?: string;
-    hasSoftDelete?: boolean;
-  },
-) {
-  const hasSoftDelete = options?.hasSoftDelete ?? true;
-  const deletedFilter = hasSoftDelete
-    ? `${options?.deletedColumn ?? 'deleted_at'} IS NULL AND `
-    : '';
-  const query = timestamp
-    ? `
-        SELECT COUNT(*) AS count
-        FROM ${table}
-        WHERE ${deletedFilter}updated_at > @timestamp
-      `
-    : `
-        SELECT COUNT(*) AS count
-        FROM ${table}
-        WHERE ${deletedFilter}1 = 1
-      `;
+function countUpdatedProjectsSince(sqlite: Database, timestamp: string | null) {
+  const row = getDrizzleDb(sqlite)
+    .select({ count: count() })
+    .from(projectsTable)
+    .where(
+      timestamp
+        ? and(isNull(projectsTable.deletedAt), gt(projectsTable.updatedAt, timestamp))
+        : isNull(projectsTable.deletedAt),
+    )
+    .get() as { count: number };
 
-  const row = sqlite
-    .prepare(query)
-    .get(timestamp ? { timestamp } : {}) as { count: number };
+  return row.count;
+}
+
+function countUpdatedProjectAgentsSince(
+  sqlite: Database,
+  timestamp: string | null,
+) {
+  const row = getDrizzleDb(sqlite)
+    .select({ count: count() })
+    .from(projectAgentsTable)
+    .where(
+      timestamp
+        ? and(
+            isNull(projectAgentsTable.deletedAt),
+            gt(projectAgentsTable.updatedAt, timestamp),
+          )
+        : isNull(projectAgentsTable.deletedAt),
+    )
+    .get() as { count: number };
 
   return row.count;
 }
 
 function countPendingChanges(sqlite: Database, lastSuccessfulSyncAt: string | null) {
   return (
-    countUpdatedSince(sqlite, 'projects', lastSuccessfulSyncAt) +
-    countUpdatedSince(sqlite, 'project_agents', lastSuccessfulSyncAt)
+    countUpdatedProjectsSince(sqlite, lastSuccessfulSyncAt) +
+    countUpdatedProjectAgentsSince(sqlite, lastSuccessfulSyncAt)
   );
 }
 

@@ -1,4 +1,7 @@
 import type { Database } from 'better-sqlite3';
+import { asc, desc, inArray } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectTracesTable } from '../db/schema';
 import type {
   KanbanCardMemoryPayload,
   KanbanCardTraceLinkPayload,
@@ -93,17 +96,17 @@ export function listTraceLinksForTask(
     return [];
   }
 
-  const placeholders = sessionIds.map(() => '?').join(', ');
-  const rows = sqlite
-    .prepare(
-      `
-        SELECT id, session_id, summary, created_at
-        FROM project_traces
-        WHERE session_id IN (${placeholders})
-        ORDER BY session_id ASC, created_at DESC
-      `,
-    )
-    .all(...sessionIds) as Array<{
+  const rows = getDrizzleDb(sqlite)
+    .select({
+      created_at: projectTracesTable.createdAt,
+      id: projectTracesTable.id,
+      session_id: projectTracesTable.sessionId,
+      summary: projectTracesTable.summary,
+    })
+    .from(projectTracesTable)
+    .where(inArray(projectTracesTable.sessionId, sessionIds))
+    .orderBy(asc(projectTracesTable.sessionId), desc(projectTracesTable.createdAt))
+    .all() as Array<{
       created_at: string;
       id: string;
       session_id: string;

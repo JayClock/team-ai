@@ -1,4 +1,7 @@
 import type { Database } from 'better-sqlite3';
+import { and, desc, eq, isNull } from 'drizzle-orm';
+import { getDrizzleDb } from '../db/drizzle';
+import { projectTasksTable } from '../db/schema';
 import type { TaskKind } from '../schemas/task';
 import { ensureDefaultKanbanBoard } from './kanban-board-service';
 import { createKanbanCard, moveKanbanCard } from './kanban-card-service';
@@ -25,24 +28,22 @@ function findTaskByExternalRef(
   sourceType: string,
   sourceEventId: string,
 ) {
-  return sqlite
-    .prepare(
-      `
-        SELECT id
-        FROM project_tasks
-        WHERE project_id = @projectId
-          AND source_type = @sourceType
-          AND source_event_id = @sourceEventId
-          AND deleted_at IS NULL
-        ORDER BY updated_at DESC, created_at DESC
-        LIMIT 1
-      `,
+  return getDrizzleDb(sqlite)
+    .select({
+      id: projectTasksTable.id,
+    })
+    .from(projectTasksTable)
+    .where(
+      and(
+        eq(projectTasksTable.projectId, projectId),
+        eq(projectTasksTable.sourceType, sourceType),
+        eq(projectTasksTable.sourceEventId, sourceEventId),
+        isNull(projectTasksTable.deletedAt),
+      ),
     )
-    .get({
-      projectId,
-      sourceEventId,
-      sourceType,
-    }) as { id: string } | undefined;
+    .orderBy(desc(projectTasksTable.updatedAt), desc(projectTasksTable.createdAt))
+    .limit(1)
+    .get() as { id: string } | undefined;
 }
 
 function mergeLabels(current: string[], next: string[]) {

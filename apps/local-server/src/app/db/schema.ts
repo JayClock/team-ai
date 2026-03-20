@@ -153,6 +153,7 @@ export const projectAcpSessionsTable = sqliteTable('project_acp_sessions', {
   actorId: text('actor_id').notNull(),
   parentSessionId: text('parent_session_id'),
   name: text('name'),
+  model: text('model'),
   provider: text('provider').notNull(),
   state: text('state').notNull(),
   runtimeSessionId: text('runtime_session_id'),
@@ -164,10 +165,13 @@ export const projectAcpSessionsTable = sqliteTable('project_acp_sessions', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   deletedAt: text('deleted_at'),
+  cancelRequestedAt: text('cancel_requested_at'),
   cwd: text('cwd'),
+  forceKilledAt: text('force_killed_at'),
   agentId: text('agent_id'),
   specialistId: text('specialist_id'),
   taskId: text('task_id'),
+  timeoutScope: text('timeout_scope'),
 });
 
 export const projectAcpSessionEventsTable = sqliteTable('project_acp_session_events', {
@@ -183,10 +187,52 @@ export const projectAcpSessionEventsTable = sqliteTable('project_acp_session_eve
 
 export const projectTasksTable = sqliteTable('project_tasks', {
   id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  parentTaskId: text('parent_task_id'),
+  kind: text('kind'),
   sourceType: text('source_type'),
   sourceEventId: text('source_event_id'),
   sourceEntryIndex: integer('source_entry_index'),
+  status: text('status').notNull(),
   createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const projectTracesTable = sqliteTable('project_traces', {
+  id: text('id').primaryKey(),
+  eventId: text('event_id').notNull(),
+  projectId: text('project_id').notNull(),
+  sessionId: text('session_id').notNull(),
+  provider: text('provider').notNull(),
+  model: text('model'),
+  eventType: text('event_type').notNull(),
+  sourceTraceId: text('source_trace_id'),
+  summary: text('summary').notNull(),
+  payloadJson: text('payload_json').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+export const projectKanbanBoardsTable = sqliteTable('project_kanban_boards', {
+  id: text('id').primaryKey(),
+  projectId: text('project_id').notNull(),
+  name: text('name').notNull(),
+  isDefault: integer('is_default', { mode: 'boolean' }).notNull(),
+  settingsJson: text('settings_json').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const projectKanbanColumnsTable = sqliteTable('project_kanban_columns', {
+  id: text('id').primaryKey(),
+  boardId: text('board_id').notNull(),
+  name: text('name').notNull(),
+  position: integer('position').notNull(),
+  stage: text('stage'),
+  automationJson: text('automation_json'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
   deletedAt: text('deleted_at'),
 });
 
@@ -226,6 +272,9 @@ export const sqliteSchema = {
   projectAcpSessions: projectAcpSessionsTable,
   projectAcpSessionEvents: projectAcpSessionEventsTable,
   projectTasks: projectTasksTable,
+  projectTraces: projectTracesTable,
+  projectKanbanBoards: projectKanbanBoardsTable,
+  projectKanbanColumns: projectKanbanColumnsTable,
   syncState: syncStateTable,
   syncConflicts: syncConflictsTable,
 };
